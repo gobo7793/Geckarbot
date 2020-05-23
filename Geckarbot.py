@@ -1,10 +1,13 @@
 import os
 import traceback
 import datetime
-import random
 import discord
+
 from dotenv import load_dotenv
 from discord.ext import commands
+
+from sportCommands import sportCommands
+from funCommands import funCommands
 
 load_dotenv()
 TOKEN = os.getenv("DISCORD_TOKEN")
@@ -16,7 +19,7 @@ bot = commands.Bot(command_prefix='!')
 @bot.event
 async def on_ready():
     guild = discord.utils.get(bot.guilds, name=SERVER_NAME)
-    print(f"{bot.user} is connected to the following guild:\n"
+    print(f"{bot.user} is connected to the following server:\n"
         f"{guild.name}(id: {guild.id})")
 
     members = "\n - ".join([member.name for member in guild.members])
@@ -45,27 +48,8 @@ async def on_command_error(ctx, error):
     if(debug_chan != None):
         await debug_chan.send(embed=embed)
 
-
-@bot.command(name="99", help="Responds with a random quote from Brooklyn 99")
-async def nine_nine(ctx):
-    brooklyn_99_quotes = [
-        "I\'m the human form of the 💯 emoji.",
-        "Bingpot!",
-        (
-            "Cool. Cool cool cool cool cool cool cool, "
-            "no doubt no doubt no doubt no doubt."
-        ),
-    ]
-
-    response = random.choice(brooklyn_99_quotes)
-    await ctx.send(response)
-
-@bot.command(name="roll_dice", help="Simulates rolling dice.")
-async def roll(ctx, number_of_dice: int, number_of_sides: int):
-    dice = [
-        str(random.choice(range(1, number_of_sides + 1)))
-        for _ in range(number_of_dice)
-    ]
-    await ctx.send(', '.join(dice))
+# Adding commands
+bot.add_cog(sportCommands())
+bot.add_cog(funCommands())
 
 bot.run(TOKEN)
