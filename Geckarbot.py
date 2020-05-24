@@ -16,6 +16,11 @@ DEBUG_CHAN_ID = os.getenv("DEBUG_CHAN_ID")
 
 bot = commands.Bot(command_prefix='!')
 
+async def write_debug_channel(message):
+    debug_chan = bot.get_channel(int(DEBUG_CHAN_ID))
+    if(debug_chan != None):
+        await debug_chan.send(message)
+
 @bot.event
 async def on_ready():
     guild = discord.utils.get(bot.guilds, name=SERVER_NAME)
@@ -24,6 +29,8 @@ async def on_ready():
 
     members = "\n - ".join([member.name for member in guild.members])
     print(f"Server Members:\n - {members}")
+
+    await write_debug_channel(f"Bot connected on {guild.name} with {len(guild.members)} users.")
     
 @bot.event
 async def on_error(event, *args, **kwargs):
@@ -47,6 +54,12 @@ async def on_command_error(ctx, error):
     debug_chan = bot.get_channel(int(DEBUG_CHAN_ID))
     if(debug_chan != None):
         await debug_chan.send(embed=embed)
+
+@bot.event
+async def on_member_join(member):
+    await member.create_dm()
+    await member.dm_channel.send(f"Hi {member.name}, Willkommen auf dem #storm-Discord-Server!\n"
+                   "Schreibe am besten einem @mod, um die entsprechenden Rechte zu bekommen.")
 
 # Adding commands
 bot.add_cog(sportCommands())
