@@ -3,8 +3,12 @@ import random
 import discord
 from discord.ext import commands
 
-class funCommands(commands.Cog):
+class funCommands(commands.Cog, name="Funny Commands"):
     """Funny commands without other category"""
+
+    def __init__(self, bot):
+        self.bot = bot
+        self._last_member = None
 
     @commands.command(name="roll_dice", brief="Simulates rolling dice.",
                      usage="<NumberOfDices> <NumberOfSides>")

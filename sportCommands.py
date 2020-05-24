@@ -1,8 +1,12 @@
 import discord
 from discord.ext import commands
 
-class sportCommands(commands.Cog):
+class sportCommands(commands.Cog, name="Sport Commands"):
     """Sport related commands"""
+
+    def __init__(self, bot):
+        self.bot = bot
+        self._last_member = None
 
     @commands.command(name="kicker", help="Returns frequently used links to kicker.de", pass_context=True)
     async def nine_nine(self, ctx):

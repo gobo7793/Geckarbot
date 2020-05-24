@@ -62,7 +62,7 @@ async def on_member_join(member):
                    "Schreibe am besten einem @mod, um die entsprechenden Rechte zu bekommen.")
 
 # Adding commands
-bot.add_cog(sportCommands())
-bot.add_cog(funCommands())
+bot.add_cog(sportCommands(bot))
+bot.add_cog(funCommands(bot))
 
 bot.run(TOKEN)
