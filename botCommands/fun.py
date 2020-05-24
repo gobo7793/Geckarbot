@@ -8,7 +8,6 @@ class funCommands(commands.Cog, name="Funny Commands"):
 
     def __init__(self, bot):
         self.bot = bot
-        self._last_member = None
 
     @commands.command(name="roll_dice", brief="Simulates rolling dice.",
                      usage="<NumberOfDices> <NumberOfSides>")

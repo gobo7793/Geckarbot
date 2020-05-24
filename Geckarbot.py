@@ -6,8 +6,10 @@ import discord
 from dotenv import load_dotenv
 from discord.ext import commands
 
-from sportCommands import sportCommands
-from funCommands import funCommands
+from botCommands.sport import sportCommands
+from botCommands.fun import funCommands
+from botCommands.mod import modCommands
+from botUtils.blacklist import blacklist
 
 load_dotenv()
 TOKEN = os.getenv("DISCORD_TOKEN")
@@ -15,6 +17,7 @@ SERVER_NAME = os.getenv("SERVER_NAME")
 DEBUG_CHAN_ID = os.getenv("DEBUG_CHAN_ID")
 
 bot = commands.Bot(command_prefix='!')
+blacklist = blacklist(bot)
 
 async def write_debug_channel(message):
     debug_chan = bot.get_channel(int(DEBUG_CHAN_ID))
@@ -61,8 +64,16 @@ async def on_member_join(member):
     await member.dm_channel.send(f"Hi {member.name}, Willkommen auf dem #storm-Discord-Server!\n"
                    "Schreibe am besten einem @mod, um die entsprechenden Rechte zu bekommen.")
 
+@bot.event
+async def on_message(message):
+    if blacklist.isUserOnBlacklist(message.author):
+        #await write_debug_channel(f"User {message.author.name} tried to use {message.content}.")
+        return
+    await bot.process_commands(message)
+
 # Adding commands
 bot.add_cog(sportCommands(bot))
 bot.add_cog(funCommands(bot))
+bot.add_cog(modCommands(bot, blacklist))
 
 bot.run(TOKEN)
