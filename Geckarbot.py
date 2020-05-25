@@ -47,16 +47,20 @@ async def on_error(event, *args, **kwargs):
 
 @bot.event
 async def on_command_error(ctx, error):
-    embed = discord.Embed(title=':x: Command Error', colour=0xe74c3c) #Red
-    embed.add_field(name='Error', value=error)
-    embed.add_field(name='Arguments', value=ctx.args)
-    embed.add_field(name='Command', value=ctx.command)
-    embed.add_field(name='Message', value=ctx.message)
-    embed.description = '```py\n%s\n```' % traceback.format_exc()
-    embed.timestamp = datetime.datetime.utcnow()
-    debug_chan = bot.get_channel(int(DEBUG_CHAN_ID))
-    if(debug_chan != None):
-        await debug_chan.send(embed=embed)
+    if isinstance(error, commands.errors.CheckFailure):
+        await ctx.send("You don't have the correct role for this command.")
+    else:
+        # error handling
+        embed = discord.Embed(title=':x: Command Error', colour=0xe74c3c) #Red
+        embed.add_field(name='Error', value=error)
+        embed.add_field(name='Arguments', value=ctx.args)
+        embed.add_field(name='Command', value=ctx.command)
+        embed.add_field(name='Message', value=ctx.message)
+        embed.description = '```py\n%s\n```' % traceback.format_exc()
+        embed.timestamp = datetime.datetime.utcnow()
+        debug_chan = bot.get_channel(int(DEBUG_CHAN_ID))
+        if(debug_chan != None):
+            await debug_chan.send(embed=embed)
 
 @bot.event
 async def on_member_join(member):

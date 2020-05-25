@@ -11,7 +11,7 @@ class modCommands(commands.Cog, name="Moderation Commands"):
         self.blacklist = blacklist
 
     @commands.group(name="blacklist", help="Manage the blacklist",
-                    description="Add, removes or list users in the bot blacklist. Users on the Blacklist can't use any features of the bot.")
+                    description="Add, removes or list users in the bot blacklist. Users on the blacklist can't use any features of the bot. Adding and removing users only permitted for mods.")
     async def blacklist(self, ctx):
         if ctx.invoked_subcommand is None:
             await ctx.send('Invalid blacklist command passed...')
@@ -25,6 +25,7 @@ class modCommands(commands.Cog, name="Moderation Commands"):
             await ctx.send(f"Users on Blacklist: {res}")
 
     @blacklist.command(name="add", help="Add an user to the blacklist", usage="<username>")
+    @commands.has_role("mod")
     async def blacklist_add(self, ctx, user:discord.Member):
         res = self.blacklist.addUserToBlacklist(user)
         if res:
@@ -33,6 +34,7 @@ class modCommands(commands.Cog, name="Moderation Commands"):
             await ctx.send(f"User {user.name} already on blacklist.")
 
     @blacklist.command(name="del", help="Remove an user from the blacklist", usage="<username>")
+    @commands.has_role("mod")
     async def blacklist_del(self, ctx, user:discord.Member):
         res = self.blacklist.delUserFromBlacklist(user)
         if res:
