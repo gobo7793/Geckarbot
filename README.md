@@ -10,8 +10,11 @@ A simple discord bot for the #storm server
 ### Current Features
 Management:
 - Blacklisting users (mod-only)
+
 Sport:
 - Get kicker.de Bundesliga table links
+
 Fun/Misc:
 - Roll a dice
+
 See full command list with `!help`
