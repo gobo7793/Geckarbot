@@ -47,8 +47,12 @@ async def on_error(event, *args, **kwargs):
 
 @bot.event
 async def on_command_error(ctx, error):
-    if isinstance(error, commands.errors.CheckFailure):
+    if isinstance(error, commands.errors.MissingRole) or isinstance(error, commands.errors.MissingAnyRole):
         await ctx.send("You don't have the correct role for this command.")
+    elif isinstance(error, commands.errors.NoPrivateMessage):
+        await ctx.send("Command can't be executed in private messages.")
+    elif isinstance(error, commands.errors.CheckFailure):
+        await ctx.send("Error while checking user rights to execute command.")
     else:
         # error handling
         embed = discord.Embed(title=':x: Command Error', colour=0xe74c3c) #Red
@@ -61,6 +65,7 @@ async def on_command_error(ctx, error):
         debug_chan = bot.get_channel(int(DEBUG_CHAN_ID))
         if(debug_chan != None):
             await debug_chan.send(embed=embed)
+        await ctx.send("Error while executing command.")
 
 @bot.event
 async def on_member_join(member):
