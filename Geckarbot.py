@@ -7,23 +7,22 @@ from pathlib import Path
 from dotenv import load_dotenv
 from discord.ext import commands
 
+from botUtils.blacklist import blacklist
+from botUtils import writeChannels
+
 from botCommands.sport import sportCommands
 from botCommands.fun import funCommands
 from botCommands.mod import modCommands
-from botUtils.blacklist import blacklist
+from botCommands.dsc import dscCommands
 
 load_dotenv()
 TOKEN = os.getenv("DISCORD_TOKEN")
 SERVER_NAME = os.getenv("SERVER_NAME")
-DEBUG_CHAN_ID = os.getenv("DEBUG_CHAN_ID")
+DEBUG_CHAN_ID = int(os.getenv("DEBUG_CHAN_ID"))
+DEBUG_MODE = os.getenv("DEBUG_MODE", False)
 
 bot = commands.Bot(command_prefix='!')
 blacklist = blacklist(bot)
-
-async def write_debug_channel(message):
-    debug_chan = bot.get_channel(int(DEBUG_CHAN_ID))
-    if(debug_chan != None):
-        await debug_chan.send(message)
 
 @bot.event
 async def on_ready():
@@ -34,7 +33,7 @@ async def on_ready():
     members = "\n - ".join([member.name for member in guild.members])
     print(f"Server Members:\n - {members}")
 
-    await write_debug_channel(f"Bot connected on {guild.name} with {len(guild.members)} users.")
+    await writeChannels.write_debug_channel(bot, f"Bot connected on {guild.name} with {len(guild.members)} users.")
     
 @bot.event
 async def on_error(event, *args, **kwargs):
@@ -42,7 +41,7 @@ async def on_error(event, *args, **kwargs):
     embed.add_field(name='Event', value=event)
     embed.description = '```py\n%s\n```' % traceback.format_exc()
     embed.timestamp = datetime.datetime.utcnow()
-    debug_chan = bot.get_channel(int(DEBUG_CHAN_ID))
+    debug_chan = bot.get_channel(DEBUG_CHAN_ID)
     if(debug_chan != None):
         await debug_chan.send(embed=embed)
 
@@ -54,6 +53,12 @@ async def on_command_error(ctx, error):
         await ctx.send("Command can't be executed in private messages.")
     elif isinstance(error, commands.errors.CheckFailure):
         await ctx.send("Error while checking user rights to execute command.")
+    elif isinstance(error, commands.errors.MissingRequiredArgument):
+        await ctx.send("Required argument missing.")
+    elif isinstance(error, commands.errors.TooManyArguments):
+        await ctx.send("Too many arguments given.")
+    elif isinstance(error, commands.errors.UserInputError):
+        await ctx.send("Wrong user input format.")
     else:
         # error handling
         embed = discord.Embed(title=':x: Command Error', colour=0xe74c3c) #Red
@@ -63,7 +68,7 @@ async def on_command_error(ctx, error):
         embed.add_field(name='Message', value=ctx.message)
         embed.description = '```py\n%s\n```' % traceback.format_exc()
         embed.timestamp = datetime.datetime.utcnow()
-        debug_chan = bot.get_channel(int(DEBUG_CHAN_ID))
+        debug_chan = bot.get_channel(DEBUG_CHAN_ID)
         if(debug_chan != None):
             await debug_chan.send(embed=embed)
         await ctx.send("Error while executing command.")
@@ -85,5 +90,6 @@ async def on_message(message):
 bot.add_cog(sportCommands(bot))
 bot.add_cog(funCommands(bot))
 bot.add_cog(modCommands(bot, blacklist))
+bot.add_cog(dscCommands(bot))
 
 bot.run(TOKEN)

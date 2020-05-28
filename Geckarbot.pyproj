@@ -22,6 +22,9 @@
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="botCommands\dsc.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="botUtils\blacklist.py">
       <SubType>Code</SubType>
     </Compile>
@@ -31,7 +34,10 @@
     <Compile Include="botCommands\fun.py">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="botUtils\botEnums.py">
+    <Compile Include="botUtils\enums.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="botUtils\writeChannels.py">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="botUtils\__init__.py">
