@@ -3,6 +3,7 @@ import traceback
 import datetime
 import discord
 
+from pathlib import Path
 from dotenv import load_dotenv
 from discord.ext import commands
 

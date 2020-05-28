@@ -31,7 +31,16 @@
     <Compile Include="botCommands\fun.py">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="botUtils\botEnums.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="botUtils\__init__.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="config\config.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="config\__init__.py">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Geckarbot.py" />
@@ -51,6 +60,7 @@
   <ItemGroup>
     <Folder Include="botCommands\" />
     <Folder Include="botUtils\" />
+    <Folder Include="config\" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />
   <!-- Uncomment the CoreCompile target to enable the Build command in
