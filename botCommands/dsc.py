@@ -1,4 +1,5 @@
 import os
+import json
 import discord
 
 from datetime import datetime
@@ -8,6 +9,12 @@ from config import config
 from botUtils import writeChannels
 from botUtils.enums import DscState
 
+# Workaround for working with !dsc set commands
+def _writeDscFile():
+    """Writes the dsc config file"""
+    with open(config.dsc_file, "w") as f:
+        json.dump(config.dsc, f)
+
 class dscCommands(commands.Cog, name="DSC Commands"):
     """Commands for DSC"""
 
@@ -15,15 +22,10 @@ class dscCommands(commands.Cog, name="DSC Commands"):
         self.bot = bot
         self._readDscFile()
 
-    def _writeDscFile(self):
-        """Writes the dsc config file"""
-        with open(config.dsc_file, "w") as f:
-            json.dump(config.dsc, f)
-
     def _readDscFile(self):
         """Reads the dsc config file"""
         if os.path.exists(config.dsc_file):
-            with open(config.dsc, "r") as f:
+            with open(config.dsc_file, "r") as f:
                 try:
                     config.dsc = json.load(f)
                 except:
@@ -42,15 +44,17 @@ class dscCommands(commands.Cog, name="DSC Commands"):
 
     @dsc.command(name="info", help="Get informations about current DSC")
     async def getDscInfo(self, ctx):
-        if config.dsc['state'] == DscState.Registration:
+        if config.dsc['state'] == "registration":
             await ctx.send(":clipboard: *Anmeldung offen!*\n"
                         f"Aktueller Ausrichter: {self.bot.get_user(config.dsc['hostId'])}\n"
                         f"Anmeldung: {config.dsc['contestdoc_link']}")
-        elif config.dsc['state'] == DscState.Voting:
+
+        elif config.dsc['state'] == "voting":
             await ctx.send(":incoming_envelope: *Votingphase läuft bis {config.dsc['voting_end'].strftime(%d.%m.%Y, %H:%M)} Uhr!*\n"
                         f"Votings an: {self.bot.get_user(config.dsc['hostId'])}\n"
                         f"Alle Songs: {config.dsc['contestdoc_link']}\n"
                         f"Youtube-Playlist: {config.dsc['yt_playlist_link']}")
+
         else:
             await ctx.send("Configuration error. Please reset dsc configuration.")
             if not config.dsc['hostId'] or not config.dsc['yt_playlist_link']:
@@ -68,28 +72,30 @@ class dscCommands(commands.Cog, name="DSC Commands"):
             print("dsc set")
             await ctx.send("Usage: !dsc set <hoster|state|votingend|yt>")
 
+    # Why is this working only without self?!?!?!
     @setDscInfo.command(name="hoster", help="Sets the current DSC hoster", usage="<user>")
-    async def setDscHoster(self, ctx, user:discord.Member):
+    async def setDscHoster(ctx, user:discord.Member):
         config.dsc['hostId'] = user.id
+        _writeDscFile()
         await ctx.send("New hoster set.")
 
     @setDscInfo.command(name="state", help="Sets the current DSC state (Voting/Registration)", usage="<voting|registration>")
-    async def setDscHoster(self, ctx, state):
-        if state == "voting":
+    async def setDscHoster(ctx, state:str):
+        if state.lower() == "voting":
             config.dsc['state'] = DscState.Voting
             await ctx.send("Voting phase set.")
-        elif state == "registration":
+        elif state.lower() == "registration":
             config.dsc['state'] = DscState.Registration
             await ctx.send("Registration phase set.")
         else:
             await ctx.send("Invalid DSC phase.")
 
     @setDscInfo.command(name="yt", help="Sets the Youtube playlist link", usage="<link>")
-    async def setDscHoster(self, ctx, link):
+    async def setDscHoster(ctx, link):
         config.dsc['yt_playlist_link'] = link
         await ctx.send("New Youtube playlist link set.")
 
     @setDscInfo.command(name="votingend", help="Sets the voting end date", usage="DD.MM.JJJJ HH:MM")
-    async def setDscHoster(self, ctx, dateStr):
-        config.dsc['voting_end'] = datetime.strptime(dateStr,"%d.%m.%Y, %H:%M")
+    async def setDscHoster(ctx, *, dateStr):
+        config.dsc['voting_end'] = datetime.strptime(dateStr,"%d.%m.%Y %H:%M")
         await ctx.send("New voting end date set.")
