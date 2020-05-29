@@ -28,3 +28,7 @@ SERVER_NAME= # The name of the connected server
 DEBUG_CHAN_ID= # Channel ID for channel for debug output
 DEBUG_MODE= # If true, most debug output (like full exception stack) will print on console
 ```
+Required pip packages:
+- discord.py 
+- dateutils
+- python-dotenv
