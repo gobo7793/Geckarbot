@@ -1,7 +1,8 @@
 # General (default) config file
 
-from dotenv import load_dotenv
+import os
 import datetime
+from dotenv import load_dotenv
 from botUtils import enums
 
 
