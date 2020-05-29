@@ -1,7 +1,17 @@
 # General (default) config file
 
+from dotenv import load_dotenv
 import datetime
 from botUtils import enums
+
+
+# Reading .env server data
+load_dotenv()
+TOKEN = os.getenv("DISCORD_TOKEN")
+SERVER_NAME = os.getenv("SERVER_NAME")
+DEBUG_MODE = os.getenv("DEBUG_MODE", False)
+DEBUG_CHAN_ID = int(os.getenv("DEBUG_CHAN_ID"))
+DSC_CHAN_ID = int(os.getenv("DSC_CHAN_ID"))
 
 # Blacklisting
 blacklist_file = "config/blacklist.json"
@@ -14,7 +24,7 @@ dsc = {
     "contestdoc_link" : "https://docs.google.com/spreadsheets/d/1HH42s5DX4FbuEeJPdm8l1TK70o2_EKADNOLkhu5qRa8/edit#gid=0",
     "hostId" : None,
     "state" : enums.DscState.NA,
-    "yt_playlist_link" : "123",
+    "yt_playlist_link" : None,
     "state_end" : datetime.datetime.now(),
     "channelId" : None
 }

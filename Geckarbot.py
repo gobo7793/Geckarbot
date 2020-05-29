@@ -4,9 +4,9 @@ import datetime
 import discord
 
 from pathlib import Path
-from dotenv import load_dotenv
 from discord.ext import commands
 
+from config import config
 from botUtils.blacklist import blacklist
 import botUtils
 
@@ -15,19 +15,13 @@ from botCommands.fun import funCommands
 from botCommands.mod import modCommands
 from botCommands.dsc import dscCommands
 
-load_dotenv()
-TOKEN = os.getenv("DISCORD_TOKEN")
-SERVER_NAME = os.getenv("SERVER_NAME")
-DEBUG_CHAN_ID = int(os.getenv("DEBUG_CHAN_ID"))
-DEBUG_MODE = os.getenv("DEBUG_MODE", False)
-
 bot = commands.Bot(command_prefix='!')
 blacklist = blacklist(bot)
 
 @bot.event
 async def on_ready():
     """Print basic info that bot is ready"""
-    guild = discord.utils.get(bot.guilds, name=SERVER_NAME)
+    guild = discord.utils.get(bot.guilds, name=config.SERVER_NAME)
     print(f"{bot.user} is connected to the following server:\n"
         f"{guild.name}(id: {guild.id})")
 
@@ -36,7 +30,7 @@ async def on_ready():
 
     await botUtils.write_debug_channel(bot, f"Bot connected on {guild.name} with {len(guild.members)} users.")
     
-if not DEBUG_MODE:
+if not config.DEBUG_MODE:
     @bot.event
     async def on_error(event, *args, **kwargs):
         """On bot errors print error state in debug channel"""
@@ -44,7 +38,7 @@ if not DEBUG_MODE:
         embed.add_field(name='Event', value=event)
         embed.description = '```py\n%s\n```' % traceback.format_exc()
         embed.timestamp = datetime.datetime.utcnow()
-        debug_chan = bot.get_channel(DEBUG_CHAN_ID)
+        debug_chan = bot.get_channel(config.DEBUG_CHAN_ID)
         if(debug_chan != None):
             await debug_chan.send(embed=embed)
 
@@ -74,7 +68,7 @@ if not DEBUG_MODE:
             embed.add_field(name='Message', value=ctx.message)
             embed.description = '```py\n%s\n```' % traceback.format_exc()
             embed.timestamp = datetime.datetime.utcnow()
-            debug_chan = bot.get_channel(DEBUG_CHAN_ID)
+            debug_chan = bot.get_channel(config.DEBUG_CHAN_ID)
             if(debug_chan != None):
                 await debug_chan.send(embed=embed)
             await ctx.send("Error while executing command.")
@@ -99,4 +93,4 @@ bot.add_cog(funCommands(bot))
 bot.add_cog(modCommands(bot, blacklist))
 bot.add_cog(dscCommands(bot))
 
-bot.run(TOKEN)
+bot.run(config.TOKEN)
