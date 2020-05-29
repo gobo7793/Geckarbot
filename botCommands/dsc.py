@@ -37,17 +37,20 @@ class dscCommands(commands.Cog, name="DSC Commands"):
     @commands.group(name="dsc", help="Get and manage informations about current DSC",
                     description="Get the informations about the current dsc or manage it. Manage DSC informations is only permitted for songmasters.")
     async def dsc(self, ctx):
+        """Basic DSC cmd, if no subcmd given, use info"""
         if ctx.invoked_subcommand is None:
             await self.getInfo(ctx)
 
     @dsc.command(name="rules", help="Get the link to the DSC rules")
     async def getRules(self, ctx):
+        """Returns the DSC rules"""
         await ctx.send(config.dsc['rule_link'])
 
     @dsc.command(name="info", help="Get informations about current DSC")
     async def getInfo(self, ctx):
+        """Returns basic infos about next/current DSC"""
         if config.dsc['state'] == DscState.Registration:
-            await ctx.send(":clipboard: **Anmeldung offen!**\n"
+            await ctx.send(f":clipboard: **Anmeldung offen bis {config.dsc['voting_end'].strftime('%d.%m.%Y')}!**\n"
                         f"Aktueller Ausrichter: {self.bot.get_user(config.dsc['hostId']).name}\n"
                         f"Anmeldung: {config.dsc['contestdoc_link']}")
 
@@ -68,20 +71,25 @@ class dscCommands(commands.Cog, name="DSC Commands"):
                         f"YT Playlist: {config.dsc['yt_playlist_link']}\n"
                         f"Voting end: {config.dsc['voting_end']}")
 
-    @dsc.group(name="set", help="Set data about current DSC", usage="<hoster|state|votingend|yt>", pass_context=True)
+    @dsc.group(name="set", help="Set data about current/next DSC", usage="<hoster|state|stateend|yt>")
+    @commands.has_any_role("mod", "songmaster", "botmaster")
     async def setInfo(self, ctx):
+        """Basic set subcommand, does nothing"""
         if ctx.invoked_subcommand is None:
-            await ctx.send("Usage: !dsc set <host|state|yt|votingend>")
+            await ctx.send("Usage: !dsc set <host|state|yt|stateend>")
 
-    # Why is this working only without self?!?!?!
-    @setInfo.command(name="host", help="Sets the current DSC hoster", usage="<user>")
+    @setInfo.command(name="host", help="Sets the current/next DSC hoster", usage="<user>")
+    @commands.has_any_role("mod", "songmaster", "botmaster")
     async def setHost(self, ctx, user:discord.Member):
+        """Sets the current/next DSC host"""
         config.dsc['hostId'] = user.id
         self._writeDscFile()
         await ctx.send("New hoster set.")
 
     @setInfo.command(name="state", help="Sets the current DSC state (Voting/Registration)", usage="<voting|registration>")
-    async def setState(self, ctx, state:str):
+    @commands.has_any_role("mod", "songmaster", "botmaster")
+    async def setState(self, ctx, state):
+        """Sets the current DSC state (registration/voting)"""
         if state.lower() == "voting":
             config.dsc['state'] = DscState.Voting
             await ctx.send("Voting phase set.")
@@ -93,13 +101,20 @@ class dscCommands(commands.Cog, name="DSC Commands"):
         self._writeDscFile()
 
     @setInfo.command(name="yt", help="Sets the Youtube playlist link", usage="<link>")
+    @commands.has_any_role("mod", "songmaster", "botmaster")
     async def setYtLink(self, ctx, link):
+        """Sets the youtube playlist link"""
         config.dsc['yt_playlist_link'] = link
         self._writeDscFile()
         await ctx.send("New Youtube playlist link set.")
 
-    @setInfo.command(name="votingend", help="Sets the voting end date", usage="DD.MM.JJJJ HH:MM")
-    async def setVotingEnd(self, ctx, *, dateStr):
+    @setInfo.command(name="stateend", help="Sets the registration/voting end date", usage="DD.MM.JJJJ[ HH:MM]",
+                     description="Sets the end date and time for registration and voting phase. If no time is given, 23:59 will be used.")
+    @commands.has_any_role("mod", "songmaster", "botmaster")
+    async def setStateEnd(self, ctx, dateStr, timeStr=None):
+        """Sets the end date (and time) of the current DSC state"""
+        if not timeStr:
+            dateStr += " 23:59"
         config.dsc['voting_end'] = datetime.strptime(dateStr,"%d.%m.%Y %H:%M")
         self._writeDscFile()
-        await ctx.send("New voting end date set.")
+        await ctx.send("New state end date set.")
