@@ -52,7 +52,7 @@ class dscCommands(commands.Cog, name="DSC Commands"):
     @dsc.command(name="rules", help="Get the link to the DSC rules")
     async def getRules(self, ctx):
         """Returns the DSC rules"""
-        await ctx.send(config.dsc['rule_link'])
+        await ctx.send(f"<{config.dsc['rule_link']}>")
 
     @dsc.command(name="info", help="Get informations about current DSC")
     async def getInfo(self, ctx):
@@ -60,13 +60,13 @@ class dscCommands(commands.Cog, name="DSC Commands"):
         if config.dsc['state'] == DscState.Registration:
             await ctx.send(f":clipboard: **Anmeldung offen bis {config.dsc['state_end'].strftime('%d.%m.%Y')}!**\n"
                         f"Aktueller Ausrichter: {self.bot.get_user(config.dsc['hostId']).display_name}\n"
-                        f"Anmeldung: {config.dsc['contestdoc_link']}")
+                        f"Anmeldung: <{config.dsc['contestdoc_link']}>")
 
         elif config.dsc['state'] == DscState.Voting:
             await ctx.send(f":incoming_envelope: **Votingphase läuft bis {config.dsc['state_end'].strftime('%d.%m.%Y, %H:%M')} Uhr!**\n"
                         f"Votings an: {self.bot.get_user(config.dsc['hostId']).display_name}\n"
-                        f"Alle Songs: {config.dsc['contestdoc_link']}\n"
-                        f"Youtube-Playlist: {config.dsc['yt_playlist_link']}")
+                        f"Alle Songs: <{config.dsc['contestdoc_link']}>\n"
+                        f"Youtube-Playlist: <{config.dsc['yt_playlist_link']}>")
 
         else:
             await ctx.send("Configuration error. Please reset dsc configuration.")
@@ -76,7 +76,7 @@ class dscCommands(commands.Cog, name="DSC Commands"):
                 await botUtils.write_debug_channel(self.bot, "Configuration error in DSC config detected. Current configuration:\n"
                         f"Hoster Id: {config.dsc['hostId']}, Username: {self.bot.get_user(config.dsc['hostId']).display_name}\n"
                         f"State: {config.dsc['state']}\n"
-                        f"YT Playlist: {config.dsc['yt_playlist_link']}\n"
+                        f"YT Playlist: <{config.dsc['yt_playlist_link']}>\n"
                         f"Voting end: {config.dsc['state_end']}")
 
     @dsc.group(name="set", help="Set data about current/next DSC", usage="<hoster|state|stateend|yt>")
