@@ -32,3 +32,7 @@ Required pip packages:
 - discord.py 
 - dateutils
 - python-dotenv
+
+To start the bot: `python3 Geckarbot.py`
+
+Note: Own discord testserver and bot token required!
