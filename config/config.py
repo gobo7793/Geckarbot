@@ -15,5 +15,5 @@ dsc = {
     "hostId" : "",
     "state" : enums.DscState.NA,
     "yt_playlist_link" : "",
-    "voting_end" : datetime.datetime.now()
+    "state_end" : datetime.datetime.now()
 }

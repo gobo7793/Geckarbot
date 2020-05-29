@@ -26,6 +26,7 @@ blacklist = blacklist(bot)
 
 @bot.event
 async def on_ready():
+    """Print basic info that bot is ready"""
     guild = discord.utils.get(bot.guilds, name=SERVER_NAME)
     print(f"{bot.user} is connected to the following server:\n"
         f"{guild.name}(id: {guild.id})")
@@ -38,6 +39,7 @@ async def on_ready():
 if not DEBUG_MODE:
     @bot.event
     async def on_error(event, *args, **kwargs):
+        """On bot errors print error state in debug channel"""
         embed = discord.Embed(title=':x: Event Error', colour=0xe74c3c) #Red
         embed.add_field(name='Event', value=event)
         embed.description = '```py\n%s\n```' % traceback.format_exc()
@@ -48,6 +50,7 @@ if not DEBUG_MODE:
 
     @bot.event
     async def on_command_error(ctx, error):
+        """Error handling for bot commands"""
         if isinstance(error, commands.errors.MissingRole) or isinstance(error, commands.errors.MissingAnyRole):
             await ctx.send("You don't have the correct role for this command.")
         elif isinstance(error, commands.errors.NoPrivateMessage):
@@ -76,18 +79,20 @@ if not DEBUG_MODE:
 
 @bot.event
 async def on_member_join(member):
+    """Write new users a short dm"""
     await member.create_dm()
     await member.dm_channel.send(f"Hi {member.name}, Willkommen auf dem #storm-Discord-Server!\n"
                    "Schreibe am besten einem @mod, um die entsprechenden Rechte zu bekommen.")
 
 @bot.event
 async def on_message(message):
+    """Basic message and blacklisting handling"""
     if blacklist.isUserOnBlacklist(message.author):
         #await write_debug_channel(f"User {message.author.name} tried to use {message.content}.")
         return
     await bot.process_commands(message)
 
-# Adding commands
+# Adding command cogs
 bot.add_cog(sportCommands(bot))
 bot.add_cog(funCommands(bot))
 bot.add_cog(modCommands(bot, blacklist))

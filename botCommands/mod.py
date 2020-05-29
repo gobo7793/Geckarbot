@@ -18,6 +18,7 @@ class modCommands(commands.Cog, name="Moderation Commands"):
 
     @blacklist.command(name="list", help="Lists all users in the blacklist")
     async def blacklist_list(self, ctx):
+        """Returns the current blacklist user list"""
         res = self.blacklist.getBlacklist()
         if not res:
             await ctx.send("Blacklist is empty.")
@@ -27,6 +28,7 @@ class modCommands(commands.Cog, name="Moderation Commands"):
     @blacklist.command(name="add", help="Add an user to the blacklist", usage="<user>")
     @commands.has_any_role("mod", "botmaster")
     async def blacklist_add(self, ctx, user:discord.Member):
+        """Adds the given user to the blacklist"""
         res = self.blacklist.addUserToBlacklist(user)
         if res:
             await ctx.send(f"User {user.name} added to blacklist.")
@@ -36,6 +38,7 @@ class modCommands(commands.Cog, name="Moderation Commands"):
     @blacklist.command(name="del", help="Remove an user from the blacklist", usage="<user>")
     @commands.has_any_role("mod", "botmaster")
     async def blacklist_del(self, ctx, user:discord.Member):
+        """Removes the given user from blacklist"""
         res = self.blacklist.delUserFromBlacklist(user)
         if res:
             await ctx.send(f"User {user.name} removed from blacklist.")
