@@ -25,14 +25,22 @@ class dscCommands(commands.Cog, name="DSC Commands"):
         if os.path.exists(config.dsc_file):
             with open(config.dsc_file, "r") as f:
                 try:
-                    config.dsc = json.load(f, object_hook=jsonUtils.decoder_obj_hook)
+                    jsondata = json.load(f, object_hook=jsonUtils.decoder_obj_hook)
+
+                    config.dsc['rule_link'] = jsondata.get('rule_link', config.dsc['rule_link'])
+                    config.dsc['contestdoc_link'] = jsondata.get('contestdoc_link', config.dsc['contestdoc_link'])
+                    config.dsc['hostId'] = jsondata.get('hostId', config.dsc['hostId'])
+                    config.dsc['state'] = jsondata.get('state', config.dsc['state'])
+                    config.dsc['yt_playlist_link'] = jsondata.get('yt_playlist_link', config.dsc['yt_playlist_link'])
+                    config.dsc['state_end'] = jsondata.get('state_end', config.dsc['state_end'])
+                    config.dsc['channelId'] = jsondata.get('channelId', config.dsc['channelId'])
                 except:
                     pass
 
     def _writeDscFile(self):
         """Writes the dsc config file"""
         with open(config.dsc_file, "w") as f:
-            json.dump(config.dsc, f, cls=jsonUtils.Encoder)
+            json.dump(config.dsc, f, cls=jsonUtils.Encoder, indent=4)
 
     @commands.group(name="dsc", help="Get and manage informations about current DSC",
                     description="Get the informations about the current dsc or manage it. Manage DSC informations is only permitted for songmasters.")
@@ -50,13 +58,13 @@ class dscCommands(commands.Cog, name="DSC Commands"):
     async def getInfo(self, ctx):
         """Returns basic infos about next/current DSC"""
         if config.dsc['state'] == DscState.Registration:
-            await ctx.send(f":clipboard: **Anmeldung offen bis {config.dsc['voting_end'].strftime('%d.%m.%Y')}!**\n"
-                        f"Aktueller Ausrichter: {self.bot.get_user(config.dsc['hostId']).nick}\n"
+            await ctx.send(f":clipboard: **Anmeldung offen bis {config.dsc['state_end'].strftime('%d.%m.%Y')}!**\n"
+                        f"Aktueller Ausrichter: {self.bot.get_user(config.dsc['hostId']).display_name}\n"
                         f"Anmeldung: {config.dsc['contestdoc_link']}")
 
         elif config.dsc['state'] == DscState.Voting:
-            await ctx.send(f":incoming_envelope: **Votingphase läuft bis {config.dsc['voting_end'].strftime('%d.%m.%Y, %H:%M')} Uhr!**\n"
-                        f"Votings an: {self.bot.get_user(config.dsc['hostId']).nick}\n"
+            await ctx.send(f":incoming_envelope: **Votingphase läuft bis {config.dsc['state_end'].strftime('%d.%m.%Y, %H:%M')} Uhr!**\n"
+                        f"Votings an: {self.bot.get_user(config.dsc['hostId']).display_name}\n"
                         f"Alle Songs: {config.dsc['contestdoc_link']}\n"
                         f"Youtube-Playlist: {config.dsc['yt_playlist_link']}")
 
@@ -66,10 +74,10 @@ class dscCommands(commands.Cog, name="DSC Commands"):
                 await botUtils.write_debug_channel(self.bot, "DSC config is empty, please reset.")
             else:
                 await botUtils.write_debug_channel(self.bot, "Configuration error in DSC config detected. Current configuration:\n"
-                        f"Hoster Id: {config.dsc['hostId']}, Username: {self.bot.get_user(config.dsc['hostId']).nick}\n"
+                        f"Hoster Id: {config.dsc['hostId']}, Username: {self.bot.get_user(config.dsc['hostId']).display_name}\n"
                         f"State: {config.dsc['state']}\n"
                         f"YT Playlist: {config.dsc['yt_playlist_link']}\n"
-                        f"Voting end: {config.dsc['voting_end']}")
+                        f"Voting end: {config.dsc['state_end']}")
 
     @dsc.group(name="set", help="Set data about current/next DSC", usage="<hoster|state|stateend|yt>")
     @commands.has_any_role("mod", "songmaster", "botmaster")

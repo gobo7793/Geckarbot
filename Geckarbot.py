@@ -83,7 +83,7 @@ if not DEBUG_MODE:
 async def on_member_join(member):
     """Write new users a short dm"""
     await member.create_dm()
-    await member.dm_channel.send(f"Hi {member.name}, Willkommen auf dem #storm-Discord-Server!\n"
+    await member.dm_channel.send(f"Hi {member.display_name}, Willkommen auf dem #storm-Discord-Server!\n"
                    "Schreibe am besten einem @mod, um die entsprechenden Rechte zu bekommen.")
 
 @bot.event

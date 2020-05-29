@@ -1,4 +1,4 @@
-# General config file
+# General (default) config file
 
 import datetime
 from botUtils import enums
@@ -12,8 +12,9 @@ dsc_file = "config/dsc.json"
 dsc = {
     "rule_link" : "https://docs.google.com/document/d/1xvkIPgLfFvm4CLwbCoUa8WZ1Fa-Z_ELPAtgHaSpEEbg/edit",
     "contestdoc_link" : "https://docs.google.com/spreadsheets/d/1HH42s5DX4FbuEeJPdm8l1TK70o2_EKADNOLkhu5qRa8/edit#gid=0",
-    "hostId" : "",
+    "hostId" : None,
     "state" : enums.DscState.NA,
-    "yt_playlist_link" : "",
-    "state_end" : datetime.datetime.now()
+    "yt_playlist_link" : "123",
+    "state_end" : datetime.datetime.now(),
+    "channelId" : None
 }
