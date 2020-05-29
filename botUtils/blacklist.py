@@ -49,11 +49,11 @@ class blacklist(object):
 
     def isUserOnBlacklist(self, user:discord.Member):
         """Returns if user is on bot blacklist"""
-        return isUserOnBlacklist(user.id)
+        return self.isUserIDOnBlacklist(user.id)
 
-    def isUserOnBlacklist(self, userID:int):
+    def isUserIDOnBlacklist(self, userID:int):
         """Returns if user id is on bot blacklist"""
         if userID in config.blacklist:
             return True
         else:
-            return False;
+            return False
