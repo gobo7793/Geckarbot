@@ -10,8 +10,8 @@ class funCommands(commands.Cog, name="Funny Commands"):
         self.bot = bot
 
     @commands.command(name="roll_dice", brief="Simulates rolling dice.",
-                     usage="<NumberOfDices> <NumberOfSides>")
-    async def roll(self, ctx, number_of_dice: int, number_of_sides: int):
+                     usage="[NumberOfSides] [NumberOfDices]")
+    async def roll(self, ctx, number_of_sides:int=6, number_of_dice:int=1):
         """Rolls number_of_dice dices with number_of_sides sides and returns the result"""
         dice = [
             str(random.choice(range(1, number_of_sides + 1)))
