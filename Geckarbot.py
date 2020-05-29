@@ -28,7 +28,7 @@ async def on_ready():
     members = "\n - ".join([member.name for member in guild.members])
     print(f"Server Members:\n - {members}")
 
-    await botUtils.write_debug_channel(bot, f"Bot connected on {guild.name} with {len(guild.members)} users.")
+    await botUtils.write_debug_channel(bot, f"Geckarbot v{config.VERSION} connected on {guild.name} with {len(guild.members)} users.")
     
 if not config.DEBUG_MODE:
     @bot.event

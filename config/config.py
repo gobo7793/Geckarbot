@@ -5,6 +5,8 @@ import datetime
 from dotenv import load_dotenv
 from botUtils import enums
 
+VERSION="0.1.1"
+
 
 # Reading .env server data
 load_dotenv()
