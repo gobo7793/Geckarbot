@@ -51,7 +51,9 @@ if not DEBUG_MODE:
     @bot.event
     async def on_command_error(ctx, error):
         """Error handling for bot commands"""
-        if isinstance(error, commands.errors.MissingRole) or isinstance(error, commands.errors.MissingAnyRole):
+        if isinstance(error, commands.errors.CommandNotFound):
+            return
+        elif isinstance(error, commands.errors.MissingRole) or isinstance(error, commands.errors.MissingAnyRole):
             await ctx.send("You don't have the correct role for this command.")
         elif isinstance(error, commands.errors.NoPrivateMessage):
             await ctx.send("Command can't be executed in private messages.")
@@ -88,7 +90,6 @@ async def on_member_join(member):
 async def on_message(message):
     """Basic message and blacklisting handling"""
     if blacklist.isUserOnBlacklist(message.author):
-        #await write_debug_channel(f"User {message.author.name} tried to use {message.content}.")
         return
     await bot.process_commands(message)
 
