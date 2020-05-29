@@ -47,12 +47,16 @@ if not config.DEBUG_MODE:
         """Error handling for bot commands"""
         if isinstance(error, commands.errors.CommandNotFound):
             return
+
+        # Check Failures
         elif isinstance(error, commands.errors.MissingRole) or isinstance(error, commands.errors.MissingAnyRole):
             await ctx.send("You don't have the correct role for this command.")
         elif isinstance(error, commands.errors.NoPrivateMessage):
             await ctx.send("Command can't be executed in private messages.")
         elif isinstance(error, commands.errors.CheckFailure):
-            await ctx.send("Error while checking user rights to execute command.")
+            return
+
+        # User input errors
         elif isinstance(error, commands.errors.MissingRequiredArgument):
             await ctx.send("Required argument missing.")
         elif isinstance(error, commands.errors.TooManyArguments):
