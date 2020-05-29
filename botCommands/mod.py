@@ -1,7 +1,7 @@
 import discord
 from discord.ext import commands
 
-from utils.blacklist import blacklist
+from botUtils.blacklist import blacklist
 
 class modCommands(commands.Cog, name="Moderation Commands"):
     """Commands for moderation"""

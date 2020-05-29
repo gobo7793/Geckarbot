@@ -1,7 +1,7 @@
 # General config file
 
 import datetime
-from utils import enums
+from botUtils import enums
 
 # Blacklisting
 blacklist_file = "config/blacklist.json"
