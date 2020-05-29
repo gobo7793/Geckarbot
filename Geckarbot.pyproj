@@ -25,7 +25,7 @@
     <Compile Include="botCommands\dsc.py">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="botUtils\blacklist.py">
+    <Compile Include="utils\blacklist.py">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="botCommands\__init__.py">
@@ -34,13 +34,13 @@
     <Compile Include="botCommands\fun.py">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="botUtils\enums.py">
+    <Compile Include="utils\enums.py">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="botUtils\writeChannels.py">
+    <Compile Include="utils\writeChannels.py">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="botUtils\__init__.py">
+    <Compile Include="utils\__init__.py">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="config\config.py">
@@ -65,7 +65,7 @@
   </ItemGroup>
   <ItemGroup>
     <Folder Include="botCommands\" />
-    <Folder Include="botUtils\" />
+    <Folder Include="utils\" />
     <Folder Include="config\" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />
