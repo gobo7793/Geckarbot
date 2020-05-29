@@ -28,6 +28,5 @@ dsc = {
     "hostId" : None,
     "state" : enums.DscState.NA,
     "yt_playlist_link" : None,
-    "state_end" : datetime.datetime.now(),
-    "channelId" : None
+    "state_end" : datetime.datetime.now()
 }

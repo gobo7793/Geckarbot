@@ -10,8 +10,6 @@ from config import config
 from botUtils import jsonUtils
 from botUtils.enums import DscState
 
-# Workaround for working with !dsc set commands
-
 
 class dscCommands(commands.Cog, name="DSC Commands"):
     """Commands for DSC"""
@@ -33,7 +31,6 @@ class dscCommands(commands.Cog, name="DSC Commands"):
                     config.dsc['state'] = jsondata.get('state', config.dsc['state'])
                     config.dsc['yt_playlist_link'] = jsondata.get('yt_playlist_link', config.dsc['yt_playlist_link'])
                     config.dsc['state_end'] = jsondata.get('state_end', config.dsc['state_end'])
-                    config.dsc['channelId'] = jsondata.get('channelId', config.dsc['channelId'])
                 except:
                     pass
 
@@ -43,9 +40,9 @@ class dscCommands(commands.Cog, name="DSC Commands"):
             json.dump(config.dsc, f, cls=jsonUtils.Encoder, indent=4)
 
     @commands.group(name="dsc", help="Get and manage informations about current DSC",
-                    description="Get the informations about the current dsc or manage it. Manage DSC informations is only permitted for songmasters.")
+                    description="Get the informations about the current dsc or manage it. Command only works in music channel. Manage DSC informations is only permitted for songmasters.")
+    @botUtils.in_channel(config.DSC_CHAN_ID)
     async def dsc(self, ctx):
-        """Basic DSC cmd, if no subcmd given, use info"""
         if ctx.invoked_subcommand is None:
             await self.getInfo(ctx)
 
