@@ -7,8 +7,8 @@ from pathlib import Path
 from dotenv import load_dotenv
 from discord.ext import commands
 
-from botUtils.blacklist import blacklist
-from botUtils import writeChannels
+from utils.blacklist import blacklist
+import utils
 
 from botCommands.sport import sportCommands
 from botCommands.fun import funCommands
@@ -33,7 +33,7 @@ async def on_ready():
     members = "\n - ".join([member.name for member in guild.members])
     print(f"Server Members:\n - {members}")
 
-    await writeChannels.write_debug_channel(bot, f"Bot connected on {guild.name} with {len(guild.members)} users.")
+    await utils.write_debug_channel(bot, f"Bot connected on {guild.name} with {len(guild.members)} users.")
     
 @bot.event
 async def on_error(event, *args, **kwargs):

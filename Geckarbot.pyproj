@@ -37,7 +37,7 @@
     <Compile Include="utils\enums.py">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="utils\writeChannels.py">
+    <Compile Include="utils\utils.py">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="utils\__init__.py">
