@@ -16,5 +16,15 @@ Sport:
 
 Fun/Misc:
 - Roll a dice
+- Get and set info for current DSC (Host, State, YT link, state end date)
 
 See full command list with `!help`
+
+### For devs:
+The bot requires a `.env` file in base directory with the environment data:
+```
+DISCORD_TOKEN= # Discord bot token to connect
+SERVER_NAME= # The name of the connected server
+DEBUG_CHAN_ID= # Channel ID for channel for debug output
+DEBUG_MODE= # If true, most debug output (like full exception stack) will print on console
+```
