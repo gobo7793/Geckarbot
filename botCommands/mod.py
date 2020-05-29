@@ -31,9 +31,9 @@ class modCommands(commands.Cog, name="Moderation Commands"):
         """Adds the given user to the blacklist"""
         res = self.blacklist.addUserToBlacklist(user)
         if res:
-            await ctx.send(f"User {user.name} added to blacklist.")
+            await ctx.send(f"User {user.nick} added to blacklist.")
         else:
-            await ctx.send(f"User {user.name} already on blacklist.")
+            await ctx.send(f"User {user.nick} already on blacklist.")
 
     @blacklist.command(name="del", help="Remove an user from the blacklist", usage="<user>")
     @commands.has_any_role("mod", "botmaster")
@@ -41,6 +41,6 @@ class modCommands(commands.Cog, name="Moderation Commands"):
         """Removes the given user from blacklist"""
         res = self.blacklist.delUserFromBlacklist(user)
         if res:
-            await ctx.send(f"User {user.name} removed from blacklist.")
+            await ctx.send(f"User {user.nick} removed from blacklist.")
         else:
-            await ctx.send(f"User {user.name} not on blacklist.")
+            await ctx.send(f"User {user.nick} not on blacklist.")

@@ -51,12 +51,12 @@ class dscCommands(commands.Cog, name="DSC Commands"):
         """Returns basic infos about next/current DSC"""
         if config.dsc['state'] == DscState.Registration:
             await ctx.send(f":clipboard: **Anmeldung offen bis {config.dsc['voting_end'].strftime('%d.%m.%Y')}!**\n"
-                        f"Aktueller Ausrichter: {self.bot.get_user(config.dsc['hostId']).name}\n"
+                        f"Aktueller Ausrichter: {self.bot.get_user(config.dsc['hostId']).nick}\n"
                         f"Anmeldung: {config.dsc['contestdoc_link']}")
 
         elif config.dsc['state'] == DscState.Voting:
             await ctx.send(f":incoming_envelope: **Votingphase läuft bis {config.dsc['voting_end'].strftime('%d.%m.%Y, %H:%M')} Uhr!**\n"
-                        f"Votings an: {self.bot.get_user(config.dsc['hostId']).name}\n"
+                        f"Votings an: {self.bot.get_user(config.dsc['hostId']).nick}\n"
                         f"Alle Songs: {config.dsc['contestdoc_link']}\n"
                         f"Youtube-Playlist: {config.dsc['yt_playlist_link']}")
 
@@ -66,7 +66,7 @@ class dscCommands(commands.Cog, name="DSC Commands"):
                 await botUtils.write_debug_channel(self.bot, "DSC config is empty, please reset.")
             else:
                 await botUtils.write_debug_channel(self.bot, "Configuration error in DSC config detected. Current configuration:\n"
-                        f"Hoster Id: {config.dsc['hostId']}, Username: {self.bot.get_user(config.dsc['hostId']).name}\n"
+                        f"Hoster Id: {config.dsc['hostId']}, Username: {self.bot.get_user(config.dsc['hostId']).nick}\n"
                         f"State: {config.dsc['state']}\n"
                         f"YT Playlist: {config.dsc['yt_playlist_link']}\n"
                         f"Voting end: {config.dsc['voting_end']}")
