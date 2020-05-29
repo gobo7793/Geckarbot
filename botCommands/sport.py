@@ -7,7 +7,7 @@ class sportCommands(commands.Cog, name="Sport Commands"):
     def __init__(self, bot):
         self.bot = bot
 
-    @commands.command(name="kicker", help="Returns frequently used links to kicker.de", pass_context=True)
+    @commands.command(name="kicker", help="Returns frequently used links to kicker.de")
     async def kicker_table(self, ctx):
         """Returns the kicker.de Bundesliga tables"""
         linklist=("Tabelle Bundesliga: <https://www.kicker.de/1-bundesliga/tabelle>\n"
