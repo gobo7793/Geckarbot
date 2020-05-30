@@ -10,6 +10,7 @@ from config import config
 from botUtils import jsonUtils
 from botUtils.enums import DscState
 
+
 class miscCommands(commands.Cog, name="Funny/Misc Commands"):
     """Funny and miscellaneous commands without other category"""
 
@@ -23,8 +24,8 @@ class miscCommands(commands.Cog, name="Funny/Misc Commands"):
 #####################################################
 
     @commands.command(name="roll_dice", brief="Simulates rolling dice.",
-                     usage="[NumberOfSides] [NumberOfDices]")
-    async def roll(self, ctx, number_of_sides:int=6, number_of_dice:int=1):
+                      usage="[NumberOfSides] [NumberOfDices]")
+    async def roll(self, ctx, number_of_sides: int=6, number_of_dice: int=1):
         """Rolls number_of_dice dices with number_of_sides sides and returns the result"""
         dice = [
             str(random.choice(range(1, number_of_sides + 1)))
@@ -39,7 +40,9 @@ class miscCommands(commands.Cog, name="Funny/Misc Commands"):
 #####################################################
 
     @commands.group(name="dsc", help="Get and manage informations about current DSC",
-                    description="Get the informations about the current dsc or manage it. Command only works in music channel. Manage DSC informations is only permitted for songmasters.")
+                    description="Get the informations about the current dsc or manage it. "
+                                "Command only works in music channel. "
+                                "Manage DSC informations is only permitted for songmasters.")
     @botUtils.in_channel(config.DSC_CHAN_ID)
     async def dsc(self, ctx):
         """DSC base command, return info command if no subcommand given"""
@@ -99,13 +102,14 @@ class miscCommands(commands.Cog, name="Funny/Misc Commands"):
 
     @setInfo.command(name="host", help="Sets the current/next DSC hoster", usage="<user>")
     @commands.has_any_role("mod", "songmaster", "botmaster")
-    async def setHost(self, ctx, user:discord.Member):
+    async def setHost(self, ctx, user: discord.Member):
         """Sets the current/next DSC host"""
         config.dsc['hostId'] = user.id
         config.writeConfigFile()
         await ctx.send("New hoster set.")
 
-    @setInfo.command(name="state", help="Sets the current DSC state (Voting/Registration)", usage="<voting|registration>")
+    @setInfo.command(name="state", help="Sets the current DSC state (Voting/Registration)",
+                     usage="<voting|registration>")
     @commands.has_any_role("mod", "songmaster", "botmaster")
     async def setState(self, ctx, state):
         """Sets the current DSC state (registration/voting)"""
@@ -129,7 +133,8 @@ class miscCommands(commands.Cog, name="Funny/Misc Commands"):
         await ctx.send("New Youtube playlist link set.")
 
     @setInfo.command(name="stateend", help="Sets the registration/voting end date", usage="DD.MM.JJJJ[ HH:MM]",
-                     description="Sets the end date and time for registration and voting phase. If no time is given, 23:59 will be used.")
+                     description="Sets the end date and time for registration and voting phase. "
+                                 "If no time is given, 23:59 will be used.")
     @commands.has_any_role("mod", "songmaster", "botmaster")
     async def setStateEnd(self, ctx, dateStr, timeStr=None):
         """Sets the end date (and time) of the current DSC state"""

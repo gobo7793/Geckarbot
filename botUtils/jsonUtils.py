@@ -8,6 +8,7 @@ CONVERTERS = {
     'datetime': dateutil.parser.parse
 }
 
+
 class Encoder(json.JSONEncoder):
     """JSON encoder class for data types w/o built-in encoder"""
 
@@ -16,6 +17,7 @@ class Encoder(json.JSONEncoder):
             return {"val": obj.isoformat(), "_spec_type": "datetime"}
         else:
             return super().default(self, obj)
+
 
 def decoder_obj_hook(obj):
     """JSON decoder object_hook for data types w/o built-in decoder"""
