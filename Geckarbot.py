@@ -21,7 +21,7 @@ blacklist = blacklist(bot)
 @bot.event
 async def on_ready():
     """Print basic info that bot is ready"""
-    guild = discord.utils.get(bot.guilds, name=config.SERVER_NAME)
+    guild = discord.utils.get(bot.guilds, id=config.SERVER_ID)
     print(f"{bot.user} is connected to the following server:\n"
         f"{guild.name}(id: {guild.id})")
 

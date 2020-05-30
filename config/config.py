@@ -5,16 +5,16 @@ import datetime
 from dotenv import load_dotenv
 from botUtils import enums
 
-VERSION="0.1.2"
+VERSION="0.2.0"
 
 
 # Reading .env server data
 load_dotenv()
 TOKEN = os.getenv("DISCORD_TOKEN")
-SERVER_NAME = os.getenv("SERVER_NAME")
-DEBUG_MODE = os.getenv("DEBUG_MODE", False)
+SERVER_ID = int(os.getenv("SERVER_ID"))
 DEBUG_CHAN_ID = int(os.getenv("DEBUG_CHAN_ID"))
 DSC_CHAN_ID = int(os.getenv("DSC_CHAN_ID"))
+DEBUG_MODE = os.getenv("DEBUG_MODE", False)
 
 # Blacklisting
 blacklist_file = "config/blacklist.json"
