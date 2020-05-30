@@ -26,6 +26,7 @@ The bot requires a `.env` file in base directory with the environment data:
 DISCORD_TOKEN= # Discord bot token to connect
 SERVER_NAME= # The name of the connected server
 DEBUG_CHAN_ID= # Channel ID for channel for debug output
+DSC_CHAN_ID= # Channel ID for !dsc command
 DEBUG_MODE= # If true, most debug output (like full exception stack) will print on console
 ```
 Required pip packages:
