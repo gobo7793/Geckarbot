@@ -22,16 +22,13 @@
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="botCommands\dsc.py">
-      <SubType>Code</SubType>
-    </Compile>
     <Compile Include="botUtils\blacklist.py">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="botCommands\__init__.py">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="botCommands\fun.py">
+    <Compile Include="botCommands\misc.py">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="botUtils\enums.py">
@@ -53,7 +50,7 @@
     <Compile Include="botCommands\mod.py">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="botCommands\sport.py">
+    <Compile Include="botCommands\getting.py">
       <SubType>Code</SubType>
     </Compile>
   </ItemGroup>

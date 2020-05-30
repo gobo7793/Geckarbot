@@ -1,26 +1,48 @@
 import os
 import json
+import random
 import discord
+import botUtils
 
 from datetime import datetime
 from discord.ext import commands
-
-import botUtils
 from config import config
 from botUtils import jsonUtils
 from botUtils.enums import DscState
 
-
-class dscCommands(commands.Cog, name="DSC Commands"):
-    """Commands for DSC"""
+class miscCommands(commands.Cog, name="Funny/Misc Commands"):
+    """Funny and miscellaneous commands without other category"""
 
     def __init__(self, bot):
         self.bot = bot
+
+#####################################################
+#####################################################
+#### Simple games                                 ###
+#####################################################
+#####################################################
+
+    @commands.command(name="roll_dice", brief="Simulates rolling dice.",
+                     usage="[NumberOfSides] [NumberOfDices]")
+    async def roll(self, ctx, number_of_sides:int=6, number_of_dice:int=1):
+        """Rolls number_of_dice dices with number_of_sides sides and returns the result"""
+        dice = [
+            str(random.choice(range(1, number_of_sides + 1)))
+            for _ in range(number_of_dice)
+        ]
+        await ctx.send(', '.join(dice))
+
+#####################################################
+#####################################################
+#### DSC                                          ###
+#####################################################
+#####################################################
 
     @commands.group(name="dsc", help="Get and manage informations about current DSC",
                     description="Get the informations about the current dsc or manage it. Command only works in music channel. Manage DSC informations is only permitted for songmasters.")
     @botUtils.in_channel(config.DSC_CHAN_ID)
     async def dsc(self, ctx):
+        """DSC base command, return info command if no subcommand given"""
         if ctx.invoked_subcommand is None:
             await self.getInfo(ctx)
 

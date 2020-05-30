@@ -10,10 +10,9 @@ from config import config
 from botUtils.blacklist import blacklist
 import botUtils
 
-from botCommands.sport import sportCommands
-from botCommands.fun import funCommands
+from botCommands.getting import gettingCommands
+from botCommands.misc import miscCommands
 from botCommands.mod import modCommands
-from botCommands.dsc import dscCommands
 
 bot = commands.Bot(command_prefix='!')
 config.readConfigFile()
@@ -93,9 +92,8 @@ async def on_message(message):
     await bot.process_commands(message)
 
 # Adding command cogs
-bot.add_cog(sportCommands(bot))
-bot.add_cog(funCommands(bot))
+bot.add_cog(gettingCommands(bot))
+bot.add_cog(miscCommands(bot))
 bot.add_cog(modCommands(bot, blacklist))
-bot.add_cog(dscCommands(bot))
 
 bot.run(config.TOKEN)

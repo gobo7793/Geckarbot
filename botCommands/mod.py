@@ -5,7 +5,7 @@ import botUtils
 from config import config
 from botUtils.blacklist import blacklist
 
-class modCommands(commands.Cog, name="Moderation Commands"):
+class modCommands(commands.Cog, name="Bot Management Commands"):
     """Commands for moderation"""
 
     def __init__(self, bot, blacklist):

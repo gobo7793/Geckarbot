@@ -1,7 +1,7 @@
 import discord
 from discord.ext import commands
 
-class sportCommands(commands.Cog, name="Sport Commands"):
+class gettingCommands(commands.Cog, name="Simple message or data return Commands"):
     """Sport related commands"""
 
     def __init__(self, bot):
@@ -16,3 +16,7 @@ class sportCommands(commands.Cog, name="Sport Commands"):
         embed.add_field(name="3. Liga", value="https://www.kicker.de/3-liga/tabelle")
         embed.add_field(name="AT-Bundesliga", value="https://www.kicker.de/tipp3-bundesliga/tabelle")
         await ctx.send(embed=embed)
+
+    @commands.command(name="ping", help="Returns 'pong'")
+    async def ping(self, ctx):
+        await ctx.send("Pong!")
