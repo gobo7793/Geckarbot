@@ -62,6 +62,7 @@
   </ItemGroup>
   <ItemGroup>
     <Content Include=".env" />
+    <Content Include="config\config.json" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="botCommands\" />

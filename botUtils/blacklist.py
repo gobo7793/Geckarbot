@@ -8,27 +8,12 @@ class blacklist(object):
     
     def __init__(self, bot):
         self.bot = bot
-        self._readBlacklistFile();
-
-    def _readBlacklistFile(self):
-        """Reads the blacklist file if exists and save the containing user ids in blacklistedUserIds"""
-        if os.path.exists(config.blacklist_file):
-            with open(config.blacklist_file, "r") as f:
-                try:
-                    config.blacklist = json.load(f)
-                except:
-                    pass
-
-    def _writeBlacklistFile(self):
-        """Writes the current blacklisted users ids in blacklistedUserIds to the blacklist file"""
-        with open(config.blacklist_file, "w") as f:
-            json.dump(config.blacklist, f)
 
     def addUserToBlacklist(self, user: discord.Member):
         """Adds user to bot blacklist, returns True if added"""
         if not self.isUserOnBlacklist(user):
             config.blacklist.append(user.id)
-            self._writeBlacklistFile()
+            config.writeConfigFile()
             return True
         else:
             return False
@@ -37,7 +22,7 @@ class blacklist(object):
         """Deletes user to bot blacklist, returns True if deleted"""
         if self.isUserOnBlacklist(user):
             config.blacklist.remove(user.id)
-            self._writeBlacklistFile()
+            config.writeConfigFile()
             return True
         else:
             return False

@@ -16,6 +16,7 @@ from botCommands.mod import modCommands
 from botCommands.dsc import dscCommands
 
 bot = commands.Bot(command_prefix='!')
+config.readConfigFile()
 blacklist = blacklist(bot)
 
 @bot.event

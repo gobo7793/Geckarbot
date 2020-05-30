@@ -3,8 +3,8 @@ import random
 import discord
 from discord.ext import commands
 
-class funCommands(commands.Cog, name="Funny Commands"):
-    """Funny commands without other category"""
+class funCommands(commands.Cog, name="Funny/Misc Commands"):
+    """Funny and miscellaneous commands without other category"""
 
     def __init__(self, bot):
         self.bot = bot

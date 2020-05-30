@@ -1,6 +1,8 @@
 import discord
 from discord.ext import commands
 
+import botUtils
+from config import config
 from botUtils.blacklist import blacklist
 
 class modCommands(commands.Cog, name="Moderation Commands"):
@@ -44,3 +46,16 @@ class modCommands(commands.Cog, name="Moderation Commands"):
             await ctx.send(f"User {user.nick} removed from blacklist.")
         else:
             await ctx.send(f"User {user.nick} not on blacklist.")
+
+    @commands.command(name="reload", help="Reloads the configuration.",
+                      description="Reloads the configuration from config file. If errors occurs, check json file.")
+    @commands.has_any_role("mod", "botmaster")
+    async def reloadConfig(self, ctx):
+        """Reloads the config file"""
+        hasErrors = config.readConfigFile()
+        if hasErrors:
+            sendMsg = "Error during reloading configuration."
+        else:
+            sendMsg = "Configuration reloaded."
+        await ctx.send(sendMsg)
+        await botUtils.write_debug_channel(self.bot, sendMsg)

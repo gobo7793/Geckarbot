@@ -16,28 +16,6 @@ class dscCommands(commands.Cog, name="DSC Commands"):
 
     def __init__(self, bot):
         self.bot = bot
-        self._readDscFile()
-
-    def _readDscFile(self):
-        """Reads the dsc config file"""
-        if os.path.exists(config.dsc_file):
-            with open(config.dsc_file, "r") as f:
-                try:
-                    jsondata = json.load(f, object_hook=jsonUtils.decoder_obj_hook)
-
-                    config.dsc['rule_link'] = jsondata.get('rule_link', config.dsc['rule_link'])
-                    config.dsc['contestdoc_link'] = jsondata.get('contestdoc_link', config.dsc['contestdoc_link'])
-                    config.dsc['hostId'] = jsondata.get('hostId', config.dsc['hostId'])
-                    config.dsc['state'] = jsondata.get('state', config.dsc['state'])
-                    config.dsc['yt_playlist_link'] = jsondata.get('yt_playlist_link', config.dsc['yt_playlist_link'])
-                    config.dsc['state_end'] = jsondata.get('state_end', config.dsc['state_end'])
-                except:
-                    pass
-
-    def _writeDscFile(self):
-        """Writes the dsc config file"""
-        with open(config.dsc_file, "w") as f:
-            json.dump(config.dsc, f, cls=jsonUtils.Encoder, indent=4)
 
     @commands.group(name="dsc", help="Get and manage informations about current DSC",
                     description="Get the informations about the current dsc or manage it. Command only works in music channel. Manage DSC informations is only permitted for songmasters.")
@@ -49,34 +27,48 @@ class dscCommands(commands.Cog, name="DSC Commands"):
     @dsc.command(name="rules", help="Get the link to the DSC rules")
     async def getRules(self, ctx):
         """Returns the DSC rules"""
-        await ctx.send(f"<{config.dsc['rule_link']}>")
+        await ctx.send(f"<{config.dsc['ruleLink']}>")
 
     @dsc.command(name="info", help="Get informations about current DSC")
     async def getInfo(self, ctx):
         """Returns basic infos about next/current DSC"""
+        hostNick = None
+        dateOutStr = ""
+        if not config.dsc['hostId']:
+            await ctx.send("You must set DSC host!")
+        else:
+            hostNick = discord.utils.get(ctx.guild.members, id=config.dsc['hostId']).nick
+
         if config.dsc['state'] == DscState.Registration:
-            await ctx.send(f":clipboard: **Anmeldung offen bis {config.dsc['state_end'].strftime('%d.%m.%Y')}!**\n"
-                        f"Aktueller Ausrichter: {self.bot.get_user(config.dsc['hostId']).display_name}\n"
-                        f"Anmeldung: <{config.dsc['contestdoc_link']}>")
+            if config.dsc['stateEnd'] > datetime.now():
+                dateOutStr = f" bis {config.dsc['stateEnd'].strftime('%d.%m.%Y')}"
+
+            embed = discord.Embed(title=f":clipboard: Anmeldung offen{dateOutStr}!")
+            embed.add_field(name="Aktueller Ausrichter", value=hostNick)
+            embed.add_field(name="Anmeldung", value=config.dsc['contestdocLink'])
+            await ctx.send(embed=embed)
 
         elif config.dsc['state'] == DscState.Voting:
-            await ctx.send(f":incoming_envelope: **Votingphase läuft bis {config.dsc['state_end'].strftime('%d.%m.%Y, %H:%M')} Uhr!**\n"
-                        f"Votings an: {self.bot.get_user(config.dsc['hostId']).display_name}\n"
-                        f"Alle Songs: <{config.dsc['contestdoc_link']}>\n"
-                        f"Youtube-Playlist: <{config.dsc['yt_playlist_link']}>")
+            if config.dsc['stateEnd'] > datetime.now():
+                dateOutStr = f" bis {config.dsc['stateEnd'].strftime('%d.%m.%Y, %H:%M')} Uhr"
+
+            embed = discord.Embed(title=f":incoming_envelope: Votingphase läuft{dateOutStr}!")
+            embed.add_field(name="Votings an", value=hostNick)
+            embed.add_field(name="Alle Songs", value=config.dsc['contestdocLink'])
+            embed.add_field(name="Youtube-Playlist", value=config.dsc['ytLink'])
+            await ctx.send(embed=embed)
 
         else:
             await ctx.send("Configuration error. Please reset dsc configuration.")
-            if not config.dsc['hostId'] or not config.dsc['yt_playlist_link']:
-                await botUtils.write_debug_channel(self.bot, "DSC config is empty, please reset.")
-            else:
-                await botUtils.write_debug_channel(self.bot, "Configuration error in DSC config detected. Current configuration:\n"
-                        f"Hoster Id: {config.dsc['hostId']}, Username: {self.bot.get_user(config.dsc['hostId']).display_name}\n"
-                        f"State: {config.dsc['state']}\n"
-                        f"YT Playlist: <{config.dsc['yt_playlist_link']}>\n"
-                        f"Voting end: {config.dsc['state_end']}")
+            embed = discord.Embed(title="DSC configuration error")
+            embed.add_field(name="Host ID", value=str(config.dsc['hostId']))
+            embed.add_field(name="Host Name", value=hostNick)
+            embed.add_field(name="State", value=str(config.dsc['state']))
+            embed.add_field(name="YT Playlist", value=str(config.dsc['ytLink']))
+            embed.add_field(name="State End", value=str(config.dsc['stateEnd']))
+            await botUtils.write_debug_channel_embed(self.bot, embed)
 
-    @dsc.group(name="set", help="Set data about current/next DSC", usage="<hoster|state|stateend|yt>")
+    @dsc.group(name="set", help="Set data about current/next DSC", usage="<host|state|stateend|yt>")
     @commands.has_any_role("mod", "songmaster", "botmaster")
     async def setInfo(self, ctx):
         """Basic set subcommand, does nothing"""
@@ -88,7 +80,7 @@ class dscCommands(commands.Cog, name="DSC Commands"):
     async def setHost(self, ctx, user:discord.Member):
         """Sets the current/next DSC host"""
         config.dsc['hostId'] = user.id
-        self._writeDscFile()
+        config.writeConfigFile()
         await ctx.send("New hoster set.")
 
     @setInfo.command(name="state", help="Sets the current DSC state (Voting/Registration)", usage="<voting|registration>")
@@ -103,14 +95,15 @@ class dscCommands(commands.Cog, name="DSC Commands"):
             await ctx.send("Registration phase set.")
         else:
             await ctx.send("Invalid DSC phase.")
-        self._writeDscFile()
+        config.writeConfigFile()
 
     @setInfo.command(name="yt", help="Sets the Youtube playlist link", usage="<link>")
     @commands.has_any_role("mod", "songmaster", "botmaster")
     async def setYtLink(self, ctx, link):
         """Sets the youtube playlist link"""
-        config.dsc['yt_playlist_link'] = link
-        self._writeDscFile()
+        link = botUtils.clear_link(link)
+        config.dsc['ytLink'] = link
+        config.writeConfigFile()
         await ctx.send("New Youtube playlist link set.")
 
     @setInfo.command(name="stateend", help="Sets the registration/voting end date", usage="DD.MM.JJJJ[ HH:MM]",
@@ -120,6 +113,6 @@ class dscCommands(commands.Cog, name="DSC Commands"):
         """Sets the end date (and time) of the current DSC state"""
         if not timeStr:
             dateStr += " 23:59"
-        config.dsc['voting_end'] = datetime.strptime(dateStr,"%d.%m.%Y %H:%M")
-        self._writeDscFile()
+        config.dsc['stateEnd'] = datetime.strptime(dateStr,"%d.%m.%Y %H:%M")
+        config.writeConfigFile()
         await ctx.send("New state end date set.")
