@@ -9,14 +9,14 @@ A simple discord bot for the #storm server
 
 ### Current Features
 Management:
-- Blacklisting users (mod-only)
+- Blacklisting users
 
-Sport:
-- Get kicker.de Bundesliga table links
+Getting data or simple messages:
+- kicker.de Bundesliga table links
 
 Fun/Misc:
 - Roll a dice
-- Get and set info for current DSC (Host, State, YT link, state end date)
+- Get and manage info for current/next DSC (Host, State, YT link, state end date)
 
 See full command list with `!help`
 
@@ -24,10 +24,10 @@ See full command list with `!help`
 The bot requires a `.env` file in base directory with the environment data:
 ```
 DISCORD_TOKEN= # Discord bot token to connect
-SERVER_NAME= # The name of the connected server
+SERVER_ID= # The name of the connected server
 DEBUG_CHAN_ID= # Channel ID for channel for debug output
 DSC_CHAN_ID= # Channel ID for !dsc command
-DEBUG_MODE= # If true, most debug output (like full exception stack) will print on console
+DEBUG_MODE= # Not neccessary, but if true, most debug output (like full exception stack) will print on console
 ```
 Required pip packages:
 - discord.py 
@@ -36,4 +36,4 @@ Required pip packages:
 
 To start the bot: `python3 Geckarbot.py`
 
-Note: Own discord testserver and bot token required!
+Notes: To start the bot, you need an own Discord server and Discord application. Discord applications can created at [Discords Developer Portal](https://discord.com/developers/applications).
