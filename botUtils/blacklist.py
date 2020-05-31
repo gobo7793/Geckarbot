@@ -3,6 +3,7 @@ import json
 import discord
 from config import config
 
+
 class blacklist(object):
     """Manage the user banlist for using the bot"""
     
@@ -32,11 +33,11 @@ class blacklist(object):
         blacklistedMembers = ", ".join([self.bot.get_user(id).name for id in config.blacklist])
         return blacklistedMembers
 
-    def isUserOnBlacklist(self, user:discord.Member):
+    def isUserOnBlacklist(self, user: discord.Member):
         """Returns if user is on bot blacklist"""
         return self.isUserIDOnBlacklist(user.id)
 
-    def isUserIDOnBlacklist(self, userID:int):
+    def isUserIDOnBlacklist(self, userID: int):
         """Returns if user id is on bot blacklist"""
         if userID in config.blacklist:
             return True

@@ -33,6 +33,7 @@ dsc = {
     "stateEnd": None
 }
 
+
 def writeConfigFile():
     """Writes the config to json file"""
     jsondata = {
@@ -43,6 +44,7 @@ def writeConfigFile():
 
     with open(CONFIG_FILE, "w") as f:
         json.dump(jsondata, f, cls=jsonUtils.Encoder, indent=4)
+
 
 def readConfigFile():
     """Reads the config json file and returns if an error occured"""
@@ -60,11 +62,11 @@ def readConfigFile():
             print("Error reading json config data. Using defaults.")
             wasError = True
 
-    #Black/Greylist
+    # Black/Greylist
     blacklist = jsondata.get('blacklist', [])
     greylist = jsondata.get('greylist', [])
 
-    #DSC
+    # DSC
     dsc['ruleLink'] = jsondata.get('dsc', {}).get('ruleLink', "https://docs.google.com/document/d/1xvkIPgLfFvm4CLwbCoUa8WZ1Fa-Z_ELPAtgHaSpEEbg")
     dsc['contestdocLink'] = jsondata.get('dsc', {}).get('contestdocLink', "https://docs.google.com/spreadsheets/d/1HH42s5DX4FbuEeJPdm8l1TK70o2_EKADNOLkhu5qRa8")
     dsc['hostId'] = jsondata.get('dsc', {}).get('hostId')

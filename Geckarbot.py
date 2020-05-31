@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import os
 import traceback
 import datetime
@@ -18,6 +20,7 @@ bot = commands.Bot(command_prefix='!')
 config.readConfigFile()
 blacklist = blacklist(bot)
 
+
 @bot.event
 async def on_ready():
     """Print basic info that bot is ready"""
@@ -28,18 +31,20 @@ async def on_ready():
     members = "\n - ".join([member.name for member in guild.members])
     print(f"Server Members:\n - {members}")
 
-    await botUtils.write_debug_channel(bot, f"Geckarbot v{config.VERSION} connected on {guild.name} with {len(guild.members)} users.")
-    
+    await botUtils.write_debug_channel(bot, f"Geckarbot v{config.VERSION} connected on "
+                                            f"{guild.name} with {len(guild.members)} users.")
+
+
 if not config.DEBUG_MODE:
     @bot.event
     async def on_error(event, *args, **kwargs):
         """On bot errors print error state in debug channel"""
-        embed = discord.Embed(title=':x: Event Error', colour=0xe74c3c) #Red
+        embed = discord.Embed(title=':x: Event Error', colour=0xe74c3c) # Red
         embed.add_field(name='Event', value=event)
         embed.description = '```py\n%s\n```' % traceback.format_exc()
         embed.timestamp = datetime.datetime.utcnow()
         debug_chan = bot.get_channel(config.DEBUG_CHAN_ID)
-        if(debug_chan != None):
+        if debug_chan is not None:
             await debug_chan.send(embed=embed)
 
     @bot.event
@@ -77,12 +82,14 @@ if not config.DEBUG_MODE:
                 await debug_chan.send(embed=embed)
             await ctx.send("Error while executing command.")
 
+
 @bot.event
 async def on_member_join(member):
     """Write new users a short dm"""
     await member.create_dm()
     await member.dm_channel.send(f"Hi {member.display_name}, Willkommen auf dem #storm-Discord-Server!\n"
-                   "Schreibe am besten einem @mod, um die entsprechenden Rechte zu bekommen.")
+                                 f"Schreibe am besten einem @mod, um die entsprechenden Rechte zu bekommen.")
+
 
 @bot.event
 async def on_message(message):

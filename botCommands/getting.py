@@ -1,6 +1,7 @@
 import discord
 from discord.ext import commands
 
+
 class gettingCommands(commands.Cog, name="Simple message or data return Commands"):
     """Sport related commands"""
 
