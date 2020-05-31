@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 from botUtils import jsonUtils
 from botUtils import enums
 
-VERSION = "0.2.0"
+VERSION = "0.2.1"
 
 # Reading .env server data
 load_dotenv()
