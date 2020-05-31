@@ -17,6 +17,13 @@ class miscCommands(commands.Cog, name="Funny/Misc Commands"):
     def __init__(self, bot):
         self.bot = bot
 
+######
+# Ping
+######
+    @commands.command(name="mud", brief="Pings the bot.", usage="!mud")
+    async def ping(self, ctx):
+        await ctx.send("Kip!")
+
 #####################################################
 #####################################################
 #### Simple games                                 ###
