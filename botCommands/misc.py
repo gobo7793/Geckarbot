@@ -17,11 +17,9 @@ class miscCommands(commands.Cog, name="Funny/Misc Commands"):
     def __init__(self, bot):
         self.bot = bot
 
-#####################################################
-#####################################################
-#### Simple games                                 ###
-#####################################################
-#####################################################
+######
+# Simple games
+######
 
     @commands.command(name="roll_dice", brief="Simulates rolling dice.",
                       usage="[NumberOfSides] [NumberOfDices]")
@@ -33,11 +31,9 @@ class miscCommands(commands.Cog, name="Funny/Misc Commands"):
         ]
         await ctx.send(', '.join(dice))
 
-#####################################################
-#####################################################
-#### DSC                                          ###
-#####################################################
-#####################################################
+######
+# DSC
+######
 
     @commands.group(name="dsc", help="Get and manage informations about current DSC",
                     description="Get the informations about the current dsc or manage it. "
@@ -62,7 +58,7 @@ class miscCommands(commands.Cog, name="Funny/Misc Commands"):
         if not config.dsc['hostId']:
             await ctx.send("You must set DSC host!")
         else:
-            hostNick = discord.utils.get(ctx.guild.members, id=config.dsc['hostId']).nick
+            hostNick = discord.utils.get(ctx.guild.members, id=config.dsc['hostId']).name
 
         if config.dsc['state'] == DscState.Registration:
             if config.dsc['stateEnd'] > datetime.now():
