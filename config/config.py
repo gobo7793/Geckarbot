@@ -1,5 +1,5 @@
 # General config file
-# Default values defined during json reading in readConfigFile()
+# Default values defined during json reading in read_config_file()
 import os
 import json
 import datetime
@@ -34,7 +34,7 @@ dsc = {
 }
 
 
-def writeConfigFile():
+def write_config_file():
     """Writes the config to json file"""
     jsondata = {
         'blacklist': blacklist,
@@ -46,7 +46,7 @@ def writeConfigFile():
         json.dump(jsondata, f, cls=jsonUtils.Encoder, indent=4)
 
 
-def readConfigFile():
+def read_config_file():
     """Reads the config json file and returns if an error occured"""
     print("Loading config file")
 

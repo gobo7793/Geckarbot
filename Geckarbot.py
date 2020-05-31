@@ -17,7 +17,7 @@ from botCommands.misc import miscCommands
 from botCommands.mod import modCommands
 
 bot = commands.Bot(command_prefix='!')
-config.readConfigFile()
+config.read_config_file()
 blacklist = blacklist(bot)
 
 
@@ -33,7 +33,6 @@ async def on_ready():
 
     await botUtils.write_debug_channel(bot, f"Geckarbot v{config.VERSION} connected on "
                                             f"{guild.name} with {len(guild.members)} users.")
-
 
 if not config.DEBUG_MODE:
     @bot.event
@@ -94,7 +93,7 @@ async def on_member_join(member):
 @bot.event
 async def on_message(message):
     """Basic message and blacklisting handling"""
-    if blacklist.isUserOnBlacklist(message.author):
+    if blacklist.is_member_on_blacklist(message.author):
         return
     await bot.process_commands(message)
 

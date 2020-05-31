@@ -24,7 +24,7 @@ class modCommands(commands.Cog, name="Bot Management Commands"):
     @blacklist.command(name="list", help="Lists all users in the blacklist")
     async def blacklist_list(self, ctx):
         """Returns the current blacklist user list"""
-        res = self.blacklist.getBlacklist()
+        res = self.blacklist.get_blacklist_names()
         if not res:
             await ctx.send("Blacklist is empty.")
         else:
@@ -34,7 +34,7 @@ class modCommands(commands.Cog, name="Bot Management Commands"):
     @commands.has_any_role("mod", "botmaster")
     async def blacklist_add(self, ctx, user: discord.Member):
         """Adds the given user to the blacklist"""
-        res = self.blacklist.addUserToBlacklist(user)
+        res = self.blacklist.add_user(user)
         if res:
             await ctx.send(f"User {user.nick} added to blacklist.")
         else:
@@ -44,7 +44,7 @@ class modCommands(commands.Cog, name="Bot Management Commands"):
     @commands.has_any_role("mod", "botmaster")
     async def blacklist_del(self, ctx, user: discord.Member):
         """Removes the given user from blacklist"""
-        res = self.blacklist.delUserFromBlacklist(user)
+        res = self.blacklist.del_user(user)
         if res:
             await ctx.send(f"User {user.nick} removed from blacklist.")
         else:
@@ -53,9 +53,9 @@ class modCommands(commands.Cog, name="Bot Management Commands"):
     @commands.command(name="reload", help="Reloads the configuration.",
                       description="Reloads the configuration from config file. If errors occurs, check json file.")
     @commands.has_any_role("mod", "botmaster")
-    async def reloadConfig(self, ctx):
+    async def reload_config(self, ctx):
         """Reloads the config file"""
-        hasErrors = config.readConfigFile()
+        hasErrors = config.read_config_file()
         if hasErrors:
             sendMsg = "Error during reloading configuration."
         else:

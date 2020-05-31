@@ -17,13 +17,6 @@ class miscCommands(commands.Cog, name="Funny/Misc Commands"):
     def __init__(self, bot):
         self.bot = bot
 
-######
-# Ping
-######
-    @commands.command(name="mud", brief="Pings the bot.", usage="!mud")
-    async def ping(self, ctx):
-        await ctx.send("Kip!")
-
 #####################################################
 #####################################################
 #### Simple games                                 ###
@@ -54,15 +47,15 @@ class miscCommands(commands.Cog, name="Funny/Misc Commands"):
     async def dsc(self, ctx):
         """DSC base command, return info command if no subcommand given"""
         if ctx.invoked_subcommand is None:
-            await self.getInfo(ctx)
+            await self.dsc_get_info(ctx)
 
     @dsc.command(name="rules", help="Get the link to the DSC rules")
-    async def getRules(self, ctx):
+    async def dsc_get_rules(self, ctx):
         """Returns the DSC rules"""
         await ctx.send(f"<{config.dsc['ruleLink']}>")
 
     @dsc.command(name="info", help="Get informations about current DSC")
-    async def getInfo(self, ctx):
+    async def dsc_get_info(self, ctx):
         """Returns basic infos about next/current DSC"""
         hostNick = None
         dateOutStr = ""
@@ -102,23 +95,23 @@ class miscCommands(commands.Cog, name="Funny/Misc Commands"):
 
     @dsc.group(name="set", help="Set data about current/next DSC", usage="<host|state|stateend|yt>")
     @commands.has_any_role("mod", "songmaster", "botmaster")
-    async def setInfo(self, ctx):
+    async def dsc_set(self, ctx):
         """Basic set subcommand, does nothing"""
         if ctx.invoked_subcommand is None:
             await ctx.send("Usage: !dsc set <host|state|yt|stateend>")
 
     @setInfo.command(name="host", help="Sets the current/next DSC hoster", usage="<user>")
     @commands.has_any_role("mod", "songmaster", "botmaster")
-    async def setHost(self, ctx, user: discord.Member):
+    async def dsc_set_host(self, ctx, user: discord.Member):
         """Sets the current/next DSC host"""
         config.dsc['hostId'] = user.id
-        config.writeConfigFile()
+        config.write_config_file()
         await ctx.send("New hoster set.")
 
     @setInfo.command(name="state", help="Sets the current DSC state (Voting/Registration)",
                      usage="<voting|registration>")
     @commands.has_any_role("mod", "songmaster", "botmaster")
-    async def setState(self, ctx, state):
+    async def dsc_set_state(self, ctx, state):
         """Sets the current DSC state (registration/voting)"""
         if state.lower() == "voting":
             config.dsc['state'] = DscState.Voting
@@ -128,25 +121,25 @@ class miscCommands(commands.Cog, name="Funny/Misc Commands"):
             await ctx.send("Registration phase set.")
         else:
             await ctx.send("Invalid DSC phase.")
-        config.writeConfigFile()
+        config.write_config_file()
 
     @setInfo.command(name="yt", help="Sets the Youtube playlist link", usage="<link>")
     @commands.has_any_role("mod", "songmaster", "botmaster")
-    async def setYtLink(self, ctx, link):
+    async def dsc_set_yt_link(self, ctx, link):
         """Sets the youtube playlist link"""
         link = botUtils.clear_link(link)
         config.dsc['ytLink'] = link
-        config.writeConfigFile()
+        config.write_config_file()
         await ctx.send("New Youtube playlist link set.")
 
     @setInfo.command(name="stateend", help="Sets the registration/voting end date", usage="DD.MM.JJJJ[ HH:MM]",
                      description="Sets the end date and time for registration and voting phase. "
                                  "If no time is given, 23:59 will be used.")
     @commands.has_any_role("mod", "songmaster", "botmaster")
-    async def setStateEnd(self, ctx, dateStr, timeStr=None):
+    async def dsc_set_state_end(self, ctx, dateStr, timeStr=None):
         """Sets the end date (and time) of the current DSC state"""
         if not timeStr:
             dateStr += " 23:59"
         config.dsc['stateEnd'] = datetime.strptime(dateStr,"%d.%m.%Y %H:%M")
-        config.writeConfigFile()
+        config.write_config_file()
         await ctx.send("New state end date set.")

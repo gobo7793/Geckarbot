@@ -18,6 +18,10 @@ class gettingCommands(commands.Cog, name="Simple message or data return Commands
         embed.add_field(name="AT-Bundesliga", value="https://www.kicker.de/tipp3-bundesliga/tabelle")
         await ctx.send(embed=embed)
 
-    @commands.command(name="ping", help="Returns 'pong'")
+    @commands.command(name="ping", help="Pings the bot.")
     async def ping(self, ctx):
         await ctx.send("Pong!")
+        
+    @commands.command(name="mud", brief="Pings the bot.")
+    async def ping(self, ctx):
+        await ctx.send("Kip!")
