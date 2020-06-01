@@ -150,3 +150,7 @@ class miscCommands(commands.Cog, name="Funny/Misc Commands"):
         config.dsc['stateEnd'] = datetime.strptime(dateStr,"%d.%m.%Y %H:%M")
         config.writeConfigFile()
         await ctx.send("New state end date set.")
+
+
+def register(bot):
+    bot.add_cog(miscCommands(bot))

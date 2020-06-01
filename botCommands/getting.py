@@ -21,3 +21,7 @@ class gettingCommands(commands.Cog, name="Simple message or data return Commands
     @commands.command(name="ping", help="Returns 'pong'")
     async def ping(self, ctx):
         await ctx.send("Pong!")
+
+
+def register(bot):
+    bot.add_cog(gettingCommands(bot))
