@@ -32,7 +32,7 @@ class gettingCommands(commands.Cog, name="Simple message or data return Commands
 
     @commands.command(name="nico", help="Punches Nico.")
     async def ping(self, ctx):
-        await ctx.send("***N I C O   A U F ' S   M A U L !***   :right_facing_fist_tone1::cow:")
+        await ctx.send("***N I C O   A U F S   M A U L !***   :right_facing_fist_tone1::cow:")
 
 
 def register(bot):
