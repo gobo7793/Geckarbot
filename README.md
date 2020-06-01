@@ -26,7 +26,6 @@ The bot requires a `.env` file in base directory with the environment data:
 DISCORD_TOKEN= # Discord bot token to connect
 SERVER_ID= # The ID of the connected server
 DEBUG_CHAN_ID= # Channel ID for channel for debug output
-DSC_CHAN_ID= # Channel ID for !dsc command
 DEBUG_MODE= # Not neccessary, but if True, most debug output (like full exception stack) will print on console
 ```
 Required pip packages:
@@ -38,7 +37,7 @@ To start the bot, you need an own Discord server and Discord application with a 
 1. Create Application
 2. Create a Bot for the app
 3. Get the Bot token and put it into `DISCORD_TOKEN` in `.env` file
-4. Get the OAuth2-URL for the Bot (eg. use scope `Bot` and Permissions `Send Messages`
+4. Get the OAuth2-URL for the Bot
 5. Open the URL and add the Bot to a Server (you need Manage Server rights for this)
 
 To start the bot: `python3 Geckarbot.py`
