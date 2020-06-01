@@ -2,7 +2,7 @@ import discord
 from discord.ext import commands
 
 import botUtils
-from config import config
+from config.config import Config
 from botUtils import permChecks, enums
 from botUtils.blacklist import Blacklist
 from botUtils.greylist import Greylist
@@ -25,7 +25,7 @@ class modCommands(commands.Cog, name="Bot Management Commands"):
     @commands.has_any_role("mod", "botmaster")
     async def reload_config(self, ctx):
         """Reloads the config file"""
-        hasErrors = config.read_config_file()
+        hasErrors = Config().read_config_file()
         if hasErrors:
             sendMsg = "Error during reloading configuration."
         else:
@@ -94,9 +94,9 @@ class modCommands(commands.Cog, name="Bot Management Commands"):
     async def greylist_list(self, ctx):
         """Returns the current blacklist user list"""
         userlist = ""
-        for userid in config.greylist:
+        for userid in Config().greylist:
             username = self.bot.get_user(userid).name
-            games = str(enums.GreylistGames(config.greylist[userid]))
+            games = str(enums.GreylistGames(Config().greylist[userid]))
 
             # convert game names here
             list_begin = games.find(".")

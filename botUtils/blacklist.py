@@ -1,7 +1,7 @@
 import os
 import json
 import discord
-from config import config
+from config.config import Config
 
 
 class Blacklist(object):
@@ -13,8 +13,8 @@ class Blacklist(object):
     def add_user(self, user: discord.Member):
         """Adds user to bot blacklist, returns True if added"""
         if not self.is_member_on_blacklist(user):
-            config.blacklist.append(user.id)
-            config.write_config_file()
+            Config().blacklist.append(user.id)
+            Config().write_config_file()
             return True
         else:
             return False
@@ -22,15 +22,15 @@ class Blacklist(object):
     def del_user(self, user:discord.Member):
         """Deletes user to bot blacklist, returns True if deleted"""
         if self.is_member_on_blacklist(user):
-            config.blacklist.remove(user.id)
-            config.write_config_file()
+            Config().blacklist.remove(user.id)
+            Config().write_config_file()
             return True
         else:
             return False
 
     def get_blacklist_names(self):
         """Returns the blacklisted member names"""
-        blacklisted_members = ", ".join([self.bot.get_user(id).name for id in config.blacklist])
+        blacklisted_members = ", ".join([self.bot.get_user(id).name for id in Config().blacklist])
         return blacklisted_members
 
     def is_member_on_blacklist(self, user: discord.Member):
@@ -39,7 +39,7 @@ class Blacklist(object):
 
     def is_userid_on_blacklist(self, userID: int):
         """Returns if user id is on bot blacklist"""
-        if userID in config.blacklist:
+        if userID in Config().blacklist:
             return True
         else:
             return False

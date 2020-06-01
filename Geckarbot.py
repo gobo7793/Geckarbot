@@ -8,12 +8,12 @@ import logging
 
 from discord.ext import commands
 
-from config import config
+from config.config import Config
 from botUtils.blacklist import Blacklist
 from botUtils.greylist import Greylist
 import botUtils
 
-PLUGINDIR = "botCommands"
+#PLUGINDIR = "botCommands"
 
 
 class Geckarbot(commands.Bot):
@@ -23,23 +23,23 @@ class Geckarbot(commands.Bot):
         self.greylist = Greylist(self)
 
 bot = Geckarbot(command_prefix='!')
-config.read_config_file()
+Config().read_config_file()
 
 
 @bot.event
 async def on_ready():
     """Print basic info that bot is ready"""
-    guild = discord.utils.get(bot.guilds, id=config.SERVER_ID)
+    guild = discord.utils.get(bot.guilds, id=Config().SERVER_ID)
     logging.info(f"{bot.user} is connected to the following server:\n"
                  f"{guild.name}(id: {guild.id})")
 
     members = "\n - ".join([member.name for member in guild.members])
     logging.info(f"Server Members:\n - {members}")
 
-    await botUtils.write_debug_channel(bot, f"Geckarbot v{config.VERSION} connected on "
+    await botUtils.write_debug_channel(bot, f"Geckarbot v{Config().VERSION} connected on "
                                             f"{guild.name} with {len(guild.members)} users.")
 
-if not config.DEBUG_MODE:
+if not Config().DEBUG_MODE:
     @bot.event
     async def on_error(event, *args, **kwargs):
         """On bot errors print error state in debug channel"""
@@ -47,7 +47,7 @@ if not config.DEBUG_MODE:
         embed.add_field(name='Event', value=event)
         embed.description = '```py\n%s\n```' % traceback.format_exc()
         embed.timestamp = datetime.datetime.utcnow()
-        debug_chan = bot.get_channel(config.DEBUG_CHAN_ID)
+        debug_chan = bot.get_channel(Config().DEBUG_CHAN_ID)
         if debug_chan is not None:
             await debug_chan.send(embed=embed)
 
@@ -81,7 +81,7 @@ if not config.DEBUG_MODE:
             embed.add_field(name='Message', value=ctx.message)
             embed.description = '```py\n%s\n```' % traceback.format_exc()
             embed.timestamp = datetime.datetime.utcnow()
-            debug_chan = bot.get_channel(config.DEBUG_CHAN_ID)
+            debug_chan = bot.get_channel(Config().DEBUG_CHAN_ID)
             if debug_chan is not None:
                 await debug_chan.send(embed=embed)
             await ctx.send("Error while executing command.")
@@ -107,10 +107,10 @@ def load_plugins():
     r = []
 
     # import
-    for el in pkgutil.iter_modules([PLUGINDIR]):
+    for el in pkgutil.iter_modules([Config().PLUGINDIR]):
         plugin = el[1]
         try:
-            p = pkgutil.importlib.import_module("{}.{}".format(PLUGINDIR, plugin))
+            p = pkgutil.importlib.import_module("{}.{}".format(Config().PLUGINDIR, plugin))
             p.register(bot)
         except Exception as e:
             logging.error("Unable to load plugin: {} ({})".format(plugin, e))
@@ -126,7 +126,7 @@ def main():
     logging.basicConfig(level=logging.INFO)
     load_plugins()
 
-    bot.run(config.TOKEN)
+    bot.run(Config().TOKEN)
 
 if __name__ == "__main__":
     main()

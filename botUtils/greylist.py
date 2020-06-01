@@ -1,7 +1,7 @@
 import os
 import json
 import discord
-from config import config
+from config.config import Config
 from botUtils.enums import GreylistGames
 
 
@@ -23,10 +23,10 @@ class Greylist(object):
             game = GreylistGames.ALL
         was_added = True
         if self.is_user_on_greylist(user, game):
-            game = config.greylist[user.id] | game
+            game = Config().greylist[user.id] | game
             was_added = False
-        config.greylist[user.id] = game
-        config.write_config_file()
+        Config().greylist[user.id] = game
+        Config().write_config_file()
         return was_added
 
     def remove(self, user:discord.Member, game: GreylistGames = None):
@@ -39,17 +39,17 @@ class Greylist(object):
             game = GreylistGames.ALL
         was_removed = None
         if self.is_user_on_greylist(user, game):
-            config.greylist[user.id] = config.greylist[user.id] & ~game
+            Config().greylist[user.id] = Config().greylist[user.id] & ~game
             was_removed = False
-            if config.greylist[user.id] is GreylistGames.No_Game:
-                del(config.greylist[user.id])
+            if Config().greylist[user.id] is GreylistGames.No_Game:
+                del(Config().greylist[user.id])
                 was_removed = True
-        config.write_config_file()
+        Config().write_config_file()
         return was_removed
 
     def get_greylist_names(self):
         """Returns the greylisted members"""
-        greylisted_members = ", ".join([self.bot.get_user(id).name for id in config.greylist])
+        greylisted_members = ", ".join([self.bot.get_user(id).name for id in Config().greylist])
         return greylisted_members
 
     def is_user_on_greylist(self, user:discord.Member, game: GreylistGames):
@@ -58,7 +58,7 @@ class Greylist(object):
 
     def is_userid_on_greylist(self, userID: int, game: GreylistGames):
         """Returns if user id is for the given game on the greylist"""
-        if userID in config.greylist:
-            if config.greylist[userID] & game is not 0:
+        if userID in Config().greylist:
+            if Config().greylist[userID] & game is not 0:
                 return True
         return False
