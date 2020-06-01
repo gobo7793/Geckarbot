@@ -14,9 +14,15 @@ import botUtils
 
 PLUGINDIR = "botCommands"
 
-bot = commands.Bot(command_prefix='!')
+
+class Geckarbot(commands.Bot):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.blacklist = Blacklist(self)
+
+
 config.read_config_file()
-bot.blacklist = Blacklist(bot)
+bot = Geckarbot(command_prefix='!')
 
 
 @bot.event
