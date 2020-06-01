@@ -11,10 +11,10 @@ from botUtils.greylist import Greylist
 class modCommands(commands.Cog, name="Bot Management Commands"):
     """Commands for moderation"""
 
-    def __init__(self, bot, blacklist, greylist):
+    def __init__(self, bot):
         self.bot = bot
-        self.blacklist = blacklist
-        self.greylist = greylist
+        self.blacklist = bot.blacklist
+        self.greylist = bot.greylist
 
 ######
 # Misc commands
@@ -183,4 +183,7 @@ class modCommands(commands.Cog, name="Bot Management Commands"):
         elif res is True:
             await ctx.send("User removed from greylist.")
         else:
-            await ctx.send("User's greylist updated.")
+              await ctx.send("User's greylist updated.")
+
+def register(bot):
+    bot.add_cog(modCommands(bot))
