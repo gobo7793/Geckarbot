@@ -25,12 +25,12 @@ greylist = {}
 
 # DSC
 dsc = {
-    "ruleLink": None,
-    "contestdocLink": None,
-    "hostId": None,
-    "state": None,
-    "ytLink": None,
-    "stateEnd": None
+    'ruleLink': None,
+    'contestdocLink': None,
+    'hostId': None,
+    'state': None,
+    'ytLink': None,
+    'stateEnd': None
 }
 
 
@@ -48,6 +48,9 @@ def write_config_file():
 
 def read_config_file():
     """Reads the config json file and returns if an error occured"""
+    global blacklist
+    global greylist
+
     print("Loading config file")
 
     wasError = False

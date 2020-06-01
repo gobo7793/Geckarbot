@@ -22,9 +22,8 @@ class Geckarbot(commands.Bot):
         self.blacklist = Blacklist(self)
         self.greylist = Greylist(self)
 
-
+bot = Geckarbot(command_prefix='!')
 config.read_config_file()
-
 
 
 @bot.event
