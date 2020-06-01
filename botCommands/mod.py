@@ -9,9 +9,9 @@ from botUtils.blacklist import blacklist
 class modCommands(commands.Cog, name="Bot Management Commands"):
     """Commands for moderation"""
 
-    def __init__(self, bot, blacklist):
+    def __init__(self, bot):
         self.bot = bot
-        self.blacklist = blacklist
+        self.blacklist = bot.blacklist
 
     @commands.group(name="blacklist", help="Manage the blacklist",
                     description="Add, removes or list users in the bot blacklist. "
@@ -62,3 +62,7 @@ class modCommands(commands.Cog, name="Bot Management Commands"):
             sendMsg = "Configuration reloaded."
         await ctx.send(sendMsg)
         await botUtils.write_debug_channel(self.bot, sendMsg)
+
+
+def register(bot):
+    bot.add_cog(modCommands(bot))

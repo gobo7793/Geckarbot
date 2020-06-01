@@ -1,35 +1,39 @@
 #!/usr/bin/env python3
 
-import os
 import traceback
 import datetime
 import discord
+import pkgutil
+import logging
 
-from pathlib import Path
 from discord.ext import commands
 
 from config import config
-from botUtils.blacklist import blacklist
+from botUtils.blacklist import Blacklist
 import botUtils
 
-from botCommands.getting import gettingCommands
-from botCommands.misc import miscCommands
-from botCommands.mod import modCommands
+PLUGINDIR = "botCommands"
 
-bot = commands.Bot(command_prefix='!')
+
+class Geckarbot(commands.Bot):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.blacklist = Blacklist(self)
+
+
 config.read_config_file()
-blacklist = blacklist(bot)
+bot = Geckarbot(command_prefix='!')
 
 
 @bot.event
 async def on_ready():
     """Print basic info that bot is ready"""
     guild = discord.utils.get(bot.guilds, id=config.SERVER_ID)
-    print(f"{bot.user} is connected to the following server:\n"
-        f"{guild.name}(id: {guild.id})")
+    logging.info(f"{bot.user} is connected to the following server:\n"
+                 f"{guild.name}(id: {guild.id})")
 
     members = "\n - ".join([member.name for member in guild.members])
-    print(f"Server Members:\n - {members}")
+    logging.info(f"Server Members:\n - {members}")
 
     await botUtils.write_debug_channel(bot, f"Geckarbot v{config.VERSION} connected on "
                                             f"{guild.name} with {len(guild.members)} users.")
@@ -38,7 +42,7 @@ if not config.DEBUG_MODE:
     @bot.event
     async def on_error(event, *args, **kwargs):
         """On bot errors print error state in debug channel"""
-        embed = discord.Embed(title=':x: Event Error', colour=0xe74c3c) # Red
+        embed = discord.Embed(title=':x: Event Error', colour=0xe74c3c)  # Red
         embed.add_field(name='Event', value=event)
         embed.description = '```py\n%s\n```' % traceback.format_exc()
         embed.timestamp = datetime.datetime.utcnow()
@@ -69,7 +73,7 @@ if not config.DEBUG_MODE:
             await ctx.send("Wrong user input format.")
         else:
             # error handling
-            embed = discord.Embed(title=':x: Command Error', colour=0xe74c3c) #Red
+            embed = discord.Embed(title=':x: Command Error', colour=0xe74c3c)  # Red
             embed.add_field(name='Error', value=error)
             embed.add_field(name='Arguments', value=ctx.args)
             embed.add_field(name='Command', value=ctx.command)
@@ -77,7 +81,7 @@ if not config.DEBUG_MODE:
             embed.description = '```py\n%s\n```' % traceback.format_exc()
             embed.timestamp = datetime.datetime.utcnow()
             debug_chan = bot.get_channel(config.DEBUG_CHAN_ID)
-            if(debug_chan != None):
+            if debug_chan is not None:
                 await debug_chan.send(embed=embed)
             await ctx.send("Error while executing command.")
 
@@ -93,13 +97,35 @@ async def on_member_join(member):
 @bot.event
 async def on_message(message):
     """Basic message and blacklisting handling"""
-    if blacklist.is_member_on_blacklist(message.author):
+    if bot.blacklist.is_member_on_blacklist(message.author):
         return
     await bot.process_commands(message)
 
-# Adding command cogs
-bot.add_cog(gettingCommands(bot))
-bot.add_cog(miscCommands(bot))
-bot.add_cog(modCommands(bot, blacklist))
 
-bot.run(config.TOKEN)
+def load_plugins():
+    r = []
+
+    # import
+    for el in pkgutil.iter_modules([PLUGINDIR]):
+        plugin = el[1]
+        try:
+            p = pkgutil.importlib.import_module("{}.{}".format(PLUGINDIR, plugin))
+            p.register(bot)
+        except Exception as e:
+            logging.error("Unable to load plugin: {} ({})".format(plugin, e))
+            continue
+        else:
+            r.append(p)
+            logging.info("Loaded plugin {}".format(plugin))
+
+    return r
+
+
+def main():
+    logging.basicConfig(level=logging.INFO)
+    load_plugins()
+
+    bot.run(config.TOKEN)
+
+if __name__ == "__main__":
+    main()
