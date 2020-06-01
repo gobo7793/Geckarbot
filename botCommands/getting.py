@@ -23,5 +23,9 @@ class gettingCommands(commands.Cog, name="Simple message or data return Commands
         await ctx.send("Pong!")
         
     @commands.command(name="mud", brief="Pings the bot.")
-    async def ping(self, ctx):
+    async def mud(self, ctx):
         await ctx.send("Kip!")
+        
+    @commands.command(name="mudkip", brief="MUDKIP!")
+    async def mudkip(self, ctx):
+        await ctx.send("https://www.youtube.com/watch?v=3DkqMjfqqPc")
