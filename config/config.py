@@ -21,7 +21,7 @@ CONFIG_FILE = "config/config.json"
 
 # Black/Greylisting
 blacklist = []
-greylist = []
+greylist = {}
 
 # DSC
 dsc = {
@@ -64,7 +64,7 @@ def read_config_file():
 
     # Black/Greylist
     blacklist = jsondata.get('blacklist', [])
-    greylist = jsondata.get('greylist', [])
+    greylist = jsondata.get('greylist', {})
 
     # DSC
     dsc['ruleLink'] = jsondata.get('dsc', {}).get('ruleLink', "https://docs.google.com/document/d/1xvkIPgLfFvm4CLwbCoUa8WZ1Fa-Z_ELPAtgHaSpEEbg")

@@ -9,7 +9,8 @@ from pathlib import Path
 from discord.ext import commands
 
 from config import config
-from botUtils.blacklist import blacklist
+from botUtils.blacklist import Blacklist
+from botUtils.greylist import Greylist
 import botUtils
 
 from botCommands.getting import gettingCommands
@@ -18,8 +19,8 @@ from botCommands.mod import modCommands
 
 bot = commands.Bot(command_prefix='!')
 config.read_config_file()
-blacklist = blacklist(bot)
-
+blacklist = Blacklist(bot)
+greylist = Greylist(bot)
 
 @bot.event
 async def on_ready():
@@ -69,7 +70,7 @@ if not config.DEBUG_MODE:
             await ctx.send("Wrong user input format.")
         else:
             # error handling
-            embed = discord.Embed(title=':x: Command Error', colour=0xe74c3c) #Red
+            embed = discord.Embed(title=':x: Command Error', colour=0xe74c3c) # Red
             embed.add_field(name='Error', value=error)
             embed.add_field(name='Arguments', value=ctx.args)
             embed.add_field(name='Command', value=ctx.command)
@@ -100,6 +101,6 @@ async def on_message(message):
 # Adding command cogs
 bot.add_cog(gettingCommands(bot))
 bot.add_cog(miscCommands(bot))
-bot.add_cog(modCommands(bot, blacklist))
+bot.add_cog(modCommands(bot, blacklist, greylist))
 
 bot.run(config.TOKEN)
