@@ -29,3 +29,7 @@ class gettingCommands(commands.Cog, name="Simple message or data return Commands
     @commands.command(name="mudkip", brief="MUDKIP!")
     async def mudkip(self, ctx):
         await ctx.send("https://www.youtube.com/watch?v=3DkqMjfqqPc")
+
+
+def register(bot):
+    bot.add_cog(gettingCommands(bot))
