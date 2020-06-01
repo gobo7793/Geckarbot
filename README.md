@@ -1,11 +1,11 @@
 # Geckarbot
-A simple discord bot for the #storm server
+A simple discord bot for the Communityserver
 
 ### Requirements from server administration
-- No execution of mod and admin functions
-- Don't interfere basic server features and functions
-- GDPR and server etiquette compliance
-- Blacklist for users who abused the bot (Mod-only management)
+- Blacklist and unsubscribing from bot games participation
+- No (execution of) special rights which aren't wanted by administration or users
+- Administration stuff must be logged directly on admin channel
+- Administration stuff only executable by administration
 
 ### Current Features
 Management:
