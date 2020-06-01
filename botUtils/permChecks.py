@@ -5,7 +5,9 @@ from discord.ext import commands
 def in_channel(channel_id):
     """Check if CMD can be used in the channel with given channel id"""
     def predicate(ctx):
-        return ctx.message.channel.id == channel_id
+        return (isinstance(ctx.channel, discord.DMChannel)
+                    or isinstance(ctx.channel, discord.GroupChannel)
+                    or ctx.channel.id is channel_id)
     return commands.check(predicate)
 
 def check_full_access(user:discord.Member):
