@@ -4,7 +4,7 @@ import discord
 from config import config
 
 
-class blacklist(object):
+class Blacklist(object):
     """Manage the user banlist for using the bot"""
     
     def __init__(self, bot):
@@ -30,8 +30,8 @@ class blacklist(object):
 
     def get_blacklist_names(self):
         """Returns the blacklisted member names"""
-        blacklistedMembers = ", ".join([self.bot.get_user(id).name for id in config.blacklist])
-        return blacklistedMembers
+        blacklisted_members = ", ".join([self.bot.get_user(id).name for id in config.blacklist])
+        return blacklisted_members
 
     def is_member_on_blacklist(self, user: discord.Member):
         """Returns if user is on bot blacklist"""
