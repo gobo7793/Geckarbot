@@ -15,15 +15,32 @@ class numberGuessing(commands.Cog, name="A simple number guessing game"):
 
     @commands.group(name="guess", help="Guess a number",
                     description="Start a game via '!guess start'")
-    async def guess(self, ctx, guess = None):
-        await ctx.send(str(ctx.invoked_subcommand))
-        if ctx.invoked_subcommand is None:
-            guess_int = int(guess)
-            del guess
-            guess = guess_int
-            if isinstance(guess, int):
-                await ctx.send("Guessing!")
-                if self.isPlaying == False:
+    async def guess(self, ctx, guess=None, arg1=None, arg2=None):
+        #await ctx.send(f"guess: {guess}")
+        #await ctx.send(f"arg1: {arg1}")
+        #await ctx.send(f"arg2: {arg2}")
+        if guess == "start":
+            if arg1 is not None or arg2 is not None:
+                try:
+                    arg1 = int(arg1)
+                    arg2 = int(arg2)
+                except (TypeError, ValueError):
+                    await self.start(ctx)
+                    return
+                await self.start(ctx, arg1, arg2)
+            else:
+                await self.start(ctx)
+        elif guess == "stop":
+            await self.stop(ctx)
+        else:
+            try:
+                if guess is None:
+                    guess = 0
+                guess = int(guess)
+            except (TypeError, ValueError):
+                return
+            if isinstance(guess, int) or guess is None:
+                if self.isPlaying is False:
                     await self.start(ctx)
                 if guess < 1:
                     guess = 0
@@ -46,7 +63,7 @@ class numberGuessing(commands.Cog, name="A simple number guessing game"):
 
     @guess.command(name="start", help="Starts a game if not already running")
     async def start(self, ctx, range_from: int = 1, range_to: int = 100):
-        if self.isPlaying == False:
+        if self.isPlaying is False:
             if range_from <= 1:
                 range_from = 1
             if range_to < range_from:
@@ -60,15 +77,14 @@ class numberGuessing(commands.Cog, name="A simple number guessing game"):
 
     @guess.command(name="stop", help="Stops a game and shows the number that should have been guessed")
     async def stop(self, ctx):
-        await ctx.send("Testttttt")
-        """
-        await ctx.send("Stopped the game. The number was: **{}**".format(self.number))
-        if self.isPlaying == True:
+        #await ctx.send("Testttttt")
+        #"""
+        if self.isPlaying is True:
             self.isPlaying = False
             await ctx.send("Stopped the game. The number was: **{}**".format(self.number))
         else:
             await ctx.send("Cannot stop game. Start game first!")
-        """
+        #"""
 
 
 def register(bot):

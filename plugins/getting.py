@@ -1,5 +1,6 @@
 import discord
 from discord.ext import commands
+from conf import Config
 
 
 class gettingCommands(commands.Cog, name="Simple message or data return Commands"):
@@ -37,14 +38,12 @@ class gettingCommands(commands.Cog, name="Simple message or data return Commands
     @commands.command(name="mimimi", help="Provides an .mp3 file that plays the sound of 'mimimi'.")
     async def mimimi(self, ctx):
         await ctx.trigger_typing()
-        file = discord.File("resources/mimimi.mp3")
+        file = discord.File(f"{Config().RESOURCEDIR}/mimimi.mp3")
         await ctx.send(file=file)
 
-    @commands.command(name="danny", help="Provides an .mp3 file that plays the sound of Danny saying 'DU GOTTVERDAMMTE SCHEIẞ HURE'.")
-    async def danny(self, ctx):
-        await ctx.trigger_typing()
-        file = discord.File("resources/mimimi.mp3")
-        await ctx.send(file=file)
+    @commands.command(name="liebe", help="Provides love to the channel")
+    async def liebe(self, ctx):
+        await ctx.send("https://www.youtube.com/watch?v=TfmJPDmaQdg")
 
 
 def register(bot):
