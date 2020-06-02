@@ -32,6 +32,12 @@ class modCommands(commands.Cog, name="Bot Management Commands"):
         await ctx.send(sendMsg)
         await utils.write_debug_channel(self.bot, sendMsg)
 
+    @commands.command(name="version", help="Returns the running bot version.")
+    @commands.has_any_role("mod", "botmaster")
+    async def return_version(self, ctx):
+        """Returns the version"""
+        await ctx.send(f"Running Geckarbot v{Config().VERSION}")
+
 ######
 # Blacklist
 ######
