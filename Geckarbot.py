@@ -27,7 +27,6 @@ class Geckarbot(commands.Bot):
             cog = cog_class
         else:
             cog = cog_class(self)
-        print("registering something: {} to {}".format(cog, self))
         self.add_cog(cog)
         self.geck_cogs.append(cog)
 
