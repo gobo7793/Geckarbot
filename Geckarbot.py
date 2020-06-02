@@ -131,7 +131,6 @@ def load_plugins(pluginDir):
 def main():
     logging.basicConfig(level=logging.INFO)
     load_plugins(Config().PLUGINDIR)
-    load_plugins(Config().MINIGAMESDIR)
 
     bot.run(Config().TOKEN)
 
