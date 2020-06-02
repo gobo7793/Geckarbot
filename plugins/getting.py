@@ -31,8 +31,20 @@ class gettingCommands(commands.Cog, name="Simple message or data return Commands
         await ctx.send("https://www.youtube.com/watch?v=3DkqMjfqqPc")
 
     @commands.command(name="nico", help="Punches Nico.")
-    async def ping(self, ctx):
+    async def nico(self, ctx):
         await ctx.send("***N I C O   A U F S   M A U L !***   :right_facing_fist_tone1::cow:")
+
+    @commands.command(name="mimimi", help="Provides an .mp3 file that plays the sound of 'mimimi'.")
+    async def mimimi(self, ctx):
+        await ctx.trigger_typing()
+        file = discord.File("resources/mimimi.mp3")
+        await ctx.send(file=file)
+
+    @commands.command(name="danny", help="Provides an .mp3 file that plays the sound of Danny saying 'DU GOTTVERDAMMTE SCHEIẞ HURE'.")
+    async def danny(self, ctx):
+        await ctx.trigger_typing()
+        file = discord.File("resources/mimimi.mp3")
+        await ctx.send(file=file)
 
 
 def register(bot):
