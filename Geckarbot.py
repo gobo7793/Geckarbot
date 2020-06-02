@@ -109,14 +109,14 @@ async def on_message(message):
         await bot.process_commands(message)
 
 
-def load_plugins():
+def load_plugins(pluginDir):
     r = []
 
     # import
-    for el in pkgutil.iter_modules([Config().PLUGINDIR]):
+    for el in pkgutil.iter_modules([pluginDir]):
         plugin = el[1]
         try:
-            p = pkgutil.importlib.import_module("{}.{}".format(Config().PLUGINDIR, plugin))
+            p = pkgutil.importlib.import_module("{}.{}".format(pluginDir, plugin))
             p.register(bot)
         except Exception as e:
             logging.error("Unable to load plugin: {} ({})".format(plugin, e))
@@ -130,7 +130,7 @@ def load_plugins():
 
 def main():
     logging.basicConfig(level=logging.INFO)
-    load_plugins()
+    load_plugins(Config().PLUGINDIR)
 
     bot.run(Config().TOKEN)
 

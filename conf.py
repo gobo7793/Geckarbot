@@ -24,6 +24,7 @@ class Config(metaclass=_Singleton):
     VERSION = "1.0.2"
     CONFIG_FILE = "config/config.json"
     PLUGINDIR = "plugins"
+    RESOURCEDIR = "resources"
 
 ######
 # Init
