@@ -1,9 +1,8 @@
 import discord
 from discord.ext import commands
 
-import botUtils
 from conf import Config
-from botUtils import permChecks, enums
+from botUtils import utils, permChecks, enums
 from botUtils.blacklist import Blacklist
 from botUtils.greylist import Greylist
 
@@ -31,7 +30,7 @@ class modCommands(commands.Cog, name="Bot Management Commands"):
         else:
             sendMsg = "Configuration reloaded."
         await ctx.send(sendMsg)
-        await botUtils.write_debug_channel(self.bot, sendMsg)
+        await utils.write_debug_channel(self.bot, sendMsg)
 
 ######
 # Blacklist

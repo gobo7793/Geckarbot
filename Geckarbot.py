@@ -11,7 +11,7 @@ from discord.ext import commands
 from conf import Config
 from botUtils.blacklist import Blacklist
 from botUtils.greylist import Greylist
-import botUtils
+from botUtils import utils
 
 #PLUGINDIR = "botCommands"
 
@@ -36,7 +36,7 @@ async def on_ready():
     members = "\n - ".join([member.name for member in guild.members])
     logging.info(f"Server Members:\n - {members}")
 
-    await botUtils.write_debug_channel(bot, f"Geckarbot v{Config().VERSION} connected on "
+    await utils.write_debug_channel(bot, f"Geckarbot v{Config().VERSION} connected on "
                                             f"{guild.name} with {len(guild.members)} users.")
 
 if not Config().DEBUG_MODE:
@@ -100,7 +100,13 @@ async def on_message(message):
     """Basic message and blacklisting handling"""
     if bot.blacklist.is_member_on_blacklist(message.author):
         return
-    await bot.process_commands(message)
+    if Config().DEBUG_USER_ID_REACTING is not 0:
+        if message.author.id is Config().DEBUG_USER_ID_REACTING:
+            await bot.process_commands(message)
+        else:
+            return
+    else:
+        await bot.process_commands(message)
 
 
 def load_plugins():

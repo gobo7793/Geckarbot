@@ -37,6 +37,7 @@ class Config(metaclass=_Singleton):
         dotenv.load_dotenv()
         self.TOKEN = os.getenv("DISCORD_TOKEN")
         self.DEBUG_MODE = os.getenv("DEBUG_MODE", False)
+        self.DEBUG_USER_ID_REACTING = int(os.getenv("DEBUG_USER_REACTING", 0))
 
         self.SERVER_ID = int(os.getenv("SERVER_ID"))
         self.DEBUG_CHAN_ID = int(os.getenv("DEBUG_CHAN_ID"))

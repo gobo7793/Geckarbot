@@ -2,12 +2,11 @@ import os
 import json
 import random
 import discord
-import botUtils
 
 from datetime import datetime
 from discord.ext import commands
 from conf import Config
-from botUtils import jsonUtils, permChecks
+from botUtils import utils, jsonUtils, permChecks
 from botUtils.enums import DscState
 
 
@@ -87,7 +86,7 @@ class miscCommands(commands.Cog, name="Funny/Misc Commands"):
             embed.add_field(name="State", value=str(Config().dsc['state']))
             embed.add_field(name="YT Playlist", value=str(Config().dsc['yt_link']))
             embed.add_field(name="State End", value=str(Config().dsc['state_end']))
-            await botUtils.write_debug_channel_embed(self.bot, embed)
+            await utils.write_debug_channel_embed(self.bot, embed)
 
     @dsc.group(name="set", help="Set data about current/next DSC", usage="<host|state|stateend|yt>")
     @commands.has_any_role("mod", "songmaster", "botmaster")
@@ -123,7 +122,7 @@ class miscCommands(commands.Cog, name="Funny/Misc Commands"):
     @commands.has_any_role("mod", "songmaster", "botmaster")
     async def dsc_set_yt_link(self, ctx, link):
         """Sets the youtube playlist link"""
-        link = botUtils.clear_link(link)
+        link = utils.clear_link(link)
         Config().dsc['yt_link'] = link
         Config().write_config_file()
         await ctx.send("New Youtube playlist link set.")

@@ -41,6 +41,9 @@
     <Compile Include="botUtils\permChecks.py">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="botUtils\utils.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="botUtils\__init__.py">
       <SubType>Code</SubType>
     </Compile>
