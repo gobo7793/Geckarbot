@@ -21,9 +21,9 @@ class Config(metaclass=_Singleton):
 # Basic bot info
 ######
 
-    VERSION = "1.0.1"
+    VERSION = "1.0.2"
     CONFIG_FILE = "config/config.json"
-    PLUGINDIR = "botCommands"
+    PLUGINDIR = "plugins"
 
 ######
 # Init
@@ -71,10 +71,10 @@ class Config(metaclass=_Singleton):
     def write_config_file(self):
         """Writes the config to json file"""
         jsondata = {
-            'server_channels': server_channels,
-            'blacklist': blacklist,
-            'greylist': greylist,
-            'dsc': dsc
+            'server_channels': self.server_channels,
+            'blacklist': self.blacklist,
+            'greylist': self.greylist,
+            'dsc': self.dsc
         }
 
         with open(self.CONFIG_FILE, "w") as f:
