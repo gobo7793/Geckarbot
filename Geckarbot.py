@@ -100,8 +100,8 @@ async def on_message(message):
     """Basic message and blacklisting handling"""
     if bot.blacklist.is_member_on_blacklist(message.author):
         return
-    if Config().DEBUG_USER_ID_REACTING is not 0:
-        if message.author.id is Config().DEBUG_USER_ID_REACTING:
+    if Config().DEBUG_USER_ID_REACTING != 0:
+        if message.author.id == Config().DEBUG_USER_ID_REACTING:
             await bot.process_commands(message)
         else:
             return
