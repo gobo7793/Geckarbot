@@ -27,7 +27,7 @@ DISCORD_TOKEN= # Discord bot token to connect
 SERVER_ID= # The ID of the connected server
 DEBUG_CHAN_ID= # Channel ID for channel for debug output
 DEBUG_MODE= # For debugging, print debug output like full exception trace to console instead of debug channel
-DEBUG_USER_ID_REACTING= # For debugging, bot react only to given user id
+DEBUG_USER_ID_REACTING= # For debugging, bot reacts only to given user id
 ```
 Required pip packages:
 - discord.py 
