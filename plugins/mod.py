@@ -3,21 +3,21 @@ from discord.ext import commands
 
 from conf import Config
 from botUtils import utils, permChecks, enums
-from botUtils.blacklist import Blacklist
-from botUtils.greylist import Greylist
 
 
-class modCommands(commands.Cog, name="Bot Management Commands"):
+class Plugin(commands.Cog, name="Bot Management Commands"):
     """Commands for moderation"""
 
     def __init__(self, bot):
         self.bot = bot
+        super(commands.Cog).__init__()
+        bot.register(self)
         self.blacklist = bot.blacklist
         self.greylist = bot.greylist
 
-######
-# Misc commands
-######
+    ######
+    # Misc commands
+    ######
 
     @commands.command(name="reload", help="Reloads the configuration.",
                       description="Reloads the configuration from config file. If errors occurs, check json file.")
@@ -38,9 +38,9 @@ class modCommands(commands.Cog, name="Bot Management Commands"):
         """Returns the version"""
         await ctx.send(f"Running Geckarbot v{Config().VERSION}")
 
-######
-# Blacklist
-######
+    ######
+    # Blacklist
+    ######
 
     @commands.group(name="blacklist", help="Manage the blacklist",
                     usage="<list|add|del>",
@@ -81,9 +81,9 @@ class modCommands(commands.Cog, name="Bot Management Commands"):
             await ctx.send(f"User {user.nick} not on blacklist.")
             
 
-######
-# Greylist
-######
+    ######
+    # Greylist
+    ######
 
     @commands.group(name="greylist", help="Manage the greylist",
                     usage="<list|add|del>",
@@ -188,7 +188,4 @@ class modCommands(commands.Cog, name="Bot Management Commands"):
         elif res is True:
             await ctx.send("User removed from greylist.")
         else:
-              await ctx.send("User's greylist updated.")
-
-def register(bot):
-    bot.add_cog(modCommands(bot))
+            await ctx.send("User's greylist updated.")

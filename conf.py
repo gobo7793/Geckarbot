@@ -18,18 +18,18 @@ class _Singleton(type):
 
 class Config(metaclass=_Singleton):
 
-######
-# Basic bot info
-######
+    ######
+    # Basic bot info
+    ######
 
     VERSION = "1.0.2"
     CONFIG_FILE = "config/config.json"
     PLUGINDIR = "plugins"
     RESOURCEDIR = "resources"
 
-######
-# Init
-######
+    ######
+    # Init
+    ######
 
     def __init__(self, *args, **kwargs):
         self.load_env()
@@ -44,9 +44,9 @@ class Config(metaclass=_Singleton):
         self.SERVER_ID = int(os.getenv("SERVER_ID"))
         self.DEBUG_CHAN_ID = int(os.getenv("DEBUG_CHAN_ID"))
 
-######
-# Configuration data
-######
+    ######
+    # Configuration data
+    ######
 
     # Server settings
     server_channels = { # Currently must be setted in Config().json manually
@@ -66,9 +66,9 @@ class Config(metaclass=_Singleton):
         'state_end': None
     }
 
-######
-# Read/Write config
-######
+    ######
+    # Read/Write config
+    ######
 
     def write_config_file(self):
         """Writes the config to json file"""
