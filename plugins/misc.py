@@ -1,24 +1,24 @@
-import os
-import json
 import random
 import discord
 
 from datetime import datetime
 from discord.ext import commands
 from conf import Config
-from botUtils import utils, jsonUtils, permChecks
+from botUtils import utils, permChecks
 from botUtils.enums import DscState
 
 
-class miscCommands(commands.Cog, name="Funny/Misc Commands"):
+class Plugin(commands.Cog, name="Funny/Misc Commands"):
     """Funny and miscellaneous commands without other category"""
 
     def __init__(self, bot):
         self.bot = bot
+        super(commands.Cog).__init__()
+        bot.register(self)
 
-######
-# Simple games
-######
+    ######
+    # Simple games
+    ######
 
     @commands.command(name="dice", brief="Simulates rolling dice.",
                       usage="[NumberOfSides] [NumberOfDices]")
@@ -30,9 +30,9 @@ class miscCommands(commands.Cog, name="Funny/Misc Commands"):
         ]
         await ctx.send(', '.join(dice))
 
-######
-# DSC
-######
+    ######
+    # DSC
+    ######
 
     @commands.group(name="dsc", help="Get and manage informations about current DSC",
                     description="Get the informations about the current dsc or manage it. "
