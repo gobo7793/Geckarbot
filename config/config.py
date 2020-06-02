@@ -24,6 +24,7 @@ class Config(metaclass=_Singleton):
     VERSION = "1.0.0"
     CONFIG_FILE = "config/config.json"
     PLUGINDIR = "botCommands"
+    MINIGAMESDIR = "miniGames"
 
 ######
 # Init
