@@ -24,6 +24,7 @@ class Config(metaclass=_Singleton):
     VERSION = "1.0.2"
     CONFIG_FILE = "config/config.json"
     PLUGINDIR = "plugins"
+    RESOURCEDIR = "resources"
 
 ######
 # Init
@@ -37,7 +38,7 @@ class Config(metaclass=_Singleton):
         dotenv.load_dotenv()
         self.TOKEN = os.getenv("DISCORD_TOKEN")
         self.DEBUG_MODE = os.getenv("DEBUG_MODE", False)
-        self.DEBUG_USER_ID_REACTING = int(os.getenv("DEBUG_USER_REACTING", 0))
+        self.DEBUG_USER_ID_REACTING = int(os.getenv("DEBUG_USER_ID_REACTING", 0))
 
         self.SERVER_ID = int(os.getenv("SERVER_ID"))
         self.DEBUG_CHAN_ID = int(os.getenv("DEBUG_CHAN_ID"))
