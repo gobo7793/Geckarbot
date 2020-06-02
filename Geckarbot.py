@@ -87,12 +87,12 @@ if not Config().DEBUG_MODE:
             await ctx.send("Error while executing command.")
 
 
-@bot.event
-async def on_member_join(member):
-    """Write new users a short dm"""
-    await member.create_dm()
-    await member.dm_channel.send(f"Hi {member.display_name}, Willkommen auf dem Communityserver!\n"
-                                 f"Schreibe am besten einem @mod, um die entsprechenden Rechte zu bekommen.")
+#@bot.event
+#async def on_member_join(member):
+#    """Write new users a short dm"""
+#    await member.create_dm()
+#    await member.dm_channel.send(f"Hi {member.display_name}, Willkommen auf dem Communityserver!\n"
+#                                 f"Schreibe am besten einem @mod, um die entsprechenden Rechte zu bekommen.")
 
 
 @bot.event
