@@ -21,7 +21,7 @@ class Config(metaclass=_Singleton):
 # Basic bot info
 ######
 
-    VERSION = "1.0.0"
+    VERSION = "1.0.1"
     CONFIG_FILE = "config/config.json"
     PLUGINDIR = "botCommands"
 
