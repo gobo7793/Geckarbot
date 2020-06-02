@@ -15,9 +15,12 @@ class numberGuessing(commands.Cog, name="A simple number guessing game"):
 
     @commands.group(name="guess", help="Guess a number",
                     description="Start a game via '!guess start'")
-    async def guess(self, ctx, guess):
+    async def guess(self, ctx, guess = None):
         await ctx.send(str(ctx.invoked_subcommand))
         if ctx.invoked_subcommand is None:
+            guess_int = int(guess)
+            del guess
+            guess = guess_int
             if isinstance(guess, int):
                 await ctx.send("Guessing!")
                 if self.isPlaying == False:
