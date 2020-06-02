@@ -13,8 +13,6 @@ from botUtils.blacklist import Blacklist
 from botUtils.greylist import Greylist
 from botUtils import utils
 
-#PLUGINDIR = "botCommands"
-
 
 class Geckarbot(commands.Bot):
     def __init__(self, *args, **kwargs):
@@ -24,6 +22,11 @@ class Geckarbot(commands.Bot):
 
 bot = Geckarbot(command_prefix='!')
 Config().read_config_file()
+
+
+class Plugin:
+    def register(self, cog_class):
+        bot.add_cog(cog_class(bot))
 
 
 @bot.event
@@ -37,7 +40,7 @@ async def on_ready():
     logging.info(f"Server Members:\n - {members}")
 
     await utils.write_debug_channel(bot, f"Geckarbot v{Config().VERSION} connected on "
-                                            f"{guild.name} with {len(guild.members)} users.")
+                                    f"{guild.name} with {len(guild.members)} users.")
 
 if not Config().DEBUG_MODE:
     @bot.event
@@ -117,7 +120,7 @@ def load_plugins():
         plugin = el[1]
         try:
             p = pkgutil.importlib.import_module("{}.{}".format(Config().PLUGINDIR, plugin))
-            p.register(bot)
+            p = p.Plugin(bot)
         except Exception as e:
             logging.error("Unable to load plugin: {} ({})".format(plugin, e))
             continue
@@ -130,7 +133,7 @@ def load_plugins():
 
 def main():
     logging.basicConfig(level=logging.INFO)
-    load_plugins()
+    plugins = load_plugins()
 
     bot.run(Config().TOKEN)
 

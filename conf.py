@@ -9,6 +9,7 @@ from botUtils import jsonUtils, enums
 
 class _Singleton(type):
     _instances = {}
+
     def __call__(cls, *args, **kwargs):
         if cls not in cls._instances:
             cls._instances[cls] = super(_Singleton, cls).__call__(*args, **kwargs)
@@ -79,7 +80,6 @@ class Config(metaclass=_Singleton):
 
         with open(self.CONFIG_FILE, "w") as f:
             json.dump(jsondata, f, cls=jsonUtils.Encoder, indent=4)
-
 
     def read_config_file(self):
         """Reads the config json file and returns if an error occured"""

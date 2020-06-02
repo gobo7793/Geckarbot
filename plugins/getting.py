@@ -1,12 +1,16 @@
 import discord
 from discord.ext import commands
 
+import Geckarbot
+
 
 class gettingCommands(commands.Cog, name="Simple message or data return Commands"):
     """Sport related commands"""
 
     def __init__(self, bot):
         self.bot = bot
+        print("Instantiating")
+        super().__init__()
 
     @commands.command(name="kicker", help="Returns frequently used links to kicker.de")
     async def kicker_table(self, ctx):
@@ -35,5 +39,6 @@ class gettingCommands(commands.Cog, name="Simple message or data return Commands
         await ctx.send("***N I C O   A U F S   M A U L !***   :right_facing_fist_tone1::cow:")
 
 
-def register(bot):
-    bot.add_cog(gettingCommands(bot))
+class Plugin(Geckarbot.Plugin):
+    def __init__(self, bot):
+        self.register(gettingCommands)
