@@ -6,7 +6,7 @@ import botUtils
 
 from datetime import datetime
 from discord.ext import commands
-from config.config import Config
+from conf import Config
 from botUtils import jsonUtils, permChecks
 from botUtils.enums import DscState
 

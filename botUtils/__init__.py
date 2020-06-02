@@ -1,18 +1,18 @@
 import os
 from discord.ext import commands
 from discord.ext.commands.bot import Bot
-import config
+from conf import Config
 
 
 async def write_debug_channel(bot: Bot, message):
     """Writes the given message to the bot's debug channel"""
-    debug_chan = bot.get_channel(config.config.Config().DEBUG_CHAN_ID)
+    debug_chan = bot.get_channel(Config().DEBUG_CHAN_ID)
     if debug_chan is not None:
         await debug_chan.send(message)
 
 async def write_debug_channel_embed(bot: Bot, embed):
     """Writes the given message to the bot's debug channel"""
-    debug_chan = bot.get_channel(config.config.Config().DEBUG_CHAN_ID)
+    debug_chan = bot.get_channel(Config().DEBUG_CHAN_ID)
     if debug_chan is not None:
         await debug_chan.send(embed=embed)
 

@@ -1,7 +1,7 @@
 import os
 import json
 import discord
-from config.config import Config
+from conf import Config
 from botUtils.enums import GreylistGames
 
 

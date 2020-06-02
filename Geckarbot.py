@@ -8,7 +8,7 @@ import logging
 
 from discord.ext import commands
 
-from config.config import Config
+from conf import Config
 from botUtils.blacklist import Blacklist
 from botUtils.greylist import Greylist
 import botUtils

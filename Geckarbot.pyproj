@@ -44,7 +44,7 @@
     <Compile Include="botUtils\__init__.py">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="config\config.py">
+    <Compile Include="conf.py">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="config\__init__.py">

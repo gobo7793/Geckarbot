@@ -2,7 +2,7 @@ import discord
 from discord.ext import commands
 
 import botUtils
-from config.config import Config
+from conf import Config
 from botUtils import permChecks, enums
 from botUtils.blacklist import Blacklist
 from botUtils.greylist import Greylist
