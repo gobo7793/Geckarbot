@@ -59,13 +59,11 @@ def main():
 
     @bot.event
     async def on_ready():
+        """Loads plugins and prints on server that bot is ready"""
         global plugins
         logging.info("Loading plugins")
         plugins = bot.load_plugins(Config().PLUGIN_DIR)
 
-    @bot.event
-    async def on_connect():
-        """Print basic info that bot is ready"""
         guild = discord.utils.get(bot.guilds, id=Config().SERVER_ID)
         logging.info(f"{bot.user} is connected to the following server:\n"
                      f"{guild.name}(id: {guild.id})")
@@ -135,7 +133,7 @@ def main():
     @bot.event
     async def on_message(message):
         """Basic message and blacklisting handling"""
-        if bot.coredata['blacklist'].is_member_on_blacklist(message.author):
+        if 'blacklist' in bot.coredata and bot.coredata['blacklist'].is_member_on_blacklist(message.author):
             return
         if Config().DEBUG_USER_ID_REACTING != 0:
             if message.author.id == Config().DEBUG_USER_ID_REACTING:
