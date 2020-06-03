@@ -25,10 +25,6 @@
     <Compile Include="coreplugins\__init__.py">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="botUtils\greylist.py" />
-    <Compile Include="botUtils\blacklist.py">
-      <SubType>Code</SubType>
-    </Compile>
     <Compile Include="botUtils\enums.py">
       <SubType>Code</SubType>
     </Compile>

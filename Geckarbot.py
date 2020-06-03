@@ -9,15 +9,14 @@ import logging
 from discord.ext import commands
 
 from conf import Config
-from botUtils.blacklist import Blacklist
-from botUtils.greylist import Greylist
 from botUtils import utils
 
 
 class Geckarbot(commands.Bot):
     def __init__(self, *args, **kwargs):
-        self.blacklist = Blacklist(self)
-        self.greylist = Greylist(self)
+        self.coredata = {}
+        #self.blacklist = Blacklist(self)
+        #self.greylist = Greylist(self)
         self.geck_cogs = []
         super().__init__(*args, **kwargs)
 
@@ -54,13 +53,14 @@ def main():
     logging.basicConfig(level=logging.INFO)
     bot = Geckarbot(command_prefix='!')
     Config().read_config_file()
-    plugins = load_plugins(Config().CORE_PLUGIN_DIR)
+    logging.info("Loading core plugins")
+    plugins = bot.load_plugins(Config().CORE_PLUGIN_DIR)
 
     @bot.event
     async def on_ready():
         global plugins
         logging.info("Loading plugins")
-        plugins = load_plugins(Config().PLUGIN_DIR)
+        plugins = bot.load_plugins(Config().PLUGIN_DIR)
 
     @bot.event
     async def on_connect():
@@ -134,7 +134,7 @@ def main():
     @bot.event
     async def on_message(message):
         """Basic message and blacklisting handling"""
-        if bot.blacklist.is_member_on_blacklist(message.author):
+        if bot.coredata['blacklist'].is_member_on_blacklist(message.author):
             return
         if Config().DEBUG_USER_ID_REACTING != 0:
             if message.author.id == Config().DEBUG_USER_ID_REACTING:
