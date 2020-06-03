@@ -22,25 +22,6 @@ class Geckarbot(commands.Bot):
         self.plugin_memory = {}
         super().__init__(*args, **kwargs)
 
-    def register_memory(self, pluginobject, memoryobject):
-        """
-        Registers memoryobject with pluginobject. This works like a "plugin memory" for arbitrary plugin needs.
-        Overwrites anything that was registered before.
-        :param pluginobject: Plugin object that registers the context. Usually "self".
-        :param memoryobject: Opaque object to be managed by the plugin.
-        :return:
-        """
-        self.plugin_memory[pluginobject] = memoryobject
-
-    def get_memory(self, pluginobject):
-        """
-        Retrieves the memory object that was registered with the plugin beforehand. Raises KeyError when nothing
-        was registered.
-        :param pluginobject: Plugin object that requests the corresponding context. Usually "self".
-        :return: Opaque memory object that was registered before.
-        """
-        return self.plugin_memory[pluginobject]
-
     def register(self, cog_class):
         print(isinstance(cog_class, commands.Cog))
         if isinstance(cog_class, commands.Cog):
