@@ -4,7 +4,7 @@ import logging
 from discord.ext import commands
 
 
-class numberGuessing(commands.Cog, name="A simple number guessing game"):
+class Plugin(commands.Cog, name="A simple number guessing game"):
 
     def __init__(self, bot):
         self.bot = bot
@@ -12,6 +12,9 @@ class numberGuessing(commands.Cog, name="A simple number guessing game"):
         self.isPlaying = False
         self.number: int = 0
         self.guess_count: int = 0
+
+        super(commands.Cog).__init__()
+        bot.register(self)
 
     @commands.group(name="guess", help="Guess a number",
                     description="Start a game via '!guess start'")
@@ -85,7 +88,3 @@ class numberGuessing(commands.Cog, name="A simple number guessing game"):
         else:
             await ctx.send("Cannot stop game. Start game first!")
         #"""
-
-
-def register(bot):
-    bot.add_cog(numberGuessing(bot))

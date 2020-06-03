@@ -3,11 +3,13 @@ from discord.ext import commands
 from conf import Config
 
 
-class gettingCommands(commands.Cog, name="Simple message or data return Commands"):
+class Plugin(commands.Cog, name="Simple message or data return Commands"):
     """Sport related commands"""
 
     def __init__(self, bot):
         self.bot = bot
+        super(commands.Cog).__init__()
+        bot.register(self)
 
     @commands.command(name="kicker", help="Returns frequently used links to kicker.de")
     async def kicker_table(self, ctx):
@@ -44,7 +46,3 @@ class gettingCommands(commands.Cog, name="Simple message or data return Commands
     @commands.command(name="liebe", help="Provides love to the channel")
     async def liebe(self, ctx):
         await ctx.send("https://www.youtube.com/watch?v=TfmJPDmaQdg")
-
-
-def register(bot):
-    bot.add_cog(gettingCommands(bot))
