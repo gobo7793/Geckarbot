@@ -33,7 +33,6 @@ class Plugin(commands.Cog, name="Bot Management Commands"):
         await utils.write_debug_channel(self.bot, sendMsg)
 
     @commands.command(name="version", help="Returns the running bot version.")
-    @commands.has_any_role("mod", "botmaster")
     async def return_version(self, ctx):
         """Returns the version"""
         await ctx.send(f"Running Geckarbot v{Config().VERSION}")
@@ -66,9 +65,9 @@ class Plugin(commands.Cog, name="Bot Management Commands"):
         """Adds the given user to the blacklist"""
         res = self.blacklist.add_user(user)
         if res:
-            await ctx.send(f"User {user.nick} added to blacklist.")
+            await ctx.send(f"User {user.name} added to blacklist.")
         else:
-            await ctx.send(f"User {user.nick} already on blacklist.")
+            await ctx.send(f"User {user.name} already on blacklist.")
 
     @blacklist.command(name="del", help="Remove an user from the blacklist", usage="<user>")
     @commands.has_any_role("mod", "botmaster")
@@ -76,9 +75,9 @@ class Plugin(commands.Cog, name="Bot Management Commands"):
         """Removes the given user from blacklist"""
         res = self.blacklist.del_user(user)
         if res:
-            await ctx.send(f"User {user.nick} removed from blacklist.")
+            await ctx.send(f"User {user.name} removed from blacklist.")
         else:
-            await ctx.send(f"User {user.nick} not on blacklist.")
+            await ctx.send(f"User {user.name} not on blacklist.")
             
 
     ######
