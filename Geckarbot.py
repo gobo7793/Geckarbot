@@ -31,37 +31,36 @@ class Geckarbot(commands.Bot):
         self.geck_cogs.append(cog)
 
 
-def load_plugins(bot, plugin_dir):
-    r = []
+    def load_plugins(self, plugin_dir):
+        r = []
 
-    # import
-    for el in pkgutil.iter_modules([plugin_dir]):
-        plugin = el[1]
-        try:
-            p = pkgutil.importlib.import_module("{}.{}".format(plugin_dir, plugin))
-            p = p.Plugin(bot)
-        except Exception as e:
-            logging.error("Unable to load plugin: {} ({})".format(plugin, e))
-            continue
-        else:
-            r.append(p)
-            logging.info("Loaded plugin {}".format(plugin))
+        # import
+        for el in pkgutil.iter_modules([plugin_dir]):
+            plugin = el[1]
+            try:
+                p = pkgutil.importlib.import_module("{}.{}".format(plugin_dir, plugin))
+                p = p.Plugin(self)
+            except Exception as e:
+                logging.error("Unable to load plugin: {} ({})".format(plugin, e))
+                continue
+            else:
+                r.append(p)
+                logging.info("Loaded plugin {}".format(plugin))
 
-    return r
+        return r
 
 
 def main():
     logging.basicConfig(level=logging.INFO)
-
     bot = Geckarbot(command_prefix='!')
     Config().read_config_file()
-    plugins = None
+    plugins = load_plugins(Config().CORE_PLUGIN_DIR)
 
     @bot.event
     async def on_ready():
         global plugins
         logging.info("Loading plugins")
-        plugins = load_plugins(bot, Config().PLUGINDIR)
+        plugins = load_plugins(Config().PLUGIN_DIR)
 
     @bot.event
     async def on_connect():
