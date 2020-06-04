@@ -16,6 +16,13 @@ async def write_debug_channel_embed(bot: Bot, embed):
     if debug_chan is not None:
         await debug_chan.send(embed=embed)
 
+
+def get_best_username(user):
+    if user.nick is None:
+        return user.name
+    return user.nick
+
+
 def clear_link(link):
     """Removes trailing and leading < and > from links"""
     if link.startswith('<'):
