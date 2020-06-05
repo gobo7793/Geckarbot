@@ -19,6 +19,8 @@ FEATURE IDEAS
 # submit questions
 # ranked
 # repeat question
+# pings
+# config api
 """
 
 
