@@ -10,7 +10,7 @@ from urllib.parse import unquote
 import discord
 from discord.ext import commands
 
-from botUtils import restclient, utils, permChecks
+from botutils import restclient, utils, permChecks
 
 
 """

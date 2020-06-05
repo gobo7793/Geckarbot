@@ -2,7 +2,7 @@ import discord
 from discord.ext import commands
 
 from conf import Config
-from botUtils import utils, permChecks, enums
+from botutils import utils, permChecks, enums
 
 
 class Plugin(commands.Cog, name="Bot Management Commands"):

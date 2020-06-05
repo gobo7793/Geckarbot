@@ -2,7 +2,7 @@ import os
 import json
 import datetime
 import logging
-from botUtils import jsonUtils, enums
+from botutils import jsonUtils, enums
 
 
 class _Singleton(type):

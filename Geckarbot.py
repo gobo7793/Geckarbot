@@ -9,7 +9,7 @@ import logging
 from discord.ext import commands
 
 from conf import Config, PluginSlot
-from botUtils import utils
+from botutils import utils
 
 
 class Geckarbot(commands.Bot):

@@ -4,8 +4,8 @@ import discord
 from datetime import datetime
 from discord.ext import commands
 from conf import Config
-from botUtils import utils, permChecks
-from botUtils.enums import DscState
+from botutils import utils, permChecks
+from botutils.enums import DscState
 
 
 class Plugin(commands.Cog, name="Funny/Misc Commands"):
