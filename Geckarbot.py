@@ -8,17 +8,15 @@ import logging
 
 from discord.ext import commands
 
-from conf import Config
+from conf import Config, PluginSlot
 from botUtils import utils
 
 
 class Geckarbot(commands.Bot):
     def __init__(self, *args, **kwargs):
         self.coredata = {}
-        #self.blacklist = Blacklist(self)
-        #self.greylist = Greylist(self)
         self.geck_cogs = []
-        self.plugin_memory = {}
+        self.guild = None
         super().__init__(*args, **kwargs)
 
     def register(self, cog_class):
@@ -30,6 +28,9 @@ class Geckarbot(commands.Bot):
         self.add_cog(cog)
         self.geck_cogs.append(cog)
 
+        plugin_slot = PluginSlot(cog_class)
+        Config().plugins.append(plugin_slot)
+        Config().load(cog_class)
 
     def load_plugins(self, plugin_dir):
         r = []
@@ -51,9 +52,10 @@ class Geckarbot(commands.Bot):
 
 
 def main():
+    global plugins
     logging.basicConfig(level=logging.INFO)
     bot = Geckarbot(command_prefix='!')
-    Config().read_config_file()
+    Config().load_bot()
     logging.info("Loading core plugins")
     plugins = bot.load_plugins(Config().CORE_PLUGIN_DIR)
 
@@ -62,9 +64,10 @@ def main():
         """Loads plugins and prints on server that bot is ready"""
         global plugins
         logging.info("Loading plugins")
-        plugins = bot.load_plugins(Config().PLUGIN_DIR)
+        plugins.extend(bot.load_plugins(Config().PLUGIN_DIR))
 
         guild = discord.utils.get(bot.guilds, id=Config().SERVER_ID)
+        bot.guild = guild
         logging.info(f"{bot.user} is connected to the following server:\n"
                      f"{guild.name}(id: {guild.id})")
 
@@ -121,22 +124,13 @@ def main():
                     await debug_chan.send(embed=embed)
                 await ctx.send("Error while executing command.")
 
-    """
-    @bot.event
-    async def on_member_join(member):
-        """"Write new users a short dm""""
-        await member.create_dm()
-        await member.dm_channel.send(f"Hi {member.display_name}, Willkommen auf dem Communityserver!\n"
-                                     f"Schreibe am besten einem @mod, um die entsprechenden Rechte zu bekommen.")
-    """
-
     @bot.event
     async def on_message(message):
         """Basic message and blacklisting handling"""
         if 'blacklist' in bot.coredata and bot.coredata['blacklist'].is_member_on_blacklist(message.author):
             return
-        if Config().DEBUG_USER_ID_REACTING != 0:
-            if message.author.id == Config().DEBUG_USER_ID_REACTING:
+        if Config().DEBUG_MODE and len(Config().DEBUG_WHITELIST) > 0:
+            if message.author.id in Config().DEBUG_WHITELIST:
                 await bot.process_commands(message)
             else:
                 return

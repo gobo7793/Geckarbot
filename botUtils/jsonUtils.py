@@ -2,8 +2,6 @@ import json
 import datetime
 import dateutil.parser
 
-import botUtils.enums
-
 CONVERTERS = {
     'datetime': dateutil.parser.parse
 }

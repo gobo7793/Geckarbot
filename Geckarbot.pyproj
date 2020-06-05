@@ -55,6 +55,10 @@
   <ItemGroup>
     <Content Include=".env" />
     <Content Include="config\config.json" />
+    <Content Include="config\geckarbot.json" />
+    <Content Include="config\geckarbot_prod.json">
+      <SubType>Code</SubType>
+    </Content>
   </ItemGroup>
   <ItemGroup>
     <Folder Include="coreplugins\" />
