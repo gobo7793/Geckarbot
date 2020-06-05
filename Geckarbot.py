@@ -52,6 +52,7 @@ class Geckarbot(commands.Bot):
 
 
 def main():
+    global plugins
     logging.basicConfig(level=logging.INFO)
     bot = Geckarbot(command_prefix='!')
     Config().load_bot()
