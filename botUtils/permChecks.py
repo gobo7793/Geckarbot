@@ -12,7 +12,8 @@ def in_channel(channel_id):
         return is_dm or is_group or is_id
     return commands.check(predicate)
 
-def check_full_access(user:discord.Member):
+
+def check_full_access(user: discord.Member):
     """Checks if the user has full access to bot commands"""
     for role in user.roles:
         if role.id in [Config().ADMIN_ROLE_ID, Config().BOTMASTER_ROLE_ID]:
