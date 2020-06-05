@@ -12,18 +12,6 @@ from discord.ext import commands
 
 from botutils import restclient, utils, permChecks
 
-
-"""
-FEATURE IDEAS
-# configurable user icons
-# submit questions
-# ranked
-# repeat question
-# pings
-# config api
-"""
-
-
 jsonify = {
     "timeout": 20,  # answering timeout in minutes; not impl yet TODO
     "timeout_warning": 2,  # warning time before timeout in minutes
@@ -371,7 +359,7 @@ class Question:
                     if self.all_answers[i] == self.correct_answer:
                         return True
                     else:
-                        break
+                        return False
 
             # answer is not a letter and therefore invalid
             if not found:

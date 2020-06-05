@@ -14,7 +14,7 @@ class _Singleton(type):
         return cls._instances[cls]
 
 
-class PluginSlot():
+class PluginSlot:
     """Contains basic data for plugins"""
 
     def __init__(self, instance):
