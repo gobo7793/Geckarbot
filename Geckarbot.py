@@ -17,6 +17,7 @@ class Geckarbot(commands.Bot):
         self.coredata = {}
         self.geck_cogs = []
         self.guild = None
+        self.plugins = None
         super().__init__(*args, **kwargs)
 
     def register(self, cog_class):
@@ -52,19 +53,17 @@ class Geckarbot(commands.Bot):
 
 
 def main():
-    global plugins
     logging.basicConfig(level=logging.INFO)
     bot = Geckarbot(command_prefix='!')
     Config().load_bot()
     logging.info("Loading core plugins")
-    plugins = bot.load_plugins(Config().CORE_PLUGIN_DIR)
+    bot.plugins = bot.load_plugins(Config().CORE_PLUGIN_DIR)
 
     @bot.event
     async def on_ready():
         """Loads plugins and prints on server that bot is ready"""
-        global plugins
         logging.info("Loading plugins")
-        plugins.extend(bot.load_plugins(Config().PLUGIN_DIR))
+        bot.plugins.extend(bot.load_plugins(Config().PLUGIN_DIR))
 
         guild = discord.utils.get(bot.guilds, id=Config().SERVER_ID)
         bot.guild = guild
