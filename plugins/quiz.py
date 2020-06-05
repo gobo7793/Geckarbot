@@ -40,17 +40,17 @@ msg_defaults = {
     "duplicate_difficulty_arg": "You defined the difficulty more than once. Make up your mind.",
     "duplicate_mode_arg": "You defined the answering mode more than once. Make up your mind.",
     "unknown": "Unknown argument: {}",
-    "existing_quiz": "There is already a quiz running in this channel.",
+    "existing_quiz": "There is already a kwiss running in this channel.",
     "correct_answer": "{}: {} is the correct answer!",
     "multiplechoice": "Multiple Choice",
     "freetext": "Free text",
-    "quiz_start": "Starting Quiz! {} questions. Category: {}. Difficulty: {}. Mode: {}",
-    "quiz_end": "The quiz has ended. The winner is: **{}**! Congratulations!",
-    "quiz_abort": "The quiz was aborted.",
+    "quiz_start": "Starting kwiss! {} questions. Category: {}. Difficulty: {}. Mode: {}",
+    "quiz_end": "The kwiss has ended. The winner is: **{}**! Congratulations!",
+    "quiz_abort": "The kwiss was aborted.",
     "too_many_arguments": "Too many arguments.",
     "invalid_argument": "Invalid argument: {}",
-    "registering_phase": "Please register for the upcoming quiz via !kwiss register. I will wait {} minutes.",
-    "registering_too_late": "{}: Sorry, too late. The quiz has already begun.",
+    "registering_phase": "Please register for the upcoming kwiss via !kwiss register. I will wait {} minutes.",
+    "registering_too_late": "{}: Sorry, too late. The kwiss has already begun.",
     "already_registered": "{}: Dude, I got it. Don't worry.",
     "no_pause_while_registering": "{}: Nope, not now.",
 }
@@ -423,7 +423,7 @@ class PointsQuizController(BaseQuizController):
         self.current_answers = {}
 
     async def status(self):
-        embed = discord.Embed(title="Quiz: question {}/{}".format(
+        embed = discord.Embed(title="Kwiss: question {}/{}".format(
             self.quizapi.current_question_i() + 1, len(self.questions)))
         embed.add_field(name="Category", value=self.quizapi.category_name())
         embed.add_field(name="Difficulty", value=Difficulty.human_readable(self.difficulty))
@@ -564,7 +564,7 @@ class RaceQuizController(BaseQuizController):
         self.last_author = None
 
     async def status(self):
-        embed = discord.Embed(title="Quiz: question {}/{}".format(
+        embed = discord.Embed(title="Kwiss: question {}/{}".format(
             self.quizapi.current_question_index() + 1, len(self.quizapi.questions)))
         embed.add_field(name="Category", value=self.quizapi.category_name())
         embed.add_field(name="Difficulty", value=Difficulty.human_readable(self.difficulty))
@@ -733,7 +733,7 @@ db_mapping = {
 }
 
 
-class Plugin(commands.Cog, name="A trivia quiz"):
+class Plugin(commands.Cog, name="A trivia kwiss"):
     def __init__(self, bot):
         self.bot = bot
         self.controllers = {}
