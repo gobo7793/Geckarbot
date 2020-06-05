@@ -1,4 +1,3 @@
-import discord
 import random
 import logging
 from discord.ext import commands
@@ -19,9 +18,6 @@ class Plugin(commands.Cog, name="A simple number guessing game"):
     @commands.group(name="guess", help="Guess a number",
                     description="Start a game via '!guess start'")
     async def guess(self, ctx, guess=None, arg1=None, arg2=None):
-        #await ctx.send(f"guess: {guess}")
-        #await ctx.send(f"arg1: {arg1}")
-        #await ctx.send(f"arg2: {arg2}")
         if guess == "start":
             if arg1 is not None or arg2 is not None:
                 try:
@@ -80,11 +76,8 @@ class Plugin(commands.Cog, name="A simple number guessing game"):
 
     @guess.command(name="stop", help="Stops a game and shows the number that should have been guessed")
     async def stop(self, ctx):
-        #await ctx.send("Testttttt")
-        #"""
         if self.isPlaying is True:
             self.isPlaying = False
             await ctx.send("Stopped the game. The number was: **{}**".format(self.number))
         else:
             await ctx.send("Cannot stop game. Start game first!")
-        #"""
