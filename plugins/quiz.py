@@ -766,7 +766,7 @@ class Plugin(commands.Cog, name="A trivia kwiss"):
             if quiz:
                 await quiz.on_message(msg)
 
-    @commands.command(name="kwiss", help="Interacts with the kwis subsystem.")
+    @commands.command(name="kwiss", help="Interacts with the kwiss subsystem.")
     async def kwiss(self, ctx, *args):
         logging.debug("Caught kwiss cmd")
         channel = ctx.channel
