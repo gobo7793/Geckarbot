@@ -1,9 +1,7 @@
-# General config
-# Default values defined during json reading in read_config_file()
 import os
-import dotenv
 import json
 import datetime
+import logging
 from botUtils import jsonUtils, enums
 
 
@@ -16,99 +14,122 @@ class _Singleton(type):
         return cls._instances[cls]
 
 
+class PluginSlot():
+    """Contains basic data for plugins"""
+
+    def __init__(self, instance):
+        self.instance = instance
+        self.module_name = instance.__module__
+        self.config = None
+
+
 class Config(metaclass=_Singleton):
 
     ######
     # Basic bot info
     ######
 
-    VERSION = "1.0.2"
-    CONFIG_FILE = "config/config.json"
-    PLUGINDIR = "plugins"
-    RESOURCEDIR = "resources"
+    VERSION = "1.1.0"
+    CONFIG_DIR = "config"
+    PLUGIN_DIR = "plugins"
+    CORE_PLUGIN_DIR = "coreplugins"
+
+    BOT_CONFIG_FILE = "geckarbot"
 
     ######
     # Init
     ######
 
     def __init__(self, *args, **kwargs):
-        self.load_env()
+        self.plugins = []
 
-    def load_env(self):
-        """Reads general server data stored in .env"""
-        dotenv.load_dotenv()
-        self.TOKEN = os.getenv("DISCORD_TOKEN")
-        self.DEBUG_MODE = os.getenv("DEBUG_MODE", False)
-        self.DEBUG_USER_ID_REACTING = int(os.getenv("DEBUG_USER_ID_REACTING", 0))
+    def load_bot(self):
+        bot_data = self._read_config_file(self.BOT_CONFIG_FILE)
+        if bot_data is None:
+            logging.critical("Cannot load bot.")
+        else:
+            self.TOKEN = bot_data.get('DISCORD_TOKEN', 0)
+            self.SERVER_ID = bot_data.get('SERVER_ID', 0)
+            self.CHAN_IDS = bot_data.get('CHAN_IDS', {})
+            self.ROLE_IDS = bot_data.get('ROLE_IDS', {})
 
-        self.SERVER_ID = int(os.getenv("SERVER_ID"))
-        self.DEBUG_CHAN_ID = int(os.getenv("DEBUG_CHAN_ID"))
+            self.DEBUG_CHAN_ID = self.CHAN_IDS.get('bot-interna', 0)
+            self.ADMIN_ROLE_ID = self.ROLE_IDS.get('admin', 0)
+            self.BOTMASTER_ROLE_ID = self.ROLE_IDS.get('botmaster', 0)
 
-    ######
-    # Configuration data
-    ######
-
-    # Server settings
-    server_channels = { # Currently must be setted in Config().json manually
-        'music': 0,
-    }
-
-    blacklist = []
-    greylist = {}
-
-    # DSC
-    dsc = {
-        'rule_link': None,
-        'contestdoc_link': None,
-        'host_id': None,
-        'state': None,
-        'yt_link': None,
-        'state_end': None
-    }
+            self.DEBUG_MODE = bot_data.get('DEBUG_MODE', False)
+            self.DEBUG_WHITELIST = bot_data.get('DEBUG_WHITELIST', [])
 
     ######
-    # Read/Write config
+    # Read/Write config files
     ######
 
-    def write_config_file(self):
-        """Writes the config to json file"""
-        jsondata = {
-            'server_channels': self.server_channels,
-            'blacklist': self.blacklist,
-            'greylist': self.greylist,
-            'dsc': self.dsc
-        }
+    def _write_config_file(self, file_name: str, config_data):
+        """Writes the config to file_name.json and returns if successfull"""
+        try:
+            with open(f"{self.CONFIG_DIR}/{file_name}.json", "w") as f:
+                json.dump(config_data, f, cls=jsonUtils.Encoder, indent=4)
+                return True
+        except:
+            logging.error(f"Error writing config file {self.CONFIG_DIR}/{file_name}.json")
+            return False
 
-        with open(self.CONFIG_FILE, "w") as f:
-            json.dump(jsondata, f, cls=jsonUtils.Encoder, indent=4)
-
-    def read_config_file(self):
-        """Reads the config json file and returns if an error occured"""
-        print("Loading config file")
-
-        wasError = False
-        jsondata = {}
-        if not os.path.exists(self.CONFIG_FILE):
-            print("No config file found. Using defaults.")
+    def _read_config_file(self, file_name: str):
+        """Reads the file_name.json and returns the content or None if errors"""
+        if not os.path.exists(f"{self.CONFIG_DIR}/{file_name}.json"):
+            logging.info(f"Config file {self.CONFIG_DIR}/{file_name}.json not found.")
+            return None
         else:
             try:
-                with open(self.CONFIG_FILE, "r") as f:
+                with open(f"{self.CONFIG_DIR}/{file_name}.json", "r") as f:
                     jsondata = json.load(f, object_hook=jsonUtils.decoder_obj_hook)
+                    return jsondata
             except:
-                print("Error reading json config data. Using defaults.")
-                wasError = True
+                logging.error("Error reading {self.CONFIG_DIR}/{file_name}.json.")
+                return None
 
-        # Server settings
-        self.server_channels['music'] = jsondata.get('server_channels', {}).get('music', 0)
-        self.blacklist = jsondata.get('blacklist', [])
-        self.greylist = {int(k):v for k, v in jsondata.get('greylist', {}).items()}
+    ######
+    # Save/Load/Get plugin config
+    ######
 
-        # DSC
-        self.dsc['rule_link'] = jsondata.get('dsc', {}).get('rule_link', "https://docs.google.com/document/d/1xvkIPgLfFvm4CLwbCoUa8WZ1Fa-Z_ELPAtgHaSpEEbg")
-        self.dsc['contestdoc_link'] = jsondata.get('dsc', {}).get('contestdoc_link', "https://docs.google.com/spreadsheets/d/1HH42s5DX4FbuEeJPdm8l1TK70o2_EKADNOLkhu5qRa8")
-        self.dsc['host_id'] = jsondata.get('dsc', {}).get('host_id')
-        self.dsc['state'] = jsondata.get('dsc', {}).get('state', enums.DscState.NA)
-        self.dsc['yt_link'] = jsondata.get('dsc', {}).get('yt_link')
-        self.dsc['state_end'] = jsondata.get('dsc', {}).get('state_end', datetime.datetime.now())
+    def get(self, plugin):
+        """Returns the config of the given plugin.
+        If given plugin is not registered, None will be returned."""
+        for plugin_slot in self.plugins:
+            if plugin_slot.instance is plugin:
+                return plugin_slot.config
+        return None
 
-        return wasError
+    def save(self, plugin):
+        """Saves the config of the given plugin.
+        If given plugin is not registered, None will be returned,
+        else if saving is succesfully."""
+        for plugin_slot in self.plugins:
+            if plugin_slot.instance is plugin:
+                return self._write_config_file(plugin_slot.module_name, plugin_slot.config)
+        return None
+
+    def load(self, plugin):
+        """Loads the config of the given plugin.
+        If given plugin is not registered, None will be returned, if errors
+        occured during loading False and an empty dictionary will be saved
+        as its config, otherwise True."""
+        for plugin_slot in self.plugins:
+            if plugin_slot.instance is plugin:
+                loaded = self._read_config_file(plugin_slot.module_name)
+                if loaded is None:
+                    plugin_slot.config = {}
+                    return False
+                plugin_slot.config = loaded
+                return True
+        return None
+
+    def load_all(self):
+        """Loads the config of all registered plugins. If config of a
+        plugin can't be loaded, a empty dict will be saved as config."""
+        return_value = True
+        for plugin_slot in self.plugins:
+            loaded = self._read_config_file(plugin_slot.module_name)
+            if loaded is None:
+                plugin_slot.config = {}
+            plugin_slot.config = loaded
