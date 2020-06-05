@@ -17,6 +17,7 @@ Getting data or simple messages:
 Fun/Misc:
 - Roll a dice
 - Get and manage info for current/next DSC (Host, State, YT link, state end date)
+- Start a kwiss
 
 See full command list with `!help`
 
