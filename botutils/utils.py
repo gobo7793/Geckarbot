@@ -1,26 +1,5 @@
 from discord.ext.commands.bot import Bot
 from conf import Config
-from threading import Thread
-import asyncio
-import time
-
-
-class AsyncTimer(Thread):
-    def __init__(self, bot, t, callback, *args, **kwargs):
-        self.loop = bot.loop
-        self.t = t
-        self.callback = callback
-        self.args = args
-        self.kwargs = kwargs
-        super().__init__()
-        self.start()
-
-    def job(self):
-        asyncio.run_coroutine_threadsafe(self.callback(*self.args, **self.kwargs), self.loop)
-
-    def run(self):
-        time.sleep(self.t)
-        self.job()
 
 
 async def write_debug_channel(bot: Bot, message):
