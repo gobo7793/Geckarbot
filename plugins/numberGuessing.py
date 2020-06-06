@@ -51,9 +51,7 @@ class Plugin(commands.Cog, name="A simple number guessing game"):
                         await ctx.send(
                             "Great job! You guessed the number **{}** in only **{}** tries!".format(self.number,
                                                                                                     self.guess_count))
-                        self.number = 0
-                        self.guess_count = False
-                        self.isPlaying = False
+                        self.reset()  # sets the variables back to start a new game
                     else:
                         if guess < self.number:
                             await ctx.send("**{}** is too low".format(guess))
@@ -77,7 +75,12 @@ class Plugin(commands.Cog, name="A simple number guessing game"):
     @guess.command(name="stop", help="Stops a game and shows the number that should have been guessed")
     async def stop(self, ctx):
         if self.isPlaying is True:
-            self.isPlaying = False
             await ctx.send("Stopped the game. The number was: **{}**".format(self.number))
+            self.reset()  # sets the variables back to start a new game
         else:
             await ctx.send("Cannot stop game. Start game first!")
+
+    def reset(self):
+        self.number = 0
+        self.guess_count = 0
+        self.isPlaying = False
