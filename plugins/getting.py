@@ -43,6 +43,12 @@ class Plugin(commands.Cog, name="Simple message or data return Commands"):
         file = discord.File(f"{Config().RESOURCE_DIR}/mimimi.mp3")
         await ctx.send(file=file)
 
+    @commands.command(name="geck", help="Provides an .mp3 file that plays the sound of 'mimimi'.")
+    async def geck(self, ctx):
+        await ctx.trigger_typing()
+        file = discord.File(f"{Config().RESOURCE_DIR}/treeckos.png")
+        await ctx.send("arbor!", file=file)
+
     @commands.command(name="liebe", help="Provides love to the channel")
     async def liebe(self, ctx):
         await ctx.send("https://www.youtube.com/watch?v=TfmJPDmaQdg")
