@@ -40,7 +40,7 @@ class Plugin(commands.Cog, name="Simple message or data return Commands"):
     @commands.command(name="mimimi", help="Provides an .mp3 file that plays the sound of 'mimimi'.")
     async def mimimi(self, ctx):
         await ctx.trigger_typing()
-        file = discord.File(f"{Config().RESOURCEDIR}/mimimi.mp3")
+        file = discord.File(f"{Config().RESOURCE_DIR}/mimimi.mp3")
         await ctx.send(file=file)
 
     @commands.command(name="liebe", help="Provides love to the channel")

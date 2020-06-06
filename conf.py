@@ -33,6 +33,7 @@ class Config(metaclass=_Singleton):
     CONFIG_DIR = "config"
     PLUGIN_DIR = "plugins"
     CORE_PLUGIN_DIR = "coreplugins"
+    RESOURCE_DIR = "resources"
 
     BOT_CONFIG_FILE = "geckarbot"
 

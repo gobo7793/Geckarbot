@@ -22,22 +22,23 @@
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="botutils\restclient.py" />
     <Compile Include="coreplugins\__init__.py">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="botUtils\enums.py">
+    <Compile Include="botutils\enums.py">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="botUtils\jsonUtils.py">
+    <Compile Include="botutils\jsonUtils.py">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="botUtils\permChecks.py">
+    <Compile Include="botutils\permChecks.py">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="botUtils\utils.py">
+    <Compile Include="botutils\utils.py">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="botUtils\__init__.py">
+    <Compile Include="botutils\__init__.py">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="conf.py">
@@ -47,6 +48,8 @@
     <Compile Include="plugins\getting.py" />
     <Compile Include="plugins\misc.py" />
     <Compile Include="coreplugins\mod.py" />
+    <Compile Include="plugins\numberGuessing.py" />
+    <Compile Include="plugins\quiz.py" />
     <Compile Include="plugins\__init__.py" />
   </ItemGroup>
   <ItemGroup>
@@ -54,15 +57,13 @@
   </ItemGroup>
   <ItemGroup>
     <Content Include=".env" />
-    <Content Include="config\config.json" />
+    <Content Include="config\coreplugins.mod.json" />
     <Content Include="config\geckarbot.json" />
-    <Content Include="config\geckarbot_prod.json">
-      <SubType>Code</SubType>
-    </Content>
+    <Content Include="config\plugins.misc.json" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="coreplugins\" />
-    <Folder Include="botUtils\" />
+    <Folder Include="botutils\" />
     <Folder Include="config\" />
     <Folder Include="plugins\" />
   </ItemGroup>
