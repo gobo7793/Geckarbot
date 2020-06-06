@@ -2,67 +2,25 @@ from discord.ext.commands.bot import Bot
 from conf import Config
 from threading import Thread
 import asyncio
+import time
 
 
-class CancelMe:
-    def __init__(self):
-        self.cancelled = False
-
-    def cancel(self):
-        self.cancelled = True
-
-
-async def AsyncTimer(timeout, callback, *args, **kwargs):
-    await asyncio.sleep(timeout)
-    await callback(*args, **kwargs)
-    return CancelMe()
-
-
-class AsyncTimer3:
-    def __init__(self, timeout, callback, *args, **kwargs):
-        self.timeout = timeout
-        self.callback = callback
-        self.args = args
-        self.kwargs = kwargs
-        self.task = asyncio.ensure_future(self.job())
-
-    async def job(self):
-        print("========= Running timer; timeout: {}".format(self.timeout))
-        await asyncio.sleep(self.timeout)
-        print("========= Timer done")
-        await self.callback(*self.args, **self.kwargs)
-        print("========= Callback done")
-
-    def cancel(self):
-        self.task.cancel()
-
-
-class AsyncTimer2(Thread):
-    def __init__(self, t, callback, *args, **kwargs):
-        """
-        Timer for coroutines in async or sync contexts.
-        :param t: Time that is waited before calling callback in seconds
-        :param callback: Callback coroutine that is called with all following args and keyword args.
-        """
-        super().__init__()
-        self.loop = asyncio.new_event_loop()
+class AsyncTimer(Thread):
+    def __init__(self, bot, t, callback, *args, **kwargs):
+        self.loop = bot.loop
         self.t = t
         self.callback = callback
         self.args = args
         self.kwargs = kwargs
-        self.cancelled = False
+        super().__init__()
         self.start()
 
-    async def cb(self):
-        await self.callback(*self.args, **self.kwargs)
+    def job(self):
+        asyncio.run_coroutine_threadsafe(self.callback(*self.args, **self.kwargs), self.loop)
 
     def run(self):
-        asyncio.sleep(self.t)
-        if not self.cancelled:
-            self.loop.run_until_complete(self.cb())
-
-    def cancel(self):
-        self.cancelled = True
+        time.sleep(self.t)
+        self.job()
 
 
 async def write_debug_channel(bot: Bot, message):
