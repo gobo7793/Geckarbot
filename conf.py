@@ -54,6 +54,7 @@ class Config(metaclass=_Singleton):
             self.CHAN_IDS = bot_data.get('CHAN_IDS', {})
             self.ROLE_IDS = bot_data.get('ROLE_IDS', {})
 
+            self.ADMIN_CHAN_ID = self.CHAN_IDS.get('admin', 0)
             self.DEBUG_CHAN_ID = self.CHAN_IDS.get('bot-interna', 0)
             self.ADMIN_ROLE_ID = self.ROLE_IDS.get('admin', 0)
             self.BOTMASTER_ROLE_ID = self.ROLE_IDS.get('botmaster', 0)
