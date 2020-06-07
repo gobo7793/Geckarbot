@@ -57,6 +57,12 @@ class AsyncTimer(Thread):
                 raise HasAlreadyRun(self.callback)
             self.cancelled = True
 
+async def write_admin_channel(bot: Bot, message):
+    """Writes the message to the admin channel"""
+    admin_chan = bot.get_channel(Config().ADMIN_CHAN_ID)
+    if admin_chan is not None:
+        await admin_chan.send()
+
 
 def get_best_username(user):
     """
