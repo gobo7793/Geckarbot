@@ -18,10 +18,10 @@ async def write_debug_channel_embed(bot: Bot, embed):
 
 def get_best_username(user):
     """
-    :param user: User that is to be identified
+    :param user: User (Member or User instance) that is to be identified
     :return: Returns the best fit for a human-readable identifier ("username") of user.
     """
-    if user.nick is None:
+    if isinstance(user, discord.User) or user.nick is None:
         return user.name
     return user.nick
 
