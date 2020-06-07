@@ -107,14 +107,14 @@ class Plugin(commands.Cog, name="Funny/Misc Commands"):
             embed.add_field(name="State", value=str(self.dsc_conf()['state']))
             embed.add_field(name="YT Playlist", value=str(self.dsc_conf()['yt_link']))
             embed.add_field(name="State End", value=str(self.dsc_conf()['state_end']))
-            await utils.write_debug_channel_embed(self.bot, embed)
+            await utils.write_debug_channel(self.bot, embed)
 
-    @dsc.group(name="set", help="Set data about current/next DSC", usage="<host|state|stateend|yt>")
+    @dsc.group(name="set", help="Set data about current/next DSC.", usage="<host|state|stateend|yt>")
     @commands.has_any_role(Config().ADMIN_ROLE_ID, Config().BOTMASTER_ROLE_ID, songmaster_role_id)
     async def dsc_set(self, ctx):
         """Basic set subcommand, does nothing"""
         if ctx.invoked_subcommand is None:
-            await ctx.send("Usage: !dsc set <host|state|yt|stateend>")
+            await ctx.send_help(self.dsc_set)
 
     @dsc_set.command(name="host", help="Sets the current/next DSC hoster", usage="<user>")
     #@commands.has_any_role("mod", "songmaster", "botmaster")
