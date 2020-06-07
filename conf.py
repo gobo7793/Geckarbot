@@ -1,7 +1,10 @@
 import os
+import sys
 import json
 import datetime
 import logging
+import pathlib
+import pkgutil
 from botutils import jsonUtils, enums
 
 
@@ -19,8 +22,17 @@ class PluginSlot:
 
     def __init__(self, instance):
         self.instance = instance
-        self.module_name = instance.__module__
+        self.module_name = instance.__module__.rsplit(".", 1)[1]
+        self.storage_dir = "{}/{}".format(Config().STORAGE_DIR, self.module_name)
         self.config = None
+        #sys.path.append(self.storage_dir)
+        self.lang = None
+        try:
+            lang_module = pkgutil.importlib.import_module("{}.{}".format(self.storage_dir.replace('/', '.'), "lang"))
+            self.lang = lang_module.lang
+        except Exception as e:
+            logging.error("Unable to load lang file from plugin: {} ({})".format(self.module_name, e))
+        pass
 
 
 class Config(metaclass=_Singleton):
@@ -33,7 +45,8 @@ class Config(metaclass=_Singleton):
     CONFIG_DIR = "config"
     PLUGIN_DIR = "plugins"
     CORE_PLUGIN_DIR = "coreplugins"
-    RESOURCE_DIR = "resources"
+    STORAGE_DIR = "storage"
+    LANGUAGE_CODE = 'en'
 
     BOT_CONFIG_FILE = "geckarbot"
 
@@ -135,3 +148,36 @@ class Config(metaclass=_Singleton):
             if loaded is None:
                 plugin_slot.config = {}
             plugin_slot.config = loaded
+
+    ######
+    # Lang/Strings/Resources
+    ######
+
+    def storage_dir(self, plugin):
+        """Returns the storage directory for additional
+        resources for the given plugin instance."""
+        for plugin_slot in self.plugins:
+            if plugin_slot.instance is plugin:
+                return plugin_slot.storage_dir
+        return None
+
+    def lang(self, plugin, str_name, *args):
+        """
+        Returns the given string from plugins language/string file.
+        If language setted in Config().LANGUAGE_CODE is not supported, 'en' will be used.
+        If str_name can't be found, an empty string will be returned.
+        :param plugin: The plugin instance
+        :param str_name: The name of the returning string.
+            If not available for current language, an empty string will be returned.
+        :param *args: The strings to insert into the returning string via format()
+        """
+        for plugin_slot in self.plugins:
+            if plugin_slot.instance is plugin:
+                lang_code = self.LANGUAGE_CODE
+                if self.LANGUAGE_CODE in plugin_slot.lang:
+                    lang_code = self.LANGUAGE_CODE
+                else:
+                    lang_code = 'en'
+                lang_str = plugin_slot.lang[lang_code].get(str_name, "")
+                return lang_str.format(*args)
+        return None

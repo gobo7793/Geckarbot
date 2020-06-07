@@ -46,11 +46,13 @@
     </Compile>
     <Compile Include="Geckarbot.py" />
     <Compile Include="plugins\getting.py" />
+    <Compile Include="storage\getting\lang.py" />
     <Compile Include="plugins\misc.py" />
     <Compile Include="coreplugins\mod.py" />
     <Compile Include="plugins\numberGuessing.py" />
     <Compile Include="plugins\quiz.py" />
     <Compile Include="plugins\__init__.py" />
+    <Compile Include="storage\getting\__init__.py" />
   </ItemGroup>
   <ItemGroup>
     <InterpreterReference Include="Global|PythonCore|3.7" />
@@ -60,12 +62,16 @@
     <Content Include="config\coreplugins.mod.json" />
     <Content Include="config\geckarbot.json" />
     <Content Include="config\plugins.misc.json" />
+    <Content Include="storage\misc\treeckos.png" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="coreplugins\" />
     <Folder Include="botutils\" />
     <Folder Include="config\" />
+    <Folder Include="storage\" />
     <Folder Include="plugins\" />
+    <Folder Include="storage\getting\" />
+    <Folder Include="storage\misc\" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />
   <!-- Uncomment the CoreCompile target to enable the Build command in
