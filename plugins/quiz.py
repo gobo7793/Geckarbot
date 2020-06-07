@@ -3,9 +3,9 @@ import random
 import logging
 import warnings
 import time
+import asyncio
 from abc import ABC, abstractmethod
 from enum import Enum
-from threading import Lock
 from urllib.parse import unquote
 
 import discord
@@ -19,9 +19,10 @@ jsonify = {
     "questions_limit": 50,
     "questions_default": 20,
     "default_category": -1,
+    "question_cooldown": 5,
     "channel_blacklist": [],
     "points_quiz_register_timeout": 1 * 60,
-    "points_quiz_question_timeout": 10,  # warning after this value, actual timeout after 1.5*this value
+    "points_quiz_question_timeout": 20,  # warning after this value, actual timeout after 1.5*this value
     "channel_mapping": {
         706125113728172084: "any",
         716683335778173048: "politics",
@@ -50,7 +51,7 @@ msg_defaults = {
     "correct_answer": "{}: {} is the correct answer!",
     "multiplechoice": "Multiple Choice",
     "freetext": "Free text",
-    "quiz_start": "Starting kwiss! {} questions. Category: {}. Difficulty: {}. Mode: {}",
+    "quiz_start": "Starting kwiss! {} questions. Category: {}. Difficulty: {}. Game Mode: {}",
     "quiz_end": "The kwiss has ended. The winner is: **{}**! Congratulations!",
     "quiz_abort": "The kwiss was aborted.",
     "too_many_arguments": "Too many arguments.",
@@ -58,7 +59,7 @@ msg_defaults = {
     "answering_order": "{}: Please let someone else answer first.",
     "registering_phase": "Please register for the upcoming kwiss via !kwiss register. I will wait {} minutes.",
     "registering_too_late": "{}: Sorry, too late. The kwiss has already begun.",
-    "register_success": "{}: Affirmative!",
+    "register_success": "{}: You're in!",
     "quiz_phase": "The kwiss will begin in 10 seconds!",
     "already_registered": "{}: Dude, I got it. Don't worry.",
     "no_pause_while_registering": "{}: Nope, not now.",
@@ -136,6 +137,13 @@ class QuizNotRunning(Exception):
     pass
 
 
+class SubCommandEncountered(Exception):
+    def __init__(self, callback, args):
+        super().__init__()
+        self.callback = callback
+        self.args = args
+
+
 class Difficulty(Enum):
     EASY = "easy"
     MEDIUM = "medium"
@@ -186,6 +194,12 @@ class BaseQuizAPI(ABC):
         """
         Retrieves a new question.
         :return: Question object
+        """
+        pass
+
+    def __len__(self):
+        """
+        :return: Returns the amount of questions.
         """
         pass
 
@@ -283,7 +297,7 @@ class Score:
         """
         :return: List of members in score, sorted by score
         """
-        return sorted(self._score, key=lambda x: self._score[x])
+        return sorted(self._score, key=lambda x: self._score[x], reverse=True)
 
     def embed(self):
         embed = discord.Embed(title="Score:")
@@ -292,7 +306,7 @@ class Score:
         place = 0
         for i in range(len(ladder)):
             user = ladder[i]
-            if i == 0 or self._score[user] > self._score[ladder[i - 1]]:
+            if i == 0 or self._score[user] < self._score[ladder[i - 1]]:
                 place += 1
 
             # embed
@@ -319,12 +333,15 @@ class InvalidAnswer(Exception):
 
 
 class Question:
-    def __init__(self, question, correct_answer, incorrect_answers, mode=Modes.MULTIPLECHOICE):
+    def __init__(self, question, correct_answer, incorrect_answers, index=None, mode=Modes.MULTIPLECHOICE):
         logging.debug("Question({}, {}, {}, mode={})".format(question, correct_answer, incorrect_answers, mode))
         self.mode = mode
+        self.index = index
+
         self.question = question
         self.correct_answer = correct_answer
         self.incorrect_answers = incorrect_answers
+
         self.all_answers = incorrect_answers.copy()
         self.all_answers.append(correct_answer)
         random.shuffle(self.all_answers)
@@ -332,7 +349,7 @@ class Question:
     @classmethod
     def letter_mapping(cls, index, reverse=False):
         if not reverse:
-            return string.ascii_uppercase(index)
+            return string.ascii_uppercase[index]
 
         index = index.lower()
         for i in range(len(string.ascii_lowercase)):
@@ -341,20 +358,25 @@ class Question:
         return None
 
     async def pose(self, channel):
+        logging.getLogger(__name__).debug("Posing question #{}: {}".format(self.index, self.question))
         await channel.send(embed=self.embed())
 
     def embed(self):
         """
         :return: An embed representation of the question.
         """
-        embed = discord.Embed(title=self.question)
+        title = self.question
+        if self.index is not None:
+            title = "#{}: {}".format(self.index+1, title)
+        embed = discord.Embed(title=title)
         if self.mode == Modes.MULTIPLECHOICE:
             value = "\n".join([el for el in self.answers_mc()])
-            embed.add_field(name="Antwortmöglichkeiten:", value=value)
+            embed.add_field(name="Possible answers:", value=value)
 
         elif self.mode != Modes.FREETEXT:
             assert False
 
+        print("======= embed rdy")
         return embed
 
     def answers_mc(self):
@@ -415,7 +437,7 @@ class PointsQuizController(BaseQuizController):
         :param kwargs: category, question_count, difficulty, debug
         """
         super().__init__(plugin, config, quizapi, channel, requester, **kwargs)
-        logging.debug("Building PointsQuizController; kwargs: {}".format(kwargs))
+        plugin.logger.debug("Building PointsQuizController; kwargs: {}".format(kwargs))
         self.cmdstring_register = "register"
 
         self.channel = channel
@@ -433,23 +455,25 @@ class PointsQuizController(BaseQuizController):
         self.phase = Phases.BEFORE
         self.has_ever_run = False
         self.is_running = False
-        self.questions = []
+        self.registering_timer = None
         self.current_question_timer = None
+        self.current_question = None
         self._score = Score()
 
         self.registered_participants = {}
-        self.participants_lock = Lock()
         self.plugin.register_subcommand(self.channel, "register", self.register_command)
 
     async def status(self):
         embed = discord.Embed(title="Kwiss: question {}/{}".format(
-            self.quizapi.current_question_index() + 1, len(self.questions)))
+            self.quizapi.current_question_index() + 1, len(self.quizapi)))
         embed.add_field(name="Category", value=self.quizapi.category_name())
         embed.add_field(name="Difficulty", value=Difficulty.human_readable(self.difficulty))
-        embed.add_field(name="Mode", value="Winner takes it all")
+        embed.add_field(name="Mode", value="Points (Everyone answers)")
         embed.add_field(name="Initiated by", value=utils.get_best_username(self.requester))
 
         status = ":arrow_forward: Running"
+        if self.phase == Phases.REGISTERING:
+            status = ":book: Signup phase"
         if not self.is_running:
             status = ":pause_button: Paused"
         embed.add_field(name="Status", value=status)
@@ -458,15 +482,15 @@ class PointsQuizController(BaseQuizController):
             embed.add_field(name="Debug mode", value=":beetle:")
 
         await self.channel.send(embed=embed)
-        if self.is_running:
-            self.quizapi.current_question().pose(self.channel)
+        # if self.is_running:
+        #     await self.quizapi.current_question().pose(self.channel)
 
     @property
     def score(self):
         return self._score
 
     async def start(self):
-        logging.debug("Starting RaceQuizController")
+        self.plugin.logger.debug("Starting PointsQuizController")
         if self.is_running or self.has_ever_run:
             return
         self.is_running = True
@@ -475,7 +499,7 @@ class PointsQuizController(BaseQuizController):
         self.phase = Phases.REGISTERING
         await self.channel.send(message(self.config, "registering_phase",
                                         self.config["points_quiz_register_timeout"] // 60))
-        await utils.AsyncTimer(self.config["points_quiz_register_timeout"], self.end_registering())
+        utils.AsyncTimer(self.plugin.bot, self.config["points_quiz_register_timeout"], self.end_registering)
 
     async def pause(self):
         await self.channel.send("Sorry, pausing is not supported in this gamemode yet.")
@@ -501,26 +525,58 @@ class PointsQuizController(BaseQuizController):
         return True
 
     def havent_answered(self):
-        return [el for el in self.registered_participants if self.registered_participants is None]
+        return [el for el in self.registered_participants if self.registered_participants[el] is None]
 
     async def on_message(self, msg):
-        # ignore stuff
+        self.plugin.logger.debug("Caught message: {}".format(msg.content))
+        # ignore DM and msg when the quiz is not running
         if not isinstance(msg.channel, discord.TextChannel):
             return
         if not self.is_running:
+            self.plugin.logger.debug("Ignoring message, quiz is not running")
             return
 
-        with self.participants_lock:
-            if msg.author not in self.registered_participants:
-                return
+        if msg.author not in self.registered_participants:
+            print("author not registered; registered are: {}".format(self.registered_participants))
+            return
 
-            # Valid answer
-            try:
-                self.quizapi.current_question().check_answer(msg.content)
-            except InvalidAnswer:
-                return
+        # Valid answer
+        try:
+            check = self.quizapi.current_question().check_answer(msg.content)
+            if check:
+                check = "correct"
+            else:
+                check = "incorrect"
+            self.plugin.logger.debug("Valid answer from {}: {} ({})".format(msg.author.name, msg.content, check))
+        except InvalidAnswer:
+            print("Invalid answer")
+            return
+        self.registered_participants[msg.author] = msg.content
 
-            self.registered_participants[msg.author] = msg.content
+        if self.has_everyone_answered():
+            await self.end_question()
+
+    async def skip_command(self, msg, *args):
+        """
+        This is the callback for !kwiss skip.
+        :param msg: Message object
+        :param args: Passed arguments, including "skip"
+        """
+        self.plugin.logger.debug("Caught !kwiss skip command")
+        if len(args) > 1:
+            await self.channel.send(message(self.config, "too_many_arguments"))
+            return
+
+        if self.phase != Phases.REGISTERING or self.registering_timer is None:
+            self.plugin.logger.debug("Nothing to be skipped")
+            return
+        try:
+            self.registering_timer.cancel()
+        except utils.HasAlreadyRun:
+            self.plugin.logger.debug("Registering job has already run")
+            return
+
+        self.end_registering()
 
     async def register_command(self, msg, *args):
         """
@@ -528,104 +584,150 @@ class PointsQuizController(BaseQuizController):
         :param msg: Message object
         :param args: Passed arguments, including "register"
         """
-        print("====== Registering called; args: {}".format(args))
         assert self.cmdstring_register in args
+        if "skip" in args:
+            await self.end_registering()
+            return
+        if "timeoutwarning" in args:
+            await self.timeout_warning()
+            return
+        if "timeout" in args:
+            await self.timeout()
+            return
+        if "end" in args:
+            await self.end_question()
+            return
+        if "next" in args:
+            await self.next_question()
+
         if len(args) > 1:
             await self.channel.send(message(self.config, "too_many_arguments"))
             return
 
-        with self.participants_lock:
-            if self.phase == Phases.BEFORE:
-                await self.channel.send("No idea how you did that, but you registered too early.")
-                return
+        if self.phase == Phases.BEFORE:
+            await self.channel.send("No idea how you did that, but you registered too early.")
+            return
 
-            if self.phase == Phases.QUIZ:
-                await self.channel.send(message(self.config, "registering_too_late", msg.author))
+        if self.phase == Phases.QUIZ:
+            await self.channel.send(message(self.config, "registering_too_late", msg.author))
+            return
 
-            if msg.author in self.registered_participants:
-                return
+        if msg.author in self.registered_participants:
+            return
 
-            self.registered_participants[msg.author] = None
-            await self.channel.send(message(self.config, "register_success", msg.author))
+        self.registered_participants[msg.author] = None
+        self.plugin.logger.debug("{} registered".format(msg.author.name))
+        print("participants after reg: {}".format(self.registered_participants))
+        await self.channel.send(message(self.config, "register_success", msg.author))
 
-    async def next_question(self, first=False):
+    async def next_question(self):
         """
-        Poses question and manages timers
-        :param first: set to True if this is the first question.
+        Poses question and starts timers
         """
-        self.current_question_timer.cancel()
-        self.current_question_timer = utils.AsyncTimer()
+        self.plugin.logger.debug("Posing next question.")
+        try:
+            self.current_question = self.quizapi.next_question()
+        except QuizEnded:
+            print("quiz ended")
+            msg, embed = self.plugin.end_quiz(self.channel)
+            await self.channel.send(msg, embed=embed)
+            return
 
-        if first:
-            question = self.quizapi.current_question()
-        else:
-            question = self.quizapi.next_question()
-        question.pose()
-        self.current_question_timer = utils.AsyncTimer(self.config["points_quiz_question_timeout"],
-                                                       self.timeout_warning())
+        await self.current_question.pose(self.channel)
+        self.current_question_timer = utils.AsyncTimer(self.plugin.bot, self.config["points_quiz_question_timeout"],
+                                                       self.timeout_warning)
 
     async def timeout_warning(self):
+        self.plugin.logger.debug("Question timeout warning")
         if self.has_everyone_answered():
             return  # just in case
 
         await self.channel.send(message(self.config, "points_timeout_warning",
                                         utils.format_andlist(self.havent_answered(), ands=message(self.config, "and"))))
-        self.current_question_timer = utils.AsyncTimer(self.config["points_quiz_question_timeout"] // 2,
-                                                       self.timeout)
+        self.current_question_timer = utils.AsyncTimer(self.plugin.bot,
+                                                       self.config["points_quiz_question_timeout"] // 2, self.timeout)
 
     async def timeout(self):
+        self.plugin.logger.debug("Question timeout")
         if self.has_everyone_answered():
             return  # just in case
 
-        await self.channel.send(message(self.config, "points_timeout_warning",
-                                        utils.format_andlist(self.havent_answered(), ands=message(self.config, "and"))))
+        msg = message(self.config, "points_timeout",
+                      utils.format_andlist(self.havent_answered(), ands=message(self.config, "and")))
+        if msg:
+            await self.channel.send(msg)
 
         self.current_question_timer = None
-        self.end_question()
+        await self.end_question()
 
     async def end_question(self):
-        with self.participants_lock:
-            question = self.quizapi.current_question()
+        """
+        Increments scores, resets timers and calls next_question()
+        """
+        self.plugin.logger.debug("Ending question")
 
-            correctly_answered = []
-            for user in self.registered_participants:
-                if question.check_answer(self.registered_participants[user]):
-                    correctly_answered.append(user)
-
-            for user in correctly_answered:
-                self.score.increase(user)
-
-            await self.channel.send(message(self.config, "points_question_done", question.correct_answer,
-                                            utils.format_andlist(correctly_answered, "and", "Nobody")))
-
-            # Reset things
-            for user in self.registered_participants:
-                self.registered_participants[user] = None
-            if self.current_question_timer is not None:
+        # Reset timer
+        if self.current_question_timer is not None:
+            try:
                 self.current_question_timer.cancel()
+            except utils.HasAlreadyRun:
+                pass  # TODO investigate race conditioning
+            self.current_question_timer = None
 
-            await self.next_question()
+        question = self.quizapi.current_question()
+
+        # Increment scores
+        correctly_answered = []
+        for user in self.registered_participants:
+            if question.check_answer(self.registered_participants[user]):
+                correctly_answered.append(user)
+
+        for user in correctly_answered:
+            self.score.increase(user)
+
+        correct = [utils.get_best_username(el) for el in correctly_answered]
+        await self.channel.send(message(self.config, "points_question_done", question.correct_answer,
+                                        utils.format_andlist(correct, "and", "Nobody")))
+        print("correct: {}".format(correct))
+
+        # Reset answers list
+        for user in self.registered_participants:
+            self.registered_participants[user] = None
+
+        await asyncio.sleep(self.config["question_cooldown"])
+        await self.next_question()
 
     async def end_registering(self):
-        with self.participants_lock:
-            self.phase = Phases.QUIZ
+        self.plugin.logger.debug("Ending the registering phase")
+        self.phase = Phases.QUIZ
 
         if len(self.registered_participants) == 0:
             self.plugin.end_quiz(self.channel)
             return
         else:
             embed = discord.Embed(title=message(self.config, "quiz_phase"))
-            embed.add_field(name="Participants:", value="\n".join(self.registered_participants.values()))
+            value = "\n".join([el.mention for el in self.registered_participants])
+            embed.add_field(name="Participants:", value=value)
             await self.channel.send(embed=embed)
 
-        time.sleep(10)
-        await self.quizapi.current_question.pose(self.channel)
+        await asyncio.sleep(10)
+        await self.next_question()
 
     def __del__(self):
-        pass
+        self.plugin.logger.debug("Quiz has ended, deconstructing")
+        if self.current_question_timer is not None:
+            try:
+                self.current_question_timer.cancel()
+            except utils.HasAlreadyRun:
+                pass
+        if self.registering_timer is not None:
+            try:
+                self.registering_timer.cancel()
+            except utils.HasAlreadyRun:
+                pass
 
 
-class RaceQuizController(BaseQuizController):
+class RushQuizController(BaseQuizController):
     """
     Gamemode: the first user with the correct answer gets the point for the round
     """
@@ -639,7 +741,7 @@ class RaceQuizController(BaseQuizController):
         :param kwargs: category, question_count, difficulty, debug
         """
         super().__init__(plugin, config, quizapi, channel, requester, **kwargs)
-        logging.debug("Building RaceQuizController; kwargs: {}".format(kwargs))
+        plugin.logger.debug("Building RaceQuizController; kwargs: {}".format(kwargs))
         self.channel = channel
         self.requester = requester
         self.config = config
@@ -660,10 +762,10 @@ class RaceQuizController(BaseQuizController):
 
     async def status(self):
         embed = discord.Embed(title="Kwiss: question {}/{}".format(
-            self.quizapi.current_question_index() + 1, len(self.quizapi.questions)))
+            self.quizapi.current_question_index() + 1, len(self.quizapi)))
         embed.add_field(name="Category", value=self.quizapi.category_name())
         embed.add_field(name="Difficulty", value=Difficulty.human_readable(self.difficulty))
-        embed.add_field(name="Mode", value="Winner takes it all")
+        embed.add_field(name="Mode", value="Rush (Winner takes it all)")
         embed.add_field(name="Initiated by", value=utils.get_best_username(self.requester))
 
         status = ":arrow_forward: Running"
@@ -683,7 +785,7 @@ class RaceQuizController(BaseQuizController):
         return self._score
 
     async def start(self):
-        logging.debug("Starting RaceQuizController")
+        self.plugin.logger.debug("Starting RaceQuizController")
         if self.is_running or self.has_ever_run:
             return
         self.is_running = True
@@ -723,9 +825,12 @@ class RaceQuizController(BaseQuizController):
         # Correct answer
         if check:
             self.score.increase(msg.author)
+            self.last_author = None
             await msg.channel.send(message(self.config, "correct_answer",
                                            "@" + utils.get_best_username(msg.author),
                                            self.quizapi.current_question().correct_answer))
+
+            await asyncio.sleep(self.config["question_cooldown"])
             try:
                 await msg.channel.send(embed=self.quizapi.next_question().embed())
             except QuizEnded:
@@ -779,11 +884,12 @@ class OpenTDBQuizAPI(BaseQuizAPI):
             params["category"] = self.category
 
         questions_raw = self.client.make_request(opentdb["api_route"], params=params)["results"]
-        for el in questions_raw:
+        for i in range(len(questions_raw)):
+            el = questions_raw[i]
             question = unquote(el["question"])
             correct_answer = unquote(el["correct_answer"])
             incorrect_answers = [unquote(ia) for ia in el["incorrect_answers"]]
-            self.questions.append(Question(question, correct_answer, incorrect_answers, mode=self.mode))
+            self.questions.append(Question(question, correct_answer, incorrect_answers, index=i, mode=self.mode))
 
     def current_question_index(self):
         return self.current_question_i
@@ -826,6 +932,9 @@ class OpenTDBQuizAPI(BaseQuizAPI):
     def current_question(self):
         return self.questions[self.current_question_i]
 
+    def __len__(self):
+        return len(self.questions)
+
     def __del__(self):
         self.is_running = False
 
@@ -837,12 +946,13 @@ db_mapping = {
 
 class Plugin(commands.Cog, name="A trivia kwiss"):
     def __init__(self, bot):
+        self.logger = logging.getLogger(__name__)
         self.bot = bot
         self.controllers = {}
         self.registered_subcommands = {}
         self.config = jsonify
 
-        self.default_controller = RaceQuizController
+        self.default_controller = RushQuizController
         self.defaults = {
             "impl": "opentdb",
             "questions": self.config["questions_default"],
@@ -855,37 +965,38 @@ class Plugin(commands.Cog, name="A trivia kwiss"):
         }
 
         self.controller_mapping = {
-            RaceQuizController: ["race", "wtia"],
+            RushQuizController: ["rush", "race", "wtia"],
             PointsQuizController: ["points"],
         }
 
         super(commands.Cog).__init__()
         bot.register(self)
 
-        @bot.event
+        @bot.listen()
         async def on_message(msg):
-            await bot.process_commands(msg)
             quiz = self.get_controller(msg.channel)
             if quiz:
                 await quiz.on_message(msg)
 
     @commands.command(name="kwiss", help="Interacts with the kwiss subsystem.")
     async def kwiss(self, ctx, *args):
-        logging.debug("Caught kwiss cmd")
+        """
+        !kwiss command
+        """
+        self.logger.debug("Caught kwiss cmd")
         channel = ctx.channel
         try:
-            controller, args = self.parse_args(channel, args)
+            controller_class, args = self.parse_args(channel, args)
         except QuizInitError as e:
             # Parse Error
             await ctx.send(str(e))
             return
 
         # Subcommand
-        if args["subcommand"] is not None:
-            callback, args = args["subcommand"]
-            logging.debug("Calling subcommand: {}".format(callback))
-            await callback(ctx.message, *args)
-            return
+        except SubCommandEncountered as subcmd:
+                self.logger.debug("Calling subcommand: {}".format(subcmd.callback))
+                await subcmd.callback(ctx.message, *subcmd.args)
+                return
 
         # Look for existing quiz
         method = args["method"]
@@ -920,12 +1031,14 @@ class Plugin(commands.Cog, name="A trivia kwiss"):
 
         # Starting a new quiz
         assert method == Methods.START
-        quiz_controller = controller(self, self.config, OpenTDBQuizAPI, ctx.channel, ctx.message.author,
-                                     category=args["category"], question_count=args["questions"],
-                                     difficulty=args["difficulty"], mode=args["mode"], debug=args["debug"])
+        quiz_controller = controller_class(self, self.config, OpenTDBQuizAPI, ctx.channel, ctx.message.author,
+                                           category=args["category"], question_count=args["questions"],
+                                           difficulty=args["difficulty"], mode=args["mode"], debug=args["debug"])
         self.controllers[channel] = quiz_controller
-        await ctx.send(message(self.config, "quiz_start", args["questions"], quiz_controller.quizapi.category_name(),
-                       Difficulty.human_readable(quiz_controller.difficulty), Modes.human_readable(args["mode"])))
+        await ctx.send(message(self.config, "quiz_start", args["questions"],
+                               quiz_controller.quizapi.category_name(),
+                               Difficulty.human_readable(quiz_controller.difficulty),
+                               self.controller_mapping[controller_class][0]))
         await quiz_controller.start()
 
     def register_subcommand(self, channel, subcommand, callback):
@@ -936,7 +1049,7 @@ class Plugin(commands.Cog, name="A trivia kwiss"):
         :param callback: Coroutine of the type f(msg, *args); is called with the message object and every arg, including
         the subcommand itself and excluding the main command ("kwiss")
         """
-        logging.debug("Subcommand registered: {}; callback: {}".format(subcommand, callback))
+        self.logger.debug("Subcommand registered: {}; callback: {}".format(subcommand, callback))
         subcommand = subcommand.lower()
         found = False
         for el in self.registered_subcommands:
@@ -968,6 +1081,7 @@ class Plugin(commands.Cog, name="A trivia kwiss"):
         :param channel: channel that the quiz is taking place in
         :return: (End message, score embed)
         """
+        self.logger.debug("Ending quiz.")
         if channel not in self.controllers:
             assert False
 
@@ -981,7 +1095,7 @@ class Plugin(commands.Cog, name="A trivia kwiss"):
         del self.controllers[channel]
         if winner is None:
             return message(self.config, "quiz_abort"), None
-        return message(self.config, "quiz_end", winner), embed
+        return message(self.config, "quiz_end", utils.get_best_username(winner)), embed
 
     def parse_args(self, channel, args):
         """
@@ -995,6 +1109,18 @@ class Plugin(commands.Cog, name="A trivia kwiss"):
         controller = self.default_controller
         controller_found = False
 
+        # Fish for subcommand
+        subcmd = None
+        if channel in self.registered_subcommands:
+            for arg in args:
+                if arg in self.registered_subcommands[channel]:
+                    if subcmd is not None:
+                        raise QuizInitError(self.config, "duplicate_subcmd_arg")
+                    subcmd = self.registered_subcommands[channel][arg]
+        if subcmd is not None:
+            raise SubCommandEncountered(subcmd, args)
+
+        # Parse regular arguments
         for arg in args:
             arg = arg.lower()
 
@@ -1083,15 +1209,7 @@ class Plugin(commands.Cog, name="A trivia kwiss"):
                 found["debug"] = True
                 continue
 
-            # registered subcommand
-            if channel in self.registered_subcommands and arg in self.registered_subcommands[channel]:
-                if found["subcommand"]:
-                    raise QuizInitError(self.config, "duplicate_subcommand")
-                found["subcommand"] = True
-                parsed["subcommand"] = self.registered_subcommands[channel][arg], args
-                continue
-
             raise QuizInitError(self.config, "unknown_arg", arg)
 
-        logging.debug("Parsed kwiss args: {}".format(parsed))
+        self.logger.debug("Parsed kwiss args: {}".format(parsed))
         return controller, parsed
