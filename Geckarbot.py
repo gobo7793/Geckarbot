@@ -23,7 +23,7 @@ class Geckarbot(commands.Bot):
         super().__init__(*args, **kwargs)
 
     def register(self, cog_class):
-        print(isinstance(cog_class, commands.Cog))
+        #print(isinstance(cog_class, commands.Cog))
         if isinstance(cog_class, commands.Cog):
             cog = cog_class
         else:
@@ -31,9 +31,9 @@ class Geckarbot(commands.Bot):
         self.add_cog(cog)
         self.geck_cogs.append(cog)
 
-        plugin_slot = PluginSlot(cog_class)
+        plugin_slot = PluginSlot(cog)
         Config().plugins.append(plugin_slot)
-        Config().load(cog_class)
+        Config().load(cog)
 
     def load_plugins(self, plugin_dir):
         r = []
