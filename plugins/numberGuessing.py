@@ -16,7 +16,7 @@ class Plugin(commands.Cog, name="A simple number guessing game"):
         bot.register(self)
 
     def default_config(self):
-        pass
+        return {}
 
     @commands.group(name="guess", help="Guess a number",
                     description="Start a game via '!guess start'")

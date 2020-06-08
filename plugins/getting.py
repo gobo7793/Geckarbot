@@ -12,7 +12,7 @@ class Plugin(commands.Cog, name="Simple message or data return Commands"):
         bot.register(self)
 
     def default_config(self):
-        pass
+        return {}
 
     @commands.command(name="kicker", help="Returns frequently used links to kicker.de")
     async def kicker_table(self, ctx):
