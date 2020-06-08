@@ -18,8 +18,6 @@ class Plugin(commands.Cog, name="Funny/Misc Commands"):
         super(commands.Cog).__init__()
         bot.register(self)
 
-        self.load_def_config()
-
         global songmaster_role_id
         songmaster_role_id = Config().ROLE_IDS.get('songmaster', 0)
 

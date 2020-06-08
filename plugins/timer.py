@@ -11,6 +11,9 @@ class Plugin(commands.Cog, name="Timer things"):
         super(commands.Cog).__init__()
         bot.register(self)
 
+    def default_config(self):
+        return {}
+
     @commands.command(name="remindme", help="Reminds the author in x seconds.")
     async def reminder(self, ctx, duration):
         if duration == "cancel":
@@ -21,7 +24,7 @@ class Plugin(commands.Cog, name="Timer things"):
             await ctx.message.channel.send("You already have a reminder.")
             return
         self.timers[ctx.message.author] = AsyncTimer(self.bot, duration, self.callback, ctx.message)
-        await ctx.message.channel.send("Doing other things")
+        await ctx.message.channel.send("Have fun doing other things. Don't panic, I will remind you in {} seconds.".format(duration))
 
     async def callback(self, message):
         await message.channel.send("{} This is a reminder!".format(message.author.mention))

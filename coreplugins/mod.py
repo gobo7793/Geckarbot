@@ -54,7 +54,7 @@ class Plugin(commands.Cog, name="Bot Management Commands"):
     @commands.command(name="version", help="Returns the running bot version.")
     async def version(self, ctx):
         """Returns the version"""
-        await ctx.send(f"Running Geckarbot v{Config().VERSION}")
+        await ctx.send(f"Running Geckarbot {Config().VERSION}")
 
     @commands.command(name="plugins", help="List all plugins.")
     async def plugins(self, ctx):

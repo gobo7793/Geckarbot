@@ -46,7 +46,7 @@ class Plugin(commands.Cog, name="Simple message or data return Commands"):
         file = discord.File(f"{Config().storage_dir(self)}/mimimi.mp3")
         await ctx.send(file=file)
 
-    @commands.command(name="geck", help="Provides an .mp3 file that plays the sound of 'mimimi'.")
+    @commands.command(name="geck", help="GECKARBOR!")
     async def geck(self, ctx):
         await ctx.trigger_typing()
         file = discord.File(f"{Config().storage_dir(self)}/treeckos.png")

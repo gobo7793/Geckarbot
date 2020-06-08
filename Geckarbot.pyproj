@@ -46,6 +46,7 @@
     </Compile>
     <Compile Include="Geckarbot.py" />
     <Compile Include="plugins\getting.py" />
+    <Compile Include="plugins\timer.py" />
     <Compile Include="storage\getting\lang.py" />
     <Compile Include="plugins\misc.py" />
     <Compile Include="coreplugins\mod.py" />
