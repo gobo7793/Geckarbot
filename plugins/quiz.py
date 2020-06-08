@@ -978,6 +978,9 @@ class Plugin(commands.Cog, name="A trivia kwiss"):
             if quiz:
                 await quiz.on_message(msg)
 
+    def default_config(self):
+        return {}
+
     @commands.command(name="kwiss", help="Interacts with the kwiss subsystem.")
     async def kwiss(self, ctx, *args):
         """

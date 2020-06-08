@@ -23,18 +23,20 @@ class Plugin(commands.Cog, name="Funny/Misc Commands"):
         global songmaster_role_id
         songmaster_role_id = Config().ROLE_IDS.get('songmaster', 0)
 
+    def default_config(self):
+        return {
+            'dsc':{
+                'rule_link': "https://docs.google.com/document/d/1xvkIPgLfFvm4CLwbCoUa8WZ1Fa-Z_ELPAtgHaSpEEbg",
+                'contestdoc_link': "https://docs.google.com/spreadsheets/d/1HH42s5DX4FbuEeJPdm8l1TK70o2_EKADNOLkhu5qRa8",
+                'host_id': None,
+                'state': DscState.NA,
+                'yt_link': None,
+                'state_end': datetime.now()
+                }
+            }
+
     def dsc_conf(self):
         return Config().get(self)['dsc']
-
-    def load_def_config(self):
-        Config().get(self)['dsc'] = Config().get(self).get('dsc', {})
-
-        self.dsc_conf()['rule_link'] = self.dsc_conf().get('rule_link', "https://docs.google.com/document/d/1xvkIPgLfFvm4CLwbCoUa8WZ1Fa-Z_ELPAtgHaSpEEbg")
-        self.dsc_conf()['contestdoc_link'] = self.dsc_conf().get('contestdoc_link', "https://docs.google.com/spreadsheets/d/1HH42s5DX4FbuEeJPdm8l1TK70o2_EKADNOLkhu5qRa8")
-        self.dsc_conf()['host_id'] = self.dsc_conf().get('host_id')
-        self.dsc_conf()['state'] = self.dsc_conf().get('state', DscState.NA)
-        self.dsc_conf()['yt_link'] = self.dsc_conf().get('yt_link')
-        self.dsc_conf()['state_end'] = self.dsc_conf().get('state_end', datetime.now())
 
 
     ######

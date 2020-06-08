@@ -11,6 +11,9 @@ class Plugin(commands.Cog, name="Simple message or data return Commands"):
         super(commands.Cog).__init__()
         bot.register(self)
 
+    def default_config(self):
+        return {}
+
     @commands.command(name="kicker", help="Returns frequently used links to kicker.de")
     async def kicker_table(self, ctx):
         """Returns the kicker.de Bundesliga tables"""
@@ -40,13 +43,13 @@ class Plugin(commands.Cog, name="Simple message or data return Commands"):
     @commands.command(name="mimimi", help="Provides an .mp3 file that plays the sound of 'mimimi'.")
     async def mimimi(self, ctx):
         await ctx.trigger_typing()
-        file = discord.File(f"{Config().RESOURCE_DIR}/mimimi.mp3")
+        file = discord.File(f"{Config().storage_dir(self)}/mimimi.mp3")
         await ctx.send(file=file)
 
     @commands.command(name="geck", help="Provides an .mp3 file that plays the sound of 'mimimi'.")
     async def geck(self, ctx):
         await ctx.trigger_typing()
-        file = discord.File(f"{Config().RESOURCE_DIR}/treeckos.png")
+        file = discord.File(f"{Config().storage_dir(self)}/treeckos.png")
         await ctx.send("arbor!", file=file)
 
     @commands.command(name="liebe", help="Provides love to the channel")

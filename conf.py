@@ -25,7 +25,6 @@ class PluginSlot:
         self.module_name = instance.__module__.rsplit(".", 1)[1]
         self.storage_dir = "{}/{}".format(Config().STORAGE_DIR, self.module_name)
         self.config = None
-        #sys.path.append(self.storage_dir)
         self.lang = None
         try:
             lang_module = pkgutil.importlib.import_module("{}.{}".format(self.storage_dir.replace('/', '.'), "lang"))
@@ -127,13 +126,13 @@ class Config(metaclass=_Singleton):
     def load(self, plugin):
         """Loads the config of the given plugin.
         If given plugin is not registered, None will be returned, if errors
-        occured during loading False and an empty dictionary will be saved
+        occured during loading False and it's default config will be used
         as its config, otherwise True."""
         for plugin_slot in self.plugins:
             if plugin_slot.instance is plugin:
                 loaded = self._read_config_file(plugin_slot.module_name)
                 if loaded is None:
-                    plugin_slot.config = {}
+                    plugin_slot.config = plugin.default_config()
                     return False
                 plugin_slot.config = loaded
                 return True
@@ -141,12 +140,13 @@ class Config(metaclass=_Singleton):
 
     def load_all(self):
         """Loads the config of all registered plugins. If config of a
-        plugin can't be loaded, a empty dict will be saved as config."""
+        plugin can't be loaded, its default config will be used as config."""
         return_value = True
         for plugin_slot in self.plugins:
             loaded = self._read_config_file(plugin_slot.module_name)
             if loaded is None:
-                plugin_slot.config = {}
+                loaded = plugin_slot.instance.default_config()
+                return_value = False
             plugin_slot.config = loaded
 
     ######
