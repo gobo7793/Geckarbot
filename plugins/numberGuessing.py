@@ -15,6 +15,9 @@ class Plugin(commands.Cog, name="A simple number guessing game"):
         super(commands.Cog).__init__()
         bot.register(self)
 
+    def default_config(self):
+        pass
+
     @commands.group(name="guess", help="Guess a number",
                     description="Start a game via '!guess start'")
     async def guess(self, ctx, guess=None, arg1=None, arg2=None):

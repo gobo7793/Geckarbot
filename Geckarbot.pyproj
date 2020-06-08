@@ -59,9 +59,9 @@
   </ItemGroup>
   <ItemGroup>
     <Content Include=".env" />
-    <Content Include="config\coreplugins.mod.json" />
     <Content Include="config\geckarbot.json" />
-    <Content Include="config\plugins.misc.json" />
+    <Content Include="config\misc.json" />
+    <Content Include="config\mod.json" />
     <Content Include="storage\misc\treeckos.png" />
   </ItemGroup>
   <ItemGroup>

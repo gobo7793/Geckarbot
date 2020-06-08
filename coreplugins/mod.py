@@ -18,8 +18,14 @@ class Plugin(commands.Cog, name="Bot Management Commands"):
         bot.coredata['blacklist'] = self.bl
         bot.coredata['greylist'] = self.gl
 
-        Config().get(self)['blacklist'] = Config().get(self).get('blacklist', [])
-        Config().get(self)['greylist'] = Config().get(self).get('greylist', {})
+        #Config().get(self)['blacklist'] = Config().get(self).get('blacklist', [])
+        #Config().get(self)['greylist'] = Config().get(self).get('greylist', {})
+
+    def default_config(self):
+        return {
+            'blacklist': [],
+            'greylist': {}
+            }
 
     ######
     # Misc commands
