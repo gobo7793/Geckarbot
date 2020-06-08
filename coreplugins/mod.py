@@ -2,7 +2,7 @@ import discord
 from discord.ext import commands
 
 from conf import Config
-from botutils import utils, permChecks, enums
+from botutils import utils, permChecks, enums, restclient
 
 
 class Plugin(commands.Cog, name="Bot Management Commands"):
@@ -207,6 +207,10 @@ class Plugin(commands.Cog, name="Bot Management Commands"):
             await ctx.send("User removed from greylist.")
         else:
             await ctx.send("User's greylist updated.")
+
+    @commands.command(name="update", help="Updates the bot if an update is available")
+    def update(self):
+        client = restclient.Client("https://github.com")
 
 
 class Blacklist(object):

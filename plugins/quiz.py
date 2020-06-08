@@ -10,6 +10,7 @@ from urllib.parse import unquote
 import discord
 from discord.ext import commands
 
+import Geckarbot
 from botutils import restclient, utils, permChecks
 
 jsonify = {
@@ -733,7 +734,7 @@ db_mapping = {
 }
 
 
-class Plugin(commands.Cog, name="A trivia kwiss"):
+class Plugin(Geckarbot.BasePlugin, name="A trivia kwiss"):
     def __init__(self, bot):
         self.bot = bot
         self.controllers = {}

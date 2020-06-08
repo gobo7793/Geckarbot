@@ -5,11 +5,24 @@ import datetime
 import discord
 import pkgutil
 import logging
+import sys
+from enum import Enum
 
 from discord.ext import commands
 
 from conf import Config, PluginSlot
 from botutils import utils
+
+
+class Exitcodes(Enum):
+    """
+    These exit codes are evaluated by the runscript and acted on accordingly.
+    """
+    SUCCESS = 0  # regular shutdown, doesn't come back up
+    ERROR = 1  # some generic error
+    HTTP = 2  # no connection to discord
+    RESTART = 10  # simple restart
+    UPDATE = 11  # shutdown, update, restart
 
 
 class Geckarbot(commands.Bot):
@@ -50,6 +63,17 @@ class Geckarbot(commands.Bot):
                 logging.info("Loaded plugin {}".format(plugin))
 
         return r
+
+    def shutdown(self, status):
+        sys.exit(status.value())
+
+
+class BasePlugin(commands.Cog):
+    def shutdown(self):
+        """
+        Is called when the bot is shutting down. If you have cleanup to do, do it here.
+        """
+        pass
 
 
 def main():
