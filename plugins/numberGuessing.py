@@ -1,7 +1,10 @@
 import random
 import logging
+
 import discord
 from discord.ext import commands
+
+from Geckarbot import BasePlugin
 
 return_code = {
     "error": 0,
@@ -13,7 +16,7 @@ single_game  = 0
 channel_game = 1
 
 
-class Plugin(commands.Cog, name="A simple number guessing game"):
+class Plugin(BasePlugin, name="A simple number guessing game"):
 
     def __init__(self, bot):
         self.bot              = bot
@@ -24,7 +27,7 @@ class Plugin(commands.Cog, name="A simple number guessing game"):
         self.games_user       = {}
         self.games_channel    = {}
 
-        super(commands.Cog).__init__()
+        super().__init__(bot)
         bot.register(self)
 
     def default_config(self):

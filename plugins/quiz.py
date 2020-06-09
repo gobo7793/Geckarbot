@@ -2,7 +2,6 @@ import string
 import random
 import logging
 import warnings
-import time
 import asyncio
 from abc import ABC, abstractmethod
 from enum import Enum
@@ -11,6 +10,7 @@ from urllib.parse import unquote
 import discord
 from discord.ext import commands
 
+import Geckarbot
 from botutils import restclient, utils, permChecks
 
 jsonify = {
@@ -944,7 +944,7 @@ db_mapping = {
 }
 
 
-class Plugin(commands.Cog, name="A trivia kwiss"):
+class Plugin(Geckarbot.BasePlugin, name="A trivia kwiss"):
     def __init__(self, bot):
         self.logger = logging.getLogger(__name__)
         self.bot = bot
@@ -969,7 +969,7 @@ class Plugin(commands.Cog, name="A trivia kwiss"):
             PointsQuizController: ["points"],
         }
 
-        super(commands.Cog).__init__()
+        super().__init__(bot)
         bot.register(self)
 
         @bot.listen()

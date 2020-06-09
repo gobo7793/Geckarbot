@@ -5,11 +5,37 @@ import datetime
 import discord
 import pkgutil
 import logging
+import sys
+from enum import Enum
 
 from discord.ext import commands
 
 from conf import Config, PluginSlot
 from botutils import utils
+
+
+class Exitcodes(Enum):
+    """
+    These exit codes are evaluated by the runscript and acted on accordingly.
+    """
+    SUCCESS = 0  # regular shutdown, doesn't come back up
+    ERROR = 1  # some generic error
+    HTTP = 2  # no connection to discord
+    RESTART = 10  # simple restart
+    UPDATE = 11  # shutdown, update, restart
+
+
+class BasePlugin(commands.Cog):
+    def __init__(self, bot):
+        super().__init__()
+        self.bot = bot
+
+    async def shutdown(self):
+        """
+        Is called when the bot is shutting down. If you have cleanup to do, do it here.
+        Needs to be a coroutine (async).
+        """
+        pass
 
 
 class Geckarbot(commands.Bot):
@@ -18,22 +44,33 @@ class Geckarbot(commands.Bot):
         self.geck_cogs = []
         self.guild = None
         self.plugins = None
-        logging.info("this is an info")
-        logging.debug("this is debug")
         super().__init__(*args, **kwargs)
 
-    def register(self, cog_class):
-        #print(isinstance(cog_class, commands.Cog))
-        if isinstance(cog_class, commands.Cog):
-            cog = cog_class
+    def register(self, plugin_class):
+        print(isinstance(plugin_class, BasePlugin))  # todo figure out why this is False
+        if isinstance(plugin_class, commands.Cog):
+            plugin_object = plugin_class
         else:
-            cog = cog_class(self)
-        self.add_cog(cog)
-        self.geck_cogs.append(cog)
+            plugin_object = plugin_class(self)
+        self.add_cog(plugin_object)
+        self.geck_cogs.append(plugin_object)
 
-        plugin_slot = PluginSlot(cog)
+        plugin_slot = PluginSlot(plugin_object)
         Config().plugins.append(plugin_slot)
-        Config().load(cog)
+        Config().load(plugin_object)
+
+    def plugin_objects(self):
+        """
+        Generator for all registered plugin objects without anything config-related
+        """
+        for el in Config().plugins:
+            yield el.instance
+
+    def plugin_name(self, plugin):
+        """
+        Returns a human-readable name for Plugin plugin.
+        """
+        return plugin.__module__  # this looks kinda ghetto, maybe improve it
 
     def load_plugins(self, plugin_dir):
         r = []
@@ -53,12 +90,14 @@ class Geckarbot(commands.Bot):
 
         return r
 
+    async def shutdown(self, status):
+        sys.exit(status.value())
+
 
 def logging_setup():
     """
     Put all debug loggers on info and everything else on info/debug, depending on config
     """
-    print(logging.root.manager.loggerDict)
     level = logging.DEBUG
     if Config().DEBUG_MODE:
         level = logging.DEBUG
