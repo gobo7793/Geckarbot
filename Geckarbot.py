@@ -31,8 +31,6 @@ class Geckarbot(commands.Bot):
         self.geck_cogs = []
         self.guild = None
         self.plugins = None
-        logging.info("this is an info")
-        logging.debug("this is debug")
         super().__init__(*args, **kwargs)
 
     def register(self, cog_class):
@@ -98,7 +96,6 @@ def logging_setup():
     """
     Put all debug loggers on info and everything else on info/debug, depending on config
     """
-    print(logging.root.manager.loggerDict)
     level = logging.DEBUG
     if Config().DEBUG_MODE:
         level = logging.DEBUG
