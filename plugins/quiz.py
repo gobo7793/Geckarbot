@@ -757,7 +757,7 @@ class Plugin(Geckarbot.BasePlugin, name="A trivia kwiss"):
             RaceQuizController: ["race", "wtia"]
         }
 
-        super(commands.Cog).__init__()
+        super().__init__(bot)
         bot.register(self)
 
         @bot.event

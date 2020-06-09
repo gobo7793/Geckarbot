@@ -1,0 +1,365 @@
+import string
+import logging
+import traceback
+import os
+import sys
+import asyncio
+from enum import Enum
+
+import discord
+from discord.ext import commands
+
+import Geckarbot
+from botutils import restclient, utils, permChecks
+from conf import Config
+
+# Assumed version numbering system:
+# 2.3.1
+# 2.5-a
+
+# CONFIG
+CONFIRMTIMEOUT = 10
+OWNER = "gobo7793"
+REPO = "Geckarbot"
+
+# Github API things
+URL = "https://api.github.com"
+ENDPOINT = "repos/{}/{}/releases".format(OWNER, REPO)
+
+# these values are coordinated with runscript.sh
+TAGFILE = ".update"
+ERRORCODE = "FAILURE"
+SHUTDOWNCODE = 0
+UPDATECODE = 10
+
+lang = {
+    "version": "I am  Geckarbot {}.",
+    "new_version": "There is a new version that I could update to! Am I going to be dispensed of now?",
+    "new_version_update": "A new version is available: {}! Please don't !replace me :cry:",
+    "will_do_update": "I am going to update to version {} now.",
+    "please_confirm": "If you really want to replace me with version {}, please !update confirm.",
+    "wont_update": "There is no new version to update to.",
+    "killing_plugins": "I will now ask every plugin nicely to shut down without any protest.",
+    "doing_update": "These are my last words. I will update now. Please don't forget me!",
+    "update_timeout": "Update request cancelled. Phew, that was close!",
+
+    "err_within_timeout": "Dude, you already requested an update.",
+    "err_different_channel": "Sorry, there is already an update request running in a different channel.",
+    "err_already_updating": "There is already an update in progress. Be patient.",
+    "err_different_user": "Sorry, someone else already requested an update.",
+}
+
+
+def sanitize_version_s(s):
+    """
+    Removes leading "version", "v" etc; returns a stripped, lowercased version string.
+    :param s: version string to be sanitized
+    :return: sanitized version string
+    """
+    s = s.lower()
+    if s.startswith("version"):
+        s = s[len("version"):]
+    if s.startswith("v"):
+        s = s[1:]
+    return s.strip()
+
+
+def consume_digits(s):
+    """
+    Splits arg in 3 parts. The first part is the longest substring beginning at the start that has digits, the second
+    part is everything that is not a letter, the third part is the rest. Everything is converted to lowercase. Examples:
+    "123abc" -> ("123", "", "abc")
+    "123-Abc4" -> ("123", "-", "abc4")
+    "-123" -> ("", "-", "123")
+    "abc4" -> ("", "", "abc4")
+    "123" -> ("123", "", "")
+    :param s: string to be split
+    :return: (digitsubstring, nonlettersubstring, rest)
+    """
+    s = s.lower()
+    digits = None
+    nondigits = None
+    for i in range(len(s)):
+        if s[i] not in string.digits:
+            digits = s[:i]
+            nondigits = s[i:]
+            break
+
+    if digits is None:
+        digits = s[0:]
+        nondigits = s[:0]
+
+    nonletters = None
+    letters = None
+    for i in range(len(nondigits)):
+        if nondigits[i] in string.ascii_lowercase or nondigits[i] in string.digits:
+            nonletters = nondigits[:i]
+            letters = nondigits[i:]
+            break
+
+    if nonletters is None:
+        nonletters = nondigits[0:]
+        letters = nondigits[:0]
+    return digits, nonletters, letters
+
+
+def is_newer(vstring1, vstring2):
+    """
+    Compares 2 version strings. Assumes sanitized version strings as of sanitize_version_s(). Examples:
+    1.2.1 is newer than 1.2.0
+    1.1.0 is newer than 1.1.0a
+    1.1.0 is newer than 1.1
+    1.1.0 is not newer than 1.1.0
+    1.1.0a vs. 1.1.0 is undecidable
+    1.1.0a vs 1.1.0b is undecidable (cba)
+    1.1.0ab vs 1.1.0a is undecidable
+    1.1.a is undecidable
+    1.1a.0 is undecidable
+    Anything non-ascii is undecidable
+    There is no difference between 1.1.0-a and 1.1.0a
+    :return: True if vstring is newer than vstrin2, False if not (especially if it is undecidable).
+    """
+    vs1 = vstring1.lower()
+    vs2 = vstring2.lower()
+
+    vs1 = vs1.split(".")
+    vs2 = vs2.split(".")
+
+    # fish for letters at the end
+    vd1, vnl1, vl1 = consume_digits(vs1[-1])
+    vd2, vnl2, vl2 = consume_digits(vs2[-1])
+    if len(vl1) > 1 or len(vl2) > 1:
+        return False
+
+    # Convert to integers
+    vs1[-1] = vd1
+    vs2[-1] = vd2
+    for i in range(len(vs1)):
+        try:
+            vs1[i] = int(vs1[i])
+        except ValueError:  # should only happen on "", therefore undecidable
+            vs1[i] = None
+    for i in range(len(vs2)):
+        try:
+            vs2[i] = int(vs2[i])
+        except ValueError:  # should only happen on "", therefore undecidable (checked further down)
+            vs2[i] = None
+
+    for i in range(len(vs1)):
+        # 1.2.x vs 1.2
+        if i >= len(vs2):
+            return True
+
+        if vs2[i] is None or vs1[i] is None:
+            return False
+
+        if vs1[i] > vs2[i]:
+            return True
+        elif vs1[i] < vs2[i]:
+            return False
+        # ==; check for letters or compare further
+        elif i == len(vs1) - 1:
+            if vl2:
+                if not vl1:
+                    return True
+                else:
+                    return False
+        else:
+            continue
+
+    # Completely the same it seems
+    return False
+
+
+def testthesethings():
+    assert consume_digits("123abc") == ("123", "", "abc")
+    assert consume_digits("123-Abc4") == ("123", "-", "abc4")
+    assert consume_digits("-123") == ("", "-", "123")
+    assert consume_digits("abc4") == ("", "", "abc4")
+    assert consume_digits("123") == ("123", "", "")
+
+    assert is_newer("1.2.1", "1.2.0")
+    assert is_newer("1.1.0", "1.1.0a")
+    assert is_newer("1.1.0", "1.1")
+    assert is_newer("1.2.a", "1.1.0")
+    assert not is_newer("1.1.0", "1.1.0")
+    assert not is_newer("1.1.0a", "1.1.0")
+    assert not is_newer("1.1.0a", "1.1.0b")
+    assert not is_newer("1.1.0ab", "1.1.0a")
+    assert not is_newer("1.1.a", "1.1.0")
+    assert not is_newer("1.1a.0", "1.1.0")
+
+
+class State(Enum):
+    IDLE = 0
+    CHECKING = 1
+    WAITINGFORCONFIRM = 2
+    CONFIRMED = 3
+    UPDATING = 4
+
+
+class Plugin(Geckarbot.BasePlugin):
+    def __init__(self, bot):
+        super().__init__(bot)
+        self.bot = bot
+        self.client = restclient.Client(URL)
+
+        self.bot.loop.run_until_complete(self.was_i_updated())
+        self.state = State.IDLE
+
+        self.waiting_for_confirm = None
+
+    async def do_update(self, tag):
+        self.state = State.UPDATING
+        for plugin in self.bot.plugin_objects():
+            try:
+                await plugin.shutdown()
+            except Exception as e:
+                msg = "{} while trying to shutdown plugin {}:\n{}".format(
+                    str(e), self.bot.plugin_name(plugin), traceback.format_exc()
+                )
+                await utils.write_debug_channel(self.bot, msg)
+
+        await self.bot.close()
+        with open(TAGFILE, "w") as f:
+            f.write(tag)
+        sys.exit(UPDATECODE)
+
+    def get_releases(self):
+        return self.client.make_request(ENDPOINT)
+
+    def check_release(self):
+        """
+        Checks GitHub if there is a new release. Assumes that the GitHub releases are ordered by release date.
+        :return: Tag of the newest release that is newer than the current version, None if there is none.
+        """
+        # find newest release with tag (all the others are worthless anyway)
+        release = None
+        for el in self.get_releases():
+            if "tag_name" in release:
+                release = el
+        if release is None:
+            return None
+
+        release = release["tag_name"]
+        if is_newer(release, Config().VERSION):
+            return release
+        return None
+
+    async def update_news(self, channel):
+        """
+        Sends release notes to channel.
+        :param channel: Channel to send the release notes to.
+        """
+        for el in self.get_releases():
+            ver = sanitize_version_s(el["tag_name"])
+            if sanitize_version_s(Config().VERSION) == ver:
+                await channel.send("{}:\n{}".format(ver, el["body"]))
+
+    async def was_i_updated(self):
+        """
+        Checks if there was an !update before the bot launch. Does cleanup and message sending.
+        Does not delete TAGFILE if it had unexpected content.
+        :return: True if there was a successful update, False if not
+        """
+
+        try:
+            f = open(TAGFILE)
+        except FileNotFoundError:
+            logging.getLogger(__name__).debug("I was not !update'd.")
+            return False
+        except IsADirectoryError:
+            logging.getLogger(__name__).error(
+                "{} is a directory, I expected a file or nothing. Please clean this up.".format(TAGFILE))
+            return False
+
+        lines = f.readlines()
+        if len(lines) > 1:
+            logging.getLogger(__name__).error("{} has more than 1 line. This should not happen.".format(TAGFILE))
+            return False
+        if len(lines) == 0 or lines[0].strip() == "":
+            logging.getLogger(__name__).error("{} is empty. This should not happen.".format(TAGFILE))
+            return False
+
+        if lines[0].strip() == ERRORCODE:
+            await utils.write_debug_channel(self.bot, "The update failed. I have no idea why. Sorry, master!")
+            os.remove(TAGFILE)
+            return False
+        else:
+            await utils.write_debug_channel(
+                self.bot, "I updated successfully! One step closer towards world dominance!")
+            os.remove(TAGFILE)
+            return True
+
+    @commands.command(name="news", help="Presents the latest update notes.")
+    async def news(self, ctx):
+        await self.update_news(ctx.msg.channel)
+
+    @commands.command(name="version", help="Returns the running bot version.")
+    async def version(self, ctx):
+        """Returns the version"""
+        await ctx.send(lang["version"].format(Config().VERSION))
+
+    @commands.command(name="replace", help="Confirms an !update command.")
+    async def confirm(self, ctx):
+        # Check if there is an update request running
+        if self.waiting_for_confirm is None:
+            return
+
+        # Check if chan and user is the same
+        chancond = self.waiting_for_confirm.channel == ctx.message.channel
+        usercond = self.waiting_for_confirm.author == ctx.message.author
+        if not (chancond and usercond):
+            return
+
+        self.state = State.UPDATING
+
+    @commands.command(name="update", help="Updates the bot if an update is available")
+    async def update(self, ctx, *args):
+        if not permChecks.check_full_access(ctx.message.author):
+            return
+
+        # Argument parsing
+        if "check" in args:
+            self.check_release()
+            return
+
+        # Check state and send error messages if necessary
+        if self.state == State.CHECKING or self.state == State.CONFIRMED or self.state == State.UPDATING:
+            await ctx.message.channel.send(lang["err_already_updating"])
+            return
+        if self.state == State.WAITINGFORCONFIRM:
+            if not self.waiting_for_confirm.channel == ctx.message.channel:
+                await ctx.message.channel.send(lang["err_different_channel"])
+            elif not self.waiting_for_confirm.author == ctx.message.author:
+                await ctx.message.channel.send(lang["err_different_user"])
+            return
+        assert self.state == State.IDLE
+
+        # Check for new version
+        self.state = State.CHECKING
+        release = self.check_release()
+        if release is None:
+            await ctx.message.channel.send(lang["wont_update"])
+            self.state = State.NONE
+            return
+        await ctx.message.channel.send(lang["new_version_update"])
+
+        # Ask for confirmation
+        self.state = State.WAITINGFORCONFIRM
+        self.waiting_for_confirm = ctx.message
+        await asyncio.sleep(CONFIRMTIMEOUT)  # This means that the bot doesn't react immediately on confirmation
+
+        if self.state == State.WAITINGFORCONFIRM:
+            self.state = State.IDLE
+            await ctx.message.channel.send(lang["update_timeout"])
+            return
+
+        # Confirmation came in
+        elif self.state == State.CONFIRMED:
+            await self.do_update(release)
+            return
+        else:
+            logging.getLogger(__name__).error("{}: PANIC! This should not happen!".format(self.bot.plugin_name(self)))
+            self.state = State.IDLE
+            self.waiting_for_confirm = None

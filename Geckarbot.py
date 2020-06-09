@@ -34,7 +34,6 @@ class Geckarbot(commands.Bot):
         super().__init__(*args, **kwargs)
 
     def register(self, cog_class):
-        print(isinstance(cog_class, commands.Cog))
         if isinstance(cog_class, commands.Cog):
             cog = cog_class
         else:
@@ -45,6 +44,19 @@ class Geckarbot(commands.Bot):
         plugin_slot = PluginSlot(cog_class)
         Config().plugins.append(plugin_slot)
         Config().load(cog_class)
+
+    def plugin_objects(self):
+        """
+        Generator for all registered plugin objects without anything config-related
+        """
+        for el in self.plugins:
+            yield el.instance
+
+    def plugin_name(self, plugin):
+        """
+        Returns a human-readable name for Plugin plugin.
+        """
+        return plugin.__module__  # this looks kinda ghetto, maybe improve it
 
     def load_plugins(self, plugin_dir):
         r = []
@@ -64,11 +76,15 @@ class Geckarbot(commands.Bot):
 
         return r
 
-    def shutdown(self, status):
+    async def shutdown(self, status):
         sys.exit(status.value())
 
 
 class BasePlugin(commands.Cog):
+    def __init__(self, bot):
+        super().__init__()
+        self.bot = bot
+
     def shutdown(self):
         """
         Is called when the bot is shutting down. If you have cleanup to do, do it here.
@@ -77,7 +93,7 @@ class BasePlugin(commands.Cog):
 
 
 def main():
-    logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(level=logging.DEBUG)
     bot = Geckarbot(command_prefix='!')
     Config().load_bot()
     logging.info("Loading core plugins")

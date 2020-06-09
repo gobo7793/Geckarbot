@@ -44,11 +44,6 @@ class Plugin(commands.Cog, name="Bot Management Commands"):
         await ctx.send(sendMsg)
         await utils.write_debug_channel(self.bot, sendMsg)
 
-    @commands.command(name="version", help="Returns the running bot version.")
-    async def version(self, ctx):
-        """Returns the version"""
-        await ctx.send(f"Running Geckarbot v{Config().VERSION}")
-
     @commands.command(name="plugins", help="List all plugins.")
     async def plugins(self, ctx):
         """Returns registered plugins"""
@@ -207,10 +202,6 @@ class Plugin(commands.Cog, name="Bot Management Commands"):
             await ctx.send("User removed from greylist.")
         else:
             await ctx.send("User's greylist updated.")
-
-    @commands.command(name="update", help="Updates the bot if an update is available")
-    def update(self):
-        client = restclient.Client("https://github.com")
 
 
 class Blacklist(object):
