@@ -14,7 +14,10 @@ def in_channel(channel_id):
 
 
 def check_full_access(user: discord.Member):
-    """Checks if the user has full access to bot commands"""
+    """
+    Checks if the user has full access to bot commands. If you can, use
+    @commands.has_any_role(Config().ADMIN_ROLE_ID, Config().BOTMASTER_ROLE_ID)
+    """
     for role in user.roles:
         if role.id in [Config().ADMIN_ROLE_ID, Config().BOTMASTER_ROLE_ID]:
             return True

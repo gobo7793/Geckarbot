@@ -6,7 +6,6 @@ import sys
 import asyncio
 from enum import Enum
 
-import discord
 from discord.ext import commands
 
 import Geckarbot
@@ -34,13 +33,12 @@ UPDATECODE = 10
 
 lang = {
     "version": "I am  Geckarbot {}.",
-    "new_version": "There is a new version that I could update to! Am I going to be dispensed of now?",
+    "no_new_version": "There is no new version. I seem to be up to date!",
+    "new_version": "There is a new version that I could update to: {}! Am I going to be dispensed of now?",
     "new_version_update": "A new version is available: {}! Please don't !replace me :cry:",
-    "will_do_update": "I am going to update to version {} now.",
-    "please_confirm": "If you really want to replace me with version {}, please !update confirm.",
     "wont_update": "There is no new version to update to.",
     "killing_plugins": "I will now ask every plugin nicely to shut down without any protest.",
-    "doing_update": "These are my last words. I will update now. Please don't forget me!",
+    "doing_update": "These are my last words. I will update to {} now. Please don't forget me!",
     "update_timeout": "Update request cancelled. Phew, that was close!",
 
     "err_within_timeout": "Dude, you already requested an update.",
@@ -61,6 +59,7 @@ def sanitize_version_s(s):
         s = s[len("version"):]
     if s.startswith("v"):
         s = s[1:]
+
     return s.strip()
 
 
@@ -103,12 +102,57 @@ def consume_digits(s):
     return digits, nonletters, letters
 
 
+def is_equal(vstring1, vstring2):
+    vs1 = sanitize_version_s(vstring1)
+    vs2 = sanitize_version_s(vstring2)
+    vs1 = vs1.split(".")
+    vs2 = vs2.split(".")
+    if len(vs2) > len(vs1):
+        swap = vs1
+        vs1 = vs2
+        vs2 = swap
+
+    # fish for letters at the end
+    vd1, vnl1, vl1 = consume_digits(vs1[-1])
+    vd2, vnl2, vl2 = consume_digits(vs2[-1])
+    if vl1 != vl2:
+        return False
+    if len(vl1) > 1 or len(vl2) > 1:
+        return False
+
+    # Convert to integers
+    vs1[-1] = vd1
+    vs2[-1] = vd2
+    for i in range(len(vs1)):
+        try:
+            vs1[i] = int(vs1[i])
+        except ValueError:
+            pass
+    for i in range(len(vs2)):
+        try:
+            vs2[i] = int(vs2[i])
+        except ValueError:
+            pass
+
+    for i in range(len(vs1)):
+        # 1.2.x vs 1.2
+        if i >= len(vs2):
+            # 1.2.0 == 1.2
+            if vs1[i] == 0:
+                return True
+            return False
+
+        if vs1[i] != vs2[i]:
+            return False
+    return True
+
+
 def is_newer(vstring1, vstring2):
     """
     Compares 2 version strings. Assumes sanitized version strings as of sanitize_version_s(). Examples:
     1.2.1 is newer than 1.2.0
     1.1.0 is newer than 1.1.0a
-    1.1.0 is newer than 1.1
+    1.1.0 is not newer than 1.1
     1.1.0 is not newer than 1.1.0
     1.1.0a vs. 1.1.0 is undecidable
     1.1.0a vs 1.1.0b is undecidable (cba)
@@ -148,6 +192,9 @@ def is_newer(vstring1, vstring2):
     for i in range(len(vs1)):
         # 1.2.x vs 1.2
         if i >= len(vs2):
+            # 1.2.0 == 1.2
+            if vs1[i] == 0:
+                return False
             return True
 
         if vs2[i] is None or vs1[i] is None:
@@ -180,14 +227,24 @@ def testthesethings():
 
     assert is_newer("1.2.1", "1.2.0")
     assert is_newer("1.1.0", "1.1.0a")
-    assert is_newer("1.1.0", "1.1")
     assert is_newer("1.2.a", "1.1.0")
+    assert not is_newer("1.1.0", "1.1")
     assert not is_newer("1.1.0", "1.1.0")
     assert not is_newer("1.1.0a", "1.1.0")
     assert not is_newer("1.1.0a", "1.1.0b")
     assert not is_newer("1.1.0ab", "1.1.0a")
     assert not is_newer("1.1.a", "1.1.0")
     assert not is_newer("1.1a.0", "1.1.0")
+
+    assert is_equal("1.2.3", "1.2.3")
+    assert is_equal("1.2.0", "1.2")
+    assert is_equal("1.2", "1.2.0")
+    assert is_equal("1.1-a", "1.1a")
+    assert is_equal("1.a", "1.a")
+    assert is_equal("foo", "foo")
+    assert not is_equal("1.1.0", "1.2.0")
+    assert not is_equal("1.1.0", "1.1.1")
+    assert not is_equal("1.1.1-a", "1.1.1")
 
 
 class State(Enum):
@@ -198,7 +255,7 @@ class State(Enum):
     UPDATING = 4
 
 
-class Plugin(Geckarbot.BasePlugin):
+class Plugin(Geckarbot.BasePlugin, name="Bot updating system"):
     def __init__(self, bot):
         super().__init__(bot)
         self.bot = bot
@@ -208,9 +265,11 @@ class Plugin(Geckarbot.BasePlugin):
         self.state = State.IDLE
 
         self.waiting_for_confirm = None
+        bot.register(self)
 
-    async def do_update(self, tag):
+    async def do_update(self, channel, tag):
         self.state = State.UPDATING
+        await channel.send(lang["doing_update"].format(tag))
         for plugin in self.bot.plugin_objects():
             try:
                 await plugin.shutdown()
@@ -226,7 +285,8 @@ class Plugin(Geckarbot.BasePlugin):
         sys.exit(UPDATECODE)
 
     def get_releases(self):
-        return self.client.make_request(ENDPOINT)
+        r = self.client.make_request(ENDPOINT)
+        return r
 
     def check_release(self):
         """
@@ -236,7 +296,7 @@ class Plugin(Geckarbot.BasePlugin):
         # find newest release with tag (all the others are worthless anyway)
         release = None
         for el in self.get_releases():
-            if "tag_name" in release:
+            if "tag_name" in el:
                 release = el
         if release is None:
             return None
@@ -253,7 +313,8 @@ class Plugin(Geckarbot.BasePlugin):
         """
         for el in self.get_releases():
             ver = sanitize_version_s(el["tag_name"])
-            if sanitize_version_s(Config().VERSION) == ver:
+            logging.getLogger(__name__).debug("Comparing versions: {} and {}".format(Config().VERSION, ver))
+            if is_equal(sanitize_version_s(Config().VERSION), ver):
                 await channel.send("{}:\n{}".format(ver, el["body"]))
 
     async def was_i_updated(self):
@@ -293,7 +354,7 @@ class Plugin(Geckarbot.BasePlugin):
 
     @commands.command(name="news", help="Presents the latest update notes.")
     async def news(self, ctx):
-        await self.update_news(ctx.msg.channel)
+        await self.update_news(ctx.message.channel)
 
     @commands.command(name="version", help="Returns the running bot version.")
     async def version(self, ctx):
@@ -316,12 +377,18 @@ class Plugin(Geckarbot.BasePlugin):
 
     @commands.command(name="update", help="Updates the bot if an update is available")
     async def update(self, ctx, *args):
-        if not permChecks.check_full_access(ctx.message.author):
+        # Argument parsing
+        if "check" in args and len(args) == 1:
+            release = self.check_release()
+            if release is None:
+                await ctx.message.channel.send(lang["no_new_version"])
+            else:
+                await ctx.message.channel.send(lang["new_version"].format(release))
+            return
+        elif len(args) != 0:
             return
 
-        # Argument parsing
-        if "check" in args:
-            self.check_release()
+        if not permChecks.check_full_access(ctx.author):
             return
 
         # Check state and send error messages if necessary
@@ -341,9 +408,9 @@ class Plugin(Geckarbot.BasePlugin):
         release = self.check_release()
         if release is None:
             await ctx.message.channel.send(lang["wont_update"])
-            self.state = State.NONE
+            self.state = State.IDLE
             return
-        await ctx.message.channel.send(lang["new_version_update"])
+        await ctx.message.channel.send(lang["new_version_update"].format(release))
 
         # Ask for confirmation
         self.state = State.WAITINGFORCONFIRM

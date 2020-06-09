@@ -1,6 +1,7 @@
 #!/bin/bash
 
 PYTHON=python3
+TAGFILE=".update"
 UPDATECODE=10
 
 exitcode=-1
@@ -10,7 +11,8 @@ while [[ ${exitcode} -ne 0 ]]; do
     exitcode=$?
 
     if [[ ${exitcode} -eq ${UPDATECODE} ]]; then
-        git pull origin master
+        git fetch origin master
+        git checkout tags/$(cat ${TAGFILE})
     fi
 
     if [[ ${exitcode} -ne 0 ]]; then
