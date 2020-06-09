@@ -121,6 +121,10 @@ def message(config, msg_id, *args):
     return msg
 
 
+def dummy(el):
+    return el
+
+
 class QuizInitError(Exception):
     def __init__(self, config, msg_id, *args):
         super().__init__(message(config, msg_id, *args))
@@ -416,6 +420,14 @@ class Question:
         assert False
 
 
+class Phases2(Enum):
+    INIT = 0
+    REGISTERING = 1
+    BETWEENQUESTIONS = 3
+    WAITINGFORANSWERS = 4
+    ENDED = 5
+
+
 class Phases(Enum):
     BEFORE = 0
     REGISTERING = 1
@@ -524,8 +536,9 @@ class PointsQuizController(BaseQuizController):
 
         return True
 
-    def havent_answered(self):
-        return [el for el in self.registered_participants if self.registered_participants[el] is None]
+    def havent_answered_hr(self):
+        return [utils.get_best_username(el)
+                for el in self.registered_participants if self.registered_participants[el] is None]
 
     async def on_message(self, msg):
         self.plugin.logger.debug("Caught message: {}".format(msg.content))
@@ -643,7 +656,7 @@ class PointsQuizController(BaseQuizController):
             return  # just in case
 
         await self.channel.send(message(self.config, "points_timeout_warning",
-                                        utils.format_andlist(self.havent_answered(), ands=message(self.config, "and"))))
+                                        utils.format_andlist(self.havent_answered_hr(), ands=message(self.config, "and"))))
         self.current_question_timer = utils.AsyncTimer(self.plugin.bot,
                                                        self.config["points_quiz_question_timeout"] // 2, self.timeout)
 
@@ -653,7 +666,7 @@ class PointsQuizController(BaseQuizController):
             return  # just in case
 
         msg = message(self.config, "points_timeout",
-                      utils.format_andlist(self.havent_answered(), ands=message(self.config, "and")))
+                      utils.format_andlist(self.havent_answered_hr(), ands=message(self.config, "and")))
         if msg:
             await self.channel.send(msg)
 
