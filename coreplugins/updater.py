@@ -293,6 +293,7 @@ class Plugin(Geckarbot.BasePlugin, name="Bot updating system"):
         Checks GitHub if there is a new release. Assumes that the GitHub releases are ordered by release date.
         :return: Tag of the newest release that is newer than the current version, None if there is none.
         """
+        return "1.3"
         # find newest release with tag (all the others are worthless anyway)
         release = None
         for el in self.get_releases():
@@ -373,7 +374,7 @@ class Plugin(Geckarbot.BasePlugin, name="Bot updating system"):
         if not (chancond and usercond):
             return
 
-        self.state = State.UPDATING
+        self.state = State.CONFIRMED
 
     @commands.command(name="update", help="Updates the bot if an update is available")
     async def update(self, ctx, *args):
@@ -417,6 +418,7 @@ class Plugin(Geckarbot.BasePlugin, name="Bot updating system"):
         self.waiting_for_confirm = ctx.message
         await asyncio.sleep(CONFIRMTIMEOUT)  # This means that the bot doesn't react immediately on confirmation
 
+        # No confirmation, cancel
         if self.state == State.WAITINGFORCONFIRM:
             self.state = State.IDLE
             await ctx.message.channel.send(lang["update_timeout"])
@@ -424,9 +426,10 @@ class Plugin(Geckarbot.BasePlugin, name="Bot updating system"):
 
         # Confirmation came in
         elif self.state == State.CONFIRMED:
-            await self.do_update(release)
+            await self.do_update(ctx.message.channel, release)
             return
         else:
-            logging.getLogger(__name__).error("{}: PANIC! This should not happen!".format(self.bot.plugin_name(self)))
+            logging.getLogger(__name__).error(
+                "{}: PANIC! I am on {}, this should not happen!".format(self.bot.plugin_name(self), self.state))
             self.state = State.IDLE
             self.waiting_for_confirm = None

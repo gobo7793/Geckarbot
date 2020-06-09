@@ -2,13 +2,15 @@ import discord
 from discord.ext import commands
 from conf import Config
 
+from Geckarbot import BasePlugin
 
-class Plugin(commands.Cog, name="Simple message or data return Commands"):
+
+class Plugin(BasePlugin, name="Simple message or data return Commands"):
     """Sport related commands"""
 
     def __init__(self, bot):
         self.bot = bot
-        super(commands.Cog).__init__()
+        super().__init__(bot)
         bot.register(self)
 
     def default_config(self):

@@ -25,6 +25,18 @@ class Exitcodes(Enum):
     UPDATE = 11  # shutdown, update, restart
 
 
+class BasePlugin(commands.Cog):
+    def __init__(self, bot):
+        super().__init__()
+        self.bot = bot
+
+    def shutdown(self):
+        """
+        Is called when the bot is shutting down. If you have cleanup to do, do it here.
+        """
+        pass
+
+
 class Geckarbot(commands.Bot):
     def __init__(self, *args, **kwargs):
         self.coredata = {}
@@ -33,23 +45,24 @@ class Geckarbot(commands.Bot):
         self.plugins = None
         super().__init__(*args, **kwargs)
 
-    def register(self, cog_class):
-        if isinstance(cog_class, commands.Cog):
-            cog = cog_class
+    def register(self, plugin_class):
+        print(isinstance(plugin_class, BasePlugin))  # todo figure out why this is False
+        if isinstance(plugin_class, commands.Cog):
+            plugin_object = plugin_class
         else:
-            cog = cog_class(self)
-        self.add_cog(cog)
-        self.geck_cogs.append(cog)
+            plugin_object = plugin_class(self)
+        self.add_cog(plugin_object)
+        self.geck_cogs.append(plugin_object)
 
-        plugin_slot = PluginSlot(cog)
+        plugin_slot = PluginSlot(plugin_object)
         Config().plugins.append(plugin_slot)
-        Config().load(cog)
+        Config().load(plugin_object)
 
     def plugin_objects(self):
         """
         Generator for all registered plugin objects without anything config-related
         """
-        for el in self.plugins:
+        for el in Config().plugins:
             yield el.instance
 
     def plugin_name(self, plugin):
@@ -78,18 +91,6 @@ class Geckarbot(commands.Bot):
 
     async def shutdown(self, status):
         sys.exit(status.value())
-
-
-class BasePlugin(commands.Cog):
-    def __init__(self, bot):
-        super().__init__()
-        self.bot = bot
-
-    def shutdown(self):
-        """
-        Is called when the bot is shutting down. If you have cleanup to do, do it here.
-        """
-        pass
 
 
 def logging_setup():

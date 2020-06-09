@@ -6,16 +6,17 @@ from discord.ext import commands
 from conf import Config
 from botutils import utils, permChecks
 from botutils.enums import DscState
+from Geckarbot import BasePlugin
 
 
-class Plugin(commands.Cog, name="Funny/Misc Commands"):
+class Plugin(BasePlugin, name="Funny/Misc Commands"):
     """Funny and miscellaneous commands without other category"""
 
     songmaster_role_id = 0
 
     def __init__(self, bot):
         self.bot = bot
-        super(commands.Cog).__init__()
+        super().__init__(bot)
         bot.register(self)
 
         global songmaster_role_id

@@ -3,7 +3,7 @@
 PYTHON=python3
 TAGFILE=".update"
 UPDATECODE=10
-SIMULATE=0  # 0 for true
+SIMULATE=1  # 0 for true
 
 exitcode=-1
 

@@ -2,15 +2,16 @@ import discord
 from discord.ext import commands
 
 from conf import Config
-from botutils import utils, permChecks, enums, restclient
+from botutils import utils, permChecks, enums
+from Geckarbot import BasePlugin
 
 
-class Plugin(commands.Cog, name="Bot Management Commands"):
+class Plugin(BasePlugin, name="Bot Management Commands"):
     """Commands for moderation"""
 
     def __init__(self, bot):
         self.bot = bot
-        super(commands.Cog).__init__()
+        super().__init__(bot)
         bot.register(self)
         
         self.bl = Blacklist(self)
