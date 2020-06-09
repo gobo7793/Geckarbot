@@ -11,10 +11,13 @@ class Plugin(commands.Cog, name="Simple message or data return Commands"):
         super(commands.Cog).__init__()
         bot.register(self)
 
+    def default_config(self):
+        return {}
+
     @commands.command(name="kicker", help="Returns frequently used links to kicker.de")
     async def kicker_table(self, ctx):
         """Returns the kicker.de Bundesliga tables"""
-        embed = discord.Embed(title='Kicker.de-Tabellenlinks')
+        embed = discord.Embed(title=Config().lang(self, 'kicker_title'))
         embed.add_field(name="Bundesliga", value="https://www.kicker.de/1-bundesliga/tabelle")
         embed.add_field(name="2. Bundesliga", value="https://www.kicker.de/2-bundesliga/tabelle")
         embed.add_field(name="3. Liga", value="https://www.kicker.de/3-liga/tabelle")
@@ -35,13 +38,19 @@ class Plugin(commands.Cog, name="Simple message or data return Commands"):
 
     @commands.command(name="nico", help="Punches Nico.")
     async def nico(self, ctx):
-        await ctx.send("***N I C O   A U F S   M A U L !***   :right_facing_fist_tone1::cow:")
+        await ctx.send(Config().lang(self, 'nico_output'))
 
     @commands.command(name="mimimi", help="Provides an .mp3 file that plays the sound of 'mimimi'.")
     async def mimimi(self, ctx):
         await ctx.trigger_typing()
-        file = discord.File(f"{Config().RESOURCE_DIR}/mimimi.mp3")
+        file = discord.File(f"{Config().storage_dir(self)}/mimimi.mp3")
         await ctx.send(file=file)
+
+    @commands.command(name="geck", help="GECKARBOR!")
+    async def geck(self, ctx):
+        await ctx.trigger_typing()
+        file = discord.File(f"{Config().storage_dir(self)}/treeckos.png")
+        await ctx.send("arbor!", file=file)
 
     @commands.command(name="liebe", help="Provides love to the channel")
     async def liebe(self, ctx):

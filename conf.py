@@ -1,7 +1,10 @@
 import os
+import sys
 import json
 import datetime
 import logging
+import pathlib
+import pkgutil
 from botutils import jsonUtils, enums
 
 
@@ -19,8 +22,16 @@ class PluginSlot:
 
     def __init__(self, instance):
         self.instance = instance
-        self.module_name = instance.__module__
+        self.module_name = instance.__module__.rsplit(".", 1)[1]
+        self.storage_dir = "{}/{}".format(Config().STORAGE_DIR, self.module_name)
         self.config = None
+        self.lang = None
+        try:
+            lang_module = pkgutil.importlib.import_module("{}.{}".format(self.storage_dir.replace('/', '.'), "lang"))
+            self.lang = lang_module.lang
+        except Exception as e:
+            logging.error("Unable to load lang file from plugin: {} ({})".format(self.module_name, e))
+        pass
 
 
 class Config(metaclass=_Singleton):
@@ -29,11 +40,12 @@ class Config(metaclass=_Singleton):
     # Basic bot info
     ######
 
-    VERSION = "1.1.0"
+    VERSION = "1.2.0"
     CONFIG_DIR = "config"
     PLUGIN_DIR = "plugins"
     CORE_PLUGIN_DIR = "coreplugins"
-    RESOURCE_DIR = "resources"
+    STORAGE_DIR = "storage"
+    LANGUAGE_CODE = 'en'
 
     BOT_CONFIG_FILE = "geckarbot"
 
@@ -54,6 +66,7 @@ class Config(metaclass=_Singleton):
             self.CHAN_IDS = bot_data.get('CHAN_IDS', {})
             self.ROLE_IDS = bot_data.get('ROLE_IDS', {})
 
+            self.ADMIN_CHAN_ID = self.CHAN_IDS.get('admin', 0)
             self.DEBUG_CHAN_ID = self.CHAN_IDS.get('bot-interna', 0)
             self.ADMIN_ROLE_ID = self.ROLE_IDS.get('admin', 0)
             self.BOTMASTER_ROLE_ID = self.ROLE_IDS.get('botmaster', 0)
@@ -113,13 +126,13 @@ class Config(metaclass=_Singleton):
     def load(self, plugin):
         """Loads the config of the given plugin.
         If given plugin is not registered, None will be returned, if errors
-        occured during loading False and an empty dictionary will be saved
+        occured during loading False and it's default config will be used
         as its config, otherwise True."""
         for plugin_slot in self.plugins:
             if plugin_slot.instance is plugin:
                 loaded = self._read_config_file(plugin_slot.module_name)
                 if loaded is None:
-                    plugin_slot.config = {}
+                    plugin_slot.config = plugin.default_config()
                     return False
                 plugin_slot.config = loaded
                 return True
@@ -127,10 +140,44 @@ class Config(metaclass=_Singleton):
 
     def load_all(self):
         """Loads the config of all registered plugins. If config of a
-        plugin can't be loaded, a empty dict will be saved as config."""
+        plugin can't be loaded, its default config will be used as config."""
         return_value = True
         for plugin_slot in self.plugins:
             loaded = self._read_config_file(plugin_slot.module_name)
             if loaded is None:
-                plugin_slot.config = {}
+                loaded = plugin_slot.instance.default_config()
+                return_value = False
             plugin_slot.config = loaded
+
+    ######
+    # Lang/Strings/Resources
+    ######
+
+    def storage_dir(self, plugin):
+        """Returns the storage directory for additional
+        resources for the given plugin instance."""
+        for plugin_slot in self.plugins:
+            if plugin_slot.instance is plugin:
+                return plugin_slot.storage_dir
+        return None
+
+    def lang(self, plugin, str_name, *args):
+        """
+        Returns the given string from plugins language/string file.
+        If language setted in Config().LANGUAGE_CODE is not supported, 'en' will be used.
+        If str_name can't be found, an empty string will be returned.
+        :param plugin: The plugin instance
+        :param str_name: The name of the returning string.
+            If not available for current language, an empty string will be returned.
+        :param *args: The strings to insert into the returning string via format()
+        """
+        for plugin_slot in self.plugins:
+            if plugin_slot.instance is plugin:
+                lang_code = self.LANGUAGE_CODE
+                if self.LANGUAGE_CODE in plugin_slot.lang:
+                    lang_code = self.LANGUAGE_CODE
+                else:
+                    lang_code = 'en'
+                lang_str = plugin_slot.lang[lang_code].get(str_name, "")
+                return lang_str.format(*args)
+        return None

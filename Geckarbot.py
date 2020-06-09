@@ -31,6 +31,8 @@ class Geckarbot(commands.Bot):
         self.geck_cogs = []
         self.guild = None
         self.plugins = None
+        logging.info("this is an info")
+        logging.debug("this is debug")
         super().__init__(*args, **kwargs)
 
     def register(self, cog_class):
@@ -41,9 +43,9 @@ class Geckarbot(commands.Bot):
         self.add_cog(cog)
         self.geck_cogs.append(cog)
 
-        plugin_slot = PluginSlot(cog_class)
+        plugin_slot = PluginSlot(cog)
         Config().plugins.append(plugin_slot)
-        Config().load(cog_class)
+        Config().load(cog)
 
     def plugin_objects(self):
         """
@@ -92,10 +94,27 @@ class BasePlugin(commands.Cog):
         pass
 
 
+def logging_setup():
+    """
+    Put all debug loggers on info and everything else on info/debug, depending on config
+    """
+    print(logging.root.manager.loggerDict)
+    level = logging.DEBUG
+    if Config().DEBUG_MODE:
+        level = logging.DEBUG
+    logging.basicConfig(level=level)
+    for el in logging.root.manager.loggerDict:
+        logger = logging.root.manager.loggerDict[el]
+        if isinstance(logger, logging.PlaceHolder):
+            continue
+        logger.setLevel(logging.INFO)
+
+
 def main():
-    logging.basicConfig(level=logging.DEBUG)
-    bot = Geckarbot(command_prefix='!')
     Config().load_bot()
+    logging_setup()
+    logging.getLogger(__name__).debug("Debug mode: on")
+    bot = Geckarbot(command_prefix='!')
     logging.info("Loading core plugins")
     bot.plugins = bot.load_plugins(Config().CORE_PLUGIN_DIR)
 

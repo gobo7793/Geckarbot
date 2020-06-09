@@ -13,13 +13,19 @@ class Plugin(commands.Cog, name="Bot Management Commands"):
         super(commands.Cog).__init__()
         bot.register(self)
         
-        self.blacklist = Blacklist(self)
-        self.greylist = Greylist(self)
-        bot.coredata['blacklist'] = self.blacklist
-        bot.coredata['greylist'] = self.greylist
+        self.bl = Blacklist(self)
+        self.gl = Greylist(self)
+        bot.coredata['blacklist'] = self.bl
+        bot.coredata['greylist'] = self.gl
 
-        Config().get(self)['blacklist'] = Config().get(self).get('blacklist', [])
-        Config().get(self)['greylist'] = Config().get(self).get('greylist', {})
+        #Config().get(self)['blacklist'] = Config().get(self).get('blacklist', [])
+        #Config().get(self)['greylist'] = Config().get(self).get('greylist', {})
+
+    def default_config(self):
+        return {
+            'blacklist': [],
+            'greylist': {}
+            }
 
     ######
     # Misc commands
@@ -43,6 +49,7 @@ class Plugin(commands.Cog, name="Bot Management Commands"):
 
         await ctx.send(sendMsg)
         await utils.write_debug_channel(self.bot, sendMsg)
+        await utils.log_to_admin_channel(ctx)
 
     @commands.command(name="plugins", help="List all plugins.")
     async def plugins(self, ctx):
@@ -62,12 +69,12 @@ class Plugin(commands.Cog, name="Bot Management Commands"):
                                 "Adding and removing users only permitted for mods.")
     async def blacklist(self, ctx):
         if ctx.invoked_subcommand is None:
-            await ctx.send("Usage: !blacklist <list|add|del>")
+            await ctx.send_help(self.blacklist)
 
     @blacklist.command(name="list", help="Lists all users on the blacklist")
     async def blacklist_list(self, ctx):
         """Returns the current blacklist user list"""
-        res = self.blacklist.get_blacklist_names()
+        res = self.bl.get_blacklist_names()
         if not res:
             await ctx.send("Blacklist is empty.")
         else:
@@ -77,21 +84,23 @@ class Plugin(commands.Cog, name="Bot Management Commands"):
     @commands.has_any_role(Config().ADMIN_ROLE_ID, Config().BOTMASTER_ROLE_ID)
     async def blacklist_add(self, ctx, user: discord.Member):
         """Adds the given user to the blacklist"""
-        res = self.blacklist.add_user(user)
+        res = self.bl.add_user(user)
         if res:
             await ctx.send(f"User {user.name} added to blacklist.")
         else:
             await ctx.send(f"User {user.name} already on blacklist.")
+        await utils.log_to_admin_channel(ctx)
 
     @blacklist.command(name="del", help="Remove an user from the blacklist", usage="<user>")
     @commands.has_any_role(Config().ADMIN_ROLE_ID, Config().BOTMASTER_ROLE_ID)
     async def blacklist_del(self, ctx, user: discord.Member):
         """Removes the given user from blacklist"""
-        res = self.blacklist.del_user(user)
+        res = self.bl.del_user(user)
         if res:
             await ctx.send(f"User {user.name} removed from blacklist.")
         else:
             await ctx.send(f"User {user.name} not on blacklist.")
+        await utils.log_to_admin_channel(ctx)
             
 
     ######
@@ -106,7 +115,7 @@ class Plugin(commands.Cog, name="Bot Management Commands"):
                                 "but for other users only by mods.")
     async def greylist(self, ctx):
         if ctx.invoked_subcommand is None:
-            await ctx.send("Usage: !greylist <list|add|del>")
+            await ctx.send_help(self.greylist)
 
     @greylist.command(name="list", help="Lists all users on the greylist")
     async def greylist_list(self, ctx):
@@ -158,11 +167,12 @@ class Plugin(commands.Cog, name="Bot Management Commands"):
             raise commands.MissingAnyRole([Config().ADMIN_ROLE_ID, Config().BOTMASTER_ROLE_ID])
 
         game_enum = getattr(enums.GreylistGames, str(game), enums.GreylistGames.ALL)
-        res = self.greylist.add(user, game_enum)
+        res = self.gl.add(user, game_enum)
         if res is True:
             await ctx.send("User added on greylist.")
         else:
             await ctx.send("User's greylist updated.")
+        await utils.log_to_admin_channel(ctx)
 
     @greylist.command(name="del", help="Remove a bot game from greylist.", usage="[user] [game]",
                       description="Removes a bot game to the greylist. " 
@@ -195,13 +205,14 @@ class Plugin(commands.Cog, name="Bot Management Commands"):
             raise commands.MissingAnyRole([Config().ADMIN_ROLE_ID, Config().BOTMASTER_ROLE_ID])
             
         game_enum = getattr(enums.GreylistGames, str(game), enums.GreylistGames.ALL)
-        res = self.greylist.remove(user, game_enum)
+        res = self.gl.remove(user, game_enum)
         if res is None:
             await ctx.send("User not on greylist.")
         elif res is True:
             await ctx.send("User removed from greylist.")
         else:
             await ctx.send("User's greylist updated.")
+        await utils.log_to_admin_channel(ctx)
 
 
 class Blacklist(object):
