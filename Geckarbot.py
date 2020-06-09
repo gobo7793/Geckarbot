@@ -30,9 +30,10 @@ class BasePlugin(commands.Cog):
         super().__init__()
         self.bot = bot
 
-    def shutdown(self):
+    async def shutdown(self):
         """
         Is called when the bot is shutting down. If you have cleanup to do, do it here.
+        Needs to be a coroutine (async).
         """
         pass
 

@@ -264,6 +264,7 @@ class Plugin(Geckarbot.BasePlugin, name="Bot updating system"):
         self.bot.loop.run_until_complete(self.was_i_updated())
         self.state = State.IDLE
 
+        self.to_log = None
         self.waiting_for_confirm = None
         bot.register(self)
 
@@ -271,18 +272,20 @@ class Plugin(Geckarbot.BasePlugin, name="Bot updating system"):
         self.state = State.UPDATING
         await channel.send(lang["doing_update"].format(tag))
         for plugin in self.bot.plugin_objects():
+            pname = self.bot.plugin_name(plugin)
             try:
+                utils.write_debug_channel(self.bot, "Shutting down plugin {}".format(pname))
                 await plugin.shutdown()
             except Exception as e:
                 msg = "{} while trying to shutdown plugin {}:\n{}".format(
-                    str(e), self.bot.plugin_name(plugin), traceback.format_exc()
+                    str(e), pname, traceback.format_exc()
                 )
                 await utils.write_debug_channel(self.bot, msg)
 
         await self.bot.close()
         with open(TAGFILE, "w") as f:
             f.write(tag)
-        sys.exit(UPDATECODE)
+        sys.exit(UPDATECODE)  # This signals the runscript
 
     def get_releases(self):
         r = self.client.make_request(ENDPOINT)
@@ -293,7 +296,7 @@ class Plugin(Geckarbot.BasePlugin, name="Bot updating system"):
         Checks GitHub if there is a new release. Assumes that the GitHub releases are ordered by release date.
         :return: Tag of the newest release that is newer than the current version, None if there is none.
         """
-        return "1.3"
+        # return "1.3"  # TESTING
         # find newest release with tag (all the others are worthless anyway)
         release = None
         for el in self.get_releases():
@@ -348,6 +351,7 @@ class Plugin(Geckarbot.BasePlugin, name="Bot updating system"):
             os.remove(TAGFILE)
             return False
         else:
+            logging.getLogger(__name__).debug("I was !update'd! Yay!.")
             await utils.write_debug_channel(
                 self.bot, "I updated successfully! One step closer towards world dominance!")
             os.remove(TAGFILE)
@@ -374,6 +378,8 @@ class Plugin(Geckarbot.BasePlugin, name="Bot updating system"):
         if not (chancond and usercond):
             return
 
+        await utils.log_to_admin_channel(self.to_log)
+        self.to_log = None
         self.state = State.CONFIRMED
 
     @commands.command(name="update", help="Updates the bot if an update is available")
@@ -416,6 +422,7 @@ class Plugin(Geckarbot.BasePlugin, name="Bot updating system"):
         # Ask for confirmation
         self.state = State.WAITINGFORCONFIRM
         self.waiting_for_confirm = ctx.message
+        self.to_log = ctx
         await asyncio.sleep(CONFIRMTIMEOUT)  # This means that the bot doesn't react immediately on confirmation
 
         # No confirmation, cancel
