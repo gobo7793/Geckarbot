@@ -59,7 +59,7 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
         if self.dsc_conf()['status']:
             status_msg += self.dsc_conf()['status']
         else:
-            status_msg += "Have fun!"
+            status_msg += "Have fun and love Treecko and Mudkip!"
 
         await ctx.send(status_msg)
 
@@ -71,7 +71,7 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
         if not self.dsc_conf()['host_id']:
             await ctx.send("You must set DSC host!")
         else:
-            hostNick = utils.get_best_username(discord.utils.get(ctx.guild.members, id=self.dsc_conf()['host_id']))
+            hostNick = discord.utils.get(ctx.guild.members, id=self.dsc_conf()['host_id']).mention
 
         if self.dsc_conf()['state'] == DscState.Registration:
             if self.dsc_conf()['state_end'] > datetime.now():
