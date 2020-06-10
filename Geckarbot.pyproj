@@ -23,6 +23,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="botutils\restclient.py" />
+    <Compile Include="coreplugins\updater.py" />
     <Compile Include="coreplugins\__init__.py">
       <SubType>Code</SubType>
     </Compile>
@@ -63,7 +64,8 @@
     <Content Include="config\geckarbot.json" />
     <Content Include="config\misc.json" />
     <Content Include="config\mod.json" />
-    <Content Include="storage\misc\treeckos.png" />
+    <Content Include="storage\getting\mimimi.mp3" />
+    <Content Include="storage\getting\treeckos.png" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="coreplugins\" />
@@ -72,7 +74,6 @@
     <Folder Include="storage\" />
     <Folder Include="plugins\" />
     <Folder Include="storage\getting\" />
-    <Folder Include="storage\misc\" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />
   <!-- Uncomment the CoreCompile target to enable the Build command in
