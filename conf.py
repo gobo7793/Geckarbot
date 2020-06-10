@@ -22,15 +22,15 @@ class PluginSlot:
 
     def __init__(self, instance):
         self.instance = instance
-        self.module_name = instance.__module__.rsplit(".", 1)[1]
-        self.storage_dir = "{}/{}".format(Config().STORAGE_DIR, self.module_name)
+        self.name = instance.__module__.rsplit(".", 1)[1]
+        self.storage_dir = "{}/{}".format(Config().STORAGE_DIR, self.name)
         self.config = None
         self.lang = None
         try:
             lang_module = pkgutil.importlib.import_module("{}.{}".format(self.storage_dir.replace('/', '.'), "lang"))
             self.lang = lang_module.lang
         except Exception as e:
-            logging.error("Unable to load lang file from plugin: {} ({})".format(self.module_name, e))
+            logging.error("Unable to load lang file from plugin: {} ({})".format(self.name, e))
         pass
 
 
@@ -120,7 +120,7 @@ class Config(metaclass=_Singleton):
         else if saving is succesfully."""
         for plugin_slot in self.plugins:
             if plugin_slot.instance is plugin:
-                return self._write_config_file(plugin_slot.module_name, plugin_slot.config)
+                return self._write_config_file(plugin_slot.name, plugin_slot.config)
         return None
 
     def load(self, plugin):
@@ -130,7 +130,7 @@ class Config(metaclass=_Singleton):
         as its config, otherwise True."""
         for plugin_slot in self.plugins:
             if plugin_slot.instance is plugin:
-                loaded = self._read_config_file(plugin_slot.module_name)
+                loaded = self._read_config_file(plugin_slot.name)
                 if loaded is None:
                     plugin_slot.config = plugin.default_config()
                     return False
@@ -143,7 +143,7 @@ class Config(metaclass=_Singleton):
         plugin can't be loaded, its default config will be used as config."""
         return_value = True
         for plugin_slot in self.plugins:
-            loaded = self._read_config_file(plugin_slot.module_name)
+            loaded = self._read_config_file(plugin_slot.name)
             if loaded is None:
                 loaded = plugin_slot.instance.default_config()
                 return_value = False
