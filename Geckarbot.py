@@ -7,6 +7,7 @@ import pkgutil
 import logging
 import sys
 from enum import Enum
+from logging import handlers
 
 from discord.ext import commands
 
@@ -102,10 +103,20 @@ def logging_setup():
     """
     Put all debug loggers on info and everything else on info/debug, depending on config
     """
-    level = logging.DEBUG
+    level = logging.INFO
     if Config().DEBUG_MODE:
         level = logging.DEBUG
-    logging.basicConfig(level=level)
+    today = datetime.date.today().isoformat()
+
+    file_handler = logging.handlers.TimedRotatingFileHandler(filename="logs/geckarbot.log", when="midnight", interval=1)
+    file_handler.setLevel(level)
+    file_handler.setFormatter(logging.Formatter('%(asctime)s : %(levelname)s : %(name)s : %(message)s'))
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(level)
+    console_handler.setFormatter(logging.Formatter('%(asctime)s : %(levelname)s : %(name)s : %(message)s'))
+    logging.getLogger('').addHandler(file_handler)
+    logging.getLogger('').addHandler(console_handler)
+
     for el in logging.root.manager.loggerDict:
         logger = logging.root.manager.loggerDict[el]
         if isinstance(logger, logging.PlaceHolder):
