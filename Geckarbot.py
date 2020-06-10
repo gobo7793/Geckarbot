@@ -38,7 +38,8 @@ class BasePlugin(commands.Cog):
         pass
 
     def default_config(self):
-        return None
+        """Returns an empty default config"""
+        return {}
 
 
 class Geckarbot(commands.Bot):
