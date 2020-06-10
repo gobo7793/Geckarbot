@@ -74,7 +74,7 @@ class Geckarbot(commands.Bot):
         """
         Returns a human-readable name for Plugin plugin.
         """
-        return plugin.__module__  # this looks kinda ghetto, maybe improve it
+        return plugin.__module__.rsplit(".", 1)[1] # same as for PluginSlot.name
 
     def load_plugins(self, plugin_dir):
         r = []
@@ -144,7 +144,7 @@ def main():
             """On bot errors print error state in debug channel"""
             embed = discord.Embed(title=':x: Event Error', colour=0xe74c3c)  # Red
             embed.add_field(name='Event', value=event)
-            embed.description = '```py\n%s\n```' % traceback.format_exc()
+            embed.description = '```python\n{}\n```'.format(traceback.format_exc())
             embed.timestamp = datetime.datetime.utcnow()
             debug_chan = bot.get_channel(Config().DEBUG_CHAN_ID)
             if debug_chan is not None:
@@ -178,7 +178,7 @@ def main():
                 embed.add_field(name='Arguments', value=ctx.args)
                 embed.add_field(name='Command', value=ctx.command)
                 embed.add_field(name='Message', value=ctx.message)
-                embed.description = '```py\n%s\n```' % traceback.format_exc()
+                embed.description = '```python\n{}\n```'.format(traceback.format_exc())
                 embed.timestamp = datetime.datetime.utcnow()
                 debug_chan = bot.get_channel(Config().DEBUG_CHAN_ID)
                 if debug_chan is not None:
