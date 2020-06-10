@@ -61,8 +61,8 @@
   </ItemGroup>
   <ItemGroup>
     <Content Include=".env" />
+    <Content Include="config\dsc.json" />
     <Content Include="config\geckarbot.json" />
-    <Content Include="config\misc.json" />
     <Content Include="config\mod.json" />
     <Content Include="storage\getting\mimimi.mp3" />
     <Content Include="storage\getting\treeckos.png" />
