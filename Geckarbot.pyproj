@@ -46,7 +46,7 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Geckarbot.py" />
-    <Compile Include="plugins\getting.py" />
+    <Compile Include="plugins\dsc.py" />
     <Compile Include="plugins\timer.py" />
     <Compile Include="storage\getting\lang.py" />
     <Compile Include="plugins\misc.py" />
@@ -60,7 +60,6 @@
     <InterpreterReference Include="Global|PythonCore|3.7" />
   </ItemGroup>
   <ItemGroup>
-    <Content Include=".env" />
     <Content Include="config\dsc.json" />
     <Content Include="config\geckarbot.json" />
     <Content Include="config\mod.json" />
@@ -71,6 +70,7 @@
     <Folder Include="coreplugins\" />
     <Folder Include="botutils\" />
     <Folder Include="config\" />
+    <Folder Include="logs\" />
     <Folder Include="storage\" />
     <Folder Include="plugins\" />
     <Folder Include="storage\getting\" />
