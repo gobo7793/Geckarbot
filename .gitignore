@@ -477,6 +477,6 @@ dmypy.json
 /logs
 
 # special storage files
-/storage/**.png
-/storage/**.jpg
-/storage/**.mp3
+*.jpg
+*.png
+*.mp3
