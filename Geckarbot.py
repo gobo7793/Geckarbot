@@ -37,6 +37,9 @@ class BasePlugin(commands.Cog):
         """
         pass
 
+    def default_config(self):
+        return None
+
 
 class Geckarbot(commands.Bot):
     def __init__(self, *args, **kwargs):
@@ -82,7 +85,7 @@ class Geckarbot(commands.Bot):
                 p = pkgutil.importlib.import_module("{}.{}".format(plugin_dir, plugin))
                 p = p.Plugin(self)
             except Exception as e:
-                logging.error("Unable to load plugin: {} ({})".format(plugin, e))
+                logging.error("Unable to load plugin: {}:\n{}".format(plugin, traceback.format_exc()))
                 continue
             else:
                 r.append(p)
@@ -120,11 +123,12 @@ def main():
     @bot.event
     async def on_ready():
         """Loads plugins and prints on server that bot is ready"""
+        guild = discord.utils.get(bot.guilds, id=Config().SERVER_ID)
+        bot.guild = guild
+
         logging.info("Loading plugins")
         bot.plugins.extend(bot.load_plugins(Config().PLUGIN_DIR))
 
-        guild = discord.utils.get(bot.guilds, id=Config().SERVER_ID)
-        bot.guild = guild
         logging.info(f"{bot.user} is connected to the following server:\n"
                      f"{guild.name}(id: {guild.id})")
 

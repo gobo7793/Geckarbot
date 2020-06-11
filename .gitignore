@@ -473,3 +473,4 @@ dmypy.json
 
 # local config files
 /config/*.json
+.update

@@ -396,7 +396,7 @@ class Plugin(Geckarbot.BasePlugin, name="Bot updating system"):
             return
 
         if not permChecks.check_full_access(ctx.author):
-            return
+            raise commands.MissingAnyRole
 
         # Check state and send error messages if necessary
         if self.state == State.CHECKING or self.state == State.CONFIRMED or self.state == State.UPDATING:
