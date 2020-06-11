@@ -1,3 +1,4 @@
+import random
 import discord
 from discord.ext import commands
 from conf import Config
@@ -20,7 +21,11 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
             str(random.choice(range(1, number_of_sides + 1)))
             for _ in range(number_of_dice)
         ]
-        await ctx.send(', '.join(dice))
+        results = ', '.join(dice)
+        if len(results) > 2000:
+            pos_last_comma = results[:1995].rfind(',')
+            results = f"{results[:pos_last_comma + 1]} ..."
+        await ctx.send(results)
 
     @commands.command(name="kicker", help="Returns frequently used links to kicker.de")
     async def kicker_table(self, ctx):
