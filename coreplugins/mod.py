@@ -191,7 +191,7 @@ class CommandDisable():
         self.check_expired()
         current_time = datetime.datetime.now()
 
-        for tp in self.gl_conf():
+        for tp in self.cd_conf():
             if tp[0] == command and tp[1] == channel_id and tp[2] > current_time:
                 return False
         return True
@@ -212,7 +212,6 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
         bot.coredata['blacklist'] = self.bl
         bot.coredata['greylist'] = self.gl
         bot.coredata['disabled_cmds'] = self.cd
-
 
     def default_config(self):
         return {
