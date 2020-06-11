@@ -382,7 +382,9 @@ class Plugin(Geckarbot.BasePlugin, name="Bot updating system"):
         self.to_log = None
         self.state = State.CONFIRMED
 
-    @commands.command(name="update", help="Updates the bot if an update is available")
+    @commands.command(name="update", help="Updates the bot if an update is available", usage="[check]",
+                      description="Updates the Bot to the newest version (if available)."
+                                   " This includes a shutdown, so be careful.")
     async def update(self, ctx, *args):
         # Argument parsing
         if "check" in args and len(args) == 1:

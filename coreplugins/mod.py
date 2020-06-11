@@ -432,8 +432,8 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
             await ctx.send(msg_full)
     
     @commands.command(name="disable", help="Disables a command", usage="<command> <hours>",
-                       description="Disables the given command in the channel in which the disable cmd is used."
-                                   " If a positive amount of hours is given, the command will be reenabled after that time.")
+                       description="Disables the given command in the channel in which the disable cmd was used."
+                                   " If a positive amount of hours is given, the command will be automated reenabled after that time.")
     @commands.has_any_role(Config().ADMIN_ROLE_ID, Config().BOTMASTER_ROLE_ID)
     async def disable_cmd(self, ctx, cmd, hours: int = 0):
         await utils.log_to_admin_channel(ctx)
@@ -450,7 +450,7 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
             await ctx.send(f"Command '{cmd}' is already disabled in this channel.")
     
     @commands.command(name="enable", help="Enables a command", usage="<command>",
-                       description="Enables the given command in the channel in which the enable cmd is used.")
+                       description="Enables the given command in the channel in which the enable cmd was used.")
     @commands.has_any_role(Config().ADMIN_ROLE_ID, Config().BOTMASTER_ROLE_ID)
     async def enable_cmd(self, ctx, cmd):
         await utils.log_to_admin_channel(ctx)

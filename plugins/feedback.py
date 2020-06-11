@@ -130,7 +130,8 @@ class Plugin(BasePlugin):
         Config().set(self, r)
         Config().save(self)
 
-    @commands.command(name="redact", help="Redacts the list of complaits (i.e. read and delete)")
+    @commands.command(name="redact", help="Redacts the list of complaits (i.e. read and delete)", usage="[del x]",
+                      description="Returns the accumulated feedback. Use [del x] to delete feedback #x.")
     @commands.has_any_role(Config().ADMIN_ROLE_ID, Config().BOTMASTER_ROLE_ID)
     async def redact(self, ctx, *args):
         # Argument parsing / delete subcmd
@@ -158,7 +159,10 @@ class Plugin(BasePlugin):
             r.append(self.complaints[el].to_message())
         await ctx.message.channel.send("**Complaints:**\n{}".format("\n\n".join(r)))
 
-    @commands.command(name="complain", help="Takes a complaint and stores it")
+    @commands.command(name="complain", help="Takes a complaint and stores it", usage="<message>",
+                      description="Delivers a feedback message."
+                                  " The admins and botmasters can then read the accumulated feedback."
+                                  " The bot saves the feedback author, the message and a link to the message for context.")
     async def complain(self, ctx, *args):
         msg = ctx.message
         complaint = Complaint.from_message(self, msg)
