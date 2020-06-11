@@ -471,6 +471,12 @@ dmypy.json
 # Pyre type checker
 .pyre/
 
-# local config files
+# local config/log files
 /config/*.json
 .update
+/logs
+
+# special storage files
+/storage/**.png
+/storage/**.jpg
+/storage/**.mp3
