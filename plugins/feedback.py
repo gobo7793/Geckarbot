@@ -5,7 +5,7 @@ from discord.ext import commands
 
 from Geckarbot import BasePlugin
 from conf import Config
-from botutils import utils
+from botutils import utils, permChecks
 
 
 lang = {
@@ -132,6 +132,8 @@ class Plugin(BasePlugin):
 
     @commands.command(name="redact", help="Redacts the list of complaits (i.e. read and delete)")
     async def redact(self, ctx, *args):
+        if not permChecks.check_full_access(ctx.author):
+            raise commands.MissingAnyRole
 
         # Argument parsing / delete subcmd
         if len(args) == 2:
