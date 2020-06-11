@@ -131,10 +131,8 @@ class Plugin(BasePlugin):
         Config().save(self)
 
     @commands.command(name="redact", help="Redacts the list of complaits (i.e. read and delete)")
+    @commands.has_any_role(Config().ADMIN_ROLE_ID, Config().BOTMASTER_ROLE_ID)
     async def redact(self, ctx, *args):
-        if not permChecks.check_full_access(ctx.author):
-            raise commands.MissingAnyRole
-
         # Argument parsing / delete subcmd
         if len(args) == 2:
             error = False
