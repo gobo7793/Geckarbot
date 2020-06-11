@@ -5,7 +5,7 @@ class DscState(IntEnum):
     """DSC states"""
     NA = 0
     Voting = 1
-    Registration = 2
+    Sign_up = 2
 
 
 class GreylistGames(IntFlag):
