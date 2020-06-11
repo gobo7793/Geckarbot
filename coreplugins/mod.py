@@ -251,6 +251,16 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
         plugin_count = len(Config().plugins)
         await ctx.send(f"Loaded {plugin_count} plugins:\n - {plugin_list}")
 
+    @commands.command(name="about", help="Prints the credits")
+    async def plugins(self, ctx):
+        about = (f"Geckarbot {Config().VERSION} on {self.bot.guild.name}, licensed under GNU GPL v3.0.\n"
+                 "For general bot informations see <https://discordapp.com/channels/706125113250283551/706903946689642496/720622192231972936>. "
+                 "Github Repository for additional information and participation: <https://github.com/gobo7793/Geckarbot/>.\n"
+                 "Main developer: Fluggmann, Gobo77, Lubadubs.\n"
+                 "Special thanks to all contributors!"
+                 )
+        await ctx.send(about)
+
     ######
     # Blacklist
     ######
