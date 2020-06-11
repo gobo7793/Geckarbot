@@ -131,11 +131,11 @@ async def log_to_admin_channel(context):
     :param context: The context to log to the admin channel
     """
     author_field = "{}#{} in {}".format(context.author.name, context.author.discriminator, context.channel.name)
-    timestamp = convert_to_local_time(context.message.created_at)
+    timestamp = convert_to_local_time(context.msg_link.created_at)
 
-    embed = discord.Embed(title=context.message.clean_content)
+    embed = discord.Embed(title=context.msg_link.clean_content)
     embed.set_author(name=author_field)
     embed.timestamp = timestamp
-    embed.description = context.message.jump_url
+    embed.description = context.msg_link.jump_url
 
     await write_admin_channel(context.bot, embed)

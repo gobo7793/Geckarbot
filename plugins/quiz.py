@@ -1011,7 +1011,7 @@ class Plugin(Geckarbot.BasePlugin, name="A trivia kwiss"):
         # Subcommand
         except SubCommandEncountered as subcmd:
                 self.logger.debug("Calling subcommand: {}".format(subcmd.callback))
-                await subcmd.callback(ctx.message, *subcmd.args)
+                await subcmd.callback(ctx.msg_link, *subcmd.args)
                 return
 
         # Look for existing quiz
@@ -1036,7 +1036,7 @@ class Plugin(Geckarbot.BasePlugin, name="A trivia kwiss"):
             elif method == Methods.SCORE:
                 await ctx.send(embed=quiz_controller.score.embed())
             elif method == Methods.STOP:
-                if permChecks.check_full_access(ctx.message.author) or quiz_controller.requester == ctx.message.author:
+                if permChecks.check_full_access(ctx.msg_link.author) or quiz_controller.requester == ctx.msg_link.author:
                     msg, embed = self.end_quiz(channel)
                     await ctx.send(msg, embed=embed)
             elif method == Methods.STATUS:
@@ -1047,7 +1047,7 @@ class Plugin(Geckarbot.BasePlugin, name="A trivia kwiss"):
 
         # Starting a new quiz
         assert method == Methods.START
-        quiz_controller = controller_class(self, self.config, OpenTDBQuizAPI, ctx.channel, ctx.message.author,
+        quiz_controller = controller_class(self, self.config, OpenTDBQuizAPI, ctx.channel, ctx.msg_link.author,
                                            category=args["category"], question_count=args["questions"],
                                            difficulty=args["difficulty"], mode=args["mode"], debug=args["debug"])
         self.controllers[channel] = quiz_controller

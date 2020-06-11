@@ -114,6 +114,14 @@ class Config(metaclass=_Singleton):
                 return plugin_slot.config
         return None
 
+    def set(self, plugin, config):
+        """
+        Sets the config of the given plugin.
+        """
+        for plugin_slot in self.plugins:
+            if plugin_slot.instance is plugin:
+                plugin_slot.config = config
+
     def save(self, plugin):
         """Saves the config of the given plugin.
         If given plugin is not registered, None will be returned,
