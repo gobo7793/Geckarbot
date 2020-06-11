@@ -282,7 +282,7 @@ class Score:
         total = 0
         for el in self._score:
             total += self._score[el]
-        return int(100 * (self._score[user] / total / len(self._score)))
+        return int(100 * (self._score[user] / total))
 
     def points(self):
         """
@@ -589,7 +589,7 @@ class PointsQuizController(BaseQuizController):
             self.plugin.logger.debug("Registering job has already run")
             return
 
-        self.end_registering()
+        await self.end_registering()
 
     async def register_command(self, msg, *args):
         """
