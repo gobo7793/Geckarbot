@@ -48,6 +48,12 @@
     <Compile Include="Geckarbot.py" />
     <Compile Include="plugins\dsc.py" />
     <Compile Include="plugins\timer.py" />
+    <Compile Include="storage\dsc\__init__.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="storage\dsc\lang.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="storage\misc\lang.py" />
     <Compile Include="plugins\misc.py" />
     <Compile Include="coreplugins\mod.py" />
@@ -74,6 +80,7 @@
     <Folder Include="logs\" />
     <Folder Include="storage\" />
     <Folder Include="plugins\" />
+    <Folder Include="storage\dsc\" />
     <Folder Include="storage\misc\" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />
