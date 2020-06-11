@@ -6,15 +6,11 @@ from Geckarbot import BasePlugin
 
 
 class Plugin(BasePlugin, name="Funny/Misc Commands"):
-    """Sport related commands"""
 
     def __init__(self, bot):
-        self.bot = bot
         super().__init__(bot)
         bot.register(self)
 
-    def default_config(self):
-        return {}
 
     @commands.command(name="dice", brief="Simulates rolling dice.",
                       usage="[NumberOfSides] [NumberOfDices]")
@@ -28,7 +24,6 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
 
     @commands.command(name="kicker", help="Returns frequently used links to kicker.de")
     async def kicker_table(self, ctx):
-        """Returns the kicker.de Bundesliga tables"""
         embed = discord.Embed(title=Config().lang(self, 'kicker_title'))
         embed.add_field(name="Bundesliga", value="https://www.kicker.de/1-bundesliga/tabelle")
         embed.add_field(name="2. Bundesliga", value="https://www.kicker.de/2-bundesliga/tabelle")
@@ -60,10 +55,16 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
         file = discord.File(f"{Config().storage_dir(self)}/mimimi.mp3")
         await ctx.send(file=file)
 
+    @commands.command(name="tree", help="TREECKO!")
+    async def geck(self, ctx):
+        await ctx.trigger_typing()
+        file = discord.File(f"{Config().storage_dir(self)}/treecko.jpg")
+        await ctx.send("cko!", file=file)
+
     @commands.command(name="geck", help="GECKARBOR!")
     async def geck(self, ctx):
         await ctx.trigger_typing()
-        file = discord.File(f"{Config().storage_dir(self)}/treeckos.png")
+        file = discord.File(f"{Config().storage_dir(self)}/treecko2.jpg")
         await ctx.send("arbor!", file=file)
 
     @commands.command(name="liebe", help="Provides love to the channel")
