@@ -74,7 +74,7 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
         else:
             hostNick = discord.utils.get(ctx.guild.members, id=self.dsc_conf()['host_id']).mention
 
-        if self.dsc_conf()['state'] == DscState.Registration:
+        if self.dsc_conf()['state'] == DscState.Sign_up:
             if self.dsc_conf()['state_end'] > datetime.now():
                 dateOutStr = self.dsc_lang('info_date_str', self.dsc_conf()['state_end'].strftime('%d.%m.%Y'))
             else:
@@ -129,14 +129,14 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
         Config().save(self)
         await ctx.send(self.dsc_lang('phase_set', state_str))
         
-    @dsc_set.command(name="state", help="Sets the current DSC state (Voting/Registration)",
-                     usage="<voting|registration>")
+    @dsc_set.command(name="state", help="Sets the current DSC state (Voting/Sign up)",
+                     usage="<voting|signup>")
     async def dsc_set_state(self, ctx, state):
         """Sets the current DSC state (registration/voting)"""
         if state.lower() == "voting":
             await self.dsc_save_state(ctx, DscState.Voting)
-        elif state.lower() == "registration":
-            await self.dsc_save_state(ctx, DscState.Registration)
+        elif state.lower() == "signup":
+            await self.dsc_save_state(ctx, DscState.Sign_up)
         else:
             await ctx.send(self.dsc_lang('invalid_phase'))
 
