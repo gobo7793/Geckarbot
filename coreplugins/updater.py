@@ -359,7 +359,7 @@ class Plugin(Geckarbot.BasePlugin, name="Bot updating system"):
 
     @commands.command(name="news", help="Presents the latest update notes.")
     async def news(self, ctx):
-        await self.update_news(ctx.msg_link.channel)
+        await self.update_news(ctx.message.channel)
 
     @commands.command(name="version", help="Returns the running bot version.")
     async def version(self, ctx):
@@ -373,8 +373,8 @@ class Plugin(Geckarbot.BasePlugin, name="Bot updating system"):
             return
 
         # Check if chan and user is the same
-        chancond = self.waiting_for_confirm.channel == ctx.msg_link.channel
-        usercond = self.waiting_for_confirm.author == ctx.msg_link.author
+        chancond = self.waiting_for_confirm.channel == ctx.message.channel
+        usercond = self.waiting_for_confirm.author == ctx.message.author
         if not (chancond and usercond):
             return
 
@@ -388,9 +388,9 @@ class Plugin(Geckarbot.BasePlugin, name="Bot updating system"):
         if "check" in args and len(args) == 1:
             release = self.check_release()
             if release is None:
-                await ctx.msg_link.channel.send(lang["no_new_version"])
+                await ctx.message.channel.send(lang["no_new_version"])
             else:
-                await ctx.msg_link.channel.send(lang["new_version"].format(release))
+                await ctx.message.channel.send(lang["new_version"].format(release))
             return
         elif len(args) != 0:
             return
@@ -400,13 +400,13 @@ class Plugin(Geckarbot.BasePlugin, name="Bot updating system"):
 
         # Check state and send error messages if necessary
         if self.state == State.CHECKING or self.state == State.CONFIRMED or self.state == State.UPDATING:
-            await ctx.msg_link.channel.send(lang["err_already_updating"])
+            await ctx.message.channel.send(lang["err_already_updating"])
             return
         if self.state == State.WAITINGFORCONFIRM:
             if not self.waiting_for_confirm.channel == ctx.msg_link.channel:
-                await ctx.msg_link.channel.send(lang["err_different_channel"])
+                await ctx.message.channel.send(lang["err_different_channel"])
             elif not self.waiting_for_confirm.author == ctx.msg_link.author:
-                await ctx.msg_link.channel.send(lang["err_different_user"])
+                await ctx.message.channel.send(lang["err_different_user"])
             return
         assert self.state == State.IDLE
 
@@ -414,26 +414,26 @@ class Plugin(Geckarbot.BasePlugin, name="Bot updating system"):
         self.state = State.CHECKING
         release = self.check_release()
         if release is None:
-            await ctx.msg_link.channel.send(lang["wont_update"])
+            await ctx.message.channel.send(lang["wont_update"])
             self.state = State.IDLE
             return
-        await ctx.msg_link.channel.send(lang["new_version_update"].format(release))
+        await ctx.message.channel.send(lang["new_version_update"].format(release))
 
         # Ask for confirmation
         self.state = State.WAITINGFORCONFIRM
-        self.waiting_for_confirm = ctx.msg_link
+        self.waiting_for_confirm = ctx.message
         self.to_log = ctx
         await asyncio.sleep(CONFIRMTIMEOUT)  # This means that the bot doesn't react immediately on confirmation
 
         # No confirmation, cancel
         if self.state == State.WAITINGFORCONFIRM:
             self.state = State.IDLE
-            await ctx.msg_link.channel.send(lang["update_timeout"])
+            await ctx.message.channel.send(lang["update_timeout"])
             return
 
         # Confirmation came in
         elif self.state == State.CONFIRMED:
-            await self.do_update(ctx.msg_link.channel, release)
+            await self.do_update(ctx.message.channel, release)
             return
         else:
             logging.getLogger(__name__).error(

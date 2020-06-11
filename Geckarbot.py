@@ -177,7 +177,7 @@ def main():
                 embed.add_field(name='Error', value=error)
                 embed.add_field(name='Arguments', value=ctx.args)
                 embed.add_field(name='Command', value=ctx.command)
-                embed.add_field(name='Message', value=ctx.msg_link)
+                embed.add_field(name='Message', value=ctx.message)
                 embed.description = '```py\n%s\n```' % traceback.format_exc()
                 embed.timestamp = datetime.datetime.utcnow()
                 debug_chan = bot.get_channel(Config().DEBUG_CHAN_ID)
