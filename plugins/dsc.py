@@ -159,10 +159,10 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
         Config().save(self)
         await ctx.send(self.dsc_lang('state_end_set'))
 
-    @dsc_set.command(name="status", help="Sets the registration/voting end date", usage="[status_message]",
+    @dsc_set.command(name="status", help="Sets the status message", usage="[message]",
                      description="Sets a status message for additional informations. To remove give no message.")
     async def dsc_set_status(self, ctx, *status_message):
-        """Sets the dsc status message or removes it if 'del' as message is given"""
+        """Sets the dsc status message or removes it if no message is given"""
         self.dsc_conf()['status'] = " ".join(status_message)
         Config().save(self)
         await ctx.send(self.dsc_lang('status_set'))
