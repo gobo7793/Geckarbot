@@ -48,13 +48,13 @@
     <Compile Include="Geckarbot.py" />
     <Compile Include="plugins\dsc.py" />
     <Compile Include="plugins\timer.py" />
-    <Compile Include="storage\getting\lang.py" />
+    <Compile Include="storage\misc\lang.py" />
     <Compile Include="plugins\misc.py" />
     <Compile Include="coreplugins\mod.py" />
     <Compile Include="plugins\numberGuessing.py" />
     <Compile Include="plugins\quiz.py" />
     <Compile Include="plugins\__init__.py" />
-    <Compile Include="storage\getting\__init__.py" />
+    <Compile Include="storage\misc\__init__.py" />
   </ItemGroup>
   <ItemGroup>
     <InterpreterReference Include="Global|PythonCore|3.7" />
@@ -63,8 +63,9 @@
     <Content Include="config\dsc.json" />
     <Content Include="config\geckarbot.json" />
     <Content Include="config\mod.json" />
-    <Content Include="storage\getting\mimimi.mp3" />
-    <Content Include="storage\getting\treeckos.png" />
+    <Content Include="storage\misc\mimimi.mp3" />
+    <Content Include="storage\misc\treecko.jpg" />
+    <Content Include="storage\misc\treecko2.jpg" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="coreplugins\" />
@@ -73,7 +74,7 @@
     <Folder Include="logs\" />
     <Folder Include="storage\" />
     <Folder Include="plugins\" />
-    <Folder Include="storage\getting\" />
+    <Folder Include="storage\misc\" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />
   <!-- Uncomment the CoreCompile target to enable the Build command in
