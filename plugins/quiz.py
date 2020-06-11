@@ -1036,7 +1036,7 @@ class Plugin(Geckarbot.BasePlugin, name="A trivia kwiss"):
             elif method == Methods.SCORE:
                 await ctx.send(embed=quiz_controller.score.embed())
             elif method == Methods.STOP:
-                if permChecks.check_full_access(ctx.message.author) or quiz_controller.requester == ctx.msg_link.author:
+                if permChecks.check_full_access(ctx.message.author) or quiz_controller.requester == ctx.message.author:
                     msg, embed = self.end_quiz(channel)
                     await ctx.send(msg, embed=embed)
             elif method == Methods.STATUS:

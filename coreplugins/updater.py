@@ -403,9 +403,9 @@ class Plugin(Geckarbot.BasePlugin, name="Bot updating system"):
             await ctx.message.channel.send(lang["err_already_updating"])
             return
         if self.state == State.WAITINGFORCONFIRM:
-            if not self.waiting_for_confirm.channel == ctx.msg_link.channel:
+            if not self.waiting_for_confirm.channel == ctx.message.channel:
                 await ctx.message.channel.send(lang["err_different_channel"])
-            elif not self.waiting_for_confirm.author == ctx.msg_link.author:
+            elif not self.waiting_for_confirm.author == ctx.message.author:
                 await ctx.message.channel.send(lang["err_different_user"])
             return
         assert self.state == State.IDLE
