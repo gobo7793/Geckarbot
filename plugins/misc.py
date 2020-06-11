@@ -58,16 +58,10 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
         file = discord.File(f"{Config().storage_dir(self)}/mimimi.mp3")
         await ctx.send(file=file)
 
-    @commands.command(name="tree", help="TREECKO!")
-    async def tree(self, ctx):
-        await ctx.trigger_typing()
-        file = discord.File(f"{Config().storage_dir(self)}/treecko.jpg")
-        await ctx.send(Config().lang(self, 'tree_out'), file=file)
-
     @commands.command(name="geck", help="GECKARBOR!")
     async def geck(self, ctx):
         await ctx.trigger_typing()
-        file = discord.File(f"{Config().storage_dir(self)}/treecko2.jpg")
+        file = discord.File(f"{Config().storage_dir(self)}/treecko.jpg")
         await ctx.send(Config().lang(self, 'geck_out'), file=file)
 
     @commands.command(name="liebe", help="Provides love to the channel")
