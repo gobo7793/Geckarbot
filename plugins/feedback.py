@@ -10,13 +10,8 @@ from botutils import utils, permChecks
 
 lang = {
     "complaint_received": "Complaint received. Please hold the line! A human will contact you soon.",
+    "complaint_removed": "Complaint #{} removed.",
 }
-
-
-skeleton_config = {
-    "complaints": {}
-}
-
 
 def str_keys_to_int(d):
     """
@@ -99,13 +94,18 @@ class Plugin(BasePlugin):
 
         # Load complaints from storage
         if self.storage is None:
-            self.storage = deepcopy(skeleton_config)
+            self.storage = deepcopy(self.default_config())
         else:
             str_keys_to_int(self.storage["complaints"])
         for cid in self.storage["complaints"]:
             self.complaints[cid] = Complaint.deserialize(self.bot, cid, self.storage["complaints"][cid])
 
         self.get_new_id(init=True)
+
+    def default_config(self):
+        return {
+            "complaints": {}
+        }
 
     def get_new_id(self, init=False):
         """
@@ -123,7 +123,7 @@ class Plugin(BasePlugin):
             return self.highest_id
 
     def write(self):
-        r = deepcopy(skeleton_config)
+        r = deepcopy(self.default_config())
         for el in self.complaints:
             complaint = self.complaints[el]
             r["complaints"][complaint.id] = complaint.serialize()
@@ -147,6 +147,7 @@ class Plugin(BasePlugin):
                 await ctx.message.channel.send("Unexpected argument structure; expected !redact or !redact del #")
                 return
             del self.complaints[i]
+            await ctx.send(lang['complaint_removed'].format(i))
             self.write()
             return
 
