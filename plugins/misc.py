@@ -30,25 +30,23 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
     @commands.command(name="kicker", help="Returns frequently used links to kicker.de")
     async def kicker_table(self, ctx):
         embed = discord.Embed(title=Config().lang(self, 'kicker_title'))
-        embed.add_field(name="Bundesliga", value="https://www.kicker.de/1-bundesliga/tabelle")
-        embed.add_field(name="2. Bundesliga", value="https://www.kicker.de/2-bundesliga/tabelle")
-        embed.add_field(name="3. Liga", value="https://www.kicker.de/3-liga/tabelle")
-        embed.add_field(name="AT-Bundesliga", value="https://www.kicker.de/tipp3-bundesliga/tabelle\n"
-                                                     "https://www.kicker.de/meistergruppe-oesterreich-fb-1/tabelle/\n"
-                                                     "https://www.kicker.de/qualifikationsgruppe-oesterreich-fb-1/tabelle/")
+        embed.add_field(name=Config().lang(self, 'kicker_1BL'), value=Config().lang(self, 'kicker_1BL_link'))
+        embed.add_field(name=Config().lang(self, 'kicker_2BL'), value=Config().lang(self, 'kicker_2BL_link'))
+        embed.add_field(name=Config().lang(self, 'kicker_3FL'), value=Config().lang(self, 'kicker_3FL_link'))
+        embed.add_field(name=Config().lang(self, 'kicker_ATBL'), value=Config().lang(self, 'kicker_ATBL_link'))
         await ctx.send(embed=embed)
 
     @commands.command(name="ping", help="Pings the bot.")
     async def ping(self, ctx):
-        await ctx.send("Pong!")
+        await ctx.send(Config().lang(self, 'ping_out'))
         
     @commands.command(name="mud", brief="Pings the bot.")
     async def mud(self, ctx):
-        await ctx.send("Kip!")
+        await ctx.send(Config().lang(self, 'mud_out'))
         
     @commands.command(name="mudkip", brief="MUDKIP!")
     async def mudkip(self, ctx):
-        await ctx.send("https://www.youtube.com/watch?v=3DkqMjfqqPc")
+        await ctx.send(Config().lang(self, 'mudkip_out'))
 
     @commands.command(name="nico", help="Punches Nico.")
     async def nico(self, ctx):
@@ -61,17 +59,17 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
         await ctx.send(file=file)
 
     @commands.command(name="tree", help="TREECKO!")
-    async def geck(self, ctx):
+    async def tree(self, ctx):
         await ctx.trigger_typing()
         file = discord.File(f"{Config().storage_dir(self)}/treecko.jpg")
-        await ctx.send("cko!", file=file)
+        await ctx.send(Config().lang(self, 'tree_out'), file=file)
 
     @commands.command(name="geck", help="GECKARBOR!")
     async def geck(self, ctx):
         await ctx.trigger_typing()
         file = discord.File(f"{Config().storage_dir(self)}/treecko2.jpg")
-        await ctx.send("arbor!", file=file)
+        await ctx.send(Config().lang(self, 'geck_out'), file=file)
 
     @commands.command(name="liebe", help="Provides love to the channel")
     async def liebe(self, ctx):
-        await ctx.send("https://www.youtube.com/watch?v=TfmJPDmaQdg")
+        await ctx.send(Config().lang(self, 'liebe_out'))
