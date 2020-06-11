@@ -201,8 +201,17 @@ def main():
     @bot.event
     async def on_message(message):
         """Basic message and blacklisting handling"""
-        if 'blacklist' in bot.coredata and bot.coredata['blacklist'].is_member_on_blacklist(message.author):
+        
+        if ('blacklist' in bot.coredata
+            and bot.coredata['blacklist'].is_member_on_blacklist(message.author)):
             return
+
+        ctx = await bot.get_context(message)
+        if (ctx.valid
+            and 'disabled_cmds' in bot.coredata
+            and not bot.coredata['disabled_cmds'].can_cmd_executed(ctx.command.name, ctx.channel)):
+            return
+
         if Config().DEBUG_MODE and len(Config().DEBUG_WHITELIST) > 0:
             if message.author.id in Config().DEBUG_WHITELIST:
                 await bot.process_commands(message)
