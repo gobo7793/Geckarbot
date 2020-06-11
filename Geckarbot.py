@@ -106,7 +106,7 @@ def logging_setup():
     level = logging.INFO
     if Config().DEBUG_MODE:
         level = logging.DEBUG
-    today = datetime.date.today().isoformat()
+
 
     file_handler = logging.handlers.TimedRotatingFileHandler(filename="logs/geckarbot.log", when="midnight", interval=1)
     file_handler.setLevel(level)
@@ -114,8 +114,10 @@ def logging_setup():
     console_handler = logging.StreamHandler()
     console_handler.setLevel(level)
     console_handler.setFormatter(logging.Formatter('%(asctime)s : %(levelname)s : %(name)s : %(message)s'))
-    logging.getLogger('').addHandler(file_handler)
-    logging.getLogger('').addHandler(console_handler)
+    logger = logging.getLogger('')
+    logger.setLevel(level)
+    logger.addHandler(file_handler)
+    logger.addHandler(console_handler)
 
     for el in logging.root.manager.loggerDict:
         logger = logging.root.manager.loggerDict[el]
