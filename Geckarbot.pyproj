@@ -71,7 +71,6 @@
     <Content Include="config\mod.json" />
     <Content Include="storage\misc\mimimi.mp3" />
     <Content Include="storage\misc\treecko.jpg" />
-    <Content Include="storage\misc\treecko2.jpg" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="coreplugins\" />
