@@ -135,6 +135,8 @@ class CommandDisable():
         for removing in to_remove:
             self.cd_conf().remove(removing)
 
+        Config().save(self.plugin)
+
     def disable(self, command, channel: discord.TextChannel, hours: int = 0):
         """Disables the given command in the given channel for given hours.
         If cmd in channel was now disabled, True will be returned,
