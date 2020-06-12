@@ -275,7 +275,7 @@ class Plugin(Geckarbot.BasePlugin, name="Bot updating system"):
         for plugin in self.bot.plugin_objects():
             pname = self.bot.plugin_name(plugin)
             try:
-                utils.write_debug_channel(self.bot, "Shutting down plugin {}".format(pname))
+                await utils.write_debug_channel(self.bot, "Shutting down plugin {}".format(pname))
                 await plugin.shutdown()
             except Exception as e:
                 msg = "{} while trying to shutdown plugin {}:\n{}".format(
@@ -290,6 +290,8 @@ class Plugin(Geckarbot.BasePlugin, name="Bot updating system"):
 
     def get_releases(self):
         r = self.client.make_request(ENDPOINT)
+        #for el in r:
+        #    print("{}\n".format(el))
         return r
 
     def check_release(self):
