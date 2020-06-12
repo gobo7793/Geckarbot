@@ -9,7 +9,7 @@ from botutils import utils, permChecks
 
 
 lang = {
-    "complaint_received": "Complaint received. Please hold the line! A human will contact you soon.",
+    "complaint_received": "Complaint received. Please hold the line! A human will contact you soon. Maybe.",
     "complaint_removed": "Complaint #{} removed.",
 }
 
@@ -130,7 +130,7 @@ class Plugin(BasePlugin, name="Feedback"):
         Config().set(self, r)
         Config().save(self)
 
-    @commands.command(name="redact", help="Redacts the list of complaits (i.e. read and delete)", usage="[del x]",
+    @commands.command(name="redact", help="Redacts the list of complaints (i.e. read and delete)", usage="[del x]",
                       description="Returns the accumulated feedback. Use [del x] to delete feedback #x.")
     @commands.has_any_role(Config().ADMIN_ROLE_ID, Config().BOTMASTER_ROLE_ID)
     async def redact(self, ctx, *args):
