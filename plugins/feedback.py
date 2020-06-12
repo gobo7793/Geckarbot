@@ -9,7 +9,7 @@ from botutils import utils, permChecks
 
 
 lang = {
-    "complaint_received": "Complaint received. Please hold the line! A human will contact you soon.",
+    "complaint_received": "Complaint received. Please hold the line! A human will contact you soon. Maybe.",
     "complaint_removed": "Complaint #{} removed.",
 }
 
