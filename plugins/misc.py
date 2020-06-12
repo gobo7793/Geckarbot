@@ -67,3 +67,7 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
     @commands.command(name="liebe", help="Provides love to the channel")
     async def liebe(self, ctx):
         await ctx.send(Config().lang(self, 'liebe_out'))
+
+    @commands.command(name="danny", help="Quotes a lovely message from Danny")
+    async def danny(self, ctx):
+        await ctx.send(Config().lang(self, 'danny_out'))
