@@ -18,9 +18,6 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
         super().__init__(bot)
         bot.register(self)
 
-        global songmaster_role_id
-        songmaster_role_id = Config().ROLE_IDS.get('songmaster', 0)
-
     def default_config(self):
         return {
             'rule_link': "https://docs.google.com/document/d/1xvkIPgLfFvm4CLwbCoUa8WZ1Fa-Z_ELPAtgHaSpEEbg",
@@ -108,7 +105,7 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
             await utils.write_debug_channel(self.bot, embed)
 
     @dsc.group(name="set", help="Set data about current/next DSC.", usage="<host|state|stateend|status|yt>")
-    @commands.has_any_role(Config().ADMIN_ROLE_ID, Config().BOTMASTER_ROLE_ID, songmaster_role_id)
+    @commands.has_any_role(Config().ADMIN_ROLE_ID, Config().BOTMASTER_ROLE_ID, Config().ROLE_IDS.get('songmaster', 0))
     async def dsc_set(self, ctx):
         """Basic set subcommand, does nothing"""
         if ctx.invoked_subcommand is None:
