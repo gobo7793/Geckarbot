@@ -1,5 +1,7 @@
-from discord.ext import commands
+import asyncio
+import sys
 
+from discord.ext import commands
 from botutils.utils import AsyncTimer, get_best_username
 
 from Geckarbot import BasePlugin
@@ -12,9 +14,30 @@ class Plugin(BasePlugin, name="Timer things"):
         self.timers = {}
         super().__init__(bot)
         bot.register(self)
+        self.sleeper = None
+        self.channel = None
 
     def default_config(self):
         return {}
+
+    def wake_up_sync(self):
+        self.bot.loop.create_task(self.wake_up())
+
+    async def wake_up(self):
+        await self.channel.send("I have been woken up!")
+
+    @commands.command(name="sleep")
+    async def sleep(self, ctx):
+        self.channel = ctx.channel
+        self.sleeper = self.bot.loop.call_later(sys.maxsize, print, "blub")
+        await ctx.message.channel.send("Falling asleep.")
+        # await self.sleeper
+        # await ctx.message.channel.send("I was woken up!")
+
+    @commands.command(name="awake")
+    async def awake(self, ctx):
+        self.sleeper.cancel()
+        await ctx.message.channel.send("I'm waking myself up.")
 
     @commands.command(name="remindme", help="Reminds the author in x seconds.")
     async def reminder(self, ctx, duration):
