@@ -8,6 +8,7 @@ import logging
 import sys
 from enum import Enum
 from logging import handlers
+from pathlib import Path
 
 from discord.ext import commands
 
@@ -107,6 +108,7 @@ def logging_setup():
     if Config().DEBUG_MODE:
         level = logging.DEBUG
 
+    Path("logs/").mkdir(parents=True, exist_ok=True)
 
     file_handler = logging.handlers.TimedRotatingFileHandler(filename="logs/geckarbot.log", when="midnight", interval=1)
     file_handler.setLevel(level)
@@ -149,7 +151,7 @@ def main():
         members = "\n - ".join([member.name for member in guild.members])
         logging.info(f"Server Members:\n - {members}")
 
-        await utils.write_debug_channel(bot, f"Geckarbot v{Config().VERSION} connected on "
+        await utils.write_debug_channel(bot, f"Geckarbot {Config().VERSION} connected on "
                                              f"{guild.name} with {len(guild.members)} users.")
 
     if not Config().DEBUG_MODE:
