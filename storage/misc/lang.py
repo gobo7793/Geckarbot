@@ -18,5 +18,6 @@ lang = {
         'tree_out': "cko!",
         'geck_out': "arbor!",
         'liebe_out': "https://www.youtube.com/watch?v=TfmJPDmaQdg"
+        'danny_out': "**_D u  g o t t v e r d a m m t e  S c h e i ß  H u r e_**'
         }
     }
