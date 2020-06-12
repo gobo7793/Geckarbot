@@ -290,8 +290,6 @@ class Plugin(Geckarbot.BasePlugin, name="Bot updating system"):
 
     def get_releases(self):
         r = self.client.make_request(ENDPOINT)
-        #for el in r:
-        #    print("{}\n".format(el))
         return r
 
     def check_release(self):
