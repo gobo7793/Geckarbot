@@ -162,9 +162,7 @@ def main():
             embed.add_field(name='Event', value=event)
             embed.description = '```python\n{}\n```'.format(traceback.format_exc())
             embed.timestamp = datetime.datetime.utcnow()
-            debug_chan = bot.get_channel(Config().DEBUG_CHAN_ID)
-            if debug_chan is not None:
-                await debug_chan.send(embed=embed)
+            await utils.write_debug_channel(bot, embed)
 
         @bot.event
         async def on_command_error(ctx, error):
@@ -196,9 +194,7 @@ def main():
                 embed.add_field(name='Message', value=ctx.message)
                 embed.description = '```python\n{}\n```'.format(traceback.format_exc())
                 embed.timestamp = datetime.datetime.utcnow()
-                debug_chan = bot.get_channel(Config().DEBUG_CHAN_ID)
-                if debug_chan is not None:
-                    await debug_chan.send(embed=embed)
+                await utils.write_debug_channel(bot, embed)
                 await ctx.send("Error while executing command.")
 
     @bot.event
