@@ -305,6 +305,7 @@ class Plugin(Geckarbot.BasePlugin, name="Bot updating system"):
         for el in self.get_releases():
             if "tag_name" in el:
                 release = el
+                break
         if release is None:
             return None
 
