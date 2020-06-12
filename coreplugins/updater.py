@@ -45,6 +45,7 @@ lang = {
     "err_different_channel": "Sorry, there is already an update request running in a different channel.",
     "err_already_updating": "There is already an update in progress. Be patient.",
     "err_different_user": "Sorry, someone else already requested an update.",
+    "err_no_news_for_version": "Sorry, I couldn't find any news for version {}.",
 }
 
 
@@ -310,16 +311,24 @@ class Plugin(Geckarbot.BasePlugin, name="Bot updating system"):
             return release
         return None
 
-    async def update_news(self, channel):
+    async def update_news(self, channel, version=None):
         """
         Sends release notes to channel.
         :param channel: Channel to send the release notes to.
+        :param version: Release version that the news should be about.
         """
+        if version is None:
+            version = Config().VERSION
+        found = False
         for el in self.get_releases():
             ver = sanitize_version_s(el["tag_name"])
             logging.getLogger(__name__).debug("Comparing versions: {} and {}".format(Config().VERSION, ver))
-            if is_equal(sanitize_version_s(Config().VERSION), ver):
+            if is_equal(sanitize_version_s(version), ver):
+                found = True
                 await channel.send("{}:\n{}".format(ver, el["body"]))
+
+        if not found:
+            await channel.send(lang["err_no_news_for_version"].format(version))
 
     async def was_i_updated(self):
         """
@@ -358,8 +367,17 @@ class Plugin(Geckarbot.BasePlugin, name="Bot updating system"):
             return True
 
     @commands.command(name="news", help="Presents the latest update notes.")
-    async def news(self, ctx):
-        await self.update_news(ctx.message.channel)
+    async def news(self, ctx, *args):
+        version = None
+        if len(args) == 0:
+            pass
+        elif len(args) == 1:
+            version = args[0]
+        else:
+            ctx.message.channel.send("Too many arguments.")
+            return
+
+        await self.update_news(ctx.message.channel, version=version)
 
     @commands.command(name="version", help="Returns the running bot version.")
     async def version(self, ctx):
