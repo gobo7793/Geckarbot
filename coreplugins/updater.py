@@ -374,7 +374,7 @@ class Plugin(Geckarbot.BasePlugin, name="Bot updating system"):
         elif len(args) == 1:
             version = args[0]
         else:
-            ctx.message.channel.send("Too many arguments.")
+            await ctx.message.channel.send("Too many arguments.")
             return
 
         await self.update_news(ctx.message.channel, version=version)
