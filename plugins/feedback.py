@@ -10,13 +10,8 @@ from botutils import utils, permChecks
 
 lang = {
     "complaint_received": "Complaint received. Please hold the line! A human will contact you soon.",
+    "complaint_removed": "Complaint #{} removed.",
 }
-
-
-skeleton_config = {
-    "complaints": {}
-}
-
 
 def str_keys_to_int(d):
     """
@@ -99,13 +94,18 @@ class Plugin(BasePlugin):
 
         # Load complaints from storage
         if self.storage is None:
-            self.storage = deepcopy(skeleton_config)
+            self.storage = deepcopy(self.default_config())
         else:
             str_keys_to_int(self.storage["complaints"])
         for cid in self.storage["complaints"]:
             self.complaints[cid] = Complaint.deserialize(self.bot, cid, self.storage["complaints"][cid])
 
         self.get_new_id(init=True)
+
+    def default_config(self):
+        return {
+            "complaints": {}
+        }
 
     def get_new_id(self, init=False):
         """
@@ -123,14 +123,15 @@ class Plugin(BasePlugin):
             return self.highest_id
 
     def write(self):
-        r = deepcopy(skeleton_config)
+        r = deepcopy(self.default_config())
         for el in self.complaints:
             complaint = self.complaints[el]
             r["complaints"][complaint.id] = complaint.serialize()
         Config().set(self, r)
         Config().save(self)
 
-    @commands.command(name="redact", help="Redacts the list of complaits (i.e. read and delete)")
+    @commands.command(name="redact", help="Redacts the list of complaits (i.e. read and delete)", usage="[del x]",
+                      description="Returns the accumulated feedback. Use [del x] to delete feedback #x.")
     @commands.has_any_role(Config().ADMIN_ROLE_ID, Config().BOTMASTER_ROLE_ID)
     async def redact(self, ctx, *args):
         # Argument parsing / delete subcmd
@@ -146,6 +147,7 @@ class Plugin(BasePlugin):
                 await ctx.message.channel.send("Unexpected argument structure; expected !redact or !redact del #")
                 return
             del self.complaints[i]
+            await ctx.send(lang['complaint_removed'].format(i))
             self.write()
             return
 
@@ -158,7 +160,10 @@ class Plugin(BasePlugin):
             r.append(self.complaints[el].to_message())
         await ctx.message.channel.send("**Complaints:**\n{}".format("\n\n".join(r)))
 
-    @commands.command(name="complain", help="Takes a complaint and stores it")
+    @commands.command(name="complain", help="Takes a complaint and stores it", usage="<message>",
+                      description="Delivers a feedback message."
+                                  " The admins and botmasters can then read the accumulated feedback."
+                                  " The bot saves the feedback author, the message and a link to the message for context.")
     async def complain(self, ctx, *args):
         msg = ctx.message
         complaint = Complaint.from_message(self, msg)

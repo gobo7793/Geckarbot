@@ -7,6 +7,7 @@ import pkgutil
 import logging
 import sys
 from enum import Enum
+from logging import handlers
 
 from discord.ext import commands
 
@@ -38,7 +39,8 @@ class BasePlugin(commands.Cog):
         pass
 
     def default_config(self):
-        return None
+        """Returns an empty default config"""
+        return {}
 
 
 class Geckarbot(commands.Bot):
@@ -73,7 +75,7 @@ class Geckarbot(commands.Bot):
         """
         Returns a human-readable name for Plugin plugin.
         """
-        return plugin.__module__  # this looks kinda ghetto, maybe improve it
+        return plugin.__module__.rsplit(".", 1)[1] # same as for PluginSlot.name
 
     def load_plugins(self, plugin_dir):
         r = []
@@ -101,10 +103,22 @@ def logging_setup():
     """
     Put all debug loggers on info and everything else on info/debug, depending on config
     """
-    level = logging.DEBUG
+    level = logging.INFO
     if Config().DEBUG_MODE:
         level = logging.DEBUG
-    logging.basicConfig(level=level)
+
+
+    file_handler = logging.handlers.TimedRotatingFileHandler(filename="logs/geckarbot.log", when="midnight", interval=1)
+    file_handler.setLevel(level)
+    file_handler.setFormatter(logging.Formatter('%(asctime)s : %(levelname)s : %(name)s : %(message)s'))
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(level)
+    console_handler.setFormatter(logging.Formatter('%(asctime)s : %(levelname)s : %(name)s : %(message)s'))
+    logger = logging.getLogger('')
+    logger.setLevel(level)
+    logger.addHandler(file_handler)
+    logger.addHandler(console_handler)
+
     for el in logging.root.manager.loggerDict:
         logger = logging.root.manager.loggerDict[el]
         if isinstance(logger, logging.PlaceHolder):
@@ -144,7 +158,7 @@ def main():
             """On bot errors print error state in debug channel"""
             embed = discord.Embed(title=':x: Event Error', colour=0xe74c3c)  # Red
             embed.add_field(name='Event', value=event)
-            embed.description = '```py\n%s\n```' % traceback.format_exc()
+            embed.description = '```python\n{}\n```'.format(traceback.format_exc())
             embed.timestamp = datetime.datetime.utcnow()
             debug_chan = bot.get_channel(Config().DEBUG_CHAN_ID)
             if debug_chan is not None:
@@ -178,7 +192,7 @@ def main():
                 embed.add_field(name='Arguments', value=ctx.args)
                 embed.add_field(name='Command', value=ctx.command)
                 embed.add_field(name='Message', value=ctx.message)
-                embed.description = '```py\n%s\n```' % traceback.format_exc()
+                embed.description = '```python\n{}\n```'.format(traceback.format_exc())
                 embed.timestamp = datetime.datetime.utcnow()
                 debug_chan = bot.get_channel(Config().DEBUG_CHAN_ID)
                 if debug_chan is not None:
@@ -188,8 +202,17 @@ def main():
     @bot.event
     async def on_message(message):
         """Basic message and blacklisting handling"""
-        if 'blacklist' in bot.coredata and bot.coredata['blacklist'].is_member_on_blacklist(message.author):
+        
+        if ('blacklist' in bot.coredata
+            and bot.coredata['blacklist'].is_member_on_blacklist(message.author)):
             return
+
+        ctx = await bot.get_context(message)
+        if (ctx.valid
+            and 'disabled_cmds' in bot.coredata
+            and not bot.coredata['disabled_cmds'].can_cmd_executed(ctx.command.name, ctx.channel)):
+            return
+
         if Config().DEBUG_MODE and len(Config().DEBUG_WHITELIST) > 0:
             if message.author.id in Config().DEBUG_WHITELIST:
                 await bot.process_commands(message)
