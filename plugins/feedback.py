@@ -13,6 +13,7 @@ lang = {
     "complaint_removed": "Complaint #{} removed.",
 }
 
+
 def str_keys_to_int(d):
     """
     Converts {"22": "foo", "44": "bar"} to {22: "foo", 44: "bar"}
@@ -81,6 +82,44 @@ class Complaint:
         if self.msg_link is not None:
             r += "\n{}".format(self.msg_link)
         return r
+
+
+def complaint_message_list(complaints):
+    threshold = 1800
+    starter = "**Complaints:**\n"
+    current_msg = []
+    msgs = []
+    delimiter = "\n\n"
+    first = True
+    for i in complaints:
+        el = complaints[i]
+
+        to_add = el.to_message()
+        if len(to_add) > threshold:  # really really long complaints
+            msgs.append([to_add])
+            continue
+
+        if first:
+            first = False
+            to_add = starter + to_add
+
+        # sum up current len
+        length = 0
+        for k in current_msg:
+            length += len(k) + len(delimiter)
+
+        if length > threshold:
+            msgs.append(current_msg)
+            current_msg = [".\n" + to_add]
+        else:
+            current_msg.append(to_add)
+    msgs.append(current_msg)
+
+    print("msgs: {}".format(msgs))
+    r = []
+    for el in msgs:
+        r.append(delimiter.join(el))
+    return r
 
 
 class Plugin(BasePlugin, name="Feedback"):
@@ -155,15 +194,16 @@ class Plugin(BasePlugin, name="Feedback"):
         if len(self.complaints) == 0:
             await ctx.message.channel.send("No complaints.")
             return
-        r = []
-        for el in self.complaints:
-            r.append(self.complaints[el].to_message())
-        await ctx.message.channel.send("**Complaints:**\n{}".format("\n\n".join(r)))
+
+        msgs = complaint_message_list(self.complaints)
+        for el in msgs:
+            await ctx.message.channel.send(el)
 
     @commands.command(name="complain", help="Takes a complaint and stores it", usage="<message>",
-                      description="Delivers a feedback message."
-                                  " The admins and botmasters can then read the accumulated feedback."
-                                  " The bot saves the feedback author, the message and a link to the message for context.")
+                      description="Delivers a feedback message. "
+                                  "The admins and botmasters can then read the accumulated feedback. "
+                                  "The bot saves the feedback author, "
+                                  "the message and a link to the message for context.")
     async def complain(self, ctx, *args):
         msg = ctx.message
         complaint = Complaint.from_message(self, msg)
