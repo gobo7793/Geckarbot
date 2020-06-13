@@ -17,7 +17,7 @@ lang = {
         'nico_output' : "***N I C O   A U F S   M A U L !***   :right_facing_fist_tone1::cow:",
         'tree_out': "cko!",
         'geck_out': "arbor!",
-        'liebe_out': "https://www.youtube.com/watch?v=TfmJPDmaQdg"
-        'danny_out': "**_D u  g o t t v e r d a m m t e  S c h e i ß  H u r e_**'
+        'liebe_out': "https://www.youtube.com/watch?v=TfmJPDmaQdg",
+        'danny_out': "**_D u  g o t t v e r d a m m t e  S c h e i ß h u r e ! ! !_**"
         }
     }
