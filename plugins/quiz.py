@@ -1115,7 +1115,7 @@ class Plugin(Geckarbot.BasePlugin, name="A trivia kwiss"):
         self.registered_subcommands = {}
         self.config = jsonify
 
-        self.default_controller = RushQuizController
+        self.default_controller = PointsQuizController
         self.defaults = {
             "impl": "opentdb",
             "questions": self.config["questions_default"],
