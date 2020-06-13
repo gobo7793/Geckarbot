@@ -13,7 +13,7 @@ while [[ ${exitcode} -ne 0 ]]; do
 
     if [[ ${exitcode} -eq ${UPDATECODE} ]]; then
         if [[ ${SIMULATE} -ne 0 ]]; then
-            git fetch origin master
+            git fetch origin master --tags
             git checkout tags/$(cat ${TAGFILE})
         else
             echo "Simulating update to $(cat ${TAGFILE})"
