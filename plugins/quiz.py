@@ -11,7 +11,7 @@ import discord
 from discord.ext import commands
 
 import Geckarbot
-from botutils import restclient, utils, permChecks
+from botutils import restclient, utils, permChecks, statemachine
 
 jsonify = {
     "timeout": 20,  # answering timeout in minutes; not impl yet TODO
@@ -57,7 +57,7 @@ msg_defaults = {
     "too_many_arguments": "Too many arguments.",
     "invalid_argument": "Invalid argument: {}",
     "answering_order": "{}: Please let someone else answer first.",
-    "registering_phase": "Please register for the upcoming kwiss via !kwiss register. I will wait {} minutes.",
+    "registering_phase": "Please register for the upcoming kwiss via !kwiss register. I will wait {} minute.",
     "registering_too_late": "{}: Sorry, too late. The kwiss has already begun.",
     "register_success": "{}: You're in!",
     "quiz_phase": "The kwiss will begin in 10 seconds!",
@@ -260,16 +260,25 @@ class BaseQuizController(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def __del__(self):
+    def stop(self):
         """
-        Called when the quiz is stopped.
+        Called when the quiz is ended.
+        """
+        pass
+
+    @abstractmethod
+    def abort(self):
+        """
+        Called when the quiz is aborted.
         """
         pass
 
 
 class Score:
-    def __init__(self):
+    def __init__(self, question_count):
         self._score = {}
+        self._points = {}
+        self.question_count = question_count
 
     def calc_points(self, user):
         """
@@ -279,10 +288,7 @@ class Score:
         if user not in self._score:
             raise KeyError("User {} not found in score".format(user))
 
-        total = 0
-        for el in self._score:
-            total += self._score[el]
-        return int(100 * (self._score[user] / total))
+        return int(round(100 * self._points[user] * (1 - 1/len(self._points))))
 
     def points(self):
         """
@@ -302,6 +308,26 @@ class Score:
         :return: List of members in score, sorted by score
         """
         return sorted(self._score, key=lambda x: self._score[x], reverse=True)
+
+    def winners(self):
+        """
+        :return: Return list of winners
+        """
+        r = []
+        lastscore = None
+        for el in self.ladder():
+            if self._score[el] == 0:
+                break
+            elif lastscore is None:
+                r.append(el)
+                lastscore = self._score[el]
+            elif lastscore == self._score[el]:
+                r.append(el)
+            elif lastscore > self._score[el]:
+                break
+            else:
+                assert False
+        return r
 
     def embed(self):
         embed = discord.Embed(title="Score:")
@@ -325,11 +351,24 @@ class Score:
 
         return embed
 
-    def increase(self, member, amount=1):
-        if member in self._score:
-            self._score[member] += amount
+    def increase(self, member, amount=1, totalcorr=1):
+        """
+        Increases a participant's score by amount. Registers the participant if not present.
+        :param member: Discord member
+        :param amount: Amount to increase the member's score by; defaults to 1.
+        :param totalcorr: Total amount of correct answers to the question
+        """
+        if member not in self._score:
+            self.add_participant(member)
+        self._score[member] += amount
+        self._points[member] += amount / totalcorr
+
+    def add_participant(self, member):
+        if member not in self._score:
+            self._score[member] = 0
+            self._points[member] = 0
         else:
-            self._score[member] = amount
+            logging.getLogger(__name__).warning("Adding {} to score who was already there. This should not happen.")
 
 
 class InvalidAnswer(Exception):
@@ -420,25 +459,20 @@ class Question:
         assert False
 
 
-class Phases2(Enum):
+class Phases(Enum):
     INIT = 0
     REGISTERING = 1
-    BETWEENQUESTIONS = 3
-    WAITINGFORANSWERS = 4
-    ENDED = 5
-
-
-class Phases(Enum):
-    BEFORE = 0
-    REGISTERING = 1
-    QUIZ = 2
+    ABOUTTOSTART = 2
+    QUESTION = 3
+    EVAL = 4
+    END = 5
+    ABORT = 6
 
 
 class PointsQuizController(BaseQuizController):
     """
     Gamemode: every user with the correct answer gets a point
     """
-    # TODO support DMs
     def __init__(self, plugin, config, quizapi, channel, requester, **kwargs):
         """
         :param plugin: Plugin object
@@ -457,96 +491,151 @@ class PointsQuizController(BaseQuizController):
         self.config = config
         self.plugin = plugin
 
-        self.category = kwargs["category"]
-        self.debug = kwargs["debug"]
-        self.difficulty = kwargs["difficulty"]
+        # QuizAPI config
+        self.category = None
+        if "category" in kwargs:
+            self.category = kwargs["category"]
+        self.debug = False
+        if "debug" in kwargs and kwargs["debug"]:
+            self.debug = True
         self.question_count = kwargs["question_count"]
+        self.difficulty = kwargs["difficulty"]
+
+        # State handling
+        self.ran_into_timeout = False
+        self.current_question = None
+        self.current_question_timer = None
+        self.statemachine = statemachine.StateMachine()
+        self.statemachine.add_state(Phases.INIT, None, None)
+        self.statemachine.add_state(Phases.REGISTERING, self.start_registering_phase, [Phases.INIT])
+        self.statemachine.add_state(Phases.ABOUTTOSTART, self.about_to_start, [Phases.REGISTERING])
+        self.statemachine.add_state(Phases.QUESTION, self.pose_question, [Phases.ABOUTTOSTART, Phases.EVAL])
+        self.statemachine.add_state(Phases.EVAL, self.eval, [Phases.QUESTION])
+        self.statemachine.add_state(Phases.END, self.end, [Phases.QUESTION], end=True)
+        self.statemachine.add_state(Phases.ABORT, self.abortphase, None, end=True)
+        self.statemachine.state = Phases.INIT
+
+        # Quiz handling
         self.quizapi = quizapi(config, channel, category=self.category, question_count=self.question_count,
                                difficulty=self.difficulty, debug=self.debug)
+        self._score = Score(self.question_count)
 
-        self.phase = Phases.BEFORE
-        self.has_ever_run = False
-        self.is_running = False
-        self.registering_timer = None
-        self.current_question_timer = None
-        self.current_question = None
-        self._score = Score()
-
+        # Participant handling
         self.registered_participants = {}
+
         self.plugin.register_subcommand(self.channel, "register", self.register_command)
 
-    async def status(self):
-        embed = discord.Embed(title="Kwiss: question {}/{}".format(
-            self.quizapi.current_question_index() + 1, len(self.quizapi)))
-        embed.add_field(name="Category", value=self.quizapi.category_name())
-        embed.add_field(name="Difficulty", value=Difficulty.human_readable(self.difficulty))
-        embed.add_field(name="Mode", value="Points (Everyone answers)")
-        embed.add_field(name="Initiated by", value=utils.get_best_username(self.requester))
-
-        status = ":arrow_forward: Running"
-        if self.phase == Phases.REGISTERING:
-            status = ":book: Signup phase"
-        if not self.is_running:
-            status = ":pause_button: Paused"
-        embed.add_field(name="Status", value=status)
-
-        if self.debug:
-            embed.add_field(name="Debug mode", value=":beetle:")
-
-        await self.channel.send(embed=embed)
-        # if self.is_running:
-        #     await self.quizapi.current_question().pose(self.channel)
-
-    @property
-    def score(self):
-        return self._score
-
-    async def start(self):
+    """
+    Transitions
+    General rule of thumb: awaits at the very end of a function
+    """
+    async def start_registering_phase(self):
+        """
+        REGISTERING -> ABOUTTOSTART
+        """
         self.plugin.logger.debug("Starting PointsQuizController")
-        if self.is_running or self.has_ever_run:
-            return
-        self.is_running = True
-        self.has_ever_run = True
-
-        self.phase = Phases.REGISTERING
+        self.state = Phases.REGISTERING
         await self.channel.send(message(self.config, "registering_phase",
                                         self.config["points_quiz_register_timeout"] // 60))
-        utils.AsyncTimer(self.plugin.bot, self.config["points_quiz_register_timeout"], self.end_registering)
 
-    async def pause(self):
-        await self.channel.send("Sorry, pausing is not supported in this gamemode yet.")
-        # TODO
-        return
+        await asyncio.sleep(self.config["points_quiz_register_timeout"])
+        if len(self.registered_participants) == 0:
+            self.state = Phases.ABORT
+        else:
+            self.state = Phases.ABOUTTOSTART
 
-        # if self.phase == Phases.BEFORE or self.phase == Phases.REGISTERING:
-        #    await self.channel.send(message(self.config, "no_pause_while_registering"))
-        #    return
-        # self.is_running = False
+    async def about_to_start(self):
+        """
+        ABOUTTOSTART -> QUESTION
+        """
+        self.plugin.logger.debug("Ending the registering phase")
 
-    def resume(self):
-        if self.is_running:
+        if len(self.registered_participants) == 0:
+            embed, msg = self.plugin.end_quiz(self.channel)
+            self.channel.send(msg, embed=embed)
             return
-        self.is_running = True
-        self.status()
+        else:
+            embed = discord.Embed(title=message(self.config, "quiz_phase"))
+            value = "\n".join([el.mention for el in self.registered_participants])
+            embed.add_field(name="Participants:", value=value)
+            await self.channel.send(embed=embed)
 
-    def has_everyone_answered(self):
-        for el in self.registered_participants:
-            if self.registered_participants[el] is None:
-                return False
+        await asyncio.sleep(10)
+        self.state = Phases.QUESTION
 
-        return True
+    async def pose_question(self):
+        """
+        QUESTION -> EVAL
+        """
+        self.plugin.logger.debug("Posing next question.")
+        try:
+            self.current_question = self.quizapi.next_question()
+        except QuizEnded:
+            self.plugin.logger.debug("Caught QuizEnded, will end the quiz now.")
+            self.state = Phases.END
+            return
 
-    def havent_answered_hr(self):
-        return [utils.get_best_username(el)
-                for el in self.registered_participants if self.registered_participants[el] is None]
+        self.current_question_timer = utils.AsyncTimer(self.plugin.bot, self.config["points_quiz_question_timeout"],
+                                                       self.timeout_warning, self.current_question)
+        await self.current_question.pose(self.channel)
+
+    async def eval(self):
+        """
+        Is called when the question is over. Evaluates scores and cancels the timer.
+        :return:
+        """
+        self.plugin.logger.debug("Ending question")
+
+        if self.current_question_timer is not None:
+            try:
+                self.current_question_timer.cancel()
+            except utils.HasAlreadyRun:
+                self.plugin.logger.warning("This should really, really not happen.")
+            self.current_question_timer = None
+        else:
+            # We ran into a timeout and need to give that function time to communicate this fact
+            await asyncio.sleep(1)
+
+        question = self.quizapi.current_question()
+
+        # Increment scores
+        correctly_answered = []
+        for user in self.registered_participants:
+            if question.check_answer(self.registered_participants[user]):
+                correctly_answered.append(user)
+
+        for user in correctly_answered:
+            self.score.increase(user, totalcorr=len(correctly_answered))
+
+        correct = [utils.get_best_username(el) for el in correctly_answered]
+        await self.channel.send(message(self.config, "points_question_done", question.correct_answer,
+                                        utils.format_andlist(correct, "and", "Nobody")))
+
+        # Reset answers list
+        for user in self.registered_participants:
+            self.registered_participants[user] = None
+
+        await asyncio.sleep(self.config["question_cooldown"])
+        self.state = Phases.QUESTION
+
+    async def end(self):
+        msg, embed = self.plugin.end_quiz(self.channel)
+        print(msg)
+        print(embed)
+        if msg is None:
+            await self.channel.send(embed=embed)
+        elif embed is None:
+            await self.channel.send(msg)
+        else:
+            await self.channel.send(msg, embed=embed)
 
     async def on_message(self, msg):
         self.plugin.logger.debug("Caught message: {}".format(msg.content))
-        # ignore DM and msg when the quiz is not running
+        # ignore DM and msg when the quiz is not in question phase
         if not isinstance(msg.channel, discord.TextChannel):
             return
-        if not self.is_running:
-            self.plugin.logger.debug("Ignoring message, quiz is not running")
+        if self.state != Phases.QUESTION:
+            self.plugin.logger.debug("Ignoring message, quiz is not in question phase")
             return
 
         if msg.author not in self.registered_participants:
@@ -567,29 +656,61 @@ class PointsQuizController(BaseQuizController):
         self.registered_participants[msg.author] = msg.content
 
         if self.has_everyone_answered():
-            await self.end_question()
+            self.state = Phases.EVAL
 
-    async def skip_command(self, msg, *args):
+    async def abortphase(self):
+        if self.current_question_timer is not None:
+            try:
+                self.current_question_timer.cancel()
+            except utils.HasAlreadyRun:
+                pass
+        await self.channel.send("The quiz was aborted.")
+
+    """
+    Timers stuff; these functions are scheduled by timers only
+    """
+    async def timeout_warning(self, question):
         """
-        This is the callback for !kwiss skip.
-        :param msg: Message object
-        :param args: Passed arguments, including "skip"
+        :param question: Question object of the question that was running at timer start time.
         """
-        self.plugin.logger.debug("Caught !kwiss skip command")
-        if len(args) > 1:
-            await self.channel.send(message(self.config, "too_many_arguments"))
+        if self.current_question != question or self.state != Phases.QUESTION:
+            # We are out of date
+            self.plugin.logger.debug("Timeout warning out of date")
             return
 
-        if self.phase != Phases.REGISTERING or self.registering_timer is None:
-            self.plugin.logger.debug("Nothing to be skipped")
-            return
-        try:
-            self.registering_timer.cancel()
-        except utils.HasAlreadyRun:
-            self.plugin.logger.debug("Registering job has already run")
+        self.plugin.logger.debug("Question timeout warning")
+        self.current_question_timer = utils.AsyncTimer(self.plugin.bot,
+                                                       self.config["points_quiz_question_timeout"] // 2,
+                                                       self.timeout, self.current_question)
+
+        await self.channel.send(message(self.config, "points_timeout_warning",
+                                        utils.format_andlist(self.havent_answered_hr(),
+                                                             ands=message(self.config, "and"))))
+
+    async def timeout(self, question):
+        """
+        :param question: Question object of the question that was running at timer start time.
+        """
+        if self.current_question != question or self.state != Phases.QUESTION:
+            # We are out of date
+            self.plugin.logger.debug("Timeout warning out of date")
             return
 
-        await self.end_registering()
+        self.current_question_timer = None
+        self.plugin.logger.debug("Question timeout")
+        msg = message(self.config, "points_timeout", self.quizapi.current_question_index(),
+                      utils.format_andlist(self.havent_answered_hr(), ands=message(self.config, "and")))
+        self.state = Phases.EVAL
+        await self.channel.send(msg)
+
+    """
+    Commands
+    """
+    async def start(self):
+        """
+        Called when the start command is invoked.
+        """
+        self.state = Phases.REGISTERING
 
     async def register_command(self, msg, *args):
         """
@@ -599,29 +720,18 @@ class PointsQuizController(BaseQuizController):
         """
         assert self.cmdstring_register in args
         if "skip" in args:
-            await self.end_registering()
+            self.state = Phases.ABOUTTOSTART
             return
-        if "timeoutwarning" in args:
-            await self.timeout_warning()
-            return
-        if "timeout" in args:
-            await self.timeout()
-            return
-        if "end" in args:
-            await self.end_question()
-            return
-        if "next" in args:
-            await self.next_question()
 
         if len(args) > 1:
             await self.channel.send(message(self.config, "too_many_arguments"))
             return
 
-        if self.phase == Phases.BEFORE:
+        if self.state == Phases.INIT:
             await self.channel.send("No idea how you did that, but you registered too early.")
             return
 
-        if self.phase == Phases.QUIZ:
+        if self.state != Phases.REGISTERING:
             await self.channel.send(message(self.config, "registering_too_late", msg.author))
             return
 
@@ -629,115 +739,86 @@ class PointsQuizController(BaseQuizController):
             return
 
         self.registered_participants[msg.author] = None
+        self.score.add_participant(msg.author)
         self.plugin.logger.debug("{} registered".format(msg.author.name))
         print("participants after reg: {}".format(self.registered_participants))
         await self.channel.send(message(self.config, "register_success", msg.author))
 
-    async def next_question(self):
+    async def pause(self):
         """
-        Poses question and starts timers
+        Called when the pause command is invoked.
         """
-        self.plugin.logger.debug("Posing next question.")
-        try:
-            self.current_question = self.quizapi.next_question()
-        except QuizEnded:
-            print("quiz ended")
-            msg, embed = self.plugin.end_quiz(self.channel)
-            await self.channel.send(msg, embed=embed)
-            return
+        raise NotImplementedError
 
-        await self.current_question.pose(self.channel)
-        self.current_question_timer = utils.AsyncTimer(self.plugin.bot, self.config["points_quiz_question_timeout"],
-                                                       self.timeout_warning)
-
-    async def timeout_warning(self):
-        self.plugin.logger.debug("Question timeout warning")
-        if self.has_everyone_answered():
-            return  # just in case
-
-        await self.channel.send(message(self.config, "points_timeout_warning",
-                                        utils.format_andlist(self.havent_answered_hr(), ands=message(self.config, "and"))))
-        self.current_question_timer = utils.AsyncTimer(self.plugin.bot,
-                                                       self.config["points_quiz_question_timeout"] // 2, self.timeout)
-
-    async def timeout(self):
-        self.plugin.logger.debug("Question timeout")
-        if self.has_everyone_answered():
-            return  # just in case
-
-        msg = message(self.config, "points_timeout",
-                      utils.format_andlist(self.havent_answered_hr(), ands=message(self.config, "and")))
-        if msg:
-            await self.channel.send(msg)
-
-        self.current_question_timer = None
-        await self.end_question()
-
-    async def end_question(self):
+    async def resume(self):
         """
-        Increments scores, resets timers and calls next_question()
+        Called when the resume command is invoked.
         """
-        self.plugin.logger.debug("Ending question")
+        raise NotImplementedError
 
-        # Reset timer
-        if self.current_question_timer is not None:
-            try:
-                self.current_question_timer.cancel()
-            except utils.HasAlreadyRun:
-                pass  # TODO investigate race conditioning
-            self.current_question_timer = None
+    async def status(self):
+        """
+        Called when the status command is invoked.
+        """
+        embed = discord.Embed(title="Kwiss: question {}/{}".format(
+            self.quizapi.current_question_index() + 1, len(self.quizapi)))
+        embed.add_field(name="Category", value=self.quizapi.category_name())
+        embed.add_field(name="Difficulty", value=Difficulty.human_readable(self.difficulty))
+        embed.add_field(name="Mode", value="Points (Everyone answers)")
+        embed.add_field(name="Initiated by", value=utils.get_best_username(self.requester))
 
-        question = self.quizapi.current_question()
+        status = ":arrow_forward: Running"
+        if self.state == Phases.REGISTERING:
+            status = ":book: Signup phase"
+        #if not self.is_running:
+        #    status = ":pause_button: Paused"
+        embed.add_field(name="Status", value=status)
 
-        # Increment scores
-        correctly_answered = []
-        for user in self.registered_participants:
-            if question.check_answer(self.registered_participants[user]):
-                correctly_answered.append(user)
+        if self.debug:
+            embed.add_field(name="Debug mode", value=":beetle:")
 
-        for user in correctly_answered:
-            self.score.increase(user)
+        await self.channel.send(embed=embed)
 
-        correct = [utils.get_best_username(el) for el in correctly_answered]
-        await self.channel.send(message(self.config, "points_question_done", question.correct_answer,
-                                        utils.format_andlist(correct, "and", "Nobody")))
-        print("correct: {}".format(correct))
+    @property
+    def score(self):
+        """
+        :return: Score object
+        """
+        return self._score
 
-        # Reset answers list
-        for user in self.registered_participants:
-            self.registered_participants[user] = None
+    async def abort(self):
+        """
+        Called when the quiz is aborted.
+        """
+        self.state = Phases.ABORT
 
-        await asyncio.sleep(self.config["question_cooldown"])
-        await self.next_question()
+    def stop(self):
+        """
+        Called when the quiz is stopped at the regular end of a quiz.
+        """
+        pass
 
-    async def end_registering(self):
-        self.plugin.logger.debug("Ending the registering phase")
-        self.phase = Phases.QUIZ
+    """
+    Utils
+    """
+    @property
+    def state(self):
+        return self.statemachine.state
 
-        if len(self.registered_participants) == 0:
-            self.plugin.end_quiz(self.channel)
-            return
-        else:
-            embed = discord.Embed(title=message(self.config, "quiz_phase"))
-            value = "\n".join([el.mention for el in self.registered_participants])
-            embed.add_field(name="Participants:", value=value)
-            await self.channel.send(embed=embed)
+    @state.setter
+    def state(self, state):
+        self.statemachine.state = state
 
-        await asyncio.sleep(10)
-        await self.next_question()
+    def has_everyone_answered(self):
+        for el in self.registered_participants:
+            if self.registered_participants[el] is None:
+                return False
 
-    def __del__(self):
-        self.plugin.logger.debug("Quiz has ended, deconstructing")
-        if self.current_question_timer is not None:
-            try:
-                self.current_question_timer.cancel()
-            except utils.HasAlreadyRun:
-                pass
-        if self.registering_timer is not None:
-            try:
-                self.registering_timer.cancel()
-            except utils.HasAlreadyRun:
-                pass
+        return True
+
+    def havent_answered_hr(self):
+        return [utils.get_best_username(el)
+                for el in self.registered_participants if self.registered_participants[el] is None]
 
 
 class RushQuizController(BaseQuizController):
@@ -755,23 +836,131 @@ class RushQuizController(BaseQuizController):
         """
         super().__init__(plugin, config, quizapi, channel, requester, **kwargs)
         plugin.logger.debug("Building RaceQuizController; kwargs: {}".format(kwargs))
-        self.channel = channel
-        self.requester = requester
         self.config = config
         self.plugin = plugin
+        self.channel = channel
+        self.requester = requester
 
-        self.category = kwargs["category"]
-        self.debug = kwargs["debug"]
-        self.difficulty = kwargs["difficulty"]
+        # QuizAPI config
+        self.category = None
+        if "category" in kwargs:
+            self.category = kwargs["category"]
+        self.debug = False
+        if "debug" in kwargs and kwargs["debug"]:
+            self.debug = True
         self.question_count = kwargs["question_count"]
+        self.difficulty = kwargs["difficulty"]
+
+        # State handling
+        self.current_question = None
+        self.current_question_timer = None
+        self.statemachine = statemachine.StateMachine()
+        self.statemachine.add_state(Phases.INIT, None, None)
+        self.statemachine.add_state(Phases.ABOUTTOSTART, self.about_to_start, [Phases.INIT])
+        self.statemachine.add_state(Phases.QUESTION, self.pose_question, [Phases.ABOUTTOSTART, Phases.EVAL])
+        self.statemachine.add_state(Phases.EVAL, self.eval, [Phases.QUESTION])
+        self.statemachine.add_state(Phases.END, self.end, [Phases.QUESTION], end=True)
+        self.statemachine.add_state(Phases.ABORT, self.abortphase, None, end=True)
+        self.statemachine.state = Phases.INIT
+
+        # Quiz handling
+        self.last_author = None
         self.quizapi = quizapi(config, channel, category=self.category, question_count=self.question_count,
                                difficulty=self.difficulty, debug=self.debug)
+        self._score = Score(self.question_count)
 
-        self.has_ever_run = False
-        self.is_running = False
-        self._score = Score()
+    """
+    Transitions
+    """
+    async def about_to_start(self):
+        await self.channel.send(message(self.config, "quiz_phase"))
+        await asyncio.sleep(10)
+        self.state = Phases.QUESTION
 
+    async def pose_question(self):
+        """
+        QUESTION -> EVAL
+        """
         self.last_author = None
+        self.plugin.logger.debug("Posing next question.")
+        try:
+            self.current_question = self.quizapi.next_question()
+        except QuizEnded:
+            self.plugin.logger.debug("Caught QuizEnded, will end the quiz now.")
+            self.state = Phases.END
+            return
+        await self.current_question.pose(self.channel)
+
+    async def eval(self):
+        """
+        Is called when the question is over. Evaluates scores and cancels the timer.
+        :return:
+        """
+        self.plugin.logger.debug("Ending question")
+
+        question = self.quizapi.current_question()
+
+        # Increment score
+        self.score.increase(self.last_author)
+        await self.channel.send(message(self.config, "correct_answer", utils.get_best_username(self.last_author),
+                                question.correct_answer))
+
+        await asyncio.sleep(self.config["question_cooldown"])
+        self.state = Phases.QUESTION
+
+    async def end(self):
+        msg, embed = self.plugin.end_quiz(self.channel)
+        if msg is None:
+            await self.channel.send(embed=embed)
+        elif embed is None:
+            await self.channel.send(msg)
+        else:
+            await self.channel.send(msg, embed=embed)
+
+    async def on_message(self, msg):
+        self.plugin.logger.debug("Caught message: {}".format(msg.content))
+        # ignore DM and msg when the quiz is not in question phase
+        if not isinstance(msg.channel, discord.TextChannel):
+            return
+        if self.state != Phases.QUESTION:
+            self.plugin.logger.debug("Ignoring message, quiz is not in question phase")
+            return
+
+        # Valid answer
+        try:
+            check = self.quizapi.current_question().check_answer(msg.content)
+            if check:
+                checks = "correct"
+            else:
+                checks = "incorrect"
+            self.plugin.logger.debug("Valid answer from {}: {} ({})".format(msg.author.name, msg.content, checks))
+        except InvalidAnswer:
+            print("Invalid answer")
+            return
+
+        if not self.debug and self.last_author == msg.author:
+            await msg.channel.send(message(self.config, "answering_order", msg.author))
+        self.last_author = msg.author
+        if check:
+            self.state = Phases.EVAL
+
+    async def abortphase(self):
+        await self.channel.send("The quiz was aborted.")
+
+    """
+    Commands
+    """
+    async def start(self):
+        self.state = Phases.ABOUTTOSTART
+
+    async def pause(self):
+        raise NotImplementedError
+
+    async def pause(self):
+        raise NotImplementedError
+
+    async def resume(self):
+        raise NotImplementedError
 
     async def status(self):
         embed = discord.Embed(title="Kwiss: question {}/{}".format(
@@ -782,76 +971,37 @@ class RushQuizController(BaseQuizController):
         embed.add_field(name="Initiated by", value=utils.get_best_username(self.requester))
 
         status = ":arrow_forward: Running"
-        if not self.is_running:
-            status = ":pause_button: Paused"
+        #if not self.is_running:
+        #    status = ":pause_button: Paused"
         embed.add_field(name="Status", value=status)
 
         if self.debug:
             embed.add_field(name="Debug mode", value=":beetle:")
 
         await self.channel.send(embed=embed)
-        if self.is_running:
-            self.quizapi.current_question().pose(self.channel)
+        #if self.is_running:
+        #    self.quizapi.current_question().pose(self.channel)
 
     @property
     def score(self):
         return self._score
 
-    async def start(self):
-        self.plugin.logger.debug("Starting RaceQuizController")
-        if self.is_running or self.has_ever_run:
-            return
-        self.is_running = True
-        self.has_ever_run = True
-        await self.quizapi.next_question().pose(self.channel)
-
-    async def pause(self):
-        self.is_running = False
-        await self.status()
-
-    async def resume(self):
-        if self.is_running:
-            return
-        self.is_running = True
-        await self.status()
-
-    async def on_message(self, msg):
-        # ignore DMs
-        if not isinstance(msg.channel, discord.TextChannel):
-            return
-
-        if not self.is_running:
-            return
-
-        # Valid answer
-        try:
-            check = self.quizapi.current_question().check_answer(msg.content)
-        except InvalidAnswer:
-            return
-
-        # Prevent answering spam
-        if self.last_author == msg.author and not self.debug:
-            await msg.channel.send(message(self.config, "answering_order", msg.author))
-            return
-        self.last_author = msg.author
-
-        # Correct answer
-        if check:
-            self.score.increase(msg.author)
-            self.last_author = None
-            await msg.channel.send(message(self.config, "correct_answer",
-                                           "@" + utils.get_best_username(msg.author),
-                                           self.quizapi.current_question().correct_answer))
-
-            await asyncio.sleep(self.config["question_cooldown"])
-            try:
-                await msg.channel.send(embed=self.quizapi.next_question().embed())
-            except QuizEnded:
-                endmsg, embed = self.plugin.end_quiz(msg.channel)
-                await msg.channel.send(endmsg, embed=embed)
-
-    def __del__(self):
+    def stop(self):
         pass
+
+    async def abort(self):
+        self.state = Phases.ABORT
+
+    """
+    Utils
+    """
+    @property
+    def state(self):
+        return self.statemachine.state
+
+    @state.setter
+    def state(self, state):
+        self.statemachine.state = state
 
 
 class OpenTDBQuizAPI(BaseQuizAPI):
@@ -965,7 +1115,7 @@ class Plugin(Geckarbot.BasePlugin, name="A trivia kwiss"):
         self.registered_subcommands = {}
         self.config = jsonify
 
-        self.default_controller = RushQuizController
+        self.default_controller = PointsQuizController
         self.defaults = {
             "impl": "opentdb",
             "questions": self.config["questions_default"],
@@ -1037,8 +1187,7 @@ class Plugin(Geckarbot.BasePlugin, name="A trivia kwiss"):
                 await ctx.send(embed=quiz_controller.score.embed())
             elif method == Methods.STOP:
                 if permChecks.check_full_access(ctx.message.author) or quiz_controller.requester == ctx.message.author:
-                    msg, embed = self.end_quiz(channel)
-                    await ctx.send(msg, embed=embed)
+                    await self.abort_quiz(channel)
             elif method == Methods.STATUS:
                 await quiz_controller.status()
             else:
@@ -1091,27 +1240,45 @@ class Plugin(Geckarbot.BasePlugin, name="A trivia kwiss"):
             return self.controllers[channel]
         return None
 
+    def cleanup_quiz(self, channel):
+        """
+        Assumes the quiz in channel `channel` has ended and does the necessary cleanup.
+        :param channel: channel the quiz is in
+        """
+        self.logger.debug("Cleaning up quiz in {}".format(channel))
+        controller = self.controllers[channel]
+        controller.stop()
+        del self.controllers[channel]
+
+    async def abort_quiz(self, channel):
+        """
+        Called on !kwiss stop. Also calls cleanup_quiz. It is assumed that there is a quiz in channel.
+        :param channel: channel that the abort was requested in.
+        """
+        controller = self.controllers[channel]
+        await controller.abort()
+        self.cleanup_quiz(channel)
+
     def end_quiz(self, channel):
         """
         Ends the quiz.
         :param channel: channel that the quiz is taking place in
         :return: (End message, score embed)
         """
-        self.logger.debug("Ending quiz.")
+        self.logger.debug("Ending quiz in channel {}.".format(channel))
         if channel not in self.controllers:
             assert False
 
         controller = self.controllers[channel]
         embed = controller.score.embed()
-        winner = None
-        ladder = controller.score.ladder()
-        if ladder:
-            winner = ladder[0]
+        winners = [utils.get_best_username(x) for x in controller.score.winners()]
 
-        del self.controllers[channel]
-        if winner is None:
-            return message(self.config, "quiz_abort"), None
-        return message(self.config, "quiz_end", utils.get_best_username(winner)), embed
+        self.cleanup_quiz(channel)
+
+        msgkey = "quiz_end"
+        if len(winners) > 1:
+            msgkey = "quiz_end_pl"
+        return message(self.config, msgkey, utils.format_andlist(winners)), embed
 
     def parse_args(self, channel, args):
         """
