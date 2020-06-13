@@ -172,18 +172,6 @@ class Methods(Enum):
     STATUS = "status"
 
 
-class Modes(Enum):
-    MULTIPLECHOICE = "multiplechoice",
-    FREETEXT = "freetext"
-
-    @staticmethod
-    def human_readable(el):
-        if el == Modes.MULTIPLECHOICE:
-            return "Multiple choice"
-        if el == Modes.FREETEXT:
-            return "Free text"
-
-
 class BaseQuizAPI(ABC):
     @abstractmethod
     def current_question(self):
@@ -376,9 +364,8 @@ class InvalidAnswer(Exception):
 
 
 class Question:
-    def __init__(self, question, correct_answer, incorrect_answers, index=None, mode=Modes.MULTIPLECHOICE):
-        logging.debug("Question({}, {}, {}, mode={})".format(question, correct_answer, incorrect_answers, mode))
-        self.mode = mode
+    def __init__(self, question, correct_answer, incorrect_answers, index=None):
+        logging.debug("Question({}, {}, {})".format(question, correct_answer, incorrect_answers))
         self.index = index
 
         self.question = question
@@ -412,14 +399,8 @@ class Question:
         if self.index is not None:
             title = "#{}: {}".format(self.index+1, title)
         embed = discord.Embed(title=title)
-        if self.mode == Modes.MULTIPLECHOICE:
-            value = "\n".join([el for el in self.answers_mc()])
-            embed.add_field(name="Possible answers:", value=value)
-
-        elif self.mode != Modes.FREETEXT:
-            assert False
-
-        print("======= embed rdy")
+        value = "\n".join([el for el in self.answers_mc()])
+        embed.add_field(name="Possible answers:", value=value)
         return embed
 
     def answers_mc(self):
@@ -434,29 +415,18 @@ class Question:
         Called to check the answer to the most recent question that was retrieved via qet_question().
         :return: True if this is the first occurence of the correct answer, False otherwise
         """
-
         if answer is None:
             return False
 
-        answer = answer.strip()
-        if self.mode == Modes.MULTIPLECHOICE:
-            answer = answer.lower()
-            i = Question.letter_mapping(answer, reverse=True)
+        answer = answer.strip().lower()
+        i = Question.letter_mapping(answer, reverse=True)
 
-            if i is None:
-                raise InvalidAnswer()
-            elif self.all_answers[i] == self.correct_answer:
-                return True
-            else:
-                return False
-
-        elif self.mode == Modes.FREETEXT:
-            if answer.lower() == self.correct_answer.lower():
-                # TODO improve recognition, e.g. remove whitespace, dots, determiners etc
-                return True
+        if i is None:
+            raise InvalidAnswer()
+        elif self.all_answers[i] == self.correct_answer:
+            return True
+        else:
             return False
-
-        assert False
 
 
 class Phases(Enum):
@@ -1006,7 +976,7 @@ class RushQuizController(BaseQuizController):
 
 class OpenTDBQuizAPI(BaseQuizAPI):
     def __init__(self, config, channel,
-                 category=None, question_count=None, mode=Modes.MULTIPLECHOICE, difficulty=Difficulty.EASY,
+                 category=None, question_count=None, difficulty=Difficulty.EASY,
                  debug=False):
         """
         :param config: config dict
@@ -1020,7 +990,6 @@ class OpenTDBQuizAPI(BaseQuizAPI):
         self.debug = debug
         self.channel = channel
         self.difficulty = difficulty
-        self.mode = mode
         self.question_count = question_count
         if question_count is None:
             self.question_count = self.config["questions_default"]
@@ -1052,7 +1021,7 @@ class OpenTDBQuizAPI(BaseQuizAPI):
             question = unquote(el["question"])
             correct_answer = unquote(el["correct_answer"])
             incorrect_answers = [unquote(ia) for ia in el["incorrect_answers"]]
-            self.questions.append(Question(question, correct_answer, incorrect_answers, index=i, mode=self.mode))
+            self.questions.append(Question(question, correct_answer, incorrect_answers, index=i))
 
     def current_question_index(self):
         return self.current_question_i
@@ -1122,7 +1091,6 @@ class Plugin(Geckarbot.BasePlugin, name="A trivia kwiss"):
             "method": Methods.START,
             "category": None,
             "difficulty": Difficulty.EASY,
-            "mode": Modes.MULTIPLECHOICE,
             "debug": False,
             "subcommand": None,
         }
@@ -1198,7 +1166,7 @@ class Plugin(Geckarbot.BasePlugin, name="A trivia kwiss"):
         assert method == Methods.START
         quiz_controller = controller_class(self, self.config, OpenTDBQuizAPI, ctx.channel, ctx.message.author,
                                            category=args["category"], question_count=args["questions"],
-                                           difficulty=args["difficulty"], mode=args["mode"], debug=args["debug"])
+                                           difficulty=args["difficulty"], debug=args["debug"])
         self.controllers[channel] = quiz_controller
         await ctx.send(message(self.config, "quiz_start", args["questions"],
                                quiz_controller.quizapi.category_name(),
@@ -1347,19 +1315,6 @@ class Plugin(Geckarbot.BasePlugin, name="A trivia kwiss"):
                     raise QuizInitError(self.config, "duplicate_difficulty_arg")
                 parsed["difficulty"] = difficulty
                 found["difficulty"] = True
-                continue
-            except ValueError:
-                pass
-
-            # mode
-            try:
-                mode = Modes(arg)
-                if mode == Modes.FREETEXT:
-                    raise QuizInitError(self.config, "Sorry, the free text mode isn't quite ready yet.")
-                if found["mode"]:
-                    raise QuizInitError(self.config, "duplicate_mode_arg")
-                parsed["mode"] = mode
-                found["mode"] = True
                 continue
             except ValueError:
                 pass
