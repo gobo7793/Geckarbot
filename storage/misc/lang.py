@@ -18,6 +18,8 @@ lang = {
         'tree_out': "cko!",
         'geck_out': "arbor!",
         'liebe_out': "https://www.youtube.com/watch?v=TfmJPDmaQdg",
-        'danny_out': "**_D u  g o t t v e r d a m m t e  S c h e i ß h u r e ! ! !_**"
+        'danny_out': "***D U  G O T T V E R D A M M T E  S C H E I ẞ H U R E ! ! !***",
+        'testinho_out': "Hey, das klappt ja!"
+        
         }
     }
