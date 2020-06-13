@@ -71,7 +71,3 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
     @commands.command(name="danny", help="Versprüht ein wenig Positivität!")
     async def danny(self, ctx):
         await ctx.send(Config().lang(self, 'danny_out'))
-
-    @commands.command(name="testiinho", help="Testet!")
-    async def testinho(self, ctx):
-        await ctx.send(Config().lang(self, 'testinho_out'))
