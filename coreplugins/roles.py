@@ -51,6 +51,8 @@ class RoleManagement():
         await role.delete()
 
 
+
+
 class ReactionEventData():
     """
     Tuple for easier reaction event handling.
@@ -127,26 +129,62 @@ class Plugin(BasePlugin, name="Role Management"):
         #    new_emoji = discord.utils.get(bot.emojis, name='kip')
         #    await message.add_reaction(new_emoji)
 
+    def conf(self):
+        return Config().get(self)
 
 
     @commands.group(name="role", invoke_without_command=True)
     async def role(self, ctx, user: discord.Member, action, role: discord.Role):
+        # todo: perm check: Only usable for users with corresponding master role. Mods can use that for all roles.
+
         if action.lower() == "add":
             await RoleManagement.add_user_role(user, role)
+            await ctx.send("I can't check it, but role {} should be added to {}.".format(role, utils.get_best_username(user)))
         elif action.lower() == "del":
             await RoleManagement.remove_user_role(user, role)
+            await ctx.send("I can't check it, but role {} should be removed from {}.".format(role, utils.get_best_username(user)))
         else:
             raise commands.BadArgument("Only add or del possible as second argument.")
 
+        await utils.log_to_admin_channel(ctx)
 
     @role.command(name="add")
-    async def role_add(self, ctx, role_name, emoji_master, color: discord.Color = None):
+    #@commands.has_any_role(Config().FULL_ACCESS_ROLES)
+    async def role_add(self, ctx, role_name, emoji_or_masterrole = None, color: discord.Color = None):
+        emoji = None
+        masterrole = None
+        try:
+            emoji = await commands.EmojiConverter().convert(ctx, emoji_or_masterrole)
+        except:
+            pass
+        try:
+            masterrole = await commands.RoleConverter().convert(ctx, emoji_or_masterrole)
+        except:
+            pass
+
+        if emoji is None and masterrole is None:
+            try:
+                color = await commands.ColourConverter().convert(ctx, emoji_or_masterrole)
+            except:
+                color = discord.Color.default()
+
         await RoleManagement.add_server_role(ctx.guild, role_name, color)
+        await ctx.send("I can't check it, but the role {} should be created with color {} now.".format(role_name, color))
+        utils.log_to_admin_channel(ctx)
 
     @role.command(name="del")
+    #@commands.has_any_role(Config().FULL_ACCESS_ROLES)
     async def role_del(self, ctx, role: discord.Role):
         await RoleManagement.remove_server_role(ctx.guild, role)
+        await ctx.send("I can't check it, but the role {} should be deleted now.".format(role.name))
+        await utils.log_to_admin_channel(ctx)
 
     @role.command(name="request")
-    async def role_del(self, ctx, role: discord.Role):
+    async def role_request(self, ctx, role: discord.Role):
+        pass
+
+    @role.command(name="update")
+    #@commands.has_any_role(Config().FULL_ACCESS_ROLES)
+    async def role_update(self, ctx):
+        await utils.log_to_admin_channel(ctx)
         pass
