@@ -18,7 +18,13 @@ lang = {
         'tree_out': "cko!",
         'geck_out': "arbor!",
         'liebe_out': "https://www.youtube.com/watch?v=TfmJPDmaQdg",
-        'danny_out': "***D U  G O T T V E R D A M M T E  S C H E I S S H U R E ! ! !***"
+        'danny_out1': "Fürth ist der beste Verein der Welt!",
+        'danny_out2': "Güterbahn ist keine richtige Eisenbahn!",
+        'danny_out3': "**DAS! LETZTE! AUTO!**",
+        'danny_out4': "Die U35 ist eine Voll-U-Bahn!",
+        'danny_out5': "Danny ist der undefeated trash Talker!",
+        'danny_out6': "Jena liegt in Bayern!"
+
         
         }
     }

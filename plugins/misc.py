@@ -70,4 +70,13 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
 
     @commands.command(name="danny", help="Versprüht ein wenig Positivität!")
     async def danny(self, ctx):
-        await ctx.send(Config().lang(self, 'danny_out'))
+        dannyliste = [
+
+            'danny_out1',
+            'danny_out2',
+            'danny_out3',
+            'danny_out4',
+            'danny_out5',
+            'danny_out6',
+        ]
+        await ctx.send(Config().lang(self, random.choice(dannyliste)))
