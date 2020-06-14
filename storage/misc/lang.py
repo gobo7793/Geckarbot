@@ -18,7 +18,7 @@ lang = {
         'tree_out': "cko!",
         'geck_out': "arbor!",
         'liebe_out': "https://www.youtube.com/watch?v=TfmJPDmaQdg",
-        'danny_out1': "Fürth ist der beste Verein der Welt!",
+        'danny_out1': "Fürth ist der beste Verein der Welt! <:fuerth:719308773281235326>",
         'danny_out2': "Güterbahn ist keine richtige Eisenbahn!",
         'danny_out3': "**DAS! LETZTE! AUTO!**",
         'danny_out4': "Die U35 ist eine Voll-U-Bahn!",
