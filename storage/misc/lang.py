@@ -23,8 +23,8 @@ lang = {
         'danny_out3': "**DAS! LETZTE! AUTO!**",
         'danny_out4': "Die U35 ist eine Voll-U-Bahn!",
         'danny_out5': "Danny ist der undefeated trash Talker!",
-        'danny_out6': "Jena liegt in Bayern!"
-
+        'danny_out6': "Jena liegt in Bayern!",
+        'tippspiel_output': "Hier ist der Link für die Stände und das Archiv des Tippspiels: https://docs.google.com/spreadsheets/d/1mSDrTqdcOSOuvR9Y9hMzuEx1X9puaUVuqs7yp6Ju6_M/"
         
         }
     }

@@ -80,3 +80,7 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
             'danny_out6',
         ]
         await ctx.send(Config().lang(self, random.choice(dannyliste)))
+
+    @commands.command(name="tippspiel", help="Gives the link to the Tippspiel-Sheet")
+    async def tippspiel(self, ctx):
+        await ctx.send(Config().lang(self, 'tippspiel_output'))
