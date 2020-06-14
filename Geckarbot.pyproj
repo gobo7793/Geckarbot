@@ -48,6 +48,9 @@
     <Compile Include="Geckarbot.py" />
     <Compile Include="plugins\dsc.py" />
     <Compile Include="plugins\feedback.py" />
+    <Compile Include="coreplugins\roles.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="plugins\timer.py" />
     <Compile Include="storage\dsc\__init__.py">
       <SubType>Code</SubType>
