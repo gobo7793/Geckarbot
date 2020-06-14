@@ -1,7 +1,54 @@
 import discord
+from discord.ext import commands
 
 from Geckarbot import BasePlugin
 from botutils import utils
+
+class RoleManagement():
+    """
+    Provides basic functions to create or add roles to users
+    """
+
+    async def add_user_role(member: discord.Member, role: discord.Role):
+        """
+        Adds a role to a server member
+        :param member: the member
+        :param role: the role to add
+        :return: No exception in case of success
+        """
+        await member.add_roles(role)
+
+    async def remove_user_role(member: discord.Member, role: discord.Role):
+        """
+        Removes a role from a server member
+        :param member: the member
+        :param role: the role to remove
+        :return: No exception in case of success
+        """
+        await member.remove_roles(role)
+
+    async def add_server_role(guild: discord.Guild, name, color: discord.Color = None, mentionable = True):
+        """
+        Creates a roll on the server
+        :param guild: the server guild
+        :param name: the role name
+        :param color: the color for the role, if None Color.default()
+        :param mentionable: if the role is mentionable
+        :return: No exception in case of success
+        """
+        if color is None:
+            color = discord.Color.default()
+        await guild.create_role(name=name, color=color, mentionable=mentionable)
+
+    async def remove_server_role(guild: discord.Guild, role: discord.Role):
+        """
+        Deletes a role on the server
+        :param guild: the server guild
+        :param role: the role to delete
+        :return: No exception in case of success
+        """
+        old_id = role.id
+        await role.delete()
 
 
 class ReactionEventData():
@@ -80,14 +127,26 @@ class Plugin(BasePlugin, name="Role Management"):
         #    new_emoji = discord.utils.get(bot.emojis, name='kip')
         #    await message.add_reaction(new_emoji)
 
-    async def add_user_role(payload):
-        pass
 
-    async def remove_user_role(payload):
-        pass
 
-    async def add_server_role(payload):
-        pass
+    @commands.group(name="role", invoke_without_command=True)
+    async def role(self, ctx, user: discord.Member, action, role: discord.Role):
+        if action.lower() == "add":
+            await RoleManagement.add_user_role(user, role)
+        elif action.lower() == "del":
+            await RoleManagement.remove_user_role(user, role)
+        else:
+            raise commands.BadArgument("Only add or del possible as second argument.")
 
-    async def remove_server_role(payload):
+
+    @role.command(name="add")
+    async def role_add(self, ctx, role_name, emoji_master, color: discord.Color = None):
+        await RoleManagement.add_server_role(ctx.guild, role_name, color)
+
+    @role.command(name="del")
+    async def role_del(self, ctx, role: discord.Role):
+        await RoleManagement.remove_server_role(ctx.guild, role)
+
+    @role.command(name="request")
+    async def role_del(self, ctx, role: discord.Role):
         pass
