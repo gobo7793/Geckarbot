@@ -2,6 +2,7 @@ import discord
 from discord.ext import commands
 
 from Geckarbot import BasePlugin
+from conf import Config
 from botutils import utils
 
 class RoleManagement():
@@ -138,9 +139,15 @@ class Plugin(BasePlugin, name="Role Management"):
         # todo: perm check: Only usable for users with corresponding master role. Mods can use that for all roles.
 
         if action.lower() == "add":
+            if role in user.roles:
+                await ctx.send("User {} has role {} already.".format(utils.get_best_username(user), role))
+                return
             await RoleManagement.add_user_role(user, role)
             await ctx.send("I can't check it, but role {} should be added to {}.".format(role, utils.get_best_username(user)))
         elif action.lower() == "del":
+            if role not in user.roles:
+                await ctx.send("User {} doesn't have role {}.".format(utils.get_best_username(user), role))
+                return
             await RoleManagement.remove_user_role(user, role)
             await ctx.send("I can't check it, but role {} should be removed from {}.".format(role, utils.get_best_username(user)))
         else:
@@ -149,8 +156,13 @@ class Plugin(BasePlugin, name="Role Management"):
         await utils.log_to_admin_channel(ctx)
 
     @role.command(name="add")
-    #@commands.has_any_role(Config().FULL_ACCESS_ROLES)
+    #@commands.has_any_role(*Config().FULL_ACCESS_ROLES)
     async def role_add(self, ctx, role_name, emoji_or_masterrole = None, color: discord.Color = None):
+        existing_role = discord.utils.get(ctx.guild.roles, name=role_name)
+        if existing_role is not None:
+            await ctx.send("A role with name {} already exists.".format(role_name))
+            return
+
         emoji = None
         masterrole = None
         try:
@@ -170,10 +182,10 @@ class Plugin(BasePlugin, name="Role Management"):
 
         await RoleManagement.add_server_role(ctx.guild, role_name, color)
         await ctx.send("I can't check it, but the role {} should be created with color {} now.".format(role_name, color))
-        utils.log_to_admin_channel(ctx)
+        await utils.log_to_admin_channel(ctx)
 
     @role.command(name="del")
-    #@commands.has_any_role(Config().FULL_ACCESS_ROLES)
+    #@commands.has_any_role(*Config().FULL_ACCESS_ROLES)
     async def role_del(self, ctx, role: discord.Role):
         await RoleManagement.remove_server_role(ctx.guild, role)
         await ctx.send("I can't check it, but the role {} should be deleted now.".format(role.name))
@@ -184,7 +196,7 @@ class Plugin(BasePlugin, name="Role Management"):
         pass
 
     @role.command(name="update")
-    #@commands.has_any_role(Config().FULL_ACCESS_ROLES)
+    #@commands.has_any_role(*Config().FULL_ACCESS_ROLES)
     async def role_update(self, ctx):
         await utils.log_to_admin_channel(ctx)
         pass
