@@ -85,7 +85,7 @@ class Complaint:
 
 
 def complaint_message_list(complaints):
-    threshold = 1800
+    threshold = 1900
     starter = "**Complaints:**\n"
     current_msg = []
     msgs = []
@@ -108,7 +108,7 @@ def complaint_message_list(complaints):
         for k in current_msg:
             length += len(k) + len(delimiter)
 
-        if length > threshold:
+        if length + len(to_add) > threshold:
             msgs.append(current_msg)
             current_msg = [".\n" + to_add]
         else:
