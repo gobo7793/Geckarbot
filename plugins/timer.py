@@ -3,11 +3,12 @@ import sys
 
 from discord.ext import commands
 from botutils.utils import AsyncTimer, get_best_username
+import discord
 
 from Geckarbot import BasePlugin
 
 
-class Plugin(BasePlugin, name="Timer things"):
+class Plugin(BasePlugin, name="Testing and debug things"):
 
     def __init__(self, bot):
         self.bot = bot
@@ -59,3 +60,10 @@ class Plugin(BasePlugin, name="Timer things"):
     @commands.command(name="identify", help="calls utils.get_best_username")
     async def identify(self, ctx, *args):
         await ctx.channel.send("I will call you {}.".format(get_best_username(ctx.message.author)))
+
+    @commands.command(name="react")
+    async def react(self, ctx, reaction):
+        print(reaction)
+        # print("available: {}".format(reaction.available))
+        await ctx.message.add_reaction(reaction)
+        print("usable: {}".format(reaction.usable()))

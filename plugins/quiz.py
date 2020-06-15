@@ -349,7 +349,7 @@ class Score:
         if member not in self._score:
             self.add_participant(member)
         self._score[member] += amount
-        self._points[member] += amount / totalcorr
+        self._points[member] += amount / totalcorr / self.question_count
 
     def add_participant(self, member):
         if member not in self._score:
