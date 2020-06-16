@@ -2,15 +2,15 @@ lang = {
     'en': {
         'kicker_title': "Kicker.de-Tabellenlinks",
         'kicker_1BL': "Bundesliga",
-        'kicker_1BL_link': "https://www.kicker.de/1-bundesliga/tabelle",
+        'kicker_1BL_link': "https://www.kicker.de/1-bundesliga/spieltag",
         'kicker_2BL': "2. Bundesliga",
-        'kicker_2BL_link': "https://www.kicker.de/2-bundesliga/tabelle",
+        'kicker_2BL_link': "https://www.kicker.de/2-bundesliga/spieltag",
         'kicker_3FL': "3. Liga",
-        'kicker_3FL_link': "https://www.kicker.de/3-liga/tabelle",
+        'kicker_3FL_link': "https://www.kicker.de/3-liga/spieltag",
         'kicker_ATBL': "AT-Bundesliga",
-        'kicker_ATBL_link': ("https://www.kicker.de/tipp3-bundesliga/tabelle\n"
-                             "https://www.kicker.de/meistergruppe-oesterreich-fb-1/tabelle/\n"
-                             "https://www.kicker.de/qualifikationsgruppe-oesterreich-fb-1/tabelle/"),
+        'kicker_ATBL_link': ("https://www.kicker.de/tipp3-bundesliga/spieltag\n"
+                             "https://www.kicker.de/meistergruppe-oesterreich-fb-1/spieltag/\n"
+                             "https://www.kicker.de/qualifikationsgruppe-oesterreich-fb-1/spieltag/"),
         'ping_out': "Pong!",
         'mud_out': "Kip!",
         'mudkip_out': "https://www.youtube.com/watch?v=3DkqMjfqqPc",
@@ -24,7 +24,7 @@ lang = {
         'danny_out4': "Die U35 ist eine Voll-U-Bahn!",
         'danny_out5': "Danny ist der undefeated trash Talker!",
         'danny_out6': "Jena liegt in Bayern!",
-        'tippspiel_output': "Hier ist der Link für die Stände und das Archiv des Tippspiels: https://docs.google.com/spreadsheets/d/1mSDrTqdcOSOuvR9Y9hMzuEx1X9puaUVuqs7yp6Ju6_M/"
+        'tippspiel_output': "Hier ist der Link für die Stände (bitte auf den Spieltag achten!) sowie das Tippspiel-Archiv: https://docs.google.com/spreadsheets/d/1mSDrTqdcOSOuvR9Y9hMzuEx1X9puaUVuqs7yp6Ju6_M/"
         
         }
     }
