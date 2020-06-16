@@ -68,7 +68,7 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
     async def liebe(self, ctx):
         await ctx.send(Config().lang(self, 'liebe_out'))
 
-    @commands.command(name="danny", help="Versprüht ein wenig Positivität!")
+    @commands.command(name="danny", help="Makes an attempt to replace the user Danny by giving one of his catchphrases")
     async def danny(self, ctx):
         dannyliste = [
 
