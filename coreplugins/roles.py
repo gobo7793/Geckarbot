@@ -1,11 +1,12 @@
 from copy import deepcopy
 
 import discord
+import emoji
 from discord.ext import commands
 
 from Geckarbot import BasePlugin
 from conf import Config
-from botutils import utils
+from botutils import utils, permChecks
 
 class RoleManagement():
     """
@@ -153,7 +154,7 @@ class Plugin(BasePlugin, name="Role Management"):
 
     def create_message_text(self):
         """Returns the message text for the role manage init message"""
-        return "TEEEEEST"
+        return "Testnachricht für das Reaction-Role-Management"
 
     async def update_role_management(self, ctx):
         """
@@ -194,20 +195,41 @@ class Plugin(BasePlugin, name="Role Management"):
         # remove reactions from old roles
         for removed_role in removed_roles:
             if removed_roles[removed_role][0] is not None:
-                await message.clear_reaction(removed_roles[removed_role][0])
+                emoji_id = removed_roles[removed_role][0]
+                if emoji_id is None or emoji_id == 0:
+                    continue
+                try:
+                    emote = await commands.PartialEmojiConverter().convert(ctx, emoji_id)
+                except:
+                    emote = emoji.emojize(emoji_id, True)
+                await message.clear_reaction(emote)
 
         # add reactions for new roles
         for role_config in self.rc():
-            if self.rc()[role_config][0] is None or self.rc()[role_config][0] == 0:
+            emoji_id = self.rc()[role_config][0]
+            if emoji_id is None or emoji_id == 0:
                 continue
-            emoji = await commands.EmojiConverter().convert(ctx, self.rc()[role_config][0])
-            await message.add_reaction(emoji)
+            try:
+                emote = await commands.PartialEmojiConverter().convert(ctx, emoji_id)
+            except:
+                emote = emoji.emojize(emoji_id, True)
+            await message.add_reaction(emote)
 
         Config().save(self)
 
     @commands.group(name="role", invoke_without_command=True)
     async def role(self, ctx, user: discord.Member, action, role: discord.Role):
-        # todo: perm check: Only usable for users with corresponding master role. Mods can use that for all roles.
+        # perm check: Only usable for users with corresponding master role. Mods can use that for all roles.
+        if not permChecks.check_full_access(ctx.author):
+            if role.id not in self.rc():
+                raise commands.CheckFailure(message="Role can't added or removed via bot command.")
+
+            need_master_role_id = self.rc()[role.id][1]
+            if need_master_role_id is None or need_master_role_id == 0:
+                raise commands.CheckFailure(message="No master role set for the target role.")
+
+            if need_master_role_id not in [r.id for r in ctx.author.roles]:
+                raise commands.MissingRole(need_master_role_id)
 
         if action.lower() == "add":
             if role in user.roles:
@@ -228,19 +250,22 @@ class Plugin(BasePlugin, name="Role Management"):
 
     @role.command(name="add")
     #@commands.has_any_role(*Config().FULL_ACCESS_ROLES)
-    async def role_add(self, ctx, role_name, emoji_or_masterrole = None, color: discord.Color = None):
+    async def role_add(self, ctx, role_name, emoji_or_masterrole, color: discord.Color = None):
         try:
-            emoji = await commands.EmojiConverter().convert(ctx, emoji_or_masterrole)
-            emoji_str = str(emoji)
+            emote = await commands.PartialEmojiConverter().convert(ctx, emoji_or_masterrole)
+            emoji_str = str(emote)
         except:
-            emoji = None
             emoji_str = ""
+            if emoji.emoji_count(emoji_or_masterrole) > 0:
+                emoji_str = emoji.demojize(emoji_or_masterrole, True)
         try:
             masterrole = await commands.RoleConverter().convert(ctx, emoji_or_masterrole)
+            masterrole_id = masterrole.id
+            emoji_str = ""
         except:
-            masterrole = None
+            masterrole_id = 0
 
-        if emoji is None and masterrole is None:
+        if not emoji_str and masterrole_id == 0:
             try:
                 color = await commands.ColourConverter().convert(ctx, emoji_or_masterrole)
             except:
@@ -250,17 +275,22 @@ class Plugin(BasePlugin, name="Role Management"):
         if existing_role is not None:
             if existing_role.id in self.rc():
                 # Full existing role handling
-                await ctx.send("A role with name {} already exists.".format(role_name))
+                if not emoji_str:
+                    self.rc()[existing_role.id][0] = emoji_str
+                if masterrole_id != 0:
+                    self.rc()[existing_role.id][1] = masterrole_id
+
+                await ctx.send("A role with name {} already exists, but was updated in config.".format(role_name))
             else:
                 # role exists on server, but not in config, add it there
-                self.rc()[existing_role.id] = (emoji_str, masterrole)
+                self.rc()[existing_role.id] = (emoji_str, masterrole_id)
                 await ctx.send("Role {} added to config.".format(role_name))
                 await self.update_role_management(ctx)
             return
 
         # Execute role add
         new_role = await RoleManagement.add_server_role(ctx.guild, role_name, color)
-        self.rc()[new_role.id] = (emoji_str, masterrole)
+        self.rc()[new_role.id] = (emoji_str, masterrole_id)
         await self.update_role_management(ctx)
         await ctx.send("I can't check it, but the role {} should be created with color {} now.".format(role_name, color))
         await utils.log_to_admin_channel(ctx)
