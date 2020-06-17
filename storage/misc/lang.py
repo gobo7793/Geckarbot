@@ -18,12 +18,6 @@ lang = {
         'tree_out': "cko!",
         'geck_out': "arbor!",
         'liebe_out': "https://www.youtube.com/watch?v=TfmJPDmaQdg",
-        'danny_out1': "Fürth ist der beste Verein der Welt! <:fuerth:719308773281235326>",
-        'danny_out2': "Güterbahn ist keine richtige Eisenbahn!",
-        'danny_out3': "**DAS! LETZTE! AUTO!**",
-        'danny_out4': "Die U35 ist eine Voll-U-Bahn!",
-        'danny_out5': "Danny ist der undefeated trash talker!",
-        'danny_out6': "Jena liegt in Bayern!",
         'tippspiel_output': "Hier ist der Link für die Stände (bitte auf den Spieltag achten!) sowie das Tippspiel-Archiv: https://docs.google.com/spreadsheets/d/1mSDrTqdcOSOuvR9Y9hMzuEx1X9puaUVuqs7yp6Ju6_M/"
         
         }

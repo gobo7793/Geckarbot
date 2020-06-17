@@ -68,19 +68,6 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
     async def liebe(self, ctx):
         await ctx.send(Config().lang(self, 'liebe_out'))
 
-    @commands.command(name="danny", help="Makes an attempt to replace the user Danny by giving one of his catchphrases")
-    async def danny(self, ctx):
-        dannyliste = [
-
-            'danny_out1',
-            'danny_out2',
-            'danny_out3',
-            'danny_out4',
-            'danny_out5',
-            'danny_out6',
-        ]
-        await ctx.send(Config().lang(self, random.choice(dannyliste)))
-
     @commands.command(name="tippspiel", help="Gives the link to the Tippspiel-Sheet")
     async def tippspiel(self, ctx):
         await ctx.send(Config().lang(self, 'tippspiel_output'))
