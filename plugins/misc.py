@@ -67,3 +67,7 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
     @commands.command(name="liebe", help="Provides love to the channel")
     async def liebe(self, ctx):
         await ctx.send(Config().lang(self, 'liebe_out'))
+
+    @commands.command(name="tippspiel", help="Gives the link to the Tippspiel-Sheet")
+    async def tippspiel(self, ctx):
+        await ctx.send(Config().lang(self, 'tippspiel_output'))
