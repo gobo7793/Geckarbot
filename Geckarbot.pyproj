@@ -71,8 +71,10 @@
   </ItemGroup>
   <ItemGroup>
     <Content Include="config\dsc.json" />
+    <Content Include="config\feedback.json" />
     <Content Include="config\geckarbot.json" />
     <Content Include="config\mod.json" />
+    <Content Include="config\roles.json" />
     <Content Include="storage\misc\mimimi.mp3" />
     <Content Include="storage\misc\treecko.jpg" />
   </ItemGroup>

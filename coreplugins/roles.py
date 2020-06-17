@@ -93,7 +93,7 @@ class Plugin(BasePlugin, name="Role Management"):
     """
     Role Management Plugin.
     Config format for roles:
-    key: role_id, value: ([0]: emoji, [1]: master_role)
+    key: role_id, value: ([0]: emoji str representation, [1]: master_role_id)
     """
 
     def __init__(self, bot):
@@ -165,9 +165,15 @@ class Plugin(BasePlugin, name="Role Management"):
 
         # Remove old roles
         current_server_roles = await self.bot.guild.fetch_roles()
-        roles_to_remove = list(set(self.rc()) - set(r.id for r in current_server_roles))
-        removed_roles = deepcopy(roles_to_remove)
-        Config().get(self)['roles'] = list(set(self.rc()) - set(roles_to_remove)) # hier löscht der das dict in eine liste mit den IDs
+        server_role_ids = [r.id for r in current_server_roles]
+        removed_roles = deepcopy(self.rc())
+        for role_in_config in self.rc():
+            if role_in_config in server_role_ids:
+                del(removed_roles[role_in_config])
+
+        for role_to_remove in removed_roles:
+            del(self.rc()[role_to_remove])
+        roles_debug = self.rc()
 
         # update message
         message_text = self.create_message_text()
@@ -192,10 +198,9 @@ class Plugin(BasePlugin, name="Role Management"):
 
         # add reactions for new roles
         for role_config in self.rc():
-            roles_debug = self.rc()
             if self.rc()[role_config][0] is None or self.rc()[role_config][0] == 0:
                 continue
-            emoji = await commands.EmojiConverter().convert(ctx, role_config[0])
+            emoji = await commands.EmojiConverter().convert(ctx, self.rc()[role_config][0])
             await message.add_reaction(emoji)
 
         Config().save(self)
@@ -226,10 +231,10 @@ class Plugin(BasePlugin, name="Role Management"):
     async def role_add(self, ctx, role_name, emoji_or_masterrole = None, color: discord.Color = None):
         try:
             emoji = await commands.EmojiConverter().convert(ctx, emoji_or_masterrole)
-            emoji_id = emoji.id
+            emoji_str = str(emoji)
         except:
             emoji = None
-            emoji_id = 0
+            emoji_str = ""
         try:
             masterrole = await commands.RoleConverter().convert(ctx, emoji_or_masterrole)
         except:
@@ -248,14 +253,14 @@ class Plugin(BasePlugin, name="Role Management"):
                 await ctx.send("A role with name {} already exists.".format(role_name))
             else:
                 # role exists on server, but not in config, add it there
-                self.rc()[existing_role.id] = (emoji_id, masterrole)
+                self.rc()[existing_role.id] = (emoji_str, masterrole)
                 await ctx.send("Role {} added to config.".format(role_name))
                 await self.update_role_management(ctx)
             return
 
         # Execute role add
         new_role = await RoleManagement.add_server_role(ctx.guild, role_name, color)
-        self.rc()[new_role.id] = (emoji_id, masterrole)
+        self.rc()[new_role.id] = (emoji_str, masterrole)
         await self.update_role_management(ctx)
         await ctx.send("I can't check it, but the role {} should be created with color {} now.".format(role_name, color))
         await utils.log_to_admin_channel(ctx)
