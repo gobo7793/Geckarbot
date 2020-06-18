@@ -1,6 +1,7 @@
 import pytz
 import discord
 import datetime
+import emoji
 from discord.ext.commands.bot import Bot
 from conf import Config
 from threading import Thread, Lock
@@ -101,6 +102,33 @@ def convert_to_local_time(timestamp):
     :param datetime: The datetime instance of the timestamp
     """
     return timestamp.replace(tzinfo=datetime.timezone.utc).astimezone(tz=None)
+
+async def emojize(demote_str, ctx):
+    """
+    Converts the demojized str represantation of the emoji back to an emoji string
+    :param demote_str: The string representation of the emoji
+    :param ctx: The command context for the discord.py emoji converters
+    :return: The emojized string
+    """
+    try:
+        emote = await discord.ext.commands.PartialEmojiConverter().convert(ctx, demote_str)
+    except:
+        emote = emoji.emojize(emoji_id, True)
+    return str(emote)
+
+async def demojize(emote, ctx):
+    """
+    Converts the emojized str of the emoji to its demojized str representation
+    :param emote: The msg with the emoji (only the emoji)
+    :param ctx: The command context for the discord.py emoji converters
+    :return: The demojized string or an empty string if no emoji found
+    """
+    converted = ""
+    try:
+        converted = await discord.ext.commands.PartialEmojiConverter().convert(ctx, emote)
+    except:
+        converted = emoji.demojize(msg, True)
+    return str(converted)
 
 
 async def write_debug_channel(bot: Bot, message):
