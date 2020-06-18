@@ -150,6 +150,22 @@ async def write_admin_channel(bot: Bot, message):
         else:
             await admin_chan.send(message)
 
+async def log_to_admin_channel_without_ctx(**kwargs):
+    """
+    Logs the kwargs as embed fileds to the admin channel
+    Doesn't log if Config().DEBUG_MODE is True.
+    :param context: the key-value-list for the fields
+    """
+    if Config().DEBUG_MODE == True:
+        return
+
+    timestamp = convert_to_local_time(context.message.created_at).strftime('%d.%m.%Y, %H:%M')
+
+    embed = discord.Embed(title="Admin log event")
+    for key, value in kwargs.items():
+        embed.add_field(name=str(key), value=str(value))
+
+    await write_admin_channel(context.bot, embed)
 
 async def log_to_admin_channel(context):
     """
