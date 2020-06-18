@@ -226,6 +226,7 @@ class Plugin(BasePlugin, name="Role Management"):
         data = await ReactionEventData.convert(self.bot, payload)
         emoji_str = str(data.emoji)
         update_type = ""
+        has_role_update = False
         for configured_role in self.rc():
             configured_emoji = self.rc()[configured_role][0]
             if configured_emoji == emoji_str:
@@ -233,16 +234,19 @@ class Plugin(BasePlugin, name="Role Management"):
                 if role_add and role not in data.member.roles:
                     update_type = "add"
                     await RoleManagement.add_user_role(data.member, role)
+                    has_role_update = True
                 elif not role_add and role in data.member.roles:
                     admin_type = "remove"
                     await RoleManagement.remove_user_role(data.member, role)
+                    has_role_update = True
 
-            await utils.log_to_admin_channel_without_ctx(
-                    {'Type': "Self-assign role",
-                     'Action': update_type,
-                     'User': data.member.mention,
-                     'Reaction': data.emoji,
-                     'role': role})
+        if has_role_update:
+            await utils.log_to_admin_channel_without_ctx(self.bot,
+                    **{'Type': "Self-assign role",
+                        'Action': update_type,
+                        'User': data.member.mention,
+                        'Reaction': data.emoji,
+                        'role': role})
 
     @commands.group(name="role", invoke_without_command=True)
     async def role(self, ctx, user: discord.Member, action, role: discord.Role):
