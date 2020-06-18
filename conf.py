@@ -99,10 +99,10 @@ class Config(metaclass=_Singleton):
         else:
             try:
                 with open(f"{self.CONFIG_DIR}/{file_name}.json", "r") as f:
-                    jsondata = json.load(f, object_hook=jsonUtils.decoder_obj_hook)
+                    jsondata = json.load(f, cls=jsonUtils.Decoder)#object_hook=jsonUtils.decoder_obj_hook)
                     return jsondata
             except:
-                logging.error("Error reading {self.CONFIG_DIR}/{file_name}.json.")
+                logging.error(f"Error reading {self.CONFIG_DIR}/{file_name}.json.")
                 return None
 
     ######
