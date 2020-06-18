@@ -113,7 +113,7 @@ async def emojize(demote_str, ctx):
     try:
         emote = await discord.ext.commands.PartialEmojiConverter().convert(ctx, demote_str)
     except:
-        emote = emoji.emojize(emoji_id, True)
+        emote = emoji.emojize(demote_str, True)
     return str(emote)
 
 async def demojize(emote, ctx):
@@ -127,7 +127,7 @@ async def demojize(emote, ctx):
     try:
         converted = await discord.ext.commands.PartialEmojiConverter().convert(ctx, emote)
     except:
-        converted = emoji.demojize(msg, True)
+        converted = emoji.demojize(emote, True)
     return str(converted)
 
 
