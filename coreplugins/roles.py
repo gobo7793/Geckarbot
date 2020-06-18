@@ -54,8 +54,6 @@ class RoleManagement():
         await role.delete()
 
 
-
-
 class ReactionEventData():
     """
     Tuple for easier reaction event handling.
@@ -81,7 +79,7 @@ class ReactionEventData():
         user = bot.get_user(payload.user_id)
         member = None
         try:
-            member = self.bot.guild.get_member(payload.user_id)
+            member = bot.guild.get_member(payload.user_id)
         except:
             pass
         message = await channel.fetch_message(payload.message_id)
@@ -102,40 +100,12 @@ class Plugin(BasePlugin, name="Role Management"):
         
         @bot.listen()
         async def on_raw_reaction_add(payload):
-            pass
+            await self.update_reaction_based_user_role(payload, True)
 
         @bot.listen()
         async def on_raw_reaction_remove(payload):
-            pass
+            await self.update_reaction_based_user_role(payload, False)
 
-
-        #@bot.listen()
-        #async def on_raw_reaction_add(payload):
-        #    channel = self.bot.get_channel(payload.channel_id)
-        #    user = self.bot.guild.get_member(payload.user_id)
-        #    message = await channel.fetch_message(payload.message_id)
-        #    emoji = payload.emoji
-
-        #    msg = f"{channel.name}, {utils.get_best_username(user)}, {emoji} added\n{message.content}"
-
-        #    await utils.write_debug_channel(self.bot, msg)
-
-        #    new_emoji = discord.utils.get(bot.emojis, name='mud')
-        #    await message.add_reaction(new_emoji)
-
-        #@bot.listen()
-        #async def on_raw_reaction_remove(payload):
-        #    channel = self.bot.get_channel(payload.channel_id)
-        #    user = self.bot.guild.get_member(payload.user_id)
-        #    message = await channel.fetch_message(payload.message_id)
-        #    emoji = payload.emoji
-
-        #    msg = f"{channel.name}, {utils.get_best_username(user)}, {emoji} removed\n{message.content}"
-
-        #    await utils.write_debug_channel(self.bot, msg)
-            
-        #    new_emoji = discord.utils.get(bot.emojis, name='kip')
-        #    await message.add_reaction(new_emoji)
 
     def default_config(self):
         return {
@@ -241,16 +211,49 @@ class Plugin(BasePlugin, name="Role Management"):
 
         Config().save(self)
 
+    async def update_reaction_based_user_role(self, payload, role_add = None):
+        """
+        Updates the user roles based on the reaction events.
+        :param payload: The RawReactionActionEvent data
+        :param role_add: For role adding set True, for role removing False.
+                         If None, this function does nothing.
+        """
+        if (payload.channel_id != Config().get(self)['message']['channel_id']
+            or payload.message_id != Config().get(self)['message']['message_id']
+            or role_add is None):
+            return
+
+        data = await ReactionEventData.convert(self.bot, payload)
+        emoji_str = str(data.emoji)
+        update_type = ""
+        for configured_role in self.rc():
+            configured_emoji = self.rc()[configured_role][0]
+            if configured_emoji == emoji_str:
+                role = discord.utils.get(self.bot.guild.roles, id=configured_role)
+                if role_add and role not in data.member.roles:
+                    update_type = "add"
+                    await RoleManagement.add_user_role(data.member, role)
+                elif not role_add and role in data.member.roles:
+                    admin_type = "remove"
+                    await RoleManagement.remove_user_role(data.member, role)
+
+            await utils.log_to_admin_channel_without_ctx(
+                    {'Type': "Self-assign role",
+                     'Action': update_type,
+                     'User': data.member.mention,
+                     'Reaction': data.emoji,
+                     'role': role})
+
     @commands.group(name="role", invoke_without_command=True)
     async def role(self, ctx, user: discord.Member, action, role: discord.Role):
         # perm check: Only usable for users with corresponding master role. Mods can use that for all roles.
         if not permChecks.check_full_access(ctx.author):
             if role.id not in self.rc():
-                raise commands.CheckFailure(message="Role can't added or removed via bot command.")
+                raise commands.CheckFailure(message="You can't add or remove roles via bot command.")
 
             need_master_role_id = self.rc()[role.id][1]
             if need_master_role_id is None or need_master_role_id == 0:
-                raise commands.CheckFailure(message="No master role set for the target role.")
+                raise commands.CheckFailure(message="The role {} has no master role, so I won't let you do this.".format(role.name))
 
             if need_master_role_id not in [r.id for r in ctx.author.roles]:
                 raise commands.MissingRole(need_master_role_id)
@@ -260,15 +263,15 @@ class Plugin(BasePlugin, name="Role Management"):
                 await ctx.send("User {} has role {} already.".format(utils.get_best_username(user), role))
                 return
             await RoleManagement.add_user_role(user, role)
-            await ctx.send("I can't check it, but role {} should be added to {}.".format(role, utils.get_best_username(user)))
+            await ctx.send("My trainer was to lazy to let me check it, but role {} should be added to {}.".format(role, utils.get_best_username(user)))
         elif action.lower() == "del":
             if role not in user.roles:
                 await ctx.send("User {} doesn't have role {}.".format(utils.get_best_username(user), role))
                 return
             await RoleManagement.remove_user_role(user, role)
-            await ctx.send("I can't check it, but role {} should be removed from {}.".format(role, utils.get_best_username(user)))
+            await ctx.send("My trainer was to lazy to let me check it, but role {} should be removed from {}.".format(role, utils.get_best_username(user)))
         else:
-            raise commands.BadArgument("Only add or del possible as second argument.")
+            raise commands.BadArgument("I don't know that move, I only know add or del for argument action.")
 
         await utils.log_to_admin_channel(ctx)
 
@@ -311,7 +314,7 @@ class Plugin(BasePlugin, name="Role Management"):
         new_role = await RoleManagement.add_server_role(ctx.guild, role_name, color)
         self.rc()[new_role.id] = (emoji_str, masterrole_id)
         await self.update_role_management(ctx)
-        await ctx.send("My dev was to lazy to let me check it, but the role {} should be created with color {} now.".format(role_name, color))
+        await ctx.send("My trainer was to lazy to let me check it, but the role {} should be created with color {} now.".format(role_name, color))
         await utils.log_to_admin_channel(ctx)
 
     @role.command(name="del")
@@ -319,7 +322,7 @@ class Plugin(BasePlugin, name="Role Management"):
     async def role_del(self, ctx, role: discord.Role):
         await RoleManagement.remove_server_role(ctx.guild, role)
         await self.update_role_management(ctx)
-        await ctx.send("My dev was to lazy to let me check it, but the role {} should be deleted now.".format(role.name))
+        await ctx.send("My trainer was to lazy to let me check it, but the role {} should be deleted now.".format(role.name))
         await utils.log_to_admin_channel(ctx)
 
     @role.command(name="request")
