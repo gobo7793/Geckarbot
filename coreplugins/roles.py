@@ -267,20 +267,20 @@ class Plugin(BasePlugin, name="Role Management"):
                 await ctx.send("User {} has role {} already.".format(utils.get_best_username(user), role))
                 return
             await RoleManagement.add_user_role(user, role)
-            await ctx.send("My trainer was to lazy to let me check it, but role {} should be added to {}.".format(role, utils.get_best_username(user)))
+            await ctx.send("My trainer was to lazy to teach me how to validate, but role {} should be added to {}.".format(role, utils.get_best_username(user)))
         elif action.lower() == "del":
             if role not in user.roles:
                 await ctx.send("User {} doesn't have role {}.".format(utils.get_best_username(user), role))
                 return
             await RoleManagement.remove_user_role(user, role)
-            await ctx.send("My trainer was to lazy to let me check it, but role {} should be removed from {}.".format(role, utils.get_best_username(user)))
+            await ctx.send("My trainer was to lazy to teach me how to validate, but role {} should be removed from {}.".format(role, utils.get_best_username(user)))
         else:
             raise commands.BadArgument("I don't know that move, I only know add or del for argument action.")
 
         await utils.log_to_admin_channel(ctx)
 
     @role.command(name="add")
-    #@commands.has_any_role(*Config().FULL_ACCESS_ROLES)
+    @commands.has_any_role(*Config().FULL_ACCESS_ROLES)
     async def role_add(self, ctx, role_name, emoji_or_masterrole, color: discord.Color = None):
         emoji_str = await utils.demojize(emoji_or_masterrole, ctx)
         try:
@@ -318,24 +318,32 @@ class Plugin(BasePlugin, name="Role Management"):
         new_role = await RoleManagement.add_server_role(ctx.guild, role_name, color)
         self.rc()[new_role.id] = (emoji_str, masterrole_id)
         await self.update_role_management(ctx)
-        await ctx.send("My trainer was to lazy to let me check it, but the role {} should be created with color {} now.".format(role_name, color))
+        await ctx.send("My trainer was to lazy to teach me how to validate, but the role {} should be created with color {} now.".format(role_name, color))
         await utils.log_to_admin_channel(ctx)
 
     @role.command(name="del")
-    #@commands.has_any_role(*Config().FULL_ACCESS_ROLES)
+    @commands.has_any_role(*Config().FULL_ACCESS_ROLES)
     async def role_del(self, ctx, role: discord.Role):
         await RoleManagement.remove_server_role(ctx.guild, role)
         await self.update_role_management(ctx)
-        await ctx.send("My trainer was to lazy to let me check it, but the role {} should be deleted now.".format(role.name))
+        await ctx.send("My trainer was to lazy to teach me how to validate, but the role {} should be deleted now.".format(role.name))
         await utils.log_to_admin_channel(ctx)
 
     @role.command(name="request")
     async def role_request(self, ctx, role: discord.Role):
-        # todo
-        pass
+        masterrole = None
+        for configured_role in self.rc():
+            if configured_role == role.id:
+                masterrole = discord.utils.get(ctx.guild.roles, id=self.rc()[configured_role][1])
+                break
+
+        if masterrole is None:
+            await ctx.send("Sorry, but I can't find a master role for {} :frowning:".format(role.name))
+        else:
+            await ctx.send("Hey {}, the user {} requests the role {}!".format(masterrole.mention, ctx.author.mention, role.name))
 
     @role.command(name="update")
-    #@commands.has_any_role(*Config().FULL_ACCESS_ROLES)
+    @commands.has_any_role(*Config().FULL_ACCESS_ROLES)
     async def role_update(self, ctx, *message_content):
         if len(message_content) > 0:
             Config().get(self)['message']['content'] = " ".join(message_content)
