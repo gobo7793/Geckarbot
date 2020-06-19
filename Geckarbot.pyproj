@@ -65,6 +65,10 @@
     <Compile Include="plugins\quiz.py" />
     <Compile Include="plugins\__init__.py" />
     <Compile Include="storage\misc\__init__.py" />
+    <Compile Include="storage\roles\lang.py" />
+    <Compile Include="storage\roles\__init__.py">
+      <SubType>Code</SubType>
+    </Compile>
   </ItemGroup>
   <ItemGroup>
     <InterpreterReference Include="Global|PythonCore|3.7" />
@@ -87,6 +91,7 @@
     <Folder Include="plugins\" />
     <Folder Include="storage\dsc\" />
     <Folder Include="storage\misc\" />
+    <Folder Include="storage\roles\" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />
   <!-- Uncomment the CoreCompile target to enable the Build command in

@@ -136,10 +136,10 @@ class Plugin(BasePlugin, name="Role Management"):
             masterrole_msg = ""
 
             if self.rc()[rid][0]:
-                emote_msg = "Reaction: {}".format(await utils.emojize(self.rc()[rid][0], ctx))
+                emote_msg = Config().lang(self, 'init_reaction', await utils.emojize(self.rc()[rid][0], ctx))
             if self.rc()[rid][1] != 0:
                 masterrole = discord.utils.get(server_roles, id=self.rc()[rid][1])
-                masterrole_msg = "Masterrole: {}".format(masterrole.name)
+                masterrole_msg = Config().lang(self, 'init_masterrole', masterrole.name)
 
             todo_part = ""
             if emote_msg and masterrole_msg:
@@ -149,7 +149,7 @@ class Plugin(BasePlugin, name="Role Management"):
             elif masterrole_msg:
                 todo_part = masterrole_msg
             else:
-                todo_part = "Only via Admins."
+                todo_part = Config().lang(self, 'init_admin')
 
             msg += "\n{} - {}".format(role.name, todo_part)
 
@@ -186,7 +186,7 @@ class Plugin(BasePlugin, name="Role Management"):
             message = None
 
         if message is None:
-            await utils.write_debug_channel(self.bot, "Creating new role management init message.")
+            await utils.write_debug_channel(self.bot, Contig().lang(self, 'creating_init_msg'))
             message = await channel.send(message_text)
             Config().get(self)['message']['message_id'] = message.id
         else:
@@ -253,29 +253,29 @@ class Plugin(BasePlugin, name="Role Management"):
         # perm check: Only usable for users with corresponding master role. Mods can use that for all roles.
         if not permChecks.check_full_access(ctx.author):
             if role.id not in self.rc():
-                raise commands.CheckFailure(message="You can't add or remove roles via bot command.")
+                raise commands.CheckFailure(message=Config.lang(self, 'role_user_not_configured'))
 
             need_master_role_id = self.rc()[role.id][1]
             if need_master_role_id is None or need_master_role_id == 0:
-                raise commands.CheckFailure(message="The role {} has no master role, so I won't let you do this.".format(role.name))
+                raise commands.CheckFailure(message=Config().lang(self, 'role_user_no_masterrole', role.name))
 
             if need_master_role_id not in [r.id for r in ctx.author.roles]:
                 raise commands.MissingRole(need_master_role_id)
 
         if action.lower() == "add":
             if role in user.roles:
-                await ctx.send("User {} has role {} already.".format(utils.get_best_username(user), role))
+                await ctx.send(Config().lang(self, 'role_user_already', utils.get_best_username(user), role))
                 return
             await RoleManagement.add_user_role(user, role)
-            await ctx.send("My trainer was to lazy to teach me how to validate, but role {} should be added to {}.".format(role, utils.get_best_username(user)))
+            await ctx.send(Config().lang(self, 'role_user_added', role, utils.get_best_username(user)))
         elif action.lower() == "del":
             if role not in user.roles:
-                await ctx.send("User {} doesn't have role {}.".format(utils.get_best_username(user), role))
+                await ctx.send(Config().lang(self, 'role_user_doesnt_have', utils.get_best_username(user), role))
                 return
             await RoleManagement.remove_user_role(user, role)
-            await ctx.send("My trainer was to lazy to teach me how to validate, but role {} should be removed from {}.".format(role, utils.get_best_username(user)))
+            await ctx.send(Config().lang(self, 'role_user_removed', role, utils.get_best_username(user)))
         else:
-            raise commands.BadArgument("I don't know that move, I only know add or del for argument action.")
+            raise commands.BadArgument(Config().lang(self, 'role_user_bad_arg'))
 
         await utils.log_to_admin_channel(ctx)
 
@@ -306,19 +306,19 @@ class Plugin(BasePlugin, name="Role Management"):
                     masterrole_id = self.rc()[existing_role.id][1]
                 self.rc()[existing_role.id] = (emoji_str, masterrole_id)
                 await self.update_role_management(ctx)
-                await ctx.send("I was to lazy to create a new role with the name {}, so I updated the existing.".format(role_name))
+                await ctx.send(Config().lang(self, 'role_add_updated', role_name))
             else:
                 # role exists on server, but not in config, add it there
                 self.rc()[existing_role.id] = (emoji_str, masterrole_id)
                 await self.update_role_management(ctx)
-                await ctx.send("I was to lazy to create a new role with the name {} on the server, so I just added it to my own role list.".format(role_name))
+                await ctx.send(Config().lang(self, 'role_add_config', role_name))
             return
 
         # Execute role add
         new_role = await RoleManagement.add_server_role(ctx.guild, role_name, color)
         self.rc()[new_role.id] = (emoji_str, masterrole_id)
         await self.update_role_management(ctx)
-        await ctx.send("My trainer was to lazy to teach me how to validate, but the role {} should be created with color {} now.".format(role_name, color))
+        await ctx.send(Config().lang(self, 'role_add_created', role_name, color))
         await utils.log_to_admin_channel(ctx)
 
     @role.command(name="del")
@@ -326,7 +326,7 @@ class Plugin(BasePlugin, name="Role Management"):
     async def role_del(self, ctx, role: discord.Role):
         await RoleManagement.remove_server_role(ctx.guild, role)
         await self.update_role_management(ctx)
-        await ctx.send("My trainer was to lazy to teach me how to validate, but the role {} should be deleted now.".format(role.name))
+        await ctx.send(Config().lang(self, 'role_del', role.name))
         await utils.log_to_admin_channel(ctx)
 
     @role.command(name="request")
@@ -338,9 +338,9 @@ class Plugin(BasePlugin, name="Role Management"):
                 break
 
         if masterrole is None:
-            await ctx.send("Sorry, but I can't find a master role for {} :frowning:".format(role.name))
+            await ctx.send(Config().lang(self, 'role_request_no_masterrole', role.name))
         else:
-            await ctx.send("Hey {}, the user {} requests the role {}!".format(masterrole.mention, ctx.author.mention, role.name))
+            await ctx.send(Config().lang(self, 'role_request_ping', masterrole.mention, ctx.author.mention, role.name))
 
     @role.command(name="update")
     @commands.has_any_role(*Config().FULL_ACCESS_ROLES)
@@ -349,5 +349,5 @@ class Plugin(BasePlugin, name="Role Management"):
             Config().get(self)['message']['content'] = " ".join(message_content)
         Config().save(self)
         await self.update_role_management(ctx)
-        await ctx.send("I'm a lazy Treecko, but especially for you, I updated my role management.")
+        await ctx.send(Config().lang(self, 'role_update'))
         await utils.log_to_admin_channel(ctx)
