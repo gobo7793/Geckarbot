@@ -40,7 +40,7 @@ class Plugin(BasePlugin, name="Timer things"):
         await ctx.message.channel.send("I'm waking myself up.")
 
     @commands.command(name="remindme", help="Reminds the author in x seconds.")
-    async def reminder(self, ctx, duration):
+    async def reminder(self, ctx, duration, *message):
         if duration == "cancel":
             self.timers[ctx.message.author].cancel()
             return
@@ -48,12 +48,12 @@ class Plugin(BasePlugin, name="Timer things"):
         if ctx.message.author in self.timers:
             await ctx.message.channel.send("You already have a reminder.")
             return
-        self.timers[ctx.message.author] = AsyncTimer(self.bot, duration, self.callback, ctx.message)
+        self.timers[ctx.message.author] = AsyncTimer(self.bot, duration, self.reminder_callback, ctx.message, " ".join(message))
         await ctx.message.channel.send(
             "Have fun doing other things. Don't panic, I will remind you in {} seconds.".format(duration))
 
-    async def callback(self, message):
-        await message.channel.send("{} This is a reminder!".format(message.author.mention))
+    async def reminder_callback(self, message, remindtext):
+        await message.channel.send("{} This is a reminder for {}!".format(message.author.mention, remindtext))
         del self.timers[message.author]
 
     @commands.command(name="identify", help="calls utils.get_best_username")
