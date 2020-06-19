@@ -236,7 +236,7 @@ class Plugin(BasePlugin, name="Role Management"):
                     await RoleManagement.add_user_role(data.member, role)
                     has_role_update = True
                 elif not role_add and role in data.member.roles:
-                    admin_type = "remove"
+                    update_type = "remove"
                     await RoleManagement.remove_user_role(data.member, role)
                     has_role_update = True
 
@@ -246,7 +246,7 @@ class Plugin(BasePlugin, name="Role Management"):
                         'Action': update_type,
                         'User': data.member.mention,
                         'Reaction': data.emoji,
-                        'role': role})
+                        'role': role.mention})
 
     @commands.group(name="role", invoke_without_command=True)
     async def role(self, ctx, user: discord.Member, action, role: discord.Role):
