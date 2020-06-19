@@ -248,9 +248,11 @@ class Plugin(BasePlugin, name="Role Management"):
                         'Reaction': data.emoji,
                         'role': role.mention})
 
-    @commands.group(name="role", invoke_without_command=True)
+    @commands.group(name="role", invoke_without_command=True, help="Adds or removes the role to/from users roles",
+                    description="Adds or removes the role to or from users roles."
+                                " Only usable for users with corresponding master role."
+                                " Mods can add/remove all roles including roles which aren't in the role management.")
     async def role(self, ctx, user: discord.Member, action, role: discord.Role):
-        # perm check: Only usable for users with corresponding master role. Mods can use that for all roles.
         if not permChecks.check_full_access(ctx.author):
             if role.id not in self.rc():
                 raise commands.CheckFailure(message=Config.lang(self, 'role_user_not_configured'))
@@ -279,7 +281,13 @@ class Plugin(BasePlugin, name="Role Management"):
 
         await utils.log_to_admin_channel(ctx)
 
-    @role.command(name="add")
+    @role.command(name="add", help="Creates a new role or updates its management data", usage="<role_name> [emoji|masterrole] [color]",
+                  description="Creates a new role on the server with the given management data."
+                               " If an emoji is given, the role will be self-assignable by the users via reaction in the role init message."
+                               " If a master role is given, a user with the master role can add/remove the role via !role <user> add <role>."
+                               " If the role already exists, it will be added to the role management with the given data."
+                               " If role is already in the role management, the management data will be updated."
+                               " As color a color name like 'blue' can be given or a hexcode like '#0000ff'.")
     @commands.has_any_role(*Config().FULL_ACCESS_ROLES)
     async def role_add(self, ctx, role_name, emoji_or_masterrole, color: discord.Color = None):
         emoji_str = await utils.demojize(emoji_or_masterrole, ctx)
@@ -321,7 +329,7 @@ class Plugin(BasePlugin, name="Role Management"):
         await ctx.send(Config().lang(self, 'role_add_created', role_name, color))
         await utils.log_to_admin_channel(ctx)
 
-    @role.command(name="del")
+    @role.command(name="del", help="Deletes the role from the server and role management")
     @commands.has_any_role(*Config().FULL_ACCESS_ROLES)
     async def role_del(self, ctx, role: discord.Role):
         await RoleManagement.remove_server_role(ctx.guild, role)
@@ -329,7 +337,8 @@ class Plugin(BasePlugin, name="Role Management"):
         await ctx.send(Config().lang(self, 'role_del', role.name))
         await utils.log_to_admin_channel(ctx)
 
-    @role.command(name="request")
+    @role.command(name="request", help="Pings the corresponding master role for a role request",
+                  description="Pings the roles corresponding master role, that the executing user requests the given role.")
     async def role_request(self, ctx, role: discord.Role):
         masterrole = None
         for configured_role in self.rc():
@@ -342,7 +351,9 @@ class Plugin(BasePlugin, name="Role Management"):
         else:
             await ctx.send(Config().lang(self, 'role_request_ping', masterrole.mention, ctx.author.mention, role.name))
 
-    @role.command(name="update")
+    @role.command(name="update", help="Reads the server data and updates the role management",
+                  description="Updates the role management from server data and removes deleted roles from role management."
+                               " If a message content is given, this message will be used for the role management init message text.")
     @commands.has_any_role(*Config().FULL_ACCESS_ROLES)
     async def role_update(self, ctx, *message_content):
         if len(message_content) > 0:
