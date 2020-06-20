@@ -145,7 +145,7 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
         Config().save(self)
         await ctx.send(self.dsc_lang('yt_link_set'))
 
-    @dsc_set.command(name="stateend", help="Sets the registration/voting end date", usage="DD.MM.YYYY [HH:MM]",
+    @dsc_set.command(name="date", help="Sets the registration/voting end date", usage="DD.MM.YYYY [HH:MM]",
                      description="Sets the end date and time for registration and voting phase. "
                                  "If no time is given, 23:59 will be used.")
     async def dsc_set_state_end(self, ctx, dateStr, timeStr=None):

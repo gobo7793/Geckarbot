@@ -1,6 +1,7 @@
 import pytz
 import discord
 import datetime
+import emoji
 from discord.ext.commands.bot import Bot
 from conf import Config
 from threading import Thread, Lock
@@ -102,6 +103,33 @@ def convert_to_local_time(timestamp):
     """
     return timestamp.replace(tzinfo=datetime.timezone.utc).astimezone(tz=None)
 
+async def emojize(demote_str, ctx):
+    """
+    Converts the demojized str represantation of the emoji back to an emoji string
+    :param demote_str: The string representation of the emoji
+    :param ctx: The command context for the discord.py emoji converters
+    :return: The emojized string
+    """
+    try:
+        emote = await discord.ext.commands.PartialEmojiConverter().convert(ctx, demote_str)
+    except:
+        emote = emoji.emojize(demote_str, True)
+    return str(emote)
+
+async def demojize(emote, ctx):
+    """
+    Converts the emojized str of the emoji to its demojized str representation
+    :param emote: The msg with the emoji (only the emoji)
+    :param ctx: The command context for the discord.py emoji converters
+    :return: The demojized string or an empty string if no emoji found
+    """
+    converted = ""
+    try:
+        converted = await discord.ext.commands.PartialEmojiConverter().convert(ctx, emote)
+    except:
+        converted = emoji.demojize(emote, True)
+    return str(converted)
+
 
 async def write_debug_channel(bot: Bot, message):
     """Writes the given message or embed to the debug channel"""
@@ -122,20 +150,36 @@ async def write_admin_channel(bot: Bot, message):
         else:
             await admin_chan.send(message)
 
+async def log_to_admin_channel_without_ctx(bot, **kwargs):
+    """
+    Logs the kwargs as embed fileds to the admin channel
+    Doesn't log if Config().DEBUG_MODE is True.
+    :param context: the key-value-list for the fields
+    """
+    if Config().DEBUG_MODE == True:
+        return
+
+    timestamp = convert_to_local_time(datetime.datetime.now()).strftime('%d.%m.%Y, %H:%M')
+
+    embed = discord.Embed(title="Admin log event")
+    for key, value in kwargs.items():
+        embed.add_field(name=str(key), value=str(value))
+
+    await write_admin_channel(bot, embed)
 
 async def log_to_admin_channel(context):
     """
     Logs the context to admin channel with following content:
-    Author name, Timestamp, Channel name, Message
+    Author name, Timestamp, Channel name, Message.
+    Doesn't log if Config().DEBUG_MODE is True.
     :param context: The context to log to the admin channel
     """
-    #author_field = "{}#{} in {}".format(context.author.name, context.author.discriminator, context.channel.name)
+    if Config().DEBUG_MODE == True:
+        return
+
     timestamp = convert_to_local_time(context.message.created_at).strftime('%d.%m.%Y, %H:%M')
 
     embed = discord.Embed(title=context.message.clean_content)
-    #embed.set_author(name=author_field)
-    #embed.timestamp = timestamp
-    #embed.description = context.message.jump_url
     embed.add_field(name="User", value=context.author.mention)
     embed.add_field(name="Channel", value=context.channel.mention)
     embed.add_field(name="Timestamp", value=timestamp)

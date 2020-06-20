@@ -1,4 +1,5 @@
 import datetime
+import platform
 import discord
 from discord.ext import commands
 
@@ -219,7 +220,13 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
         return {
             'blacklist': [],
             'greylist': {},
-            'disabled_cmds': []
+            'disabled_cmds': [],
+            'about_data': {
+                'repo_link': "https://github.com/gobo7793/Geckarbot/",
+                'bot_info_link': "",
+                'privacy_notes_link': "",
+                'privacy_notes_lang': "",
+                'profile_pic_creator': ""}
             }
 
     ######
@@ -255,14 +262,26 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
 
     @commands.command(name="about", help="Prints the credits")
     async def about(self, ctx):
-        about = (f"Geckarbot {Config().VERSION} on {self.bot.guild.name}, licensed under GNU GPL v3.0.\n"
-                 "For general bot informations see <https://discordapp.com/channels/706125113250283551/706903946689642496/720622192231972936>. "
-                 "Github Repository for additional information and participation: <https://github.com/gobo7793/Geckarbot/>.\n"
-                 "Main developer: Fluggs, Gobo77, Lubadubs. "
-                 "Profile picture by @DjMuffinTops.\n"
-                 "Special thanks to all contributors!"
-                 )
-        await ctx.send(about)
+
+        about_msg = "Geckarbot {} on {}, licensed under GNU GPL v3.0. Hosted with ❤ on {} {} {}.\n".format(
+                     Config().VERSION, self.bot.guild.name, platform.system(), platform.release(), platform.version())
+
+        if Config().get(self)['about_data']['bot_info_link']:
+            about_msg += "For general bot information on this server see <{}>.\n".format(Config().get(self)['about_data']['bot_info_link'])
+        about_msg += "Github Repository for additional information and participation: <{}>.\n".format(Config().get(self)['about_data']['repo_link'])
+        if Config().get(self)['about_data']['privacy_notes_link']:
+            lang = ""
+            if Config().get(self)['about_data']['privacy_notes_lang']:
+                lang = " ({})".format(Config().get(self)['about_data']['privacy_notes_lang'])
+            about_msg += "Privacy notes: <{}>{}.\n".format(Config().get(self)['about_data']['privacy_notes_link'], lang)
+
+        about_msg += "Main developers: Fluggs, Gobo77, Lubadubs."
+        if Config().get(self)['about_data']['profile_pic_creator']:
+            about_msg += " Profile picture by {}.".format(Config().get(self)['about_data']['profile_pic_creator'])
+
+        about_msg += "\nSpecial thanks to all contributors!"
+
+        await ctx.send(about_msg)
 
     ######
     # Blacklist
