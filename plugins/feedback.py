@@ -110,7 +110,7 @@ def complaint_message_list(complaints):
 
         if length + len(to_add) > threshold:
             msgs.append(current_msg)
-            current_msg = [".\n" + to_add]
+            current_msg = ["_ _\n" + to_add]
         else:
             current_msg.append(to_add)
     msgs.append(current_msg)

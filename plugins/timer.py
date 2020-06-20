@@ -39,21 +39,38 @@ class Plugin(BasePlugin, name="Timer things"):
         self.sleeper.cancel()
         await ctx.message.channel.send("I'm waking myself up.")
 
-    @commands.command(name="remindme", help="Reminds the author in x seconds.")
-    async def reminder(self, ctx, duration):
+    @commands.command(name="remindme", help="Reminds the author in x seconds.",
+                      description="Reminds the author in x seconds. "
+                                  "The duration can be set with trailing s for seconds, m for minutes or h for hours. "
+                                  "Examples: 5s = 5 seconds, 5m = 5 minutes, 5h = 5 hours.")
+    async def reminder(self, ctx, duration, *message):
+        sec_multiplicator = 1
+        timespan_unit = "seconds"
+
         if duration == "cancel":
             self.timers[ctx.message.author].cancel()
             return
-        duration = int(duration)
+        elif duration.endswith("s"):
+            duration = duration[:1]
+        elif duration.endswith("m"):
+            duration = duration[:1]
+            sec_multiplicator = 60
+            timespan_unit = "minutes"
+        elif duration.endswith("h"):
+            duration = duration[:1]
+            sec_multiplicator = 3600
+            timespan_unit = "hours"
+
+        timespan = int(duration) * sec_multiplicator
         if ctx.message.author in self.timers:
             await ctx.message.channel.send("You already have a reminder.")
             return
-        self.timers[ctx.message.author] = AsyncTimer(self.bot, duration, self.callback, ctx.message)
+        self.timers[ctx.message.author] = AsyncTimer(self.bot, timespan, self.reminder_callback, ctx.message, " ".join(message))
         await ctx.message.channel.send(
-            "Have fun doing other things. Don't panic, I will remind you in {} seconds.".format(duration))
+            "Have fun doing other things. Don't panic, I will remind you in {} {}.".format(duration, timespan_unit))
 
-    async def callback(self, message):
-        await message.channel.send("{} This is a reminder!".format(message.author.mention))
+    async def reminder_callback(self, message, remindtext):
+        await message.channel.send("{} This is a reminder for {}!".format(message.author.mention, remindtext))
         del self.timers[message.author]
 
     @commands.command(name="identify", help="calls utils.get_best_username")
