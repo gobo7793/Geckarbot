@@ -23,6 +23,7 @@ The bot requires a json file for its system configuration stored as `config/geck
 Required pip packages:
 - discord.py 
 - dateutils
+- emoji
 
 To start the bot, you need an own Discord server and Discord application with a bot user. Discord applications can created at [Discords Developer Portal](https://discord.com/developers/applications):
 1. Create Application
