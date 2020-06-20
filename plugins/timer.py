@@ -3,6 +3,7 @@ import sys
 
 from discord.ext import commands
 from botutils.utils import AsyncTimer, get_best_username
+from botutils.reactions import ReactionAddedEvent, ReactionRemovedEvent
 import discord
 
 from Geckarbot import BasePlugin
@@ -84,3 +85,18 @@ class Plugin(BasePlugin, name="Testing and debug things"):
         # print("available: {}".format(reaction.available))
         await ctx.message.add_reaction(reaction)
         print("usable: {}".format(reaction.usable()))
+
+    async def waitforreact_callback(self, event):
+        msg = "PANIC!"
+        if isinstance(event, ReactionAddedEvent):
+            msg = "{}: You reacted on '{}' with {}!".format(get_best_username(event.user),
+                                                            event.message.content, event.emoji)
+        if isinstance(event, ReactionRemovedEvent):
+            msg = "{}: You took back your {} reaction on '{}'!".format(get_best_username(event.user),
+                                                                       event.message.content, event.emoji)
+        await event.channel.send(msg)
+
+    @commands.command(name="waitforreact")
+    async def waitforreact(self, ctx):
+        msg = await ctx.channel.send("React here pls")
+        self.bot.reaction_listener.register(msg, self.waitforreact_callback)
