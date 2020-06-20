@@ -22,7 +22,9 @@
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="botutils\reactions.py" />
     <Compile Include="botutils\restclient.py" />
+    <Compile Include="botutils\statemachine.py" />
     <Compile Include="coreplugins\updater.py" />
     <Compile Include="coreplugins\__init__.py">
       <SubType>Code</SubType>

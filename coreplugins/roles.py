@@ -260,7 +260,7 @@ class Plugin(BasePlugin, name="Role Management"):
     async def role(self, ctx, user: discord.Member, action, role: discord.Role):
         if not permChecks.check_full_access(ctx.author):
             if role.id not in self.rc():
-                raise commands.CheckFailure(message=Config.lang(self, 'role_user_not_configured'))
+                raise commands.CheckFailure(message=Config().lang(self, 'role_user_not_configured'))
 
             need_master_role_id = self.rc()[role.id][1]
             if need_master_role_id is None or need_master_role_id == 0:
