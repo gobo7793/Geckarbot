@@ -7,11 +7,13 @@ from Geckarbot import BasePlugin
 from conf import Config
 from botutils import utils, permChecks
 
-class RoleManagement():
+
+class RoleManagement:
     """
     Provides basic functions to create or add roles to users
     """
 
+    @staticmethod
     async def add_user_role(member: discord.Member, role: discord.Role):
         """
         Adds a role to a server member
@@ -21,6 +23,7 @@ class RoleManagement():
         """
         await member.add_roles(role)
 
+    @staticmethod
     async def remove_user_role(member: discord.Member, role: discord.Role):
         """
         Removes a role from a server member
@@ -30,6 +33,7 @@ class RoleManagement():
         """
         await member.remove_roles(role)
 
+    @staticmethod
     async def add_server_role(guild: discord.Guild, name, color: discord.Color = None, mentionable = True):
         """
         Creates a roll on the server
@@ -43,6 +47,7 @@ class RoleManagement():
             color = discord.Color.default()
         return await guild.create_role(name=name, color=color, mentionable=mentionable)
 
+    @staticmethod
     async def remove_server_role(guild: discord.Guild, role: discord.Role):
         """
         Deletes a role on the server
@@ -54,7 +59,7 @@ class RoleManagement():
         await role.delete()
 
 
-class ReactionEventData():
+class ReactionEventData:
     """
     Tuple for easier reaction event handling.
     """
@@ -67,6 +72,7 @@ class ReactionEventData():
 
         self.member = member
 
+    @staticmethod
     async def convert(bot, payload: discord.RawReactionActionEvent):
         """
         Converts the raw payload data from on_raw_reaction_add and on_raw_reaction_remove
@@ -105,7 +111,6 @@ class Plugin(BasePlugin, name="Role Management"):
         @bot.listen()
         async def on_raw_reaction_remove(payload):
             await self.update_reaction_based_user_role(payload, False)
-
 
     def default_config(self):
         return {
@@ -211,7 +216,7 @@ class Plugin(BasePlugin, name="Role Management"):
 
         Config().save(self)
 
-    async def update_reaction_based_user_role(self, payload, role_add = None):
+    async def update_reaction_based_user_role(self, payload, role_add=None):
         """
         Updates the user roles based on the reaction events.
         :param payload: The RawReactionActionEvent data
@@ -219,8 +224,8 @@ class Plugin(BasePlugin, name="Role Management"):
                          If None, this function does nothing.
         """
         if (payload.channel_id != Config().get(self)['message']['channel_id']
-            or payload.message_id != Config().get(self)['message']['message_id']
-            or role_add is None):
+                or payload.message_id != Config().get(self)['message']['message_id']
+                or role_add is None):
             return
 
         data = await ReactionEventData.convert(self.bot, payload)
@@ -242,11 +247,11 @@ class Plugin(BasePlugin, name="Role Management"):
 
         if has_role_update:
             await utils.log_to_admin_channel_without_ctx(self.bot,
-                    **{'Type': "Self-assign role",
-                        'Action': update_type,
-                        'User': data.member.mention,
-                        'Reaction': data.emoji,
-                        'role': role.mention})
+                                                         **{'Type': "Self-assign role",
+                                                            'Action': update_type,
+                                                            'User': data.member.mention,
+                                                            'Reaction': data.emoji,
+                                                            'role': role.mention})
 
     @commands.group(name="role", invoke_without_command=True, help="Adds or removes the role to/from users roles",
                     description="Adds or removes the role to or from users roles."
