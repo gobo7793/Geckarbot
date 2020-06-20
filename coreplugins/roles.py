@@ -84,11 +84,7 @@ class ReactionEventData:
         """
         channel = bot.get_channel(payload.channel_id)
         user = bot.get_user(payload.user_id)
-        member = None
-        try:
-            member = bot.guild.get_member(payload.user_id)
-        except:
-            pass
+        member = bot.guild.get_member(payload.user_id)
         message = await channel.fetch_message(payload.message_id)
 
         return ReactionEventData(user, channel, message, payload.emoji, member)
@@ -164,7 +160,6 @@ class Plugin(BasePlugin, name="Role Management"):
                 masterrole = discord.utils.get(server_roles, id=self.rc()[rid][1])
                 masterrole_msg = Config().lang(self, 'init_masterrole', masterrole.name)
 
-            todo_part = ""
             if emote_msg and masterrole_msg:
                 todo_part = "{}, {}".format(emote_msg, masterrole_msg)
             elif emote_msg:
@@ -189,22 +184,20 @@ class Plugin(BasePlugin, name="Role Management"):
         # Remove old roles
         current_server_roles = await self.bot.guild.fetch_roles()
         server_role_ids = [r.id for r in current_server_roles]
-        copy_roles = self.rc()
-        removed_roles = deepcopy(copy_roles)
+        removed_roles = deepcopy(self.rc())
         for role_in_config in self.rc():
             if role_in_config in server_role_ids:
                 del (removed_roles[role_in_config])
 
         for role_to_remove in removed_roles:
             del (self.rc()[role_to_remove])
-        roles_debug = self.rc()
 
         # update message
         message_text = await self.create_message_text(current_server_roles, ctx)
-        message = await self.get_init_msg().edit(content=message_text)
+        message = await self.get_init_msg()
 
         if message is not None:
-            await self.get_init_msg().edit(content=message_text)
+            await message.edit(content=message_text)
         else:
             await utils.write_debug_channel(self.bot, Config().lang(self, 'creating_init_msg'))
             channel = self.bot.get_channel(Config().get(self)['message']['channel_id'])
@@ -296,12 +289,13 @@ class Plugin(BasePlugin, name="Role Management"):
 
     @role.command(name="add", help="Creates a new role or updates its management data",
                   usage="<role_name> [emoji|masterrole] [color]",
-                  description="Creates a new role on the server with the given management data."
-                              " If an emoji is given, the role will be self-assignable by the users via reaction in the role init message."
-                              " If a master role is given, a user with the master role can add/remove the role via !role <user> add <role>."
-                              " If the role already exists, it will be added to the role management with the given data."
-                              " If role is already in the role management, the management data will be updated."
-                              " As color a color name like 'blue' can be given or a hexcode like '#0000ff'.")
+                  description="Creates a new role on the server with the given management data. If an emoji is given, "
+                              "the role will be self-assignable by the users via reaction in the role init message. "
+                              "If a master role is given, a user with the master role can add/remove the role via "
+                              "!role <user> add <role>. If the role already exists, it will be added to the role "
+                              "management with the given data. If role is already in the role management, "
+                              "the management data will be updated. As color a color name like 'blue' can be given or "
+                              "a hexcode like '#0000ff'.")
     @commands.has_any_role(*Config().FULL_ACCESS_ROLES)
     async def role_add(self, ctx, role_name, emoji_or_masterrole, color: discord.Color = None):
         emoji_str = await utils.demojize(emoji_or_masterrole, ctx)
@@ -309,13 +303,13 @@ class Plugin(BasePlugin, name="Role Management"):
             masterrole = await commands.RoleConverter().convert(ctx, emoji_or_masterrole)
             masterrole_id = masterrole.id
             emoji_str = ""
-        except:
+        except commands.CommandError:
             masterrole_id = 0
 
         if not emoji_str and masterrole_id == 0:
             try:
                 color = await commands.ColourConverter().convert(ctx, emoji_or_masterrole)
-            except:
+            except commands.CommandError:
                 color = discord.Color.default()
 
         existing_role = discord.utils.get(ctx.guild.roles, name=role_name)
@@ -352,7 +346,8 @@ class Plugin(BasePlugin, name="Role Management"):
         await utils.log_to_admin_channel(ctx)
 
     @role.command(name="request", help="Pings the corresponding master role for a role request",
-                  description="Pings the roles corresponding master role, that the executing user requests the given role.")
+                  description="Pings the roles corresponding master role, that the executing user requests the given "
+                              "role.")
     async def role_request(self, ctx, role: discord.Role):
         masterrole = None
         for configured_role in self.rc():
@@ -366,8 +361,9 @@ class Plugin(BasePlugin, name="Role Management"):
             await ctx.send(Config().lang(self, 'role_request_ping', masterrole.mention, ctx.author.mention, role.name))
 
     @role.command(name="update", help="Reads the server data and updates the role management",
-                  description="Updates the role management from server data and removes deleted roles from role management."
-                              " If a message content is given, this message will be used for the role management init message text.")
+                  description="Updates the role management from server data and removes deleted roles from role "
+                              "management. If a message content is given, this message will be used for the role "
+                              "management init message text.")
     @commands.has_any_role(*Config().FULL_ACCESS_ROLES)
     async def role_update(self, ctx, *message_content):
         if len(message_content) > 0:
