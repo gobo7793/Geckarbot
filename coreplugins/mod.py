@@ -8,9 +8,9 @@ from botutils import utils, permChecks, enums
 from Geckarbot import BasePlugin
 
 
-class Blacklist():
+class Blacklist:
     """Manage the user banlist for using the bot"""
-    
+
     def __init__(self, plugin):
         self.plugin = plugin
 
@@ -26,7 +26,7 @@ class Blacklist():
         else:
             return False
 
-    def del_user(self, user:discord.Member):
+    def del_user(self, user: discord.Member):
         """Deletes user to bot blacklist, returns True if deleted"""
         if self.is_member_on_blacklist(user):
             self.bl_conf().remove(user.id)
@@ -37,26 +37,26 @@ class Blacklist():
 
     def get_blacklist_names(self):
         """Returns the blacklisted member names"""
-        blacklisted_members = ", ".join([self.plugin.bot.get_user(id).name for id in self.bl_conf()])
+        blacklisted_members = ", ".join([self.plugin.bot.get_user(uid).name for uid in self.bl_conf()])
         return blacklisted_members
 
     def is_member_on_blacklist(self, user: discord.Member):
         """Returns if user is on bot blacklist"""
         return self.is_userid_on_blacklist(user.id)
 
-    def is_userid_on_blacklist(self, userID: int):
+    def is_userid_on_blacklist(self, userid: int):
         """Returns if user id is on bot blacklist"""
-        if userID in self.bl_conf():
+        if userid in self.bl_conf():
             return True
         else:
             return False
 
 
-class Greylist():
+class Greylist:
     """Manage the user greylist for using the bot.
     Users on greylist can't play the bot provided games on their greylist.
     """
-    
+
     def __init__(self, plugin):
         self.plugin = plugin
 
@@ -79,7 +79,7 @@ class Greylist():
         Config().save(self.plugin)
         return was_added
 
-    def remove(self, user:discord.Member, game: enums.GreylistGames = None):
+    def remove(self, user: discord.Member, game: enums.GreylistGames = None):
         """Removes the given game from users greylist.
         If game is None, all games will be removed.
         If user is not on list, None will be returned.
@@ -92,29 +92,29 @@ class Greylist():
             self.gl_conf()[user.id] = self.gl_conf()[user.id] & ~game
             was_removed = False
             if self.gl_conf()[user.id] is enums.GreylistGames.No_Game:
-                del(self.gl_conf()[user.id])
+                del (self.gl_conf()[user.id])
                 was_removed = True
         Config().save(self.plugin)
         return was_removed
 
     def get_greylist_names(self):
         """Returns the greylisted members"""
-        greylisted_members = ", ".join([self.plugin.bot.get_user(id).name for id in self.gl_conf()])
+        greylisted_members = ", ".join([self.plugin.bot.get_user(uid).name for uid in self.gl_conf()])
         return greylisted_members
 
-    def is_user_on_greylist(self, user:discord.Member, game: enums.GreylistGames):
+    def is_user_on_greylist(self, user: discord.Member, game: enums.GreylistGames):
         """Returns if user is for the given game on the greylist"""
         return self.is_userid_on_greylist(user.id, game)
 
-    def is_userid_on_greylist(self, userID: int, game: enums.GreylistGames):
+    def is_userid_on_greylist(self, userid: int, game: enums.GreylistGames):
         """Returns if user id is for the given game on the greylist"""
-        if userID in self.gl_conf():
-            if self.gl_conf()[userID] & game is not 0:
+        if userid in self.gl_conf():
+            if self.gl_conf()[userid] & game is not 0:
                 return True
         return False
 
 
-class CommandDisable():
+class CommandDisable:
     """Manage disabling commands in certain channels
     The cmds and channels will be saved as tuple:
     [0]: command [1]: channel id [2]: expiring time
@@ -148,9 +148,9 @@ class CommandDisable():
         if command.startswith("!"):
             command = command[1:]
         if hours < 1:
-            exp_time = datetime.datetime.max;
+            exp_time = datetime.datetime.max
         else:
-            exp_time = datetime.datetime.now() + datetime.timedelta(hours = hours)
+            exp_time = datetime.datetime.now() + datetime.timedelta(hours=hours)
 
         is_adding = True
         for t in self.cd_conf():
@@ -179,7 +179,7 @@ class CommandDisable():
 
         is_removing = False
         if to_remove is not None:
-            self.cd_conf().remove(t)
+            self.cd_conf().remove(to_remove)
             is_removing = True
 
         Config().save(self.plugin)
@@ -200,7 +200,6 @@ class CommandDisable():
         return True
 
 
-
 class Plugin(BasePlugin, name="Bot Management Commands"):
     """Commands for moderation"""
 
@@ -208,7 +207,7 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
         self.bot = bot
         super().__init__(bot)
         bot.register(self)
-        
+
         self.bl = Blacklist(self)
         self.gl = Greylist(self)
         self.cd = CommandDisable(self)
@@ -227,7 +226,7 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
                 'privacy_notes_link': "",
                 'privacy_notes_lang': "",
                 'profile_pic_creator': ""}
-            }
+        }
 
     ######
     # Misc commands
@@ -237,21 +236,21 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
                       description="Reloads the configuration from the given plugin."
                                   "If no plugin given, all plugin configs will be reloaded.")
     @commands.has_any_role(Config().ADMIN_ROLE_ID, Config().BOTMASTER_ROLE_ID)
-    async def reload(self, ctx, plugin_module_name = None):
+    async def reload(self, ctx, plugin_module_name=None):
         """Reloads the config of the given plugin or all if none is given"""
         await utils.log_to_admin_channel(ctx)
         if plugin_module_name is None:
             Config().load_all()
-            sendMsg = "Configuration of all plugins reloaded."
+            send_msg = "Configuration of all plugins reloaded."
         else:
-            sendMsg = f"No plugin {plugin_module_name} found."
+            send_msg = f"No plugin {plugin_module_name} found."
             for plugin in Config().plugins:
                 if plugin.module_name == plugin_module_name:
                     Config().load(plugin.instance)
-                    sendMsg = f"Configuration of plugin {plugin_module_name} reloaded."
+                    send_msg = f"Configuration of plugin {plugin_module_name} reloaded."
 
-        await ctx.send(sendMsg)
-        await utils.write_debug_channel(self.bot, sendMsg)
+        await ctx.send(send_msg)
+        await utils.write_debug_channel(self.bot, send_msg)
 
     @commands.command(name="plugins", help="List all plugins.")
     async def plugins(self, ctx):
@@ -264,11 +263,13 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
     async def about(self, ctx):
 
         about_msg = "Geckarbot {} on {}, licensed under GNU GPL v3.0. Hosted with ❤ on {} {} {}.\n".format(
-                     Config().VERSION, self.bot.guild.name, platform.system(), platform.release(), platform.version())
+            Config().VERSION, self.bot.guild.name, platform.system(), platform.release(), platform.version())
 
         if Config().get(self)['about_data']['bot_info_link']:
-            about_msg += "For general bot information on this server see <{}>.\n".format(Config().get(self)['about_data']['bot_info_link'])
-        about_msg += "Github Repository for additional information and participation: <{}>.\n".format(Config().get(self)['about_data']['repo_link'])
+            about_msg += "For general bot information on this server see <{}>.\n".format(
+                Config().get(self)['about_data']['bot_info_link'])
+        about_msg += "Github Repository for additional information and participation: <{}>.\n".format(
+            Config().get(self)['about_data']['repo_link'])
         if Config().get(self)['about_data']['privacy_notes_link']:
             lang = ""
             if Config().get(self)['about_data']['privacy_notes_lang']:
@@ -326,7 +327,6 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
             await ctx.send(f"User {user.name} removed from blacklist.")
         else:
             await ctx.send(f"User {user.name} not on blacklist.")
-            
 
     ######
     # Greylist
@@ -362,11 +362,11 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
             await ctx.send(f"**Users on Greylist:**\n{userlist}")
 
     @greylist.command(name="add", help="Add a bot game to greylist.", usage="[user] [game]",
-                      description="Adds a bot game to the greylist. " 
+                      description="Adds a bot game to the greylist. "
                                   "Users can only add a game to their own greylist, "
                                   "but mods also for other users. "
                                   "If no game is given, all games will be added.")
-    async def greylist_add(self, ctx, user_game = None, game = None):
+    async def greylist_add(self, ctx, user_game=None, game=None):
         """Adds a bot game to the greylist.
         Users can only add a game to their own greylist,
         but mods also for other users.
@@ -379,7 +379,7 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
         try:
             # Note: If member is bot itself, ClientUser type will returned
             member = await converter.convert(ctx, user_game)
-        except:
+        except commands.CommandError:
             pass
         if isinstance(member, discord.User):
             user = member
@@ -400,11 +400,11 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
             await ctx.send("User's greylist updated.")
 
     @greylist.command(name="del", help="Remove a bot game from greylist.", usage="[user] [game]",
-                      description="Removes a bot game to the greylist. " 
+                      description="Removes a bot game to the greylist. "
                                   "Users can only removes a game to their own greylist, "
                                   "but mods also for other users. "
                                   "If no game is given, all games will be removed.")
-    async def greylist_del(self, ctx, user_game = None, game = None):
+    async def greylist_del(self, ctx, user_game=None, game=None):
         """"Removes a bot game to the greylist.
         Users can only removes a game to their own greylist,
         but mods also for other users.
@@ -417,7 +417,7 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
         try:
             # Note: If member is bot itself, ClientUser type will returned
             member = await converter.convert(ctx, user_game)
-        except:
+        except commands.CommandError:
             pass
         if isinstance(member, discord.User):
             user = member
@@ -429,7 +429,7 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
         is_mod = permChecks.check_full_access(ctx.author)
         if isinstance(member, discord.User) and not is_mod:
             raise commands.MissingAnyRole([Config().ADMIN_ROLE_ID, Config().BOTMASTER_ROLE_ID])
-            
+
         game_enum = getattr(enums.GreylistGames, str(game), enums.GreylistGames.ALL)
         res = self.gl.remove(user, game_enum)
         if res is None:
@@ -438,7 +438,6 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
             await ctx.send("User removed from greylist.")
         else:
             await ctx.send("User's greylist updated.")
-            
 
     ######
     # Commands Disable/Enable
@@ -462,32 +461,33 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
                 msg_full += cmd_line
 
             await ctx.send(msg_full)
-    
+
     @commands.command(name="disable", help="Disables a command", usage="<command> <hours>",
-                       description="Disables the given command in the channel in which the disable cmd was used."
-                                   " If a positive amount of hours is given, the command will be automated reenabled after that time.")
+                      description="Disables the given command in the channel in which the disable cmd was used. If a "
+                                  "positive amount of hours is given, the command will be automated reenabled after "
+                                  "that time.")
     @commands.has_any_role(Config().ADMIN_ROLE_ID, Config().BOTMASTER_ROLE_ID)
     async def disable_cmd(self, ctx, cmd, hours: int = 0):
         await utils.log_to_admin_channel(ctx)
         result = self.cd.disable(cmd, ctx.channel, hours)
-        
+
         until_msg = ""
         if hours > 0:
-            exp_time = datetime.datetime.now() + datetime.timedelta(hours = hours)
+            exp_time = datetime.datetime.now() + datetime.timedelta(hours=hours)
             until_msg = f" until {exp_time.strftime('%d.%m.%Y, %H:%M')}"
 
         if result:
             await ctx.send(f"Command '{cmd}' disabled in this channel{until_msg}.")
         else:
             await ctx.send(f"Command '{cmd}' is already disabled in this channel.")
-    
+
     @commands.command(name="enable", help="Enables a command", usage="<command>",
-                       description="Enables the given command in the channel in which the enable cmd was used.")
+                      description="Enables the given command in the channel in which the enable cmd was used.")
     @commands.has_any_role(Config().ADMIN_ROLE_ID, Config().BOTMASTER_ROLE_ID)
     async def enable_cmd(self, ctx, cmd):
         await utils.log_to_admin_channel(ctx)
         result = self.cd.enable(cmd, ctx.channel)
-        
+
         if result is True:
             await ctx.send(f"Command '{cmd}' is now enabled in this channel.")
         else:

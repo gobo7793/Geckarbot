@@ -14,4 +14,4 @@ class GreylistGames(IntFlag):
     Bomb = 1
     Dummy = 2
     Dummy2 = 4
-    ALL =  Bomb | Dummy | Dummy2
+    ALL = Bomb | Dummy | Dummy2

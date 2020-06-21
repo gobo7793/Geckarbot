@@ -1,11 +1,8 @@
 import os
-import sys
 import json
-import datetime
 import logging
-import pathlib
 import pkgutil
-from botutils import jsonUtils, enums
+from botutils import jsonUtils
 
 
 class _Singleton(type):
@@ -53,7 +50,7 @@ class Config(metaclass=_Singleton):
     # Init
     ######
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self):
         self.plugins = []
 
     def load_bot(self):
@@ -87,7 +84,7 @@ class Config(metaclass=_Singleton):
             with open(f"{self.CONFIG_DIR}/{file_name}.json", "w") as f:
                 json.dump(config_data, f, cls=jsonUtils.Encoder, indent=4)
                 return True
-        except:
+        except (OSError, InterruptedError, OverflowError, ValueError, TypeError):
             logging.error(f"Error writing config file {self.CONFIG_DIR}/{file_name}.json")
             return False
 
@@ -99,9 +96,9 @@ class Config(metaclass=_Singleton):
         else:
             try:
                 with open(f"{self.CONFIG_DIR}/{file_name}.json", "r") as f:
-                    jsondata = json.load(f, cls=jsonUtils.Decoder)#object_hook=jsonUtils.decoder_obj_hook)
+                    jsondata = json.load(f, cls=jsonUtils.Decoder)
                     return jsondata
-            except:
+            except (OSError, InterruptedError, json.JSONDecodeError):
                 logging.error(f"Error reading {self.CONFIG_DIR}/{file_name}.json.")
                 return None
 
@@ -152,12 +149,10 @@ class Config(metaclass=_Singleton):
     def load_all(self):
         """Loads the config of all registered plugins. If config of a
         plugin can't be loaded, its default config will be used as config."""
-        return_value = True
         for plugin_slot in self.plugins:
             loaded = self._read_config_file(plugin_slot.name)
             if loaded is None:
                 loaded = plugin_slot.instance.default_config()
-                return_value = False
             plugin_slot.config = loaded
 
     ######
@@ -180,11 +175,10 @@ class Config(metaclass=_Singleton):
         :param plugin: The plugin instance
         :param str_name: The name of the returning string.
             If not available for current language, an empty string will be returned.
-        :param *args: The strings to insert into the returning string via format()
+        :param args: The strings to insert into the returning string via format()
         """
         for plugin_slot in self.plugins:
             if plugin_slot.instance is plugin:
-                lang_code = self.LANGUAGE_CODE
                 if self.LANGUAGE_CODE in plugin_slot.lang:
                     lang_code = self.LANGUAGE_CODE
                 else:

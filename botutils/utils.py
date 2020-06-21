@@ -1,4 +1,3 @@
-import pytz
 import discord
 import datetime
 import emoji
@@ -14,6 +13,7 @@ class HasAlreadyRun(Exception):
     """
     Is raised by AsyncTimer if cancel() comes too late
     """
+
     def __init__(self, callback):
         super().__init__("Timer callback has already run, callback was {}".format(callback))
 
@@ -99,9 +99,10 @@ def clear_link(link):
 def convert_to_local_time(timestamp):
     """
     Converts the given timestamp from UTC to local time
-    :param datetime: The datetime instance of the timestamp
+    :param timestamp: The datetime instance of the timestamp
     """
     return timestamp.replace(tzinfo=datetime.timezone.utc).astimezone(tz=None)
+
 
 async def emojize(demote_str, ctx):
     """
@@ -112,9 +113,10 @@ async def emojize(demote_str, ctx):
     """
     try:
         emote = await discord.ext.commands.PartialEmojiConverter().convert(ctx, demote_str)
-    except:
+    except discord.ext.commands.CommandError:
         emote = emoji.emojize(demote_str, True)
     return str(emote)
+
 
 async def demojize(emote, ctx):
     """
@@ -123,10 +125,9 @@ async def demojize(emote, ctx):
     :param ctx: The command context for the discord.py emoji converters
     :return: The demojized string or an empty string if no emoji found
     """
-    converted = ""
     try:
         converted = await discord.ext.commands.PartialEmojiConverter().convert(ctx, emote)
-    except:
+    except discord.ext.commands.CommandError:
         converted = emoji.demojize(emote, True)
     return str(converted)
 
@@ -150,22 +151,26 @@ async def write_admin_channel(bot: Bot, message):
         else:
             await admin_chan.send(message)
 
+
 async def log_to_admin_channel_without_ctx(bot, **kwargs):
     """
     Logs the kwargs as embed fileds to the admin channel
     Doesn't log if Config().DEBUG_MODE is True.
-    :param context: the key-value-list for the fields
+    :param bot: the bot instance
+    :param kwargs: the key-value-list for the fields
     """
-    if Config().DEBUG_MODE == True:
+    if Config().DEBUG_MODE:
         return
 
     timestamp = convert_to_local_time(datetime.datetime.now()).strftime('%d.%m.%Y, %H:%M')
 
     embed = discord.Embed(title="Admin log event")
+    embed.add_field(name="Timestamp", value=timestamp)
     for key, value in kwargs.items():
         embed.add_field(name=str(key), value=str(value))
 
     await write_admin_channel(bot, embed)
+
 
 async def log_to_admin_channel(context):
     """
@@ -174,7 +179,7 @@ async def log_to_admin_channel(context):
     Doesn't log if Config().DEBUG_MODE is True.
     :param context: The context to log to the admin channel
     """
-    if Config().DEBUG_MODE == True:
+    if Config().DEBUG_MODE:
         return
 
     timestamp = convert_to_local_time(context.message.created_at).strftime('%d.%m.%Y, %H:%M')

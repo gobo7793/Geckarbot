@@ -20,5 +20,5 @@ def check_full_access(user: discord.Member):
     """
     for role in user.roles:
         if role.id in Config().FULL_ACCESS_ROLES:
-           return True
+            return True
     return False

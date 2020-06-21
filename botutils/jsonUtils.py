@@ -2,7 +2,6 @@ import json
 import datetime
 import dateutil.parser
 
-
 CONVERTERS = {
     'datetime': dateutil.parser.parse
 }
@@ -15,7 +14,8 @@ class Encoder(json.JSONEncoder):
         if isinstance(obj, datetime.datetime):
             return {"val": obj.isoformat(), "_spec_type": "datetime"}
         else:
-            return super().default(self, obj)
+            return super().default(obj)
+
 
 class Decoder(json.JSONDecoder):
     def decode(self, s):
@@ -29,14 +29,14 @@ class Decoder(json.JSONDecoder):
             except ValueError:
                 return o
         elif isinstance(o, dict):
-                _spec_type = o.get('_spec_type')
-                if not _spec_type:
-                    return {self._decode(k): self._decode(v) for k, v in o.items()}
+            _spec_type = o.get('_spec_type')
+            if not _spec_type:
+                return {self._decode(k): self._decode(v) for k, v in o.items()}
 
-                if _spec_type in CONVERTERS:
-                    return CONVERTERS[_spec_type](o['val'])
-                else:
-                    raise Exception('Unknown {}'.format(_spec_type))
+            if _spec_type in CONVERTERS:
+                return CONVERTERS[_spec_type](o['val'])
+            else:
+                raise Exception('Unknown {}'.format(_spec_type))
         elif isinstance(o, list):
             return [self._decode(v) for v in o]
         else:
