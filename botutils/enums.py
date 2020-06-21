@@ -7,7 +7,15 @@ class DscState(IntEnum):
     Voting = 1
     Sign_up = 2
 
-
+class FantasyState(IntEnum):
+    """Fantasy states"""
+    NA = 0
+    Sign_up = 1 
+    Predraft = 2
+    Preseason = 3
+    Regular = 4
+    Postseason = 5
+    
 class GreylistGames(IntFlag):
     """Greylist supported bot games"""
     No_Game = 0
