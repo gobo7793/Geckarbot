@@ -11,13 +11,14 @@ import discord
 from discord.ext import commands
 
 import Geckarbot
+from conf import Config
 from botutils import restclient, utils, permChecks, statemachine
 
 jsonify = {
     "timeout": 20,  # answering timeout in minutes; not impl yet TODO
     "timeout_warning": 2,  # warning time before timeout in minutes
-    "questions_limit": 50,
-    "questions_default": 20,
+    "questions_limit": 25,
+    "questions_default": 10,
     "default_category": -1,
     "question_cooldown": 5,
     "channel_blacklist": [],
@@ -66,6 +67,12 @@ msg_defaults = {
     "points_question_done": "The correct answer was: {}!\n{} answered correctly.",
     "points_timeout_warning": "Waiting for answers from {}.",
     "points_timeout": "Timeout!",
+}
+
+reactions = {
+    "signup": "📋",
+    "correct": "✅",
+    "incorrect": "❌",
 }
 
 opentdb = {
@@ -389,7 +396,7 @@ class Question:
 
     async def pose(self, channel):
         logging.getLogger(__name__).debug("Posing question #{}: {}".format(self.index, self.question))
-        await channel.send(embed=self.embed())
+        return await channel.send(embed=self.embed())
 
     def embed(self):
         """
@@ -505,10 +512,42 @@ class PointsQuizController(BaseQuizController):
         """
         self.plugin.logger.debug("Starting PointsQuizController")
         self.state = Phases.REGISTERING
-        await self.channel.send(message(self.config, "registering_phase",
-                                        self.config["points_quiz_register_timeout"] // 60))
+        signup_msg = await self.channel.send(message(self.config, "registering_phase",
+                                                          self.config["points_quiz_register_timeout"] // 60))
+        await signup_msg.add_reaction(reactions["signup"])
 
         await asyncio.sleep(self.config["points_quiz_register_timeout"])
+
+        # Consume signup reactions
+        await signup_msg.remove_reaction(reactions["signup"], self.plugin.bot.user)
+        signup_msg = discord.utils.get(self.plugin.bot.cached_messages, id=signup_msg.id)
+        reaction = None
+        print(signup_msg.reactions)
+        for el in signup_msg.reactions:
+            print(el.emoji)
+            if el.emoji == reactions["signup"]:
+                reaction = el
+                break
+
+        print(reaction)
+
+        if reaction is not None:
+            async for user in reaction.users():
+                print(user)
+                if user == self.plugin.bot.user:
+                    continue
+
+                found = False
+                for el in self.registered_participants:
+                    if el == user:
+                        found = True
+                        break
+                if found:
+                    # User already registered via !kwiss register
+                    continue
+
+                self.registered_participants[user] = None
+
         if len(self.registered_participants) == 0:
             self.state = Phases.ABORT
         else:
@@ -547,7 +586,7 @@ class PointsQuizController(BaseQuizController):
 
         self.current_question_timer = utils.AsyncTimer(self.plugin.bot, self.config["points_quiz_question_timeout"],
                                                        self.timeout_warning, self.current_question)
-        await self.current_question.pose(self.channel)
+        msg = await self.current_question.pose(self.channel)
 
     async def eval(self):
         """
@@ -712,7 +751,8 @@ class PointsQuizController(BaseQuizController):
         self.score.add_participant(msg.author)
         self.plugin.logger.debug("{} registered".format(msg.author.name))
         print("participants after reg: {}".format(self.registered_participants))
-        await self.channel.send(message(self.config, "register_success", msg.author))
+        await msg.add_reaction(Config().CMDSUCCESS)
+        # await self.channel.send(message(self.config, "register_success", msg.author))
 
     async def pause(self):
         """
@@ -901,8 +941,10 @@ class RushQuizController(BaseQuizController):
             check = self.quizapi.current_question().check_answer(msg.content)
             if check:
                 checks = "correct"
+                await msg.add_reaction(reactions["correct"])
             else:
                 checks = "incorrect"
+                await msg.add_reaction(reactions["incorrect"])
             self.plugin.logger.debug("Valid answer from {}: {} ({})".format(msg.author.name, msg.content, checks))
         except InvalidAnswer:
             print("Invalid answer")

@@ -71,7 +71,7 @@ class Plugin(BasePlugin, name="Testing and debug things"):
             return
         self.timers[ctx.message.author] = AsyncTimer(self.bot, timespan, self.reminder_callback, ctx.message, " ".join(message))
         await ctx.message.channel.send(
-            "Have fun doing other things. Don't panic, I will remind you in {} {}.".format(duration, timespan_unit))
+            "I will remind you in {} {}.".format(duration, timespan_unit))
 
     async def reminder_callback(self, message, remindtext):
         await message.channel.send("{} This is a reminder for {}!".format(message.author.mention, remindtext))
