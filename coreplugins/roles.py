@@ -94,7 +94,7 @@ class Plugin(BasePlugin, name="Role Management"):
     """
     Role Management Plugin.
     Config format for roles:
-    key: role_id, value: ([0]: emoji str representation, [1]: master_role_id)
+    key: role_id, value: {emoji: emoji str representation, masterrole: master_role_id}
     """
 
     def __init__(self, bot):
@@ -105,14 +105,6 @@ class Plugin(BasePlugin, name="Role Management"):
         async def on_ready():
             if self.has_init_msg_set():
                 bot.reaction_listener.register(await self.get_init_msg(), self.update_reaction_based_user_role)
-
-        # @bot.listen()
-        # async def on_raw_reaction_add(payload):
-        #     await self.update_reaction_based_user_role(payload, True)
-        #
-        # @bot.listen()
-        # async def on_raw_reaction_remove(payload):
-        #     await self.update_reaction_based_user_role(payload, False)
 
     def default_config(self):
         return {
@@ -154,10 +146,10 @@ class Plugin(BasePlugin, name="Role Management"):
             emote_msg = ""
             masterrole_msg = ""
 
-            if self.rc()[rid][0]:
-                emote_msg = Config().lang(self, 'init_reaction', await utils.emojize(self.rc()[rid][0], ctx))
-            if self.rc()[rid][1] != 0:
-                masterrole = discord.utils.get(server_roles, id=self.rc()[rid][1])
+            if self.rc()[rid]['emoji']:
+                emote_msg = Config().lang(self, 'init_reaction', await utils.emojize(self.rc()[rid]['emoji'], ctx))
+            if self.rc()[rid]['masterrole'] != 0:
+                masterrole = discord.utils.get(server_roles, id=self.rc()[rid]['masterrole'])
                 masterrole_msg = Config().lang(self, 'init_masterrole', masterrole.name)
 
             if emote_msg and masterrole_msg:
@@ -185,11 +177,24 @@ class Plugin(BasePlugin, name="Role Management"):
         current_server_roles = await self.bot.guild.fetch_roles()
         server_role_ids = [r.id for r in current_server_roles]
         removed_roles = deepcopy(self.rc())
+        debug = self.rc()
+        reactions_to_clear = []
         for role_in_config in self.rc():
             if role_in_config in server_role_ids:
                 del (removed_roles[role_in_config])
+                # update emojis and master roles
+                if self.rc()[role_in_config]['masterrole'] not in server_role_ids:
+                    self.rc()[role_in_config]['masterrole'] = 0
+                if self.rc()[role_in_config]['emoji'] and emoji.emoji_count(emoji.emojize(self.rc()[role_in_config]['emoji'], True)) < 1:
+                    for e in self.bot.emojis:
+                        if str(e) == self.rc()[role_in_config]['emoji']:
+                            break
+                    else:
+                        reactions_to_clear.append(self.rc()[role_in_config]['emoji'])
+                        self.rc()[role_in_config]['emoji'] = ""
 
         for role_to_remove in removed_roles:
+            reactions_to_clear.append(self.rc()[role_to_remove]['emoji'])
             del (self.rc()[role_to_remove])
 
         # update message
@@ -206,17 +211,13 @@ class Plugin(BasePlugin, name="Role Management"):
             self.bot.reaction_listener.register(message, self.update_reaction_based_user_role)
 
         # remove reactions from old roles
-        for removed_role in removed_roles:
-            if removed_roles[removed_role][0] is not None:
-                emoji_id = removed_roles[removed_role][0]
-                if not emoji_id:
-                    continue
-                emote = await utils.emojize(emoji_id, ctx)
-                await message.clear_reaction(emote)
+        for reaction in reactions_to_clear:
+            reaction = emoji.emojize(reaction, True)
+            await message.clear_reaction(reaction)
 
         # add reactions for new roles
         for role_config in self.rc():
-            emoji_id = self.rc()[role_config][0]
+            emoji_id = self.rc()[role_config]['emoji']
             if not emoji_id:
                 continue
             emote = await utils.emojize(emoji_id, ctx)
@@ -230,11 +231,14 @@ class Plugin(BasePlugin, name="Role Management"):
         :param event: The BaseReactionEvent data
         """
 
+        if event.user == self.bot.user:
+            return
+
         emoji_str = emoji.demojize(str(event.emoji), True)
         update_type = ""
         has_role_update = False
         for configured_role in self.rc():
-            configured_emoji = self.rc()[configured_role][0]
+            configured_emoji = self.rc()[configured_role]['emoji']
             if configured_emoji == emoji_str:
                 role = discord.utils.get(self.bot.guild.roles, id=configured_role)
                 if isinstance(event, reactions.ReactionAddedEvent) and role not in event.member.roles:
@@ -263,7 +267,7 @@ class Plugin(BasePlugin, name="Role Management"):
             if role.id not in self.rc():
                 raise commands.CheckFailure(message=Config().lang(self, 'role_user_not_configured'))
 
-            need_master_role_id = self.rc()[role.id][1]
+            need_master_role_id = self.rc()[role.id]['masterrole']
             if need_master_role_id is None or need_master_role_id == 0:
                 raise commands.CheckFailure(message=Config().lang(self, 'role_user_no_masterrole', role.name))
 
@@ -316,23 +320,22 @@ class Plugin(BasePlugin, name="Role Management"):
         if existing_role is not None:
             if existing_role.id in self.rc():
                 # Update role data
-                if not emoji_str:
-                    emoji_str = self.rc()[existing_role.id][0]
-                if masterrole_id == 0:
-                    masterrole_id = self.rc()[existing_role.id][1]
-                self.rc()[existing_role.id] = (emoji_str, masterrole_id)
+                if emoji_str:
+                    self.rc()[existing_role.id]['emoji'] = emoji_str
+                if masterrole_id != 0:
+                    self.rc()[existing_role.id]['masterrole'] = masterrole_id
                 await self.update_role_management(ctx)
                 await ctx.send(Config().lang(self, 'role_add_updated', role_name))
             else:
                 # role exists on server, but not in config, add it there
-                self.rc()[existing_role.id] = (emoji_str, masterrole_id)
+                self.rc()[existing_role.id] = {'emoji': emoji_str, 'masterrole': masterrole_id}
                 await self.update_role_management(ctx)
                 await ctx.send(Config().lang(self, 'role_add_config', role_name))
             return
 
         # Execute role add
         new_role = await RoleManagement.add_server_role(ctx.guild, role_name, color)
-        self.rc()[new_role.id] = (emoji_str, masterrole_id)
+        self.rc()[new_role.id] = {'emoji': emoji_str, 'masterrole': masterrole_id}
         await self.update_role_management(ctx)
         await ctx.send(Config().lang(self, 'role_add_created', role_name, color))
         await utils.log_to_admin_channel(ctx)
@@ -352,7 +355,7 @@ class Plugin(BasePlugin, name="Role Management"):
         masterrole = None
         for configured_role in self.rc():
             if configured_role == role.id:
-                masterrole = discord.utils.get(ctx.guild.roles, id=self.rc()[configured_role][1])
+                masterrole = discord.utils.get(ctx.guild.roles, id=self.rc()[configured_role]['masterrole'])
                 break
 
         if masterrole is None:

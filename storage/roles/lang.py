@@ -13,7 +13,7 @@ lang = {
         'role_user_bad_arg': "I don't know that move, I only know add or del for argument action.",
         'role_add_updated': "I was to lazy to create a new role with the name {}, so I updated the existing.",
         'role_add_config': "I was to lazy to create a new role with the name {} on the server, so I just added it to my own role list.",
-        'role_add_created': "My trainer was to lazy to train me how to validate, but the role {} should be created with color {} now.",
+        'role_add_created': "My trainer was to lazy to train me how to validate, but the role {} with color {} should be created now.",
         'role_del': "My trainer was to lazy to train me how to validate, but the role {} should be deleted now.",
         'role_request_no_masterrole': "Sorry, but I can't find a master role for {} :frowning:",
         'role_request_ping': "Hey {}, the user {} requests the role {}!",
