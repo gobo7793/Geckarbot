@@ -61,6 +61,22 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
 
         await ctx.send(status_msg)
 
+    @dsc.command(name="archiv", help="Get infomation about the DSC Winners")
+    async def dsc_archiv(self, ctx):
+        """Returns Information about the DSC Winners"""
+
+        embed = discord.Embed(title=self.dsc_lang('archiv_info'))
+        embed.add_field(name=self.dsc_lang('archiv_1'), value=self.dsc_lang('sieger_1'))
+        embed.add_field(name=self.dsc_lang('archiv_2'), value=self.dsc_lang('sieger_2'))
+        embed.add_field(name=self.dsc_lang('archiv_3'), value=self.dsc_lang('sieger_3'))
+        embed.add_field(name=self.dsc_lang('archiv_4'), value=self.dsc_lang('sieger_4'))
+        embed.add_field(name=self.dsc_lang('archiv_5'), value=self.dsc_lang('sieger_5'))
+        embed.add_field(name=self.dsc_lang('archiv_6'), value=self.dsc_lang('sieger_6'))
+        embed.add_field(name=self.dsc_lang('archiv_7'), value=self.dsc_lang('sieger_7'))
+        embed.add_field(name=self.dsc_lang('archiv_8'), value=self.dsc_lang('sieger_8'))
+        embed.add_field(name=self.dsc_lang('archiv_9'), value=self.dsc_lang('sieger_9'))
+        await ctx.send(embed=embed)
+
     @dsc.command(name="info", help="Get informations about current DSC")
     async def dsc_info(self, ctx):
         """Returns basic infos about next/current DSC"""

@@ -32,8 +32,8 @@ SHUTDOWNCODE = 0
 UPDATECODE = 10
 
 lang = {
-    "version": "I am Geckarbot {}.",
-    "no_new_version": "There is no new version. I seem to be up to date!",
+    "version": "I am {}. arr!",
+    "no_new_version": "You can't kill a pirate! arrrr!",
     "new_version": "There is a new version that I could update to: {}! Am I going to be dispensed of now?",
     "new_version_update": "A new version is available: {}! Please don't !replace me :cry:",
     "wont_update": "There is no new version to update to.",
