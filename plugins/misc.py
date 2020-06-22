@@ -12,7 +12,6 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
         super().__init__(bot)
         bot.register(self)
 
-
     @commands.command(name="dice", brief="Simulates rolling dice.",
                       usage="[NumberOfSides] [NumberOfDices]")
     async def dice(self, ctx, number_of_sides: int = 6, number_of_dice: int = 1):
@@ -39,11 +38,11 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
     @commands.command(name="ping", help="Pings the bot.")
     async def ping(self, ctx):
         await ctx.send(Config().lang(self, 'ping_out'))
-        
+
     @commands.command(name="mud", brief="Pings the bot.")
     async def mud(self, ctx):
         await ctx.send(Config().lang(self, 'mud_out'))
-        
+
     @commands.command(name="mudkip", brief="MUDKIP!")
     async def mudkip(self, ctx):
         await ctx.send(Config().lang(self, 'mudkip_out'))

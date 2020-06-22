@@ -34,8 +34,8 @@ async def build_reaction_event(bot, payload, action, message=None):
         assert False
 
     # Get objects from IDs
-    user = bot.guild.get_member(payload.user_id)
-    member = bot.get_user(payload.user_id)
+    member = bot.guild.get_member(payload.user_id)
+    user = bot.get_user(payload.user_id)
     channel = bot.get_channel(payload.channel_id)
     if message is None:
         message = await channel.fetch_message(payload.message_id)

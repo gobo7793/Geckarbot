@@ -35,7 +35,6 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
     def dsc_lang(self, str_name, *args):
         return Config().lang(self, str_name, *args)
 
-
     @commands.group(name="dsc", help="Get and manage informations about current DSC",
                     description="Get the informations about the current dsc or manage it. "
                                 "Command only works in music channel. "
@@ -64,29 +63,29 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
     @dsc.command(name="info", help="Get informations about current DSC")
     async def dsc_info(self, ctx):
         """Returns basic infos about next/current DSC"""
-        hostNick = None
-        dateOutStr = self.dsc_lang('info_date_str', self.dsc_conf()['state_end'].strftime('%d.%m.%Y, %H:%M'))
+        host_nick = None
+        date_out_str = self.dsc_lang('info_date_str', self.dsc_conf()['state_end'].strftime('%d.%m.%Y, %H:%M'))
         if not self.dsc_conf()['host_id']:
             await ctx.send(self.dsc_lang('must_set_host'))
         else:
-            hostNick = discord.utils.get(ctx.guild.members, id=self.dsc_conf()['host_id']).mention
+            host_nick = discord.utils.get(ctx.guild.members, id=self.dsc_conf()['host_id']).mention
 
         if self.dsc_conf()['state'] == DscState.Sign_up:
             if self.dsc_conf()['state_end'] > datetime.now():
-                dateOutStr = self.dsc_lang('info_date_str', self.dsc_conf()['state_end'].strftime('%d.%m.%Y'))
+                date_out_str = self.dsc_lang('info_date_str', self.dsc_conf()['state_end'].strftime('%d.%m.%Y'))
             else:
-                dateOutStr = ""
+                date_out_str = ""
 
-            embed = discord.Embed(title=self.dsc_lang('signup_phase_info', dateOutStr))
-            embed.add_field(name=self.dsc_lang('current_host'), value=hostNick)
+            embed = discord.Embed(title=self.dsc_lang('signup_phase_info', date_out_str))
+            embed.add_field(name=self.dsc_lang('current_host'), value=host_nick)
             embed.add_field(name=self.dsc_lang('sign_up'), value=self.dsc_conf()['contestdoc_link'])
             if self.dsc_conf()['status']:
                 embed.description = self.dsc_conf()['status']
             await ctx.send(embed=embed)
 
         elif self.dsc_conf()['state'] == DscState.Voting:
-            embed = discord.Embed(title=self.dsc_lang('voting_phase_info', dateOutStr))
-            embed.add_field(name=self.dsc_lang('current_host'), value=hostNick)
+            embed = discord.Embed(title=self.dsc_lang('voting_phase_info', date_out_str))
+            embed.add_field(name=self.dsc_lang('current_host'), value=host_nick)
             embed.add_field(name=self.dsc_lang('all_songs'), value=self.dsc_conf()['contestdoc_link'])
             embed.add_field(name=self.dsc_lang('yt_playlist'), value=self.dsc_conf()['yt_link'])
             if self.dsc_conf()['status']:
@@ -97,7 +96,7 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
             await ctx.send(self.dsc_lang('config_error_reset'))
             embed = discord.Embed(title=self.dsc_lang('config_error'))
             embed.add_field(name="Host ID", value=str(self.dsc_conf()['host_id']))
-            embed.add_field(name="Host Nick", value=hostNick)
+            embed.add_field(name="Host Nick", value=host_nick)
             embed.add_field(name="State", value=str(self.dsc_conf()['state']))
             embed.add_field(name="YT Link", value=str(self.dsc_conf()['yt_link']))
             embed.add_field(name="State End", value=str(self.dsc_conf()['state_end']))
@@ -125,7 +124,7 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
         state_str = state_str[state_str.find(".") + 1:].replace("_", " ")
         Config().save(self)
         await ctx.send(self.dsc_lang('phase_set', state_str))
-        
+
     @dsc_set.command(name="state", help="Sets the current DSC state (Voting/Sign up)",
                      usage="<voting|signup>")
     async def dsc_set_state(self, ctx, state):
@@ -148,11 +147,11 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
     @dsc_set.command(name="date", help="Sets the registration/voting end date", usage="DD.MM.YYYY [HH:MM]",
                      description="Sets the end date and time for registration and voting phase. "
                                  "If no time is given, 23:59 will be used.")
-    async def dsc_set_state_end(self, ctx, dateStr, timeStr=None):
+    async def dsc_set_state_end(self, ctx, date_str, time_str=None):
         """Sets the end date (and time) of the current DSC state"""
-        if not timeStr:
-            timeStr = "23:59"
-        self.dsc_conf()['state_end'] = datetime.strptime(f"{dateStr} {timeStr}","%d.%m.%Y %H:%M")
+        if not time_str:
+            time_str = "23:59"
+        self.dsc_conf()['state_end'] = datetime.strptime(f"{date_str} {time_str}", "%d.%m.%Y %H:%M")
         Config().save(self)
         await ctx.send(self.dsc_lang('state_end_set'))
 
