@@ -13,7 +13,8 @@ from pathlib import Path
 from discord.ext import commands
 
 from conf import Config, PluginSlot
-from botutils import utils, reactions
+from botutils import utils
+from subsystems import timers, reactions
 
 
 class Exitcodes(Enum):
@@ -54,6 +55,7 @@ class Geckarbot(commands.Bot):
         super().__init__(*args, **kwargs)
 
         self.reaction_listener = reactions.ReactionListener(self)
+        self.timers = timers.Mothership(self)
 
     def register(self, plugin_class):
         print(isinstance(plugin_class, BasePlugin))  # todo figure out why this is False

@@ -6,7 +6,8 @@ from discord.ext import commands
 
 from Geckarbot import BasePlugin
 from conf import Config
-from botutils import utils, permChecks, reactions
+from botutils import utils, permChecks
+from subsystems import reactions
 
 
 class RoleManagement:
