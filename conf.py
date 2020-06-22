@@ -40,7 +40,7 @@ class Config(metaclass=_Singleton):
     # Basic bot info
     ######
 
-    VERSION = "Dannys Piratenbot 1.3.1.41"
+    VERSION = "1.3.1"
     CONFIG_DIR = "config"
     PLUGIN_DIR = "plugins"
     CORE_PLUGIN_DIR = "coreplugins"

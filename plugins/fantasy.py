@@ -11,7 +11,7 @@ from Geckarbot import BasePlugin
 class Plugin(BasePlugin, name="NFL Fantasyliga"):
     """Commands for the Fantasy game"""
 
-    fantasymaster_role_id = 721178888050573352
+    fantasymaster_role_id = 0
 
     def __init__(self, bot):
         self.bot = bot
@@ -62,6 +62,7 @@ class Plugin(BasePlugin, name="NFL Fantasyliga"):
             status_msg = self.fantasy_lang('status_base', self.fantasy_lang('status_none'))
 
         await ctx.send(status_msg)
+
 
     @fantasy.command(name="info", help="Get informations about the NFL Fantasy Game")
     async def fantasy_info(self, ctx):

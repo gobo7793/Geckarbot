@@ -257,10 +257,10 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
     async def about(self, ctx):
         about = (f"Geckarbot {Config().VERSION} on {self.bot.guild.name}, licensed under GNU GPL v3.0.\n"
                  "For general bot informations see <https://discordapp.com/channels/706125113250283551/706903946689642496/720622192231972936>. "
-                 "Github Repository for additional information and participation: <https://github.com/Danny41/Geckarbot/>.\n"
-                 "Main developer: Danny, Tannido, El Taniela!. "
+                 "Github Repository for additional information and participation: <https://github.com/gobo7793/Geckarbot/>.\n"
+                 "Main developer: Fluggs, Gobo77, Lubadubs. "
                  "Profile picture by @DjMuffinTops.\n"
-                 "Special thanks to no-one. You suck!"
+                 "Special thanks to all contributors!"
                  )
         await ctx.send(about)
 
