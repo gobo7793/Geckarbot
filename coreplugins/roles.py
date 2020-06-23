@@ -259,6 +259,7 @@ class Plugin(BasePlugin, name="Role Management"):
                                                             'role': role.mention})
 
     @commands.group(name="role", invoke_without_command=True, help="Adds or removes the role to/from users roles",
+                    usage="<user> <add|del> <role>",
                     description="Adds or removes the role to or from users roles."
                                 " Only usable for users with corresponding master role."
                                 " Mods can add/remove all roles including roles which aren't in the role management.")
