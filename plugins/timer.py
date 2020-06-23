@@ -53,13 +53,13 @@ class Plugin(BasePlugin, name="Testing and debug things"):
             self.timers[ctx.message.author].cancel()
             return
         elif duration.endswith("s"):
-            duration = duration[:1]
+            duration = duration[:-1]
         elif duration.endswith("m"):
-            duration = duration[:1]
+            duration = duration[:-1]
             sec_multiplicator = 60
             timespan_unit = "minutes"
         elif duration.endswith("h"):
-            duration = duration[:1]
+            duration = duration[:-1]
             sec_multiplicator = 3600
             timespan_unit = "hours"
 
