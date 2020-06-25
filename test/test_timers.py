@@ -28,3 +28,9 @@ def test_cron_alg():
     msg = "date is {}-{}-{}, should be {}-{}-{}".format(testdate.year, testdate.month, testdate.day,
                                                         fr13year, fr13month, 13)
     assert testdate.year == fr13year and testdate.month == fr13month and testdate.day == 13, msg
+
+    # Check for a year in the future
+    year = today.year + 2
+    timedict = {"year": year, "monthday": 13, "weekday": 5}
+    testdate = timers.next_occurence(timers.normalize_td(timedict))
+    assert testdate.year == year
