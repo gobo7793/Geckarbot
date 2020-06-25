@@ -181,7 +181,7 @@ def main():
             elif isinstance(error, commands.errors.NoPrivateMessage):
                 await ctx.send("Command can't be executed in private messages.")
             elif isinstance(error, commands.errors.CheckFailure):
-                return
+                await ctx.send("Permission error.")
 
             # User input errors
             elif isinstance(error, commands.errors.MissingRequiredArgument):

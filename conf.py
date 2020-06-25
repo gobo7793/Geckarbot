@@ -37,7 +37,7 @@ class Config(metaclass=_Singleton):
     # Basic bot info
     ######
 
-    VERSION = "1.3.4"
+    VERSION = "1.4.1"
     CONFIG_DIR = "config"
     PLUGIN_DIR = "plugins"
     CORE_PLUGIN_DIR = "coreplugins"
@@ -66,13 +66,12 @@ class Config(metaclass=_Singleton):
             self.ADMIN_CHAN_ID = self.CHAN_IDS.get('admin', 0)
             self.DEBUG_CHAN_ID = self.CHAN_IDS.get('bot-interna', 0)
             self.ADMIN_ROLE_ID = self.ROLE_IDS.get('admin', 0)
-            self.TECH_ROLE_ID = self.ROLE_IDS.get('tech', 0)
             self.BOTMASTER_ROLE_ID = self.ROLE_IDS.get('botmaster', 0)
 
             self.DEBUG_MODE = bot_data.get('DEBUG_MODE', False)
             self.DEBUG_WHITELIST = bot_data.get('DEBUG_WHITELIST', [])
 
-            self.FULL_ACCESS_ROLES = [self.ADMIN_ROLE_ID, self.TECH_ROLE_ID, self.BOTMASTER_ROLE_ID]
+            self.FULL_ACCESS_ROLES = [self.ADMIN_ROLE_ID, self.BOTMASTER_ROLE_ID]
 
     ######
     # Read/Write config files

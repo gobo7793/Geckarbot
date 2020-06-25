@@ -95,7 +95,7 @@ class Plugin(BasePlugin, name="Role Management"):
     """
     Role Management Plugin.
     Config format for roles:
-    key: role_id, value: {emoji: emoji str representation, masterrole: master_role_id}
+    key: role_id, value: {emoji: emoji str representation, modrole: mod_role_id}
     """
 
     def __init__(self, bot):
@@ -136,7 +136,7 @@ class Plugin(BasePlugin, name="Role Management"):
     async def create_message_text(self, server_roles, ctx):
         """
         Returns the message text for the role manage init message
-        including the reactions and master roles for the roles
+        including the reactions and mod roles for the roles
         :param server_roles: the roles on the server
         :param ctx: The context of the used command to create the new message
         """
@@ -145,20 +145,20 @@ class Plugin(BasePlugin, name="Role Management"):
         for rid in self.rc():
             role = discord.utils.get(server_roles, id=rid)
             emote_msg = ""
-            masterrole_msg = ""
+            modrole_msg = ""
 
             if self.rc()[rid]['emoji']:
                 emote_msg = Config().lang(self, 'init_reaction', await utils.emojize(self.rc()[rid]['emoji'], ctx))
-            if self.rc()[rid]['masterrole'] != 0:
-                masterrole = discord.utils.get(server_roles, id=self.rc()[rid]['masterrole'])
-                masterrole_msg = Config().lang(self, 'init_masterrole', masterrole.name)
+            if self.rc()[rid]['modrole'] != 0:
+                modrole = discord.utils.get(server_roles, id=self.rc()[rid]['modrole'])
+                modrole_msg = Config().lang(self, 'init_modrole', modrole.name)
 
-            if emote_msg and masterrole_msg:
-                todo_part = "{}, {}".format(emote_msg, masterrole_msg)
+            if emote_msg and modrole_msg:
+                todo_part = "{}, {}".format(emote_msg, modrole_msg)
             elif emote_msg:
                 todo_part = emote_msg
-            elif masterrole_msg:
-                todo_part = masterrole_msg
+            elif modrole_msg:
+                todo_part = modrole_msg
             else:
                 todo_part = Config().lang(self, 'init_admin')
 
@@ -183,10 +183,11 @@ class Plugin(BasePlugin, name="Role Management"):
         for role_in_config in self.rc():
             if role_in_config in server_role_ids:
                 del (removed_roles[role_in_config])
-                # update emojis and master roles
-                if self.rc()[role_in_config]['masterrole'] not in server_role_ids:
-                    self.rc()[role_in_config]['masterrole'] = 0
-                if self.rc()[role_in_config]['emoji'] and emoji.emoji_count(emoji.emojize(self.rc()[role_in_config]['emoji'], True)) < 1:
+                # update emojis and mod roles
+                if self.rc()[role_in_config]['modrole'] not in server_role_ids:
+                    self.rc()[role_in_config]['modrole'] = 0
+                if (self.rc()[role_in_config]['emoji']
+                        and emoji.emoji_count(emoji.emojize(self.rc()[role_in_config]['emoji'], True)) < 1):
                     for e in self.bot.emojis:
                         if str(e) == self.rc()[role_in_config]['emoji']:
                             break
@@ -260,20 +261,21 @@ class Plugin(BasePlugin, name="Role Management"):
                                                             'role': role.mention})
 
     @commands.group(name="role", invoke_without_command=True, help="Adds or removes the role to/from users roles",
+                    usage="<user> <add|del> <role>",
                     description="Adds or removes the role to or from users roles."
-                                " Only usable for users with corresponding master role."
-                                " Mods can add/remove all roles including roles which aren't in the role management.")
+                                " Only usable for users with corresponding mod role."
+                                " Admins can add/remove all roles including roles which aren't in the role management.")
     async def role(self, ctx, user: discord.Member, action, role: discord.Role):
         if not permChecks.check_full_access(ctx.author):
             if role.id not in self.rc():
                 raise commands.CheckFailure(message=Config().lang(self, 'role_user_not_configured'))
 
-            need_master_role_id = self.rc()[role.id]['masterrole']
-            if need_master_role_id is None or need_master_role_id == 0:
-                raise commands.CheckFailure(message=Config().lang(self, 'role_user_no_masterrole', role.name))
+            need_mod_role_id = self.rc()[role.id]['modrole']
+            if need_mod_role_id is None or need_mod_role_id == 0:
+                raise commands.CheckFailure(message=Config().lang(self, 'role_user_no_modrole', role.name))
 
-            if need_master_role_id not in [r.id for r in ctx.author.roles]:
-                raise commands.MissingRole(need_master_role_id)
+            if need_mod_role_id not in [r.id for r in ctx.author.roles]:
+                raise commands.MissingRole(need_mod_role_id)
 
         if action.lower() == "add":
             if role in user.roles:
@@ -293,27 +295,27 @@ class Plugin(BasePlugin, name="Role Management"):
         await utils.log_to_admin_channel(ctx)
 
     @role.command(name="add", help="Creates a new role or updates its management data",
-                  usage="<role_name> [emoji|masterrole] [color]",
+                  usage="<role_name> [emoji|modrole] [color]",
                   description="Creates a new role on the server with the given management data. If an emoji is given, "
                               "the role will be self-assignable by the users via reaction in the role init message. "
-                              "If a master role is given, a user with the master role can add/remove the role via "
+                              "If a mod role is given, a user with the mod role can add/remove the role via "
                               "!role <user> add <role>. If the role already exists, it will be added to the role "
                               "management with the given data. If role is already in the role management, "
                               "the management data will be updated. As color a color name like 'blue' can be given or "
                               "a hexcode like '#0000ff'.")
     @commands.has_any_role(*Config().FULL_ACCESS_ROLES)
-    async def role_add(self, ctx, role_name, emoji_or_masterrole, color: discord.Color = None):
-        emoji_str = await utils.demojize(emoji_or_masterrole, ctx)
+    async def role_add(self, ctx, role_name, emoji_or_modrole, color: discord.Color = None):
+        emoji_str = await utils.demojize(emoji_or_modrole, ctx)
         try:
-            masterrole = await commands.RoleConverter().convert(ctx, emoji_or_masterrole)
-            masterrole_id = masterrole.id
+            modrole = await commands.RoleConverter().convert(ctx, emoji_or_modrole)
+            modrole_id = modrole.id
             emoji_str = ""
         except commands.CommandError:
-            masterrole_id = 0
+            modrole_id = 0
 
-        if not emoji_str and masterrole_id == 0:
+        if not emoji_str and modrole_id == 0:
             try:
-                color = await commands.ColourConverter().convert(ctx, emoji_or_masterrole)
+                color = await commands.ColourConverter().convert(ctx, emoji_or_modrole)
             except commands.CommandError:
                 color = discord.Color.default()
 
@@ -323,20 +325,20 @@ class Plugin(BasePlugin, name="Role Management"):
                 # Update role data
                 if emoji_str:
                     self.rc()[existing_role.id]['emoji'] = emoji_str
-                if masterrole_id != 0:
-                    self.rc()[existing_role.id]['masterrole'] = masterrole_id
+                if modrole_id != 0:
+                    self.rc()[existing_role.id]['modrole'] = modrole_id
                 await self.update_role_management(ctx)
                 await ctx.send(Config().lang(self, 'role_add_updated', role_name))
             else:
                 # role exists on server, but not in config, add it there
-                self.rc()[existing_role.id] = {'emoji': emoji_str, 'masterrole': masterrole_id}
+                self.rc()[existing_role.id] = {'emoji': emoji_str, 'modrole': modrole_id}
                 await self.update_role_management(ctx)
                 await ctx.send(Config().lang(self, 'role_add_config', role_name))
             return
 
         # Execute role add
         new_role = await RoleManagement.add_server_role(ctx.guild, role_name, color)
-        self.rc()[new_role.id] = {'emoji': emoji_str, 'masterrole': masterrole_id}
+        self.rc()[new_role.id] = {'emoji': emoji_str, 'modrole': modrole_id}
         await self.update_role_management(ctx)
         await ctx.send(Config().lang(self, 'role_add_created', role_name, color))
         await utils.log_to_admin_channel(ctx)
@@ -349,20 +351,20 @@ class Plugin(BasePlugin, name="Role Management"):
         await ctx.send(Config().lang(self, 'role_del', role.name))
         await utils.log_to_admin_channel(ctx)
 
-    @role.command(name="request", help="Pings the corresponding master role for a role request",
-                  description="Pings the roles corresponding master role, that the executing user requests the given "
+    @role.command(name="request", help="Pings the corresponding mod role for a role request",
+                  description="Pings the roles corresponding mod role, that the executing user requests the given "
                               "role.")
     async def role_request(self, ctx, role: discord.Role):
-        masterrole = None
+        modrole = None
         for configured_role in self.rc():
             if configured_role == role.id:
-                masterrole = discord.utils.get(ctx.guild.roles, id=self.rc()[configured_role]['masterrole'])
+                modrole = discord.utils.get(ctx.guild.roles, id=self.rc()[configured_role]['modrole'])
                 break
 
-        if masterrole is None:
-            await ctx.send(Config().lang(self, 'role_request_no_masterrole', role.name))
+        if modrole is None:
+            await ctx.send(Config().lang(self, 'role_request_no_modrole', role.name))
         else:
-            await ctx.send(Config().lang(self, 'role_request_ping', masterrole.mention, ctx.author.mention, role.name))
+            await ctx.send(Config().lang(self, 'role_request_ping', modrole.mention, ctx.author.mention, role.name))
 
     @role.command(name="update", help="Reads the server data and updates the role management",
                   description="Updates the role management from server data and removes deleted roles from role "
