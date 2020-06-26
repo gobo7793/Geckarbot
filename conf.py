@@ -149,10 +149,11 @@ class Config(metaclass=_Singleton):
         """Loads the config of all registered plugins. If config of a
         plugin can't be loaded, its default config will be used as config."""
         for plugin_slot in self.plugins:
-            loaded = self._read_config_file(plugin_slot.name)
-            if loaded is None:
-                loaded = plugin_slot.instance.default_config()
-            plugin_slot.config = loaded
+            if plugin_slot.instance.can_reload:
+                loaded = self._read_config_file(plugin_slot.name)
+                if loaded is None:
+                    loaded = plugin_slot.instance.default_config()
+                plugin_slot.config = loaded
 
     ######
     # Lang/Strings/Resources

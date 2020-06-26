@@ -100,6 +100,7 @@ class Plugin(BasePlugin, name="Role Management"):
 
     def __init__(self, bot):
         super().__init__(bot)
+        self.can_reload = True
         bot.register(self)
 
         @bot.listen()

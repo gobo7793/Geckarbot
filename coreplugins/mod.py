@@ -204,8 +204,8 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
     """Commands for moderation"""
 
     def __init__(self, bot):
-        self.bot = bot
         super().__init__(bot)
+        self.can_reload = True
         bot.register(self)
 
         self.bl = Blacklist(self)
@@ -236,18 +236,18 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
                       description="Reloads the configuration from the given plugin."
                                   "If no plugin given, all plugin configs will be reloaded.")
     @commands.has_any_role(Config().ADMIN_ROLE_ID, Config().BOTMASTER_ROLE_ID)
-    async def reload(self, ctx, plugin_module_name=None):
+    async def reload(self, ctx, plugin_name=None):
         """Reloads the config of the given plugin or all if none is given"""
         await utils.log_to_admin_channel(ctx)
-        if plugin_module_name is None:
+        if plugin_name is None:
             Config().load_all()
             send_msg = "Configuration of all plugins reloaded."
         else:
-            send_msg = f"No plugin {plugin_module_name} found."
+            send_msg = f"No plugin {plugin_name} found."
             for plugin in Config().plugins:
-                if plugin.module_name == plugin_module_name:
+                if plugin.name == plugin_name and plugin.instance.can_reload:
                     Config().load(plugin.instance)
-                    send_msg = f"Configuration of plugin {plugin_module_name} reloaded."
+                    send_msg = f"Configuration of plugin {plugin_name} reloaded."
 
         await ctx.send(send_msg)
         await utils.write_debug_channel(self.bot, send_msg)
