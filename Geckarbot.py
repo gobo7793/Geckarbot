@@ -14,6 +14,7 @@ from discord.ext import commands
 
 from conf import Config, PluginSlot
 from botutils import utils
+from subsystems import timers, reactions
 
 
 class Exitcodes(Enum):
@@ -50,7 +51,11 @@ class Geckarbot(commands.Bot):
         self.geck_cogs = []
         self.guild = None
         self.plugins = None
+
         super().__init__(*args, **kwargs)
+
+        self.reaction_listener = reactions.ReactionListener(self)
+        self.timers = timers.Mothership(self)
 
     def register(self, plugin_class):
         print(isinstance(plugin_class, BasePlugin))  # todo figure out why this is False
@@ -176,15 +181,17 @@ def main():
             elif isinstance(error, commands.errors.NoPrivateMessage):
                 await ctx.send("Command can't be executed in private messages.")
             elif isinstance(error, commands.errors.CheckFailure):
-                return
+                await ctx.send("Permission error.")
 
             # User input errors
             elif isinstance(error, commands.errors.MissingRequiredArgument):
-                await ctx.send("Required argument missing.")
+                await ctx.send("Required argument missing: {}".format(error.param))
             elif isinstance(error, commands.errors.TooManyArguments):
                 await ctx.send("Too many arguments given.")
+            elif isinstance(error, commands.errors.BadArgument):
+                await ctx.send("Error on given argument: {}".format(error))
             elif isinstance(error, commands.errors.UserInputError):
-                await ctx.send("Wrong user input format.")
+                await ctx.send("Wrong user input format: {}".format(error))
             else:
                 # error handling
                 embed = discord.Embed(title=':x: Command Error', colour=0xe74c3c)  # Red
