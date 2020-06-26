@@ -249,7 +249,8 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
                     Config().load(plugin.instance)
                     send_msg = f"Configuration of plugin {plugin_name} reloaded."
 
-        await ctx.send(send_msg)
+        if ctx.channel.id != Config().DEBUG_CHAN_ID:
+            await ctx.send(send_msg)
         await utils.write_debug_channel(self.bot, send_msg)
 
     @commands.command(name="plugins", help="List all plugins.")
