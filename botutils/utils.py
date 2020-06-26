@@ -184,7 +184,10 @@ async def log_to_admin_channel(context):
 
     timestamp = convert_to_local_time(context.message.created_at).strftime('%d.%m.%Y, %H:%M')
 
-    embed = discord.Embed(title=context.message.clean_content)
+    message_content = context.message.clean_content
+    if len(message_content) > 256:
+        message_content = "{}...".format(message_content[:253])
+    embed = discord.Embed(title=message_content)
     embed.add_field(name="User", value=context.author.mention)
     embed.add_field(name="Channel", value=context.channel.mention)
     embed.add_field(name="Timestamp", value=timestamp)
