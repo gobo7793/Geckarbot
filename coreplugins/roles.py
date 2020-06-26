@@ -320,7 +320,10 @@ class Plugin(BasePlugin, name="Role Management"):
             except commands.CommandError:
                 color = discord.Color.default()
 
-        existing_role = discord.utils.get(ctx.guild.roles, name=role_name)
+        try:
+            existing_role = await commands.RoleConverter().convert(ctx, role_name)
+        except commands.CommandError:
+            existing_role = None
         if existing_role is not None:
             if existing_role.id in self.rc():
                 # Update role data
@@ -350,6 +353,14 @@ class Plugin(BasePlugin, name="Role Management"):
         await RoleManagement.remove_server_role(ctx.guild, role)
         await self.update_role_management(ctx)
         await ctx.send(Config().lang(self, 'role_del', role.name))
+        await utils.log_to_admin_channel(ctx)
+
+    @role.command(name="untrack", help="Removes the role from the role management, but not from server")
+    @commands.has_any_role(*Config().FULL_ACCESS_ROLES)
+    async def role_del(self, ctx, role: discord.Role):
+        del(self.rc()[role.id])
+        await self.update_role_management(ctx)
+        await ctx.send(Config().lang(self, 'role_untrack', role.name))
         await utils.log_to_admin_channel(ctx)
 
     @role.command(name="request", help="Pings the corresponding mod role for a role request",
