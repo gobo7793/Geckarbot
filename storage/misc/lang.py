@@ -21,12 +21,11 @@ lang = {
         'tippspiel_output': "Hier ist der Link für die Stände (bitte auf den Spieltag achten!) sowie das "
                             "Tippspiel-Archiv: "
                             "https://docs.google.com/spreadsheets/d/1mSDrTqdcOSOuvR9Y9hMzuEx1X9puaUVuqs7yp6Ju6_M/ ",
-        'remind_set': "Have fun doing other things. Don't panic, I will remind you at {}. If you want to cancel it, "
-                      "here's the reminder id: {}.",
+        'remind_set': "I will remind you at {}. If you want to cancel it, here's the reminder id: {}.",
         'remind_duration_err': "Duration must be a date and time or a number",
-        'remind_del': "Phew, I'm glad, I don't must remind you anymore...",
+        'remind_del': "I don't remind you anymore.",
         'remind_del_id_err': "ID must be a number",
-        'remind_wrong_del': "Sorry, but I won't let you do this, this isn't your reminder.",
+        'remind_wrong_del': "Sorry, but this isn't your reminder.",
         'remind_callback': "{}, this is a reminder{}!",
         'remind_callback_msg': " for {}",
 
