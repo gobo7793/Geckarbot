@@ -1,12 +1,9 @@
-import asyncio
 import sys
-import logging
 
 from discord.ext import commands
-from botutils.utils import AsyncTimer, get_best_username
+from botutils.utils import get_best_username
 from subsystems.reactions import ReactionAddedEvent, ReactionRemovedEvent
-from subsystems.timers import timedict
-import discord
+
 
 from Geckarbot import BasePlugin
 

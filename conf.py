@@ -46,7 +46,39 @@ class Config(metaclass=_Singleton):
 
     BOT_CONFIG_FILE = "geckarbot"
 
-    CMDSUCCESS = "✅"
+    # Random Emoji collection
+    EMOJI = {
+        "success": "✅",
+        "lettermap": [
+            "🇦",  # a
+            "🇧",  # b
+            "🇨",  # c
+            "🇩",  # d
+            "🇪",  # e
+            "🇫",  # f
+            "🇬",  # g
+            "🇭",  # h
+            "🇮",  # i
+            "🇯",  # j
+            "🇰",  # k
+            "🇱",  # l
+            "🇲",  # m
+            "🇳",  # n
+            "🇴",  # o
+            "🇵",  # p
+            "🇶",  # q
+            "🇷",  # r
+            "🇸",  # s
+            "🇹",  # t
+            "🇺",  # u
+            "🇻",  # v
+            "🇼",  # w
+            "🇽",  # x
+            "🇾",  # y
+            "🇿",  # z
+        ],
+    }
+    CMDSUCCESS = EMOJI["success"]
 
     ######
     # Init
