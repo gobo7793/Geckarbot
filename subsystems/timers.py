@@ -2,10 +2,11 @@ from copy import deepcopy
 from calendar import monthrange
 from threading import Thread, Lock
 from time import sleep
-import datetime
+import sys
+import asyncio
 import logging
 import warnings
-import asyncio
+import datetime
 
 
 timedictformat = ["year", "month", "monthday", "weekday", "hour", "minute"]
@@ -33,8 +34,9 @@ class Mothership(Thread):
 
     def run(self):
         while True:
-            if self._shutdown:
-                break
+            if self._shutdown is not None:
+                self.logger.info("Shutting down timer thread.")
+                sys.exit(self._shutdown)
             with self._lock:
                 self.logger.debug("Tick")
                 # Handle registrations
@@ -97,8 +99,9 @@ class Mothership(Thread):
         self._to_register.append(job)
         return job
 
-    def shutdown(self):
-        self._shutdown = True
+    def shutdown(self, exitcode):
+        self.logger.debug("Thread shutdown has been requested.")
+        self._shutdown = exitcode
 
 
 class Job:
