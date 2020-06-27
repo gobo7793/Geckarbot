@@ -383,13 +383,13 @@ class Plugin(Geckarbot.BasePlugin, name="Bot updating system"):
         await ctx.send(lang["version"].format(Config().VERSION))
 
     @commands.command(name="restart", help="Restarts the bot.")
-    @commands.has_any_role(*Config().BOTMASTER_ROLE_ID)
+    @commands.has_any_role(Config().BOTMASTER_ROLE_ID)
     async def restart(self, ctx):
         await ctx.message.add_reaction(Config().CMDSUCCESS)
         await self.bot.shutdown(Geckarbot.Exitcodes.RESTART)  # This signals the runscript
 
     @commands.command(name="shutdown", help="Stops the bot.")
-    @commands.has_any_role(*Config().BOTMASTER_ROLE_ID)
+    @commands.has_any_role(Config().BOTMASTER_ROLE_ID)
     async def shutdown(self, ctx):
         await ctx.message.add_reaction(Config().CMDSUCCESS)
         await self.bot.shutdown(Geckarbot.Exitcodes.SUCCESS)  # This signals the runscript

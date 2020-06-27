@@ -78,7 +78,7 @@ class Config(metaclass=_Singleton):
             "🇿",  # z
         ],
     }
-    CMDSUCCESS = EMOJI["lettermap"]["success"]
+    CMDSUCCESS = EMOJI["success"]
 
     ######
     # Init
