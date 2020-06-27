@@ -23,7 +23,7 @@ class Mothership(Thread):
     def __init__(self, bot, launch_immediately=True):
         super().__init__()
         self.bot = bot
-        self._jobs = []
+        self.jobs = []
         self._to_register = []
         self._lock = Lock()
         self._shutdown = False
@@ -48,7 +48,7 @@ class Mothership(Thread):
                 now = datetime.datetime.now()
                 executed = []
                 todel = []
-                for el in self._jobs:
+                for el in self.jobs:
                     if (el.next_execution() - now).total_seconds() < 60:
                         try:
                             el.execute()
@@ -58,10 +58,10 @@ class Mothership(Thread):
                     else:
                         break
                 for el in executed:
-                    self._jobs.remove(el)
+                    self.jobs.remove(el)
                     self._to_register.append(el)
                 for el in todel:
-                    self._jobs.remove(el)
+                    self.jobs.remove(el)
 
             tts = 60 - datetime.datetime.now().second + 1
             sleep(tts)
@@ -72,18 +72,18 @@ class Mothership(Thread):
         """
         nexto = job.next_execution()
         found = False
-        for i in range(len(self._jobs)):
-            if self._jobs[i].next_execution() > nexto:
+        for i in range(len(self.jobs)):
+            if self.jobs[i].next_execution() > nexto:
                 found = True
-                self._jobs.insert(i, job)
+                self.jobs.insert(i, job)
                 break
         if not found:
-            self._jobs.append(job)
+            self.jobs.append(job)
 
     def cancel(self, job):
         with self._lock:
             try:
-                self._jobs.remove(job)
+                self.jobs.remove(job)
             except KeyError:
                 warnings.warn("Cancelled job not found.")  # todo stacktrace
 

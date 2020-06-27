@@ -36,6 +36,12 @@ jsonify = {
     }
 }
 
+reactions = {
+    "signup": "📋",
+    "correct": "✅",
+    "incorrect": "❌",
+}
+
 msg_defaults = {
     "and": "and",
     "nobody": "Nobody",
@@ -59,7 +65,8 @@ msg_defaults = {
     "too_many_arguments": "Too many arguments.",
     "invalid_argument": "Invalid argument: {}",
     "answering_order": "{}: Please let someone else answer first.",
-    "registering_phase": "Please register for the upcoming kwiss via !kwiss register. I will wait {} minute.",
+    "registering_phase": "Please register for the upcoming kwiss via a {} reaction. I will wait {} minute."
+                         .format(reactions["signup"], "{}"),
     "registering_too_late": "{}: Sorry, too late. The kwiss has already begun.",
     "register_success": "{}: You're in!",
     "quiz_phase": "The kwiss will begin in 10 seconds!",
@@ -69,12 +76,6 @@ msg_defaults = {
     "points_timeout_warning": "Waiting for answers from {}. You have {} seconds!",
     "points_timeout": "Timeout!",
     "status_no_quiz": "There is no kwiss running in this channel.",
-}
-
-reactions = {
-    "signup": "📋",
-    "correct": "✅",
-    "incorrect": "❌",
 }
 
 opentdb = {

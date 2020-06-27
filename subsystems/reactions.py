@@ -54,7 +54,7 @@ class Callback:
         self.listener.unregister(self)
 
     def __str__(self):
-        return "<reactions.Callback; coro: {}; msg: {}>".format(self.coro, self.msg)
+        return "<reactions.Callback; coro: {}; msg: {}>".format(self.coro, self.message)
 
 
 class ReactionListener:
