@@ -1,6 +1,6 @@
 lang = {
     'en': {
-        'kicker_title': "Kicker.de-Tabellenlinks",
+        'kicker_title': "Kicker.de-Links",
         'kicker_1BL': "Bundesliga",
         'kicker_1BL_link': "https://www.kicker.de/1-bundesliga/spieltag",
         'kicker_2BL': "2. Bundesliga",
@@ -8,9 +8,9 @@ lang = {
         'kicker_3FL': "3. Liga",
         'kicker_3FL_link': "https://www.kicker.de/3-liga/spieltag",
         'kicker_ATBL': "AT-Bundesliga",
-        'kicker_ATBL_link': ("https://www.kicker.de/tipp3-bundesliga/spieltag\n"
-                             "https://www.kicker.de/meistergruppe-oesterreich-fb-1/spieltag/\n"
-                             "https://www.kicker.de/qualifikationsgruppe-oesterreich-fb-1/spieltag/"),
+        'kicker_ATBL_link': "https://www.kicker.de/tipp3-bundesliga/spieltag\n"
+                            "https://www.kicker.de/meistergruppe-oesterreich-fb-1/spieltag/\n"
+                            "https://www.kicker.de/qualifikationsgruppe-oesterreich-fb-1/spieltag/",
         'ping_out': "Pong!",
         'mud_out': "Kip!",
         'mudkip_out': "https://www.youtube.com/watch?v=3DkqMjfqqPc",
@@ -18,7 +18,17 @@ lang = {
         'tree_out': "cko!",
         'geck_out': "arbor!",
         'liebe_out': "https://www.youtube.com/watch?v=TfmJPDmaQdg",
-        'tippspiel_output': "Hier ist der Link für die Stände (bitte auf den Spieltag achten!) sowie das Tippspiel-Archiv: https://docs.google.com/spreadsheets/d/1mSDrTqdcOSOuvR9Y9hMzuEx1X9puaUVuqs7yp6Ju6_M/"
-        
+        'tippspiel_output': "Hier ist der Link für die Stände (bitte auf den Spieltag achten!) sowie das "
+                            "Tippspiel-Archiv: "
+                            "https://docs.google.com/spreadsheets/d/1mSDrTqdcOSOuvR9Y9hMzuEx1X9puaUVuqs7yp6Ju6_M/ ",
+        'remind_set': "Have fun doing other things. Don't panic, I will remind you at {}. If you want to cancel it, "
+                      "here's the reminder id: {}.",
+        'remind_duration_err': "Duration must be a date and time or a number",
+        'remind_del': "Phew, I'm glad, I don't must remind you anymore...",
+        'remind_del_id_err': "ID must be a number",
+        'remind_wrong_del': "Sorry, but I won't let you do this, this isn't your reminder.",
+        'remind_callback': "{}, this is a reminder{}!",
+        'remind_callback_msg': " for {}",
+
         }
     }
