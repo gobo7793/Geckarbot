@@ -25,6 +25,7 @@ class Mothership(Thread):
         self.bot = bot
         self.jobs = []
         self._to_register = []
+        self._to_cancel = []
         self._lock = Lock()
         self._shutdown = False
         self.logger = logging.getLogger(__name__)
@@ -43,6 +44,12 @@ class Mothership(Thread):
                 for el in self._to_register:
                     self.insert_job(el)
                 self._to_register = []
+
+                # Handle cancellations
+                for el in self._to_cancel:
+                    if el in self.jobs:
+                        self.jobs.remove(el)
+                self._to_cancel = []
 
                 # Handle executions
                 now = datetime.datetime.now()
@@ -81,11 +88,7 @@ class Mothership(Thread):
             self.jobs.append(job)
 
     def cancel(self, job):
-        with self._lock:
-            try:
-                self.jobs.remove(job)
-            except KeyError:
-                warnings.warn("Cancelled job not found.")  # todo stacktrace
+        self._to_cancel.append(job)
 
     def schedule(self, coro, td, repeat=True):
         """
@@ -125,13 +128,10 @@ class Job:
     def cancelled(self):
         return self._cancelled
 
-    def cancel(self, lockless=False):
+    def cancel(self):
         self._mothership.logger.debug("Cancelling {}".format(self))
         self._cancelled = True
-        if lockless:
-            self._mothership.cancel(self)
-        else:
-            self._mothership.cancel_lockless(self)
+        self._mothership.cancel(self)
 
     def execute(self):
         """
@@ -151,7 +151,7 @@ class Job:
         asyncio.run_coroutine_threadsafe(self._coro(self), self._mothership.bot.loop)
 
         if not self._repeat:
-            self.cancel(lockless=True)
+            self.cancel()
 
     def next_execution(self):
         return self._cached_next_exec
