@@ -24,8 +24,8 @@ class Exitcodes(Enum):
     SUCCESS = 0  # regular shutdown, doesn't come back up
     ERROR = 1  # some generic error
     HTTP = 2  # no connection to discord
-    RESTART = 10  # simple restart
-    UPDATE = 11  # shutdown, update, restart
+    UPDATE = 10  # shutdown, update, restart
+    RESTART = 11  # simple restart
 
 
 class BasePlugin(commands.Cog):
@@ -102,7 +102,14 @@ class Geckarbot(commands.Bot):
         return r
 
     async def shutdown(self, status):
-        sys.exit(status.value())
+        try:
+            status = status.value
+        except AttributeError:
+            pass
+        self.timers.shutdown(status)
+        logging.info("Shutting down.")
+        logging.debug("Exit code: {}".format(status))
+        sys.exit(status)
 
 
 def logging_setup():
