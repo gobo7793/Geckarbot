@@ -387,14 +387,24 @@ class Question:
         self.all_answers.append(correct_answer)
         random.shuffle(self.all_answers)
 
-    @classmethod
-    def letter_mapping(cls, index, reverse=False):
-        if not reverse:
-            return string.ascii_uppercase[index]
+        self._cached_emoji = None
 
-        index = index.lower()
-        for i in range(len(string.ascii_lowercase)):
-            if index == string.ascii_lowercase[i]:
+    def letter_mapping(self, index, emoji=False, reverse=False):
+        if not reverse:
+            if emoji:
+                return self.emoji_map[index]
+            else:
+                return string.ascii_uppercase[index]
+
+        # Reverse
+        if emoji:
+            haystack = self.emoji_map
+        else:
+            index = index.lower()
+            haystack = string.ascii_lowercase
+
+        for i in range(len(haystack)):
+            if index == haystack[i]:
                 return i
         return None
 
@@ -414,14 +424,15 @@ class Question:
         embed.add_field(name="Possible answers:", value=value)
         return embed
 
-    def answers_mc(self):
+    def answers_mc(self, emoji=False):
         """
+        :param emoji: If True, uses unicode emoji letters instead of regular uppercase letters
         :return: Generator for possible answers in a multiple-choice-fashion, e.g. "A: Jupiter"
         """
         for i in range(len(self.all_answers)):
-            yield "**{}:** {}".format(Question.letter_mapping(i), self.all_answers[i])
+            yield "**{}:** {}".format(self.letter_mapping(i, emoji=emoji), self.all_answers[i])
 
-    def check_answer(self, answer):
+    def check_answer(self, answer, emoji=False):
         """
         Called to check the answer to the most recent question that was retrieved via qet_question().
         :return: True if this is the first occurence of the correct answer, False otherwise
@@ -430,7 +441,7 @@ class Question:
             return False
 
         answer = answer.strip().lower()
-        i = Question.letter_mapping(answer, reverse=True)
+        i = self.letter_mapping(answer, emoji=emoji, reverse=True)
 
         if i is None:
             raise InvalidAnswer()
@@ -438,6 +449,18 @@ class Question:
             return True
         else:
             return False
+
+    @property
+    def emoji_map(self):
+        if self._cached_emoji is None:
+            self._cached_emoji = Config().EMOJI["lettermap"][:len(self.all_answers)]
+        return self._cached_emoji
+
+    def is_valid_emoji(self, emoji):
+        for el in self.emoji_map:
+            if el == emoji:
+                return True
+        return False
 
 
 class Phases(Enum):
