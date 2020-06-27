@@ -2,7 +2,6 @@ import string
 import logging
 import traceback
 import os
-import sys
 import asyncio
 from enum import Enum
 
@@ -28,8 +27,6 @@ ENDPOINT = "repos/{}/{}/releases".format(OWNER, REPO)
 # these values are coordinated with runscript.sh
 TAGFILE = ".update"
 ERRORCODE = "FAILURE"
-SHUTDOWNCODE = 0
-UPDATECODE = 10
 
 lang = {
     "version": "I am Geckarbot {}.",
@@ -286,7 +283,7 @@ class Plugin(Geckarbot.BasePlugin, name="Bot updating system"):
         await self.bot.close()
         with open(TAGFILE, "w") as f:
             f.write(tag)
-        sys.exit(UPDATECODE)  # This signals the runscript
+        await self.bot.shutdown(Geckarbot.Exitcodes.UPDATE)  # This signals the runscript
 
     def get_releases(self):
         r = self.client.make_request(ENDPOINT)
@@ -385,6 +382,18 @@ class Plugin(Geckarbot.BasePlugin, name="Bot updating system"):
         """Returns the version"""
         await ctx.send(lang["version"].format(Config().VERSION))
 
+    @commands.command(name="restart", help="Restarts the bot.")
+    @commands.has_any_role(*Config().BOTMASTER_ROLE_ID)
+    async def restart(self, ctx):
+        await ctx.message.add_reaction(Config().CMDSUCCESS)
+        await self.bot.shutdown(Geckarbot.Exitcodes.RESTART)  # This signals the runscript
+
+    @commands.command(name="shutdown", help="Stops the bot.")
+    @commands.has_any_role(*Config().BOTMASTER_ROLE_ID)
+    async def shutdown(self, ctx):
+        await ctx.message.add_reaction(Config().CMDSUCCESS)
+        await self.bot.shutdown(Geckarbot.Exitcodes.SUCCESS)  # This signals the runscript
+
     @commands.command(name="replace", help="Confirms an !update command.")
     async def confirm(self, ctx):
         # Check if there is an update request running
@@ -398,16 +407,18 @@ class Plugin(Geckarbot.BasePlugin, name="Bot updating system"):
             return
 
         await utils.log_to_admin_channel(self.to_log)
+        await ctx.message.add_reaction(Config().CMDSUCCESS)
         self.to_log = None
         self.state = State.CONFIRMED
 
-    @commands.command(name="update", help="Updates the bot if an update is available",# usage="[check]",
+    @commands.command(name="update", help="Updates the bot if an update is available",
                       description="Updates the Bot to the newest version (if available)."
-                                   " This includes a shutdown, so be careful.")
-    async def update(self, ctx, check = None):
+                                  " This includes a shutdown, so be careful.")
+    async def update(self, ctx, check=None):
         # Argument parsing
         if not permChecks.check_full_access(ctx.author) or check == "check":
             release = self.check_release()
+            await ctx.message.add_reaction(Config().CMDSUCCESS)
             if release is None:
                 await ctx.message.channel.send(lang["no_new_version"])
             else:
@@ -433,6 +444,7 @@ class Plugin(Geckarbot.BasePlugin, name="Bot updating system"):
             await ctx.message.channel.send(lang["wont_update"])
             self.state = State.IDLE
             return
+        await ctx.message.add_reaction(Config().CMDSUCCESS)
         await ctx.message.channel.send(lang["new_version_update"].format(release))
 
         # Ask for confirmation

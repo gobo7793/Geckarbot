@@ -46,6 +46,8 @@ class Config(metaclass=_Singleton):
 
     BOT_CONFIG_FILE = "geckarbot"
 
+    CMDSUCCESS = "✅"
+
     ######
     # Init
     ######
