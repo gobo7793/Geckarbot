@@ -186,7 +186,8 @@ class Plugin(BasePlugin, name="Feedback"):
                 await ctx.message.channel.send("Unexpected argument structure; expected !redact or !redact del #")
                 return
             del self.complaints[i]
-            await ctx.send(lang['complaint_removed'].format(i))
+            # await ctx.send(lang['complaint_removed'].format(i))
+            await ctx.message.add_reaction(Config().CMDSUCCESS)
             self.write()
             return
 
@@ -208,5 +209,7 @@ class Plugin(BasePlugin, name="Feedback"):
         msg = ctx.message
         complaint = Complaint.from_message(self, msg)
         self.complaints[complaint.id] = complaint
-        await msg.channel.send(lang["complaint_received"])
+        print(Config().CMDSUCCESS)
+        await ctx.message.add_reaction(Config().CMDSUCCESS)
+        # await msg.channel.send(lang["complaint_received"])
         self.write()

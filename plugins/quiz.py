@@ -11,13 +11,15 @@ import discord
 from discord.ext import commands
 
 import Geckarbot
+from conf import Config
 from botutils import restclient, utils, permChecks, statemachine
+from subsystems.reactions import ReactionAddedEvent, ReactionRemovedEvent
 
 jsonify = {
     "timeout": 20,  # answering timeout in minutes; not impl yet TODO
     "timeout_warning": 2,  # warning time before timeout in minutes
-    "questions_limit": 50,
-    "questions_default": 20,
+    "questions_limit": 25,
+    "questions_default": 10,
     "default_category": -1,
     "question_cooldown": 5,
     "channel_blacklist": [],
@@ -32,6 +34,12 @@ jsonify = {
         706129915405271123: "music",
         706130284252364811: "computer",
     }
+}
+
+reactions = {
+    "signup": "📋",
+    "correct": "✅",
+    "incorrect": "❌",
 }
 
 msg_defaults = {
@@ -57,15 +65,17 @@ msg_defaults = {
     "too_many_arguments": "Too many arguments.",
     "invalid_argument": "Invalid argument: {}",
     "answering_order": "{}: Please let someone else answer first.",
-    "registering_phase": "Please register for the upcoming kwiss via !kwiss register. I will wait {} minute.",
+    "registering_phase": "Please register for the upcoming kwiss via a {} reaction. I will wait {} minute."
+                         .format(reactions["signup"], "{}"),
     "registering_too_late": "{}: Sorry, too late. The kwiss has already begun.",
     "register_success": "{}: You're in!",
     "quiz_phase": "The kwiss will begin in 10 seconds!",
     "already_registered": "{}: Dude, I got it. Don't worry.",
     "no_pause_while_registering": "{}: Nope, not now.",
     "points_question_done": "The correct answer was: {}!\n{} answered correctly.",
-    "points_timeout_warning": "Waiting for answers from {}.",
+    "points_timeout_warning": "Waiting for answers from {}. You have {} seconds!",
     "points_timeout": "Timeout!",
+    "status_no_quiz": "There is no kwiss running in this channel.",
 }
 
 opentdb = {
@@ -317,7 +327,7 @@ class Score:
                 assert False
         return r
 
-    def embed(self):
+    def embed(self, end=False):
         embed = discord.Embed(title="Score:")
 
         ladder = self.ladder()
@@ -335,7 +345,10 @@ class Score:
             i += 1
 
         if len(ladder) == 0:
-            embed.add_field(name="Nobody has scored yet!", value="")
+            if end:
+                embed.add_field(name="Nobody has scored!", value=" ")
+            else:
+                embed.add_field(name="**#1** Geckarbot", value="I won! :)")
 
         return embed
 
@@ -376,20 +389,40 @@ class Question:
         self.all_answers.append(correct_answer)
         random.shuffle(self.all_answers)
 
-    @classmethod
-    def letter_mapping(cls, index, reverse=False):
-        if not reverse:
-            return string.ascii_uppercase[index]
+        self._cached_emoji = None
+        self.message = None
 
-        index = index.lower()
-        for i in range(len(string.ascii_lowercase)):
-            if index == string.ascii_lowercase[i]:
+    def letter_mapping(self, index, emoji=False, reverse=False):
+        if not reverse:
+            if emoji:
+                return self.emoji_map[index]
+            else:
+                return string.ascii_uppercase[index]
+
+        # Reverse
+        if emoji:
+            haystack = self.emoji_map
+        else:
+            index = index.lower()
+            haystack = string.ascii_lowercase
+        print("Haystack: {}".format(haystack))
+
+        for i in range(len(haystack)):
+            msg = "Comparing {}, {}".format(index, haystack[i])
+            print(msg.encode("utf-8"))
+            if str(index) == str(haystack[i]):
+                # if "{}".format(index) == "{}".format(haystack[i]):
                 return i
         return None
 
-    async def pose(self, channel):
+    async def pose(self, channel, emoji=False):
         logging.getLogger(__name__).debug("Posing question #{}: {}".format(self.index, self.question))
-        await channel.send(embed=self.embed())
+        msg = await channel.send(embed=self.embed())
+        if emoji:
+            for i in range(len(self.all_answers)):
+                await msg.add_reaction(Config().EMOJI["lettermap"][i])  # this breaks if there are more than 26 answers
+        self.message = msg
+        return msg
 
     def embed(self):
         """
@@ -403,14 +436,15 @@ class Question:
         embed.add_field(name="Possible answers:", value=value)
         return embed
 
-    def answers_mc(self):
+    def answers_mc(self, emoji=False):
         """
+        :param emoji: If True, uses unicode emoji letters instead of regular uppercase letters
         :return: Generator for possible answers in a multiple-choice-fashion, e.g. "A: Jupiter"
         """
         for i in range(len(self.all_answers)):
-            yield "**{}:** {}".format(Question.letter_mapping(i), self.all_answers[i])
+            yield "**{}:** {}".format(self.letter_mapping(i, emoji=emoji), self.all_answers[i])
 
-    def check_answer(self, answer):
+    def check_answer(self, answer, emoji=False):
         """
         Called to check the answer to the most recent question that was retrieved via qet_question().
         :return: True if this is the first occurence of the correct answer, False otherwise
@@ -418,8 +452,9 @@ class Question:
         if answer is None:
             return False
 
-        answer = answer.strip().lower()
-        i = Question.letter_mapping(answer, reverse=True)
+        if not emoji:
+            answer = answer.strip().lower()
+        i = self.letter_mapping(answer, emoji=emoji, reverse=True)
 
         if i is None:
             raise InvalidAnswer()
@@ -427,6 +462,18 @@ class Question:
             return True
         else:
             return False
+
+    @property
+    def emoji_map(self):
+        if self._cached_emoji is None:
+            self._cached_emoji = Config().EMOJI["lettermap"][:len(self.all_answers)]
+        return self._cached_emoji
+
+    def is_valid_emoji(self, emoji):
+        for el in self.emoji_map:
+            if el == emoji:
+                return True
+        return False
 
 
 class Phases(Enum):
@@ -497,18 +544,49 @@ class PointsQuizController(BaseQuizController):
 
     """
     Transitions
-    General rule of thumb: awaits at the very end of a function
     """
     async def start_registering_phase(self):
         """
-        REGISTERING -> ABOUTTOSTART
+        REGISTERING -> ABOUTTOSTART; REGISTERING -> ABORT
         """
         self.plugin.logger.debug("Starting PointsQuizController")
         self.state = Phases.REGISTERING
-        await self.channel.send(message(self.config, "registering_phase",
-                                        self.config["points_quiz_register_timeout"] // 60))
+        signup_msg = await self.channel.send(message(self.config, "registering_phase",
+                                                     self.config["points_quiz_register_timeout"] // 60))
+        await signup_msg.add_reaction(reactions["signup"])
 
         await asyncio.sleep(self.config["points_quiz_register_timeout"])
+
+        # Consume signup reactions
+        await signup_msg.remove_reaction(reactions["signup"], self.plugin.bot.user)
+        signup_msg = discord.utils.get(self.plugin.bot.cached_messages, id=signup_msg.id)
+        reaction = None
+        print(signup_msg.reactions)
+        for el in signup_msg.reactions:
+            print(el.emoji)
+            if el.emoji == reactions["signup"]:
+                reaction = el
+                break
+
+        print(reaction)
+
+        if reaction is not None:
+            async for user in reaction.users():
+                print(user)
+                if user == self.plugin.bot.user:
+                    continue
+
+                found = False
+                for el in self.registered_participants:
+                    if el == user:
+                        found = True
+                        break
+                if found:
+                    # User already registered via !kwiss register
+                    continue
+
+                self.registered_participants[user] = None
+
         if len(self.registered_participants) == 0:
             self.state = Phases.ABORT
         else:
@@ -516,7 +594,7 @@ class PointsQuizController(BaseQuizController):
 
     async def about_to_start(self):
         """
-        ABOUTTOSTART -> QUESTION
+        ABOUTTOSTART -> QUESTION; ABOUTTOSTART -> ABORT
         """
         self.plugin.logger.debug("Ending the registering phase")
 
@@ -535,7 +613,7 @@ class PointsQuizController(BaseQuizController):
 
     async def pose_question(self):
         """
-        QUESTION -> EVAL
+        QUESTION -> EVAL; QUESTION -> END
         """
         self.plugin.logger.debug("Posing next question.")
         try:
@@ -547,7 +625,8 @@ class PointsQuizController(BaseQuizController):
 
         self.current_question_timer = utils.AsyncTimer(self.plugin.bot, self.config["points_quiz_question_timeout"],
                                                        self.timeout_warning, self.current_question)
-        await self.current_question.pose(self.channel)
+        msg = await self.current_question.pose(self.channel, emoji=True)
+        self.plugin.bot.reaction_listener.register(msg, self.on_reaction, data=self.current_question)
 
     async def eval(self):
         """
@@ -571,7 +650,7 @@ class PointsQuizController(BaseQuizController):
         # Increment scores
         correctly_answered = []
         for user in self.registered_participants:
-            if question.check_answer(self.registered_participants[user]):
+            if question.check_answer(self.registered_participants[user], emoji=True):
                 correctly_answered.append(user)
 
         for user in correctly_answered:
@@ -599,6 +678,18 @@ class PointsQuizController(BaseQuizController):
         else:
             await self.channel.send(msg, embed=embed)
 
+    async def abortphase(self):
+        self.plugin.end_quiz(self.channel)
+        if self.current_question_timer is not None:
+            try:
+                self.current_question_timer.cancel()
+            except utils.HasAlreadyRun:
+                pass
+        await self.channel.send("The quiz was aborted.")
+
+    """
+    Callbacks
+    """
     async def on_message(self, msg):
         self.plugin.logger.debug("Caught message: {}".format(msg.content))
         # ignore DM and msg when the quiz is not in question phase
@@ -628,13 +719,30 @@ class PointsQuizController(BaseQuizController):
         if self.has_everyone_answered():
             self.state = Phases.EVAL
 
-    async def abortphase(self):
-        if self.current_question_timer is not None:
-            try:
-                self.current_question_timer.cancel()
-            except utils.HasAlreadyRun:
-                pass
-        await self.channel.send("The quiz was aborted.")
+    async def on_reaction(self, event):
+        self.plugin.logger.debug("Caught reaction: {} on {}".format(event.emoji, event.message))
+
+        # Cases we don't care about
+        if self.state != Phases.QUESTION or self.current_question != event.data:
+            return
+        if event.member not in self.registered_participants:
+            return
+
+        try:
+            check = self.quizapi.current_question().check_answer(event.emoji, emoji=True)
+            if check:
+                check = "correct"
+            else:
+                check = "incorrect"
+            self.plugin.logger.debug("Valid answer from {}: {} ({})"
+                                     .format(event.member.name, event.emoji, check))
+        except InvalidAnswer:
+            print("Invalid answer")
+            return
+
+        self.registered_participants[event.member] = event.emoji
+        if self.has_everyone_answered():
+            self.state = Phases.EVAL
 
     """
     Timers stuff; these functions are scheduled by timers only
@@ -655,7 +763,8 @@ class PointsQuizController(BaseQuizController):
 
         await self.channel.send(message(self.config, "points_timeout_warning",
                                         utils.format_andlist(self.havent_answered_hr(),
-                                                             ands=message(self.config, "and"))))
+                                                             ands=message(self.config, "and")),
+                                        self.config["points_quiz_question_timeout"] // 2))
 
     async def timeout(self, question):
         """
@@ -712,7 +821,8 @@ class PointsQuizController(BaseQuizController):
         self.score.add_participant(msg.author)
         self.plugin.logger.debug("{} registered".format(msg.author.name))
         print("participants after reg: {}".format(self.registered_participants))
-        await self.channel.send(message(self.config, "register_success", msg.author))
+        await msg.add_reaction(Config().CMDSUCCESS)
+        # await self.channel.send(message(self.config, "register_success", msg.author))
 
     async def pause(self):
         """
@@ -901,8 +1011,10 @@ class RushQuizController(BaseQuizController):
             check = self.quizapi.current_question().check_answer(msg.content)
             if check:
                 checks = "correct"
+                await msg.add_reaction(reactions["correct"])
             else:
                 checks = "incorrect"
+                await msg.add_reaction(reactions["incorrect"])
             self.plugin.logger.debug("Valid answer from {}: {} ({})".format(msg.author.name, msg.content, checks))
         except InvalidAnswer:
             print("Invalid answer")
@@ -922,9 +1034,6 @@ class RushQuizController(BaseQuizController):
     """
     async def start(self):
         self.state = Phases.ABOUTTOSTART
-
-    async def pause(self):
-        raise NotImplementedError
 
     async def pause(self):
         raise NotImplementedError
@@ -1142,6 +1251,8 @@ class Plugin(Geckarbot.BasePlugin, name="A trivia kwiss"):
         if method == Methods.START and self.get_controller(channel):
             raise QuizInitError(self.config, "existing_quiz")
         if modifying and self.get_controller(channel) is None:
+            if method == Methods.STATUS:
+                await ctx.send(message(self.config, "status_no_quiz"))
             return
 
         # Not starting a new quiz
@@ -1164,6 +1275,7 @@ class Plugin(Geckarbot.BasePlugin, name="A trivia kwiss"):
 
         # Starting a new quiz
         assert method == Methods.START
+        await ctx.message.add_reaction(Config().EMOJI["success"])
         quiz_controller = controller_class(self, self.config, OpenTDBQuizAPI, ctx.channel, ctx.message.author,
                                            category=args["category"], question_count=args["questions"],
                                            difficulty=args["difficulty"], debug=args["debug"])
