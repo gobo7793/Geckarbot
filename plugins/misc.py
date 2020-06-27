@@ -88,12 +88,12 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
         await ctx.send(Config().lang(self, 'tippspiel_output'))
 
     @commands.command(name="remindme", help="Reminds the author.",
-                      usage="<duration|DD.MM.YYYY HH:MM|cancel> [message|cancel_id]",
+                      usage="<duration|DD.MM.YYYY HH:MM|cancel|list> [message|cancel_id]",
                       description="Reminds the author in x minutes, hours or days or on a fixed date and time or "
-                                  "cancels the users reminder with given ids. The duration unit can be set with "
+                                  "cancels the users reminder with given ids.\nThe duration unit can be set with "
                                   "trailing m for minutes, h for hours or d for days. If none is set, the duration "
-                                  "unit is in minutes. Duration example: 5h = 5 hours. If no cancel id is given, "
-                                  "all user reminders will be removed")
+                                  "unit is in minutes. Duration example: 5h = 5 hours.\nIf no cancel id is given, "
+                                  "all user's reminders will be removed.")
     async def reminder(self, ctx, *args):
         full_message = " ".join(args[1:])
         if args[0] == "cancel":
@@ -107,7 +107,7 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
 
             # remove reminder with id
             if remove_id >= 0:
-                if self.reminders[remove_id].data[0].author.id == ctx.author.id:
+                if self.reminders[remove_id].data['ctx'].author.id == ctx.author.id:
                     self.reminders[remove_id].cancel()
                     del(self.reminders[remove_id])
                     logging.info("Reminder {} removed".format(remove_id))
@@ -120,7 +120,7 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
             # remove all reminders from user
             to_remove = []
             for el in self.reminders:
-                if self.reminders[el].data[0].author.id == ctx.author.id:
+                if self.reminders[el].data['ctx'].author.id == ctx.author.id:
                     to_remove.append(el)
             for el in to_remove:
                 self.reminders[el].cancel()
@@ -128,6 +128,21 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
                 logging.info("Reminder {} removed".format(el))
 
             await ctx.send(Config().lang(self, 'remind_del'))
+            return
+
+        # list user's reminders
+        if args[0] == "list":
+            msg = Config().lang(self, 'remind_list_prefix')
+            reminders_msg = ""
+            for el in self.reminders:
+                if self.reminders[el].data['ctx'].author.id == ctx.author.id:
+                    reminders_msg += Config().lang(self, 'remind_list_element', el,
+                                                   self.reminders[el].next_execution().strftime('%d.%m.%Y %H:%M'),
+                                                   self.reminders[el].data['msg'])
+
+            if not reminders_msg:
+                msg = Config().lang(self, 'remind_list_none')
+            await ctx.send(msg + reminders_msg)
             return
 
         # set reminder
@@ -152,7 +167,7 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
         timedict = timers.timedict(year=remind_time.year, month=remind_time.month, monthday=remind_time.day,
                                    hour=remind_time.hour, minute=remind_time.minute)
         job = self.bot.timers.schedule(self.reminder_callback, timedict, repeat=False)
-        job.data = (ctx, full_message)
+        job.data = {'ctx': ctx, 'msg': full_message}
 
         reminder_id = self.get_new_reminder_id()
         self.reminders[reminder_id] = job
@@ -160,8 +175,8 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
         await ctx.send(Config().lang(self, 'remind_set', remind_time.strftime('%d.%m.%Y %H:%M'), reminder_id))
 
     async def reminder_callback(self, job):
-        ctx = job.data[0]
-        message = job.data[1]
+        ctx = job.data['ctx']
+        message = job.data['msg']
         remind_text = ""
         if message:
             remind_text = Config().lang(self, 'remind_callback_msg', message)

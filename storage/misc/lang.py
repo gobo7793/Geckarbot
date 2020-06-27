@@ -28,6 +28,9 @@ lang = {
         'remind_wrong_del': "Sorry, but this isn't your reminder.",
         'remind_callback': "{}, this is a reminder{}!",
         'remind_callback_msg': " for {}",
+        'remind_list_prefix': "You have following reminders:",
+        'remind_list_element': "\n - ID: {}, Time: {}, Message: {}",
+        'remind_list_none': "You don't have any reminders."
 
         }
     }
