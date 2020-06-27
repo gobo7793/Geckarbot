@@ -81,7 +81,7 @@ class Geckarbot(commands.Bot):
         """
         Returns a human-readable name for Plugin plugin.
         """
-        return plugin.__module__.rsplit(".", 1)[1] # same as for PluginSlot.name
+        return plugin.__module__.rsplit(".", 1)[1]  # same as for PluginSlot.name
 
     def load_plugins(self, plugin_dir):
         r = []
@@ -216,13 +216,13 @@ def main():
         """Basic message and blacklisting handling"""
         
         if ('blacklist' in bot.coredata
-            and bot.coredata['blacklist'].is_member_on_blacklist(message.author)):
+                and bot.coredata['blacklist'].is_member_on_blacklist(message.author)):
             return
 
         ctx = await bot.get_context(message)
         if (ctx.valid
-            and 'disabled_cmds' in bot.coredata
-            and not bot.coredata['disabled_cmds'].can_cmd_executed(ctx.command.name, ctx.channel)):
+                and 'disabled_cmds' in bot.coredata
+                and not bot.coredata['disabled_cmds'].can_cmd_executed(ctx.command.name, ctx.channel)):
             return
 
         if Config().DEBUG_MODE and len(Config().DEBUG_WHITELIST) > 0:
@@ -234,6 +234,7 @@ def main():
             await bot.process_commands(message)
 
     bot.run(Config().TOKEN)
+
 
 if __name__ == "__main__":
     main()

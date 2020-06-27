@@ -67,6 +67,7 @@ msg_defaults = {
     "points_question_done": "The correct answer was: {}!\n{} answered correctly.",
     "points_timeout_warning": "Waiting for answers from {}.",
     "points_timeout": "Timeout!",
+    "status_no_quiz": "There is no kwiss running in this channel.",
 }
 
 reactions = {
@@ -324,7 +325,7 @@ class Score:
                 assert False
         return r
 
-    def embed(self):
+    def embed(self, end=False):
         embed = discord.Embed(title="Score:")
 
         ladder = self.ladder()
@@ -342,7 +343,10 @@ class Score:
             i += 1
 
         if len(ladder) == 0:
-            embed.add_field(name="Nobody has scored yet!", value="")
+            if end:
+                embed.add_field(name="Nobody has scored!", value=" ")
+            else:
+                embed.add_field(name="Nobody has scored yet!", value=" ")
 
         return embed
 
@@ -508,7 +512,7 @@ class PointsQuizController(BaseQuizController):
     """
     async def start_registering_phase(self):
         """
-        REGISTERING -> ABOUTTOSTART
+        REGISTERING -> ABOUTTOSTART; REGISTERING -> ABORT
         """
         self.plugin.logger.debug("Starting PointsQuizController")
         self.state = Phases.REGISTERING
@@ -555,7 +559,7 @@ class PointsQuizController(BaseQuizController):
 
     async def about_to_start(self):
         """
-        ABOUTTOSTART -> QUESTION
+        ABOUTTOSTART -> QUESTION; ABOUTTOSTART -> ABORT
         """
         self.plugin.logger.debug("Ending the registering phase")
 
@@ -574,7 +578,7 @@ class PointsQuizController(BaseQuizController):
 
     async def pose_question(self):
         """
-        QUESTION -> EVAL
+        QUESTION -> EVAL; QUESTION -> END
         """
         self.plugin.logger.debug("Posing next question.")
         try:
@@ -668,6 +672,7 @@ class PointsQuizController(BaseQuizController):
             self.state = Phases.EVAL
 
     async def abortphase(self):
+        self.plugin.end_quiz(self.channel)
         if self.current_question_timer is not None:
             try:
                 self.current_question_timer.cancel()
@@ -968,9 +973,6 @@ class RushQuizController(BaseQuizController):
     async def pause(self):
         raise NotImplementedError
 
-    async def pause(self):
-        raise NotImplementedError
-
     async def resume(self):
         raise NotImplementedError
 
@@ -1184,6 +1186,8 @@ class Plugin(Geckarbot.BasePlugin, name="A trivia kwiss"):
         if method == Methods.START and self.get_controller(channel):
             raise QuizInitError(self.config, "existing_quiz")
         if modifying and self.get_controller(channel) is None:
+            if method == Methods.STATUS:
+                await ctx.send(message(self.config, "status_no_quiz"))
             return
 
         # Not starting a new quiz
