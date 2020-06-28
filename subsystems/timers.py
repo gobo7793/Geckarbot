@@ -240,7 +240,6 @@ def ring_iterator(haystack, startel, ringstart, ringend, startperiod):
     :param startperiod: This value is iterated every cycle and returned as endperiod.
     :return: haystackelement, endperiod
     """
-    print("Called ring_iterator({}, {}, {}, {}, {}".format(haystack, startel, ringstart, ringend, startperiod))
     if haystack is None:
         haystack = [i for i in range(ringstart, ringend + 1)]
 
