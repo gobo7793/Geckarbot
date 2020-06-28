@@ -180,7 +180,7 @@ def normalize_td(td):
     for el in timedictformat:
         if el in td:
             # ghetto check for filled iterable
-            if not td[el]:
+            if td[el] != 0 and not td[el]:
                 ntd[el] = None
                 continue
             ntd[el] = td[el]
@@ -196,51 +196,52 @@ def normalize_td(td):
     return ntd
 
 
-def ringdistance(a, b, size):
+def ringdistance(a, b, ringstart, ringend):
     """
-    Returns the smallest positive forward-distance between b and a in a ring of the form 1..size, e.g.:
-    ringdistance(1, 3, 12) == 2   # january, march
-    ringdistance(3, 1, 12) == 10  # march, january
+    Returns the smallest positive forward-distance between b and a in a ring of the form ringstart..ringend, e.g.:
+    ringdistance(1, 3, 1, 12) == 2   # january, march
+    ringdistance(3, 1, 1, 12) == 10  # march, january
+    ringdistance(21, 1, 0, 23) == 4  # 9 pm, 1 am
     """
-    if not 0 < b <= size or not 0 < a <= size:
-        raise ValueError("Expecting {} and {} to be between 1 and {}".format(b, a, size))
-    wraparound = size - a + b
-    regular = b - a
-    if wraparound < regular or regular < 0:
-        return wraparound
-    return regular
+    if not ringstart <= b <= ringend or not ringstart <= a <= ringend:
+        raise ValueError("Expecting {} and {} to be between {} and {}".format(b, a, ringstart, ringend))
+
+    if a <= b:
+        return b - a
+    else:
+        return ringend - a + b - (ringstart - 1)
 
 
-def nearest_element(me, haystack, ringsize):
+def nearest_element(me, haystack, ringstart, ringend):
     """
-    Finds the element in haystack that is the closest to me in a forward-distance. Assumes a ring of ringsize.
+    Finds the element in haystack that is the closest to me in a forward-distance. Assumes a ring of ringstart..ringend.
     If haystack is None, returns me. Distance of 0 counts.
     """
     if haystack is None:
         return me
 
     r = haystack[0]
-    last_distance = ringdistance(me, haystack[0], ringsize)
+    last_distance = ringdistance(me, haystack[0], ringstart, ringend)
     for i in range(1, len(haystack)):
-        d = ringdistance(me, haystack[i], ringsize)
+        d = ringdistance(me, haystack[i], ringstart, ringend)
         if d < last_distance:
             last_distance = d
             r = haystack[i]
     return r
 
 
-def ring_iterator(haystack, startel, ringsize, startperiod):
+def ring_iterator(haystack, startel, ringstart, ringend, startperiod):
     """
     Iterates forever over all elements in the ring elements in haystack. Starts counting at 1.
     :param haystack: The haystack with elements in the ring
     :param startel: haystack element to start the loop with
-    :param ringsize: The size of the ring; assumes a ring of 1..ringsize
+    :param ringstart: first element of the ring
+    :param ringend: last element of the ring, so the ring is ringstart..ringend
     :param startperiod: This value is iterated every cycle and returned as endperiod.
     :return: haystackelement, endperiod
     """
-    print("Called ring_iterator({}, {}, {}, {})".format(haystack, startel, ringsize, startperiod))
     if haystack is None:
-        haystack = [i for i in range(1, ringsize + 1)]
+        haystack = [i for i in range(ringstart, ringend + 1)]
 
     i = None
     for k in range(len(haystack)):
@@ -275,9 +276,8 @@ def next_occurence(ntd, now=None, ignore_now=False):
         weekdays = [i for i in range(1, 8)]
 
     # Find date
-    date = None
     startday = now.day
-    for month, year in ring_iterator(ntd["month"], now.month, 12, now.year):
+    for month, year in ring_iterator(ntd["month"], now.month, 1, 12, now.year):
 
         # Check if this year is in the years list and if there even is a year in the future to be had
         if ntd["year"] is not None and year not in ntd["year"]:
@@ -294,51 +294,53 @@ def next_occurence(ntd, now=None, ignore_now=False):
         # Find day in month
         found = False
         for day in range(startday, monthrange(year, month)[1] + 1):
+            # Not our day of week
             if not datetime.date(year, month, day).weekday() + 1 in weekdays:
                 continue
 
-            if not ntd["monthday"] or day in ntd["monthday"]:
+            # Not our day of month
+            if ntd["monthday"] is not None and day not in ntd["monthday"]:
+                continue
 
-                # Find hour and minute
-                starthour = 1
-                startminute = 1
-                onthisday = True
+            # Find hour and minute
+            starthour = 0
+            startminute = 0
+            onthisday = True
 
-                # Today
-                if year == now.year and month == now.month and day == now.day:
-                    starthour = now.hour
-                    startminute = now.minute
+            # Today
+            if year == now.year and month == now.month and day == now.day:
+                starthour = now.hour
+                startminute = now.minute
 
-                    # Handle ignore_now flag
-                    if ignore_now:
-                        startminute += 1
-                        if startminute >= 61:
-                            startminute = 1
-                            if starthour == 24:
-                                continue  # nothing to do for this day
-                            starthour += 1
+                # Handle ignore_now flag
+                if ignore_now:
+                    startminute += 1
+                    if startminute >= 60:
+                        startminute = 0
+                        starthour += 1
+                        if starthour == 24:
+                            continue  # nothing to do for this day
 
-                # find hour
-                hour = None
-                minute = None
-                for hour, day_d in ring_iterator(ntd["hour"], starthour, 24, 0):
-                    # wraparound
-                    if day_d > 0:
-                        onthisday = False
-                        break
-
-                    minute = nearest_element(startminute, ntd["minute"], 60)
-                    if minute < startminute:
-                        startminute = 1
-                        continue
+            # find hour
+            hour = None
+            minute = None
+            for hour, day_d in ring_iterator(ntd["hour"], starthour, 0, 23, 0):
+                # wraparound
+                if day_d > 0:
+                    onthisday = False
                     break
 
-                if onthisday:
-                    return datetime.datetime(year, month, day, hour, minute)
+                minute = nearest_element(startminute, ntd["minute"], 0, 59)
+                if minute < startminute:
+                    startminute = 0
+                    continue
+                break  # correct minute found
 
-                # Continue loop
-                found = True
-                break
-        if found:
-            break
+            if onthisday:
+                return datetime.datetime(year, month, day, hour, minute)
+
+            # Nothing found on this day of the month
+            continue
+
+        # Month is over
         startday = 1
