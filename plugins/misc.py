@@ -165,6 +165,7 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
         if remind_time < datetime.datetime.now():
             logging.debug("Attempted reminder in the past: {}".format(remind_time))
             await ctx.send(Config().lang(self, 'remind_past'))
+            return
 
         logging.info("Adding reminder for {} at {}: {}".format(ctx.author.name, remind_time, full_message))
 
