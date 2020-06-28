@@ -15,6 +15,7 @@ lang = {
         'role_add_config': "I was too lazy to create a new role with the name {} on the server, so I just added it to my own role list.",
         'role_add_created': "My trainer was too lazy to train me how to validate, but the role {} with color {} should be created now.",
         'role_del': "My trainer was too lazy to train me how to validate, but the role {} should be deleted now.",
+        'role_untrack': "I removed role {} from my role management, so it isn't my problem anymore.",
         'role_request_no_modrole': "Sorry, but I can't find a mod role for {} :frowning:",
         'role_request_ping': "Hey {}, the user {} requests the role {}!",
         'role_update': "I'm a lazy Treecko, but especially for you, I updated my role management."

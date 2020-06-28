@@ -100,6 +100,7 @@ class Plugin(BasePlugin, name="Role Management"):
 
     def __init__(self, bot):
         super().__init__(bot)
+        self.can_reload = True
         bot.register(self)
 
         @bot.listen()
@@ -178,12 +179,10 @@ class Plugin(BasePlugin, name="Role Management"):
         current_server_roles = await self.bot.guild.fetch_roles()
         server_role_ids = [r.id for r in current_server_roles]
         removed_roles = deepcopy(self.rc())
-        debug = self.rc()
-        reactions_to_clear = []
         for role_in_config in self.rc():
             if role_in_config in server_role_ids:
                 del (removed_roles[role_in_config])
-                # update emojis and mod roles
+                # remove emojis and mod roles that aren't on server anymore
                 if self.rc()[role_in_config]['modrole'] not in server_role_ids:
                     self.rc()[role_in_config]['modrole'] = 0
                 if (self.rc()[role_in_config]['emoji']
@@ -192,11 +191,9 @@ class Plugin(BasePlugin, name="Role Management"):
                         if str(e) == self.rc()[role_in_config]['emoji']:
                             break
                     else:
-                        reactions_to_clear.append(self.rc()[role_in_config]['emoji'])
                         self.rc()[role_in_config]['emoji'] = ""
 
         for role_to_remove in removed_roles:
-            reactions_to_clear.append(self.rc()[role_to_remove]['emoji'])
             del (self.rc()[role_to_remove])
 
         # update message
@@ -212,10 +209,14 @@ class Plugin(BasePlugin, name="Role Management"):
             Config().get(self)['message']['message_id'] = message.id
             self.bot.reaction_listener.register(message, self.update_reaction_based_user_role)
 
-        # remove reactions from old roles
-        for reaction in reactions_to_clear:
-            reaction = emoji.emojize(reaction, True)
-            await message.clear_reaction(reaction)
+        # remove reactions w/o role
+        for reaction in message.reactions:
+            reaction_str = emoji.demojize(str(reaction), True)
+            for role in self.rc():
+                if self.rc()[role]['emoji'] == reaction_str:
+                    break
+            else:
+                await message.clear_reaction(reaction)
 
         # add reactions for new roles
         for role_config in self.rc():
@@ -319,7 +320,10 @@ class Plugin(BasePlugin, name="Role Management"):
             except commands.CommandError:
                 color = discord.Color.default()
 
-        existing_role = discord.utils.get(ctx.guild.roles, name=role_name)
+        try:
+            existing_role = await commands.RoleConverter().convert(ctx, role_name)
+        except commands.CommandError:
+            existing_role = None
         if existing_role is not None:
             if existing_role.id in self.rc():
                 # Update role data
@@ -349,6 +353,14 @@ class Plugin(BasePlugin, name="Role Management"):
         await RoleManagement.remove_server_role(ctx.guild, role)
         await self.update_role_management(ctx)
         await ctx.send(Config().lang(self, 'role_del', role.name))
+        await utils.log_to_admin_channel(ctx)
+
+    @role.command(name="untrack", help="Removes the role from the role management, but not from server")
+    @commands.has_any_role(*Config().FULL_ACCESS_ROLES)
+    async def role_untrack(self, ctx, role: discord.Role):
+        del(self.rc()[role.id])
+        await self.update_role_management(ctx)
+        await ctx.send(Config().lang(self, 'role_untrack', role.name))
         await utils.log_to_admin_channel(ctx)
 
     @role.command(name="request", help="Pings the corresponding mod role for a role request",

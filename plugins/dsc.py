@@ -14,8 +14,8 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
     songmaster_role_id = 0
 
     def __init__(self, bot):
-        self.bot = bot
         super().__init__(bot)
+        self.can_reload = True
         bot.register(self)
 
     def default_config(self):

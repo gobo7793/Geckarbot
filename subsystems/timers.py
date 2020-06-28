@@ -27,7 +27,7 @@ class Mothership(Thread):
         self._to_register = []
         self._to_cancel = []
         self._lock = Lock()
-        self._shutdown = False
+        self._shutdown = None
         self.logger = logging.getLogger(__name__)
 
         if launch_immediately:
