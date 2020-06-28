@@ -65,9 +65,11 @@ class Mothership(Thread):
                     else:
                         break
                 for el in executed:
+                    self.logger.debug("Executed job {}; scheduling re-execution".format(el))
                     self.jobs.remove(el)
                     self._to_register.append(el)
                 for el in todel:
+                    self.logger.debug("Executed job {}; this was the last execution".format(el))
                     self.jobs.remove(el)
 
             tts = 60 - datetime.datetime.now().second + 1
@@ -150,10 +152,13 @@ class Job:
         self._cached_next_exec = next_occurence(self._timedict, ignore_now=True)
         asyncio.run_coroutine_threadsafe(self._coro(self), self._mothership.bot.loop)
 
-        if not self._repeat:
+        if not self._repeat or self.next_execution() is None:
             self.cancel()
+            # raise LastExecution  # alternatively
 
     def next_execution(self):
+        if self._cached_next_exec is None:
+            self._cached_next_exec = next_occurence(self._timedict)
         return self._cached_next_exec
 
     def __str__(self):
