@@ -232,9 +232,9 @@ def nearest_element(me, haystack, ringstart, ringend):
 
 def ring_iterator(haystack, startel, ringstart, ringend, startperiod):
     """
-    Iterates forever over all elements in the ring elements in haystack. Starts counting at 1.
+    Iterates forever over all ring elements in haystack, beginning with startel. Assumes a ring of ringstart..ringend.
     :param haystack: The haystack with elements in the ring
-    :param startel: haystack element to start the loop with
+    :param startel: haystack element to start the loop with; this is always the first element to be yielded
     :param ringstart: first element of the ring
     :param ringend: last element of the ring, so the ring is ringstart..ringend
     :param startperiod: This value is iterated every cycle and returned as endperiod.
@@ -243,6 +243,7 @@ def ring_iterator(haystack, startel, ringstart, ringend, startperiod):
     if haystack is None:
         haystack = [i for i in range(ringstart, ringend + 1)]
 
+    # Check if startel is actually in haystack
     i = None
     for k in range(len(haystack)):
         if haystack[k] == startel:
@@ -250,6 +251,7 @@ def ring_iterator(haystack, startel, ringstart, ringend, startperiod):
     if i is None:
         raise RuntimeError("{} is not in haystack".format(startel))
 
+    # Actual generator
     while True:
         if i >= len(haystack):
             i = 0
@@ -292,7 +294,6 @@ def next_occurence(ntd, now=None, ignore_now=False):
                 return None  # No future occurence found
 
         # Find day in month
-        found = False
         for day in range(startday, monthrange(year, month)[1] + 1):
             # Not our day of week
             if not datetime.date(year, month, day).weekday() + 1 in weekdays:
@@ -324,7 +325,8 @@ def next_occurence(ntd, now=None, ignore_now=False):
             # find hour
             hour = None
             minute = None
-            for hour, day_d in ring_iterator(ntd["hour"], starthour, 0, 23, 0):
+            next_hour = nearest_element(starthour, ntd["hour"], 0, 23)
+            for hour, day_d in ring_iterator(ntd["hour"], next_hour, 0, 23, 0):
                 # wraparound
                 if day_d > 0:
                     onthisday = False
@@ -338,9 +340,9 @@ def next_occurence(ntd, now=None, ignore_now=False):
 
             if onthisday:
                 return datetime.datetime(year, month, day, hour, minute)
-
-            # Nothing found on this day of the month
-            continue
+            else:
+                # Nothing found on this day of the month
+                continue
 
         # Month is over
         startday = 1
