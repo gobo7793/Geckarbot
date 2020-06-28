@@ -148,8 +148,6 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
         # set reminder
         try:
             remind_time = datetime.datetime.strptime(f"{args[0]} {args[1]}", "%d.%m.%Y %H:%M")
-            if remind_time < datetime.datetime.now():
-                await ctx.send(Config().lang(self, 'remind_past'))
             full_message = " ".join(args[2:])
         except (ValueError, IndexError):
             try:
@@ -163,6 +161,10 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
                     remind_time = datetime.datetime.now() + datetime.timedelta(minutes=int(args[0]))
             except ValueError:
                 raise commands.BadArgument(message=Config().lang(self, 'remind_duration_err'))
+
+        if remind_time < datetime.datetime.now():
+            logging.debug("Attempted reminder in the past: {}".format(remind_time))
+            await ctx.send(Config().lang(self, 'remind_past'))
 
         logging.info("Adding reminder for {} at {}: {}".format(ctx.author.name, remind_time, full_message))
 
