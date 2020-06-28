@@ -30,7 +30,8 @@ lang = {
         'remind_callback_msg': " for {}",
         'remind_list_prefix': "You have following reminders:",
         'remind_list_element': "\n - Time: {}, Message: {}, to cancel type `!remindme cancel {}`",
-        'remind_list_none': "You don't have any reminders."
+        'remind_list_none': "You don't have any reminders.",
+        'remind_past': "Sorry, I don't have a time machine.",
 
         }
     }

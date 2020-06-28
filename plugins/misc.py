@@ -148,6 +148,8 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
         # set reminder
         try:
             remind_time = datetime.datetime.strptime(f"{args[0]} {args[1]}", "%d.%m.%Y %H:%M")
+            if remind_time < datetime.datetime.now():
+                await ctx.send(Config().lang(self, 'remind_past'))
             full_message = " ".join(args[2:])
         except (ValueError, IndexError):
             try:
