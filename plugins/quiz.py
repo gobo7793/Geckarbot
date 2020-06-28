@@ -540,7 +540,7 @@ class PointsQuizController(BaseQuizController):
         # Participant handling
         self.registered_participants = {}
 
-        self.plugin.register_subcommand(self.channel, "register", self.register_command)
+        # self.plugin.register_subcommand(self.channel, "register", self.register_command)
 
     """
     Transitions
@@ -561,14 +561,10 @@ class PointsQuizController(BaseQuizController):
         await signup_msg.remove_reaction(reactions["signup"], self.plugin.bot.user)
         signup_msg = discord.utils.get(self.plugin.bot.cached_messages, id=signup_msg.id)
         reaction = None
-        print(signup_msg.reactions)
         for el in signup_msg.reactions:
-            print(el.emoji)
             if el.emoji == reactions["signup"]:
                 reaction = el
                 break
-
-        print(reaction)
 
         if reaction is not None:
             async for user in reaction.users():
@@ -585,7 +581,7 @@ class PointsQuizController(BaseQuizController):
                     # User already registered via !kwiss register
                     continue
 
-                self.registered_participants[user] = None
+                self.registered_participants[user] = []
 
         if len(self.registered_participants) == 0:
             self.state = Phases.ABORT
@@ -647,6 +643,11 @@ class PointsQuizController(BaseQuizController):
 
         question = self.quizapi.current_question()
 
+        # Normalize answers
+        for el in self.registered_participants:
+            if len(self.registered_participants[el]) != 1:
+                self.registered_participants[el] = None
+
         # Increment scores
         correctly_answered = []
         for user in self.registered_participants:
@@ -662,7 +663,7 @@ class PointsQuizController(BaseQuizController):
 
         # Reset answers list
         for user in self.registered_participants:
-            self.registered_participants[user] = None
+            self.registered_participants[user] = []
 
         await asyncio.sleep(self.config["question_cooldown"])
         self.state = Phases.QUESTION
@@ -691,6 +692,7 @@ class PointsQuizController(BaseQuizController):
     Callbacks
     """
     async def on_message(self, msg):
+        return
         self.plugin.logger.debug("Caught message: {}".format(msg.content))
         # ignore DM and msg when the quiz is not in question phase
         if not isinstance(msg.channel, discord.TextChannel):
@@ -728,6 +730,10 @@ class PointsQuizController(BaseQuizController):
         if event.member not in self.registered_participants:
             return
 
+        if isinstance(event, ReactionRemovedEvent):
+            self.registered_participants[event.member].remove(event.emoji)
+            return
+
         try:
             check = self.quizapi.current_question().check_answer(event.emoji, emoji=True)
             if check:
@@ -740,7 +746,7 @@ class PointsQuizController(BaseQuizController):
             print("Invalid answer")
             return
 
-        self.registered_participants[event.member] = event.emoji
+        self.registered_participants[event.member].append(event.emoji)
         if self.has_everyone_answered():
             self.state = Phases.EVAL
 
@@ -817,7 +823,7 @@ class PointsQuizController(BaseQuizController):
         if msg.author in self.registered_participants:
             return
 
-        self.registered_participants[msg.author] = None
+        self.registered_participants[msg.author] = []
         self.score.add_participant(msg.author)
         self.plugin.logger.debug("{} registered".format(msg.author.name))
         print("participants after reg: {}".format(self.registered_participants))
