@@ -180,7 +180,7 @@ def normalize_td(td):
     for el in timedictformat:
         if el in td:
             # ghetto check for filled iterable
-            if not td[el]:
+            if td[el] != 0 and not td[el]:
                 ntd[el] = None
                 continue
             ntd[el] = td[el]
@@ -240,7 +240,6 @@ def ring_iterator(haystack, startel, ringstart, ringend, startperiod):
     :param startperiod: This value is iterated every cycle and returned as endperiod.
     :return: haystackelement, endperiod
     """
-    print("Called ring_iterator({}, {}, {}, {}, {})".format(haystack, startel, ringstart, ringend, startperiod))
     if haystack is None:
         haystack = [i for i in range(ringstart, ringend + 1)]
 
@@ -279,7 +278,6 @@ def next_occurence(ntd, now=None, ignore_now=False):
     # Find date
     startday = now.day
     for month, year in ring_iterator(ntd["month"], now.month, 1, 12, now.year):
-        print("Checking {}-{}".format(year, month))
 
         # Check if this year is in the years list and if there even is a year in the future to be had
         if ntd["year"] is not None and year not in ntd["year"]:
@@ -291,7 +289,6 @@ def next_occurence(ntd, now=None, ignore_now=False):
             if found:
                 continue  # Wait for better years
             else:
-                print("Nothing found")
                 return None  # No future occurence found
 
         # Find day in month
@@ -335,7 +332,7 @@ def next_occurence(ntd, now=None, ignore_now=False):
 
                 minute = nearest_element(startminute, ntd["minute"], 0, 59)
                 if minute < startminute:
-                    startminute = 1
+                    startminute = 0
                     continue
                 break  # correct minute found
 
@@ -345,4 +342,5 @@ def next_occurence(ntd, now=None, ignore_now=False):
             # Nothing found on this day of the month
             continue
 
+        # Month is over
         startday = 1

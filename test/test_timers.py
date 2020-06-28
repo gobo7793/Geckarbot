@@ -44,3 +44,13 @@ def test_cron_alg_hour0():
     msg = "date is {}-{}-{}-{}-{}, should be {}-{}-{}-{}-{}".format(
         td.year, td.month, td.day, td.hour, td.minute, 2051, 1, 1, 0, 3)
     assert td.year == 2051 and td.month == 1 and td.day == 1 and td.hour == 0 and td.minute == 3, msg
+
+
+def test_cron_alg_minute0():
+    now = datetime(year=2050, month=12, day=31, hour=23, minute=59)
+    timedict = timers.timedict(minute=0)
+    td = timers.next_occurence(timers.normalize_td(timedict), now=now)
+    assert td is not None, "timers.next_occurence didn't return anything"
+    msg = "date is {}-{}-{}-{}-{}, should be {}-{}-{}-{}-{}".format(
+        td.year, td.month, td.day, td.hour, td.minute, 2051, 1, 1, 0, 0)
+    assert td.year == 2051 and td.month == 1 and td.day == 1 and td.hour == 0 and td.minute == 0, msg
