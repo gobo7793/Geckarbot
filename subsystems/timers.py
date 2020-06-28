@@ -39,7 +39,7 @@ class Mothership(Thread):
                 self.logger.info("Shutting down timer thread.")
                 sys.exit(self._shutdown)
             with self._lock:
-                # self.logger.debug("Tick")
+                self.logger.debug("Tick")
                 # Handle registrations
                 for el in self._to_register:
                     self.insert_job(el)
@@ -245,6 +245,8 @@ def ring_iterator(haystack, startel, ringstart, ringend, startperiod):
     :param startperiod: This value is iterated every cycle and returned as endperiod.
     :return: haystackelement, endperiod
     """
+    logging.getLogger(__name__).debug("Called ringiterator({}, {}, {}, {}, {})"
+                                      .format(haystack, startel, ringstart, ringend, startperiod))
     if haystack is None:
         haystack = [i for i in range(ringstart, ringend + 1)]
 
@@ -275,6 +277,7 @@ def next_occurence(ntd, now=None, ignore_now=False):
     :param ignore_now: If True: If the next occurence would be right now, returns the next occurence instead.
     :return datetime.datetime object that marks the next occurence; None if there is none
     """
+    logger = logging.getLogger(__name__)
     if now is None:
         now = datetime.datetime.now()
 
@@ -283,8 +286,12 @@ def next_occurence(ntd, now=None, ignore_now=False):
         weekdays = [i for i in range(1, 8)]
 
     # Find date
-    startday = now.day
-    for month, year in ring_iterator(ntd["month"], now.month, 1, 12, now.year):
+    startmonth = nearest_element(now.month, ntd["month"], 1, 12)
+    startday = 1
+    if startmonth == now.month:
+        startday = now.day
+    for month, year in ring_iterator(ntd["month"], startmonth, 1, 12, now.year):
+        logger.debug("Checking {}-{}".format(year, month))
 
         # Check if this year is in the years list and if there even is a year in the future to be had
         if ntd["year"] is not None and year not in ntd["year"]:
@@ -300,6 +307,7 @@ def next_occurence(ntd, now=None, ignore_now=False):
 
         # Find day in month
         for day in range(startday, monthrange(year, month)[1] + 1):
+            logger.debug("Checking day {}".format(day))
             # Not our day of week
             if not datetime.date(year, month, day).weekday() + 1 in weekdays:
                 continue
@@ -332,12 +340,14 @@ def next_occurence(ntd, now=None, ignore_now=False):
             minute = None
             next_hour = nearest_element(starthour, ntd["hour"], 0, 23)
             for hour, day_d in ring_iterator(ntd["hour"], next_hour, 0, 23, 0):
+                logger.debug("Checking hour {}".format(hour))
                 # wraparound
                 if day_d > 0:
                     onthisday = False
                     break
 
                 minute = nearest_element(startminute, ntd["minute"], 0, 59)
+                logger.debug("Checking minute {}".format(minute))
                 if minute < startminute:
                     startminute = 0
                     continue

@@ -84,3 +84,23 @@ def test_cron_alg_ignore_now():
     msg = "date is {}-{}-{}-{}-{}, should be {}-{}-{}-{}-{}".format(
         td.year, td.month, td.day, td.hour, td.minute, 2060, 4, 23, 12, 32)
     assert td.year == 2060 and td.month == 4 and td.day == 23 and td.hour == 12 and td.minute == 32, msg
+
+
+def test_cron_alg_nextmonth():
+    now = datetime(year=2020, month=6, day=28, hour=18, minute=14)
+    timedict = timers.timedict(year=2020, month=7, monthday=13, hour=20, minute=00)
+    td = timers.next_occurence(timers.normalize_td(timedict), now=now, ignore_now=True)
+    assert td is not None, "timers.next_occurence didn't return anything"
+    msg = "date is {}-{}-{}-{}-{}, should be {}-{}-{}-{}-{}".format(
+        td.year, td.month, td.day, td.hour, td.minute, 2020, 7, 13, 20, 00)
+    assert td.year == 2020 and td.month == 7 and td.day == 13 and td.hour == 20 and td.minute == 00, msg
+
+
+def test_cron_alg_nextmonthnextyear():
+    now = datetime(year=2021, month=6, day=28, hour=18, minute=14)
+    timedict = timers.timedict(year=2021, month=7, monthday=13, hour=20, minute=00)
+    td = timers.next_occurence(timers.normalize_td(timedict), now=now, ignore_now=True)
+    assert td is not None, "timers.next_occurence didn't return anything"
+    msg = "date is {}-{}-{}-{}-{}, should be {}-{}-{}-{}-{}".format(
+        td.year, td.month, td.day, td.hour, td.minute, 2021, 7, 13, 20, 00)
+    assert td.year == 2021 and td.month == 7 and td.day == 13 and td.hour == 20 and td.minute == 00, msg
