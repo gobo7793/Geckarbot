@@ -25,6 +25,7 @@ jsonify = {
     "channel_blacklist": [],
     "points_quiz_register_timeout": 1 * 60,
     "points_quiz_question_timeout": 20,  # warning after this value, actual timeout after 1.5*this value
+    "emoji_in_pose": True,
     "channel_mapping": {
         706125113728172084: "any",
         716683335778173048: "politics",
@@ -57,10 +58,10 @@ msg_defaults = {
     "unknown": "Unknown argument: {}",
     "existing_quiz": "There is already a kwiss running in this channel.",
     "correct_answer": "{}: {} is the correct answer!",
-    "multiplechoice": "Multiple Choice",
-    "freetext": "Free text",
     "quiz_start": "Starting kwiss! {} questions. Category: {}. Difficulty: {}. Game Mode: {}",
     "quiz_end": "The kwiss has ended. The winner is: **{}**! Congratulations!",
+    "quiz_end_pl": "The kwiss has ended. The winners are: **{}**! Congratulations!",
+    "quiz_end_no_winner": "The kwiss has ended. The winner is: **{}**! Congratulations, you suck!",
     "quiz_abort": "The kwiss was aborted.",
     "too_many_arguments": "Too many arguments.",
     "invalid_argument": "Invalid argument: {}",
@@ -72,7 +73,7 @@ msg_defaults = {
     "quiz_phase": "The kwiss will begin in 10 seconds!",
     "already_registered": "{}: Dude, I got it. Don't worry.",
     "no_pause_while_registering": "{}: Nope, not now.",
-    "points_question_done": "The correct answer was: {}!\n{} answered correctly.",
+    "points_question_done": "The correct answer was {}!\n{} answered correctly.",
     "points_timeout_warning": "Waiting for answers from {}. You have {} seconds!",
     "points_timeout": "Timeout!",
     "status_no_quiz": "There is no kwiss running in this channel.",
@@ -89,14 +90,14 @@ opentdb = {
         {'id': 11, 'names': ['Film', 'film']},
         {'id': 12, 'names': ['Music', 'music']},
         {'id': 13, 'names': ['Musical / Theatre', 'musical', 'musicals', 'theatres', 'theatre', 'theater', 'theaters']},
-        {'id': 14, 'names': ['T.V.', 'television', 'tv']},
+        {'id': 14, 'names': ['T.V.', 'tv', 'television']},
         {'id': 15, 'names': ['Games', 'games']},
         {'id': 16, 'names': ['Boardgames', 'boardgames']},
         {'id': 17, 'names': ['Science / Nature', 'science', 'nature']},
         {'id': 18, 'names': ['Computers', 'computers', 'computer', 'it']},
         {'id': 19, 'names': ['Mathematics', 'mathematics', 'math']},
         {'id': 20, 'names': ['Mythology', 'mythology']},
-        {'id': 21, 'names': ['Sports', 'sport', 'sports']},
+        {'id': 21, 'names': ['Sports', 'sports', 'sport']},
         {'id': 22, 'names': ['Geography', 'geography', 'geo']},
         {'id': 23, 'names': ['History', 'history']},
         {'id': 24, 'names': ['Politics', 'politics']},
@@ -107,7 +108,7 @@ opentdb = {
         {'id': 29, 'names': ['Comics', 'comics']},
         {'id': 30, 'names': ['Gadgets', 'gadgets']},
         {'id': 31, 'names': ['Anime / Manga', 'anime', 'manga']},
-        {'id': 32, 'names': ['Cartoons / Animated', 'cartoon', 'cartoons']},
+        {'id': 32, 'names': ['Cartoons / Animated', 'cartoons', 'cartoon', 'animated']},
     ]
 }
 
@@ -392,6 +393,17 @@ class Question:
         self._cached_emoji = None
         self.message = None
 
+        # Set emoji and letter format of correct answer
+        self.correct_answer_emoji = None
+        self.correct_answer_letter = None
+        for i in range(len(self.all_answers)):
+            if self.correct_answer == self.all_answers[i]:
+                e = self.letter_mapping(i, emoji=True, reverse=False)
+                letter = self.letter_mapping(i, emoji=False, reverse=False)
+                self.correct_answer_emoji = "{} {}".format(e, self.correct_answer)
+                self.correct_answer_letter = "**{}:** {}".format(letter, self.correct_answer)
+                break
+
     def letter_mapping(self, index, emoji=False, reverse=False):
         if not reverse:
             if emoji:
@@ -405,26 +417,22 @@ class Question:
         else:
             index = index.lower()
             haystack = string.ascii_lowercase
-        print("Haystack: {}".format(haystack))
 
         for i in range(len(haystack)):
-            msg = "Comparing {}, {}".format(index, haystack[i])
-            print(msg.encode("utf-8"))
             if str(index) == str(haystack[i]):
-                # if "{}".format(index) == "{}".format(haystack[i]):
                 return i
         return None
 
     async def pose(self, channel, emoji=False):
         logging.getLogger(__name__).debug("Posing question #{}: {}".format(self.index, self.question))
-        msg = await channel.send(embed=self.embed())
+        msg = await channel.send(embed=self.embed(emoji=emoji))
         if emoji:
             for i in range(len(self.all_answers)):
                 await msg.add_reaction(Config().EMOJI["lettermap"][i])  # this breaks if there are more than 26 answers
         self.message = msg
         return msg
 
-    def embed(self):
+    def embed(self, emoji=False):
         """
         :return: An embed representation of the question.
         """
@@ -432,7 +440,7 @@ class Question:
         if self.index is not None:
             title = "#{}: {}".format(self.index+1, title)
         embed = discord.Embed(title=title)
-        value = "\n".join([el for el in self.answers_mc()])
+        value = "\n".join([el for el in self.answers_mc(emoji=emoji)])
         embed.add_field(name="Possible answers:", value=value)
         return embed
 
@@ -442,7 +450,11 @@ class Question:
         :return: Generator for possible answers in a multiple-choice-fashion, e.g. "A: Jupiter"
         """
         for i in range(len(self.all_answers)):
-            yield "**{}:** {}".format(self.letter_mapping(i, emoji=emoji), self.all_answers[i])
+            if emoji:
+                letter = "{}".format(self.letter_mapping(i, emoji=emoji))
+            else:
+                letter = "**{}:**".format(self.letter_mapping(i, emoji=emoji))
+            yield "{} {}".format(letter, self.all_answers[i])
 
     def check_answer(self, answer, emoji=False):
         """
@@ -568,7 +580,6 @@ class PointsQuizController(BaseQuizController):
 
         if reaction is not None:
             async for user in reaction.users():
-                print(user)
                 if user == self.plugin.bot.user:
                     continue
 
@@ -621,7 +632,7 @@ class PointsQuizController(BaseQuizController):
 
         self.current_question_timer = utils.AsyncTimer(self.plugin.bot, self.config["points_quiz_question_timeout"],
                                                        self.timeout_warning, self.current_question)
-        msg = await self.current_question.pose(self.channel, emoji=True)
+        msg = await self.current_question.pose(self.channel, emoji=self.config["emoji_in_pose"])
         self.plugin.bot.reaction_listener.register(msg, self.on_reaction, data=self.current_question)
 
     async def eval(self):
@@ -647,6 +658,8 @@ class PointsQuizController(BaseQuizController):
         for el in self.registered_participants:
             if len(self.registered_participants[el]) != 1:
                 self.registered_participants[el] = None
+            else:
+                self.registered_participants[el] = self.registered_participants[el][0]
 
         # Increment scores
         correctly_answered = []
@@ -658,8 +671,12 @@ class PointsQuizController(BaseQuizController):
             self.score.increase(user, totalcorr=len(correctly_answered))
 
         correct = [utils.get_best_username(el) for el in correctly_answered]
-        await self.channel.send(message(self.config, "points_question_done", question.correct_answer,
-                                        utils.format_andlist(correct, "and", "Nobody")))
+        correct = utils.format_andlist(correct, message(self.config, "and"), message(self.config, "nobody"))
+        if self.config["emoji_in_pose"]:
+            ca = question.correct_answer_emoji
+        else:
+            ca = question.correct_answer_letter
+        await self.channel.send(message(self.config, "points_question_done", ca, correct))
 
         # Reset answers list
         for user in self.registered_participants:
@@ -670,8 +687,6 @@ class PointsQuizController(BaseQuizController):
 
     async def end(self):
         msg, embed = self.plugin.end_quiz(self.channel)
-        print(msg)
-        print(embed)
         if msg is None:
             await self.channel.send(embed=embed)
         elif embed is None:
@@ -702,7 +717,6 @@ class PointsQuizController(BaseQuizController):
             return
 
         if msg.author not in self.registered_participants:
-            print("author not registered; registered are: {}".format(self.registered_participants))
             return
 
         # Valid answer
@@ -714,7 +728,6 @@ class PointsQuizController(BaseQuizController):
                 check = "incorrect"
             self.plugin.logger.debug("Valid answer from {}: {} ({})".format(msg.author.name, msg.content, check))
         except InvalidAnswer:
-            print("Invalid answer")
             return
         self.registered_participants[msg.author] = msg.content
 
@@ -743,7 +756,6 @@ class PointsQuizController(BaseQuizController):
             self.plugin.logger.debug("Valid answer from {}: {} ({})"
                                      .format(event.member.name, event.emoji, check))
         except InvalidAnswer:
-            print("Invalid answer")
             return
 
         self.registered_participants[event.member].append(event.emoji)
@@ -826,7 +838,6 @@ class PointsQuizController(BaseQuizController):
         self.registered_participants[msg.author] = []
         self.score.add_participant(msg.author)
         self.plugin.logger.debug("{} registered".format(msg.author.name))
-        print("participants after reg: {}".format(self.registered_participants))
         await msg.add_reaction(Config().CMDSUCCESS)
         # await self.channel.send(message(self.config, "register_success", msg.author))
 
@@ -897,14 +908,14 @@ class PointsQuizController(BaseQuizController):
 
     def has_everyone_answered(self):
         for el in self.registered_participants:
-            if self.registered_participants[el] is None:
+            if len(self.registered_participants[el]) != 1:
                 return False
 
         return True
 
     def havent_answered_hr(self):
         return [utils.get_best_username(el)
-                for el in self.registered_participants if self.registered_participants[el] is None]
+                for el in self.registered_participants if len(self.registered_participants[el]) != 1]
 
 
 class RushQuizController(BaseQuizController):
@@ -989,7 +1000,7 @@ class RushQuizController(BaseQuizController):
         # Increment score
         self.score.increase(self.last_author)
         await self.channel.send(message(self.config, "correct_answer", utils.get_best_username(self.last_author),
-                                question.correct_answer))
+                                        question.correct_answer_letter))
 
         await asyncio.sleep(self.config["question_cooldown"])
         self.state = Phases.QUESTION
@@ -1023,7 +1034,6 @@ class RushQuizController(BaseQuizController):
                 await msg.add_reaction(reactions["incorrect"])
             self.plugin.logger.debug("Valid answer from {}: {} ({})".format(msg.author.name, msg.content, checks))
         except InvalidAnswer:
-            print("Invalid answer")
             return
 
         if not self.debug and self.last_author == msg.author:
@@ -1215,6 +1225,8 @@ class Plugin(Geckarbot.BasePlugin, name="A trivia kwiss"):
             PointsQuizController: ["points"],
         }
 
+        self.register_subcommand(None, "categories", self.catlist)
+
         super().__init__(bot)
         bot.register(self)
 
@@ -1226,6 +1238,19 @@ class Plugin(Geckarbot.BasePlugin, name="A trivia kwiss"):
 
     def default_config(self):
         return {}
+
+    async def catlist(self, msg, *args):
+        if len(args) > 1:
+            await msg.channel.send(message(self.config, "too_many_arguments"))
+            return
+
+        embed = discord.Embed(title="Categories:")
+        s = []
+        for el in opentdb["cat_mapping"]:
+            cat = el["names"]
+            s.append("**{}**: {}".format(cat[0], cat[1]))
+        embed.add_field(name="Name: Command", value="\n".join(s))
+        await msg.channel.send(embed=embed)
 
     @commands.command(name="kwiss", help="Interacts with the kwiss subsystem.")
     async def kwiss(self, ctx, *args):
@@ -1295,7 +1320,7 @@ class Plugin(Geckarbot.BasePlugin, name="A trivia kwiss"):
     def register_subcommand(self, channel, subcommand, callback):
         """
         Registers a subcommand. If the subcommand is found in a command, the callback coroutine is called.
-        :param channel: Channel in which the registering quiz takes place
+        :param channel: Channel in which the registering quiz takes place. None for global.
         :param subcommand: subcommand string that is looked for in incoming commands. Case-insensitive.
         :param callback: Coroutine of the type f(msg, *args); is called with the message object and every arg, including
         the subcommand itself and excluding the main command ("kwiss")
@@ -1364,7 +1389,11 @@ class Plugin(Geckarbot.BasePlugin, name="A trivia kwiss"):
         msgkey = "quiz_end"
         if len(winners) > 1:
             msgkey = "quiz_end_pl"
-        return message(self.config, msgkey, utils.format_andlist(winners)), embed
+        elif len(winners) == 0:
+            msgkey = "quiz_end_no_winner"
+        winners = utils.format_andlist(winners, ands=message(self.config, "and"),
+                                       emptylist=message(self.config, "nobody"))
+        return message(self.config, msgkey, winners), embed
 
     def parse_args(self, channel, args):
         """
@@ -1380,12 +1409,14 @@ class Plugin(Geckarbot.BasePlugin, name="A trivia kwiss"):
 
         # Fish for subcommand
         subcmd = None
-        if channel in self.registered_subcommands:
+        for el in self.registered_subcommands:
+            if el is not None and el != channel:
+                continue
             for arg in args:
-                if arg in self.registered_subcommands[channel]:
+                if arg in self.registered_subcommands[el]:
                     if subcmd is not None:
                         raise QuizInitError(self.config, "duplicate_subcmd_arg")
-                    subcmd = self.registered_subcommands[channel][arg]
+                    subcmd = self.registered_subcommands[el][arg]
         if subcmd is not None:
             raise SubCommandEncountered(subcmd, args)
 

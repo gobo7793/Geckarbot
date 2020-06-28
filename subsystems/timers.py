@@ -39,7 +39,7 @@ class Mothership(Thread):
                 self.logger.info("Shutting down timer thread.")
                 sys.exit(self._shutdown)
             with self._lock:
-                self.logger.debug("Tick")
+                # self.logger.debug("Tick")
                 # Handle registrations
                 for el in self._to_register:
                     self.insert_job(el)
