@@ -136,9 +136,9 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
             reminders_msg = ""
             for el in self.reminders:
                 if self.reminders[el].data['ctx'].author.id == ctx.author.id:
-                    reminders_msg += Config().lang(self, 'remind_list_element', el,
+                    reminders_msg += Config().lang(self, 'remind_list_element',
                                                    self.reminders[el].next_execution().strftime('%d.%m.%Y %H:%M'),
-                                                   self.reminders[el].data['msg'])
+                                                   self.reminders[el].data['msg'], el)
 
             if not reminders_msg:
                 msg = Config().lang(self, 'remind_list_none')
@@ -149,7 +149,7 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
         try:
             remind_time = datetime.datetime.strptime(f"{args[0]} {args[1]}", "%d.%m.%Y %H:%M")
             full_message = " ".join(args[2:])
-        except ValueError:
+        except (ValueError, IndexError):
             try:
                 if args[0].endswith("m"):
                     remind_time = datetime.datetime.now() + datetime.timedelta(minutes=int(args[0][:-1]))
@@ -164,12 +164,12 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
 
         logging.info("Adding reminder for {} at {}: {}".format(ctx.author.name, remind_time, full_message))
 
+        reminder_id = self.get_new_reminder_id()
         timedict = timers.timedict(year=remind_time.year, month=remind_time.month, monthday=remind_time.day,
                                    hour=remind_time.hour, minute=remind_time.minute)
         job = self.bot.timers.schedule(self.reminder_callback, timedict, repeat=False)
-        job.data = {'ctx': ctx, 'msg': full_message}
+        job.data = {'ctx': ctx, 'msg': full_message, 'id': reminder_id}
 
-        reminder_id = self.get_new_reminder_id()
         self.reminders[reminder_id] = job
 
         await ctx.send(Config().lang(self, 'remind_set', remind_time.strftime('%d.%m.%Y %H:%M'), reminder_id))
@@ -177,7 +177,9 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
     async def reminder_callback(self, job):
         ctx = job.data['ctx']
         message = job.data['msg']
+        rid = job.data['id']
         remind_text = ""
         if message:
             remind_text = Config().lang(self, 'remind_callback_msg', message)
         await ctx.channel.send(Config().lang(self, 'remind_callback', ctx.author.mention, remind_text))
+        del(self.reminders[rid])

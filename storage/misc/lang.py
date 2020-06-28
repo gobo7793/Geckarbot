@@ -21,7 +21,7 @@ lang = {
         'tippspiel_output': "Hier ist der Link für die Stände (bitte auf den Spieltag achten!) sowie das "
                             "Tippspiel-Archiv: "
                             "https://docs.google.com/spreadsheets/d/1mSDrTqdcOSOuvR9Y9hMzuEx1X9puaUVuqs7yp6Ju6_M/ ",
-        'remind_set': "I will remind you at {}. If you want to cancel it, here's the reminder id: {}.",
+        'remind_set': "I will remind you at {}. To cancel it, type `!remindme cancel {}`.",
         'remind_duration_err': "Duration must be a date and time or a number",
         'remind_del': "I don't remind you anymore.",
         'remind_del_id_err': "ID must be a number",
@@ -29,7 +29,7 @@ lang = {
         'remind_callback': "{}, this is a reminder{}!",
         'remind_callback_msg': " for {}",
         'remind_list_prefix': "You have following reminders:",
-        'remind_list_element': "\n - ID: {}, Time: {}, Message: {}",
+        'remind_list_element': "\n - Time: {}, Message: {}, to cancel type `!remindme cancel {}`",
         'remind_list_none': "You don't have any reminders."
 
         }
