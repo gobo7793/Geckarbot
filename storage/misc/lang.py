@@ -23,7 +23,6 @@ lang = {
                             "https://docs.google.com/spreadsheets/d/1mSDrTqdcOSOuvR9Y9hMzuEx1X9puaUVuqs7yp6Ju6_M/ ",
         'remind_set': "I will remind you at {}. To cancel it, type `!remindme cancel {}`.",
         'remind_duration_err': "Duration must be a date and time or a number",
-        'remind_del': "I don't remind you anymore.",
         'remind_del_id_err': "ID must be a number",
         'remind_wrong_del': "Sorry, but this isn't your reminder.",
         'remind_callback': "{}, this is a reminder{}!",
