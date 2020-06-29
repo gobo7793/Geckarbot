@@ -115,7 +115,8 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
         """Sets the current/next DSC host"""
         self.dsc_conf()['host_id'] = user.id
         Config().save(self)
-        await ctx.send(self.dsc_lang('new_host_set'))
+        # await ctx.send(self.dsc_lang('new_host_set'))
+        await ctx.message.add_reaction(Config().CMDSUCCESS)
 
     async def dsc_save_state(self, ctx, new_state: DscState):
         """Saves the new DSC state and prints it to user"""
@@ -123,7 +124,8 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
         state_str = str(DscState(self.dsc_conf()['state']))
         state_str = state_str[state_str.find(".") + 1:].replace("_", " ")
         Config().save(self)
-        await ctx.send(self.dsc_lang('phase_set', state_str))
+        # await ctx.send(self.dsc_lang('phase_set', state_str))
+        await ctx.message.add_reaction(Config().CMDSUCCESS)
 
     @dsc_set.command(name="state", help="Sets the current DSC state (Voting/Sign up)",
                      usage="<voting|signup>")
@@ -142,18 +144,20 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
         link = utils.clear_link(link)
         self.dsc_conf()['yt_link'] = link
         Config().save(self)
-        await ctx.send(self.dsc_lang('yt_link_set'))
+        # await ctx.send(self.dsc_lang('yt_link_set'))
+        await ctx.message.add_reaction(Config().CMDSUCCESS)
 
     @dsc_set.command(name="date", help="Sets the registration/voting end date", usage="DD.MM.YYYY [HH:MM]",
                      description="Sets the end date and time for registration and voting phase. "
                                  "If no time is given, 23:59 will be used.")
-    async def dsc_set_state_end(self, ctx, date_str, time_str=None):
+    async def dsc_set_date(self, ctx, date_str, time_str=None):
         """Sets the end date (and time) of the current DSC state"""
         if not time_str:
             time_str = "23:59"
         self.dsc_conf()['state_end'] = datetime.strptime(f"{date_str} {time_str}", "%d.%m.%Y %H:%M")
         Config().save(self)
-        await ctx.send(self.dsc_lang('state_end_set'))
+        # await ctx.send(self.dsc_lang('state_end_set'))
+        await ctx.message.add_reaction(Config().CMDSUCCESS)
 
     @dsc_set.command(name="status", help="Sets the status message", usage="[message]",
                      description="Sets a status message for additional informations. To remove give no message.")
@@ -161,4 +165,5 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
         """Sets the dsc status message or removes it if no message is given"""
         self.dsc_conf()['status'] = " ".join(status_message)
         Config().save(self)
-        await ctx.send(self.dsc_lang('status_set'))
+        # await ctx.send(self.dsc_lang('status_set'))
+        await ctx.message.add_reaction(Config().CMDSUCCESS)
