@@ -96,6 +96,18 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
                                   "all user's reminders will be removed.")
     async def reminder(self, ctx, *args):
         full_message = " ".join(args[1:])
+
+        # remove hostoric reminders
+        old_reminders = []
+        for el in self.reminders:
+            if (self.reminders[el].next_execution() is None
+                    or self.reminders[el].next_execution() < datetime.datetime.now()):
+                old_reminders.append(el)
+        for el in old_reminders:
+            del(self.reminders[el])
+            logging.info("Reminder {} removed".format(el))
+
+        # cancel reminders
         if args[0] == "cancel":
             if len(args) == 2:
                 try:
@@ -167,9 +179,10 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
             await ctx.send(Config().lang(self, 'remind_past'))
             return
 
-        logging.info("Adding reminder for {} at {}: {}".format(ctx.author.name, remind_time, full_message))
-
         reminder_id = self.get_new_reminder_id()
+        logging.info("Adding reminder {} for {} at {}: {}".format(reminder_id, ctx.author.name,
+                                                                  remind_time, full_message))
+
         timedict = timers.timedict(year=remind_time.year, month=remind_time.month, monthday=remind_time.day,
                                    hour=remind_time.hour, minute=remind_time.minute)
         job = self.bot.timers.schedule(self.reminder_callback, timedict, repeat=False)
@@ -187,4 +200,5 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
         if message:
             remind_text = Config().lang(self, 'remind_callback_msg', message)
         await ctx.channel.send(Config().lang(self, 'remind_callback', ctx.author.mention, remind_text))
+        logging.info("Executed reminder {}".format(rid))
         del(self.reminders[rid])
