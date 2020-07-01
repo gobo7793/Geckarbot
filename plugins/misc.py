@@ -14,8 +14,20 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
     def __init__(self, bot):
         super().__init__(bot)
         bot.register(self)
+        self.can_reload = True
 
         self.reminders = {}
+        reminders_to_remove = []
+        for reminder_id in Config().get(self)['reminders']:
+            reminder = Config().get(self)['reminders'][reminder_id]
+            if not self.register_reminder(reminder['chan'], reminder['user'], reminder['time'],
+                                          reminder_id, reminder['text'], True):
+                reminders_to_remove.append(reminder_id)
+        for el in reminders_to_remove:
+            self.remove_reminder(el)
+
+    def default_config(self):
+        return {'reminders': {}}
 
     def get_new_reminder_id(self):
         """
@@ -88,14 +100,25 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
         await ctx.send(Config().lang(self, 'tippspiel_output'))
 
     @commands.command(name="remindme", help="Reminds the author.",
-                      usage="<duration|DD.MM.YYYY HH:MM|cancel|list> [message|cancel_id]",
-                      description="Reminds the author in x minutes, hours or days or on a fixed date and time or "
+                      usage="<duration|DD.MM.YYYY HH:MM|DD.MM. HH:MM|HH:MM|cancel|list> [message|cancel_id]",
+                      description="Reminds the author in x minutes, hours or days or on a fixed date and/or time or "
                                   "cancels the users reminder with given ids.\nThe duration unit can be set with "
                                   "trailing m for minutes, h for hours or d for days. If none is set, the duration "
                                   "unit is in minutes. Duration example: 5h = 5 hours.\nIf no cancel id is given, "
                                   "all user's reminders will be removed.")
     async def reminder(self, ctx, *args):
-        full_message = " ".join(args[1:])
+        rtext = " ".join(args[1:])
+
+        # remove hostoric reminders
+        old_reminders = []
+        for el in self.reminders:
+            if (self.reminders[el].next_execution() is None
+                    or self.reminders[el].next_execution() < datetime.datetime.now()):
+                old_reminders.append(el)
+        for el in old_reminders:
+            self.remove_reminder(el)
+
+        # cancel reminders
         if args[0] == "cancel":
             if len(args) == 2:
                 try:
@@ -107,11 +130,9 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
 
             # remove reminder with id
             if remove_id >= 0:
-                if self.reminders[remove_id].data['ctx'].author.id == ctx.author.id:
-                    self.reminders[remove_id].cancel()
-                    del(self.reminders[remove_id])
-                    logging.info("Reminder {} removed".format(remove_id))
-                    await ctx.send(Config().lang(self, 'remind_del'))
+                if self.reminders[remove_id].data['user'] == ctx.author.id:
+                    self.remove_reminder(el)
+                    await ctx.message.add_reaction(Config().CMDSUCCESS)
                     return
 
                 await ctx.send(Config().lang(self, 'remind_wrong_del'))
@@ -120,25 +141,28 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
             # remove all reminders from user
             to_remove = []
             for el in self.reminders:
-                if self.reminders[el].data['ctx'].author.id == ctx.author.id:
+                if self.reminders[el].data['user'] == ctx.author.id:
                     to_remove.append(el)
             for el in to_remove:
-                self.reminders[el].cancel()
-                del(self.reminders[el])
-                logging.info("Reminder {} removed".format(el))
+                self.remove_reminder(el)
 
-            await ctx.send(Config().lang(self, 'remind_del'))
+            await ctx.message.add_reaction(Config().CMDSUCCESS)
             return
 
         # list user's reminders
         if args[0] == "list":
             msg = Config().lang(self, 'remind_list_prefix')
             reminders_msg = ""
-            for el in self.reminders:
-                if self.reminders[el].data['ctx'].author.id == ctx.author.id:
+            # for el in sorted(Config().get(self)['reminders'].values(), key=lambda x: x['time']):
+            #     if el['user'] == ctx.author.id:
+            #         reminders_msg += Config().lang(self, 'remind_list_element',
+            #                                        el['time'].strftime('%d.%m.%Y %H:%M'),
+            #                                        el['text'], el['id'])
+            for job in sorted(self.reminders.values(), key=lambda x: x.next_execution()):
+                if job.data['user'] == ctx.author.id:
                     reminders_msg += Config().lang(self, 'remind_list_element',
-                                                   self.reminders[el].next_execution().strftime('%d.%m.%Y %H:%M'),
-                                                   self.reminders[el].data['msg'], el)
+                                                   job.next_execution().strftime('%d.%m.%Y %H:%M'),
+                                                   job.data['text'], job.data['id'])
 
             if not reminders_msg:
                 msg = Config().lang(self, 'remind_list_none')
@@ -148,43 +172,94 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
         # set reminder
         try:
             remind_time = datetime.datetime.strptime(f"{args[0]} {args[1]}", "%d.%m.%Y %H:%M")
-            full_message = " ".join(args[2:])
+            rtext = " ".join(args[2:])
         except (ValueError, IndexError):
             try:
-                if args[0].endswith("m"):
-                    remind_time = datetime.datetime.now() + datetime.timedelta(minutes=int(args[0][:-1]))
-                elif args[0].endswith("h"):
-                    remind_time = datetime.datetime.now() + datetime.timedelta(hours=int(args[0][:-1]))
-                elif args[0].endswith("d"):
-                    remind_time = datetime.datetime.now() + datetime.timedelta(days=int(args[0][:-1]))
-                else:
-                    remind_time = datetime.datetime.now() + datetime.timedelta(minutes=int(args[0]))
-            except ValueError:
-                raise commands.BadArgument(message=Config().lang(self, 'remind_duration_err'))
+                remind_time = datetime.datetime.strptime(f"{args[0]}{datetime.datetime.now().year} {args[1]}",
+                                                         "%d.%m.%Y %H:%M")
+            except (ValueError, IndexError):
+                try:
+                    today = datetime.datetime.now().strftime('%d.%m.%Y')
+                    remind_time = datetime.datetime.strptime(today + args[0], "%d.%m.%Y%H:%M") + datetime.timedelta()
+                except ValueError:
+                    try:
+                        if args[0].endswith("m"):
+                            remind_time = datetime.datetime.now() + datetime.timedelta(minutes=int(args[0][:-1]))
+                        elif args[0].endswith("h"):
+                            remind_time = datetime.datetime.now() + datetime.timedelta(hours=int(args[0][:-1]))
+                        elif args[0].endswith("d"):
+                            remind_time = datetime.datetime.now() + datetime.timedelta(days=int(args[0][:-1]))
+                        else:
+                            remind_time = datetime.datetime.now() + datetime.timedelta(minutes=int(args[0]))
+                    except ValueError:
+                        raise commands.BadArgument(message=Config().lang(self, 'remind_duration_err'))
+
+        reminder_id = self.get_new_reminder_id()
 
         if remind_time < datetime.datetime.now():
-            logging.debug("Attempted reminder in the past: {}".format(remind_time))
+            logging.debug("Attempted reminder {} in the past: {}".format(reminder_id, remind_time))
             await ctx.send(Config().lang(self, 'remind_past'))
             return
 
-        logging.info("Adding reminder for {} at {}: {}".format(ctx.author.name, remind_time, full_message))
+        if self.register_reminder(ctx.channel.id, ctx.author.id, remind_time, reminder_id, rtext):
+            await ctx.send(Config().lang(self, 'remind_set', remind_time.strftime('%d.%m.%Y %H:%M'), reminder_id))
+        else:
+            await ctx.message.add_reaction(Config().CMDERROR)
 
-        reminder_id = self.get_new_reminder_id()
+    def register_reminder(self, channel_id: int, user_id: int, remind_time: datetime.datetime,
+                          reminder_id: int, text, is_restart: bool = False):
+        """
+        Registers a reminder
+        :param channel_id: The id of the channel in which the reminder was set
+        :param user_id: The id of the user who sets the reminder
+        :param remind_time: The remind time
+        :param reminder_id: The reminder ID
+        :param text: The reminder message text
+        :param is_restart: True if reminder is restarting after bot (re)start
+        :returns: True if reminder is registered, otherwise False
+        """
+        if remind_time < datetime.datetime.now():
+            logging.debug("Attempted reminder {} in the past: {}".format(reminder_id, remind_time))
+            return False
+
+        logging.info("Adding reminder {} for user with id {} at {}: {}".format(reminder_id, user_id,
+                                                                               remind_time, text))
+
+        job_data = {'chan': channel_id, 'user': user_id, 'time': remind_time, 'text': text, 'id': reminder_id}
+
         timedict = timers.timedict(year=remind_time.year, month=remind_time.month, monthday=remind_time.day,
                                    hour=remind_time.hour, minute=remind_time.minute)
         job = self.bot.timers.schedule(self.reminder_callback, timedict, repeat=False)
-        job.data = {'ctx': ctx, 'msg': full_message, 'id': reminder_id}
+        job.data = job_data
 
         self.reminders[reminder_id] = job
+        if not is_restart:
+            Config().get(self)['reminders'][reminder_id] = job_data
+            Config().save(self)
 
-        await ctx.send(Config().lang(self, 'remind_set', remind_time.strftime('%d.%m.%Y %H:%M'), reminder_id))
+        return True
+
+    def remove_reminder(self, reminder_id):
+        """
+        Removes the reminder if in config
+        :param reminder_id: the reminder ID
+        """
+        if reminder_id in self.reminders:
+            self.reminders[reminder_id].cancel()
+            del (self.reminders[reminder_id])
+        if reminder_id in Config().get(self)['reminders']:
+            del (Config().get(self)['reminders'][reminder_id])
+        Config().save(self)
+        logging.info("Reminder {} removed".format(reminder_id))
 
     async def reminder_callback(self, job):
-        ctx = job.data['ctx']
-        message = job.data['msg']
+        channel = self.bot.get_channel(job.data['chan'])
+        user = self.bot.get_user(job.data['user'])
+        text = job.data['text']
         rid = job.data['id']
         remind_text = ""
-        if message:
-            remind_text = Config().lang(self, 'remind_callback_msg', message)
-        await ctx.channel.send(Config().lang(self, 'remind_callback', ctx.author.mention, remind_text))
-        del(self.reminders[rid])
+        if text:
+            remind_text = Config().lang(self, 'remind_callback_msg', text)
+        await channel.send(Config().lang(self, 'remind_callback', user.mention, remind_text))
+        logging.info("Executed reminder {}".format(rid))
+        self.remove_reminder(rid)

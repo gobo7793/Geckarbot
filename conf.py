@@ -49,6 +49,7 @@ class Config(metaclass=_Singleton):
     # Random Emoji collection
     EMOJI = {
         "success": "✅",
+        "error": "❌",
         "lettermap": [
             "🇦",  # a
             "🇧",  # b
@@ -79,6 +80,7 @@ class Config(metaclass=_Singleton):
         ],
     }
     CMDSUCCESS = EMOJI["success"]
+    CMDERROR = EMOJI["error"]
 
     ######
     # Init
