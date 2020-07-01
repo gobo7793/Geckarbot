@@ -5,6 +5,8 @@ from conf import Config
 from botutils import utils
 
 
+ignoring_file_name = "ignoring"
+
 class IgnoreDataset:
     """The ignoring dataset"""
 
@@ -93,3 +95,28 @@ class IgnoreDataset:
             m += " forever."
 
         return m
+
+
+class Ignoring:
+    """Provides the ignoring subsystem"""
+
+    def __init__(self, bot):
+        self.bot = bot
+        self.ignorelist = []
+
+        @bot.listen()
+        async def on_ready():
+            self.load()
+
+    def load(self):
+        """Loads the ignorelist json"""
+        jsondata = Config()._read_config_file(ignoring_file_name)
+        for el in jsondata:
+            self.ignorelist.append(IgnoreDataset.deserialize(self.bot, el))
+
+    def save(self):
+        """Saves the current ignorelist to json"""
+        jsondata = []
+        for el in self.ignorelist:
+            jsondata.append(el.serialize())
+        Config()._write_config_file(ignoring_file_name, jsondata)
