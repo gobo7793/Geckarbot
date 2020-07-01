@@ -97,6 +97,52 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
         await ctx.send(about_msg)
 
     ######
+    # Ignoring subsystem
+    ######
+
+    @commands.group(name="disable", invoke_without_command=True, help="Adds a user or command to bot's ignore list.",
+                    description="")
+    @commands.has_any_role()
+    async def disable(self, ctx, command, user: discord.user = None):
+        if ctx.invoked_subcommand is None:
+            await ctx.send_help(self.disable)
+
+    @disable.command(name="user", help="Adds a user to bot's ignore list.",
+                     description="")
+    @commands.has_any_role(*Config().FULL_ACCESS_ROLES)
+    async def disable_user(self, ctx, user: discord.user):
+        if ctx.invoked_subcommand is None:
+            await ctx.send_help(self.disable)
+
+    @disable.command(name="cmd", help="Adds a command to bot's ignore list for current channel.",
+                     description="")
+    @commands.has_any_role(*Config().FULL_ACCESS_ROLES)
+    async def disable_cmd(self, ctx, command):
+        if ctx.invoked_subcommand is None:
+            await ctx.send_help(self.disable)
+
+    @commands.group(name="disable", invoke_without_command=True, help="Removes a user or command from bot's ignore list.",
+                    description="")
+    @commands.has_any_role()
+    async def enable(self, ctx, command, user: discord.user = None):
+        if ctx.invoked_subcommand is None:
+            await ctx.send_help(self.disable)
+
+    @enable.command(name="user", help="Removes a user from bot's ignore list.",
+                    description="")
+    @commands.has_any_role(*Config().FULL_ACCESS_ROLES)
+    async def enable_user(self, ctx, user: discord.user):
+        if ctx.invoked_subcommand is None:
+            await ctx.send_help(self.disable)
+
+    @enable.command(name="cmd", help="Removes a command from bot's ignore list for current channel.",
+                    description="")
+    @commands.has_any_role(*Config().FULL_ACCESS_ROLES)
+    async def enable_cmd(self, ctx, command):
+        if ctx.invoked_subcommand is None:
+            await ctx.send_help(self.disable)
+
+    ######
     # Blacklist
     ######
 
