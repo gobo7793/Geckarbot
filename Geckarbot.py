@@ -14,7 +14,7 @@ from discord.ext import commands
 
 from conf import Config, PluginSlot
 from botutils import utils
-from subsystems import timers, reactions
+from subsystems import timers, reactions, ignoring
 
 
 class Exitcodes(Enum):
@@ -57,6 +57,7 @@ class Geckarbot(commands.Bot):
 
         self.reaction_listener = reactions.ReactionListener(self)
         self.timers = timers.Mothership(self)
+        self.ignoring = ignoring.Ignoring(self)
 
     def register(self, plugin_class):
         print(isinstance(plugin_class, BasePlugin))  # todo figure out why this is False
