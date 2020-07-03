@@ -1,4 +1,5 @@
 import discord
+from discord.ext import commands
 from datetime import datetime
 
 from conf import Config
@@ -7,6 +8,7 @@ from subsystems import timers
 
 
 ignoring_file_name = "ignoring"
+
 
 class IgnoreDataset:
     """
@@ -189,3 +191,56 @@ class Ignoring:
 
         self.save()
         return True
+
+    def check_user_id(self, user_id: int):
+        """
+        Checks if user is completely on the ignore list to block all interactions between user and bot
+        :param user_id: the user id
+        :return: True if user is completely on ignore list, otherwise False
+        """
+        for el in self.ignorelist:
+            if el.user.id == user_id and not el.command_name:
+                return True
+        return False
+
+    def check_user(self, user: discord.User):
+        """
+        Checks if user is completely on the ignore list to block all interactions between user and bot
+        :param user: the user
+        :return: True if user is completely on ignore list, otherwise False
+        """
+        return self.check_user_id(user.id)
+
+    def check_command(self, ctx: commands.Context):
+        """
+        Checks if the context is invoked by a command which is on the ignore list
+        for the channel in which the command was called.
+        :param ctx: the command context
+        :return: True if command is blocked in channel, otherwise False
+        """
+        cmd_name = ctx.command.qualified_name
+        for el in self.ignorelist:
+            if el.user is None and el.command_name == cmd_name and el.channel == ctx.channel:
+                return True
+        return False
+
+    def check_user_id_command(self, user_id: int, command_name: str):
+        """
+        Checks if the user is blocked for all interactions with the command.
+        :param user_id: the user id
+        :param command_name: the command name
+        :return: True if user is blocked for command, otherwise False
+        """
+        for el in self.ignorelist:
+            if el.user.id == user_id and el.command_name == command_name:
+                return True
+        return False
+
+    def check_user_command(self, user: discord.User, command_name: str):
+        """
+        Checks if the user is blocked for all interactions with the command.
+        :param user: the user
+        :param command_name: the command name
+        :return: True if user is blocked for command, otherwise False
+        """
+        return self.check_user_id_command(user.id, command_name)
