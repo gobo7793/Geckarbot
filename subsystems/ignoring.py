@@ -1,3 +1,5 @@
+import enum
+
 import discord
 from discord.ext import commands
 from datetime import datetime
@@ -6,27 +8,59 @@ from conf import Config
 from botutils import utils
 from subsystems import timers
 
-
 ignoring_file_name = "ignoring"
+
+
+class IgnoreType(enum.IntEnum):
+    """The possible types for ignore list entries."""
+
+    NA = 0
+    """Not defined"""
+    User = 1
+    """Blocks all interactions between user and bot. Disables command_name and channel arguments in IgnoreDataset."""
+    Command = 2
+    """Disables command usage in specific channel. Disables user argument in IgnoreDataset."""
+    User_Command = 3
+    """Blocks any interactions for an user on a specific command. Disables channel argument in IgnoreDataset."""
 
 
 class IgnoreDataset:
     """
     The ignoring dataset.
-    Supports equal operation and checks equality based on user id, command name and channel id.
+    Supports equal operation and checks equality based on type, user id, command name and channel id.
     """
 
-    def __init__(self, user: discord.User = None, command_name: str = "",
+    def __init__(self, ignore_type: IgnoreType, user: discord.User = None, command_name: str = "",
                  channel: discord.TextChannel = None, until: datetime = datetime.max, job: timers.Job = None):
         """
         Creates a new ignoring dataset.
         Not needed args can be None, eg for ignoring user completely the args command_name and channel.
-        :param user: The user to ignore
-        :param command_name: The command name to disabling for a user or completely in a channel
-        :param channel: The channel in which a command is disabled
-        :param until: The datetime on which the ignoring entry will be auto-removed
+        Disabled arguments based on type raises ValueError.
+        :param ignore_type: The type of the ignore dataset, defines not possible arguments
+        :param user: The user to ignore. For IgnoreType.User and IgnoreType.User_Command.
+        :param command_name: The command name to disabling for a user or completely in a channel.
+            For IgnoreType.Command and IgnoreType.User_Command.
+        :param channel: The channel in which a command is disabled. For IgnoreType.Command.
+        :param until: The datetime on which the ignoring entry will be auto-removed. Possible for all types.
         :param job: The timer subsystem job for auto-remove
         """
+        if (type == IgnoreType.User
+                and (user is None
+                     or command_name
+                     or channel is not None)):
+            raise ValueError("User blocking only accepts the user argument.")
+        if (type == IgnoreType.Command
+                and (user is not None
+                     or not command_name
+                     or channel is None)):
+            raise ValueError("Command disabling only needs both of command_name and channel arguments.")
+        if (type == IgnoreType.User_Command
+                and (user is None
+                     or not command_name
+                     or channel is not None)):
+            raise ValueError("Blocking user interactions only needs both of user and command_name arguments.")
+
+        self.ignore_type = ignore_type
         self.user = user
         self.command_name = command_name
         self.channel = channel
@@ -35,12 +69,13 @@ class IgnoreDataset:
 
     def __eq__(self, other):
         if isinstance(other, IgnoreDataset):
+            type_res = self.ignore_type == other.ignore_type
             user_res = IgnoreDataset._eq(self.user, other.user)
             cmd_res = self.command_name == other.command_name
             chan_res = IgnoreDataset._eq(self.channel, other.channel)
 
-            return user_res and cmd_res and chan_res
-        return  False
+            return type_res and user_res and cmd_res and chan_res
+        return False
 
     @classmethod
     def _eq(cls, self, other):
@@ -62,6 +97,7 @@ class IgnoreDataset:
             channel_id = self.channel.id
 
         return {
+            "type": self.ignore_type,
             "userid": user_id,
             "command_name": self.command_name,
             "channelid": channel_id,
@@ -80,7 +116,7 @@ class IgnoreDataset:
         if user is None:
             user = bot.get_user(d["userid"])
         channel = bot.get_channel(d["userid"])
-        return IgnoreDataset(user, d["command_name"], channel, d["until"])
+        return IgnoreDataset(d["type"], user, d["command_name"], channel, d["until"])
 
     def to_raw_message(self):
         """
@@ -88,32 +124,32 @@ class IgnoreDataset:
         Format: IgnoreDataset: User: user_name, Command: command_name, Channel: channel_name, Until: datetime
         :return: The raw message
         """
-        return "IgnoreDataset: User: {}, Command: {}, Channel: {}, Until: {}".format(
-            utils.get_best_username(self.user), self.command_name, self.channel.name, self.until)
+        return "IgnoreDataset: Type: {}, User: {}, Command: {}, Channel: {}, Until: {}".format(
+            str(self.ignore_type), utils.get_best_username(self.user), self.command_name,
+            self.channel.name, self.until)
 
     def to_message(self):
         """
         Builds an well formatted output message for listing the entries on ignore list.
-        Formats:
-        - Username is on ignore list [for command command_name] until.../forever.
-        - Command command_name is disabled in channel Channelname until.../forever.
+        Format for User or User_Command IgnoreType:
+            User user_name will be ignored [for command command_name] until.../forever.
+        Format for Command IgnoreType:
+            Command command_name is disabled in channel channel_name until.../forever.
+        For other IgnoreTypes the raw message will be returned.
         :return: The well formatted message
         """
-        m = ""
 
-        if self.user is not None:
-            m += "{} is on ignore list ".format(utils.get_best_username(self.user))
-            if self.command_name:
-                m += " for command "
+        if self.ignore_type == IgnoreType.User:
+            m = "User {} will be ignored".format(utils.get_best_username(self.user))
+
+        elif self.ignore_type == IgnoreType.Command:
+            m = "User {} will be ignored for command {}".format(utils.get_best_username(self.user), self.command_name)
+
+        elif self.ignore_type == IgnoreType.User_Command:
+            m = "Command {} is disabled in channel {}".format(self.command_name, self.channel.name)
+
         else:
-            m += "Command "
-
-        if self.command_name:
-            m += self.command_name
-            if self.user is None:
-                m += " is disabled"
-            elif self.channel is not None:
-                m += " in channel {}".format(self.channel.name)
+            return self.to_raw_message()
 
         if self.until < datetime.max:
             m += " until {}.".format(self.until.strftime("%d.%m.%Y, %H:%M"))
@@ -133,6 +169,12 @@ class Ignoring:
         @bot.listen()
         async def on_ready():
             self.load()
+
+    def filter_ignore_list(self, ignore_type: IgnoreType):
+        """
+        Returns all ignore list entries of the given IgnoreType.
+        """
+        return [el for el in self.ignorelist if el.ignore_type == ignore_type]
 
     def load(self):
         """Loads the ignorelist json"""
@@ -194,20 +236,20 @@ class Ignoring:
 
     def check_user_id(self, user_id: int):
         """
-        Checks if user is completely on the ignore list to block all interactions between user and bot
+        Checks if all bot interaction with user should be blocked
         :param user_id: the user id
-        :return: True if user is completely on ignore list, otherwise False
+        :return: True if user interactions should be blocked, otherwise False
         """
-        for el in self.ignorelist:
-            if el.user.id == user_id and not el.command_name:
+        for el in self.filter_ignore_list(IgnoreType.User):
+            if el.user.id == user_id:
                 return True
         return False
 
     def check_user(self, user: discord.User):
         """
-        Checks if user is completely on the ignore list to block all interactions between user and bot
+        Checks if all bot interaction with user should be blocked
         :param user: the user
-        :return: True if user is completely on ignore list, otherwise False
+        :return: True if user interactions should be blocked, otherwise False
         """
         return self.check_user_id(user.id)
 
@@ -219,8 +261,8 @@ class Ignoring:
         :return: True if command is blocked in channel, otherwise False
         """
         cmd_name = ctx.command.qualified_name
-        for el in self.ignorelist:
-            if el.user is None and el.command_name == cmd_name and el.channel == ctx.channel:
+        for el in self.filter_ignore_list(IgnoreType.Command):
+            if el.command_name == cmd_name and el.channel == ctx.channel:
                 return True
         return False
 
@@ -231,7 +273,7 @@ class Ignoring:
         :param command_name: the command name
         :return: True if user is blocked for command, otherwise False
         """
-        for el in self.ignorelist:
+        for el in self.filter_ignore_list(IgnoreType.User_Command):
             if el.user.id == user_id and el.command_name == command_name:
                 return True
         return False
