@@ -222,7 +222,7 @@ class Ignoring:
 
     def add_user(self, user: discord.User, until: datetime = datetime.max):
         """
-        Adds the user to the ignore list to block all interactions from the user with the bot.
+        Adds the user to the ignore list to block all interactions between the user with the bot.
 
         :param user: The user to block
         :param until: The datetime to auto-remove the user from ignore list
@@ -233,21 +233,21 @@ class Ignoring:
 
     def add_user_id(self, user_id: int, until: datetime = datetime.max):
         """
-        Adds the user to the ignore list to block all interactions from the user with the bot.
+        Adds the user to the ignore list to block all interactions between the user with the bot.
 
         :param user_id: The id of the user to block
         :param until: The datetime to auto-remove the user from ignore list
         :return: True if user was added, otherwise False if user already on list
         """
         user = self.bot.get_user(user_id)
-        return self.add_user(user, datetime)
+        return self.add_user(user, until)
 
     def add_command(self, command_name: str, channel: discord.TextChannel, until: datetime = datetime.max):
         """
         Adds the command in the ignore list to disable the command in the specific channel.
 
         :param command_name: The full qualified command name (eg. 'dsc set')
-        :param channel: the channel in which the command will be disabled
+        :param channel: The channel in which the command will be disabled
         :param until: The datetime to auto-remove the command from ignore list
         :return: True if command was added, otherwise False if command in channel already on list
         """
@@ -259,7 +259,7 @@ class Ignoring:
         Adds the command in the ignore list to disable the command in the specific channel.
 
         :param command_name: The full qualified command name (eg. 'dsc set')
-        :param channel_id: the channel id in which the command will be disabled
+        :param channel_id: The id of the channel in which the command will be disabled
         :param until: The datetime to auto-remove the command from ignore list
         :return: True if command was added, otherwise False if command in channel already on list
         """
@@ -284,7 +284,7 @@ class Ignoring:
         """
         Adds the user and command to ignore list to block any interactions of the user with the specific command.
 
-        :param user_id: The user id to block
+        :param user_id: The id of the user to block
         :param command_name: The command to block for the user, Should be, but not necessarily, the full qualified
             command name. Depending on the checking implementation for the specific command.
         :param until: The datetime to auto-remove the command from ignore list
@@ -324,6 +324,76 @@ class Ignoring:
         remove_result = self.remove(job.data)
         msg = "Attempt auto-removing {}, Result: {}".format(job.data.to_raw_message(), remove_result)
         await utils.write_admin_channel(self.bot, msg)
+
+    def remove_user(self, user: discord.User):
+        """
+        Removes the user from the ignore list and re-enables all interactions between the user with the bot.
+
+        :param user: The user to re-enable
+        :return: True if user was removed, otherwise False if user not on list
+        """
+        dataset = IgnoreDataset(IgnoreType.User, user=user)
+        return self.remove(dataset)
+
+    def remove_user_id(self, user_id: int):
+        """
+        Removes the user from the ignore list and re-enables all interactions between the user with the bot.
+
+        :param user_id: The id of the user to re-enable
+        :return: True if user was removed, otherwise False if user not on list
+        """
+        user = self.bot.get_user(user_id)
+        return self.remove_user(user)
+
+    def remove_command(self, command_name: str, channel: discord.TextChannel):
+        """
+        Removes the command from the ignore list to re-enable the command in the specific channel.
+
+        :param command_name: The full qualified command name (eg. 'dsc set')
+        :param channel: The channel in which the command will be re-enabled
+        :return: True if command was removed, otherwise False if command in channel not on list
+        """
+        dataset = IgnoreDataset(IgnoreType.Command, command_name=command_name, channel=channel)
+        return self.remove(dataset)
+
+    def remove_command_id(self, command_name: str, channel_id: int):
+        """
+        Removes the command from the ignore list to re-enable the command in the specific channel.
+
+        :param command_name: The full qualified command name (eg. 'dsc set')
+        :param channel_id: The id of the channel in which the command will be re-enabled
+        :return: True if command was removed, otherwise False if command in channel not on list
+        """
+        channel = self.bot.get_channel(channel_id)
+        return self.remove_command(command_name, channel)
+
+    def remove_user_command(self, user: discord.User, command_name: str):
+        """
+        Removes the user and command from ignore list to re-enable any interactions
+        of the user with the specific command.
+
+        :param user: The user to re-enable
+        :param command_name: The command to re-enable for the user, Should be, but not necessarily, the full qualified
+            command name. Depending on the checking implementation for the specific command.
+        :return: True if user and command was removed,
+            otherwise False if command interactions not blocked for the user
+        """
+        dataset = IgnoreDataset(IgnoreType.User_Command, user=user, command_name=command_name)
+        return self.remove(dataset)
+
+    def remove_user_id_command(self, user_id: int, command_name: str):
+        """
+        Removes the user and command from ignore list to re-enable any interactions
+        of the user with the specific command.
+
+        :param user_id: The id of the user to re-enable
+        :param command_name: The command to re-enable for the user, Should be, but not necessarily, the full qualified
+            command name. Depending on the checking implementation for the specific command.
+        :return: True if user and command was removed,
+            otherwise False if command interactions not blocked for the user
+        """
+        user = self.bot.get_user(user_id)
+        return self.remove_user_command(user, command_name)
 
     #######
     # Checking
