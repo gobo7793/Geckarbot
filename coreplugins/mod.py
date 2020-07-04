@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 from conf import Config
 from botutils import utils, permChecks, enums
 from Geckarbot import BasePlugin
+from subsystems.ignoring import IgnoreEditResult
 from subsystems.blacklist import Blacklist
 from subsystems.greylist import Greylist
 from subsystems.cmddisable import CommandDisable
@@ -111,9 +112,31 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
                                 "Users can disable command interactions for themselves only, but Admins also for "
                                 "other users.")
     async def disable(self, ctx, command, *args):
+        user = ctx.author
+        date_args = args
+        if len(args) > 0:
+            try:
+                user = commands.UserConverter().convert(ctx, args[0])
+                date_args = args[1:]
+            except (commands.CommandError, IndexError):
+                date_args = args
 
-        if ctx.invoked_subcommand is None:
-            await ctx.send_help(self.disable)
+        if user != ctx.author and not permChecks.check_full_access(ctx.author):
+            raise commands.MissingAnyRole(*Config().FULL_ACCESS_ROLES)
+
+        until = utils.analyze_time_input(date_args)
+
+        result = self.bot.ignoring.add_user_command(user, command, until)
+        if result == IgnoreEditResult.Success:
+            await ctx.message.add_reaction(Config().CMDSUCCESS)
+        elif result == IgnoreEditResult.Already_in_list:
+            await ctx.message.add_reaction(Config().CMDERROR)
+            await ctx.send("Interactions with command {} are already blocked for {}."
+                           .format(command, utils.get_best_username(user)))
+        elif result == IgnoreEditResult.Until_in_past:
+            await ctx.message.add_reaction(Config().CMDERROR)
+            await ctx.send("Sorry, I don't have a time machine.")
+        await utils.log_to_admin_channel(ctx)
 
     @disable.command(name="user", help="Block any interaction between user and bot.",
                      usage="<user> [#m|#h|#d|DD.MM.YYYY|HH:MM|DD.MM.YYYY HH:MM|DD.MM. HH:MM]",
@@ -124,12 +147,19 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
                                  "for minutes, h for hours or d for days. If no date/duration is given, the user will "
                                  "be blocked forever.")
     @commands.has_any_role(*Config().FULL_ACCESS_ROLES)
-    async def disable_user(self, ctx, user: discord.user, *args):
-        until = utils.analyze_time_input(args)
-        if self.bot.ignoring.add_user(user, until):
+    async def disable_user(self, ctx, user: discord.User, *args):
+        until = utils.analyze_time_input(*args)
+
+        result = self.bot.ignoring.add_user(user, until)
+        if result == IgnoreEditResult.Success:
             await ctx.message.add_reaction(Config().CMDSUCCESS)
-        else:
+        elif result == IgnoreEditResult.Already_in_list:
+            await ctx.message.add_reaction(Config().CMDERROR)
             await ctx.send("{} already blocked.".format(utils.get_best_username(user)))
+        elif result == IgnoreEditResult.Until_in_past:
+            await ctx.message.add_reaction(Config().CMDERROR)
+            await ctx.send("Sorry, I don't have a time machine.")
+        await utils.log_to_admin_channel(ctx)
 
     @disable.command(name="cmd", help="Disables a command in current channel.",
                      usage="<command> [#m|#h|#d|DD.MM.YYYY|HH:MM|DD.MM.YYYY HH:MM|DD.MM. HH:MM]",
@@ -143,31 +173,64 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
                                  "will be disabled forever.")
     @commands.has_any_role(*Config().FULL_ACCESS_ROLES)
     async def disable_cmd(self, ctx, command, *args):
-        until = utils.analyze_time_input(args)
-        if self.bot.ignoring.add_command(command, ctx.channel, until):
+        until = utils.analyze_time_input(*args)
+
+        result = self.bot.ignoring.add_command(command, ctx.channel, until)
+        if result == IgnoreEditResult.Success:
             await ctx.message.add_reaction(Config().CMDSUCCESS)
-        else:
+        elif result == IgnoreEditResult.Already_in_list:
+            await ctx.message.add_reaction(Config().CMDERROR)
             await ctx.send("Command {} already blocked in this channel".format(command))
+        elif result == IgnoreEditResult.Until_in_past:
+            await ctx.message.add_reaction(Config().CMDERROR)
+            await ctx.send("Sorry, I don't have a time machine.")
+        await utils.log_to_admin_channel(ctx)
 
-    @commands.group(name="disable", invoke_without_command=True, help="Unblocks user or command usage.",
-                    description="")
-    async def enable(self, ctx, command, user: discord.user = None):
-        if ctx.invoked_subcommand is None:
-            await ctx.send_help(self.disable)
+    @commands.group(name="enable", invoke_without_command=True, help="Unblocks user or command usage.",
+                    description="Removes a command from users ignore list to enable any interactions between the user "
+                                "and the command.\n"
+                                "Users can enable command interactions for themselves only, but Admins also for "
+                                "other users.")
+    async def enable(self, ctx, command, user: discord.User = None):
+        if user is None:
+            user = ctx.author
 
-    @enable.command(name="user", help="Unlock user to enable interactions between user and bot.",
-                    description="")
+        if user != ctx.author and not permChecks.check_full_access(ctx.author):
+            raise commands.MissingAnyRole(*Config().FULL_ACCESS_ROLES)
+
+        result = self.bot.ignoring.remove_user_command(user, command)
+        if result == IgnoreEditResult.Success:
+            await ctx.message.add_reaction(Config().CMDSUCCESS)
+        elif result == IgnoreEditResult.Not_in_list:
+            await ctx.send("Interactions with command {} are not blocked for {}."
+                           .format(command, utils.get_best_username(user)))
+        await utils.log_to_admin_channel(ctx)
+
+    @enable.command(name="user", help="Unblock user to enable interactions between user and bot.",
+                    description="Removes a user from bot's ignore list to enable any interaction between the user and "
+                                "the bot.")
     @commands.has_any_role(*Config().FULL_ACCESS_ROLES)
-    async def enable_user(self, ctx, user: discord.user):
-        if ctx.invoked_subcommand is None:
-            await ctx.send_help(self.disable)
+    async def enable_user(self, ctx, user: discord.User):
+        result = self.bot.ignoring.remove_user(user)
+        if result == IgnoreEditResult.Success:
+            await ctx.message.add_reaction(Config().CMDSUCCESS)
+        elif result == IgnoreEditResult.Not_in_list:
+            await ctx.send("{} is not blocked.".format(utils.get_best_username(user)))
+        await utils.log_to_admin_channel(ctx)
 
     @enable.command(name="cmd", help="Enables a command in current channel.",
-                    description="")
+                    description="Removes a command from bot's ignore list to enable it in current channel. The command "
+                                "name must be the full qualified name of the command without command prefix. If a "
+                                "subcommand should be enabled, the command name must be inside quotation marks like "
+                                "\"enable cmd\".")
     @commands.has_any_role(*Config().FULL_ACCESS_ROLES)
     async def enable_cmd(self, ctx, command):
-        if ctx.invoked_subcommand is None:
-            await ctx.send_help(self.disable)
+        result = self.bot.ignoring.remove_command(command, ctx.channel)
+        if result == IgnoreEditResult.Success:
+            await ctx.message.add_reaction(Config().CMDSUCCESS)
+        elif result == IgnoreEditResult.Not_in_list:
+            await ctx.send("Command {} is not blocked in this channel".format(command))
+        await utils.log_to_admin_channel(ctx)
 
     ######
     # Blacklist
