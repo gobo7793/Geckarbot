@@ -24,6 +24,19 @@ class IgnoreType(enum.IntEnum):
     """Blocks any interactions for an user on a specific command. Disables channel argument in IgnoreDataset."""
 
 
+class IgnoreEditResult(enum.Enum):
+    """Return codes for adding and removing datasets to ignore list."""
+
+    Success = 0
+    """Successfully added/removed to ignore list"""
+    Already_in_list = 1
+    """Dataset is already in list."""
+    Not_in_list = 2
+    """Dataset is not in list."""
+    Until_in_past = 3
+    """Until datetime for auto-remove is in past, dataset was not added to ignore list."""
+
+
 class IgnoreDataset:
     """
     The ignoring dataset.
@@ -185,8 +198,9 @@ class Ignoring:
     def load(self):
         """Loads the ignorelist json"""
         jsondata = Config()._read_config_file(ignoring_file_name)
-        for el in jsondata:
-            self.add(IgnoreDataset.deserialize(self.bot, el))
+        if jsondata is not None:
+            for el in jsondata:
+                self.add(IgnoreDataset.deserialize(self.bot, el))
 
     def save(self):
         """Saves the current ignorelist to json"""
@@ -204,10 +218,12 @@ class Ignoring:
         Adds a IgnoreDataset to ignore list and schedules necessary timers for auto-remove
 
         :param dataset: the dataset
-        :return: True if added, False if dataset already in list
+        :return: Code based on IgnoreEditResult
         """
         if dataset in self.ignorelist:
-            return False
+            return IgnoreEditResult.Already_in_list
+        if dataset.until < datetime.now():
+            return IgnoreEditResult.Until_in_past
 
         self.ignorelist.append(dataset)
         if dataset.until < datetime.max:
@@ -218,7 +234,7 @@ class Ignoring:
             job.data = dataset
             dataset.job = job
         self.save()
-        return True
+        return IgnoreEditResult.Success
 
     def add_user(self, user: discord.User, until: datetime = datetime.max):
         """
@@ -226,7 +242,7 @@ class Ignoring:
 
         :param user: The user to block
         :param until: The datetime to auto-remove the user from ignore list
-        :return: True if user was added, otherwise False if user already on list
+        :return: Code based on IgnoreEditResult
         """
         dataset = IgnoreDataset(IgnoreType.User, user=user, until=until)
         return self.add(dataset)
@@ -237,7 +253,7 @@ class Ignoring:
 
         :param user_id: The id of the user to block
         :param until: The datetime to auto-remove the user from ignore list
-        :return: True if user was added, otherwise False if user already on list
+        :return: Code based on IgnoreEditResult
         """
         user = self.bot.get_user(user_id)
         return self.add_user(user, until)
@@ -249,7 +265,7 @@ class Ignoring:
         :param command_name: The full qualified command name (eg. 'dsc set')
         :param channel: The channel in which the command will be disabled
         :param until: The datetime to auto-remove the command from ignore list
-        :return: True if command was added, otherwise False if command in channel already on list
+        :return: Code based on IgnoreEditResult
         """
         dataset = IgnoreDataset(IgnoreType.Command, command_name=command_name, channel=channel, until=until)
         return self.add(dataset)
@@ -261,7 +277,7 @@ class Ignoring:
         :param command_name: The full qualified command name (eg. 'dsc set')
         :param channel_id: The id of the channel in which the command will be disabled
         :param until: The datetime to auto-remove the command from ignore list
-        :return: True if command was added, otherwise False if command in channel already on list
+        :return: Code based on IgnoreEditResult
         """
         channel = self.bot.get_channel(channel_id)
         return self.add_command(command_name, channel, until)
@@ -274,8 +290,7 @@ class Ignoring:
         :param command_name: The command to block for the user, Should be, but not necessarily, the full qualified
             command name. Depending on the checking implementation for the specific command.
         :param until: The datetime to auto-remove the command from ignore list
-        :return: True if user and command was added,
-            otherwise False if command interactions already blocked for the user
+        :return: Code based on IgnoreEditResult
         """
         dataset = IgnoreDataset(IgnoreType.User_Command, user=user, command_name=command_name, until=until)
         return self.add(dataset)
@@ -288,8 +303,7 @@ class Ignoring:
         :param command_name: The command to block for the user, Should be, but not necessarily, the full qualified
             command name. Depending on the checking implementation for the specific command.
         :param until: The datetime to auto-remove the command from ignore list
-        :return: True if user and command was added,
-            otherwise False if command interactions already blocked for the user
+        :return: Code based on IgnoreEditResult
         """
         user = self.bot.get_user(user_id)
         return self.add_user_command(user, command_name, until)
@@ -303,17 +317,17 @@ class Ignoring:
         Removes a IgnoreDataset from ignore list and removes it's scheduled timer
 
         :param dataset: the dataset
-        :return: True if dataset is removed, False if dataset not in list
+        :return: Code based on IgnoreEditResult
         """
         if dataset not in self.ignorelist:
-            return False
+            return IgnoreEditResult.Not_in_list
 
         self.ignorelist.remove(dataset)
         if dataset.job is not None:
             dataset.job.cancel()
 
         self.save()
-        return True
+        return IgnoreEditResult.Success
 
     async def auto_remove_callback(self, job):
         """
@@ -330,7 +344,7 @@ class Ignoring:
         Removes the user from the ignore list and re-enables all interactions between the user with the bot.
 
         :param user: The user to re-enable
-        :return: True if user was removed, otherwise False if user not on list
+        :return: Code based on IgnoreEditResult
         """
         dataset = IgnoreDataset(IgnoreType.User, user=user)
         return self.remove(dataset)
@@ -340,7 +354,7 @@ class Ignoring:
         Removes the user from the ignore list and re-enables all interactions between the user with the bot.
 
         :param user_id: The id of the user to re-enable
-        :return: True if user was removed, otherwise False if user not on list
+        :return: Code based on IgnoreEditResult
         """
         user = self.bot.get_user(user_id)
         return self.remove_user(user)
@@ -351,7 +365,7 @@ class Ignoring:
 
         :param command_name: The full qualified command name (eg. 'dsc set')
         :param channel: The channel in which the command will be re-enabled
-        :return: True if command was removed, otherwise False if command in channel not on list
+        :return: Code based on IgnoreEditResult
         """
         dataset = IgnoreDataset(IgnoreType.Command, command_name=command_name, channel=channel)
         return self.remove(dataset)
@@ -362,7 +376,7 @@ class Ignoring:
 
         :param command_name: The full qualified command name (eg. 'dsc set')
         :param channel_id: The id of the channel in which the command will be re-enabled
-        :return: True if command was removed, otherwise False if command in channel not on list
+        :return: Code based on IgnoreEditResult
         """
         channel = self.bot.get_channel(channel_id)
         return self.remove_command(command_name, channel)
@@ -375,8 +389,7 @@ class Ignoring:
         :param user: The user to re-enable
         :param command_name: The command to re-enable for the user, Should be, but not necessarily, the full qualified
             command name. Depending on the checking implementation for the specific command.
-        :return: True if user and command was removed,
-            otherwise False if command interactions not blocked for the user
+        :return: Code based on IgnoreEditResult
         """
         dataset = IgnoreDataset(IgnoreType.User_Command, user=user, command_name=command_name)
         return self.remove(dataset)
@@ -389,8 +402,7 @@ class Ignoring:
         :param user_id: The id of the user to re-enable
         :param command_name: The command to re-enable for the user, Should be, but not necessarily, the full qualified
             command name. Depending on the checking implementation for the specific command.
-        :return: True if user and command was removed,
-            otherwise False if command interactions not blocked for the user
+        :return: Code based on IgnoreEditResult
         """
         user = self.bot.get_user(user_id)
         return self.remove_user_command(user, command_name)
