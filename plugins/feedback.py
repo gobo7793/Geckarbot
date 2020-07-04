@@ -183,6 +183,7 @@ class Plugin(BasePlugin, name="Feedback"):
             except (ValueError, TypeError):
                 error = True
             if error:
+                await ctx.message.add_reaction(Config().CMDERROR)
                 await ctx.message.channel.send("Unexpected argument structure; expected !redact or !redact del #")
                 return
             del self.complaints[i]
