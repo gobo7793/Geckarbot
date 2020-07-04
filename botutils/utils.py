@@ -109,47 +109,48 @@ def analyze_time_input(*args):
     Analyzes the given command args for following syntax and returns a datetime object after duration or on given
     date and/or time. If no duration unit (trailing m, h, d in arg[0]), minutes will be used.
     If no date and time can be determined, datetime.max will be returned.
+
     [#|#m|#h|#d|DD.MM.YYYY|HH:MM|DD.MM.YYYY HH:MM|DD.MM. HH:MM]
 
     :param args: The command args for duration/date/time
-    :returns: The datetime object with the given date and time
+    :returns: The datetime object with the given date and time or datetime.max
     """
-    now = datetime.now()
+    now = datetime.datetime.now()
 
     if len(args) == 1:
         try:  # duration: #|#m|#h|#d
             if args[0].endswith("m"):
-                return now + timedelta(minutes=int(args[0][:-1]))
+                return now + datetime.timedelta(minutes=int(args[0][:-1]))
             elif args[0].endswith("h"):
-                return now + timedelta(hours=int(args[0][:-1]))
+                return now + datetime.timedelta(hours=int(args[0][:-1]))
             elif args[0].endswith("d"):
-                return now + timedelta(days=int(args[0][:-1]))
+                return now + datetime.timedelta(days=int(args[0][:-1]))
             else:
-                return now + timedelta(minutes=int(args[0]))
+                return now + datetime.timedelta(minutes=int(args[0]))
         except ValueError:
             try:  # date: DD.MM.YYYY
                 time = now.strftime("%H:%M")
-                return datetime.strptime(args[0] + time, "%d.%m.%Y%H:%M")
+                return datetime.datetime.strptime(args[0] + time, "%d.%m.%Y%H:%M")
             except ValueError:
                 try:  # time: HH:MM
                     today = now.strftime("%d.%m.%Y")
-                    return datetime.strptime(today + args[0], "%d.%m.%Y%H:%M")
+                    return datetime.datetime.strptime(today + args[0], "%d.%m.%Y%H:%M")
                 except ValueError:
                     pass
 
     if len(args) == 2:
         arg = args[0] + args[1]
         try:  # full datetime: DD.MM.YYYY HH:MM
-            return datetime.strptime(args[0] + args[1], "%d.%m.%Y%H:%M")
+            return datetime.datetime.strptime(args[0] + args[1], "%d.%m.%Y%H:%M")
         except ValueError:
             try:  # datetime w/o year: DD.MM. HH:MM
                 year = str(now.year)
-                return datetime.strptime(year + arg, "%Y%d.%m.%H:%M")
+                return datetime.datetime.strptime(year + arg, "%Y%d.%m.%H:%M")
             except ValueError:
                 pass
 
     # No valid time input
-    return datetime.max
+    return datetime.datetime.max
 
 
 async def emojize(demote_str, ctx):
