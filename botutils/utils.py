@@ -129,8 +129,8 @@ def analyze_time_input(*args):
                 return now + datetime.timedelta(minutes=int(args[0]))
         except ValueError:
             try:  # date: DD.MM.YYYY
-                time = now.strftime("%H:%M")
-                return datetime.datetime.strptime(args[0] + time, "%d.%m.%Y%H:%M")
+                daytime = now.strftime("%H:%M")
+                return datetime.datetime.strptime(args[0] + daytime, "%d.%m.%Y%H:%M")
             except ValueError:
                 try:  # time: HH:MM
                     today = now.strftime("%d.%m.%Y")
