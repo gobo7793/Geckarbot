@@ -55,24 +55,22 @@ msg_defaults = {
     "duplicate_difficulty_arg": "You defined the difficulty more than once. Make up your mind.",
     "duplicate_mode_arg": "You defined the answering mode more than once. Make up your mind.",
     "duplicate_controller_arg": "You defined the game mode more than once. Make up your mind.",
-    "unknown": "Unknown argument: {}",
+    "too_many_arguments": "Too many arguments.",
+    "invalid_argument": "Invalid argument: {}",
     "existing_quiz": "There is already a kwiss running in this channel.",
+
     "correct_answer": "{}: {} is the correct answer!",
     "quiz_start": "Starting kwiss! {} questions. Category: {}. Difficulty: {}. Game Mode: {}",
     "quiz_end": "The kwiss has ended. The winner is: **{}**! Congratulations!",
     "quiz_end_pl": "The kwiss has ended. The winners are: **{}**! Congratulations!",
     "quiz_end_no_winner": "The kwiss has ended. The winner is: **{}**! Congratulations, you suck!",
     "quiz_abort": "The kwiss was aborted.",
-    "too_many_arguments": "Too many arguments.",
-    "invalid_argument": "Invalid argument: {}",
     "answering_order": "{}: Please let someone else answer first.",
     "registering_phase": "Please register for the upcoming kwiss via a {} reaction. I will wait {} minute."
                          .format(reactions["signup"], "{}"),
     "registering_too_late": "{}: Sorry, too late. The kwiss has already begun.",
     "register_success": "{}: You're in!",
     "quiz_phase": "The kwiss will begin in 10 seconds!",
-    "already_registered": "{}: Dude, I got it. Don't worry.",
-    "no_pause_while_registering": "{}: Nope, not now.",
     "points_question_done": "The correct answer was {}!\n{} answered correctly.",
     "points_timeout_warning": "Waiting for answers from {}. You have {} seconds!",
     "points_timeout": "Timeout!",
@@ -1249,9 +1247,9 @@ class OpenTDBQuizAPI(BaseQuizAPI):
         questions_raw = self.client.make_request(opentdb["api_route"], params=params)["results"]
         for i in range(len(questions_raw)):
             el = questions_raw[i]
-            question = unquote(el["question"])
-            correct_answer = unquote(el["correct_answer"])
-            incorrect_answers = [unquote(ia) for ia in el["incorrect_answers"]]
+            question = discord.utils.escape_markdown(unquote(el["question"]))
+            correct_answer = discord.utils.escape_markdown(unquote(el["correct_answer"]))
+            incorrect_answers = [discord.utils.escape_markdown(unquote(ia)) for ia in el["incorrect_answers"]]
             self.questions.append(Question(question, correct_answer, incorrect_answers, index=i))
 
     def current_question_index(self):
@@ -1462,6 +1460,12 @@ class Plugin(Geckarbot.BasePlugin, name="A trivia kwiss"):
             await subcmd.callback(ctx.message, *subcmd.args)
             return
 
+        err = self.args_combination_check(controller_class, args)
+        if err is not None:
+            await ctx.message.add_reaction(Config().CMDERROR)
+            await ctx.send(message(self.config, err))
+            return
+
         # Look for existing quiz
         method = args["method"]
         modifying = method == Methods.STOP \
@@ -1562,6 +1566,12 @@ class Plugin(Geckarbot.BasePlugin, name="A trivia kwiss"):
         if channel not in self.controllers:
             assert False, "Channel not in controller list"
         del self.controllers[channel]
+
+    def args_combination_check(self, controller, args):
+        return None
+        # Ranked stuff
+        if args["ranked"]:
+            pass
 
     def parse_args(self, channel, args):
         """
