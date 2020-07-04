@@ -13,7 +13,7 @@ from discord.ext import commands
 import Geckarbot
 from conf import Config
 from botutils import restclient, utils, permChecks, statemachine
-from subsystems.reactions import ReactionAddedEvent, ReactionRemovedEvent
+from subsystems.reactions import ReactionRemovedEvent
 
 jsonify = {
     "timeout": 20,  # answering timeout in minutes; not impl yet TODO
@@ -112,6 +112,18 @@ opentdb = {
         {'id': 32, 'names': ['Cartoons / Animated', 'cartoons', 'cartoon', 'animated']},
     ]
 }
+
+
+def uemoji(config, user):
+    if not isinstance(user, int):
+        user = user.id
+    if user in config["emoji"]:
+        return "{} ".format(config["emoji"][user])
+    return ""
+
+
+def get_best_username(config, user):
+    return "{}{}".format(uemoji(config, user), utils.get_best_username(user))
 
 
 def message(config, msg_id, *args):
@@ -221,28 +233,28 @@ class BaseQuizController(ABC):
         pass
 
     @abstractmethod
-    async def start(self):
+    async def start(self, msg):
         """
         Called when the start command is invoked.
         """
         raise NotImplementedError
 
     @abstractmethod
-    async def pause(self):
+    async def pause(self, msg):
         """
         Called when the pause command is invoked.
         """
         raise NotImplementedError
 
     @abstractmethod
-    async def resume(self):
+    async def resume(self, msg):
         """
         Called when the resume command is invoked.
         """
         raise NotImplementedError
 
     @abstractmethod
-    async def status(self):
+    async def status(self, msg):
         """
         Called when the status command is invoked.
         """
@@ -260,14 +272,7 @@ class BaseQuizController(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def stop(self):
-        """
-        Called when the quiz is ended.
-        """
-        pass
-
-    @abstractmethod
-    def abort(self):
+    def abort(self, msg):
         """
         Called when the quiz is aborted.
         """
@@ -275,9 +280,10 @@ class BaseQuizController(ABC):
 
 
 class Score:
-    def __init__(self, config, question_count):
+    def __init__(self, plugin, config, question_count):
         self._score = {}
         self._points = {}
+        self.plugin = plugin
         self.config = config
         self.question_count = question_count
         self.answered_questions = None
@@ -359,7 +365,7 @@ class Score:
                 s[firstsort[user]] = [user]
         for score in s:
             s[score] = sorted(s[score], key=lambda x: secondsort[x], reverse=True)
-        keys = sorted(s.keys(), key=lambda x: firstsort[x], reverse=True)
+        keys = sorted(s.keys(), reverse=True)
 
         # flatten
         r = []
@@ -399,10 +405,10 @@ class Score:
                 place += 1
 
             # embed
-            name = "**#{}** {}".format(place, utils.get_best_username(user))
+            name = "**#{}** {}".format(place, get_best_username(Config().get(self.plugin), user))
             value = "Correct answers: {}".format(self._score[user])
             if len(self) > 1:
-                value += "Correct answers: {}\nScore: {}".format(self._score[user], self.calc_points(user))
+                value = "{}\nScore: {}".format(value, self.calc_points(user))
             embed.add_field(name=name, value=value)
 
             i += 1
@@ -605,7 +611,7 @@ class PointsQuizController(BaseQuizController):
         self.difficulty = kwargs["difficulty"]
 
         self.quizapi = quizapi
-        self._score = Score(self.config, self.question_count)
+        self._score = Score(self.plugin, self.config, self.question_count)
 
         # State handling
         self.ran_into_timeout = False
@@ -664,6 +670,8 @@ class PointsQuizController(BaseQuizController):
                     continue
 
                 self.registered_participants[user] = []
+            if self.debug:
+                self.registered_participants[self.plugin.bot.user] = []
 
         if len(self.registered_participants) == 0:
             self.state = Phases.ABORT
@@ -682,7 +690,8 @@ class PointsQuizController(BaseQuizController):
             return
         else:
             embed = discord.Embed(title=message(self.config, "quiz_phase"))
-            value = "\n".join([el.mention for el in self.registered_participants])
+            value = "\n".join(["{}{}".format(uemoji(Config().get(self.plugin), el), el.mention)
+                               for el in self.registered_participants])
             embed.add_field(name="Participants:", value=value)
             await self.channel.send(embed=embed)
 
@@ -713,6 +722,18 @@ class PointsQuizController(BaseQuizController):
         :return:
         """
         self.plugin.logger.debug("Ending question")
+
+        # If debug, add bot's answer
+        if self.debug:
+            self.plugin.logger.debug("Adding bot's answer")
+            found = None
+            for i in range(len(self.current_question.all_answers)):
+                print("Comparing {} and {}".format(self.current_question.all_answers[i],
+                                                   self.current_question.correct_answer))
+                if self.current_question.all_answers[i] == self.current_question.correct_answer:
+                    found = i
+                    break
+            self.registered_participants[self.plugin.bot.user] = self.current_question.letter_mapping(found, emoji=True)
 
         # End timeout timer
         if self.current_question_timer is not None:
@@ -746,7 +767,7 @@ class PointsQuizController(BaseQuizController):
         for user in correctly_answered:
             self.score.increase(user, totalcorr=len(correctly_answered))
 
-        correct = [utils.get_best_username(el) for el in correctly_answered]
+        correct = [get_best_username(Config().get(self.plugin), el) for el in correctly_answered]
         correct = utils.format_andlist(correct, message(self.config, "and"), message(self.config, "nobody"))
         if self.config["emoji_in_pose"]:
             ca = question.correct_answer_emoji
@@ -764,7 +785,7 @@ class PointsQuizController(BaseQuizController):
     async def end(self):
 
         embed = self.score.embed()
-        winners = [utils.get_best_username(x) for x in self.score.winners()]
+        winners = [get_best_username(Config().get(self.plugin), x) for x in self.score.winners()]
 
         msgkey = "quiz_end"
         if len(winners) > 1:
@@ -867,7 +888,7 @@ class PointsQuizController(BaseQuizController):
     """
     Commands
     """
-    async def start(self):
+    async def start(self, msg):
         """
         Called when the start command is invoked.
         """
@@ -909,19 +930,19 @@ class PointsQuizController(BaseQuizController):
         await msg.add_reaction(Config().CMDSUCCESS)
         # await self.channel.send(message(self.config, "register_success", msg.author))
 
-    async def pause(self):
+    async def pause(self, msg):
         """
         Called when the pause command is invoked.
         """
         raise NotImplementedError
 
-    async def resume(self):
+    async def resume(self, msg):
         """
         Called when the resume command is invoked.
         """
         raise NotImplementedError
 
-    async def status(self):
+    async def status(self, msg):
         """
         Called when the status command is invoked.
         """
@@ -930,12 +951,11 @@ class PointsQuizController(BaseQuizController):
         embed.add_field(name="Category", value=self.quizapi.category_name(self.category))
         embed.add_field(name="Difficulty", value=Difficulty.human_readable(self.difficulty))
         embed.add_field(name="Mode", value="Points (Everyone answers)")
-        embed.add_field(name="Initiated by", value=utils.get_best_username(self.requester))
+        embed.add_field(name="Initiated by", value=get_best_username(Config().get(self.plugin), self.requester))
 
         status = ":arrow_forward: Running"
         if self.state == Phases.REGISTERING:
             status = ":book: Signup phase"
-        #if not self.is_running:
         #    status = ":pause_button: Paused"
         embed.add_field(name="Status", value=status)
 
@@ -944,24 +964,19 @@ class PointsQuizController(BaseQuizController):
 
         await self.channel.send(embed=embed)
 
+    async def abort(self, msg):
+        """
+        Called when the quiz is aborted.
+        """
+        self.state = Phases.ABORT
+        await msg.add_reaction(Config().CMDSUCCESS)
+
     @property
     def score(self):
         """
         :return: Score object
         """
         return self._score
-
-    async def abort(self):
-        """
-        Called when the quiz is aborted.
-        """
-        self.state = Phases.ABORT
-
-    def stop(self):
-        """
-        Called when the quiz is stopped at the regular end of a quiz.
-        """
-        pass
 
     """
     Utils
@@ -982,7 +997,7 @@ class PointsQuizController(BaseQuizController):
         return True
 
     def havent_answered_hr(self):
-        return [utils.get_best_username(el)
+        return [get_best_username(Config().get(self.plugin), el)
                 for el in self.registered_participants if len(self.registered_participants[el]) != 1]
 
 
@@ -1031,7 +1046,7 @@ class RushQuizController(BaseQuizController):
         # Quiz handling
         self.last_author = None
         self.quizapi = quizapi
-        self._score = Score(self.config, self.question_count)
+        self._score = Score(self.plugin, self.config, self.question_count)
 
     """
     Transitions
@@ -1066,7 +1081,8 @@ class RushQuizController(BaseQuizController):
 
         # Increment score
         self.score.increase(self.last_author)
-        await self.channel.send(message(self.config, "correct_answer", utils.get_best_username(self.last_author),
+        await self.channel.send(message(self.config, "correct_answer",
+                                        get_best_username(Config().get(self.plugin), self.last_author),
                                         question.correct_answer_letter))
 
         await asyncio.sleep(self.config["question_cooldown"])
@@ -1075,7 +1091,12 @@ class RushQuizController(BaseQuizController):
     async def end(self):
 
         embed = self.score.embed()
-        winners = [utils.get_best_username(x) for x in self.score.winners()]
+        winners = [get_best_username(Config().get(self.plugin), x) for x in self.score.winners()]
+
+        # Übergangslösung
+        points = self.score.points()
+        for user in points:
+            self.plugin.update_ladder(user, points[user])
 
         msgkey = "quiz_end"
         if len(winners) > 1:
@@ -1126,41 +1147,40 @@ class RushQuizController(BaseQuizController):
 
     async def abortphase(self):
         await self.channel.send("The quiz was aborted.")
+        self.plugin.end_quiz(self.channel)
 
     """
     Commands
     """
-    async def start(self):
+    async def start(self, msg):
         self.quizapi = self.quizapi(self.config, self.channel,
                                     category=self.category, question_count=self.question_count,
                                     difficulty=self.difficulty, debug=self.debug)
         self.state = Phases.ABOUTTOSTART
 
-    async def pause(self):
+    async def pause(self, msg):
         raise NotImplementedError
 
-    async def resume(self):
+    async def resume(self, msg):
         raise NotImplementedError
 
-    async def status(self):
+    async def status(self, msg):
         embed = discord.Embed(title="Kwiss: question {}/{}".format(
             self.quizapi.current_question_index() + 1, len(self.quizapi)))
         embed.add_field(name="Category", value=self.quizapi.category_name(self.category))
         embed.add_field(name="Difficulty", value=Difficulty.human_readable(self.difficulty))
         embed.add_field(name="Mode", value="Rush (Winner takes it all)")
-        embed.add_field(name="Initiated by", value=utils.get_best_username(self.requester))
+        embed.add_field(name="Initiated by", value=get_best_username(Config().get(self.plugin), self.requester))
 
         status = ":arrow_forward: Running"
-        #if not self.is_running:
         #    status = ":pause_button: Paused"
         embed.add_field(name="Status", value=status)
 
         if self.debug:
             embed.add_field(name="Debug mode", value=":beetle:")
 
+        await msg.add_reaction(Config().CMDSUCCESS)
         await self.channel.send(embed=embed)
-        #if self.is_running:
-        #    self.quizapi.current_question().pose(self.channel)
 
     @property
     def score(self):
@@ -1169,8 +1189,9 @@ class RushQuizController(BaseQuizController):
     def stop(self):
         pass
 
-    async def abort(self):
+    async def abort(self, msg):
         self.state = Phases.ABORT
+        await msg.add_reaction(Config().CMDSUCCESS)
 
     """
     Utils
@@ -1260,6 +1281,17 @@ class OpenTDBQuizAPI(BaseQuizAPI):
                 return el["names"][0]
         return catkey
 
+    def cat_count(self, cat):
+        found = None
+        for el in opentdb["cat_mapping"]:
+            if cat in opentdb["cat_mapping"][el]:
+                found = el
+                break
+        if found == -1:
+            return -1
+        params = {"category": cat}
+        self.client.make_request("api_count.php", params=params)
+
     def next_question(self):
         """
         Returns the next question and increments the current question. Raises QuizEnded when there is no next question.
@@ -1309,7 +1341,9 @@ class Plugin(Geckarbot.BasePlugin, name="A trivia kwiss"):
             PointsQuizController: ["points"],
         }
 
-        self.register_subcommand(None, "categories", self.catlist)
+        self.register_subcommand(None, "categories", self.cmd_catlist)
+        self.register_subcommand(None, "emoji", self.cmd_emoji)
+        self.register_subcommand(None, "ladder", self.cmd_ladder)
 
         super().__init__(bot)
         bot.register(self)
@@ -1321,9 +1355,12 @@ class Plugin(Geckarbot.BasePlugin, name="A trivia kwiss"):
                 await quiz.on_message(msg)
 
     def default_config(self):
-        return {}
+        return {
+            "emoji": {},
+            "ladder": {},
+        }
 
-    async def catlist(self, msg, *args):
+    async def cmd_catlist(self, msg, *args):
         if len(args) > 1:
             await msg.channel.send(message(self.config, "too_many_arguments"))
             return
@@ -1335,6 +1372,75 @@ class Plugin(Geckarbot.BasePlugin, name="A trivia kwiss"):
             s.append("**{}**: {}".format(cat[0], cat[1]))
         embed.add_field(name="Name: Command", value="\n".join(s))
         await msg.channel.send(embed=embed)
+
+    async def cmd_emoji(self, msg, *args):
+        # Delete emoji
+        if len(args) == 1:
+            if msg.author.id in Config().get(self)["emoji"]:
+                del Config().get(self)["emoji"][msg.author.id]
+                await msg.add_reaction(Config().CMDSUCCESS)
+                Config().save(self)
+            else:
+                await msg.add_reaction(Config().CMDERROR)
+            return
+
+        # Too many arguments
+        if len(args) != 2:
+            await msg.add_reaction(Config().CMDERROR)
+            return
+
+        emoji = args[1]
+        try:
+            await msg.add_reaction(emoji)
+        except:
+            await msg.add_reaction(Config().CMDERROR)
+            return
+
+        Config().get(self)["emoji"][msg.author.id] = emoji
+        Config().save(self)
+        await msg.add_reaction(Config().CMDSUCCESS)
+
+    async def cmd_ladder(self, msg, *args):
+        """
+        :return: Embed that represents the rank ladder
+        """
+        if len(args) != 1:
+            await msg.add_reaction(Config().CMDERROR)
+            return
+
+        embed = discord.Embed()
+        entries = {}
+        for uid in Config().get(self)["ladder"]:
+            member = discord.utils.get(msg.guild.members, id=uid)
+            points = Config().get(self)["ladder"][uid]
+            if points not in entries:
+                entries[points] = [member]
+            else:
+                entries[points].append(member)
+
+        values = []
+        keys = sorted(entries.keys(), reverse=True)
+        place = 0
+        for el in keys:
+            place += 1
+            values.append("**#{}:** {} - {}".format(place, el, entries[el]))
+
+        if len(values) == 0:
+            await msg.channel.send("So far, nobody is on the ladder.")
+            return
+
+        embed.add_field(name="Ladder:", value="\n".join(values))
+        await msg.channel.send(embed=embed)
+
+    def update_ladder(self, member, points):
+        ladder = Config().get(self)["ladder"]
+        if len(ladder) > 0:
+            print("ladder ids are str: {} (expected False)".format(isinstance(str, ladder[ladder.values()[0]])))
+        if member.id in ladder:
+            ladder[member.id] = int(round(ladder[member.id] * 3/4 + points * 1/4))
+        else:
+            ladder[member.id] = int(round(points * 3/4))
+        Config().save(self)
 
     @commands.command(name="kwiss", help="Interacts with the kwiss subsystem.")
     async def kwiss(self, ctx, *args):
@@ -1375,16 +1481,16 @@ class Plugin(Geckarbot.BasePlugin, name="A trivia kwiss"):
         if modifying:
             quiz_controller = self.get_controller(channel)
             if method == Methods.PAUSE:
-                await quiz_controller.pause()
+                await quiz_controller.pause(ctx.message)
             elif method == Methods.RESUME:
-                await quiz_controller.resume()
+                await quiz_controller.resume(ctx.message)
             elif method == Methods.SCORE:
                 await ctx.send(embed=quiz_controller.score.embed())
             elif method == Methods.STOP:
                 if permChecks.check_full_access(ctx.message.author) or quiz_controller.requester == ctx.message.author:
-                    await self.abort_quiz(channel)
+                    await self.abort_quiz(channel, ctx.message)
             elif method == Methods.STATUS:
-                await quiz_controller.status()
+                await quiz_controller.status(ctx.message)
             else:
                 assert False
             return
@@ -1401,7 +1507,7 @@ class Plugin(Geckarbot.BasePlugin, name="A trivia kwiss"):
                                OpenTDBQuizAPI.category_name(args["category"]),
                                Difficulty.human_readable(quiz_controller.difficulty),
                                self.controller_mapping[controller_class][0]))
-        await quiz_controller.start()
+        await quiz_controller.start(ctx.message)
 
     def register_subcommand(self, channel, subcommand, callback):
         """
@@ -1437,35 +1543,25 @@ class Plugin(Geckarbot.BasePlugin, name="A trivia kwiss"):
             return self.controllers[channel]
         return None
 
-    def cleanup_quiz(self, channel):
+    async def abort_quiz(self, channel, msg):
         """
-        Assumes the quiz in channel `channel` has ended and does the necessary cleanup.
-        :param channel: channel the quiz is in
-        """
-        self.logger.debug("Cleaning up quiz in {}".format(channel))
-        controller = self.controllers[channel]
-        controller.stop()
-        del self.controllers[channel]
-
-    async def abort_quiz(self, channel):
-        """
-        Called on !kwiss stop. Also calls cleanup_quiz. It is assumed that there is a quiz in channel.
+        Called on !kwiss stop. It is assumed that there is a quiz in channel.
         :param channel: channel that the abort was requested in.
+        :param msg: Message object
         """
         controller = self.controllers[channel]
-        await controller.abort()
-        self.cleanup_quiz(channel)
+        await controller.abort(msg)
 
     def end_quiz(self, channel):
         """
-        Ends the quiz.
+        Cleans up the quiz.
         :param channel: channel that the quiz is taking place in
         :return: (End message, score embed)
         """
-        self.logger.debug("Ending quiz in channel {}.".format(channel))
+        self.logger.debug("Cleaning up quiz in channel {}.".format(channel))
         if channel not in self.controllers:
-            assert False
-        self.cleanup_quiz(channel)
+            assert False, "Channel not in controller list"
+        del self.controllers[channel]
 
     def parse_args(self, channel, args):
         """
