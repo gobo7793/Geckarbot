@@ -284,7 +284,7 @@ class Score:
         self.plugin = plugin
         self.config = config
         self.question_count = question_count
-        self.answered_questions = None
+        self.answered_questions = []
 
         self.interpol_x = [0, 10, 35, 55, 75, 100]
         self.interpol_y = [0, 30, 60, 75, 88, 100]
@@ -329,7 +329,7 @@ class Score:
         if user not in self._score:
             raise KeyError("User {} not found in score".format(user))
 
-        return int(round(self.f(100 * self._points[user] * (1 - 1/len(self._points)))))
+        return int(round(self.f(100 * self._points[user] * (1 - 1/len(self.answered_questions)))))
 
     def points(self):
         """
@@ -419,7 +419,7 @@ class Score:
 
         return embed
 
-    def increase(self, member, amount=1, totalcorr=1, question=None):
+    def increase(self, member, question, amount=1, totalcorr=1,):
         """
         Increases a participant's score by amount. Registers the participant if not present.
         :param member: Discord member
@@ -763,7 +763,7 @@ class PointsQuizController(BaseQuizController):
                 correctly_answered.append(user)
 
         for user in correctly_answered:
-            self.score.increase(user, totalcorr=len(correctly_answered))
+            self.score.increase(user, self.current_question, totalcorr=len(correctly_answered))
 
         correct = [get_best_username(Config().get(self.plugin), el) for el in correctly_answered]
         correct = utils.format_andlist(correct, message(self.config, "and"), message(self.config, "nobody"))
@@ -1078,7 +1078,7 @@ class RushQuizController(BaseQuizController):
         question = self.quizapi.current_question()
 
         # Increment score
-        self.score.increase(self.last_author)
+        self.score.increase(self.last_author, question)
         await self.channel.send(message(self.config, "correct_answer",
                                         get_best_username(Config().get(self.plugin), self.last_author),
                                         question.correct_answer_letter))
