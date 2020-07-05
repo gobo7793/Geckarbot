@@ -116,7 +116,7 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
         date_args = args
         if len(args) > 0:
             try:
-                user = commands.UserConverter().convert(ctx, args[0])
+                user = await commands.MemberConverter().convert(ctx, args[0])
                 date_args = args[1:]
             except (commands.CommandError, IndexError):
                 date_args = args
@@ -147,7 +147,7 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
                                  "for minutes, h for hours or d for days. If no date/duration is given, the user will "
                                  "be blocked forever.")
     @commands.has_any_role(*Config().FULL_ACCESS_ROLES)
-    async def disable_user(self, ctx, user: discord.User, *args):
+    async def disable_user(self, ctx, user: discord.Member, *args):
         until = utils.analyze_time_input(*args)
 
         result = self.bot.ignoring.add_user(user, until)
@@ -191,7 +191,7 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
                                 "and the command.\n"
                                 "Users can enable command interactions for themselves only, but Admins also for "
                                 "other users.")
-    async def enable(self, ctx, command, user: discord.User = None):
+    async def enable(self, ctx, command, user: discord.Member = None):
         if user is None:
             user = ctx.author
 
@@ -210,7 +210,7 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
                     description="Removes a user from bot's ignore list to enable any interaction between the user and "
                                 "the bot.")
     @commands.has_any_role(*Config().FULL_ACCESS_ROLES)
-    async def enable_user(self, ctx, user: discord.User):
+    async def enable_user(self, ctx, user: discord.Member):
         result = self.bot.ignoring.remove_user(user)
         if result == IgnoreEditResult.Success:
             await ctx.message.add_reaction(Config().CMDSUCCESS)

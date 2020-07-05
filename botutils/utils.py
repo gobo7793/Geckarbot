@@ -118,7 +118,7 @@ def analyze_time_input(*args):
     :returns: The datetime object with the given date and time or datetime.max
     """
     now = datetime.datetime.now()
-    arg = " ".join(args)
+    arg = " ".join(*args)
 
     try:  # duration: #|#m|#h|#d
         if arg.endswith("m"):

@@ -145,8 +145,7 @@ class IgnoreDataset:
         :return: The raw message
         """
         return "IgnoreDataset: Type: {}, User: {}, Command: {}, Channel: {}, Until: {}".format(
-            str(self.ignore_type), utils.get_best_username(self.user), self.command_name,
-            self.channel.name, self.until)
+            str(self.ignore_type), self.user, self.command_name, self.channel, self.until)
 
     def to_message(self):
         """
@@ -226,7 +225,6 @@ class Ignoring:
         if dataset.until < datetime.now():
             return IgnoreEditResult.Until_in_past
 
-        self.ignorelist.append(dataset)
         if dataset.until < datetime.max:
             timedict = timers.timedict(year=dataset.until.year, month=dataset.until.month,
                                        monthday=dataset.until.day, hour=dataset.until.hour,
@@ -234,6 +232,8 @@ class Ignoring:
             job = self.bot.timers.schedule(self.auto_remove_callback, timedict, repeat=False)
             job.data = dataset
             dataset.job = job
+
+        self.ignorelist.append(dataset)
         self.save()
         logging.info("Added to ignore list: {}".format(dataset.to_raw_message()))
         return IgnoreEditResult.Success
@@ -324,12 +324,14 @@ class Ignoring:
         if dataset not in self.ignorelist:
             return IgnoreEditResult.Not_in_list
 
-        self.ignorelist.remove(dataset)
-        if dataset.job is not None:
-            dataset.job.cancel()
+        dataset_index = self.ignorelist.index(dataset)
+        listed_dataset = self.ignorelist[dataset_index]
+        if listed_dataset.job is not None:
+            listed_dataset.job.cancel()
 
+        self.ignorelist.remove(listed_dataset)
         self.save()
-        logging.info("Removed from ignore list: {}".format(dataset.to_raw_message()))
+        logging.info("Removed from ignore list: {}".format(listed_dataset.to_raw_message()))
         return IgnoreEditResult.Success
 
     async def auto_remove_callback(self, job):
