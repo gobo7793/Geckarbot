@@ -191,26 +191,19 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
         def get_item_msg(item):
             return item.to_message()
 
-        for msg in utils.paginate(self.bot.ignoring.filter_ignore_list(IgnoreType.User),
-                                  prefix="**Blocked Users:**",
-                                  f=get_item_msg):
-            await ctx.send(msg)
-        # else:
-        #     await ctx.send("No users blocked.")
+        async def write_list(itype: IgnoreType, prefix):
+            ilist = self.bot.ignoring.filter_ignore_list(itype)
+            if len(ilist) > 0:
+                for msg in utils.paginate(ilist, prefix=prefix, f=get_item_msg):
+                    await ctx.send(msg)
 
-        for msg in utils.paginate(self.bot.ignoring.filter_ignore_list(IgnoreType.Command),
-                                  prefix="**Disabled Commands:**",
-                                  f=get_item_msg):
-            await ctx.send(msg)
-        # else:
-        #     await ctx.send("No commands disabled.")
+        if len(self.bot.ignoring.ignorelist) < 1:
+            await ctx.send("No users or commands blocked.")
+            return
 
-        for msg in utils.paginate(self.bot.ignoring.filter_ignore_list(IgnoreType.User_Command),
-                                  prefix="**Blocked Commands for Users:**",
-                                  f=get_item_msg):
-            await ctx.send(msg)
-        # else:
-        #    await ctx.send("No blocked commands for users.")
+        await write_list(IgnoreType.User, "**Blocked Users:**\n")
+        await write_list(IgnoreType.Command, "**Disabled Commands:**\n")
+        await write_list(IgnoreType.User_Command, "**Blocked Commands for Users:**\n")
 
     @commands.group(name="enable", invoke_without_command=True, help="Unblocks user or command usage.",
                     description="Removes a command from users ignore list to enable any interactions between the user "
