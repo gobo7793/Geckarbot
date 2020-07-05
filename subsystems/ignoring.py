@@ -229,7 +229,7 @@ class Ignoring:
             timedict = timers.timedict(year=dataset.until.year, month=dataset.until.month,
                                        monthday=dataset.until.day, hour=dataset.until.hour,
                                        minute=dataset.until.minute)
-            job = self.bot.timers.schedule(self.auto_remove_callback, timedict, repeat=False)
+            job = self.bot.timers.schedule(self._auto_remove_callback, timedict, repeat=False)
             job.data = dataset
             dataset.job = job
 
@@ -334,7 +334,7 @@ class Ignoring:
         logging.info("Removed from ignore list: {}".format(listed_dataset.to_raw_message()))
         return IgnoreEditResult.Success
 
-    async def auto_remove_callback(self, job):
+    async def _auto_remove_callback(self, job):
         """
         The auto-remove callback method
 
