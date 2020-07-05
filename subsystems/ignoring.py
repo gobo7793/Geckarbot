@@ -1,4 +1,5 @@
 import enum
+import logging
 
 import discord
 from discord.ext import commands
@@ -234,6 +235,7 @@ class Ignoring:
             job.data = dataset
             dataset.job = job
         self.save()
+        logging.info("Added to ignore list: {}".format(dataset.to_raw_message()))
         return IgnoreEditResult.Success
 
     def add_user(self, user: discord.User, until: datetime = datetime.max):
@@ -327,6 +329,7 @@ class Ignoring:
             dataset.job.cancel()
 
         self.save()
+        logging.info("Removed from ignore list: {}".format(dataset.to_raw_message()))
         return IgnoreEditResult.Success
 
     async def auto_remove_callback(self, job):
@@ -336,7 +339,7 @@ class Ignoring:
         :param job: the auto-remove job with the dataset
         """
         remove_result = self.remove(job.data)
-        msg = "Attempt auto-removing {}, Result: {}".format(job.data.to_raw_message(), remove_result)
+        msg = "Attempt auto-removing {}, Result: {}".format(job.data.to_raw_message(), str(remove_result))
         await utils.write_admin_channel(self.bot, msg)
 
     def remove_user(self, user: discord.User):
