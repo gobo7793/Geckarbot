@@ -61,12 +61,13 @@ class AsyncTimer(Thread):
 
 def get_best_username(user):
     """
+    Gets the best username for the given user or the str representation of the given object.
     :param user: User (Member or User instance) that is to be identified
     :return: Returns the best fit for a human-readable identifier ("username") of user.
     """
-    if isinstance(user, discord.User) or isinstance(user, discord.ClientUser) or user.nick is None:
-        return user.name
-    return user.nick
+    if isinstance(user, discord.user.BaseUser):
+        return user.display_name
+    return str(user)
 
 
 def format_andlist(andlist, ands="and", emptylist="nobody"):
