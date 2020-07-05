@@ -59,17 +59,17 @@ class IgnoreDataset:
         :param until: The datetime on which the ignoring entry will be auto-removed. Possible for all types.
         :param job: The timer subsystem job for auto-remove
         """
-        if (type == IgnoreType.User
+        if (ignore_type == IgnoreType.User
                 and (user is None
                      or command_name
                      or channel is not None)):
             raise ValueError("User blocking only accepts the user argument.")
-        if (type == IgnoreType.Command
+        elif (ignore_type == IgnoreType.Command
                 and (user is not None
                      or not command_name
                      or channel is None)):
             raise ValueError("Command disabling only needs both of command_name and channel arguments.")
-        if (type == IgnoreType.User_Command
+        elif (ignore_type == IgnoreType.User_Command
                 and (user is None
                      or not command_name
                      or channel is not None)):
@@ -133,7 +133,7 @@ class IgnoreDataset:
         user = bot.guild.get_member(d["userid"])
         if user is None:
             user = bot.get_user(d["userid"])
-        channel = bot.get_channel(d["userid"])
+        channel = bot.get_channel(d["channelid"])
         return IgnoreDataset(d["type"], user, d["command_name"], channel, d["until"])
 
     def to_raw_message(self):
@@ -161,13 +161,13 @@ class IgnoreDataset:
         """
 
         if self.ignore_type == IgnoreType.User:
-            m = "User {} will be ignored".format(utils.get_best_username(self.user))
+            m = "User {} will be ignored".format(self.user.display_name)
 
         elif self.ignore_type == IgnoreType.Command:
-            m = "User {} will be ignored for command {}".format(utils.get_best_username(self.user), self.command_name)
+            m = "Command {} is disabled in channel {}".format(self.command_name, self.channel.name)
 
         elif self.ignore_type == IgnoreType.User_Command:
-            m = "Command {} is disabled in channel {}".format(self.command_name, self.channel.name)
+            m = "User {} will be ignored for command {}".format(self.user.display_name, self.command_name)
 
         else:
             return self.to_raw_message()
@@ -200,7 +200,7 @@ class Ignoring:
         jsondata = Config()._read_config_file(ignoring_file_name)
         if jsondata is not None:
             for el in jsondata:
-                self.add(IgnoreDataset.deserialize(self.bot, el))
+                self.add(IgnoreDataset.deserialize(self.bot, el), True)
 
     def save(self):
         """Saves the current ignorelist to json"""
@@ -213,11 +213,12 @@ class Ignoring:
     # Adding
     #######
 
-    def add(self, dataset: IgnoreDataset):
+    def add(self, dataset: IgnoreDataset, disable_save_file=False):
         """
         Adds a IgnoreDataset to ignore list and schedules necessary timers for auto-remove
 
         :param dataset: the dataset
+        :param disable_save_file: disables saving ignore list in json file, useful for system startup
         :return: Code based on IgnoreEditResult
         """
         if dataset in self.ignorelist:
@@ -234,7 +235,8 @@ class Ignoring:
             dataset.job = job
 
         self.ignorelist.append(dataset)
-        self.save()
+        if not disable_save_file:
+            self.save()
         logging.info("Added to ignore list: {}".format(dataset.to_raw_message()))
         return IgnoreEditResult.Success
 
