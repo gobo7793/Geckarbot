@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 from conf import Config
 from botutils import utils, permChecks, enums
 from Geckarbot import BasePlugin
-from subsystems.ignoring import IgnoreEditResult
+from subsystems.ignoring import IgnoreEditResult, IgnoreType
 from subsystems.blacklist import Blacklist
 from subsystems.greylist import Greylist
 from subsystems.cmddisable import CommandDisable
@@ -113,18 +113,18 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
                                 "other users.")
     async def disable(self, ctx, command, *args):
         user = ctx.author
-        date_args = args
+        date_args_start_index = 0
         if len(args) > 0:
             try:
                 user = await commands.MemberConverter().convert(ctx, args[0])
-                date_args = args[1:]
+                date_args_start_index = 1
             except (commands.CommandError, IndexError):
-                date_args = args
+                date_args_start_index = 0
 
         if user != ctx.author and not permChecks.check_full_access(ctx.author):
-            raise commands.MissingAnyRole(*Config().FULL_ACCESS_ROLES)
+            raise commands.MissingAnyRole(Config().FULL_ACCESS_ROLES)
 
-        until = utils.analyze_time_input(date_args)
+        until = utils.analyze_time_input(*args[date_args_start_index:])
 
         result = self.bot.ignoring.add_user_command(user, command, until)
         if result == IgnoreEditResult.Success:
@@ -186,6 +186,32 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
             await ctx.send("Sorry, I don't have a time machine.")
         await utils.log_to_admin_channel(ctx)
 
+    @disable.command(name="list", help="Lists all blocked users and commands")
+    async def disable_list(self, ctx):
+        def get_item_msg(item):
+            return item.to_message()
+
+        for msg in utils.paginate(self.bot.ignoring.filter_ignore_list(IgnoreType.User),
+                                  prefix="**Blocked Users:**",
+                                  f=get_item_msg):
+            await ctx.send(msg)
+        # else:
+        #     await ctx.send("No users blocked.")
+
+        for msg in utils.paginate(self.bot.ignoring.filter_ignore_list(IgnoreType.Command),
+                                  prefix="**Disabled Commands:**",
+                                  f=get_item_msg):
+            await ctx.send(msg)
+        # else:
+        #     await ctx.send("No commands disabled.")
+
+        for msg in utils.paginate(self.bot.ignoring.filter_ignore_list(IgnoreType.User_Command),
+                                  prefix="**Blocked Commands for Users:**",
+                                  f=get_item_msg):
+            await ctx.send(msg)
+        # else:
+        #    await ctx.send("No blocked commands for users.")
+
     @commands.group(name="enable", invoke_without_command=True, help="Unblocks user or command usage.",
                     description="Removes a command from users ignore list to enable any interactions between the user "
                                 "and the command.\n"
@@ -202,6 +228,7 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
         if result == IgnoreEditResult.Success:
             await ctx.message.add_reaction(Config().CMDSUCCESS)
         elif result == IgnoreEditResult.Not_in_list:
+            await ctx.message.add_reaction(Config().CMDERROR)
             await ctx.send("Interactions with command {} are not blocked for {}."
                            .format(command, utils.get_best_username(user)))
         await utils.log_to_admin_channel(ctx)
@@ -215,6 +242,7 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
         if result == IgnoreEditResult.Success:
             await ctx.message.add_reaction(Config().CMDSUCCESS)
         elif result == IgnoreEditResult.Not_in_list:
+            await ctx.message.add_reaction(Config().CMDERROR)
             await ctx.send("{} is not blocked.".format(utils.get_best_username(user)))
         await utils.log_to_admin_channel(ctx)
 
@@ -229,6 +257,7 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
         if result == IgnoreEditResult.Success:
             await ctx.message.add_reaction(Config().CMDSUCCESS)
         elif result == IgnoreEditResult.Not_in_list:
+            await ctx.message.add_reaction(Config().CMDERROR)
             await ctx.send("Command {} is not blocked in this channel".format(command))
         await utils.log_to_admin_channel(ctx)
 
