@@ -65,7 +65,7 @@ def get_best_username(user):
     :param user: User (Member or User instance) that is to be identified
     :return: Returns the best fit for a human-readable identifier ("username") of user.
     """
-    if isinstance(user, discord.user.BaseUser):
+    if isinstance(user, discord.abc.User):
         return user.display_name
     return str(user)
 
@@ -118,7 +118,7 @@ def analyze_time_input(*args):
     :returns: The datetime object with the given date and time or datetime.max
     """
     now = datetime.datetime.now()
-    arg = " ".join(*args)
+    arg = " ".join(args)
 
     try:  # duration: #|#m|#h|#d
         if arg.endswith("m"):
