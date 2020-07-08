@@ -326,3 +326,10 @@ def paginate(items, prefix="", suffix="", msg_prefix="", delimiter="\n", f=lambd
         if not r.strip() == "":
             print("yielding5 {}".format(r))
             yield r
+
+
+def plugin_name(plugin):
+    """
+    Returns a human-readable name for Plugin plugin.
+    """
+    return plugin.__module__.rsplit(".", 1)[1]

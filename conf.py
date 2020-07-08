@@ -2,7 +2,7 @@ import os
 import json
 import logging
 import pkgutil
-from botutils import jsonUtils
+from botutils import jsonUtils, utils
 
 
 class _Singleton(type):
@@ -19,7 +19,7 @@ class PluginSlot:
 
     def __init__(self, instance):
         self.instance = instance
-        self.name = instance.__module__.rsplit(".", 1)[1]
+        self.name = utils.plugin_name(instance)
         self.storage_dir = "{}/{}".format(Config().STORAGE_DIR, self.name)
         self.config = None
         self.lang = None
