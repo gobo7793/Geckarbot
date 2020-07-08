@@ -1,9 +1,9 @@
 import sys
 
+import discord
 from discord.ext import commands
 from botutils.utils import get_best_username
 from subsystems.reactions import ReactionAddedEvent, ReactionRemovedEvent
-
 
 from Geckarbot import BasePlugin
 
@@ -65,3 +65,10 @@ class Plugin(BasePlugin, name="Testing and debug things"):
     async def waitforreact(self, ctx):
         msg = await ctx.channel.send("React here pls")
         self.bot.reaction_listener.register(msg, self.waitforreact_callback)
+
+    @commands.command(name="mentionuser", help="Mentions a user, supports user cmd disabling.")
+    async def mentionuser(self, ctx, user: discord.Member):
+        if self.bot.ignoring.check_user_command(user, ctx.command.qualified_name):
+            await ctx.send("Command blocked for user!")
+        else:
+            await ctx.send(user.mention)
