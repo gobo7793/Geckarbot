@@ -7,6 +7,7 @@ from conf import Config
 
 from Geckarbot import BasePlugin
 from subsystems import timers
+from botutils import utils
 
 
 class Plugin(BasePlugin, name="Funny/Misc Commands"):
@@ -100,14 +101,14 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
         await ctx.send(Config().lang(self, 'tippspiel_output'))
 
     @commands.command(name="remindme", help="Reminds the author.",
-                      usage="<duration|DD.MM.YYYY HH:MM|DD.MM. HH:MM|HH:MM|cancel|list> [message|cancel_id]",
+                      usage="<#|#m|#h|#d|DD.MM.YYYY|HH:MM|DD.MM.YYYY HH:MM|DD.MM. HH:MM|cancel|list> "
+                            "[message|cancel_id]",
                       description="Reminds the author in x minutes, hours or days or on a fixed date and/or time or "
                                   "cancels the users reminder with given ids.\nThe duration unit can be set with "
                                   "trailing m for minutes, h for hours or d for days. If none is set, the duration "
                                   "unit is in minutes. Duration example: 5h = 5 hours.\nIf no cancel id is given, "
                                   "all user's reminders will be removed.")
     async def reminder(self, ctx, *args):
-        rtext = " ".join(args[1:])
 
         # remove hostoric reminders
         old_reminders = []
@@ -153,11 +154,6 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
         if args[0] == "list":
             msg = Config().lang(self, 'remind_list_prefix')
             reminders_msg = ""
-            # for el in sorted(Config().get(self)['reminders'].values(), key=lambda x: x['time']):
-            #     if el['user'] == ctx.author.id:
-            #         reminders_msg += Config().lang(self, 'remind_list_element',
-            #                                        el['time'].strftime('%d.%m.%Y %H:%M'),
-            #                                        el['text'], el['id'])
             for job in sorted(self.reminders.values(), key=lambda x: x.next_execution()):
                 if job.data['user'] == ctx.author.id:
                     reminders_msg += Config().lang(self, 'remind_list_element',
@@ -170,29 +166,19 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
             return
 
         # set reminder
+        remind_time = utils.analyze_time_input(args)
         try:
-            remind_time = datetime.datetime.strptime(f"{args[0]} {args[1]}", "%d.%m.%Y %H:%M")
+            datetime.datetime.strptime(f"{args[0]} {args[1]}", "%d.%m.%Y %H:%M")
             rtext = " ".join(args[2:])
         except (ValueError, IndexError):
             try:
-                remind_time = datetime.datetime.strptime(f"{args[0]}{datetime.datetime.now().year} {args[1]}",
-                                                         "%d.%m.%Y %H:%M")
+                datetime.datetime.strptime(f"{args[0]} {args[1]}", "%d.%m. %H:%M")
+                rtext = " ".join(args[2:])
             except (ValueError, IndexError):
-                try:
-                    today = datetime.datetime.now().strftime('%d.%m.%Y')
-                    remind_time = datetime.datetime.strptime(today + args[0], "%d.%m.%Y%H:%M") + datetime.timedelta()
-                except ValueError:
-                    try:
-                        if args[0].endswith("m"):
-                            remind_time = datetime.datetime.now() + datetime.timedelta(minutes=int(args[0][:-1]))
-                        elif args[0].endswith("h"):
-                            remind_time = datetime.datetime.now() + datetime.timedelta(hours=int(args[0][:-1]))
-                        elif args[0].endswith("d"):
-                            remind_time = datetime.datetime.now() + datetime.timedelta(days=int(args[0][:-1]))
-                        else:
-                            remind_time = datetime.datetime.now() + datetime.timedelta(minutes=int(args[0]))
-                    except ValueError:
-                        raise commands.BadArgument(message=Config().lang(self, 'remind_duration_err'))
+                rtext = " ".join(args[1:])
+
+        if remind_time == datetime.datetime.max:
+            raise commands.BadArgument(message=Config().lang(self, 'remind_duration_err'))
 
         reminder_id = self.get_new_reminder_id()
 
