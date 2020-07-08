@@ -179,24 +179,51 @@ async def demojize(emote, ctx):
     return str(converted)
 
 
+def get_embed_content_str(embed: discord.Embed):
+    """Returns the given embed contents as loggable string"""
+    m = "Embed Title: " + embed.title
+    if embed.author is not None and embed.author:
+        m += ", Author: " + embed.author
+    if embed.description is not None and embed.description:
+        m += ", Description: " + embed.description
+    if embed.url is not None and embed.url:
+        m += ", URL: " + embed.url
+    if embed.footer is not None and embed.footer:
+        m += ", Footer: " + embed.footer
+    if embed.timestamp is not None and embed.timestamp:
+        m += ", Timestamp: " + embed.timestamp
+    for f in embed.fields:
+        m += ", Field {}={}".format(f.name, f.value)
+
+    return m
+
+
 async def write_debug_channel(bot: Bot, message):
     """Writes the given message or embed to the debug channel"""
     debug_chan = bot.get_channel(Config().DEBUG_CHAN_ID)
     if debug_chan is not None:
+        log_msg = message
         if isinstance(message, discord.Embed):
             await debug_chan.send(embed=message)
+            log_msg = get_embed_content_str(message)
         else:
             await debug_chan.send(message)
+
+        logging.info("Written to debug chan: " + log_msg)
 
 
 async def write_admin_channel(bot: Bot, message):
     """Writes the given message or embed to the admin channel"""
     admin_chan = bot.get_channel(Config().ADMIN_CHAN_ID)
     if admin_chan is not None:
+        log_msg = message
         if isinstance(message, discord.Embed):
             await admin_chan.send(embed=message)
+            log_msg = get_embed_content_str(message)
         else:
             await admin_chan.send(message)
+
+        logging.info("Written to admin chan: " + log_msg)
 
 
 async def log_to_admin_channel_without_ctx(bot, **kwargs):
