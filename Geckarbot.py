@@ -48,7 +48,6 @@ class BasePlugin(commands.Cog):
 
 class Geckarbot(commands.Bot):
     def __init__(self, *args, **kwargs):
-        self.coredata = {}
         self.geck_cogs = []
         self.guild = None
         self.plugins = None
