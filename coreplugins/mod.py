@@ -1,10 +1,12 @@
 import platform
 import discord
+import pkgutil
 from discord.ext import commands
 
 from conf import Config
 from botutils import utils, permChecks
 from Geckarbot import BasePlugin
+import subsystems
 from subsystems.ignoring import IgnoreEditResult, IgnoreType
 
 
@@ -15,13 +17,6 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
         super().__init__(bot)
         self.can_reload = True
         bot.register(self)
-
-        # self.bl = Blacklist(self)
-        # self.gl = Greylist(self)
-        # self.cd = CommandDisable(self)
-        # bot.coredata['blacklist'] = self.bl
-        # bot.coredata['greylist'] = self.gl
-        # bot.coredata['disabled_cmds'] = self.cd
 
     def default_config(self):
         return {
@@ -64,9 +59,14 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
     @commands.command(name="plugins", help="List all plugins.")
     async def plugins(self, ctx):
         """Returns registered plugins"""
-        plugin_list = "\n - ".join([plugin.module_name for plugin in Config().plugins])
-        plugin_count = len(Config().plugins)
-        await ctx.send(f"Loaded {plugin_count} plugins:\n - {plugin_list}")
+        plugin_list = "\n - ".join([plugin.name for plugin in Config().plugins])
+        await ctx.send(f"Loaded {len(Config().plugins)} plugins:\n - {plugin_list}")
+
+        module_list = []
+        for modname in pkgutil.iter_modules(subsystems.__path__):
+            module_list.append(modname)
+        subsys_list = "\n - ".join([m.name for m in module_list])
+        await ctx.send(f"Loaded {len(module_list)} subsystems:\n - {subsys_list}")
 
     @commands.command(name="about", help="Prints the credits")
     async def about(self, ctx):
