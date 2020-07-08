@@ -78,6 +78,12 @@ class Geckarbot(commands.Bot):
         for el in Config().plugins:
             yield el.instance
 
+    def plugin_name(self, plugin):
+        """
+        Returns a human-readable name for Plugin plugin.
+        """
+        return plugin.__module__.rsplit(".", 1)[1]  # same as for PluginSlot.name
+
     def load_plugins(self, plugin_dir):
         r = []
 

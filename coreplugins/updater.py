@@ -270,7 +270,7 @@ class Plugin(Geckarbot.BasePlugin, name="Bot updating system"):
         self.state = State.UPDATING
         await channel.send(lang["doing_update"].format(tag))
         for plugin in self.bot.plugin_objects():
-            pname = utils.plugin_name(plugin)
+            pname = self.bot.plugin_name(plugin)
             try:
                 await utils.write_debug_channel(self.bot, "Shutting down plugin {}".format(pname))
                 await plugin.shutdown()
@@ -465,6 +465,6 @@ class Plugin(Geckarbot.BasePlugin, name="Bot updating system"):
             return
         else:
             logging.getLogger(__name__).error(
-                "{}: PANIC! I am on {}, this should not happen!".format(utils.plugin_name(self), self.state))
+                "{}: PANIC! I am on {}, this should not happen!".format(self.bot.plugin_name(self), self.state))
             self.state = State.IDLE
             self.waiting_for_confirm = None
