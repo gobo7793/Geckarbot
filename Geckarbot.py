@@ -231,9 +231,15 @@ def main():
 
     @bot.check
     async def command_disabled(ctx):
-        """Checks if a command is disabled. This check will be executed before other command checks."""
+        """
+        Checks if a command is disabled or blocked for user.
+        This check will be executed before other command checks.
+        """
         if bot.ignoring.check_command(ctx):
             raise commands.DisabledCommand()
+        if bot.ignoring.check_user_command(ctx.author, ctx.command.qualified_name):
+            raise commands.DisabledCommand()
+        return True
 
     bot.run(Config().TOKEN)
 
