@@ -102,15 +102,23 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
     ######
 
     @commands.group(name="disable", invoke_without_command=True, help="Blocks user or command usage.",
+                    brief="Blocks user or command usage",
                     usage="<command> [user] [#m|#h|#d|DD.MM.YYYY|HH:MM|DD.MM.YYYY HH:MM|DD.MM. HH:MM]",
                     description="Adds a command to users ignore list to disable any interactions between the user and "
                                 "the command.\n"
+                                "To block command usage for the user, the command name must be the full qualified "
+                                "name of the command without command prefix. If a subcommand should be blocked, "
+                                "the command name must be inside quotation marks like \"disable cmd\".\n "
+                                "To block other interactions than command usage itself, the command must support "
+                                "blocking usage for specific users.\n"
                                 "The time can be a fixed date and/or time or a duration after that the "
                                 "command will be auto-removed from the ignore list. The duration unit must be set "
                                 "with trailing m for minutes, h for hours or d for days. If no date/duration is "
                                 "given, the user can't interact with that command forever.\n"
                                 "Users can disable command interactions for themselves only, but Admins also for "
-                                "other users.")
+                                "other users.\n"
+                                "If a user uses a command which is blocked for the user, "
+                                "the bot doesn't response anything, like the command wouldn't exists.")
     async def disable(self, ctx, command, *args):
         user = ctx.author
         date_args_start_index = 0
@@ -145,7 +153,9 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
                                  "The time can be a fixed date and/or time or a duration after that the user will be "
                                  "auto-removed from the ignore list. The duration unit must be set with trailing m "
                                  "for minutes, h for hours or d for days. If no date/duration is given, the user will "
-                                 "be blocked forever.")
+                                 "be blocked forever.\n"
+                                 "If a blocked user uses a command, "
+                                 "the bot doesn't response anything, like the command wouldn't exists.")
     @commands.has_any_role(*Config().FULL_ACCESS_ROLES)
     async def disable_user(self, ctx, user: discord.Member, *args):
         until = utils.analyze_time_input(*args)
@@ -165,12 +175,14 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
                      usage="<command> [#m|#h|#d|DD.MM.YYYY|HH:MM|DD.MM.YYYY HH:MM|DD.MM. HH:MM]",
                      description="Adds a command to bot's ignore list to disable it in current channel. The command "
                                  "name must be the full qualified name of the command without command prefix. If a "
-                                 "subcommand should be disabled, the command name must be inside quotation marks like "
+                                 "subcommand should be blocked, the command name must be inside quotation marks like "
                                  "\"disable cmd\".\n"
                                  "The time can be a fixed date and/or time or a duration after that the command will "
                                  "be auto-removed from the ignore list. The duration unit must be set with trailing m "
                                  "for minutes, h for hours or d for days. If no date/duration is given, the command "
-                                 "will be disabled forever.")
+                                 "will be disabled forever.\n"
+                                 "If a user uses a command which is blocked in the channel, "
+                                 "the bot doesn't response anything, like the command wouldn't exists.")
     @commands.has_any_role(*Config().FULL_ACCESS_ROLES)
     async def disable_cmd(self, ctx, command, *args):
         until = utils.analyze_time_input(*args)
