@@ -82,7 +82,8 @@ class Mothership(Thread):
         nexto = job.next_execution()
         found = False
         for i in range(len(self.jobs)):
-            if self.jobs[i].next_execution() > nexto:
+            next_execution = self.jobs[i].next_execution()
+            if next_execution is not None and next_execution > nexto:
                 found = True
                 self.jobs.insert(i, job)
                 break

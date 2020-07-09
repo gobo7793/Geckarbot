@@ -14,7 +14,7 @@ from discord.ext import commands
 
 from conf import Config, PluginSlot
 from botutils import utils
-from subsystems import timers, reactions
+from subsystems import timers, reactions, ignoring
 
 
 class Exitcodes(Enum):
@@ -57,6 +57,7 @@ class Geckarbot(commands.Bot):
 
         self.reaction_listener = reactions.ReactionListener(self)
         self.timers = timers.Mothership(self)
+        self.ignoring = ignoring.Ignoring(self)
 
     def register(self, plugin_class):
         print(isinstance(plugin_class, BasePlugin))  # todo figure out why this is False
@@ -180,25 +181,25 @@ def main():
         @bot.event
         async def on_command_error(ctx, error):
             """Error handling for bot commands"""
-            if isinstance(error, commands.errors.CommandNotFound):
+            if isinstance(error, (commands.CommandNotFound, commands.DisabledCommand)):
                 return
 
             # Check Failures
-            elif isinstance(error, commands.errors.MissingRole) or isinstance(error, commands.errors.MissingAnyRole):
+            elif isinstance(error, (commands.MissingRole, commands.MissingAnyRole)):
                 await ctx.send("You don't have the correct role for this command.")
-            elif isinstance(error, commands.errors.NoPrivateMessage):
+            elif isinstance(error, commands.NoPrivateMessage):
                 await ctx.send("Command can't be executed in private messages.")
-            elif isinstance(error, commands.errors.CheckFailure):
+            elif isinstance(error, commands.CheckFailure):
                 await ctx.send("Permission error.")
 
             # User input errors
-            elif isinstance(error, commands.errors.MissingRequiredArgument):
+            elif isinstance(error, commands.MissingRequiredArgument):
                 await ctx.send("Required argument missing: {}".format(error.param))
-            elif isinstance(error, commands.errors.TooManyArguments):
+            elif isinstance(error, commands.TooManyArguments):
                 await ctx.send("Too many arguments given.")
-            elif isinstance(error, commands.errors.BadArgument):
+            elif isinstance(error, commands.BadArgument):
                 await ctx.send("Error on given argument: {}".format(error))
-            elif isinstance(error, commands.errors.UserInputError):
+            elif isinstance(error, commands.UserInputError):
                 await ctx.send("Wrong user input format: {}".format(error))
             else:
                 # error handling
@@ -214,25 +215,31 @@ def main():
 
     @bot.event
     async def on_message(message):
-        """Basic message and blacklisting handling"""
-        
-        if ('blacklist' in bot.coredata
-                and bot.coredata['blacklist'].is_member_on_blacklist(message.author)):
+        """Basic message and ignore list handling"""
+
+        # user on ignore list
+        if bot.ignoring.check_user(message.author):
             return
 
-        ctx = await bot.get_context(message)
-        if (ctx.valid
-                and 'disabled_cmds' in bot.coredata
-                and not bot.coredata['disabled_cmds'].can_cmd_executed(ctx.command.name, ctx.channel)):
+        # debug mode whitelist
+        if (Config().DEBUG_MODE
+                and len(Config().DEBUG_WHITELIST) > 0
+                and message.author.id not in Config().DEBUG_WHITELIST):
             return
 
-        if Config().DEBUG_MODE and len(Config().DEBUG_WHITELIST) > 0:
-            if message.author.id in Config().DEBUG_WHITELIST:
-                await bot.process_commands(message)
-            else:
-                return
-        else:
-            await bot.process_commands(message)
+        await bot.process_commands(message)
+
+    @bot.check
+    async def command_disabled(ctx):
+        """
+        Checks if a command is disabled or blocked for user.
+        This check will be executed before other command checks.
+        """
+        if bot.ignoring.check_command(ctx):
+            raise commands.DisabledCommand()
+        if bot.ignoring.check_user_command(ctx.author, ctx.command.qualified_name):
+            raise commands.DisabledCommand()
+        return True
 
     bot.run(Config().TOKEN)
 

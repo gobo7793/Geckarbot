@@ -61,12 +61,13 @@ class AsyncTimer(Thread):
 
 def get_best_username(user):
     """
+    Gets the best username for the given user or the str representation of the given object.
     :param user: User (Member or User instance) that is to be identified
     :return: Returns the best fit for a human-readable identifier ("username") of user.
     """
-    if isinstance(user, discord.User) or isinstance(user, discord.ClientUser) or user.nick is None:
-        return user.name
-    return user.nick
+    if isinstance(user, discord.abc.User):
+        return user.display_name
+    return str(user)
 
 
 def format_andlist(andlist, ands="and", emptylist="nobody"):
@@ -102,6 +103,52 @@ def convert_to_local_time(timestamp):
     :param timestamp: The datetime instance of the timestamp
     """
     return timestamp.replace(tzinfo=datetime.timezone.utc).astimezone(tz=None)
+
+
+def analyze_time_input(*args):
+    """
+    Analyzes the given command args for following syntax and returns a datetime object after duration or on given
+    date and/or time. If no duration unit (trailing m, h, d in arg[0]), minutes will be used.
+    If no date and time can be determined, datetime.max will be returned.
+    If for given date/time input some is missing, the current time, date or year will be used.
+
+    [#|#m|#h|#d|DD.MM.YYYY|HH:MM|DD.MM.YYYY HH:MM|DD.MM. HH:MM]
+
+    :param args: The command args for duration/date/time
+    :returns: The datetime object with the given date and time or datetime.max
+    """
+    now = datetime.datetime.now()
+    arg = " ".join(args)
+
+    try:  # duration: #|#m|#h|#d
+        if arg.endswith("m"):
+            return now + datetime.timedelta(minutes=int(arg[:-1]))
+        elif arg.endswith("h"):
+            return now + datetime.timedelta(hours=int(arg[:-1]))
+        elif arg.endswith("d"):
+            return now + datetime.timedelta(days=int(arg[:-1]))
+        else:
+            return now + datetime.timedelta(minutes=int(arg))
+    except ValueError:
+        try:  # date: DD.MM.YYYY
+            parsed = datetime.datetime.strptime(arg, "%d.%m.%Y")
+            return datetime.datetime.combine(parsed.date(), now.time())
+        except ValueError:
+            try:  # time: HH:MM
+                parsed = datetime.datetime.strptime(arg, "%H:%M")
+                return datetime.datetime.combine(now.date(), parsed.time())
+            except ValueError:
+                try:  # full datetime: DD.MM.YYYY HH:MM
+                    return datetime.datetime.strptime(arg, "%d.%m.%Y %H:%M")
+                except ValueError:
+                    try:  # datetime w/o year: DD.MM. HH:MM
+                        parsed = datetime.datetime.strptime(arg, "%d.%m. %H:%M")
+                        return datetime.datetime(now.year, parsed.month, parsed.day, parsed.hour, parsed.minute)
+                    except ValueError:
+                        pass
+
+    # No valid time input
+    return datetime.datetime.max
 
 
 async def emojize(demote_str, ctx):
@@ -252,4 +299,3 @@ def paginate(items, prefix="", suffix="", msg_prefix="", delimiter="\n", f=lambd
         if not r.strip() == "":
             print("yielding5 {}".format(r))
             yield r
-
