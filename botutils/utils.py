@@ -181,7 +181,9 @@ async def demojize(emote, ctx):
 
 def get_embed_content_str(embed: discord.Embed):
     """Returns the given embed contents as loggable string"""
-    m = "Embed Title: " + embed.title
+    m = ""
+    if embed.title is not None and embed.title:
+        m += "Embed Title: " + embed.title
     if embed.author is not None and embed.author:
         m += ", Author: " + embed.author
     if embed.description is not None and embed.description:
@@ -191,7 +193,7 @@ def get_embed_content_str(embed: discord.Embed):
     if embed.footer is not None and embed.footer:
         m += ", Footer: " + embed.footer
     if embed.timestamp is not None and embed.timestamp:
-        m += ", Timestamp: " + embed.timestamp
+        m += ", Timestamp: " + str(embed.timestamp)
     for f in embed.fields:
         m += ", Field {}={}".format(f.name, f.value)
 
@@ -258,10 +260,8 @@ async def log_to_admin_channel(context):
 
     timestamp = convert_to_local_time(context.message.created_at).strftime('%d.%m.%Y, %H:%M')
 
-    message_content = context.message.clean_content
-    if len(message_content) > 256:
-        message_content = "{}...".format(message_content[:253])
-    embed = discord.Embed(title=message_content)
+    embed = discord.Embed(title="Special command used")
+    embed.description = context.message.clean_content
     embed.add_field(name="User", value=context.author.mention)
     embed.add_field(name="Channel", value=context.channel.mention)
     embed.add_field(name="Timestamp", value=timestamp)
