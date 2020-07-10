@@ -6,6 +6,7 @@ from botutils import utils
 from subsystems.reactions import ReactionAddedEvent, ReactionRemovedEvent
 
 from Geckarbot import BasePlugin
+from conf import Config
 
 
 class Plugin(BasePlugin, name="Testing and debug things"):
@@ -20,6 +21,12 @@ class Plugin(BasePlugin, name="Testing and debug things"):
 
     def default_config(self):
         return {}
+
+    def cog_check(self, ctx):
+        role = discord.utils.get(ctx.author.roles, id=Config().BOTMASTER_ROLE_ID)
+        if role is None:
+            raise commands.MissingRole(Config().BOTMASTER_ROLE_ID)
+        return True
 
     def wake_up_sync(self):
         self.bot.loop.create_task(self.wake_up())
