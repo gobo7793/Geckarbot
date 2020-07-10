@@ -42,8 +42,16 @@ class BasePlugin(commands.Cog):
         pass
 
     def default_config(self):
-        """Returns an empty default config"""
+        """
+        Returns an empty default config
+        """
         return {}
+
+    def get_lang(self):
+        """
+        Gets the lang dictionary for Config API.
+        """
+        return None
 
 
 class Geckarbot(commands.Bot):
