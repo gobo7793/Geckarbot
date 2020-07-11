@@ -70,24 +70,20 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
     def dsc_lang(self, str_name, *args):
         return Config().lang(self, str_name, *args)
 
-    @commands.group(name="dsc", help="Get and manage informations about current DSC",
+    @commands.group(name="dsc", invoke_without_command=True, help="Get and manage informations about current DSC",
                     description="Get the informations about the current dsc or manage it. "
                                 "Command only works in music channel. "
                                 "Manage DSC informations is only permitted for songmasters.")
     @permChecks.in_channel(Config().CHAN_IDS.get('music', 0))
     async def dsc(self, ctx):
-        """DSC base command, return info command if no subcommand given"""
-        if ctx.invoked_subcommand is None:
-            await self.dsc_info(ctx)
+        await ctx.invoke(self.bot.get_command('dsc info'))
 
     @dsc.command(name="rules", help="Get the link to the DSC rules")
     async def dsc_rules(self, ctx):
-        """Returns the DSC rules"""
         await ctx.send(f"<{self.dsc_conf()['rule_link']}>")
 
     @dsc.command(name="status", help="Get the current informations from the Songmasters about the current/next DSC")
     async def dsc_status(self, ctx):
-        """Returns the DSC status message"""
         if self.dsc_conf()['status']:
             status_msg = self.dsc_lang('status_base', self.dsc_conf()['status'])
         else:
@@ -97,7 +93,6 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
 
     @dsc.command(name="info", help="Get informations about current DSC")
     async def dsc_info(self, ctx):
-        """Returns basic infos about next/current DSC"""
         host_nick = None
         date_out_str = self.dsc_lang('info_date_str', self.dsc_conf()['state_end'].strftime('%d.%m.%Y, %H:%M'))
         if not self.dsc_conf()['host_id']:
@@ -141,20 +136,17 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
     @dsc.group(name="set", help="Set data about current/next DSC.", usage="<host|state|stateend|status|yt>")
     @commands.has_any_role(Config().ADMIN_ROLE_ID, Config().BOTMASTER_ROLE_ID, Config().ROLE_IDS.get('songmaster', 0))
     async def dsc_set(self, ctx):
-        """Basic set subcommand, does nothing"""
         if ctx.invoked_subcommand is None:
             await ctx.send_help(self.dsc_set)
 
     @dsc_set.command(name="host", help="Sets the current/next DSC hoster", usage="<user>")
     async def dsc_set_host(self, ctx, user: discord.Member):
-        """Sets the current/next DSC host"""
         self.dsc_conf()['host_id'] = user.id
         Config().save(self)
         # await ctx.send(self.dsc_lang('new_host_set'))
         await ctx.message.add_reaction(Config().CMDSUCCESS)
 
     async def dsc_save_state(self, ctx, new_state: DscState):
-        """Saves the new DSC state and prints it to user"""
         self.dsc_conf()['state'] = new_state
         # state_str = str(DscState(self.dsc_conf()['state']))
         # state_str = state_str[state_str.find(".") + 1:].replace("_", " ")
@@ -165,7 +157,6 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
     @dsc_set.command(name="state", help="Sets the current DSC state (Voting/Sign up)",
                      usage="<voting|signup>")
     async def dsc_set_state(self, ctx, state):
-        """Sets the current DSC state (registration/voting)"""
         if state.lower() == "voting":
             await self.dsc_save_state(ctx, DscState.Voting)
         elif state.lower() == "signup":
@@ -175,7 +166,6 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
 
     @dsc_set.command(name="yt", help="Sets the Youtube playlist link", usage="<link>")
     async def dsc_set_yt_link(self, ctx, link):
-        """Sets the youtube playlist link"""
         link = utils.clear_link(link)
         self.dsc_conf()['yt_link'] = link
         Config().save(self)
@@ -186,7 +176,6 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
                      description="Sets the end date and time for registration and voting phase. "
                                  "If no time is given, 23:59 will be used.")
     async def dsc_set_date(self, ctx, date_str, time_str=None):
-        """Sets the end date (and time) of the current DSC state"""
         if not time_str:
             time_str = "23:59"
         self.dsc_conf()['state_end'] = datetime.strptime(f"{date_str} {time_str}", "%d.%m.%Y %H:%M")
@@ -197,7 +186,6 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
     @dsc_set.command(name="status", help="Sets the status message", usage="[message]",
                      description="Sets a status message for additional informations. To remove give no message.")
     async def dsc_set_status(self, ctx, *status_message):
-        """Sets the dsc status message or removes it if no message is given"""
         self.dsc_conf()['status'] = " ".join(status_message)
         Config().save(self)
         # await ctx.send(self.dsc_lang('status_set'))
