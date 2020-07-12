@@ -9,86 +9,77 @@ from conf import Config
 from botutils import utils, permChecks
 from subsystems import reactions
 
+lang = {
+    'en': {
+        'init_reaction': "Reaction: {}",
+        'init_modrole': "Mod role: {}",
+        'init_admin': "Only via Admins.",
+        'creating_init_msg': "Creating new role management init message.",
+        'role_user_not_configured': "I don't like you, so I won't let you add or remove roles via command.",
+        'role_user_no_modrole': "The role {} has no mod role, so I won't let you do this.",
+        'role_user_already': "User {} has role {} already.",
+        'role_user_added': "My trainer was too lazy to train me how to validate, but role {} should be added to {}.",
+        'role_user_doesnt_have': "User {} doesn't have role {}.",
+        'role_user_removed': "My trainer was too lazy to train me how to validate, "
+                             "but role {} should be removed from {}.",
+        'role_user_bad_arg': "I don't know that move, I only know add or del for argument action.",
+        'role_add_updated': "I was too lazy to create a new role with the name {}, so I updated the existing.",
+        'role_add_config': "I was too lazy to create a new role with the name {} on the server, "
+                           "so I just added it to my own role list.",
+        'role_add_created': "My trainer was too lazy to train me how to validate, "
+                            "but the role {} with color {} should be created now.",
+        'role_del': "My trainer was too lazy to train me how to validate, but the role {} should be deleted now.",
+        'role_untrack': "I removed role {} from my role management, so it isn't my problem anymore.",
+        'role_request_no_modrole': "Sorry, but I can't find a mod role for {} :frowning:",
+        'role_request_ping': "Hey {}, the user {} requests the role {}!",
+        'role_update': "I'm a lazy Treecko, but especially for you, I updated my role management."
+    }
+}
 
-class RoleManagement:
+
+async def add_user_role(member: discord.Member, role: discord.Role):
     """
-    Provides basic functions to create or add roles to users
+    Adds a role to a server member
+    :param member: the member
+    :param role: the role to add
+    :return: No exception in case of success
     """
-
-    @staticmethod
-    async def add_user_role(member: discord.Member, role: discord.Role):
-        """
-        Adds a role to a server member
-        :param member: the member
-        :param role: the role to add
-        :return: No exception in case of success
-        """
-        await member.add_roles(role)
-
-    @staticmethod
-    async def remove_user_role(member: discord.Member, role: discord.Role):
-        """
-        Removes a role from a server member
-        :param member: the member
-        :param role: the role to remove
-        :return: No exception in case of success
-        """
-        await member.remove_roles(role)
-
-    @staticmethod
-    async def add_server_role(guild: discord.Guild, name, color: discord.Color = None, mentionable=True):
-        """
-        Creates a roll on the server
-        :param guild: the server guild
-        :param name: the role name
-        :param color: the color for the role, if None Color.default()
-        :param mentionable: if the role is mentionable
-        :return: The created role
-        """
-        if color is None:
-            color = discord.Color.default()
-        return await guild.create_role(name=name, color=color, mentionable=mentionable)
-
-    @staticmethod
-    async def remove_server_role(guild: discord.Guild, role: discord.Role):
-        """
-        Deletes a role on the server
-        :param guild: the server guild
-        :param role: the role to delete
-        :return: No exception in case of success
-        """
-        old_id = role.id
-        await role.delete()
+    await member.add_roles(role)
 
 
-class ReactionEventData:
+async def remove_user_role(member: discord.Member, role: discord.Role):
     """
-    Tuple for easier reaction event handling.
+    Removes a role from a server member
+    :param member: the member
+    :param role: the role to remove
+    :return: No exception in case of success
     """
+    await member.remove_roles(role)
 
-    def __init__(self, user, channel, message, emoji, member=None):
-        self.user = user
-        self.channel = channel
-        self.message = message
-        self.emoji = emoji
 
-        self.member = member
+async def add_server_role(guild: discord.Guild, name, color: discord.Color = None, mentionable=True):
+    """
+    Creates a roll on the server
+    :param guild: the server guild
+    :param name: the role name
+    :param color: the color for the role, if None Color.default()
+    :param mentionable: if the role is mentionable
+    :return: The created role
+    """
+    if color is None:
+        color = discord.Color.default()
+    return await guild.create_role(name=name, color=color, mentionable=mentionable)
 
-    @staticmethod
-    async def convert(bot, payload: discord.RawReactionActionEvent):
-        """
-        Converts the raw payload data from on_raw_reaction_add and on_raw_reaction_remove
-        to usable instances for easier event handling.
-        :param bot: the bot instance to use to convert
-        :param payload: the payload with raw event data
-        :return: the converted ReactionEvent instance
-        """
-        channel = bot.get_channel(payload.channel_id)
-        user = bot.get_user(payload.user_id)
-        member = bot.guild.get_member(payload.user_id)
-        message = await channel.fetch_message(payload.message_id)
 
-        return ReactionEventData(user, channel, message, payload.emoji, member)
+async def remove_server_role(guild: discord.Guild, role: discord.Role):
+    """
+    Deletes a role on the server
+    :param guild: the server guild
+    :param role: the role to delete
+    :return: No exception in case of success
+    """
+    old_id = role.id
+    await role.delete()
 
 
 class Plugin(BasePlugin, name="Role Management"):
@@ -117,6 +108,9 @@ class Plugin(BasePlugin, name="Role Management"):
             },
             'roles': {}
         }
+
+    def get_lang(self):
+        return lang
 
     def rc(self):
         """Returns the roles config"""
@@ -246,11 +240,11 @@ class Plugin(BasePlugin, name="Role Management"):
                 role = discord.utils.get(self.bot.guild.roles, id=configured_role)
                 if isinstance(event, reactions.ReactionAddedEvent) and role not in event.member.roles:
                     update_type = "add"
-                    await RoleManagement.add_user_role(event.member, role)
+                    await add_user_role(event.member, role)
                     has_role_update = True
                 elif isinstance(event, reactions.ReactionRemovedEvent) and role in event.member.roles:
                     update_type = "remove"
-                    await RoleManagement.remove_user_role(event.member, role)
+                    await remove_user_role(event.member, role)
                     has_role_update = True
 
         if has_role_update:
@@ -282,13 +276,13 @@ class Plugin(BasePlugin, name="Role Management"):
             if role in user.roles:
                 await ctx.send(Config().lang(self, 'role_user_already', utils.get_best_username(user), role))
                 return
-            await RoleManagement.add_user_role(user, role)
+            await add_user_role(user, role)
             await ctx.send(Config().lang(self, 'role_user_added', role, utils.get_best_username(user)))
         elif action.lower() == "del":
             if role not in user.roles:
                 await ctx.send(Config().lang(self, 'role_user_doesnt_have', utils.get_best_username(user), role))
                 return
-            await RoleManagement.remove_user_role(user, role)
+            await remove_user_role(user, role)
             await ctx.send(Config().lang(self, 'role_user_removed', role, utils.get_best_username(user)))
         else:
             raise commands.BadArgument(Config().lang(self, 'role_user_bad_arg'))
@@ -341,7 +335,7 @@ class Plugin(BasePlugin, name="Role Management"):
             return
 
         # Execute role add
-        new_role = await RoleManagement.add_server_role(ctx.guild, role_name, color)
+        new_role = await add_server_role(ctx.guild, role_name, color)
         self.rc()[new_role.id] = {'emoji': emoji_str, 'modrole': modrole_id}
         await self.update_role_management(ctx)
         await ctx.send(Config().lang(self, 'role_add_created', role_name, color))
@@ -350,7 +344,7 @@ class Plugin(BasePlugin, name="Role Management"):
     @role.command(name="del", help="Deletes the role from the server and role management")
     @commands.has_any_role(*Config().FULL_ACCESS_ROLES)
     async def role_del(self, ctx, role: discord.Role):
-        await RoleManagement.remove_server_role(ctx.guild, role)
+        await remove_server_role(ctx.guild, role)
         await self.update_role_management(ctx)
         await ctx.send(Config().lang(self, 'role_del', role.name))
         await utils.log_to_admin_channel(ctx)
@@ -358,7 +352,7 @@ class Plugin(BasePlugin, name="Role Management"):
     @role.command(name="untrack", help="Removes the role from the role management, but not from server")
     @commands.has_any_role(*Config().FULL_ACCESS_ROLES)
     async def role_untrack(self, ctx, role: discord.Role):
-        del(self.rc()[role.id])
+        del (self.rc()[role.id])
         await self.update_role_management(ctx)
         await ctx.send(Config().lang(self, 'role_untrack', role.name))
         await utils.log_to_admin_channel(ctx)

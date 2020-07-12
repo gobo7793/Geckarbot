@@ -185,7 +185,7 @@ class Client:
             headers_to_add.update(self.cookie)
 
         # base64 auth (initial use case: jira)
-        if self.auth is "basic":
+        if self.auth == "basic":
             auth = self.credentials["username"] + ":" + self.credentials["password"]
             auth = base64.encodebytes(auth.encode("utf-8"))
             auth = "Basic ".encode("utf-8") + auth

@@ -1,11 +1,43 @@
 import discord
+from enum import IntEnum
 
 from datetime import datetime
 from discord.ext import commands
 from conf import Config
 from botutils import utils, permChecks
-from botutils.enums import DscState
 from Geckarbot import BasePlugin
+
+
+lang = {
+    'en': {
+        'status_base': "Important message from the Songmasters: {}",
+        'status_none': "Have fun and love Treecko, Mudkip and Oshawott!",
+        'must_set_host': "You must set DSC host!",
+        'info_date_str': " until {}",
+        'signup_phase_info': ":clipboard: Signing up open{}!",
+        'current_host': "Current Host",
+        'sign_up': "Sign up",
+        'voting_phase_info': ":incoming_envelope: Voting is open{}",
+        'votings_to': "Votings to",
+        'all_songs': "All songs",
+        'yt_playlist': "Youtube playlist",
+        'config_error_reset': "Configuration error. Please reset dsc configuration.",
+        'config_error': "DSC configuration error, config values:",
+        'new_host_set': "New host set.",
+        'phase_set': "{} state set.",
+        'invalid_phase': "Invalid dsc state.",
+        'yt_link_set': "New Youtube playlist link set.",
+        'state_end_set': "New state end date set.",
+        'status_set': "New status message set."
+        }
+    }
+
+
+class DscState(IntEnum):
+    """DSC states"""
+    NA = 0
+    Voting = 1
+    Sign_up = 2
 
 
 class Plugin(BasePlugin, name="Discord Song Contest"):
@@ -28,6 +60,9 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
             'state_end': datetime.now(),
             'status': None
         }
+
+    def get_lang(self):
+        return lang
 
     def dsc_conf(self):
         return Config().get(self)
@@ -121,8 +156,8 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
     async def dsc_save_state(self, ctx, new_state: DscState):
         """Saves the new DSC state and prints it to user"""
         self.dsc_conf()['state'] = new_state
-        state_str = str(DscState(self.dsc_conf()['state']))
-        state_str = state_str[state_str.find(".") + 1:].replace("_", " ")
+        # state_str = str(DscState(self.dsc_conf()['state']))
+        # state_str = state_str[state_str.find(".") + 1:].replace("_", " ")
         Config().save(self)
         # await ctx.send(self.dsc_lang('phase_set', state_str))
         await ctx.message.add_reaction(Config().CMDSUCCESS)

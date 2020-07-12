@@ -2,10 +2,11 @@ import sys
 
 import discord
 from discord.ext import commands
-from botutils.utils import get_best_username
+from botutils import utils
 from subsystems.reactions import ReactionAddedEvent, ReactionRemovedEvent
 
 from Geckarbot import BasePlugin
+from conf import Config
 
 
 class Plugin(BasePlugin, name="Testing and debug things"):
@@ -20,6 +21,12 @@ class Plugin(BasePlugin, name="Testing and debug things"):
 
     def default_config(self):
         return {}
+
+    def cog_check(self, ctx):
+        role = discord.utils.get(ctx.author.roles, id=Config().BOTMASTER_ROLE_ID)
+        if role is None:
+            raise commands.MissingRole(Config().BOTMASTER_ROLE_ID)
+        return True
 
     def wake_up_sync(self):
         self.bot.loop.create_task(self.wake_up())
@@ -42,7 +49,7 @@ class Plugin(BasePlugin, name="Testing and debug things"):
 
     @commands.command(name="identify", help="calls utils.get_best_username")
     async def identify(self, ctx, *args):
-        await ctx.channel.send("I will call you {}.".format(get_best_username(ctx.message.author)))
+        await ctx.channel.send("I will call you {}.".format(utils.get_best_username(ctx.message.author)))
 
     @commands.command(name="react")
     async def react(self, ctx, reaction):
@@ -54,10 +61,10 @@ class Plugin(BasePlugin, name="Testing and debug things"):
     async def waitforreact_callback(self, event):
         msg = "PANIC!"
         if isinstance(event, ReactionAddedEvent):
-            msg = "{}: You reacted on '{}' with {}!".format(get_best_username(event.user),
+            msg = "{}: You reacted on '{}' with {}!".format(utils.get_best_username(event.user),
                                                             event.message.content, event.emoji)
         if isinstance(event, ReactionRemovedEvent):
-            msg = "{}: You took back your {} reaction on '{}'!".format(get_best_username(event.user),
+            msg = "{}: You took back your {} reaction on '{}'!".format(utils.get_best_username(event.user),
                                                                        event.message.content, event.emoji)
         await event.channel.send(msg)
 
@@ -65,6 +72,15 @@ class Plugin(BasePlugin, name="Testing and debug things"):
     async def waitforreact(self, ctx):
         msg = await ctx.channel.send("React here pls")
         self.bot.reaction_listener.register(msg, self.waitforreact_callback)
+
+    @commands.command(name="doerror")
+    async def do_error(self, ctx):
+        raise commands.CommandError("Testerror")
+
+    @commands.command(name="writelogs")
+    async def write_logs(self, ctx):
+        await utils.log_to_admin_channel(ctx)
+        await utils.write_debug_channel(self.bot, "writelogs used")
 
     @commands.command(name="mentionuser", help="Mentions a user, supports user cmd disabling.")
     async def mentionuser(self, ctx, user: discord.Member):

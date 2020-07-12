@@ -42,13 +42,20 @@ class BasePlugin(commands.Cog):
         pass
 
     def default_config(self):
-        """Returns an empty default config"""
+        """
+        Returns an empty default config
+        """
         return {}
+
+    def get_lang(self):
+        """
+        Gets the lang dictionary for Config API.
+        """
+        return None
 
 
 class Geckarbot(commands.Bot):
     def __init__(self, *args, **kwargs):
-        self.coredata = {}
         self.geck_cogs = []
         self.guild = None
         self.plugins = None
@@ -205,10 +212,10 @@ def main():
                 # error handling
                 embed = discord.Embed(title=':x: Command Error', colour=0xe74c3c)  # Red
                 embed.add_field(name='Error', value=error)
-                embed.add_field(name='Arguments', value=ctx.args)
                 embed.add_field(name='Command', value=ctx.command)
-                embed.add_field(name='Message', value=ctx.message)
-                embed.description = '```python\n{}\n```'.format(traceback.format_exc())
+                embed.add_field(name='Message', value=ctx.message.clean_content)
+                embed.description = '```python\n{}\n```'.format(
+                    "".join(traceback.TracebackException.from_exception(error).format()))
                 embed.timestamp = datetime.datetime.utcnow()
                 await utils.write_debug_channel(bot, embed)
                 await ctx.send("Error while executing command.")
