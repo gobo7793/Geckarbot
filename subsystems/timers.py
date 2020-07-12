@@ -296,6 +296,7 @@ def next_occurence(ntd, now=None, ignore_now=False):
 
         # Check if this year is in the years list and if there even is a year in the future to be had
         if ntd["year"] is not None and year not in ntd["year"]:
+            logger.debug("year: {}; ntd[year]: {}".format(year, ntd["year"]))
             found = False
             for el in ntd["year"]:
                 if el > year:
@@ -304,6 +305,7 @@ def next_occurence(ntd, now=None, ignore_now=False):
             if found:
                 continue  # Wait for better years
             else:
+                logger.debug("No future occurence found")
                 return None  # No future occurence found
 
         # Find day in month
@@ -325,16 +327,6 @@ def next_occurence(ntd, now=None, ignore_now=False):
             # Today
             if year == now.year and month == now.month and day == now.day:
                 starthour = now.hour
-                startminute = now.minute
-
-                # Handle ignore_now flag
-                if ignore_now:
-                    startminute += 1
-                    if startminute >= 60:
-                        startminute = 0
-                        starthour += 1
-                        if starthour == 24:
-                            continue  # nothing to do for this day
 
             # find hour
             hour = None
@@ -344,14 +336,30 @@ def next_occurence(ntd, now=None, ignore_now=False):
                 logger.debug("Checking hour {}".format(hour))
                 # wraparound
                 if day_d > 0:
+                    logger.debug("Next day (wraparound)")
                     onthisday = False
                     break
+
+                # find minute
+                if year == now.year and month == now.month and day == now.day and hour == now.hour:
+                    startminute = now.minute
+
+                    # Handle ignore_now flag
+                    if ignore_now:
+                        startminute += 1
+                        if startminute >= 60:
+                            startminute = 0
+                            starthour += 1
+                            if starthour == 24:
+                                continue  # nothing to do for this day
 
                 minute = nearest_element(startminute, ntd["minute"], 0, 59)
                 logger.debug("Checking minute {}".format(minute))
                 if minute < startminute:
+                    logger.debug("minute {} < startminute {}".format(minute, startminute))
                     startminute = 0
                     continue
+                logger.debug("Correct minute found: {}".format(minute))
                 break  # correct minute found
 
             if onthisday:

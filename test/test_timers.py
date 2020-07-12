@@ -36,8 +36,8 @@ def test_cron_alg_fr13():
     assert testdate.year == year
 
 
-def tcase_cron_alg(now, td, expected):
-    td = timers.next_occurence(timers.normalize_td(td), now=now)
+def tcase_cron_alg(now, td, expected, ignore_now=False):
+    td = timers.next_occurence(timers.normalize_td(td), now=now, ignore_now=ignore_now)
     assert td is not None, "timers.next_occurence didn't return anything"
     msg = "date is {}-{}-{}-{}-{}, should be {}-{}-{}-{}-{}".format(
         td.year, td.month, td.day, td.hour, td.minute, expected.year, expected.month, expected.day,
@@ -79,7 +79,7 @@ def test_cron_alg_ignore_now():
     now = datetime(year=2060, month=4, day=22, hour=12, minute=32)
     timedict = timers.timedict(hour=12, minute=32)
     expected = datetime(year=2060, month=4, day=23, hour=12, minute=32)
-    tcase_cron_alg(now, timedict, expected)
+    tcase_cron_alg(now, timedict, expected, ignore_now=True)
 
 
 def test_cron_alg_nextmonth():
@@ -98,6 +98,6 @@ def test_cron_alg_nextmonthnextyear():
 
 def test_cron_alg_sameday():
     now = datetime(year=2051, month=7, day=12, hour=14, minute=54)
-    timedict = timers.timedict(year=2050, month=7, monthday=12, hour=18, minute=36)
+    timedict = timers.timedict(year=2051, month=7, monthday=12, hour=18, minute=36)
     expected = datetime(year=2051, month=7, day=12, hour=18, minute=36)
     tcase_cron_alg(now, timedict, expected)
