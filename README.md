@@ -10,11 +10,12 @@ A simple discord bot for the Communityserver
 ### Current Features
 Some of the current Geckarbot features includes:
 - Plugin API and Config API to add and manage feature plugins and its configuration
-- Blacklisting and (un)subscribe users for some bot games
+- Subsystems for common used features like reaction and timer listeners
+- Ignore list to block users, commands or commands for specific users
 - Role management including self-assignable roles via reactions
 - Some useful or just funny commands
-- Get and manage data for current/next DSC (Host, State, YT link, date, status message)
-- Play a kwiss or number guessing game
+- Manage data for server events
+- Some games like a kwiss or number guessing
 
 See full command list with `!help` or in [the wiki](https://github.com/gobo7793/Geckarbot/wiki/Commands).
 
@@ -26,7 +27,9 @@ Required pip packages:
 - dateutils
 - emoji
 
-To start the bot, you need an own Discord server and Discord application with a bot user. Discord applications can created at [Discords Developer Portal](https://discord.com/developers/applications):
+Pip packages can be installed using `pip3 -r requirements.txt`.
+
+To start the bot, you need an own Discord server and Discord application with a bot user. Discord applications can created at [Discord's Developer Portal](https://discord.com/developers/applications):
 1. Create Application
 2. Create a Bot for the app
 3. Get the Bot token and put it into `DISCORD_TOKEN` in `config/geckarbot.json` file
