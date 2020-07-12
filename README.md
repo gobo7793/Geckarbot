@@ -27,7 +27,7 @@ Required pip packages:
 - dateutils
 - emoji
 
-Pip packages can be installed using `pip3 -r requirements.txt`.
+Pip packages can be installed using `pip3 install -r requirements.txt`.
 
 To start the bot, you need an own Discord server and Discord application with a bot user. Discord applications can created at [Discord's Developer Portal](https://discord.com/developers/applications):
 1. Create Application
