@@ -3,6 +3,7 @@ import logging
 import traceback
 import os
 import asyncio
+import re
 from enum import Enum
 
 from discord.ext import commands
@@ -317,16 +318,30 @@ class Plugin(Geckarbot.BasePlugin, name="Bot updating system"):
         """
         if version is None:
             version = Config().VERSION
-        found = False
+        ver = None
+        body = None
         for el in self.get_releases():
             ver = sanitize_version_s(el["tag_name"])
             logging.getLogger(__name__).debug("Comparing versions: {} and {}".format(Config().VERSION, ver))
             if is_equal(sanitize_version_s(version), ver):
-                found = True
-                await channel.send("{}:\n{}".format(ver, el["body"]))
+                body = el["body"]
+                break
 
-        if not found:
+        if body is None:
             await channel.send(lang["err_no_news_for_version"].format(version))
+            return
+
+        # Make headlines great again!
+        lines = []
+        p = re.compile(r"\s*#*\s*(.*)")
+        for el in body.split("\n"):
+            m = p.match(el)
+            if m:
+                el = "**{}**".format(m.groups()[0])
+
+        for page in utils.paginate(lines, prefix=ver, delimiter="\n"):
+            await channel.send(page)
+            
 
     async def was_i_updated(self):
         """
@@ -334,7 +349,6 @@ class Plugin(Geckarbot.BasePlugin, name="Bot updating system"):
         Does not delete TAGFILE if it had unexpected content.
         :return: True if there was a successful update, False if not
         """
-
         try:
             f = open(TAGFILE)
         except FileNotFoundError:
