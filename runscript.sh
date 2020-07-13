@@ -9,6 +9,7 @@ SIMULATE=1  # 0 for true
 exitcode=-1
 
 while [[ ${exitcode} -ne 0 ]]; do
+    ${PYTHON} -m pip install -r requirements.txt
     ${PYTHON} Geckarbot.py ${exitcode}
     exitcode=$?
 

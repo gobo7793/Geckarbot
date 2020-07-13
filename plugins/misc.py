@@ -166,16 +166,19 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
             return
 
         # set reminder
-        remind_time = utils.analyze_time_input(args)
         try:
             datetime.datetime.strptime(f"{args[0]} {args[1]}", "%d.%m.%Y %H:%M")
             rtext = " ".join(args[2:])
+            time_args = args[0:2]
         except (ValueError, IndexError):
             try:
                 datetime.datetime.strptime(f"{args[0]} {args[1]}", "%d.%m. %H:%M")
                 rtext = " ".join(args[2:])
+                time_args = args[0:2]
             except (ValueError, IndexError):
                 rtext = " ".join(args[1:])
+                time_args = [args[0]]
+        remind_time = utils.analyze_time_input(*time_args)
 
         if remind_time == datetime.datetime.max:
             raise commands.BadArgument(message=Config().lang(self, 'remind_duration_err'))
