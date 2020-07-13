@@ -333,15 +333,15 @@ class Plugin(Geckarbot.BasePlugin, name="Bot updating system"):
 
         # Make headlines great again!
         lines = []
-        p = re.compile(r"\s*#*\s*(.*)")
+        p = re.compile(r"\s*#+\s*(.*)")
         for el in body.split("\n"):
             m = p.match(el)
             if m:
                 el = "**{}**".format(m.groups()[0])
+            lines.append(el)
 
-        for page in utils.paginate(lines, prefix=ver, delimiter="\n"):
+        for page in utils.paginate(lines, prefix="**Version {}:**\n\n".format(ver), msg_prefix="_ _", delimiter=""):
             await channel.send(page)
-            
 
     async def was_i_updated(self):
         """
