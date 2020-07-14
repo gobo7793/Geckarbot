@@ -100,6 +100,21 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
     async def tippspiel(self, ctx):
         await ctx.send(Config().lang(self, 'tippspiel_output'))
 
+    @commands.command(name="wermobbtgerade", help="Shows which user is bullying other users")
+    async def who_mobbing(self, ctx):
+        online_users = []
+        for m in self.bot.guild.members:
+            if m.status != discord.Status.offline:
+                online_users.append(m)
+
+        bully = random.choice(online_users)
+
+        if bully is self.bot.guild.me:
+            msg = Config().lang(self, "bully_msg_self")
+        else:
+            msg = Config().lang(self, "bully_msg", utils.get_best_username(bully))
+        await ctx.send(msg)
+
     @commands.command(name="remindme", help="Reminds the author.",
                       usage="<#|#m|#h|#d|DD.MM.YYYY|HH:MM|DD.MM.YYYY HH:MM|DD.MM. HH:MM|cancel|list> "
                             "[message|cancel_id]",
