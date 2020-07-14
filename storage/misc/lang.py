@@ -31,7 +31,7 @@ lang = {
         'remind_list_element': "\n - Time: {}, Message: {}, to cancel type `!remindme cancel {}`",
         'remind_list_none': "You don't have any reminders.",
         'remind_past': "Sorry, I don't have a time machine.",
-        'bully_msg': "{} is bullying us :frowning:",
-        'bully_msg_self': "Me is bullying you :slight_smile:"
+        'bully_msg': "{} mobbt uns :frowning:",
+        'bully_msg_self': "Ich mobbe euch :slight_smile:"
         }
     }
