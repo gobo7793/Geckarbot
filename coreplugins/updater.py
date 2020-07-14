@@ -340,7 +340,7 @@ class Plugin(Geckarbot.BasePlugin, name="Bot updating system"):
                 el = "**{}**".format(m.groups()[0])
             lines.append(el)
 
-        for page in utils.paginate(lines, prefix="**Version {}:**\n\n".format(ver), msg_prefix="_ _", delimiter=""):
+        for page in utils.paginate(lines, prefix="**Version {}:**\n\n".format(ver), msg_prefix="_ _\n", delimiter=""):
             await channel.send(page)
 
     async def was_i_updated(self):
