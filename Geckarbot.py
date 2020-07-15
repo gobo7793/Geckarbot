@@ -98,9 +98,13 @@ class Geckarbot(commands.Bot):
         # import
         for el in pkgutil.iter_modules([plugin_dir]):
             plugin = el[1]
+            is_pkg = el[2]
             try:
-                p = pkgutil.importlib.import_module("{}.{}".format(plugin_dir, plugin))
-                p = p.Plugin(self)
+                to_import = "{}.{}".format(plugin_dir, plugin)
+                if is_pkg:
+                    to_import = "{}.{}.{}".format(plugin_dir, plugin, plugin)
+
+                p = pkgutil.importlib.import_module(to_import).Plugin(self)
             except Exception as e:
                 logging.error("Unable to load plugin: {}:\n{}".format(plugin, traceback.format_exc()))
                 continue
