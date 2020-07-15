@@ -171,12 +171,15 @@ class SubCommandEncountered(Exception):
 
 
 class Difficulty(Enum):
+    ANY = "any"
     EASY = "easy"
     MEDIUM = "medium"
     HARD = "hard"
 
     @staticmethod
     def human_readable(el):
+        if el == Difficulty.ANY:
+            return "Any"
         if el == Difficulty.EASY:
             return "Easy"
         if el == Difficulty.MEDIUM:
@@ -456,9 +459,10 @@ class InvalidAnswer(Exception):
 
 
 class Question:
-    def __init__(self, question, correct_answer, incorrect_answers, index=None):
+    def __init__(self, question, correct_answer, incorrect_answers, index=None, info={}):
         logging.debug("Question({}, {}, {})".format(question, correct_answer, incorrect_answers))
         self.index = index
+        self.info = info
 
         self.question = question
         self.correct_answer = correct_answer
@@ -510,8 +514,10 @@ class Question:
         self.message = msg
         return msg
 
-    def embed(self, emoji=False):
+    def embed(self, emoji=False, info=False):
         """
+        :param emoji: Determines whether A/B/C/D are letters or emoji
+        :param info: Adds additional info to the embed such as category and difficulty
         :return: An embed representation of the question.
         """
         title = self.question
@@ -520,6 +526,10 @@ class Question:
         embed = discord.Embed(title=title)
         value = "\n".join([el for el in self.answers_mc(emoji=emoji)])
         embed.add_field(name="Possible answers:", value=value)
+
+        if info:
+            for key in self.info:
+                embed.add_field(name=key, value=str(self.info[key]))
         return embed
 
     def answers_mc(self, emoji=False):
@@ -1243,14 +1253,20 @@ class OpenTDBQuizAPI(BaseQuizAPI):
         }
         if self.category is not None and self.category > 0:
             params["category"] = self.category
+        if self.difficulty != Difficulty.ANY:
+            params["difficulty"] = self.difficulty.value
 
         questions_raw = self.client.make_request(opentdb["api_route"], params=params)["results"]
         for i in range(len(questions_raw)):
             el = questions_raw[i]
             question = discord.utils.escape_markdown(unquote(el["question"]))
             correct_answer = discord.utils.escape_markdown(unquote(el["correct_answer"]))
+            info = {
+                "difficulty": el["difficulty"],
+                "category": el["category"],
+            }
             incorrect_answers = [discord.utils.escape_markdown(unquote(ia)) for ia in el["incorrect_answers"]]
-            self.questions.append(Question(question, correct_answer, incorrect_answers, index=i))
+            self.questions.append(Question(question, correct_answer, incorrect_answers, index=i, info=info))
 
     def current_question_index(self):
         return self.current_question_i
@@ -1329,7 +1345,7 @@ class Plugin(Geckarbot.BasePlugin, name="A trivia kwiss"):
             "questions": self.config["questions_default"],
             "method": Methods.START,
             "category": None,
-            "difficulty": Difficulty.EASY,
+            "difficulty": Difficulty.ANY,
             "debug": False,
             "subcommand": None,
         }
@@ -1342,6 +1358,7 @@ class Plugin(Geckarbot.BasePlugin, name="A trivia kwiss"):
         self.register_subcommand(None, "categories", self.cmd_catlist)
         self.register_subcommand(None, "emoji", self.cmd_emoji)
         self.register_subcommand(None, "ladder", self.cmd_ladder)
+        self.register_subcommand(None, "question", self.cmd_question)
 
         super().__init__(bot)
         bot.register(self)
@@ -1399,9 +1416,6 @@ class Plugin(Geckarbot.BasePlugin, name="A trivia kwiss"):
         await msg.add_reaction(Config().CMDSUCCESS)
 
     async def cmd_ladder(self, msg, *args):
-        """
-        :return: Embed that represents the rank ladder
-        """
         if len(args) != 1:
             await msg.add_reaction(Config().CMDERROR)
             return
@@ -1428,6 +1442,19 @@ class Plugin(Geckarbot.BasePlugin, name="A trivia kwiss"):
             return
 
         embed.add_field(name="Ladder:", value="\n".join(values))
+        await msg.channel.send(embed=embed)
+
+    async def cmd_question(self, msg, *args):
+        if len(args) != 1:
+            await msg.add_reaction(Config().CMDERROR)
+            return
+
+        controller = self.get_controller(msg.channel)
+        if controller is None:
+            await msg.add_reaction(Config().CMDERROR)
+            return
+
+        embed = controller.quizapi.current_question().embed(emoji=True, info=True)
         await msg.channel.send(embed=embed)
 
     def update_ladder(self, member, points):
