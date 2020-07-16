@@ -100,6 +100,10 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
     async def tippspiel(self, ctx):
         await ctx.send(Config().lang(self, 'tippspiel_output'))
 
+    @commands.command(name="passierschein", help="Eintragung einer Galeere")
+    async def passierschein(self, ctx):
+        await ctx.send(Config().lang(self, 'passierschein_out'))
+
     @commands.command(name="wermobbtgerade", help="Shows which user is bullying other users",
                       description="Shows which user is bullying other users. Supports ignore list.")
     async def who_mobbing(self, ctx):
