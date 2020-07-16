@@ -22,13 +22,15 @@ class PluginSlot:
         self.name = instance.__module__.rsplit(".", 1)[1]
         self.storage_dir = "{}/{}".format(Config().STORAGE_DIR, self.name)
         self.config = None
-        self.lang = None
-        try:
-            lang_module = pkgutil.importlib.import_module("{}.{}".format(self.storage_dir.replace('/', '.'), "lang"))
-            self.lang = lang_module.lang
-        except Exception as e:
-            logging.error("Unable to load lang file from plugin: {} ({})".format(self.name, e))
-        pass
+        self.lang = instance.get_lang()
+        if self.lang is None:
+            try:
+                lang_module = pkgutil.importlib.import_module(
+                    "{}.{}".format(self.storage_dir.replace('/', '.'), "lang"))
+                self.lang = lang_module.lang
+            except Exception as e:
+                logging.error("Unable to load lang file from plugin: {} ({})".format(self.name, e))
+            pass
 
 
 class Config(metaclass=_Singleton):
@@ -37,7 +39,7 @@ class Config(metaclass=_Singleton):
     # Basic bot info
     ######
 
-    VERSION = "1.5.1"
+    VERSION = "1.6.1"
     CONFIG_DIR = "config"
     PLUGIN_DIR = "plugins"
     CORE_PLUGIN_DIR = "coreplugins"

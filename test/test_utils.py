@@ -28,6 +28,12 @@ class TestUtils(unittest.TestCase):
         self.assertEqual(datetime.datetime(now.year, 12, 7, 14, 15), d)
         d = utils.analyze_time_input("abcd")
         self.assertEqual(datetime.datetime.max, d)
+        arg_list = ["07.12.2020", "14:15"]
+        d = utils.analyze_time_input(*arg_list)
+        self.assertEqual(datetime.datetime(2020, 12, 7, 14, 15), d)
+        arg_list = ["11.07.", "18:36"]
+        d = utils.analyze_time_input(*arg_list)
+        self.assertEqual(datetime.datetime(2020, 7, 11, 18, 36), d)
 
 
 if __name__ == '__main__':

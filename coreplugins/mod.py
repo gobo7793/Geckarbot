@@ -68,7 +68,7 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
         subsys_list = "\n - ".join([m.name for m in module_list])
         await ctx.send(f"Loaded {len(module_list)} subsystems:\n - {subsys_list}")
 
-    @commands.command(name="about", help="Prints the credits")
+    @commands.command(name="about", aliases=["git", "github"], help="Prints the credits")
     async def about(self, ctx):
 
         about_msg = "Geckarbot {} on {}, licensed under GNU GPL v3.0. Hosted with ❤ on {} {} {}.\n".format(

@@ -100,6 +100,23 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
     async def tippspiel(self, ctx):
         await ctx.send(Config().lang(self, 'tippspiel_output'))
 
+    @commands.command(name="wermobbtgerade", help="Shows which user is bullying other users",
+                      description="Shows which user is bullying other users. Supports ignore list.")
+    async def who_mobbing(self, ctx):
+        online_users = []
+        for m in self.bot.guild.members:
+            if (m.status != discord.Status.offline
+                    and not self.bot.ignoring.check_user_id_command(m.id, ctx.command.qualified_name)):
+                online_users.append(m)
+
+        bully = random.choice(online_users)
+
+        if bully is self.bot.guild.me:
+            msg = Config().lang(self, "bully_msg_self")
+        else:
+            msg = Config().lang(self, "bully_msg", utils.get_best_username(bully))
+        await ctx.send(msg)
+
     @commands.command(name="remindme", help="Reminds the author.",
                       usage="<#|#m|#h|#d|DD.MM.YYYY|HH:MM|DD.MM.YYYY HH:MM|DD.MM. HH:MM|cancel|list> "
                             "[message|cancel_id]",
@@ -166,16 +183,19 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
             return
 
         # set reminder
-        remind_time = utils.analyze_time_input(args)
         try:
             datetime.datetime.strptime(f"{args[0]} {args[1]}", "%d.%m.%Y %H:%M")
             rtext = " ".join(args[2:])
+            time_args = args[0:2]
         except (ValueError, IndexError):
             try:
                 datetime.datetime.strptime(f"{args[0]} {args[1]}", "%d.%m. %H:%M")
                 rtext = " ".join(args[2:])
+                time_args = args[0:2]
             except (ValueError, IndexError):
                 rtext = " ".join(args[1:])
+                time_args = [args[0]]
+        remind_time = utils.analyze_time_input(*time_args)
 
         if remind_time == datetime.datetime.max:
             raise commands.BadArgument(message=Config().lang(self, 'remind_duration_err'))

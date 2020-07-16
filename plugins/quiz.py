@@ -358,7 +358,7 @@ class Score:
         s = {}
         for user in firstsort:
             if firstsort[user] in s:
-                s[user].append(user)
+                s[firstsort[user]].append(user)
             else:
                 s[firstsort[user]] = [user]
         for score in s:
