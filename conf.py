@@ -215,6 +215,9 @@ class Config(metaclass=_Singleton):
             If not available for current language, an empty string will be returned.
         :param args: The strings to insert into the returning string via format()
         """
+        if len(args) == 0:
+            args = [""]  # ugly lol
+
         for plugin_slot in self.plugins:
             if plugin_slot.instance is plugin:
                 if self.LANGUAGE_CODE in plugin_slot.lang:
