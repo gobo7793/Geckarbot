@@ -32,6 +32,9 @@ lang = {
         'remind_list_none': "You don't have any reminders.",
         'remind_past': "Sorry, I don't have a time machine.",
         'bully_msg': "{} mobbt uns :frowning:",
-        'bully_msg_self': "Ich mobbe euch :slight_smile:"
+        'bully_msg_self': "Ich mobbe euch :slight_smile:",
+        'passierschein_out': "Eintragung einer Galeere? Oh, da sind Sie hier falsch! Wenden Sie sich an die "
+                             "Hafenkommandantur unten im Hafen.\n "
+                             "https://youtu.be/lIiUR2gV0xk"
         }
     }
