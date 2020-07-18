@@ -52,7 +52,7 @@ class Config(metaclass=_Singleton):
     EMOJI = {
         "success": "✅",
         "error": "❌",
-        "nochange": "🤷️",
+        "nochange": "🤷‍♀️",
         "lettermap": [
             "🇦",  # a
             "🇧",  # b

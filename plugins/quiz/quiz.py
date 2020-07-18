@@ -120,6 +120,7 @@ class Plugin(Geckarbot.BasePlugin, name="A trivia kwiss"):
         self.register_subcommand(None, "ladder", self.cmd_ladder)
         self.register_subcommand(None, "question", self.cmd_question)
         self.register_subcommand(None, "del", self.cmd_del)
+        self.register_subcommand(None, "react", self.cmd_react)
 
         super().__init__(bot)
         bot.register(self)
@@ -136,9 +137,9 @@ class Plugin(Geckarbot.BasePlugin, name="A trivia kwiss"):
             "ladder": {},
         }
 
-    async def cmd_catlist(self, msg, *args):
+    async def cmd_catlist(self, ctx, *args):
         if len(args) > 1:
-            await msg.channel.send(Config().lang(self, "too_many_arguments"))
+            await ctx.message.channel.send(Config().lang(self, "too_many_arguments"))
             return
 
         embed = discord.Embed(title="Categories:")
@@ -147,44 +148,54 @@ class Plugin(Geckarbot.BasePlugin, name="A trivia kwiss"):
             cat = el["names"]
             s.append("**{}**: {}".format(cat[0], cat[1]))
         embed.add_field(name="Name: Command", value="\n".join(s))
-        await msg.channel.send(embed=embed)
+        await ctx.send(embed=embed)
 
-    async def cmd_emoji(self, msg, *args):
+    async def cmd_emoji(self, ctx, *args):
         # Delete emoji
         if len(args) == 1:
-            if msg.author.id in Config().get(self)["emoji"]:
+            if ctx.message.author.id in Config().get(self)["emoji"]:
                 del Config().get(self)["emoji"][msg.author.id]
-                await msg.add_reaction(Config().CMDSUCCESS)
+                await ctx.message.add_reaction(Config().CMDSUCCESS)
                 Config().save(self)
             else:
-                await msg.add_reaction(Config().CMDERROR)
+                await ctx.message.add_reaction(Config().CMDERROR)
             return
 
         # Too many arguments
         if len(args) != 2:
-            await msg.add_reaction(Config().CMDERROR)
+            await ctx.message.add_reaction(Config().CMDERROR)
             return
 
         emoji = args[1]
         try:
-            await msg.add_reaction(emoji)
+            await ctx.messsage.add_reaction(emoji)
         except HTTPException:
-            await msg.add_reaction(Config().CMDERROR)
+            await ctx.message.add_reaction(Config().CMDERROR)
             return
 
-        Config().get(self)["emoji"][msg.author.id] = emoji
+        Config().get(self)["emoji"][ctx.message.author.id] = emoji
         Config().save(self)
-        await msg.add_reaction(Config().CMDSUCCESS)
+        await ctx.message.add_reaction(Config().CMDSUCCESS)
 
-    async def cmd_ladder(self, msg, *args):
+    async def cmd_react(self, ctx, *args):
         if len(args) != 1:
-            await msg.add_reaction(Config().CMDERROR)
+            await ctx.message.add_reaction(Config().CMDERROR)
+            return
+
+        emoji = Config().get(self)["emoji"].get(ctx.message.author.id)
+        if emoji is None:
+            emoji = Config().CMDERROR
+        await ctx.message.add_reaction(emoji)
+
+    async def cmd_ladder(self, ctx, *args):
+        if len(args) != 1:
+            await ctx.message.add_reaction(Config().CMDERROR)
             return
 
         embed = discord.Embed()
         entries = {}
         for uid in Config().get(self)["ladder"]:
-            member = discord.utils.get(msg.guild.members, id=uid)
+            member = discord.utils.get(ctx.guild.members, id=uid)
             points = Config().get(self)["ladder"][uid]
             if points not in entries:
                 entries[points] = [member]
@@ -199,27 +210,34 @@ class Plugin(Geckarbot.BasePlugin, name="A trivia kwiss"):
                 values.append("**#{}:** {} - {}".format(place, el, get_best_username(Config().get(self), user)))
 
         if len(values) == 0:
-            await msg.channel.send("So far, nobody is on the ladder.")
+            await ctx.send("So far, nobody is on the ladder.")
             return
 
         embed.add_field(name="Ladder:", value="\n".join(values))
-        await msg.channel.send(embed=embed)
+        await ctx.send(embed=embed)
 
-    async def cmd_del(self, msg, *args):
+    async def cmd_del(self, ctx, *args):
         if len(args) != 2:
-            await msg.add_reaction(Config().CMDERROR)
+            await ctx.message.add_reaction(Config().CMDERROR)
             return
-        if not permChecks.check_full_access(msg.author):
-            await msg.add_reaction(Config().CMDERROR)
+        if not permChecks.check_full_access(ctx.message.author):
+            await ctx.message.add_reaction(Config().CMDERROR)
+            return
+
+        try:
+            user = await commands.MemberConverter().convert(ctx, args[1])
+        except (commands.CommandError, IndexError):
+            await ctx.message.add_reaction(Config().CMDERROR)
             return
 
         ladder = Config().get(self)["ladder"]
-        if msg.author.id in ladder:
-            del ladder[msg.author.id]
+        if user.id in ladder:
+            del ladder[user.id]
             Config().save(self)
-            await msg.add_reaction(Config().CMDSUCCESS)
+            await ctx.message.add_reaction(Config().CMDSUCCESS)
         else:
-            await msg.add_reaction(Config().CMDNOCHANGE)
+            print(Config().CMDNOCHANGE)
+            await ctx.message.add_reaction(Config().CMDNOCHANGE)
 
     async def cmd_question(self, msg, *args):
         if len(args) != 1:
@@ -259,7 +277,7 @@ class Plugin(Geckarbot.BasePlugin, name="A trivia kwiss"):
         # Subcommand
         except SubCommandEncountered as subcmd:
             self.logger.debug("Calling subcommand: {}".format(subcmd.callback))
-            await subcmd.callback(ctx.message, *subcmd.args)
+            await subcmd.callback(ctx, *subcmd.args)
             return
 
         err = self.args_combination_check(controller_class, args)
@@ -326,7 +344,7 @@ class Plugin(Geckarbot.BasePlugin, name="A trivia kwiss"):
         Registers a subcommand. If the subcommand is found in a command, the callback coroutine is called.
         :param channel: Channel in which the registering quiz takes place. None for global.
         :param subcommand: subcommand string that is looked for in incoming commands. Case-insensitive.
-        :param callback: Coroutine of the type f(msg, *args); is called with the message object and every arg, including
+        :param callback: Coroutine of the type f(ctx, *args); is called with the context object and every arg, including
         the subcommand itself and excluding the main command ("kwiss")
         """
         self.logger.debug("Subcommand registered: {}; callback: {}".format(subcommand, callback))
@@ -383,7 +401,7 @@ class Plugin(Geckarbot.BasePlugin, name="A trivia kwiss"):
         :return: lang code for error msg, None if the arg combination is okay
         """
         # Ranked stuff
-        if args["ranked"]:
+        if args["ranked"] and not args["debug"]:
             if controller != self.default_controller:
                 return "ranked_controller"
             if args["category"] != self.defaults["category"]:
