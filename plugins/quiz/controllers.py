@@ -1,4 +1,5 @@
 import asyncio
+import random
 from enum import Enum
 
 import discord
@@ -51,6 +52,10 @@ class PointsQuizController(BaseQuizController):
         self.config = config
         self.plugin = plugin
 
+        self.ranked = False
+        if "ranked" in kwargs:
+            self.ranked = kwargs["ranked"]
+
         # QuizAPI config
         self.category = None
         if "category" in kwargs:
@@ -58,6 +63,9 @@ class PointsQuizController(BaseQuizController):
         self.debug = False
         if "debug" in kwargs and kwargs["debug"]:
             self.debug = True
+        self.gecki = False
+        if "gecki" in kwargs and kwargs["gecki"]:
+            self.gecki = True
         self.question_count = kwargs["question_count"]
         self.difficulty = kwargs["difficulty"]
 
@@ -93,8 +101,8 @@ class PointsQuizController(BaseQuizController):
         self.state = Phases.REGISTERING
         reaction = Config().lang(self.plugin, "reaction_signup")
         signup_msg = await self.channel.send(Config().lang(self.plugin, "registering_phase",
-                                                           self.config["points_quiz_register_timeout"] // 60,
-                                                           reaction))
+                                                           reaction,
+                                                           self.config["points_quiz_register_timeout"] // 60))
         await signup_msg.add_reaction(Config().lang(self.plugin, "reaction_signup"))
 
         await asyncio.sleep(self.config["points_quiz_register_timeout"])
@@ -123,7 +131,7 @@ class PointsQuizController(BaseQuizController):
                     continue
 
                 self.registered_participants[user] = []
-            if self.debug:
+            if self.gecki:
                 self.registered_participants[self.plugin.bot.user] = []
 
         if len(self.registered_participants) == 0:
@@ -142,8 +150,10 @@ class PointsQuizController(BaseQuizController):
             self.channel.send(msg, embed=embed)
             return
         else:
+            for user in self.registered_participants:
+                self.score.add_participant(user)
             embed = discord.Embed(title=Config().lang(self.plugin, "quiz_phase"))
-            value = "\n".join(["{}{}".format(uemoji(Config().get(self.plugin), el), el.mention)
+            value = "\n".join([get_best_username(Config().get(self.plugin), el, mention=True)
                                for el in self.registered_participants])
             embed.add_field(name="Participants:", value=value)
             await self.channel.send(embed=embed)
@@ -177,13 +187,18 @@ class PointsQuizController(BaseQuizController):
         self.plugin.logger.debug("Ending question")
 
         # If debug, add bot's answer
-        if self.debug:
+        if self.gecki:
             self.plugin.logger.debug("Adding bot's answer")
             found = None
+            correct = random.choice([True, False])
             for i in range(len(self.current_question.all_answers)):
                 print("Comparing {} and {}".format(self.current_question.all_answers[i],
                                                    self.current_question.correct_answer))
                 if self.current_question.all_answers[i] == self.current_question.correct_answer:
+                    if correct:
+                        found = i
+                    break
+                if not correct:
                     found = i
                     break
             self.registered_participants[self.plugin.bot.user] = self.current_question.letter_mapping(found, emoji=True)
@@ -254,6 +269,10 @@ class PointsQuizController(BaseQuizController):
             await self.channel.send(msg)
         else:
             await self.channel.send(msg, embed=embed)
+
+        if self.ranked:
+            for player in self.registered_participants:
+                self.plugin.update_ladder(player, self.score.calc_points(player))
 
         self.plugin.end_quiz(self.channel)
 
@@ -412,8 +431,14 @@ class PointsQuizController(BaseQuizController):
         #    status = ":pause_button: Paused"
         embed.add_field(name="Status", value=status)
 
+        if self.ranked:
+            embed.add_field(name="Ranked", value=":memo:")
+
         if self.debug:
             embed.add_field(name="Debug mode", value=":beetle:")
+
+        if self.gecki:
+            embed.add_field(name="Gecki", value="I'm in! 😍")
 
         await self.channel.send(embed=embed)
 

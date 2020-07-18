@@ -2,6 +2,7 @@ import sys
 
 import discord
 from discord.ext import commands
+from discord.errors import HTTPException
 from botutils import utils
 from subsystems.reactions import ReactionAddedEvent, ReactionRemovedEvent
 
@@ -54,10 +55,12 @@ class Plugin(BasePlugin, name="Testing and debug things"):
     @commands.command(name="react")
     async def react(self, ctx, reaction):
         print(reaction)
-        # print("available: {}".format(reaction.available))
-        await ctx.message.add_reaction(reaction)
-        print("usable: {}".format(reaction.usable()))
+        try:
+            await ctx.message.add_reaction(reaction)
+        except HTTPException:
+            await ctx.message.add_reaction(Config().CMDERROR)
 
+    @staticmethod
     async def waitforreact_callback(self, event):
         msg = "PANIC!"
         if isinstance(event, ReactionAddedEvent):
