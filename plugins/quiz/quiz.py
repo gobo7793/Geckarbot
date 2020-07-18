@@ -176,7 +176,7 @@ class Plugin(Geckarbot.BasePlugin, name="A trivia kwiss"):
 
         emoji = args[1]
         try:
-            await ctx.messsage.add_reaction(emoji)
+            await ctx.message.add_reaction(emoji)
         except HTTPException:
             await ctx.message.add_reaction(Config().CMDERROR)
             return

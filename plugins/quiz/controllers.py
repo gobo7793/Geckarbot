@@ -299,6 +299,9 @@ class PointsQuizController(BaseQuizController):
         return
 
     async def on_reaction(self, event):
+        if event.member == self.plugin.bot.user:
+            self.plugin.logger.debug("Caught self-reaction: {} on {}".format(event.emoji, event.message))
+            return
         self.plugin.logger.debug("Caught reaction: {} on {}".format(event.emoji, event.message))
 
         # Cases we don't care about
