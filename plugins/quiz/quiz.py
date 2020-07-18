@@ -47,6 +47,7 @@ h_description = "Starts a kwiss.\n\n" \
                 "!kwiss categories - List of categories.\n" \
                 "!kwiss emoji <emoji> - Sets your prefix emoji.\n" \
                 "!kwiss ladder - Shows the ranked ladder.\n" \
+                "!kwiss del <user> - Removes a user from the ranked ladder. Admins only.\n" \
                 "!kwiss question - Information about the current question.\n\n" \
                 "Optional arguments to start a kwiss (in any order):\n" \
                 "mode - Game mode. One out of points, rush." \
