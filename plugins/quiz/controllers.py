@@ -188,7 +188,7 @@ class PointsQuizController(BaseQuizController):
             self.plugin.logger.debug("Adding bot's answer")
             found = None
             correct = random.choice([True, False])
-            print("Gecki is going to answer with a {} answer".format(correct))
+            self.plugin.logger.debug("Gecki is going to answer with a {} answer".format(correct))
             for i in range(len(self.current_question.all_answers)):
                 if self.current_question.all_answers[i] == self.current_question.correct_answer:
                     if correct:
