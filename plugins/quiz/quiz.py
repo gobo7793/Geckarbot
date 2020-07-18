@@ -105,6 +105,7 @@ class Plugin(Geckarbot.BasePlugin, name="A trivia kwiss"):
             "category": None,
             "difficulty": Difficulty.ANY,
             "ranked": False,
+            "gecki": False,
             "debug": False,
             "subcommand": None,
         }
@@ -374,8 +375,8 @@ class Plugin(Geckarbot.BasePlugin, name="A trivia kwiss"):
                 return "ranked_difficulty"
             if args["questions"] < self.config["ranked_min_questions"]:
                 return "ranked_questioncount"
-            if not Config().DEBUG_MODE and args["debug"]:
-                return "ranked_debug"
+            if not Config().DEBUG_MODE and args["gecki"]:
+                return "ranked_gecki"
         return None
 
     def parse_args(self, channel, args):

@@ -31,7 +31,7 @@ lang = {
         "ranked_questioncount": "Sorry, a ranked kwiss needs at least {} questions.",
         "ranked_category": "Sorry, a ranked kwiss needs the default category.",
         "ranked_difficulty": "Sorry, a ranked kwiss needs the default difficulty.",
-        "ranked_debug": "Sorry, I am not allowed to participate in ranked kwisses.",
+        "ranked_gecki": "Sorry, I am not allowed to participate in ranked kwisses.",
         "ranked_controller": "Sorry, a ranked kwiss needs the default gamemode.",
 
         # Quiz stuff

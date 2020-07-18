@@ -134,7 +134,8 @@ class PointsQuizController(BaseQuizController):
             if self.gecki:
                 self.registered_participants[self.plugin.bot.user] = []
 
-        if len(self.registered_participants) == 0:
+        players = len(self.registered_participants)
+        if players == 0 or (self.ranked and players < self.config["ranked_min_participants"]):
             self.state = Phases.ABORT
         else:
             self.state = Phases.ABOUTTOSTART
@@ -145,7 +146,10 @@ class PointsQuizController(BaseQuizController):
         """
         self.plugin.logger.debug("Ending the registering phase")
 
+        abort = False
         if len(self.registered_participants) == 0:
+            abort = True
+        if abort:
             embed, msg = self.plugin.end_quiz(self.channel)
             self.channel.send(msg, embed=embed)
             return
@@ -281,7 +285,10 @@ class PointsQuizController(BaseQuizController):
                 self.current_question_timer.cancel()
             except utils.HasAlreadyRun:
                 pass
-        await self.channel.send("The quiz was aborted.")
+        if self.ranked and len(self.registered_participants) < self.config["ranked_min_players"]:
+            await self.channel.send(Config().lang(self.plugin, "ranked_playercount"))
+        else:
+            await self.channel.send(Config().lang(self.plugin, "quiz_abort"))
 
     """
     Callbacks
