@@ -54,12 +54,15 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
         self.can_reload = True
         bot.register(self)
 
+        self.dsc_conf()['rule_link'] = self._get_rule_link()
+        Config().save(self)
+
     def default_config(self):
         return {
-            'rule_link': "https://docs.google.com/document/d/1xvkIPgLfFvm4CLwbCoUa8WZ1Fa-Z_ELPAtgHaSpEEbg",
+            'rule_cell': "Aktuell!F2",
+            'rule_link': None,
             # 'contestdoc_link': "https://docs.google.com/spreadsheets/d/1HH42s5DX4FbuEeJPdm8l1TK70o2_EKADNOLkhu5qRa8",
             'contestdoc_id': "1HH42s5DX4FbuEeJPdm8l1TK70o2_EKADNOLkhu5qRa8",
-            # 'rule_cell': "Aktuell!F2",
             'winners_range': "Hall of Fame!B4:D200",
             'host_id': None,
             'state': DscState.NA,
@@ -84,10 +87,10 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
     def _get_doc_link(self):
         return "https://docs.google.com/spreadsheets/d/{}".format(self.dsc_conf()['contestdoc_id'])
 
-    # def _get_rule_link(self):
-    #     c = get_api_client()
-    #     values = c.get(self.dsc_conf()['rule_cell'])
-    #     return values[0][0]
+    def _get_rule_link(self):
+        c = self.get_api_client()
+        values = c.get(self.dsc_conf()['rule_cell'])
+        return values[0][0]
 
     @commands.group(name="dsc", invoke_without_command=True, help="Get and manage informations about current DSC",
                     description="Get the informations about the current dsc or manage it. "
@@ -100,7 +103,6 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
     @dsc.command(name="rules", help="Get the link to the DSC rules")
     async def dsc_rules(self, ctx):
         await ctx.send(f"<{self.dsc_conf()['rule_link']}>")
-        # await ctx.send(f"<{self._get_rule_link()}>")
 
     @dsc.command(name="status", help="Get the current informations from the Songmasters about the current/next DSC")
     async def dsc_status(self, ctx):
