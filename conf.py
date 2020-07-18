@@ -224,7 +224,8 @@ class Config(metaclass=_Singleton):
 
         for plugin_slot in self.plugins:
             if plugin_slot.instance is plugin:
-                if self.LANGUAGE_CODE in plugin_slot.lang:
+                if (self.LANGUAGE_CODE in plugin_slot.lang
+                        and str_name in plugin_slot.lang[self.LANGUAGE_CODE]):
                     lang_code = self.LANGUAGE_CODE
                 else:
                     lang_code = 'en'
