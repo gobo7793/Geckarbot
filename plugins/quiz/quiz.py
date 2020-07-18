@@ -100,7 +100,7 @@ class Plugin(Geckarbot.BasePlugin, name="A trivia kwiss"):
 
         self.default_controller = PointsQuizController
         self.defaults = {
-            "impl": "opentdb",
+            "quizapi": OpenTDBQuizAPI,
             "questions": self.config["questions_default"],
             "method": Methods.START,
             "category": None,
@@ -116,12 +116,16 @@ class Plugin(Geckarbot.BasePlugin, name="A trivia kwiss"):
             PointsQuizController: ["points"],
         }
 
+        # Documented subcommands
         self.register_subcommand(None, "categories", self.cmd_catlist)
         self.register_subcommand(None, "emoji", self.cmd_emoji)
         self.register_subcommand(None, "ladder", self.cmd_ladder)
         self.register_subcommand(None, "question", self.cmd_question)
         self.register_subcommand(None, "del", self.cmd_del)
+
+        # Undocumented subcommands
         self.register_subcommand(None, "react", self.cmd_react)
+        self.register_subcommand(None, "info", self.cmd_info)
 
         super().__init__(bot)
         bot.register(self)
@@ -138,6 +142,9 @@ class Plugin(Geckarbot.BasePlugin, name="A trivia kwiss"):
             "ladder": {},
         }
 
+    """
+    Commands
+    """
     async def cmd_catlist(self, ctx, *args):
         if len(args) > 1:
             await ctx.message.channel.send(Config().lang(self, "too_many_arguments"))
@@ -155,7 +162,7 @@ class Plugin(Geckarbot.BasePlugin, name="A trivia kwiss"):
         # Delete emoji
         if len(args) == 1:
             if ctx.message.author.id in Config().get(self)["emoji"]:
-                del Config().get(self)["emoji"][msg.author.id]
+                del Config().get(self)["emoji"][ctx.message.author.id]
                 await ctx.message.add_reaction(Config().CMDSUCCESS)
                 Config().save(self)
             else:
@@ -237,29 +244,25 @@ class Plugin(Geckarbot.BasePlugin, name="A trivia kwiss"):
             Config().save(self)
             await ctx.message.add_reaction(Config().CMDSUCCESS)
         else:
-            print(Config().CMDNOCHANGE)
             await ctx.message.add_reaction(Config().CMDNOCHANGE)
 
-    async def cmd_question(self, msg, *args):
+    async def cmd_question(self, ctx, *args):
         if len(args) != 1:
-            await msg.add_reaction(Config().CMDERROR)
+            await ctx.message.add_reaction(Config().CMDERROR)
             return
 
-        controller = self.get_controller(msg.channel)
+        controller = self.get_controller(ctx.channel)
         if controller is None:
-            await msg.add_reaction(Config().CMDERROR)
+            await ctx.message.add_reaction(Config().CMDERROR)
             return
 
         embed = controller.quizapi.current_question().embed(emoji=True, info=True)
-        await msg.channel.send(embed=embed)
+        await ctx.channel.send(embed=embed)
 
-    def update_ladder(self, member, points):
-        ladder = Config().get(self)["ladder"]
-        if member.id in ladder:
-            ladder[member.id] = int(round(ladder[member.id] * 3/4 + points * 1/4))
-        else:
-            ladder[member.id] = int(round(points * 3/4))
-        Config().save(self)
+    async def cmd_info(self, ctx, *args):
+        args = args[1:]
+        controller, args = self.parse_args(ctx.channel, args, subcommands=False)
+        await ctx.send(args["quizapi"].info(**args))
 
     @commands.command(name="kwiss", help=h_help, description=h_description, usage=h_usage)
     async def kwiss(self, ctx, *args):
@@ -277,7 +280,7 @@ class Plugin(Geckarbot.BasePlugin, name="A trivia kwiss"):
 
         # Subcommand
         except SubCommandEncountered as subcmd:
-            self.logger.debug("Calling subcommand: {}".format(subcmd.callback))
+            self.logger.debug("Calling subcommand: {}, {}".format(subcmd.callback, subcmd.args))
             await subcmd.callback(ctx, *subcmd.args)
             return
 
@@ -340,6 +343,17 @@ class Plugin(Geckarbot.BasePlugin, name="A trivia kwiss"):
                                      self.controller_mapping[controller_class][0]))
         await quiz_controller.start(ctx.message)
 
+    """
+    Interface
+    """
+    def update_ladder(self, member, points):
+        ladder = Config().get(self)["ladder"]
+        if member.id in ladder:
+            ladder[member.id] = int(round(ladder[member.id] * 3/4 + points * 1/4))
+        else:
+            ladder[member.id] = int(round(points * 3/4))
+        Config().save(self)
+
     def register_subcommand(self, channel, subcommand, callback):
         """
         Registers a subcommand. If the subcommand is found in a command, the callback coroutine is called.
@@ -394,6 +408,9 @@ class Plugin(Geckarbot.BasePlugin, name="A trivia kwiss"):
             assert False, "Channel not in controller list"
         del self.controllers[channel]
 
+    """
+    Parse arguments
+    """
     def args_combination_check(self, controller, args):
         """
         Checks for argument combination constraints.
@@ -415,13 +432,15 @@ class Plugin(Geckarbot.BasePlugin, name="A trivia kwiss"):
                 return "ranked_gecki"
         return None
 
-    def parse_args(self, channel, args):
+    def parse_args(self, channel, args, subcommands=True):
         """
         Parses the arguments given to the quiz command and fills in defaults if necessary.
         :param channel: Channel in which the command was issued
         :param args: argument list
+        :param subcommands: Whether to fish for subcommands
         :return: Dict with the parsed arguments
         """
+        self.logger.debug("Parsing args: {}".format(args))
         found = {el: False for el in self.defaults}
         parsed = self.defaults.copy()
         controller = self.default_controller
@@ -430,6 +449,8 @@ class Plugin(Geckarbot.BasePlugin, name="A trivia kwiss"):
         # Fish for subcommand
         subcmd = None
         for el in self.registered_subcommands:
+            if not subcommands:
+                break
             if el is not None and el != channel:
                 continue
             for arg in args:
@@ -458,13 +479,17 @@ class Plugin(Geckarbot.BasePlugin, name="A trivia kwiss"):
                 pass
 
             # Quiz database
+            quizapi_found = False
             for db in quizapis:
                 if arg == db:
-                    if found["impl"]:
+                    if found["quizapi"]:
                         raise QuizInitError(self, "duplicate_db_arg")
-                    parsed["impl"] = quizapis[db]
-                    found["impl"] = True
+                    parsed["quizapi"] = quizapis[db]
+                    found["quizapi"] = True
+                    quizapi_found = True
                     continue
+            if quizapi_found:
+                continue
 
             # method
             try:

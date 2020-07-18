@@ -1,5 +1,6 @@
 import logging
 from urllib.parse import unquote
+import random
 
 import discord
 
@@ -13,6 +14,7 @@ opentdb = {
     "base_url": "https://opentdb.com",
     "token_route": "api_token.php",
     "api_route": "api.php",
+    "api_count_route": "api_count.php",
     "cat_mapping": [
         {'id': -1, 'names': ['Any', 'any', 'none', 'all', 'null']},
         {'id': 9, 'names': ['General', 'general']},
@@ -117,6 +119,49 @@ class OpenTDBQuizAPI(BaseQuizAPI):
         else:
             self.category = self.config["default_category"]
 
+    @classmethod
+    def size(cls, **kwargs):
+        """
+        :return: Returns how many questions there are in the database under the given constraints. Returns None
+        if the constraints are not supported (e.g. unknown category).
+        """
+        difficulty = Difficulty.ANY
+        if "difficulty" in kwargs:
+            difficulty = kwargs["difficulty"]
+        cat = "any"
+        if "category" in kwargs and kwargs["category"] is not None:
+            cat = kwargs["category"]
+
+        if cat == -1:
+            cats = [el["id"] for el in opentdb["cat_mapping"] if el["id"] != -1]
+        else:
+            cats = [cat]
+        r = 0
+        client = restclient.Client(opentdb["base_url"])
+        for cat in cats:
+            params = {
+                "category": str(cat),
+                "encode": "url3986",
+            }
+            counts = client.make_request(opentdb["api_count_route"], params=params)["category_question_count"]
+            if difficulty == Difficulty.ANY:
+                key = "total_question_count"
+            elif difficulty == Difficulty.EASY:
+                key = "total_easy_question_count"
+            elif difficulty == Difficulty.MEDIUM:
+                key = "total_medium_question_count"
+            elif difficulty == Difficulty.HARD:
+                key = "total_medium_question_count"
+            else:
+                return None
+
+            r += int(counts[key])
+        return r
+
+    @classmethod
+    def info(cls, **kwargs):
+        return "Question count: {}".format(cls.size(**kwargs))
+
     @staticmethod
     def category_name(catkey):
         """
@@ -139,6 +184,147 @@ class OpenTDBQuizAPI(BaseQuizAPI):
                 if catarg.lower() == cat:
                     return mapping["id"]
         return None
+
+    def cat_count(self, cat):
+        found = None
+        for el in opentdb["cat_mapping"]:
+            if cat in opentdb["cat_mapping"][el]:
+                found = el
+                break
+        if found == -1:
+            return -1
+        params = {"category": cat}
+        self.client.make_request("api_count.php", params=params)
+
+    def next_question(self):
+        """
+        Returns the next question and increments the current question. Raises QuizEnded when there is no next question.
+        """
+        self.current_question_i += 1
+        if self.current_question_i > len(self.questions) - 1:
+            raise QuizEnded
+
+        return self.questions[self.current_question_i]
+
+    def current_question(self):
+        return self.questions[self.current_question_i]
+
+    def __len__(self):
+        return len(self.questions)
+
+    def __del__(self):
+        self.is_running = False
+
+
+class MetaQuizAPI(BaseQuizAPI):
+    apis = [OpenTDBQuizAPI]
+
+    def __init__(self, config, channel,
+                 category=None, question_count=None, difficulty=Difficulty.EASY,
+                 debug=False):
+        """
+        Pulls from all implemented quiz APIs.
+        :param config: config dict
+        :param channel: channel ID that this quiz was requested in
+        :param category: Question topic / category. If None, it is chosen according to channel default mapping.
+        :param question_count: Amount of questions to be asked, None for default
+        :param difficulty: Difficulty enum ref that determines the difficulty of the questions
+        """
+        logging.info("Quiz API: Meta")
+        self.config = config
+        self.debug = debug
+        self.channel = channel
+        self.difficulty = difficulty
+        self.question_count = question_count
+        if question_count is None:
+            self.question_count = self.config["questions_default"]
+
+        self.client = restclient.Client(opentdb["base_url"])
+        self.current_question_i = -1
+
+        self.category = None
+        self.parse_category(category)
+        self.questions = []
+
+        # Meta stuff
+        self.spacesize = 0
+
+        # Determine question space sizes, weights and question sequence
+        sizes = {}
+        apiclasses = []
+        weights = []
+        for el in self.apis:
+            size = el.size(category=self.category, difficulty=self.difficulty)
+            if size is not None:
+                apiclasses.append(el)
+                weights.append(size)
+                sizes[el] = size
+                self.spacesize += size
+
+        question_seq = random.choices(apiclasses, weights=weights, k=self.question_count)
+        question_counts = {el: 0 for el in apiclasses}
+        for el in question_seq:
+            question_counts[el] += 1
+
+        apis = {el: el(self.config, self.channel, category=self.category, question_count=question_counts[el],
+                       difficulty=self.difficulty, debug=self.debug) for el in apiclasses}
+
+        # Build questions list
+        for i in range(self.question_count):
+            self.questions.append(apis[question_seq[i]].next_question())
+
+    def current_question_index(self):
+        return self.current_question_i
+
+    def parse_category(self, cat):
+        """
+        Takes all available info to determine the correct category.
+        :param cat: Category that was given by User. None if none was given.
+        """
+        if cat is not None:
+            self.category = cat
+
+        elif self.channel.id in self.config["channel_mapping"]:
+            self.category = self.config["channel_mapping"][self.channel.id]
+
+        else:
+            self.category = self.config["default_category"]
+
+    @staticmethod
+    def category_name(catkey):
+        """
+        :return: Human-readable representation of the quiz category
+        """
+        for el in opentdb["cat_mapping"]:
+            if el["id"] == catkey:
+                return el["names"][0]
+        return catkey
+
+    @staticmethod
+    def category_key(catarg):
+        """
+        :param catarg: Argument that was passed that identifies a
+        :return: Opaque category identifier that can be used in initialization and for category_name.
+        Returns None if catarg is an unknown category.
+        """
+        for mapping in opentdb["cat_mapping"]:
+            for cat in mapping["names"]:
+                if catarg.lower() == cat:
+                    return mapping["id"]
+        return None
+
+    @classmethod
+    def size(cls, **kwargs):
+        r = 0
+        for api in cls.apis:
+            size = api.size(**kwargs)
+            if size is not None:
+                r += size
+        return r
+
+    @classmethod
+    def info(cls, **kwargs):
+        return "Question count: {}".format(cls.size(**kwargs))
 
     def cat_count(self, cat):
         found = None

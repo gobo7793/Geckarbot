@@ -18,6 +18,22 @@ class BaseQuizAPI(ABC):
         """
         pass
 
+    @abstractmethod
+    def size(self, **kwargs):
+        """
+        Calculates the question space size for the given constraints (such as category and difficulty).
+        :return: int
+        """
+        pass
+
+    @abstractmethod
+    def info(self, **kwargs):
+        """
+        :param kwargs:
+        :return: Returns an info string under the given constraints.
+        """
+        pass
+
     def __len__(self):
         """
         :return: Returns the amount of questions.

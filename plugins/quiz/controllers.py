@@ -10,7 +10,7 @@ from conf import Config
 
 from plugins.quiz.abc import BaseQuizController
 from plugins.quiz.base import Score, InvalidAnswer, Difficulty
-from plugins.quiz.utils import get_best_username, uemoji
+from plugins.quiz.utils import get_best_username
 
 
 class QuizEnded(Exception):
@@ -321,7 +321,7 @@ class PointsQuizController(BaseQuizController):
             return
 
         self.registered_participants[event.member].append(event.emoji)
-        if self.has_everyone_answered():
+        if not self.havent_answered_hr():
             self.state = Phases.EVAL
 
     """
@@ -341,10 +341,12 @@ class PointsQuizController(BaseQuizController):
                                                        self.config["points_quiz_question_timeout"] // 2,
                                                        self.timeout, self.current_question)
 
-        await self.channel.send(Config().lang(self.plugin, "points_timeout_warning",
-                                              utils.format_andlist(self.havent_answered_hr(),
-                                                                   ands=Config().lang(self.plugin, "and")),
-                                              self.config["points_quiz_question_timeout"] // 2))
+        msg = Config().lang(self.plugin, "points_timeout_warning", utils.format_andlist(self.havent_answered_hr(),
+                            ands=Config().lang(self.plugin, "and")), self.config["points_quiz_question_timeout"] // 2)
+        panic = not self.havent_answered_hr()
+        await self.channel.send(msg)
+        if panic:
+            await self.channel.send("I know this should not happen. Please leave a !complain, thank you very much.")
 
     async def timeout(self, question):
         """
@@ -473,11 +475,10 @@ class PointsQuizController(BaseQuizController):
         self.statemachine.state = state
 
     def has_everyone_answered(self):
-        for el in self.registered_participants:
-            if len(self.registered_participants[el]) != 1:
-                return False
-
-        return True
+        if self.havent_answered_hr():
+            return False
+        else:
+            return True
 
     def havent_answered_hr(self):
         return [get_best_username(Config().get(self.plugin), el)
