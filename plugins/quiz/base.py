@@ -84,6 +84,9 @@ class Score:
         if user not in self._score:
             raise KeyError("User {} not found in score".format(user))
 
+        if len(self.answered_questions) == 0:
+            return 0
+
         return int(round(self.f(100 * self._points[user] * (1 - 1/len(self.answered_questions)))))
 
     def points(self):
