@@ -104,7 +104,7 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
     async def passierschein(self, ctx):
         await ctx.send(Config().lang(self, 'passierschein_out'))
 
-    @commands.command(name="kris", help="Eintragung einer Galeere")
+    @commands.command(name="kris", help="Replaces the user Kris")
     async def kristoph(self, ctx):
         await ctx.send(Config().lang(self, 'kristoph_out'))
 
