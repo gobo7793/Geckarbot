@@ -244,7 +244,6 @@ class Plugin(Geckarbot.BasePlugin, name="A trivia kwiss"):
             Config().save(self)
             await ctx.message.add_reaction(Config().CMDSUCCESS)
         else:
-            print(Config().CMDNOCHANGE)
             await ctx.message.add_reaction(Config().CMDNOCHANGE)
 
     async def cmd_question(self, ctx, *args):
@@ -482,9 +481,7 @@ class Plugin(Geckarbot.BasePlugin, name="A trivia kwiss"):
             # Quiz database
             quizapi_found = False
             for db in quizapis:
-                print("checking {}".format(db))
                 if arg == db:
-                    print("found quizapi {}".format(db))
                     if found["quizapi"]:
                         raise QuizInitError(self, "duplicate_db_arg")
                     parsed["quizapi"] = quizapis[db]

@@ -343,7 +343,10 @@ class PointsQuizController(BaseQuizController):
 
         msg = Config().lang(self.plugin, "points_timeout_warning", utils.format_andlist(self.havent_answered_hr(),
                             ands=Config().lang(self.plugin, "and")), self.config["points_quiz_question_timeout"] // 2)
+        panic = not self.havent_answered_hr()
         await self.channel.send(msg)
+        if panic:
+            await self.channel.send("I know this should not happen. Please leave a !complain, thank you very much.")
 
     async def timeout(self, question):
         """
