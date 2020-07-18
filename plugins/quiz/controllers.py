@@ -183,18 +183,12 @@ class PointsQuizController(BaseQuizController):
         self.current_reaction_listener = self.plugin.bot.reaction_listener.register(
             msg, self.on_reaction, data=self.current_question)
 
-    async def eval(self):
-        """
-        Is called when the question is over. Evaluates scores and cancels the timer.
-        :return:
-        """
-        self.plugin.logger.debug("Ending question")
-
         # If debug, add bot's answer
         if self.gecki:
             self.plugin.logger.debug("Adding bot's answer")
             found = None
             correct = random.choice([True, False])
+            self.plugin.logger.debug("Gecki is going to answer with a {} answer".format(correct))
             for i in range(len(self.current_question.all_answers)):
                 if self.current_question.all_answers[i] == self.current_question.correct_answer:
                     if correct:
@@ -203,7 +197,15 @@ class PointsQuizController(BaseQuizController):
                 if not correct:
                     found = i
                     break
-            self.registered_participants[self.plugin.bot.user] = self.current_question.letter_mapping(found, emoji=True)
+            answer = self.current_question.letter_mapping(found, emoji=True)
+            self.registered_participants[self.plugin.bot.user] = [answer]
+
+    async def eval(self):
+        """
+        Is called when the question is over. Evaluates scores and cancels the timer.
+        :return:
+        """
+        self.plugin.logger.debug("Ending question")
 
         # End timeout timer
         if self.current_question_timer is not None:
