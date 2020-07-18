@@ -113,7 +113,7 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
 
         await ctx.send(status_msg)
 
-    @dsc.command(name="winners", help="Gets previous dsc winners")
+    @dsc.command(name="winners", help="Returns previous DSC winners")
     async def dsc_winners(self, ctx):
         c = self.get_api_client()
         winners = c.get(self.dsc_conf()['winners_range'])
