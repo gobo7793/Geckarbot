@@ -211,12 +211,15 @@ class Config(metaclass=_Singleton):
         """
         Returns the given string from plugins language/string file.
         If language setted in Config().LANGUAGE_CODE is not supported, 'en' will be used.
-        If str_name can't be found, an empty string will be returned.
+        If str_name can't be found, str_name will be returned.
         :param plugin: The plugin instance
         :param str_name: The name of the returning string.
             If not available for current language, an empty string will be returned.
         :param args: The strings to insert into the returning string via format()
         """
+        if len(args) == 0:
+            args = [""]  # ugly lol
+
         for plugin_slot in self.plugins:
             if plugin_slot.instance is plugin:
                 if self.LANGUAGE_CODE in plugin_slot.lang:
@@ -225,4 +228,4 @@ class Config(metaclass=_Singleton):
                     lang_code = 'en'
                 lang_str = plugin_slot.lang[lang_code].get(str_name, "")
                 return lang_str.format(*args)
-        return None
+        return str_name
