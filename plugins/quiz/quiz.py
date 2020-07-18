@@ -218,9 +218,6 @@ class Plugin(Geckarbot.BasePlugin, name="A trivia kwiss"):
 
     def update_ladder(self, member, points):
         ladder = Config().get(self)["ladder"]
-        if len(ladder) > 0:
-            for el in ladder.keys():
-                print("ladder ids are str: {} (expected False)".format(isinstance(str, ladder[el])))
         if member.id in ladder:
             ladder[member.id] = int(round(ladder[member.id] * 3/4 + points * 1/4))
         else:

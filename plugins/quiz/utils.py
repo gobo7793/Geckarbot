@@ -10,8 +10,6 @@ def uemoji(config, user):
 
 
 def get_best_username(config, user, mention=False):
-    print("config: {}".format(config))
-    print("user: {}".format(user))
     if mention:
         s = user.mention
     else:

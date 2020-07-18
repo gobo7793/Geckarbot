@@ -192,8 +192,6 @@ class PointsQuizController(BaseQuizController):
             found = None
             correct = random.choice([True, False])
             for i in range(len(self.current_question.all_answers)):
-                print("Comparing {} and {}".format(self.current_question.all_answers[i],
-                                                   self.current_question.correct_answer))
                 if self.current_question.all_answers[i] == self.current_question.correct_answer:
                     if correct:
                         found = i
