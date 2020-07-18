@@ -56,5 +56,5 @@ class Client(restclient.Client):
 
     def get(self, range):
         route = "{}/values/{}".format(self.spreadsheet_id, range)
-        values = self._make_request(route)
+        values = self._make_request(route)['values']
         return values
