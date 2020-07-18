@@ -100,6 +100,31 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
     async def tippspiel(self, ctx):
         await ctx.send(Config().lang(self, 'tippspiel_output'))
 
+    @commands.command(name="passierschein", help="Eintragung einer Galeere")
+    async def passierschein(self, ctx):
+        await ctx.send(Config().lang(self, 'passierschein_out'))
+
+    @commands.command(name="kris", help="Eintragung einer Galeere")
+    async def kristoph(self, ctx):
+        await ctx.send(Config().lang(self, 'kristoph_out'))
+
+    @commands.command(name="wermobbtgerade", help="Shows which user is bullying other users",
+                      description="Shows which user is bullying other users. Supports ignore list.")
+    async def who_mobbing(self, ctx):
+        online_users = []
+        for m in self.bot.guild.members:
+            if (m.status != discord.Status.offline
+                    and not self.bot.ignoring.check_user_id_command(m.id, ctx.command.qualified_name)):
+                online_users.append(m)
+
+        bully = random.choice(online_users)
+
+        if bully is self.bot.guild.me:
+            msg = Config().lang(self, "bully_msg_self")
+        else:
+            msg = Config().lang(self, "bully_msg", utils.get_best_username(bully))
+        await ctx.send(msg)
+
     @commands.command(name="remindme", help="Reminds the author.",
                       usage="<#|#m|#h|#d|DD.MM.YYYY|HH:MM|DD.MM.YYYY HH:MM|DD.MM. HH:MM|cancel|list> "
                             "[message|cancel_id]",

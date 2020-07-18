@@ -4,7 +4,7 @@ from enum import IntEnum
 from datetime import datetime
 from discord.ext import commands
 from conf import Config
-from botutils import utils, permChecks
+from botutils import utils, permChecks, sheetsclient
 from Geckarbot import BasePlugin
 
 
@@ -28,7 +28,9 @@ lang = {
         'invalid_phase': "Invalid dsc state.",
         'yt_link_set': "New Youtube playlist link set.",
         'state_end_set': "New state end date set.",
-        'status_set': "New status message set."
+        'status_set': "New status message set.",
+        'winner_prefix': "**Previous DSC winners:**\n",
+        'winner_msg': "#{}: {}, Points: {}",
         }
     }
 
@@ -53,7 +55,10 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
     def default_config(self):
         return {
             'rule_link': "https://docs.google.com/document/d/1xvkIPgLfFvm4CLwbCoUa8WZ1Fa-Z_ELPAtgHaSpEEbg",
-            'contestdoc_link': "https://docs.google.com/spreadsheets/d/1HH42s5DX4FbuEeJPdm8l1TK70o2_EKADNOLkhu5qRa8",
+            # 'contestdoc_link': "https://docs.google.com/spreadsheets/d/1HH42s5DX4FbuEeJPdm8l1TK70o2_EKADNOLkhu5qRa8",
+            'contestdoc_id': "1HH42s5DX4FbuEeJPdm8l1TK70o2_EKADNOLkhu5qRa8",
+            # 'rule_cell': "Aktuell!F2",
+            'winners_range': "Hall of Fame!B4:D200",
             'host_id': None,
             'state': DscState.NA,
             'yt_link': None,
@@ -70,24 +75,33 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
     def dsc_lang(self, str_name, *args):
         return Config().lang(self, str_name, *args)
 
-    @commands.group(name="dsc", help="Get and manage informations about current DSC",
+    def get_api_client(self):
+        """Returns a client to access Google Sheets API for the dsc contestdoc sheet"""
+        return sheetsclient.Client(self.dsc_conf()['contestdoc_id'])
+
+    def _get_doc_link(self):
+        return "https://docs.google.com/spreadsheets/d/{}".format(self.dsc_conf()['contestdoc_id'])
+
+    # def _get_rule_link(self):
+    #     c = get_api_client()
+    #     values = c.get(self.dsc_conf()['rule_cell'])
+    #     return values[0][0]
+
+    @commands.group(name="dsc", invoke_without_command=True, help="Get and manage informations about current DSC",
                     description="Get the informations about the current dsc or manage it. "
                                 "Command only works in music channel. "
                                 "Manage DSC informations is only permitted for songmasters.")
     @permChecks.in_channel(Config().CHAN_IDS.get('music', 0))
     async def dsc(self, ctx):
-        """DSC base command, return info command if no subcommand given"""
-        if ctx.invoked_subcommand is None:
-            await self.dsc_info(ctx)
+        await ctx.invoke(self.bot.get_command('dsc info'))
 
     @dsc.command(name="rules", help="Get the link to the DSC rules")
     async def dsc_rules(self, ctx):
-        """Returns the DSC rules"""
         await ctx.send(f"<{self.dsc_conf()['rule_link']}>")
+        # await ctx.send(f"<{self._get_rule_link()}>")
 
     @dsc.command(name="status", help="Get the current informations from the Songmasters about the current/next DSC")
     async def dsc_status(self, ctx):
-        """Returns the DSC status message"""
         if self.dsc_conf()['status']:
             status_msg = self.dsc_lang('status_base', self.dsc_conf()['status'])
         else:
@@ -95,9 +109,22 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
 
         await ctx.send(status_msg)
 
+    @dsc.command(name="winners", help="Gets previous dsc winners")
+    async def dsc_winners(self, ctx):
+        c = self.get_api_client()
+        winners = c.get(self.dsc_conf()['winners_range'])
+
+        w_msgs = []
+        for w in winners[1:]:
+            if w[0] is None or not w[0]:
+                continue
+            w_msgs.append(Config().lang(self, 'winner_msg', w[0], w[1], w[2]))
+
+        for m in utils.paginate(w_msgs, Config().lang(self, 'winner_prefix')):
+            await ctx.send(m)
+
     @dsc.command(name="info", help="Get informations about current DSC")
     async def dsc_info(self, ctx):
-        """Returns basic infos about next/current DSC"""
         host_nick = None
         date_out_str = self.dsc_lang('info_date_str', self.dsc_conf()['state_end'].strftime('%d.%m.%Y, %H:%M'))
         if not self.dsc_conf()['host_id']:
@@ -138,23 +165,20 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
             embed.add_field(name="Status", value=str(self.dsc_conf()['status']))
             await utils.write_debug_channel(self.bot, embed)
 
-    @dsc.group(name="set", help="Set data about current/next DSC.", usage="<host|state|stateend|status|yt>")
+    @dsc.group(name="set", invoke_without_command=True, usage="<host|state|stateend|status|yt>",
+               help="Set data about current/next DSC.")
     @commands.has_any_role(Config().ADMIN_ROLE_ID, Config().BOTMASTER_ROLE_ID, Config().ROLE_IDS.get('songmaster', 0))
     async def dsc_set(self, ctx):
-        """Basic set subcommand, does nothing"""
-        if ctx.invoked_subcommand is None:
-            await ctx.send_help(self.dsc_set)
+        await ctx.send_help(self.dsc_set)
 
     @dsc_set.command(name="host", help="Sets the current/next DSC hoster", usage="<user>")
     async def dsc_set_host(self, ctx, user: discord.Member):
-        """Sets the current/next DSC host"""
         self.dsc_conf()['host_id'] = user.id
         Config().save(self)
         # await ctx.send(self.dsc_lang('new_host_set'))
         await ctx.message.add_reaction(Config().CMDSUCCESS)
 
     async def dsc_save_state(self, ctx, new_state: DscState):
-        """Saves the new DSC state and prints it to user"""
         self.dsc_conf()['state'] = new_state
         # state_str = str(DscState(self.dsc_conf()['state']))
         # state_str = state_str[state_str.find(".") + 1:].replace("_", " ")
@@ -165,7 +189,6 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
     @dsc_set.command(name="state", help="Sets the current DSC state (Voting/Sign up)",
                      usage="<voting|signup>")
     async def dsc_set_state(self, ctx, state):
-        """Sets the current DSC state (registration/voting)"""
         if state.lower() == "voting":
             await self.dsc_save_state(ctx, DscState.Voting)
         elif state.lower() == "signup":
@@ -175,7 +198,6 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
 
     @dsc_set.command(name="yt", help="Sets the Youtube playlist link", usage="<link>")
     async def dsc_set_yt_link(self, ctx, link):
-        """Sets the youtube playlist link"""
         link = utils.clear_link(link)
         self.dsc_conf()['yt_link'] = link
         Config().save(self)
@@ -186,7 +208,6 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
                      description="Sets the end date and time for registration and voting phase. "
                                  "If no time is given, 23:59 will be used.")
     async def dsc_set_date(self, ctx, date_str, time_str=None):
-        """Sets the end date (and time) of the current DSC state"""
         if not time_str:
             time_str = "23:59"
         self.dsc_conf()['state_end'] = datetime.strptime(f"{date_str} {time_str}", "%d.%m.%Y %H:%M")
@@ -197,7 +218,6 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
     @dsc_set.command(name="status", help="Sets the status message", usage="[message]",
                      description="Sets a status message for additional informations. To remove give no message.")
     async def dsc_set_status(self, ctx, *status_message):
-        """Sets the dsc status message or removes it if no message is given"""
         self.dsc_conf()['status'] = " ".join(status_message)
         Config().save(self)
         # await ctx.send(self.dsc_lang('status_set'))

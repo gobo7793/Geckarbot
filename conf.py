@@ -109,6 +109,8 @@ class Config(metaclass=_Singleton):
             self.DEBUG_MODE = bot_data.get('DEBUG_MODE', False)
             self.DEBUG_WHITELIST = bot_data.get('DEBUG_WHITELIST', [])
 
+            self.GOOGLE_API_KEY = bot_data.get('GOOGLE_API_KEY', "")
+
             self.FULL_ACCESS_ROLES = [self.ADMIN_ROLE_ID, self.BOTMASTER_ROLE_ID]
 
     ######
