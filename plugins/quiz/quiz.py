@@ -4,14 +4,16 @@ from enum import Enum
 
 import discord
 from discord.ext import commands
+from discord.errors import HTTPException
 
 import Geckarbot
 from conf import Config
 from botutils import permChecks
 
 from plugins.quiz.controllers import RushQuizController, PointsQuizController
-from plugins.quiz.quizapis import OpenTDBQuizAPI, quizapis
+from plugins.quiz.quizapis import OpenTDBQuizAPI, quizapis, opentdb
 from plugins.quiz.base import Difficulty
+from plugins.quiz.utils import get_best_username
 
 jsonify = {
     "timeout": 20,  # answering timeout in minutes; not impl yet TODO
@@ -23,6 +25,8 @@ jsonify = {
     "channel_blacklist": [],
     "points_quiz_register_timeout": 1 * 60,
     "points_quiz_question_timeout": 20,  # warning after this value, actual timeout after 1.5*this value
+    "ranked_min_players": 4,
+    "ranked_min_questions": 7,
     "emoji_in_pose": True,
     "channel_mapping": {
         706125113728172084: "any",
@@ -34,6 +38,35 @@ jsonify = {
         706130284252364811: "computer",
     }
 }
+
+h_help = "A trivia kwiss"
+h_description = "Starts a kwiss.\n\n" \
+                "Subcommands:\n" \
+                "!kwiss status - Gets information about the kwiss currently running in this channel.\n" \
+                "!kwiss stop - Stops the currently running kwiss. Only for kwiss starter and botmasters.\n" \
+                "!kwiss categories - List of categories.\n" \
+                "!kwiss emoji <emoji> - Sets your prefix emoji.\n" \
+                "!kwiss ladder - Shows the ranked ladder.\n" \
+                "!kwiss del <user> - Removes a user from the ranked ladder. Admins only.\n" \
+                "!kwiss question - Information about the current question.\n\n" \
+                "Optional arguments to start a kwiss (in any order):\n" \
+                "mode - Game mode. One out of points, rush." \
+                "category - one out of !kwiss category\n" \
+                "difficulty - one out of any, easy, medium, hard\n" \
+                "question count - number that determines how many questions are to be posed\n" \
+                "ranked - include this to start a ranked kwiss\n" \
+                "gecki - Gecki participates (only works in points mode)\n" \
+                "Example: !kwiss 5 tv hard gecki\n\n" \
+                "Points game mode:\n" \
+                "Each question is answered by all players. The players earn points depending on how many questions " \
+                "they answered correctly. The player who earned the most points wins.\n\n" \
+                "Rush game mode:\n" \
+                "The player who is the fastest to answer correctly wins the question. The player who answers " \
+                "the most questions correctly wins.\n\n" \
+                "Ranked\n" \
+                "To start a kwiss that counts for the eternal global ladder, use the argument \"ranked\". " \
+                "Ranked kwisses are constrained in most kwiss parameters (especially mode and difficulty)."
+h_usage = "[<mode> <question count> <difficulty> <category> <ranked> <debug>]"
 
 
 class QuizInitError(Exception):
@@ -72,6 +105,8 @@ class Plugin(Geckarbot.BasePlugin, name="A trivia kwiss"):
             "method": Methods.START,
             "category": None,
             "difficulty": Difficulty.ANY,
+            "ranked": False,
+            "gecki": False,
             "debug": False,
             "subcommand": None,
         }
@@ -85,6 +120,8 @@ class Plugin(Geckarbot.BasePlugin, name="A trivia kwiss"):
         self.register_subcommand(None, "emoji", self.cmd_emoji)
         self.register_subcommand(None, "ladder", self.cmd_ladder)
         self.register_subcommand(None, "question", self.cmd_question)
+        self.register_subcommand(None, "del", self.cmd_del)
+        self.register_subcommand(None, "react", self.cmd_react)
 
         super().__init__(bot)
         bot.register(self)
@@ -101,55 +138,65 @@ class Plugin(Geckarbot.BasePlugin, name="A trivia kwiss"):
             "ladder": {},
         }
 
-    async def cmd_catlist(self, msg, *args):
+    async def cmd_catlist(self, ctx, *args):
         if len(args) > 1:
-            await msg.channel.send(Config().lang(self, "too_many_arguments"))
+            await ctx.message.channel.send(Config().lang(self, "too_many_arguments"))
             return
 
         embed = discord.Embed(title="Categories:")
         s = []
-        for el in OpenTDBQuizAPI.opentdb["cat_mapping"]:
+        for el in opentdb["cat_mapping"]:
             cat = el["names"]
             s.append("**{}**: {}".format(cat[0], cat[1]))
         embed.add_field(name="Name: Command", value="\n".join(s))
-        await msg.channel.send(embed=embed)
+        await ctx.send(embed=embed)
 
-    async def cmd_emoji(self, msg, *args):
+    async def cmd_emoji(self, ctx, *args):
         # Delete emoji
         if len(args) == 1:
-            if msg.author.id in Config().get(self)["emoji"]:
+            if ctx.message.author.id in Config().get(self)["emoji"]:
                 del Config().get(self)["emoji"][msg.author.id]
-                await msg.add_reaction(Config().CMDSUCCESS)
+                await ctx.message.add_reaction(Config().CMDSUCCESS)
                 Config().save(self)
             else:
-                await msg.add_reaction(Config().CMDERROR)
+                await ctx.message.add_reaction(Config().CMDERROR)
             return
 
         # Too many arguments
         if len(args) != 2:
-            await msg.add_reaction(Config().CMDERROR)
+            await ctx.message.add_reaction(Config().CMDERROR)
             return
 
         emoji = args[1]
         try:
-            await msg.add_reaction(emoji)
-        except:
-            await msg.add_reaction(Config().CMDERROR)
+            await ctx.messsage.add_reaction(emoji)
+        except HTTPException:
+            await ctx.message.add_reaction(Config().CMDERROR)
             return
 
-        Config().get(self)["emoji"][msg.author.id] = emoji
+        Config().get(self)["emoji"][ctx.message.author.id] = emoji
         Config().save(self)
-        await msg.add_reaction(Config().CMDSUCCESS)
+        await ctx.message.add_reaction(Config().CMDSUCCESS)
 
-    async def cmd_ladder(self, msg, *args):
+    async def cmd_react(self, ctx, *args):
         if len(args) != 1:
-            await msg.add_reaction(Config().CMDERROR)
+            await ctx.message.add_reaction(Config().CMDERROR)
+            return
+
+        emoji = Config().get(self)["emoji"].get(ctx.message.author.id)
+        if emoji is None:
+            emoji = Config().CMDERROR
+        await ctx.message.add_reaction(emoji)
+
+    async def cmd_ladder(self, ctx, *args):
+        if len(args) != 1:
+            await ctx.message.add_reaction(Config().CMDERROR)
             return
 
         embed = discord.Embed()
         entries = {}
         for uid in Config().get(self)["ladder"]:
-            member = discord.utils.get(msg.guild.members, id=uid)
+            member = discord.utils.get(ctx.guild.members, id=uid)
             points = Config().get(self)["ladder"][uid]
             if points not in entries:
                 entries[points] = [member]
@@ -160,15 +207,38 @@ class Plugin(Geckarbot.BasePlugin, name="A trivia kwiss"):
         keys = sorted(entries.keys(), reverse=True)
         place = 0
         for el in keys:
-            place += 1
-            values.append("**#{}:** {} - {}".format(place, el, entries[el]))
+            for user in entries[el]:
+                values.append("**#{}:** {} - {}".format(place, el, get_best_username(Config().get(self), user)))
 
         if len(values) == 0:
-            await msg.channel.send("So far, nobody is on the ladder.")
+            await ctx.send("So far, nobody is on the ladder.")
             return
 
         embed.add_field(name="Ladder:", value="\n".join(values))
-        await msg.channel.send(embed=embed)
+        await ctx.send(embed=embed)
+
+    async def cmd_del(self, ctx, *args):
+        if len(args) != 2:
+            await ctx.message.add_reaction(Config().CMDERROR)
+            return
+        if not permChecks.check_full_access(ctx.message.author):
+            await ctx.message.add_reaction(Config().CMDERROR)
+            return
+
+        try:
+            user = await commands.MemberConverter().convert(ctx, args[1])
+        except (commands.CommandError, IndexError):
+            await ctx.message.add_reaction(Config().CMDERROR)
+            return
+
+        ladder = Config().get(self)["ladder"]
+        if user.id in ladder:
+            del ladder[user.id]
+            Config().save(self)
+            await ctx.message.add_reaction(Config().CMDSUCCESS)
+        else:
+            print(Config().CMDNOCHANGE)
+            await ctx.message.add_reaction(Config().CMDNOCHANGE)
 
     async def cmd_question(self, msg, *args):
         if len(args) != 1:
@@ -185,15 +255,13 @@ class Plugin(Geckarbot.BasePlugin, name="A trivia kwiss"):
 
     def update_ladder(self, member, points):
         ladder = Config().get(self)["ladder"]
-        if len(ladder) > 0:
-            print("ladder ids are str: {} (expected False)".format(isinstance(str, ladder[ladder.values()[0]])))
         if member.id in ladder:
             ladder[member.id] = int(round(ladder[member.id] * 3/4 + points * 1/4))
         else:
             ladder[member.id] = int(round(points * 3/4))
         Config().save(self)
 
-    @commands.command(name="kwiss", help="Interacts with the kwiss subsystem.")
+    @commands.command(name="kwiss", help=h_help, description=h_description, usage=h_usage)
     async def kwiss(self, ctx, *args):
         """
         !kwiss command
@@ -210,13 +278,18 @@ class Plugin(Geckarbot.BasePlugin, name="A trivia kwiss"):
         # Subcommand
         except SubCommandEncountered as subcmd:
             self.logger.debug("Calling subcommand: {}".format(subcmd.callback))
-            await subcmd.callback(ctx.message, *subcmd.args)
+            await subcmd.callback(ctx, *subcmd.args)
             return
 
         err = self.args_combination_check(controller_class, args)
         if err is not None:
+            args = []
+            if err == "ranked_playercount":
+                args = (self.config["ranked_min_participants"],)
+            if err == "ranked_questioncount":
+                args = (self.config["ranked_min_questions"],)
             await ctx.message.add_reaction(Config().CMDERROR)
-            await ctx.send(Config().lang(self, err))
+            await ctx.send(Config().lang(self, err, *args))
             return
 
         # Look for existing quiz
@@ -227,7 +300,7 @@ class Plugin(Geckarbot.BasePlugin, name="A trivia kwiss"):
             or method == Methods.SCORE \
             or method == Methods.STATUS
         if method == Methods.START and self.get_controller(channel):
-            await ctx.add_reaction(Config().CMDERROR)
+            await ctx.message.add_reaction(Config().CMDERROR)
             raise QuizInitError(self, "existing_quiz")
         if modifying and self.get_controller(channel) is None:
             if method == Methods.STATUS:
@@ -257,7 +330,8 @@ class Plugin(Geckarbot.BasePlugin, name="A trivia kwiss"):
         await ctx.message.add_reaction(Config().EMOJI["success"])
         quiz_controller = controller_class(self, self.config, OpenTDBQuizAPI, ctx.channel, ctx.message.author,
                                            category=args["category"], question_count=args["questions"],
-                                           difficulty=args["difficulty"], debug=args["debug"])
+                                           difficulty=args["difficulty"], debug=args["debug"], ranked=args["ranked"],
+                                           gecki=args["gecki"])
         self.controllers[channel] = quiz_controller
         self.logger.debug("Registered quiz controller {} in channel {}".format(quiz_controller, ctx.channel))
         await ctx.send(Config().lang(self, "quiz_start", args["questions"],
@@ -271,7 +345,7 @@ class Plugin(Geckarbot.BasePlugin, name="A trivia kwiss"):
         Registers a subcommand. If the subcommand is found in a command, the callback coroutine is called.
         :param channel: Channel in which the registering quiz takes place. None for global.
         :param subcommand: subcommand string that is looked for in incoming commands. Case-insensitive.
-        :param callback: Coroutine of the type f(msg, *args); is called with the message object and every arg, including
+        :param callback: Coroutine of the type f(ctx, *args); is called with the context object and every arg, including
         the subcommand itself and excluding the main command ("kwiss")
         """
         self.logger.debug("Subcommand registered: {}; callback: {}".format(subcommand, callback))
@@ -321,10 +395,25 @@ class Plugin(Geckarbot.BasePlugin, name="A trivia kwiss"):
         del self.controllers[channel]
 
     def args_combination_check(self, controller, args):
-        return None
+        """
+        Checks for argument combination constraints.
+        :param controller: Quiz controller class
+        :param args: args dict
+        :return: lang code for error msg, None if the arg combination is okay
+        """
         # Ranked stuff
-        if args["ranked"]:
-            pass
+        if args["ranked"] and not args["debug"]:
+            if controller != self.default_controller:
+                return "ranked_controller"
+            if args["category"] != self.defaults["category"]:
+                return "ranked_category"
+            if args["difficulty"] != self.defaults["difficulty"]:
+                return "ranked_difficulty"
+            if args["questions"] < self.config["ranked_min_questions"]:
+                return "ranked_questioncount"
+            if not Config().DEBUG_MODE and args["gecki"]:
+                return "ranked_gecki"
+        return None
 
     def parse_args(self, channel, args):
         """
@@ -417,6 +506,18 @@ class Plugin(Geckarbot.BasePlugin, name="A trivia kwiss"):
                     raise QuizInitError(self, "dupiclate_cat_arg")
                 parsed["category"] = cat
                 found["category"] = True
+                continue
+
+            # ranked
+            if arg == "ranked":
+                parsed["ranked"] = True
+                found["ranked"] = True
+                continue
+
+            # gecki
+            if arg == "gecki":
+                parsed["gecki"] = True
+                found["gecki"] = True
                 continue
 
             # debug

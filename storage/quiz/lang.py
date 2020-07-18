@@ -26,6 +26,14 @@ lang = {
         "existing_quiz": "There is already a kwiss running in this channel.",
         "status_no_quiz": "There is no kwiss running in this channel.",
 
+        # Ranked errors
+        "ranked_playercount": "Sorry, a ranked kwiss needs at least {} participants. Aborting.",
+        "ranked_questioncount": "Sorry, a ranked kwiss needs at least {} questions.",
+        "ranked_category": "Sorry, a ranked kwiss needs the default category.",
+        "ranked_difficulty": "Sorry, a ranked kwiss needs the default difficulty.",
+        "ranked_gecki": "Sorry, I am not allowed to participate in ranked kwisses.",
+        "ranked_controller": "Sorry, a ranked kwiss needs the default gamemode.",
+
         # Quiz stuff
         "correct_answer": "{}: {} is the correct answer!",
         "quiz_start": "Starting kwiss! {} questions. Category: {}. Difficulty: {}. Game Mode: {}",

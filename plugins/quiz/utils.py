@@ -9,5 +9,9 @@ def uemoji(config, user):
     return ""
 
 
-def get_best_username(config, user):
-    return "{}{}".format(uemoji(config, user), utils.get_best_username(user))
+def get_best_username(config, user, mention=False):
+    if mention:
+        s = user.mention
+    else:
+        s = utils.get_best_username(user)
+    return "{}{}".format(uemoji(config, user), s)
