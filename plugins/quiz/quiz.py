@@ -25,7 +25,7 @@ jsonify = {
     "channel_blacklist": [],
     "points_quiz_register_timeout": 1 * 60,
     "points_quiz_question_timeout": 20,  # warning after this value, actual timeout after 1.5*this value
-    "ranked_min_participants": 4,
+    "ranked_min_players": 4,
     "ranked_min_questions": 7,
     "emoji_in_pose": True,
     "channel_mapping": {
@@ -119,6 +119,7 @@ class Plugin(Geckarbot.BasePlugin, name="A trivia kwiss"):
         self.register_subcommand(None, "emoji", self.cmd_emoji)
         self.register_subcommand(None, "ladder", self.cmd_ladder)
         self.register_subcommand(None, "question", self.cmd_question)
+        self.register_subcommand(None, "del", self.cmd_del)
 
         super().__init__(bot)
         bot.register(self)
@@ -203,6 +204,22 @@ class Plugin(Geckarbot.BasePlugin, name="A trivia kwiss"):
 
         embed.add_field(name="Ladder:", value="\n".join(values))
         await msg.channel.send(embed=embed)
+
+    async def cmd_del(self, msg, *args):
+        if len(args) != 2:
+            await msg.add_reaction(Config().CMDERROR)
+            return
+        if not permChecks.check_full_access(msg.author):
+            await msg.add_reaction(Config().CMDERROR)
+            return
+
+        ladder = Config().get(self)["ladder"]
+        if msg.author.id in ladder:
+            del ladder[msg.author.id]
+            Config().save(self)
+            await msg.add_reaction(Config().CMDSUCCESS)
+        else:
+            await msg.add_reaction(Config().CMDNOCHANGE)
 
     async def cmd_question(self, msg, *args):
         if len(args) != 1:

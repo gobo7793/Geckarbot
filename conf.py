@@ -52,6 +52,7 @@ class Config(metaclass=_Singleton):
     EMOJI = {
         "success": "✅",
         "error": "❌",
+        "nochange": "🤷️",
         "lettermap": [
             "🇦",  # a
             "🇧",  # b
@@ -83,6 +84,7 @@ class Config(metaclass=_Singleton):
     }
     CMDSUCCESS = EMOJI["success"]
     CMDERROR = EMOJI["error"]
+    CMDNOCHANGE = EMOJI["nochange"]
 
     ######
     # Init

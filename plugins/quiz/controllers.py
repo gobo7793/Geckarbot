@@ -135,7 +135,7 @@ class PointsQuizController(BaseQuizController):
                 self.registered_participants[self.plugin.bot.user] = []
 
         players = len(self.registered_participants)
-        if players == 0 or (self.ranked and players < self.config["ranked_min_participants"]):
+        if players == 0 or (self.ranked and players < self.config["ranked_min_players"]):
             self.state = Phases.ABORT
         else:
             self.state = Phases.ABOUTTOSTART
@@ -286,7 +286,7 @@ class PointsQuizController(BaseQuizController):
             except utils.HasAlreadyRun:
                 pass
         if self.ranked and len(self.registered_participants) < self.config["ranked_min_players"]:
-            await self.channel.send(Config().lang(self.plugin, "ranked_playercount"))
+            await self.channel.send(Config().lang(self.plugin, "ranked_playercount", self.config["ranked_min_players"]))
         else:
             await self.channel.send(Config().lang(self.plugin, "quiz_abort"))
 
