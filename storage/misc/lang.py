@@ -36,6 +36,6 @@ lang = {
         'passierschein_out': "Eintragung einer Galeere? Oh, da sind Sie hier falsch! Wenden Sie sich an die "
                              "Hafenkommandantur unten im Hafen.\n"
                              "https://youtu.be/lIiUR2gV0xk",
-        'kristoph_out': "mood :kristoph:",
+        'kristoph_out': "mood <:kristoph:717524523662180383>",
         }
     }
