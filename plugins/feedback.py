@@ -147,8 +147,8 @@ class Plugin(BasePlugin, name="Feedback"):
 
     def default_config(self):
         return {
-            "complaints": {}
-            "bugscore": {}
+            "complaints": {},
+            "bugscore": {},
         }
 
     def get_new_id(self, init=False):
@@ -259,16 +259,71 @@ class Plugin(BasePlugin, name="Feedback"):
     """
     Bugscore
     """
-    """
+    async def bugscore_show(self, ctx):
+        await ctx.send(Config.lang(self, "bugscore_title"))
+
+        # todo sort
+        for uid in self.storage["bugscore"]:
+            user = discord.utils.get(self.bot.guild.members, id=uid)
+            await ctx.send("{}: {}".format(utils.get_best_username(user), self.storage["bugscore"][uid]))
+
+    async def bugscore_del(self, ctx, user):
+        try:
+            user = await commands.MemberConverter().convert(ctx, user)
+        except (commands.CommandError, IndexError):
+            await ctx.send(Config.lang(self, "bugscore_user_not_found", user))
+            await ctx.message.add_reaction(Config().CMDERROR)
+            return
+
+        if user.id in self.storage["bugscore"]:
+            del self.storage["bugscore"][user.id]
+            Config.save(self)
+            await ctx.message.add_reaction(Config().CMDSUCCESS)
+        else:
+            await ctx.message.add_reaction(Config().CMDNOCHANGE)
+
+    async def bugscore_increment(self, ctx, user, increment):
+        # find user
+        try:
+            user = await commands.MemberConverter().convert(ctx, user)
+        except (commands.CommandError, IndexError):
+            await ctx.send(Config.lang(self, "bugscore_user_not_found", user))
+            await ctx.message.add_reaction(Config().CMDERROR)
+            return
+
+        try:
+            increment = int(increment)
+        except (ValueError, TypeError):
+            await ctx.send(Config.lang(self, "bugscore_nan", increment))
+            await ctx.message.add_reaction(Config().CMDERROR)
+            return
+
+        if user.id in self.storage["bugscore"]:
+            self.storage["bugscore"][user.id] += increment
+        else:
+            self.storage["bugscore"][user.id] = increment
+        Config.save(self)
+        await ctx.message.add_reaction(Config().CMDSUCCESS)
+
     @commands.command(name="bugscore", help="High score for users who found bugs",
                       description="Shows the current bug score.\n\n"
                                   "Admins:\n!bugscore <user> [increment]\n!bugscore del <user>")
     async def bugscore(self, ctx, *args):
         if len(args) == 0:
-            # Show bug score
-            await ctx.send(Config.lang(self, "bugscore_title"))
+            await self.bugscore_show(ctx)
+            return
 
-            # todo sort, convert user id -> user
-            for user in self.storage["bugscore"]:
-                await ctx.send("{}: {}".format(utils.get_best_username(user), self.storage["bugscore"]["user"]))
-    """
+        if len(args) == 2 and args[0] == "del":
+            await self.bugscore_del(ctx, args[1])
+            return
+
+        increment = 1
+        if len(args) == 2:
+            increment = args[1]
+
+        if len(args) > 2:
+            await ctx.send(Config.lang(self, "bugscore_args"))
+            return
+
+        await self.bugscore_increment(ctx, args[0], increment)
+
