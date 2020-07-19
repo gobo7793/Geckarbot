@@ -5,5 +5,7 @@ lang = {
         "redact_del_not_found": "Complaint #{} not found.",
         "redact_search_args": "No search terms given.",
         "redact_search_not_found": "No complaints found.",
+
+        "bugscore_title": "**Bug Score:**"
     }
 }

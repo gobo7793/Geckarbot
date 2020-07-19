@@ -138,11 +138,17 @@ class Plugin(BasePlugin, name="Feedback"):
         for cid in self.storage["complaints"]:
             self.complaints[cid] = Complaint.deserialize(self.bot, cid, self.storage["complaints"][cid])
 
+        # Migration 1.7 -> 1.8
+        if "bugscore" not in self.storage:
+            self.storage["bugscore"] = {}
+            Config.save(self)
+
         self.get_new_id(init=True)
 
     def default_config(self):
         return {
             "complaints": {}
+            "bugscore": {}
         }
 
     def get_new_id(self, init=False):
@@ -249,3 +255,20 @@ class Plugin(BasePlugin, name="Feedback"):
         await ctx.message.add_reaction(Config().CMDSUCCESS)
         # await msg.channel.send(lang["complaint_received"])
         self.write()
+
+    """
+    Bugscore
+    """
+    """
+    @commands.command(name="bugscore", help="High score for users who found bugs",
+                      description="Shows the current bug score.\n\n"
+                                  "Admins:\n!bugscore <user> [increment]\n!bugscore del <user>")
+    async def bugscore(self, ctx, *args):
+        if len(args) == 0:
+            # Show bug score
+            await ctx.send(Config.lang(self, "bugscore_title"))
+
+            # todo sort, convert user id -> user
+            for user in self.storage["bugscore"]:
+                await ctx.send("{}: {}".format(utils.get_best_username(user), self.storage["bugscore"]["user"]))
+    """
