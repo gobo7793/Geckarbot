@@ -115,7 +115,6 @@ def complaint_message_list(complaints):
             current_msg.append(to_add)
     msgs.append(current_msg)
 
-    print("msgs: {}".format(msgs))
     r = []
     for el in msgs:
         r.append(delimiter.join(el))
@@ -127,7 +126,7 @@ class Plugin(BasePlugin, name="Feedback"):
         super().__init__(bot)
         bot.register(self)
 
-        self.storage = Config().get(self)
+        self.storage = Config.get(self)
         self.complaints = {}
         self.highest_id = None
 
@@ -166,40 +165,77 @@ class Plugin(BasePlugin, name="Feedback"):
         for el in self.complaints:
             complaint = self.complaints[el]
             r["complaints"][complaint.id] = complaint.serialize()
-        Config().set(self, r)
-        Config().save(self)
+        Config.set(self, r)
+        Config.save(self)
 
-    @commands.command(name="redact", help="Redacts the list of complaints (i.e. read and delete)", usage="[del x]",
-                      description="Returns the accumulated feedback. Use [del x] to delete feedback #x.")
+    @commands.group(name="redact", invoke_without_command=True,
+                    help="Redacts the list of complaints (i.e. read and delete)", usage="[del x]",
+                    description="Returns the accumulated feedback. Use [del x] to delete feedback #x.")
     @commands.has_any_role(Config().ADMIN_ROLE_ID, Config().BOTMASTER_ROLE_ID)
-    async def redact(self, ctx, *args):
-        # Argument parsing / delete subcmd
-        if len(args) == 2:
-            error = False
-            if args[0] != "del":
-                error = True
-            try:
-                i = int(args[1])
-            except (ValueError, TypeError):
-                error = True
-            if error:
-                await ctx.message.add_reaction(Config().CMDERROR)
-                await ctx.message.channel.send("Unexpected argument structure; expected !redact or !redact del #")
-                return
-            del self.complaints[i]
-            # await ctx.send(lang['complaint_removed'].format(i))
-            await ctx.message.add_reaction(Config().CMDSUCCESS)
-            self.write()
-            return
-
+    async def redact(self, ctx):
         # Printing complaints
         if len(self.complaints) == 0:
-            await ctx.message.channel.send("No complaints.")
+            await ctx.send(Config.lang(self, "redact_no_complaints"))
             return
 
         msgs = complaint_message_list(self.complaints)
         for el in msgs:
-            await ctx.message.channel.send(el)
+            await ctx.send(el)
+
+    @redact.command(name="del", help="Deletes a complaint", usage="<#>")
+    async def delete(self, ctx, *args):
+        # Args parsing
+        argserr = False
+        if len(args) != 1:
+            argserr = True
+        i = None
+        try:
+            i = int(args[0])
+        except (ValueError, TypeError):
+            argserr = True
+        if argserr:
+            await ctx.message.add_reaction(Config().CMDERROR)
+            await ctx.send(Config.lang(self, "redact_del_args"))
+            return
+
+        # Delete
+        try:
+            del self.complaints[i]
+        except KeyError:
+            await ctx.message.add_reaction(Config().CMDERROR)
+            await ctx.send(Config.lang(self, "redact_del_not_found", i))
+            return
+        # await ctx.send(lang['complaint_removed'].format(i))
+        await ctx.message.add_reaction(Config().CMDSUCCESS)
+        self.write()
+
+    @redact.command(name="search", help="Finds all complaints that contain all search terms", usage="<search terms>")
+    async def search(self, ctx, *args):
+        if len(args) == 0:
+            await ctx.message.add_reaction(Config().CMDERROR)
+            await ctx.send(Config.lang(self, "redact_search_args"))
+
+        r = {}
+        for i in self.complaints:
+            complaint = self.complaints[i]
+            found = True
+            for searchterm in args:
+                # Search check
+                if searchterm.lower() not in complaint.to_message().lower():
+                    found = False
+                    break
+            if not found:
+                continue
+
+            # Search result
+            r[i] = complaint
+
+        if not r:
+            await ctx.send(Config.lang(self, "redact_search_not_found"))
+            return
+        msgs = complaint_message_list(r)
+        for el in msgs:
+            await ctx.send(el)
 
     @commands.command(name="complain", help="Takes a complaint and stores it", usage="<message>",
                       description="Delivers a feedback message. "
@@ -210,7 +246,6 @@ class Plugin(BasePlugin, name="Feedback"):
         msg = ctx.message
         complaint = Complaint.from_message(self, msg)
         self.complaints[complaint.id] = complaint
-        print(Config().CMDSUCCESS)
         await ctx.message.add_reaction(Config().CMDSUCCESS)
         # await msg.channel.send(lang["complaint_received"])
         self.write()
