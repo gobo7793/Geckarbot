@@ -146,37 +146,46 @@ class Config(metaclass=_Singleton):
     ######
     # Save/Load/Get plugin config
     ######
-
-    def get(self, plugin):
-        """Returns the config of the given plugin.
-        If given plugin is not registered, None will be returned."""
+    @classmethod
+    def get(cls, plugin):
+        """
+        Returns the config of the given plugin.
+        If given plugin is not registered, None will be returned.
+        """
+        self = cls()
         for plugin_slot in self.plugins:
             if plugin_slot.instance is plugin:
                 return plugin_slot.config
         return None
 
-    def set(self, plugin, config):
+    @classmethod
+    def set(cls, plugin, config):
         """
         Sets the config of the given plugin.
         """
+        self = cls()
         for plugin_slot in self.plugins:
             if plugin_slot.instance is plugin:
                 plugin_slot.config = config
 
-    def save(self, plugin):
+    @classmethod
+    def save(cls, plugin):
         """Saves the config of the given plugin.
         If given plugin is not registered, None will be returned,
         else if saving is succesfully."""
+        self = cls()
         for plugin_slot in self.plugins:
             if plugin_slot.instance is plugin:
                 return self._write_config_file(plugin_slot.name, plugin_slot.config)
         return None
 
-    def load(self, plugin):
+    @classmethod
+    def load(cls, plugin):
         """Loads the config of the given plugin.
         If given plugin is not registered, None will be returned, if errors
         occured during loading False and it's default config will be used
         as its config, otherwise True."""
+        self = cls()
         for plugin_slot in self.plugins:
             if plugin_slot.instance is plugin:
                 loaded = self._read_config_file(plugin_slot.name)
@@ -187,9 +196,11 @@ class Config(metaclass=_Singleton):
                 return True
         return None
 
-    def load_all(self):
+    @classmethod
+    def load_all(cls):
         """Loads the config of all registered plugins. If config of a
         plugin can't be loaded, its default config will be used as config."""
+        self = cls()
         for plugin_slot in self.plugins:
             if plugin_slot.instance.can_reload:
                 loaded = self._read_config_file(plugin_slot.name)
@@ -200,16 +211,18 @@ class Config(metaclass=_Singleton):
     ######
     # Lang/Strings/Resources
     ######
-
-    def storage_dir(self, plugin):
+    @classmethod
+    def storage_dir(cls, plugin):
         """Returns the storage directory for additional
         resources for the given plugin instance."""
+        self = cls()
         for plugin_slot in self.plugins:
             if plugin_slot.instance is plugin:
                 return plugin_slot.storage_dir
         return None
 
-    def lang(self, plugin, str_name, *args):
+    @classmethod
+    def lang(cls, plugin, str_name, *args):
         """
         Returns the given string from plugins language/string file.
         If language setted in Config().LANGUAGE_CODE is not supported, 'en' will be used.
@@ -219,6 +232,7 @@ class Config(metaclass=_Singleton):
             If not available for current language, an empty string will be returned.
         :param args: The strings to insert into the returning string via format()
         """
+        self = cls()
         if len(args) == 0:
             args = [""]  # ugly lol
 
