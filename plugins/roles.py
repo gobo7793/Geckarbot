@@ -94,10 +94,8 @@ class Plugin(BasePlugin, name="Role Management"):
         self.can_reload = True
         bot.register(self)
 
-        @bot.listen()
-        async def on_ready():
-            if self.has_init_msg_set():
-                bot.reaction_listener.register(await self.get_init_msg(), self.update_reaction_based_user_role)
+        if self.has_init_msg_set():
+            bot.reaction_listener.register(await self.get_init_msg(), self.update_reaction_based_user_role)
 
     def default_config(self):
         return {
