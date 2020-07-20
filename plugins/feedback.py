@@ -282,6 +282,7 @@ class Plugin(BasePlugin, name="Feedback"):
         else:
             await ctx.message.add_reaction(Config().CMDNOCHANGE)
 
+    @commands.has_any_role(Config().BOTMASTER_ROLE_ID)
     async def bugscore_increment(self, ctx, user, increment):
         # find user
         try:
@@ -289,6 +290,9 @@ class Plugin(BasePlugin, name="Feedback"):
         except (commands.CommandError, IndexError):
             await ctx.send(Config.lang(self, "bugscore_user_not_found", user))
             await ctx.message.add_reaction(Config().CMDERROR)
+            return
+        if not permChecks.has_role_id(user, Config().BOTMASTER_ROLE_ID):
+            await ctx.message.add_reaction(Config().CMDNOPERMISSIONS)
             return
 
         try:

@@ -85,6 +85,7 @@ class Config(metaclass=_Singleton):
     CMDSUCCESS = EMOJI["success"]
     CMDERROR = EMOJI["error"]
     CMDNOCHANGE = EMOJI["nochange"]
+    CMDNOPERMISSIONS = EMOJI["error"]  # todo find something better
 
     ######
     # Init

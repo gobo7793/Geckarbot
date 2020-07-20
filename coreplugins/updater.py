@@ -404,7 +404,7 @@ class Plugin(Geckarbot.BasePlugin, name="Bot updating system"):
 
     @commands.command(name="shutdown", help="Stops the bot.")
     @commands.has_any_role(Config().BOTMASTER_ROLE_ID)
-    async def shutdown(self, ctx):
+    async def shutdowncmd(self, ctx):
         await ctx.message.add_reaction(Config().CMDSUCCESS)
         await self.bot.shutdown(Geckarbot.Exitcodes.SUCCESS)  # This signals the runscript
 
