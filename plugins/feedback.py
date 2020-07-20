@@ -231,12 +231,14 @@ class Plugin(BasePlugin, name="Feedback"):
     async def bugscore_show(self, ctx):
         await ctx.send(Config.lang(self, "bugscore_title"))
 
-        # todo sort
-        for uid in self.storage["bugscore"]:
+        for uid in sorted(self.storage["bugscore"], key=lambda x: self.storage["bugscore"][x], reverse=True):
             user = discord.utils.get(self.bot.guild.members, id=uid)
             await ctx.send("{}: {}".format(utils.get_best_username(user), self.storage["bugscore"][uid]))
 
     async def bugscore_del(self, ctx, user):
+        if discord.utils.get(ctx.author.roles, id=Config().BOTMASTER_ROLE_ID) is None:
+            await ctx.message.add_reaction(Config().CMDNOPERMISSIONS)
+            return
         try:
             user = await commands.MemberConverter().convert(ctx, user)
         except (commands.CommandError, IndexError):
@@ -253,15 +255,16 @@ class Plugin(BasePlugin, name="Feedback"):
 
     @commands.has_any_role(Config().BOTMASTER_ROLE_ID)
     async def bugscore_increment(self, ctx, user, increment):
+        if discord.utils.get(ctx.author.roles, id=Config().BOTMASTER_ROLE_ID) is None:
+            await ctx.message.add_reaction(Config().CMDNOPERMISSIONS)
+            return
+
         # find user
         try:
             user = await commands.MemberConverter().convert(ctx, user)
         except (commands.CommandError, IndexError):
             await ctx.send(Config.lang(self, "bugscore_user_not_found", user))
             await ctx.message.add_reaction(Config().CMDERROR)
-            return
-        if not permChecks.has_role_id(user, Config().BOTMASTER_ROLE_ID):
-            await ctx.message.add_reaction(Config().CMDNOPERMISSIONS)
             return
 
         try:

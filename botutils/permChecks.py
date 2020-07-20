@@ -13,16 +13,6 @@ def in_channel(channel_id):
     return commands.check(predicate)
 
 
-def has_role_id(user: discord.Member, role_id):
-    """
-    Checks if user has the role with the id role_id.
-    """
-    for role in user.roles:
-        if role.id == role_id:
-            return True
-    return False
-
-
 def check_full_access(user: discord.Member):
     """
     Checks if the user has full access to bot commands. If you can, use
