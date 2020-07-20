@@ -288,7 +288,6 @@ def paginate(items, prefix="", suffix="", msg_prefix="", delimiter="\n", f=lambd
     for i in items:
         to_add = str(f(i))
         if len(to_add) > threshold:  # really really long entry
-            print("yielding1 {}".format(to_add))
             yield to_add
             continue
 
@@ -302,7 +301,6 @@ def paginate(items, prefix="", suffix="", msg_prefix="", delimiter="\n", f=lambd
             length += len(k) + len(delimiter)
 
         if length + len(to_add) > threshold:
-            print("yielding2 {}".format(delimiter.join(current_msg)))
             yield delimiter.join(current_msg)
             current_msg = [msg_prefix + to_add]
         else:
@@ -317,12 +315,9 @@ def paginate(items, prefix="", suffix="", msg_prefix="", delimiter="\n", f=lambd
     # Handle last msg
     current_msg = delimiter.join(current_msg)
     if len(current_msg) + len(suffix) > threshold:
-        print("yielding3 {}".format(current_msg))
         yield current_msg
-        print("yielding4 {}".format(suffix))
         yield suffix
     else:
         r = current_msg + suffix
         if not r.strip() == "":
-            print("yielding5 {}".format(r))
             yield r
