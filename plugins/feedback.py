@@ -84,41 +84,8 @@ class Complaint:
         return r
 
 
-def complaint_message_list(complaints):
-    threshold = 1900
-    starter = "**Complaints:**\n"
-    current_msg = []
-    msgs = []
-    delimiter = "\n\n"
-    first = True
-    for i in complaints:
-        el = complaints[i]
-
-        to_add = el.to_message()
-        if len(to_add) > threshold:  # really really long complaints
-            msgs.append([to_add])
-            continue
-
-        if first:
-            first = False
-            to_add = starter + to_add
-
-        # sum up current len
-        length = 0
-        for k in current_msg:
-            length += len(k) + len(delimiter)
-
-        if length + len(to_add) > threshold:
-            msgs.append(current_msg)
-            current_msg = ["_ _\n" + to_add]
-        else:
-            current_msg.append(to_add)
-    msgs.append(current_msg)
-
-    r = []
-    for el in msgs:
-        r.append(delimiter.join(el))
-    return r
+def to_msg(el: Complaint):
+    return el.to_message()
 
 
 class Plugin(BasePlugin, name="Feedback"):
@@ -184,7 +151,8 @@ class Plugin(BasePlugin, name="Feedback"):
             await ctx.send(Config.lang(self, "redact_no_complaints"))
             return
 
-        msgs = complaint_message_list(self.complaints)
+        msgs = utils.paginate(self.complaints.values(),
+                              prefix=Config.lang(self, "redact_title"), delimiter="\n\n", f=to_msg)
         for el in msgs:
             await ctx.send(el)
 
@@ -221,7 +189,7 @@ class Plugin(BasePlugin, name="Feedback"):
             await ctx.message.add_reaction(Config().CMDERROR)
             await ctx.send(Config.lang(self, "redact_search_args"))
 
-        r = {}
+        r = []
         for i in self.complaints:
             complaint = self.complaints[i]
             found = True
@@ -234,12 +202,13 @@ class Plugin(BasePlugin, name="Feedback"):
                 continue
 
             # Search result
-            r[i] = complaint
+            r.append(complaint)
 
         if not r:
             await ctx.send(Config.lang(self, "redact_search_not_found"))
             return
-        msgs = complaint_message_list(r)
+
+        msgs = utils.paginate(r, prefix=Config.lang(self, "redact_search_title"), delimiter="\n\n", f=to_msg)
         for el in msgs:
             await ctx.send(el)
 
