@@ -1,7 +1,7 @@
 lang = {
     'en': {
         'ping_out': "Pong!",
-        'mud_out': "Kip!",
+        'mud_out': "kip!",
         'mudkip_out': "https://www.youtube.com/watch?v=3DkqMjfqqPc",
         'tree_out': "cko!",
         'liebe_out': "https://www.youtube.com/watch?v=TfmJPDmaQdg",
