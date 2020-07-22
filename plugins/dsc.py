@@ -61,7 +61,6 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
         return {
             'rule_cell': "Aktuell!F2",
             'rule_link': None,
-            # 'contestdoc_link': "https://docs.google.com/spreadsheets/d/1HH42s5DX4FbuEeJPdm8l1TK70o2_EKADNOLkhu5qRa8",
             'contestdoc_id': "1HH42s5DX4FbuEeJPdm8l1TK70o2_EKADNOLkhu5qRa8",
             'winners_range': "Hall of Fame!B4:D200",
             'host_id': None,
@@ -157,7 +156,7 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
 
             embed = discord.Embed(title=self.dsc_lang('signup_phase_info', date_out_str))
             embed.add_field(name=self.dsc_lang('current_host'), value=host_nick)
-            embed.add_field(name=self.dsc_lang('sign_up'), value=self.dsc_conf()['contestdoc_link'])
+            embed.add_field(name=self.dsc_lang('sign_up'), value=self._get_doc_link())
             if self.dsc_conf()['status']:
                 embed.description = self.dsc_conf()['status']
             await ctx.send(embed=embed)
@@ -165,7 +164,7 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
         elif self.dsc_conf()['state'] == DscState.Voting:
             embed = discord.Embed(title=self.dsc_lang('voting_phase_info', date_out_str))
             embed.add_field(name=self.dsc_lang('current_host'), value=host_nick)
-            embed.add_field(name=self.dsc_lang('all_songs'), value=self.dsc_conf()['contestdoc_link'])
+            embed.add_field(name=self.dsc_lang('all_songs'), value=self._get_doc_link())
             embed.add_field(name=self.dsc_lang('yt_playlist'), value=self.dsc_conf()['yt_link'])
             if self.dsc_conf()['status']:
                 embed.description = self.dsc_conf()['status']
