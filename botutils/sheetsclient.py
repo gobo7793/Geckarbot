@@ -55,6 +55,9 @@ class Client(restclient.Client):
         return response
 
     def number_to_column(self, num):
+        """
+        Converts a number to the name of the corresponding number
+        """
         chars = []
         while num > 0:
             num, d = divmod(num, 26)
@@ -62,6 +65,12 @@ class Client(restclient.Client):
                 num, d = num - 1, 26
             chars.append(chr(64 + d))
         return ''.join(reversed(chars))
+
+    def cellname(self, col, row):
+        """
+        Returns the name of the cell
+        """
+        return self.number_to_column(col) + str(row)
 
     def get(self, range):
         route = "{}/values/{}".format(self.spreadsheet_id, range)

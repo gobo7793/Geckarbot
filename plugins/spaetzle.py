@@ -14,8 +14,9 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
 
     def default_config(self):
         return {
-            'spaetzledoc_id': "1ZzEGP_J9WxJGeAm1Ri3er89L1IR1riq7PH2iKVDmfP8",
-            'matches_range': "Aktuell!B3:H11"
+            'matches_range': "Aktuell!B3:H11",
+            'observed_users': [(64, 14), (76, 14), (68, 26), (68, 38), (70, 38)],
+            'spaetzledoc_id': "1ZzEGP_J9WxJGeAm1Ri3er89L1IR1riq7PH2iKVDmfP8"
         }
 
     def spaetzle_conf(self):
@@ -37,10 +38,22 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
         await ctx.send("Dieser cmd holt sich die Tipps automatisch aus dem angegebenen Forums-Thread! Also irgendwann "
                        "mal :c")
 
-    @spaetzle.command(name="duels", help="Shows the duels of our people!")
+    @spaetzle.command(name="duels", aliases=["duelle"], help="Shows the duels of our people!")
     async def show_duels(self, ctx):
-        await ctx.send("Dieser Cmd zeigt die aktuellen Stände in den Duellen unserer Teilnehmer hier! Also irgendwann "
-                       "mal :c")
+        msg = ""
+        c = self.get_api_client()
+        for col, row in self.spaetzle_conf()['observed_users']:
+            """
+            user = c.get_cell(col, row)
+            opponent = c.get_cell(col + 1, row + 11)
+            goalsH = c.get_cell(col, row + 10)
+            goalsA = c.get_cell(col, row + 11)
+            print(user, opponent, goalsH, goalsA)
+            msg += "**{}** [{}:{}] {}\n".format(user, goalsH, goalsA, opponent)"""
+            data = c.get("Aktuell!" + c.cellname(col, row) + ":" + c.cellname(col + 1, row + 11))
+            msg += "**{}** [{}:{}] {}\n".format(data[0][0], data[10][0], data[11][0], data[11][1])
+
+        await ctx.send(embed=discord.Embed(title="Duelle", description=msg))
 
     @spaetzle.command(name="matches", aliases=["spiele"], help="Displays the matches to be guessed")
     async def show_matches(self, ctx):
@@ -51,7 +64,4 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
         for match in matches:
             msg += "{0} {1} {2} Uhr | {3} - {6} | {4}:{5}\n".format(*match)
 
-        embed = discord.Embed(title="Spiele")
-        embed.description = msg
-
-        await ctx.send(embed=embed)
+        await ctx.send(embed=discord.Embed(title="Spiele", description=msg))
