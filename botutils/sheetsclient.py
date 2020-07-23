@@ -54,6 +54,15 @@ class Client(restclient.Client):
         # self.logger.debug("Response: {}".format(response))
         return response
 
+    def number_to_column(self, num):
+        chars = []
+        while num > 0:
+            num, d = divmod(num, 26)
+            if d == 0:
+                num, d = num - 1, 26
+            chars.append(chr(64 + d))
+        return ''.join(reversed(chars))
+
     def get(self, range):
         route = "{}/values/{}".format(self.spreadsheet_id, range)
         values = self._make_request(route)['values']
