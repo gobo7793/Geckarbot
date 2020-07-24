@@ -39,15 +39,15 @@ class Client(restclient.Client):
         Adds the API key to the params dictionary
         """
         if params is None:
-            params = {}
-        params['key'] = Config().GOOGLE_API_KEY
+            params = []
+        params.append(('key', Config().GOOGLE_API_KEY))
         return params
 
     def _make_request(self, route, params=None):
         """
         Makes a Sheets Request
         """
-        route = urllib.parse.quote(route)
+        route = urllib.parse.quote(route, safe="/:")
         params = self._params_add_api_key(params)
         # self.logger.debug("Making Sheets request {}, params: {}".format(route, params))
         response = self.make_request(route, params=params)
@@ -73,6 +73,24 @@ class Client(restclient.Client):
         return self.number_to_column(col) + str(row)
 
     def get(self, range):
+        """
+        Reads a single range
+        """
         route = "{}/values/{}".format(self.spreadsheet_id, range)
         values = self._make_request(route)['values']
+        return values
+
+    def get_multiple(self, ranges):
+        """
+        Reads multiple ranges
+        :param ranges: List of ranges
+        """
+        route = "{}/values:batchGet".format(self.spreadsheet_id)
+        params = []
+        for range in ranges:
+            params.append(("ranges", range))
+        value_ranges = self._make_request(route, params=params)['valueRanges']
+        values = []
+        for vrange in value_ranges:
+            values.append(vrange['values'])
         return values

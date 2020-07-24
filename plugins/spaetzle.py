@@ -42,16 +42,13 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
     async def show_duels(self, ctx):
         msg = ""
         c = self.get_api_client()
+        data_ranges = []
         for col, row in self.spaetzle_conf()['observed_users']:
-            """
-            user = c.get_cell(col, row)
-            opponent = c.get_cell(col + 1, row + 11)
-            goalsH = c.get_cell(col, row + 10)
-            goalsA = c.get_cell(col, row + 11)
-            print(user, opponent, goalsH, goalsA)
-            msg += "**{}** [{}:{}] {}\n".format(user, goalsH, goalsA, opponent)"""
-            data = c.get("Aktuell!" + c.cellname(col, row) + ":" + c.cellname(col + 1, row + 11))
-            msg += "**{}** [{}:{}] {}\n".format(data[0][0], data[10][0], data[11][0], data[11][1])
+            data_ranges.append("Aktuell!{}".format(c.cellname(col, row)))
+            data_ranges.append("Aktuell!{}:{}".format(c.cellname(col, row + 10), c.cellname(col + 1, row + 11)))
+        data = c.get_multiple(data_ranges)
+        for i in range(0, len(data_ranges), 2):
+            msg += "**{}** [{}:{}] {}\n".format(data[i][0][0], data[i+1][0][0], data[i+1][1][0], data[i+1][1][1])
 
         await ctx.send(embed=discord.Embed(title="Duelle", description=msg))
 
