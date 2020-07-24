@@ -118,7 +118,12 @@ class Plugin(Geckarbot.BasePlugin, name="Custom CMDs"):
         else:
             await ctx.send(Config.lang(self, "raw_doesnt_exists", cmd_name))
 
-    @cmd.command(name="add", help="Adds a custom command")
+    @cmd.command(name="add", help="Adds a custom command",
+                 description="Adds a custom command. Following wildcards can be used, which will be replaced on "
+                             "using:\n"
+                             "%u: The user who uses the command\n"
+                             "%n: The nth command argument\n"
+                             "Example: !cmd add test Argument1: %1 from user %u")
     async def cmd_add(self, ctx, cmd_name, *args):
         if not args:
             raise commands.MissingRequiredArgument(inspect.signature(self.cmd_add).parameters['args'])
