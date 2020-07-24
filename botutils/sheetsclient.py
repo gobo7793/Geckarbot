@@ -92,5 +92,8 @@ class Client(restclient.Client):
         value_ranges = self._make_request(route, params=params)['valueRanges']
         values = []
         for vrange in value_ranges:
-            values.append(vrange['values'])
+            if 'values' in vrange:
+                values.append(vrange['values'])
+            else:
+                values.append([])
         return values

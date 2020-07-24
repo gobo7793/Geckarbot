@@ -84,7 +84,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             col = 60 + (2 * participants['liga4'].index(user))
             row = 38
         else:
-            raise UserNotFound()
+            return None, None
         return col, row
 
     def convert_team_name(self, team):
@@ -113,9 +113,15 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
     async def show_duel_single(self, ctx, user):
         c = self.get_api_client()
         col1, row1 = self.get_user_cell(user)
+        if col1 is None:
+            await ctx.send("User not found.")
+            return
         result = c.get("Aktuell!{}:{}".format(c.cellname(col1, row1 + 10), c.cellname(col1 + 1, row1 + 11)))
         opponent = result[1][1]
         col2, row2 = self.get_user_cell(opponent)
+        if col2 is None:
+            await ctx.send("Opponent not found.")
+            return
         predictions = c.get_multiple(["Aktuell!E3:H11",
                                       "Aktuell!{}:{}".format(c.cellname(col1, row1 + 1),
                                                              c.cellname(col1 + 1, row1 + 9)),
@@ -129,11 +135,15 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
         for match in predictions[0]:
             matches += "{} {}:{} {}\n".format(self.convert_team_name(match[0]), match[1], match[2],
                                               self.convert_team_name(match[3]))
+        if len(predictions[1]) == 0:
+            user_predictions = "-:-\n" * 9
         for pred in predictions[1]:
             if len(pred) < 2:
                 user_predictions += "-:-\n"
             else:
                 user_predictions += "{}:{}\n".format(pred[0], pred[1])
+        if len(predictions[2]) == 0:
+            oppo_predictions = "-:-\n" * 9
         for pred in predictions[2]:
             if len(pred) < 2:
                 oppo_predictions += "-:-\n"
