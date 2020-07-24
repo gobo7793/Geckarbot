@@ -3,16 +3,26 @@ from discord.ext import commands
 
 import Geckarbot
 from conf import Config
+from botutils import utils
 
 
 lang = {
     'en': {
-
+        'raw_doesnt_exists': "A command \"{}\" doesn't exists, but you can create it!",
+        'del_doesnt_exists': "Command \"{}\" can't be deleted, because it doesn't exists...",
+        'add_exists': "A command \"{}\" already exists.",
+        'list_no_cmds': "I don't know any custom commands :frowning:",
     },
     'de': {
-
+        'raw_doesnt_exists': "Ein Kommando \"{}\" existiert nicht, erstell es doch einfach selbst!",
+        'del_doesnt_exists': "Das Kommando \"{}\" kann nicht gelöscht werden weil es nicht existiert...",
+        'add_exists': "Ein Kommando \"{}\" existiert bereits.",
+        'list_no_cmds': "Ich kenne keine Kommandos :frowning:",
     }
 }
+
+
+prefix_key = '_prefix'
 
 
 class Plugin(Geckarbot.BasePlugin, name="Custom CMDs"):
@@ -23,7 +33,7 @@ class Plugin(Geckarbot.BasePlugin, name="Custom CMDs"):
         self.can_reload = True
         bot.register(self)
 
-        self.prefix = Config.get(self)['_prefix']
+        self.prefix = self.conf()[prefix_key]
 
         @bot.listen()
         async def on_message(msg):
@@ -33,19 +43,22 @@ class Plugin(Geckarbot.BasePlugin, name="Custom CMDs"):
 
     def default_config(self):
         return {
-            '_prefix': '+'
+            prefix_key: '+'
         }
 
     def get_lang(self):
         return lang
 
+    def conf(self):
+        return Config.get(self)
+
     async def on_message(self, msg):
         """Will be called from on_message listener to react for custom cmds"""
         cmd_name = msg.content.split(' ', 1)[0][len(self.prefix):]
-        if cmd_name not in Config.get(self):
+        if cmd_name not in self.conf():
             return
 
-        cmd_content = Config.get(self)[cmd_name]
+        cmd_content = self.conf()[cmd_name]
         await msg.channel.send(cmd_content)
 
     @commands.group(name="cmd", invoke_without_command=True, help="Adds, list or (for admins) removes a custom command",
@@ -57,23 +70,50 @@ class Plugin(Geckarbot.BasePlugin, name="Custom CMDs"):
     @cmd.command(name="prefix", help="Sets the custom command prefix")
     @commands.has_any_role(*Config().FULL_ACCESS_ROLES)
     async def cmd_prefix(self, ctx, prefix):
-        Config.get(self)['_prefix'] = prefix
+        self.conf()[prefix_key] = prefix
         Config.save(self)
         await ctx.message.add_reaction(Config().CMDSUCCESS)
 
     @cmd.command(name="list", help="Lists all custom commands")
     async def cmd_list(self, ctx):
-        pass
+        cmds = []
+        for k in self.conf().keys():
+            if k != prefix_key:
+                cmds.append(k)
+
+        if not cmds:
+            await ctx.send(Config.lang(self, 'list_no_cmds'))
+            return
+
+        cmd_msgs = utils.paginate(cmds, delimiter=", ")
+        for msg in cmd_msgs:
+            await ctx.send(msg)
 
     @cmd.command(name="raw", help="Gets the raw custom command text")
-    async def cmd_raw(self, ctx):
-        pass
+    async def cmd_raw(self, ctx, cmd_name):
+        if cmd_name in self.conf():
+            await ctx.send("{}{} -> {}".format(self.conf()[prefix_key], cmd_name, self.conf()[cmd_name]))
+        else:
+            await ctx.send(Config.lang(self, "raw_doesnt_exists", cmd_name))
 
     @cmd.command(name="add", help="Adds a custom command")
     async def cmd_add(self, ctx, cmd_name, *args):
-        pass
+        if cmd_name in self.conf():
+            await ctx.send(Config.lang(self, "add_exists", cmd_name))
+            await ctx.message.add_reaction(Config().CMDERROR)
+        else:
+            cmd_text = " ".join(args)
+            self.conf()[cmd_name] = cmd_text
+            Config.save(self)
+            await ctx.message.add_reaction(Config().CMDSUCCESS)
 
     @cmd.command(name="del", help="Deletes a custom command")
     @commands.has_any_role(*Config().FULL_ACCESS_ROLES)
     async def cmd_del(self, ctx, cmd_name):
-        pass
+        if cmd_name in self.conf():
+            del self.conf()[cmd_name]
+            Config.save(self)
+            await ctx.message.add_reaction(Config().CMDSUCCESS)
+        else:
+            await ctx.send(Config.lang(self, "del_doesnt_exists", cmd_name))
+            await ctx.message.add_reaction(Config().CMDERROR)
