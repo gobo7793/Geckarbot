@@ -1,4 +1,4 @@
-import discord
+import inspect
 from discord.ext import commands
 
 import Geckarbot
@@ -12,12 +12,16 @@ lang = {
         'del_doesnt_exists': "Command \"{}\" can't be deleted, because it doesn't exists...",
         'add_exists': "A command \"{}\" already exists.",
         'list_no_cmds': "I don't know any custom commands :frowning:",
+        'cmd_added': "Added custom command: {}",
+        'cmd_removed': "Added custom command: {}",
     },
     'de': {
         'raw_doesnt_exists': "Ein Kommando \"{}\" existiert nicht, erstell es doch einfach selbst!",
         'del_doesnt_exists': "Das Kommando \"{}\" kann nicht gelöscht werden weil es nicht existiert...",
         'add_exists': "Ein Kommando \"{}\" existiert bereits.",
         'list_no_cmds': "Ich kenne keine Kommandos :frowning:",
+        'cmd_added': "Kommando hinzugefügt: {}",
+        'cmd_removed': "Kommando gelöscht: {}",
     }
 }
 
@@ -53,6 +57,12 @@ class Plugin(Geckarbot.BasePlugin, name="Custom CMDs"):
 
     def conf(self):
         return Config.get(self)
+
+    def get_raw_cmd(self, cmd_name):
+        """Returns the raw cmd text or an empty string if command doesn't exists"""
+        if cmd_name in self.conf():
+            return "{} -> {}".format(cmd_name, self.conf()[cmd_name])
+        return ""
 
     async def on_message(self, msg):
         """Will be called from on_message listener to react for custom cmds"""
@@ -102,13 +112,17 @@ class Plugin(Geckarbot.BasePlugin, name="Custom CMDs"):
 
     @cmd.command(name="raw", help="Gets the raw custom command text")
     async def cmd_raw(self, ctx, cmd_name):
-        if cmd_name in self.conf():
-            await ctx.send("{}{} -> {}".format(self.conf()[prefix_key], cmd_name, self.conf()[cmd_name]))
+        raw_text = self.get_raw_cmd(cmd_name)
+        if raw_text:
+            await ctx.send(self.conf()[prefix_key] + raw_text)
         else:
             await ctx.send(Config.lang(self, "raw_doesnt_exists", cmd_name))
 
     @cmd.command(name="add", help="Adds a custom command")
     async def cmd_add(self, ctx, cmd_name, *args):
+        if not args:
+            raise commands.MissingRequiredArgument(inspect.signature(self.cmd_add).parameters['args'])
+
         if cmd_name in self.conf():
             await ctx.send(Config.lang(self, "add_exists", cmd_name))
             await ctx.message.add_reaction(Config().CMDERROR)
@@ -116,14 +130,19 @@ class Plugin(Geckarbot.BasePlugin, name="Custom CMDs"):
             cmd_text = " ".join(args)
             self.conf()[cmd_name] = cmd_text
             Config.save(self)
+            await utils.log_to_admin_channel(ctx)
+            await utils.write_debug_channel(self.bot, Config.lang(self, 'cmd_added', self.get_raw_cmd(cmd_name)))
             await ctx.message.add_reaction(Config().CMDSUCCESS)
 
     @cmd.command(name="del", help="Deletes a custom command")
     @commands.has_any_role(*Config().FULL_ACCESS_ROLES)
     async def cmd_del(self, ctx, cmd_name):
         if cmd_name in self.conf():
+            cmd_raw = self.get_raw_cmd(cmd_name)
             del self.conf()[cmd_name]
             Config.save(self)
+            await utils.log_to_admin_channel(ctx)
+            await utils.write_debug_channel(self.bot, Config.lang(self, 'cmd_removed', cmd_raw))
             await ctx.message.add_reaction(Config().CMDSUCCESS)
         else:
             await ctx.send(Config.lang(self, "del_doesnt_exists", cmd_name))
