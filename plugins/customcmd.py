@@ -22,7 +22,9 @@ lang = {
 }
 
 
-prefix_key = '_prefix'
+prefix_key = "_prefix"
+wildcard_user = "%u"
+wildcard_pref = "%"
 
 
 class Plugin(Geckarbot.BasePlugin, name="Custom CMDs"):
@@ -54,11 +56,20 @@ class Plugin(Geckarbot.BasePlugin, name="Custom CMDs"):
 
     async def on_message(self, msg):
         """Will be called from on_message listener to react for custom cmds"""
-        cmd_name = msg.content.split(' ', 1)[0][len(self.prefix):]
+        msg_args = msg.content.split(' ')
+        cmd_name = msg_args[0][len(self.prefix):]
+        cmd_args = msg_args[1:]
         if cmd_name not in self.conf():
             return
 
         cmd_content = self.conf()[cmd_name]
+
+        cmd_content = cmd_content.replace(wildcard_user, utils.get_best_username(msg.author))
+        for i in range(0, len(cmd_args)):
+            arg = cmd_args[i]
+            wildcard = wildcard_pref + str(i + 1)
+            cmd_content = cmd_content.replace(wildcard, arg)
+
         await msg.channel.send(cmd_content)
 
     @commands.group(name="cmd", invoke_without_command=True, help="Adds, list or (for admins) removes a custom command",
