@@ -5,8 +5,31 @@ from Geckarbot import BasePlugin
 from botutils import sheetsclient
 from conf import Config
 
+teams = {
+    "FC Bayern München": "FCB",
+    "Borussia Dortmund": "BVB",
+    "Rasenballsport Leipzig": "LEI",
+    "Bor. Mönchengladbach": "BMG",
+    "Bayer 04 Leverkusen": "LEV",
+    "TSG Hoffenheim": "HOF",
+    "VfL Wolfsburg": "WOB",
+    "SC Freiburg": "SCF",
+    "SG Eintracht Frankfurt": "SGE",
+    "Hertha BSC": "BSC",
+    "FC Union Berlin": "FCU",
+    "FC Schalke 04": "S04",
+    "FSV Mainz 05": "M05",
+    "1. FC Köln": "KOE",
+    "FC Augsburg": "FCA",
+    "SV Werder Bremen": "SVW",
+    "DSC Arminia Bielefeld": "DSC",
+    "VfB Stuttgart": "VFB"
+}
+
+
 class UserNotFound(Exception):
     pass
+
 
 class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
 
@@ -64,6 +87,10 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             raise UserNotFound()
         return col, row
 
+    def convert_team_name(self, team):
+
+        return teams[team]
+
     @commands.group(name="spaetzle", aliases=["spätzle", "spatzle", "spätzles"], invoke_without_command=True,
                     help="commands for managing the 'Spätzles-Tippspiel'")
     async def spaetzle(self, ctx):
@@ -82,10 +109,46 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
         await ctx.send("Dieser cmd holt sich die Tipps automatisch aus dem angegebenen Forums-Thread! Also irgendwann "
                        "mal :c")
 
-    @spaetzle.command(name="duels", aliases=["duelle"], help="Shows the duels of our people!")
-    async def show_duels(self, ctx):
-        msg = ""
+    @spaetzle.command(name="duel", aliases=["duell"], help="Displays the duel of a specific user")
+    async def show_duel_single(self, ctx, user):
         c = self.get_api_client()
+        col1, row1 = self.get_user_cell(user)
+        result = c.get("Aktuell!{}:{}".format(c.cellname(col1, row1 + 10), c.cellname(col1 + 1, row1 + 11)))
+        opponent = result[1][1]
+        col2, row2 = self.get_user_cell(opponent)
+        predictions = c.get_multiple(["Aktuell!E3:H11",
+                                      "Aktuell!{}:{}".format(c.cellname(col1, row1 + 1),
+                                                             c.cellname(col1 + 1, row1 + 9)),
+                                      "Aktuell!{}:{}".format(c.cellname(col2, row2 + 1),
+                                                             c.cellname(col2 + 1, row2 + 9))])
+        embed = discord.Embed(title=user)
+        embed.description = "{} [{}:{}] {}".format(user, result[0][0], result[1][0], opponent)
+        matches = ""
+        user_predictions = ""
+        oppo_predictions = ""
+        for match in predictions[0]:
+            matches += "{} {}:{} {}\n".format(self.convert_team_name(match[0]), match[1], match[2],
+                                              self.convert_team_name(match[3]))
+        for pred in predictions[1]:
+            if len(pred) < 2:
+                user_predictions += "-:-\n"
+            else:
+                user_predictions += "{}:{}\n".format(pred[0], pred[1])
+        for pred in predictions[2]:
+            if len(pred) < 2:
+                oppo_predictions += "-:-\n"
+            else:
+                oppo_predictions += "{}:{}\n".format(pred[0], pred[1])
+        embed.add_field(name="Spiele", value=matches)
+        embed.add_field(name=user, value=user_predictions)
+        embed.add_field(name=opponent, value=oppo_predictions)
+
+        await ctx.send(embed=embed)
+
+    @spaetzle.command(name="duels", aliases=["duelle"], help="Displays the duels of our people!")
+    async def show_duels(self, ctx):
+        c = self.get_api_client()
+        msg = ""
         data_ranges = []
         observed_users = self.spaetzle_conf()['observed_users']
         for user in observed_users:
@@ -95,16 +158,16 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
         data = c.get_multiple(data_ranges)
         for i in range(0, len(data_ranges), 2):
             user = data[i][0][0]
-            opponent = data[i+1][1][1]
+            opponent = data[i + 1][1][1]
             if opponent in observed_users:
                 if observed_users.index(opponent) > observed_users.index(user):
                     msg += "**{}** [{}:{}] **{}**\n".format(user, data[i + 1][0][0], data[i + 1][1][0], opponent)
             else:
-                msg += "**{}** [{}:{}] {}\n".format(user, data[i+1][0][0], data[i+1][1][0], opponent)
+                msg += "**{}** [{}:{}] {}\n".format(user, data[i + 1][0][0], data[i + 1][1][0], opponent)
 
         await ctx.send(embed=discord.Embed(title="Duelle", description=msg))
 
-    @spaetzle.command(name="matches", aliases=["spiele"], help="Displays the matches to be guessed")
+    @spaetzle.command(name="matches", aliases=["spiele"], help="Displays the matches to be predicted")
     async def show_matches(self, ctx):
         c = self.get_api_client()
         matches = c.get(self.spaetzle_conf()['matches_range'])
