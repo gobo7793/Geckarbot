@@ -7,6 +7,7 @@ from conf import Config
 
 lang = {
     'en': {
+        'invalid_league': "Invalid League. Valid Leagues: 1, 2, 3, 4",
         'user_not_bridged': "You are currently not connected with a user.",
         'user_not_found': "User not found."
     }
@@ -247,3 +248,25 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             msg += "{0} {1} {2} Uhr | {3} - {6} | {4}:{5}\n".format(*match)
 
         await ctx.send(embed=discord.Embed(title="Spiele", description=msg))
+
+    @spaetzle.command(name="table", aliases=["tabelle", "league", "liga"],
+                      help="Displays the table of a specific league")
+    async def show_table(self, ctx, league: int):
+        c = self.get_api_client()
+        if league == 1:
+            result = c.get("Aktuell!J14:T31")
+        elif league == 2:
+            result = c.get("Aktuell!V14:AF31")
+        elif league == 3:
+            result = c.get("Aktuell!AH14:AR31")
+        elif league == 4:
+            result = c.get("Aktuell!AT14:BD31")
+        else:
+            await ctx.send(self.spaetzle_lang('invalid_league'))
+            return
+
+        msg = ""
+        for line in result:
+            msg += "{0} | {3} | {6}:{8} {9} | {10}\n".format(*line)
+
+        await ctx.send(embed=discord.Embed(title="Tabelle Liga {}".format(league), description=msg))
