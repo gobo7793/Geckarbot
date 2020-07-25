@@ -91,3 +91,9 @@ class Plugin(BasePlugin, name="Testing and debug things"):
             await ctx.send("Command blocked for user!")
         else:
             await ctx.send(user.mention)
+
+    @commands.command(name="getemojiid", help="Gets the emoji ids to use in strings")
+    async def get_emoji_id(self, ctx, emoji: discord.Emoji):
+        str_rep = str(emoji).replace("<", "`").replace(">", "`")
+        msg = await ctx.send(str_rep)
+        await msg.add_reaction(emoji)

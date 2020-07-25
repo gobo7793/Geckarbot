@@ -44,7 +44,6 @@ class Config(metaclass=_Singleton):
     PLUGIN_DIR = "plugins"
     CORE_PLUGIN_DIR = "coreplugins"
     STORAGE_DIR = "storage"
-    LANGUAGE_CODE = 'en'
 
     BOT_CONFIG_FILE = "geckarbot"
 
@@ -95,7 +94,7 @@ class Config(metaclass=_Singleton):
         self.plugins = []
 
     def load_bot(self):
-        bot_data = self._read_config_file(self.BOT_CONFIG_FILE)
+        bot_data = self.read_config_file(self.BOT_CONFIG_FILE)
         if bot_data is None:
             logging.critical("Cannot load bot.")
         else:
@@ -115,13 +114,16 @@ class Config(metaclass=_Singleton):
             self.GOOGLE_API_KEY = bot_data.get('GOOGLE_API_KEY', "")
 
             self.FULL_ACCESS_ROLES = [self.ADMIN_ROLE_ID, self.BOTMASTER_ROLE_ID]
+            self.LANGUAGE_CODE = bot_data.get('LANG', 'en')
 
     ######
     # Read/Write config files
     ######
 
-    def _write_config_file(self, file_name: str, config_data):
+    @classmethod
+    def write_config_file(cls, file_name: str, config_data):
         """Writes the config to file_name.json and returns if successfull"""
+        self = cls()
         try:
             with open(f"{self.CONFIG_DIR}/{file_name}.json", "w") as f:
                 json.dump(config_data, f, cls=jsonUtils.Encoder, indent=4)
@@ -130,8 +132,10 @@ class Config(metaclass=_Singleton):
             logging.error(f"Error writing config file {self.CONFIG_DIR}/{file_name}.json")
             return False
 
-    def _read_config_file(self, file_name: str):
+    @classmethod
+    def read_config_file(cls, file_name: str):
         """Reads the file_name.json and returns the content or None if errors"""
+        self = cls()
         if not os.path.exists(f"{self.CONFIG_DIR}/{file_name}.json"):
             logging.info(f"Config file {self.CONFIG_DIR}/{file_name}.json not found.")
             return None
@@ -177,7 +181,7 @@ class Config(metaclass=_Singleton):
         self = cls()
         for plugin_slot in self.plugins:
             if plugin_slot.instance is plugin:
-                return self._write_config_file(plugin_slot.name, plugin_slot.config)
+                return self.write_config_file(plugin_slot.name, plugin_slot.config)
         return None
 
     @classmethod
@@ -189,7 +193,7 @@ class Config(metaclass=_Singleton):
         self = cls()
         for plugin_slot in self.plugins:
             if plugin_slot.instance is plugin:
-                loaded = self._read_config_file(plugin_slot.name)
+                loaded = self.read_config_file(plugin_slot.name)
                 if loaded is None:
                     plugin_slot.config = plugin.default_config()
                     return False
@@ -204,7 +208,7 @@ class Config(metaclass=_Singleton):
         self = cls()
         for plugin_slot in self.plugins:
             if plugin_slot.instance.can_reload:
-                loaded = self._read_config_file(plugin_slot.name)
+                loaded = self.read_config_file(plugin_slot.name)
                 if loaded is None:
                     loaded = plugin_slot.instance.default_config()
                 plugin_slot.config = loaded

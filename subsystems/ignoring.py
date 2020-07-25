@@ -197,7 +197,7 @@ class Ignoring:
 
     def load(self):
         """Loads the ignorelist json"""
-        jsondata = Config()._read_config_file(ignoring_file_name)
+        jsondata = Config.read_config_file(ignoring_file_name)
         if jsondata is not None:
             for el in jsondata:
                 self.add(IgnoreDataset.deserialize(self.bot, el), True)
@@ -207,7 +207,7 @@ class Ignoring:
         jsondata = []
         for el in self.ignorelist:
             jsondata.append(el.serialize())
-        Config()._write_config_file(ignoring_file_name, jsondata)
+        Config.write_config_file(ignoring_file_name, jsondata)
 
     #######
     # Adding
