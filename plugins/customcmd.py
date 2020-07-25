@@ -92,12 +92,13 @@ class Plugin(Geckarbot.BasePlugin, name="Custom CMDs"):
     async def cmd(self, ctx):
         await ctx.send_help(self.cmd)
 
-    @cmd.command(name="prefix", help="Sets the custom command prefix")
+    @cmd.command(name="prefix", help="Sets the custom command prefix",
+                 description="Sets the custom command prefix. Can't be the same like for regular commands.")
     @commands.has_any_role(*Config().FULL_ACCESS_ROLES)
     async def cmd_prefix(self, ctx, prefix):
         if prefix == ctx.prefix:
             await ctx.message.add_reaction(Config().CMDERROR)
-            await ctx.send(Config.lang('invalid_prefix'))
+            await ctx.send(Config.lang(self, 'invalid_prefix'))
         else:
             self.conf()[prefix_key] = prefix
             Config.save(self)
