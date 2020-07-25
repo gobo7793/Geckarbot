@@ -120,35 +120,45 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
         opponent = result[1][1]
         col2, row2 = self.get_user_cell(opponent)
         if col2 is None:
-            await ctx.send("Opponent not found.")
-            return
-        predictions = c.get_multiple(["Aktuell!E3:H11",
-                                      "Aktuell!{}:{}".format(c.cellname(col1, row1 + 1),
-                                                             c.cellname(col1 + 1, row1 + 9)),
-                                      "Aktuell!{}:{}".format(c.cellname(col2, row2 + 1),
-                                                             c.cellname(col2 + 1, row2 + 9))])
-        embed = discord.Embed(title=user)
-        embed.description = "{} [{}:{}] {}".format(user, result[0][0], result[1][0], opponent)
+            predictions = c.get_multiple(["Aktuell!E3:H11",
+                                          "Aktuell!{}:{}".format(c.cellname(col1, row1 + 1),
+                                                                 c.cellname(col1 + 1, row1 + 9))])
+        else:
+            predictions = c.get_multiple(["Aktuell!E3:H11",
+                                          "Aktuell!{}:{}".format(c.cellname(col1, row1 + 1),
+                                                                 c.cellname(col1 + 1, row1 + 9)),
+                                          "Aktuell!{}:{}".format(c.cellname(col2, row2 + 1),
+                                                                 c.cellname(col2 + 1, row2 + 9))])
+
         matches = ""
-        user_predictions = ""
-        oppo_predictions = ""
         for match in predictions[0]:
             matches += "{} {}:{} {}\n".format(self.convert_team_name(match[0]), match[1], match[2],
                                               self.convert_team_name(match[3]))
+
         if len(predictions[1]) == 0:
             user_predictions = "-:-\n" * 9
-        for pred in predictions[1]:
-            if len(pred) < 2:
-                user_predictions += "-:-\n"
-            else:
-                user_predictions += "{}:{}\n".format(pred[0], pred[1])
-        if len(predictions[2]) == 0:
+        else:
+            user_predictions = ""
+            for pred in predictions[1]:
+                if len(pred) < 2:
+                    user_predictions += "-:-\n"
+                else:
+                    user_predictions += "{}:{}\n".format(pred[0], pred[1])
+
+        if col2 is None:
+            oppo_predictions = "not found"
+        elif len(predictions[2]) == 0:
             oppo_predictions = "-:-\n" * 9
-        for pred in predictions[2]:
-            if len(pred) < 2:
-                oppo_predictions += "-:-\n"
-            else:
-                oppo_predictions += "{}:{}\n".format(pred[0], pred[1])
+        else:
+            oppo_predictions = ""
+            for pred in predictions[2]:
+                if len(pred) < 2:
+                    oppo_predictions += "-:-\n"
+                else:
+                    oppo_predictions += "{}:{}\n".format(pred[0], pred[1])
+
+        embed = discord.Embed(title=user)
+        embed.description = "{} [{}:{}] {}".format(user, result[0][0], result[1][0], opponent)
         embed.add_field(name="Spiele", value=matches)
         embed.add_field(name=user, value=user_predictions)
         embed.add_field(name=opponent, value=oppo_predictions)
@@ -161,6 +171,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
         msg = ""
         data_ranges = []
         observed_users = self.spaetzle_conf()['observed_users']
+
         for user in observed_users:
             col, row = self.get_user_cell(user)
             data_ranges.append("Aktuell!{}".format(c.cellname(col, row)))
