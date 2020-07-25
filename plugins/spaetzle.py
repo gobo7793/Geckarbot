@@ -5,10 +5,17 @@ from Geckarbot import BasePlugin
 from botutils import sheetsclient
 from conf import Config
 
+lang = {
+    'en': {
+        'user_not_bridged': "You are currently not connected with a user.",
+        'user_not_found': "User not found."
+    }
+}
+
 teams = {
     "FC Bayern München": "FCB",
     "Borussia Dortmund": "BVB",
-    "Rasenballsport Leipzig": "LEI",
+    "Rasenballsport Leipzig": "LPZ",
     "Bor. Mönchengladbach": "BMG",
     "Bayer 04 Leverkusen": "LEV",
     "TSG Hoffenheim": "HOF",
@@ -56,8 +63,15 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                           "TN 61", "TN 62", "TN 63", "TN 64", "TN 65", "TN 66",
                           "TN 67", "TN 68", "TN 69", "TN 70", "TN 71", "TN 72"],
             },
-            'spaetzledoc_id': "1ZzEGP_J9WxJGeAm1Ri3er89L1IR1riq7PH2iKVDmfP8"
+            'spaetzledoc_id': "1ZzEGP_J9WxJGeAm1Ri3er89L1IR1riq7PH2iKVDmfP8",
+            'discord_user_bridge': {}
         }
+
+    def get_lang(self):
+        return lang
+
+    def spaetzle_lang(self, str_name, *args):
+        return Config().lang(self, str_name, *args)
 
     def spaetzle_conf(self):
         return Config().get(self)
@@ -88,8 +102,19 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
         return col, row
 
     def convert_team_name(self, team):
-
+        """
+        Switch between die short and long version of a team name
+        """
         return teams[team]
+
+    def get_user_bridged(self, user_id):
+        """
+        Bridge between a Discord user and a Spätzle participant
+        """
+        if user_id in self.spaetzle_conf()['discord_user_bridge']:
+            return self.spaetzle_conf()['discord_user_bridge'][user_id]
+        else:
+            return None
 
     @commands.group(name="spaetzle", aliases=["spätzle", "spatzle", "spätzles"], invoke_without_command=True,
                     help="commands for managing the 'Spätzles-Tippspiel'")
@@ -104,17 +129,41 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
     async def spaetzle_doc_link(self, ctx):
         await ctx.send("<https://docs.google.com/spreadsheets/d/{}>".format(self.spaetzle_conf()['spaetzledoc_id']))
 
+    @spaetzle.command(name="user", help="Connects your Discord user with a specific user")
+    async def set_user(self, ctx, user=None):
+        discord_user = ctx.message.author.id
+        if user is None:
+            if discord_user in self.spaetzle_conf()["discord_user_bridge"]:
+                del self.spaetzle_conf()["discord_user_bridge"][discord_user]
+                await ctx.message.add_reaction(Config().CMDSUCCESS)
+            else:
+                await ctx.send(self.spaetzle_lang('user_not_bridged'))
+            return
+        result, _ = self.get_user_cell(user)
+        if result is None:
+            await ctx.send(self.spaetzle_lang('user_not_found'))
+        else:
+            self.spaetzle_conf()["discord_user_bridge"][ctx.message.author.id] = user
+            Config().save(self)
+            await ctx.message.add_reaction(Config().CMDSUCCESS)
+
     @spaetzle.command(name="scrape", help="Gets the data from the thread.")
     async def scrape(self, ctx, url):
         await ctx.send("Dieser cmd holt sich die Tipps automatisch aus dem angegebenen Forums-Thread! Also irgendwann "
                        "mal :c")
 
     @spaetzle.command(name="duel", aliases=["duell"], help="Displays the duel of a specific user")
-    async def show_duel_single(self, ctx, user):
+    async def show_duel_single(self, ctx, user=None):
+        if user is None:
+            user = self.get_user_bridged(ctx.message.author.id)
+            if user is None:
+                await ctx.send(self.spaetzle_lang('user_not_bridged'))
+                return
+
         c = self.get_api_client()
         col1, row1 = self.get_user_cell(user)
         if col1 is None:
-            await ctx.send("User not found.")
+            await ctx.send(self.spaetzle_lang('user_not_found'))
             return
         result = c.get("Aktuell!{}:{}".format(c.cellname(col1, row1 + 10), c.cellname(col1 + 1, row1 + 11)))
         opponent = result[1][1]
@@ -146,7 +195,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                     user_predictions += "{}:{}\n".format(pred[0], pred[1])
 
         if col2 is None:
-            oppo_predictions = "not found"
+            oppo_predictions = self.spaetzle_lang('user_not_found')
         elif len(predictions[2]) == 0:
             oppo_predictions = "-:-\n" * 9
         else:
