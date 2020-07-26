@@ -51,13 +51,14 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
 
     def __init__(self, bot):
         super().__init__(bot)
+        self.can_reload = True
         bot.register(self)
         Config().save(self)
 
     def default_config(self):
         return {
             'matches_range': "Aktuell!B3:H11",
-            'observed_users': ["Costamiri", "gobo77", "KDDanny41", "Laserdisc", "Serianoxx"],
+            'observed_users': [],
             'participants': {
                 'liga1': ["TN 1", "TN 2", "TN 3", "TN 4", "TN 5", "TN 6",
                           "TN 7", "TN 8", "TN 9", "TN 10", "TN 11", "TN 12",
@@ -107,8 +108,21 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             col = 60 + (2 * participants['liga4'].index(user))
             row = 38
         else:
-            return None, None
+            raise UserNotFound
         return col, row
+
+    def get_user_league(self, user):
+        participants = self.spaetzle_conf()['participants']
+        if user in participants['liga1']:
+            return 1
+        elif user in participants['liga2']:
+            return 2
+        elif user in participants['liga3']:
+            return 3
+        elif user in participants['liga4']:
+            return 4
+        else:
+            raise UserNotFound
 
     def convert_team_name(self, team):
         """
@@ -116,7 +130,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
         """
         return teams[team]
 
-    def get_user_bridged(self, user_id):
+    def get_bridged_user(self, user_id):
         """
         Bridge between a Discord user and a Spätzle participant
         """
@@ -163,8 +177,9 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
         await ctx.send("<https://docs.google.com/spreadsheets/d/{}>".format(self.spaetzle_conf()['spaetzledoc_id']))
 
     @spaetzle.command(name="user", help="Connects your Discord user with a specific user")
-    async def set_user(self, ctx, user=None):
+    async def user_bridge(self, ctx, user=None):
         discord_user = ctx.message.author.id
+        # User-Verbindung entfernen
         if user is None:
             if discord_user in self.spaetzle_conf()["discord_user_bridge"]:
                 del self.spaetzle_conf()["discord_user_bridge"][discord_user]
@@ -172,13 +187,14 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             else:
                 await ctx.send(self.spaetzle_lang('user_not_bridged'))
             return
-        result, _ = self.get_user_cell(user)
-        if result is None:
-            await ctx.send(self.spaetzle_lang('user_not_found'))
-        else:
+        # User-Verbindung hinzufügen
+        try:
+            self.get_user_cell(user)
             self.spaetzle_conf()["discord_user_bridge"][ctx.message.author.id] = user
             Config().save(self)
             await ctx.message.add_reaction(Config().CMDSUCCESS)
+        except UserNotFound:
+            await ctx.send(self.spaetzle_lang('user_not_found'))
 
     @spaetzle.command(name="scrape", help="Gets the data from the thread.")
     async def scrape(self, ctx, url):
@@ -188,7 +204,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
     @spaetzle.command(name="duel", aliases=["duell"], help="Displays the duel of a specific user")
     async def show_duel_single(self, ctx, user=None):
         if user is None:
-            user = self.get_user_bridged(ctx.message.author.id)
+            user = self.get_bridged_user(ctx.message.author.id)
             if user is None:
                 await ctx.send(self.spaetzle_lang('user_not_bridged'))
                 return
@@ -255,9 +271,12 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
         observed_users = self.spaetzle_conf()['observed_users']
 
         for user in observed_users:
-            col, row = self.get_user_cell(user)
-            data_ranges.append("Aktuell!{}".format(c.cellname(col, row)))
-            data_ranges.append("Aktuell!{}:{}".format(c.cellname(col, row + 10), c.cellname(col + 1, row + 11)))
+            try:
+                col, row = self.get_user_cell(user)
+                data_ranges.append("Aktuell!{}".format(c.cellname(col, row)))
+                data_ranges.append("Aktuell!{}:{}".format(c.cellname(col, row + 10), c.cellname(col + 1, row + 11)))
+            except UserNotFound:
+                pass
         data = c.get_multiple(data_ranges)
         for i in range(0, len(data_ranges), 2):
             user = data[i][0][0]
