@@ -125,23 +125,27 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
         else:
             return None
 
-    def match_status(self, weekday, time):
+    def match_status(self, date, time):
+        """
+        Checks the status of a match (Solely time-based)
+        :param date: date of the match ('DD.MM.')
+        :param time: time of the kickoff ('HH:MM')
+        :return: CLOSED for finished matches, RUNNING for currently active matches (2 hours after kickoff) and UPCOMING
+        for matches not started. UNKNOWN if unable to read the date or time
+        """
         now = datetime.now()
         try:
-            wd_diff = ['Fr', 'Sa', 'So', 'Mo', 'Di', 'Mi', 'Do'].index(weekday) - ((now.weekday() + 3) % 7)
-            if wd_diff < 0:
-                return MatchStatus.CLOSED
-            elif wd_diff > 0:
+            day, month, _ = date.split(".")
+            hour, minute = time.split(":")
+            year = now.year if int(month) >= 7 else now.year + 1
+            match_datetime = datetime(year, int(month), int(day), int(hour), int(minute))
+            timedelta = (now - match_datetime).total_seconds()
+            if timedelta < 0:
                 return MatchStatus.UPCOMING
+            elif timedelta < 7200:
+                return MatchStatus.RUNNING
             else:
-                hours, minutes = time.split(":")
-                hour_diff, minute_diff = int(hours) - now.hour, int(minutes) - now.minute
-                if hour_diff > 0 or (hour_diff == 0 and minute_diff > 0):
-                    return MatchStatus.UPCOMING
-                elif hour_diff <= -2:
-                    return MatchStatus.CLOSED
-                else:
-                    return MatchStatus.RUNNING
+                return MatchStatus.CLOSED
         except ValueError:
             return MatchStatus.UNKNOWN
 
@@ -273,7 +277,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
 
         msg = ""
         for match in matches:
-            emoji = self.match_status(match[0], match[2]).value
+            emoji = self.match_status(match[1], match[2]).value
             msg += "{0} {1} {2} {3} Uhr | {4} - {7} | {5}:{6}\n".format(emoji, *match)
 
         await ctx.send(embed=discord.Embed(title="Spiele", description=msg))
