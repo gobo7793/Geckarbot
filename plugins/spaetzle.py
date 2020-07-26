@@ -1,3 +1,6 @@
+from datetime import datetime
+from enum import Enum
+
 import discord
 from discord.ext import commands
 
@@ -38,6 +41,11 @@ teams = {
 class UserNotFound(Exception):
     pass
 
+class MatchStatus(Enum):
+    CLOSED = ":ballot_box_with_check:"
+    RUNNING = ":green_square:"
+    UPCOMING = ":clock330:"
+    UNKNOWN = ":grey_question:"
 
 class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
 
@@ -116,6 +124,26 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             return self.spaetzle_conf()['discord_user_bridge'][user_id]
         else:
             return None
+
+    def match_status(self, weekday, time):
+        now = datetime.now()
+        try:
+            wd_diff = ['Fr', 'Sa', 'So', 'Mo', 'Di', 'Mi', 'Do'].index(weekday) - ((now.weekday() + 3) % 7)
+            if wd_diff < 0:
+                return MatchStatus.CLOSED
+            elif wd_diff > 0:
+                return MatchStatus.UPCOMING
+            else:
+                hours, minutes = time.split(":")
+                hour_diff, minute_diff = int(hours) - now.hour, int(minutes) - now.minute
+                if hour_diff > 0 or (hour_diff == 0 and minute_diff > 0):
+                    return MatchStatus.UPCOMING
+                elif hour_diff <= -2:
+                    return MatchStatus.CLOSED
+                else:
+                    return MatchStatus.RUNNING
+        except ValueError:
+            return MatchStatus.UNKNOWN
 
     @commands.group(name="spaetzle", aliases=["spätzle", "spatzle", "spätzles"], invoke_without_command=True,
                     help="commands for managing the 'Spätzles-Tippspiel'")
@@ -245,7 +273,8 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
 
         msg = ""
         for match in matches:
-            msg += "{0} {1} {2} Uhr | {3} - {6} | {4}:{5}\n".format(*match)
+            emoji = self.match_status(match[0], match[2]).value
+            msg += "{0} {1} {2} {3} Uhr | {4} - {7} | {5}:{6}\n".format(emoji, *match)
 
         await ctx.send(embed=discord.Embed(title="Spiele", description=msg))
 
