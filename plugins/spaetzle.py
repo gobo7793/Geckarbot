@@ -112,6 +112,10 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
         return col, row
 
     def get_user_league(self, user):
+        """
+        Returns the league of the user
+        :return: number of the league
+        """
         participants = self.spaetzle_conf()['participants']
         if user in participants['liga1']:
             return 1
@@ -208,25 +212,41 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             if user is None:
                 await ctx.send(self.spaetzle_lang('user_not_bridged'))
                 return
-
         c = self.get_api_client()
-        col1, row1 = self.get_user_cell(user)
-        if col1 is None:
+
+        try:
+            col1, row1 = self.get_user_cell(user)
+        except UserNotFound:
             await ctx.send(self.spaetzle_lang('user_not_found'))
             return
         result = c.get("Aktuell!{}:{}".format(c.cellname(col1, row1 + 10), c.cellname(col1 + 1, row1 + 11)))
         opponent = result[1][1]
-        col2, row2 = self.get_user_cell(opponent)
-        if col2 is None:
+
+        # Getting data / Opponent-dependent parts
+        try:
+            col2, row2 = self.get_user_cell(opponent)
+        except UserNotFound:
+            # Opponent not found
             predictions = c.get_multiple(["Aktuell!E3:H11",
                                           "Aktuell!{}:{}".format(c.cellname(col1, row1 + 1),
                                                                  c.cellname(col1 + 1, row1 + 9))])
+            oppo_predictions = self.spaetzle_lang('user_not_found')
         else:
+            # Opponent found
             predictions = c.get_multiple(["Aktuell!E3:H11",
                                           "Aktuell!{}:{}".format(c.cellname(col1, row1 + 1),
                                                                  c.cellname(col1 + 1, row1 + 9)),
                                           "Aktuell!{}:{}".format(c.cellname(col2, row2 + 1),
                                                                  c.cellname(col2 + 1, row2 + 9))])
+            if len(predictions[2]) == 0:
+                oppo_predictions = "-:-\n" * 9
+            else:
+                oppo_predictions = ""
+                for pred in predictions[2]:
+                    if len(pred) < 2:
+                        oppo_predictions += "-:-\n"
+                    else:
+                        oppo_predictions += "{}:{}\n".format(pred[0], pred[1])
 
         matches = ""
         for match in predictions[0]:
@@ -242,18 +262,6 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                     user_predictions += "-:-\n"
                 else:
                     user_predictions += "{}:{}\n".format(pred[0], pred[1])
-
-        if col2 is None:
-            oppo_predictions = self.spaetzle_lang('user_not_found')
-        elif len(predictions[2]) == 0:
-            oppo_predictions = "-:-\n" * 9
-        else:
-            oppo_predictions = ""
-            for pred in predictions[2]:
-                if len(pred) < 2:
-                    oppo_predictions += "-:-\n"
-                else:
-                    oppo_predictions += "{}:{}\n".format(pred[0], pred[1])
 
         embed = discord.Embed(title=user)
         embed.description = "{} [{}:{}] {}".format(user, result[0][0], result[1][0], opponent)
@@ -303,8 +311,26 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
 
     @spaetzle.command(name="table", aliases=["tabelle", "league", "liga"],
                       help="Displays the table of a specific league")
-    async def show_table(self, ctx, league: int):
+    async def show_table(self, ctx, user_or_league=None):
         c = self.get_api_client()
+
+        if user_or_league is None:
+            user_or_league = self.get_bridged_user(ctx.message.author.id)
+            if user_or_league is None:
+                await ctx.send(self.spaetzle_lang('user_not_bridged'))
+                return
+
+        try:
+            # League
+            league = int(user_or_league)
+        except ValueError:
+            # User
+            try:
+                league = self.get_user_league(user_or_league)
+            except UserNotFound:
+                ctx.send(self.spaetzle_lang('user_not_found'))
+                return
+
         if league == 1:
             result = c.get("Aktuell!J14:T31")
         elif league == 2:
