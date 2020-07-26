@@ -183,9 +183,17 @@ def main():
         @bot.event
         async def on_error(event, *args, **kwargs):
             """On bot errors print error state in debug channel"""
-            embed = discord.Embed(title=':x: Event Error', colour=0xe74c3c)  # Red
+            exc_type, exc_value, exc_traceback = sys.exc_info()
+
+            if (exc_type is commands.CommandNotFound
+                    or exc_type is commands.DisabledCommand):
+                return
+
+            embed = discord.Embed(title=':x: Error', colour=0xe74c3c)  # Red
+            embed.add_field(name='Error', value=exc_type)
             embed.add_field(name='Event', value=event)
-            embed.description = '```python\n{}\n```'.format(traceback.format_exc())
+            embed.description = '```python\n{}\n```'.format(
+                "".join(traceback.format_exception(exc_type, exc_value, exc_traceback)))
             embed.timestamp = datetime.datetime.utcnow()
             await utils.write_debug_channel(bot, embed)
 
