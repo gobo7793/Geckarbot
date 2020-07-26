@@ -178,9 +178,15 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
                                  "for minutes, h for hours or d for days. If no date/duration is given, the command "
                                  "will be disabled forever.\n"
                                  "If a user uses a command which is blocked in the channel, "
-                                 "the bot doesn't response anything, like the command wouldn't exists.")
+                                 "the bot doesn't response anything, like the command wouldn't exists.\n"
+                                 "Note: The command !enable can't be blocked to avoid deadlocks.")
     @commands.has_any_role(*Config().FULL_ACCESS_ROLES)
     async def disable_cmd(self, ctx, command, *args):
+        if command == "enable":
+            await ctx.message.add_reaction(Config().CMDERROR)
+            await ctx.send("Command `!enable` can't be blocked to avoid blocking deadlocks.")
+            return
+
         until = utils.analyze_time_input(*args)
 
         result = self.bot.ignoring.add_command(command, ctx.channel, until)
