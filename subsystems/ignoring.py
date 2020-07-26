@@ -439,6 +439,19 @@ class Ignoring:
         """
         return self.check_user_id(user.id)
 
+    def check_command_name(self, command_name: str, channel: discord.TextChannel):
+        """
+        Checks if the command is on the ignore list for the channel
+
+        :param command_name: The full qualified command name
+        :param channel: The channel
+        :return: True if command is blocked in channel otherwise False
+        """
+        for el in self.filter_ignore_list(IgnoreType.Command):
+            if el.command_name == command_name and el.channel == channel:
+                return True
+        return False
+
     def check_command(self, ctx: commands.Context):
         """
         Checks if the context is invoked by a command which is on the ignore list
@@ -448,8 +461,19 @@ class Ignoring:
         :return: True if command is blocked in channel, otherwise False
         """
         cmd_name = ctx.command.qualified_name
-        for el in self.filter_ignore_list(IgnoreType.Command):
-            if el.command_name == cmd_name and el.channel == ctx.channel:
+        return self.check_command_name(cmd_name, ctx.channel)
+
+    def _check_user_command(self, user_to_check, user_check_func, command_name:str):
+        """
+        Performs the check if user is blocked for all interaction with the command.
+
+        :param user_to_check: The user to check
+        :param user_check_func: The function with the user check will be performed, must be func(discord.User)
+        :param command_name: The command name
+        :return: True if user is blocked for command, otherwise False
+        """
+        for el in self.filter_ignore_list(IgnoreType.User_Command):
+            if user_check_func(el.user) == user_to_check and el.command_name == command_name:
                 return True
         return False
 
@@ -457,21 +481,34 @@ class Ignoring:
         """
         Checks if the user is blocked for all interactions with the command.
 
-        :param user_id: the user id
-        :param command_name: the command name
+        :param user_id: The user id
+        :param command_name: The command name
         :return: True if user is blocked for command, otherwise False
         """
-        for el in self.filter_ignore_list(IgnoreType.User_Command):
-            if el.user.id == user_id and el.command_name == command_name:
-                return True
-        return False
+        def user_check_func(user: discord.User):
+            return user.id
+
+        return self._check_user_command(user_id, user_check_func, command_name)
+
+    def check_user_name_command(self, user_name: str, command_name: str):
+        """
+        Checks if the user name is blocked for all interactions with the command.
+
+        :param user_name: The user name (the result of get_best_username)
+        :param command_name: The command name
+        :return: True if user is blocked for command, otherwise False
+        """
+        def user_check_func(user: discord.User):
+            return utils.get_best_username(user)
+
+        return self._check_user_command(user_name, user_check_func, command_name)
 
     def check_user_command(self, user: discord.User, command_name: str):
         """
         Checks if the user is blocked for all interactions with the command.
 
-        :param user: the user
-        :param command_name: the command name
+        :param user: The user
+        :param command_name: The command name
         :return: True if user is blocked for command, otherwise False
         """
         return self.check_user_id_command(user.id, command_name)
