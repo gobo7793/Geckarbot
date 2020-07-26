@@ -20,15 +20,11 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
 
     def default_config(self):
         return {
-            'blacklist': [],
-            'greylist': {},
-            'disabled_cmds': [],
-            'about_data': {
-                'repo_link': "https://github.com/gobo7793/Geckarbot/",
-                'bot_info_link': "",
-                'privacy_notes_link': "",
-                'privacy_notes_lang': "",
-                'profile_pic_creator': ""}
+            'repo_link': "https://github.com/gobo7793/Geckarbot/",
+            'bot_info_link': "",
+            'privacy_notes_link': "",
+            'privacy_notes_lang': "",
+            'profile_pic_creator': ""
         }
 
     ######
@@ -74,20 +70,20 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
         about_msg = "Geckarbot {} on {}, licensed under GNU GPL v3.0. Hosted with ❤ on {} {} {}.\n".format(
             Config().VERSION, self.bot.guild.name, platform.system(), platform.release(), platform.version())
 
-        if Config().get(self)['about_data']['bot_info_link']:
+        if Config().get(self)['bot_info_link']:
             about_msg += "For general bot information on this server see <{}>.\n".format(
-                Config().get(self)['about_data']['bot_info_link'])
+                Config().get(self)['bot_info_link'])
         about_msg += "Github Repository for additional information and participation: <{}>.\n".format(
-            Config().get(self)['about_data']['repo_link'])
-        if Config().get(self)['about_data']['privacy_notes_link']:
+            Config().get(self)['repo_link'])
+        if Config().get(self)['privacy_notes_link']:
             lang = ""
-            if Config().get(self)['about_data']['privacy_notes_lang']:
-                lang = " ({})".format(Config().get(self)['about_data']['privacy_notes_lang'])
-            about_msg += "Privacy notes: <{}>{}.\n".format(Config().get(self)['about_data']['privacy_notes_link'], lang)
+            if Config().get(self)['privacy_notes_lang']:
+                lang = " ({})".format(Config().get(self)['privacy_notes_lang'])
+            about_msg += "Privacy notes: <{}>{}.\n".format(Config().get(self)['privacy_notes_link'], lang)
 
         about_msg += "Main developers: Fluggs, Gobo77, Lubadubs."
-        if Config().get(self)['about_data']['profile_pic_creator']:
-            about_msg += " Profile picture by {}.".format(Config().get(self)['about_data']['profile_pic_creator'])
+        if Config().get(self)['profile_pic_creator']:
+            about_msg += " Profile picture by {}.".format(Config().get(self)['profile_pic_creator'])
 
         about_msg += "\nSpecial thanks to all contributors!"
 
