@@ -98,7 +98,7 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
     ######
 
     @commands.group(name="disable", invoke_without_command=True, help="Blocks user or command usage.",
-                    brief="Blocks user or command usage",
+                    brief="Blocks user or command usage", aliases=["ignore", "block"],
                     usage="<command> [user] [#m|#h|#d|DD.MM.YYYY|HH:MM|DD.MM.YYYY HH:MM|DD.MM. HH:MM]",
                     description="Adds a command to users ignore list to disable any interactions between the user and "
                                 "the command.\n"
@@ -220,6 +220,7 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
         await write_list(IgnoreType.User_Command, "**Blocked Commands for Users:**\n")
 
     @commands.group(name="enable", invoke_without_command=True, help="Unblocks user or command usage.",
+                    aliases=["unignore", "unblock"],
                     description="Removes a command from users ignore list to enable any interactions between the user "
                                 "and the command.\n"
                                 "Users can enable command interactions for themselves only, but Admins also for "
