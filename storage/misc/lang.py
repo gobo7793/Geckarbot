@@ -1,6 +1,5 @@
 lang = {
     'en': {
-        'ping_out': "Pong!",
         'mud_out': "kip!",
         'mudkip_out': "https://www.youtube.com/watch?v=3DkqMjfqqPc",
         'tree_out': "cko!",
@@ -15,7 +14,6 @@ lang = {
         'remind_list_element': "\n - Time: {}, Message: {}, to cancel type `!remindme cancel {}`",
         'remind_list_none': "You don't have any reminders.",
         'remind_past': "Sorry, I don't have a time machine.",
-        'kristoph_out': "mood <:kristoph:717524523662180383>",
         },
     'de': {
         'kicker_title': "Kicker.de-Links",
@@ -29,15 +27,11 @@ lang = {
         'kicker_ATBL_link': "https://www.kicker.de/tipp3-bundesliga/spieltag\n"
                             "https://www.kicker.de/meistergruppe-oesterreich-fb-1/spieltag/\n"
                             "https://www.kicker.de/qualifikationsgruppe-oesterreich-fb-1/spieltag/",
-        'nico_output' : "***N I C O   A U F S   M A U L !***   :right_facing_fist_tone1::cow:",
         'tippspiel_output': "Hier ist der Link für die Stände (bitte auf den Spieltag achten!) sowie das "
                             "Tippspiel-Archiv: "
                             "https://docs.google.com/spreadsheets/d/1mSDrTqdcOSOuvR9Y9hMzuEx1X9puaUVuqs7yp6Ju6_M/ ",
         'geck_out': "arbor!",
         'bully_msg': "{} mobbt uns :frowning:",
         'bully_msg_self': "Ich mobbe euch :slight_smile:",
-        'passierschein_out': "Eintragung einer Galeere? Oh, da sind Sie hier falsch! Wenden Sie sich an die "
-                             "Hafenkommandantur unten im Hafen.\n"
-                             "https://youtu.be/lIiUR2gV0xk",
         }
     }

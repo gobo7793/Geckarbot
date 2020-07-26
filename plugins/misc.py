@@ -64,10 +64,6 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
         embed.add_field(name=Config().lang(self, 'kicker_ATBL'), value=Config().lang(self, 'kicker_ATBL_link'))
         await ctx.send(embed=embed)
 
-    @commands.command(name="ping", help="Pings the bot.")
-    async def ping(self, ctx):
-        await ctx.send(Config().lang(self, 'ping_out'))
-
     @commands.command(name="mud", brief="Pings the bot.")
     async def mud(self, ctx):
         await ctx.send(Config().lang(self, 'mud_out'))
@@ -75,10 +71,6 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
     @commands.command(name="mudkip", brief="MUDKIP!")
     async def mudkip(self, ctx):
         await ctx.send(Config().lang(self, 'mudkip_out'))
-
-    @commands.command(name="nico", help="Punches Nico.")
-    async def nico(self, ctx):
-        await ctx.send(Config().lang(self, 'nico_output'))
 
     @commands.command(name="mimimi", help="Provides an .mp3 file that plays the sound of 'mimimi'.")
     async def mimimi(self, ctx):
@@ -96,17 +88,10 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
     async def liebe(self, ctx):
         await ctx.send(Config().lang(self, 'liebe_out'))
 
+    # todo: read directly from sheets
     @commands.command(name="tippspiel", help="Gives the link to the Tippspiel-Sheet")
     async def tippspiel(self, ctx):
         await ctx.send(Config().lang(self, 'tippspiel_output'))
-
-    @commands.command(name="passierschein", help="Eintragung einer Galeere")
-    async def passierschein(self, ctx):
-        await ctx.send(Config().lang(self, 'passierschein_out'))
-
-    @commands.command(name="kris", help="Replaces the user Kris")
-    async def kristoph(self, ctx):
-        await ctx.send(Config().lang(self, 'kristoph_out'))
 
     @commands.command(name="wermobbtgerade", help="Shows which user is bullying other users",
                       description="Shows which user is bullying other users. Supports ignore list.")

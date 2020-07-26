@@ -58,6 +58,12 @@ class Plugin(Geckarbot.BasePlugin, name="Custom CMDs"):
     def default_config(self):
         return {
             prefix_key: '+',
+            'ping': 'Pong!',
+            'nico': '***N I C O   A U F S   M A U L !***   :right_facing_fist_tone1::cow:',
+            'passierschein': 'Eintragung einer Galeere? Oh, da sind Sie hier falsch! Wenden Sie sich an die '
+                             'Hafenkommandantur unten im Hafen.\n'
+                             'https://youtu.be/lIiUR2gV0xk',
+            'kris': 'mood <:kristoph:717524523662180383>',
             'slap': "_slaps %1 around a bit with a large trout_",
         }
 
