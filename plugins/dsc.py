@@ -14,7 +14,7 @@ lang = {
     'en': {
         'status_base': "Important message from the Songmasters: {}",
         'status_none': "Have fun and love Treecko, Mudkip and Oshawott!",
-        'must_set_host': "You must set DSC host!",
+        'must_set_host': "You must set DSC host.",
         'info_date_str': " until {}",
         'signup_phase_info': ":clipboard: Signing up open{}!",
         'current_host': "Current Host",
@@ -25,14 +25,27 @@ lang = {
         'yt_playlist': "Youtube playlist",
         'config_error_reset': "Configuration error. Please reset dsc configuration.",
         'config_error': "DSC configuration error, config values:",
-        'new_host_set': "New host set.",
-        'phase_set': "{} state set.",
         'invalid_phase': "Invalid dsc state.",
-        'yt_link_set': "New Youtube playlist link set.",
-        'state_end_set': "New state end date set.",
-        'status_set': "New status message set.",
         'winner_prefix': "**Previous DSC winners:**\n",
-        'winner_msg': "**#{}**: {} with {}/{} Points ({} %, {} TN in {}/{})",
+        'winner_msg': "**#{}**: {} with {}/{} Points ({} %, {} participants in {}/{})",
+        },
+    'de': {
+        'status_base': "Eine wichtige Nachricht der Songmaster: {}",
+        'status_none': "Habt Spaß und ♥ für Geckarbor, Hydropi und Ottaro!",
+        'must_set_host': "Der Ausrichter muss gesetzt werden.",
+        'info_date_str': " bis {}",
+        'signup_phase_info': ":clipboard: Anmeldung offen{}!",
+        'current_host': "Aktueller Ausrichter",
+        'sign_up': "Anmeldung",
+        'voting_phase_info': ":incoming_envelope: Votingphase läuft{}",
+        'votings_to': "Votings an",
+        'all_songs': "Alle Songs",
+        'yt_playlist': "Youtube Playlist",
+        'config_error_reset': "Fehler in der DSC-Konfiguration, bitte zurücksetzen.",
+        'config_error': "DSC-Konfigurations-Fehler, Werte:",
+        'invalid_phase': "Ungültiger DSC-State.",
+        'winner_prefix': "**Bisherige DSC-Gewinner:**\n",
+        'winner_msg': "**#{}**: {} mit {}/{} Punkten ({} %, {} TN in {}/{})",
         }
     }
 
@@ -191,15 +204,11 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
     async def dsc_set_host(self, ctx, user: discord.Member):
         self.dsc_conf()['host_id'] = user.id
         Config().save(self)
-        # await ctx.send(self.dsc_lang('new_host_set'))
         await ctx.message.add_reaction(Config().CMDSUCCESS)
 
     async def dsc_save_state(self, ctx, new_state: DscState):
         self.dsc_conf()['state'] = new_state
-        # state_str = str(DscState(self.dsc_conf()['state']))
-        # state_str = state_str[state_str.find(".") + 1:].replace("_", " ")
         Config().save(self)
-        # await ctx.send(self.dsc_lang('phase_set', state_str))
         await ctx.message.add_reaction(Config().CMDSUCCESS)
 
     @dsc_set.command(name="state", help="Sets the current DSC state (Voting/Sign up)",
@@ -217,7 +226,6 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
         link = utils.clear_link(link)
         self.dsc_conf()['yt_link'] = link
         Config().save(self)
-        # await ctx.send(self.dsc_lang('yt_link_set'))
         await ctx.message.add_reaction(Config().CMDSUCCESS)
 
     @dsc_set.command(name="date", help="Sets the registration/voting end date", usage="DD.MM.YYYY [HH:MM]",
@@ -228,7 +236,6 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
             time_str = "23:59"
         self.dsc_conf()['state_end'] = datetime.strptime(f"{date_str} {time_str}", "%d.%m.%Y %H:%M")
         Config().save(self)
-        # await ctx.send(self.dsc_lang('state_end_set'))
         await ctx.message.add_reaction(Config().CMDSUCCESS)
 
     @dsc_set.command(name="status", help="Sets the status message", usage="[message]",
@@ -236,5 +243,4 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
     async def dsc_set_status(self, ctx, *status_message):
         self.dsc_conf()['status'] = " ".join(status_message)
         Config().save(self)
-        # await ctx.send(self.dsc_lang('status_set'))
         await ctx.message.add_reaction(Config().CMDSUCCESS)
