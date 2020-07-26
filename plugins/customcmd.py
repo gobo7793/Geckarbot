@@ -1,9 +1,11 @@
 import inspect
+
+import discord
 from discord.ext import commands
 
 import Geckarbot
 from conf import Config
-from botutils import utils
+from botutils import utils, converter
 
 
 lang = {
@@ -15,6 +17,7 @@ lang = {
         'cmd_added': "Added custom command: {}",
         'cmd_removed': "Added custom command: {}",
         'invalid_prefix': "The prefix can't be the same like for regular commands.",
+        'user_blocked': "The user {} has blocked the command.",
     },
     'de': {
         'raw_doesnt_exists': "Ein Kommando \"{}\" existiert nicht, erstell es doch einfach selbst!",
@@ -24,6 +27,7 @@ lang = {
         'cmd_added': "Kommando hinzugefügt: {}",
         'cmd_removed': "Kommando gelöscht: {}",
         'invalid_prefix': "Das Prefix kann nicht das gleiche wie für normale Kommandos sein.",
+        'user_blocked': "{} hat das Kommando geblockt.",
     }
 }
 
@@ -46,13 +50,15 @@ class Plugin(Geckarbot.BasePlugin, name="Custom CMDs"):
 
         @bot.listen()
         async def on_message(msg):
-            if (msg.content.startswith(self.prefix) and
-                    msg.author.id != self.bot.user.id):
+            if (msg.content.startswith(self.prefix)
+                    and msg.author.id != self.bot.user.id
+                    and not self.bot.ignoring.check_user(msg.author)):
                 await self.on_message(msg)
 
     def default_config(self):
         return {
-            prefix_key: '+'
+            prefix_key: '+',
+            'slap': "_slaps %1 around a bit with a large trout_",
         }
 
     def get_lang(self):
@@ -74,13 +80,21 @@ class Plugin(Geckarbot.BasePlugin, name="Custom CMDs"):
         cmd_args = msg_args[1:]
         if cmd_name not in self.conf():
             return
+        elif (self.bot.ignoring.check_command_name(cmd_name, msg.channel)
+                or self.bot.ignoring.check_user_command(msg.author, cmd_name)):
+            raise commands.DisabledCommand()
 
         cmd_content = self.conf()[cmd_name]
 
         cmd_content = cmd_content.replace(wildcard_user, utils.get_best_username(msg.author))
         cmd_content = cmd_content.replace(wildcard_umention, msg.author.mention)
+
         for i in range(0, len(cmd_args)):
             arg = cmd_args[i]
+            member = await converter.convert_member(self.bot, msg, arg)
+            if member is not None and self.bot.ignoring.check_user_command(member, cmd_name):
+                await msg.channel.send(Config.lang(self, 'user_blocked', utils.get_best_username(member)))
+                return
             wildcard = wildcard_pref + str(i + 1)
             cmd_content = cmd_content.replace(wildcard, arg)
 
