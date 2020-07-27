@@ -9,6 +9,7 @@ from enum import Enum
 from discord.ext import commands
 
 import Geckarbot
+from base import BasePlugin
 from botutils import restclient, utils, permChecks
 from conf import Config
 
@@ -254,7 +255,7 @@ class State(Enum):
     UPDATING = 4
 
 
-class Plugin(Geckarbot.BasePlugin, name="Bot updating system"):
+class Plugin(BasePlugin, name="Bot updating system"):
     def __init__(self, bot):
         super().__init__(bot)
         self.bot = bot

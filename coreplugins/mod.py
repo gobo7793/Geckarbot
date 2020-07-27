@@ -5,7 +5,7 @@ from discord.ext import commands
 
 from conf import Config
 from botutils import utils, permChecks
-from Geckarbot import BasePlugin
+from base import BasePlugin
 import subsystems
 from subsystems.ignoring import IgnoreEditResult, IgnoreType
 
@@ -20,15 +20,11 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
 
     def default_config(self):
         return {
-            'blacklist': [],
-            'greylist': {},
-            'disabled_cmds': [],
-            'about_data': {
-                'repo_link': "https://github.com/gobo7793/Geckarbot/",
-                'bot_info_link': "",
-                'privacy_notes_link': "",
-                'privacy_notes_lang': "",
-                'profile_pic_creator': ""}
+            'repo_link': "https://github.com/gobo7793/Geckarbot/",
+            'bot_info_link': "",
+            'privacy_notes_link': "",
+            'privacy_notes_lang': "",
+            'profile_pic_creator': ""
         }
 
     ######
@@ -48,9 +44,12 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
         else:
             send_msg = f"No plugin {plugin_name} found."
             for plugin in Config().plugins:
-                if plugin.name == plugin_name and plugin.instance.can_reload:
-                    Config().load(plugin.instance)
-                    send_msg = f"Configuration of plugin {plugin_name} reloaded."
+                if plugin.name == plugin_name:
+                    if plugin.instance.can_reload:
+                        Config().load(plugin.instance)
+                        send_msg = f"Configuration of plugin {plugin_name} reloaded."
+                    else:
+                        send_msg = f"Plugin {plugin_name} can't reloaded."
 
         if ctx.channel.id != Config().DEBUG_CHAN_ID:
             await ctx.send(send_msg)
@@ -74,20 +73,20 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
         about_msg = "Geckarbot {} on {}, licensed under GNU GPL v3.0. Hosted with ❤ on {} {} {}.\n".format(
             Config().VERSION, self.bot.guild.name, platform.system(), platform.release(), platform.version())
 
-        if Config().get(self)['about_data']['bot_info_link']:
+        if Config().get(self)['bot_info_link']:
             about_msg += "For general bot information on this server see <{}>.\n".format(
-                Config().get(self)['about_data']['bot_info_link'])
+                Config().get(self)['bot_info_link'])
         about_msg += "Github Repository for additional information and participation: <{}>.\n".format(
-            Config().get(self)['about_data']['repo_link'])
-        if Config().get(self)['about_data']['privacy_notes_link']:
+            Config().get(self)['repo_link'])
+        if Config().get(self)['privacy_notes_link']:
             lang = ""
-            if Config().get(self)['about_data']['privacy_notes_lang']:
-                lang = " ({})".format(Config().get(self)['about_data']['privacy_notes_lang'])
-            about_msg += "Privacy notes: <{}>{}.\n".format(Config().get(self)['about_data']['privacy_notes_link'], lang)
+            if Config().get(self)['privacy_notes_lang']:
+                lang = " ({})".format(Config().get(self)['privacy_notes_lang'])
+            about_msg += "Privacy notes: <{}>{}.\n".format(Config().get(self)['privacy_notes_link'], lang)
 
         about_msg += "Main developers: Fluggs, Gobo77, Lubadubs."
-        if Config().get(self)['about_data']['profile_pic_creator']:
-            about_msg += " Profile picture by {}.".format(Config().get(self)['about_data']['profile_pic_creator'])
+        if Config().get(self)['profile_pic_creator']:
+            about_msg += " Profile picture by {}.".format(Config().get(self)['profile_pic_creator'])
 
         about_msg += "\nSpecial thanks to all contributors!"
 
@@ -98,7 +97,7 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
     ######
 
     @commands.group(name="disable", invoke_without_command=True, help="Blocks user or command usage.",
-                    brief="Blocks user or command usage",
+                    brief="Blocks user or command usage", aliases=["ignore", "block"],
                     usage="<command> [user] [#m|#h|#d|DD.MM.YYYY|HH:MM|DD.MM.YYYY HH:MM|DD.MM. HH:MM]",
                     description="Adds a command to users ignore list to disable any interactions between the user and "
                                 "the command.\n"
@@ -178,9 +177,15 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
                                  "for minutes, h for hours or d for days. If no date/duration is given, the command "
                                  "will be disabled forever.\n"
                                  "If a user uses a command which is blocked in the channel, "
-                                 "the bot doesn't response anything, like the command wouldn't exists.")
+                                 "the bot doesn't response anything, like the command wouldn't exists.\n"
+                                 "Note: The command !enable can't be blocked to avoid deadlocks.")
     @commands.has_any_role(*Config().FULL_ACCESS_ROLES)
     async def disable_cmd(self, ctx, command, *args):
+        if command == "enable":
+            await ctx.message.add_reaction(Config().CMDERROR)
+            await ctx.send("Command `!enable` can't be blocked to avoid blocking deadlocks.")
+            return
+
         until = utils.analyze_time_input(*args)
 
         result = self.bot.ignoring.add_command(command, ctx.channel, until)
@@ -200,12 +205,12 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
             return item.to_message()
 
         async def write_list(itype: IgnoreType, prefix):
-            ilist = self.bot.ignoring.filter_ignore_list(itype)
+            ilist = self.bot.ignoring.get_ignore_list(itype)
             if len(ilist) > 0:
                 for msg in utils.paginate(ilist, prefix=prefix, f=get_item_msg):
                     await ctx.send(msg)
 
-        if len(self.bot.ignoring.ignorelist) < 1:
+        if self.bot.ignoring.get_full_ignore_len() < 1:
             await ctx.send("No users or commands blocked.")
             return
 
@@ -214,6 +219,7 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
         await write_list(IgnoreType.User_Command, "**Blocked Commands for Users:**\n")
 
     @commands.group(name="enable", invoke_without_command=True, help="Unblocks user or command usage.",
+                    aliases=["unignore", "unblock"],
                     description="Removes a command from users ignore list to enable any interactions between the user "
                                 "and the command.\n"
                                 "Users can enable command interactions for themselves only, but Admins also for "

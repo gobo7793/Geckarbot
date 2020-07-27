@@ -1,4 +1,5 @@
 from enum import Enum
+from base import BaseSubsystem
 
 
 class BaseReactionEvent:
@@ -57,8 +58,9 @@ class Callback:
         return "<reactions.Callback; coro: {}; msg: {}>".format(self.coro, self.message)
 
 
-class ReactionListener:
+class ReactionListener(BaseSubsystem):
     def __init__(self, bot):
+        super().__init__(bot)
         self.callbacks = []
         self.bot = bot
         self.to_del = []

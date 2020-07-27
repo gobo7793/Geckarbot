@@ -1,9 +1,11 @@
 import inspect
+
+import discord
 from discord.ext import commands
 
-import Geckarbot
+from base import BasePlugin
 from conf import Config
-from botutils import utils
+from botutils import utils, converter
 
 
 lang = {
@@ -14,6 +16,8 @@ lang = {
         'list_no_cmds': "I don't know any custom commands :frowning:",
         'cmd_added': "Added custom command: {}",
         'cmd_removed': "Added custom command: {}",
+        'invalid_prefix': "The prefix can't be the same like for regular commands.",
+        'user_blocked': "The user {} has blocked the command.",
     },
     'de': {
         'raw_doesnt_exists': "Ein Kommando \"{}\" existiert nicht, erstell es doch einfach selbst!",
@@ -22,16 +26,19 @@ lang = {
         'list_no_cmds': "Ich kenne keine Kommandos :frowning:",
         'cmd_added': "Kommando hinzugefügt: {}",
         'cmd_removed': "Kommando gelöscht: {}",
+        'invalid_prefix': "Das Prefix kann nicht das gleiche wie für normale Kommandos sein.",
+        'user_blocked': "{} hat das Kommando geblockt.",
     }
 }
 
 
 prefix_key = "_prefix"
 wildcard_user = "%u"
+wildcard_umention = "%um"
 wildcard_pref = "%"
 
 
-class Plugin(Geckarbot.BasePlugin, name="Custom CMDs"):
+class Plugin(BasePlugin, name="Custom CMDs"):
     """Provides custom cmds"""
 
     def __init__(self, bot):
@@ -43,13 +50,21 @@ class Plugin(Geckarbot.BasePlugin, name="Custom CMDs"):
 
         @bot.listen()
         async def on_message(msg):
-            if (msg.content.startswith(self.prefix) and
-                    msg.author.id != self.bot.user.id):
+            if (msg.content.startswith(self.prefix)
+                    and msg.author.id != self.bot.user.id
+                    and not self.bot.ignoring.check_user(msg.author)):
                 await self.on_message(msg)
 
     def default_config(self):
         return {
-            prefix_key: '+'
+            prefix_key: '+',
+            'ping': 'Pong!',
+            'nico': '***N I C O   A U F S   M A U L !***   :right_facing_fist_tone1::cow:',
+            'passierschein': 'Eintragung einer Galeere? Oh, da sind Sie hier falsch! Wenden Sie sich an die '
+                             'Hafenkommandantur unten im Hafen.\n'
+                             'https://youtu.be/lIiUR2gV0xk',
+            'kris': 'mood <:kristoph:717524523662180383>',
+            'slap': "_slaps %1 around a bit with a large trout_",
         }
 
     def get_lang(self):
@@ -71,12 +86,21 @@ class Plugin(Geckarbot.BasePlugin, name="Custom CMDs"):
         cmd_args = msg_args[1:]
         if cmd_name not in self.conf():
             return
+        elif (self.bot.ignoring.check_command_name(cmd_name, msg.channel)
+                or self.bot.ignoring.check_user_command(msg.author, cmd_name)):
+            raise commands.DisabledCommand()
 
         cmd_content = self.conf()[cmd_name]
 
         cmd_content = cmd_content.replace(wildcard_user, utils.get_best_username(msg.author))
+        cmd_content = cmd_content.replace(wildcard_umention, msg.author.mention)
+
         for i in range(0, len(cmd_args)):
             arg = cmd_args[i]
+            member = await converter.convert_member(self.bot, msg, arg)
+            if member is not None and self.bot.ignoring.check_user_command(member, cmd_name):
+                await msg.channel.send(Config.lang(self, 'user_blocked', utils.get_best_username(member)))
+                return
             wildcard = wildcard_pref + str(i + 1)
             cmd_content = cmd_content.replace(wildcard, arg)
 
@@ -88,12 +112,17 @@ class Plugin(Geckarbot.BasePlugin, name="Custom CMDs"):
     async def cmd(self, ctx):
         await ctx.send_help(self.cmd)
 
-    @cmd.command(name="prefix", help="Sets the custom command prefix")
+    @cmd.command(name="prefix", help="Sets the custom command prefix",
+                 description="Sets the custom command prefix. Can't be the same like for regular commands.")
     @commands.has_any_role(*Config().FULL_ACCESS_ROLES)
     async def cmd_prefix(self, ctx, prefix):
-        self.conf()[prefix_key] = prefix
-        Config.save(self)
-        await ctx.message.add_reaction(Config().CMDSUCCESS)
+        if prefix == ctx.prefix:
+            await ctx.message.add_reaction(Config().CMDERROR)
+            await ctx.send(Config.lang(self, 'invalid_prefix'))
+        else:
+            self.conf()[prefix_key] = prefix
+            Config.save(self)
+            await ctx.message.add_reaction(Config().CMDSUCCESS)
 
     @cmd.command(name="list", help="Lists all custom commands")
     async def cmd_list(self, ctx):
@@ -122,6 +151,7 @@ class Plugin(Geckarbot.BasePlugin, name="Custom CMDs"):
                  description="Adds a custom command. Following wildcards can be used, which will be replaced on "
                              "using:\n"
                              "%u: The user who uses the command\n"
+                             "%um: Mentions the user who uses the command\n"
                              "%n: The nth command argument\n"
                              "Example: !cmd add test Argument1: %1 from user %u")
     async def cmd_add(self, ctx, cmd_name, *args):
@@ -136,8 +166,8 @@ class Plugin(Geckarbot.BasePlugin, name="Custom CMDs"):
             self.conf()[cmd_name] = cmd_text
             Config.save(self)
             await utils.log_to_admin_channel(ctx)
-            await utils.write_debug_channel(self.bot, Config.lang(self, 'cmd_added', self.get_raw_cmd(cmd_name)))
             await ctx.message.add_reaction(Config().CMDSUCCESS)
+            await utils.write_debug_channel(self.bot, Config.lang(self, 'cmd_added', self.get_raw_cmd(cmd_name)))
 
     @cmd.command(name="del", help="Deletes a custom command")
     @commands.has_any_role(*Config().FULL_ACCESS_ROLES)
@@ -147,8 +177,8 @@ class Plugin(Geckarbot.BasePlugin, name="Custom CMDs"):
             del self.conf()[cmd_name]
             Config.save(self)
             await utils.log_to_admin_channel(ctx)
-            await utils.write_debug_channel(self.bot, Config.lang(self, 'cmd_removed', cmd_raw))
             await ctx.message.add_reaction(Config().CMDSUCCESS)
+            await utils.write_debug_channel(self.bot, Config.lang(self, 'cmd_removed', cmd_raw))
         else:
-            await ctx.send(Config.lang(self, "del_doesnt_exists", cmd_name))
             await ctx.message.add_reaction(Config().CMDERROR)
+            await ctx.send(Config.lang(self, "del_doesnt_exists", cmd_name))

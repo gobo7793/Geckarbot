@@ -4,7 +4,7 @@ import logging
 import discord
 from discord.ext import commands
 
-from Geckarbot import BasePlugin
+from base import BasePlugin
 
 return_code = {
     "error": 0,

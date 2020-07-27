@@ -7,6 +7,7 @@ import asyncio
 import logging
 import warnings
 import datetime
+from base import BaseSubsystem
 
 
 timedictformat = ["year", "month", "monthday", "weekday", "hour", "minute"]
@@ -19,9 +20,10 @@ class LastExecution(Exception):
     pass
 
 
-class Mothership(Thread):
+class Mothership(BaseSubsystem, Thread):
     def __init__(self, bot, launch_immediately=True):
-        super().__init__()
+        BaseSubsystem.__init__(self, bot)
+        Thread.__init__(self)
         self.bot = bot
         self.jobs = []
         self._to_register = []

@@ -6,7 +6,7 @@ from discord.errors import HTTPException
 from botutils import utils
 from subsystems.reactions import ReactionAddedEvent, ReactionRemovedEvent
 
-from Geckarbot import BasePlugin
+from base import BasePlugin
 from conf import Config
 
 

@@ -1,11 +1,11 @@
 import random
-import datetime
 import logging
+from datetime import datetime, timezone, timedelta
 import discord
 from discord.ext import commands
 from conf import Config
 
-from Geckarbot import BasePlugin
+from base import BasePlugin
 from subsystems import timers
 from botutils import utils
 
@@ -15,7 +15,6 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
     def __init__(self, bot):
         super().__init__(bot)
         bot.register(self)
-        self.can_reload = True
 
         self.reminders = {}
         reminders_to_remove = []
@@ -64,10 +63,6 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
         embed.add_field(name=Config().lang(self, 'kicker_ATBL'), value=Config().lang(self, 'kicker_ATBL_link'))
         await ctx.send(embed=embed)
 
-    @commands.command(name="ping", help="Pings the bot.")
-    async def ping(self, ctx):
-        await ctx.send(Config().lang(self, 'ping_out'))
-
     @commands.command(name="mud", brief="Pings the bot.")
     async def mud(self, ctx):
         await ctx.send(Config().lang(self, 'mud_out'))
@@ -75,10 +70,6 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
     @commands.command(name="mudkip", brief="MUDKIP!")
     async def mudkip(self, ctx):
         await ctx.send(Config().lang(self, 'mudkip_out'))
-
-    @commands.command(name="nico", help="Punches Nico.")
-    async def nico(self, ctx):
-        await ctx.send(Config().lang(self, 'nico_output'))
 
     @commands.command(name="mimimi", help="Provides an .mp3 file that plays the sound of 'mimimi'.")
     async def mimimi(self, ctx):
@@ -96,34 +87,29 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
     async def liebe(self, ctx):
         await ctx.send(Config().lang(self, 'liebe_out'))
 
+    # todo: read directly from sheets
     @commands.command(name="tippspiel", help="Gives the link to the Tippspiel-Sheet")
     async def tippspiel(self, ctx):
         await ctx.send(Config().lang(self, 'tippspiel_output'))
 
-    @commands.command(name="passierschein", help="Eintragung einer Galeere")
-    async def passierschein(self, ctx):
-        await ctx.send(Config().lang(self, 'passierschein_out'))
-
-    @commands.command(name="kris", help="Replaces the user Kris")
-    async def kristoph(self, ctx):
-        await ctx.send(Config().lang(self, 'kristoph_out'))
-
-    @commands.command(name="wermobbtgerade", help="Shows which user is bullying other users",
-                      description="Shows which user is bullying other users. Supports ignore list.")
+    @commands.command(name="werwars", alias="wermobbtgerade", help="Shows which user is bullying other users",
+                      description="Shows who is bullying other users in the last 30 minutes in the current channel. "
+                                  "Supports ignore list.")
     async def who_mobbing(self, ctx):
-        online_users = []
-        for m in self.bot.guild.members:
-            if (m.status != discord.Status.offline
-                    and not self.bot.ignoring.check_user_id_command(m.id, ctx.command.qualified_name)):
-                online_users.append(m)
+        after_date = (datetime.now(timezone.utc) - timedelta(minutes=30)).replace(tzinfo=None)
+        users = [self.bot.user]
+        messages = await ctx.channel.history(after=after_date).flatten()
+        for message in messages:
+            if message.author not in users:
+                users.append(message.author)
 
-        bully = random.choice(online_users)
+        bully = random.choice(users)
 
-        if bully is self.bot.guild.me:
-            msg = Config().lang(self, "bully_msg_self")
+        if bully is self.bot.user:
+            text = Config().lang(self, "bully_msg_self")
         else:
-            msg = Config().lang(self, "bully_msg", utils.get_best_username(bully))
-        await ctx.send(msg)
+            text = Config().lang(self, "bully_msg", utils.get_best_username(bully))
+        await ctx.send(text)
 
     @commands.command(name="remindme", help="Reminds the author.",
                       usage="<#|#m|#h|#d|DD.MM.YYYY|HH:MM|DD.MM.YYYY HH:MM|DD.MM. HH:MM|cancel|list> "
@@ -139,7 +125,7 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
         old_reminders = []
         for el in self.reminders:
             if (self.reminders[el].next_execution() is None
-                    or self.reminders[el].next_execution() < datetime.datetime.now()):
+                    or self.reminders[el].next_execution() < datetime.now()):
                 old_reminders.append(el)
         for el in old_reminders:
             self.remove_reminder(el)
@@ -157,7 +143,7 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
             # remove reminder with id
             if remove_id >= 0:
                 if self.reminders[remove_id].data['user'] == ctx.author.id:
-                    self.remove_reminder(el)
+                    self.remove_reminder(remove_id)
                     await ctx.message.add_reaction(Config().CMDSUCCESS)
                     return
 
@@ -192,12 +178,12 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
 
         # set reminder
         try:
-            datetime.datetime.strptime(f"{args[0]} {args[1]}", "%d.%m.%Y %H:%M")
+            datetime.strptime(f"{args[0]} {args[1]}", "%d.%m.%Y %H:%M")
             rtext = " ".join(args[2:])
             time_args = args[0:2]
         except (ValueError, IndexError):
             try:
-                datetime.datetime.strptime(f"{args[0]} {args[1]}", "%d.%m. %H:%M")
+                datetime.strptime(f"{args[0]} {args[1]}", "%d.%m. %H:%M")
                 rtext = " ".join(args[2:])
                 time_args = args[0:2]
             except (ValueError, IndexError):
@@ -205,12 +191,12 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
                 time_args = [args[0]]
         remind_time = utils.analyze_time_input(*time_args)
 
-        if remind_time == datetime.datetime.max:
+        if remind_time == datetime.max:
             raise commands.BadArgument(message=Config().lang(self, 'remind_duration_err'))
 
         reminder_id = self.get_new_reminder_id()
 
-        if remind_time < datetime.datetime.now():
+        if remind_time < datetime.now():
             logging.debug("Attempted reminder {} in the past: {}".format(reminder_id, remind_time))
             await ctx.send(Config().lang(self, 'remind_past'))
             return
@@ -220,7 +206,7 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
         else:
             await ctx.message.add_reaction(Config().CMDERROR)
 
-    def register_reminder(self, channel_id: int, user_id: int, remind_time: datetime.datetime,
+    def register_reminder(self, channel_id: int, user_id: int, remind_time: datetime,
                           reminder_id: int, text, is_restart: bool = False):
         """
         Registers a reminder
@@ -232,7 +218,7 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
         :param is_restart: True if reminder is restarting after bot (re)start
         :returns: True if reminder is registered, otherwise False
         """
-        if remind_time < datetime.datetime.now():
+        if remind_time < datetime.now():
             logging.debug("Attempted reminder {} in the past: {}".format(reminder_id, remind_time))
             return False
 

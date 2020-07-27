@@ -3,7 +3,7 @@ from copy import deepcopy
 import discord.utils
 from discord.ext import commands
 
-from Geckarbot import BasePlugin
+from base import BasePlugin
 from conf import Config
 from botutils import utils, permChecks
 
