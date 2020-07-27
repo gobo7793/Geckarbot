@@ -1,5 +1,6 @@
 from datetime import datetime
 from enum import Enum
+from typing import Tuple
 
 import discord
 from discord.ext import commands
@@ -169,22 +170,64 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
         except ValueError:
             return MatchStatus.UNKNOWN
 
-    def points(self, score_h, score_a, pred_h, pred_a):
+    def valid_pred(self, pred: Tuple[str, str]):
+        return True if pred[0].isnumeric() and pred[1].isnumeric() else False
+
+    def pred_reachable(self, score: Tuple[int, int], pred: Tuple[int, int]):
+        return score[0] <= pred[0] and score[1] <= pred[1]
+
+    def points(self, score, pred):
         """
         Returns the points resulting from this score and prediction
         """
-        try:
-            score_h, score_a, pred_h, pred_a = int(score_h), int(score_a), int(pred_h), int(pred_a)
-        except ValueError:
-            return 0
-        if (score_h, score_a) == (pred_h, pred_a):
+        score, pred = (int(score[0]), int(score[1])), (int(pred[0]), int(pred[1]))
+        if score == pred:
             return 4
-        elif (score_h - score_a) == (pred_h - pred_a):
+        elif (score[0] - score[1]) == (pred[0] - pred[1]):
             return 3
-        elif ((score_h - score_a) > 0) - ((score_h - score_a) < 0) == ((pred_h - pred_a) > 0) - ((pred_h - pred_a) < 0):
+        elif ((score[0] - score[1]) > 0) - ((score[0] - score[1]) < 0) \
+                == ((pred[0] - pred[1]) > 0) - ((pred[0] - pred[1]) < 0):
             return 2
         else:
             return 0
+
+    def pointdiff_possible(self, score, pred1, pred2):
+        """
+        Returns the maximal point difference possible
+        """
+        if not self.valid_pred(score):
+            # No Score
+            if self.valid_pred(pred1) and self.valid_pred(pred2):
+                p = 4 - self.points(pred1, pred2)
+                diff1, diff2 = p, p
+            elif not self.valid_pred(pred1):
+                diff1, diff2 = 0, 4
+            else:
+                diff1, diff2 = 4, 0
+        else:
+            # Running Game
+            if not self.valid_pred(pred1) and not self.valid_pred(pred2):
+                # Both not existent
+                diff1, diff2 = 0, 0
+            elif self.valid_pred(pred1) and not self.valid_pred(pred2):
+                # No Away
+                diff1 = (3 + self.pred_reachable(score, pred1)) - self.points(score, pred1)
+                diff2 = self.points(score, pred1)
+            elif self.valid_pred(pred2) and not self.valid_pred(pred1):
+                # No Home
+                diff1 = self.points(score, pred2)
+                diff2 = (3 + self.pred_reachable(score, pred2)) - self.points(score, pred2)
+            else:
+                # Both existent
+                if pred1 == pred2:
+                    diff1, diff2 = 0, 0
+                else:
+                    diff1 = (3 + self.pred_reachable(score, pred1) - self.points(pred1, pred2)) \
+                            - (self.points(score, pred1) - self.points(score, pred2))
+                    diff2 = (3 + self.pred_reachable(score, pred2) - self.points(pred1, pred2)) \
+                            - (self.points(score, pred2) - self.points(score, pred1))
+
+        return diff1, diff2
 
     @commands.group(name="spaetzle", aliases=["spätzle", "spatzle", "spätzles"], invoke_without_command=True,
                     help="commands for managing the 'Spätzles-Tippspiel'")
@@ -194,6 +237,10 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
     @spaetzle.command(name="info", help="Get info about the Spaetzles-Tippspiel")
     async def spaetzle_info(self, ctx):
         await ctx.send("Keine Spätzles. Nur Fußball :c")
+
+    @spaetzle.command(name="test")
+    async def test(self, ctx, sc1, sc2, pr1, pr2, pr3, pr4):
+        await ctx.send(self.pointdiff_possible((sc1, sc2), (pr1, pr2), (pr3, pr4)))
 
     @spaetzle.command(name="link", help="Get the link to the spreadsheet")
     async def spaetzle_doc_link(self, ctx):
@@ -262,6 +309,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                     else:
                         oppo_predictions += "{}:{}\n".format(pred[0], pred[1])
 
+        # Producing the message
         matches = ""
         for match in predictions[0]:
             matches += "{} {}:{} {}\n".format(self.convert_team_name(match[0]), match[1], match[2],
