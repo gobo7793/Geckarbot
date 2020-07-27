@@ -5,7 +5,8 @@ import discord
 from discord.ext import commands
 from datetime import datetime
 
-from conf import Config, PluginSlot, BaseSubsystem
+from base import BaseSubsystem
+from conf import Config, PluginSlot
 from botutils import utils
 from subsystems import timers
 

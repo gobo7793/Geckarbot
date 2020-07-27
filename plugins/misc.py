@@ -5,7 +5,7 @@ import discord
 from discord.ext import commands
 from conf import Config
 
-from Geckarbot import BasePlugin
+from base import BasePlugin
 from subsystems import timers
 from botutils import utils
 

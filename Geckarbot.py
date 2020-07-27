@@ -12,7 +12,8 @@ from pathlib import Path
 
 from discord.ext import commands
 
-from conf import Config, PluginSlot, Configurable
+from base import BasePlugin
+from conf import Config, PluginSlot
 from botutils import utils
 from subsystems import timers, reactions, ignoring
 
@@ -26,21 +27,6 @@ class Exitcodes(Enum):
     HTTP = 2  # no connection to discord
     UPDATE = 10  # shutdown, update, restart
     RESTART = 11  # simple restart
-
-
-class BasePlugin(commands.Cog, Configurable):
-    """The base class for all plugins"""
-    def __init__(self, bot):
-        commands.Cog.__init__(self)
-        Configurable.__init__(self)
-        self.bot = bot
-
-    async def shutdown(self):
-        """
-        Is called when the bot is shutting down. If you have cleanup to do, do it here.
-        Needs to be a coroutine (async).
-        """
-        pass
 
 
 class Geckarbot(commands.Bot):

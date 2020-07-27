@@ -5,7 +5,7 @@ from discord.ext import commands
 
 from conf import Config
 from botutils import utils, permChecks
-from Geckarbot import BasePlugin
+from base import BasePlugin
 import subsystems
 from subsystems.ignoring import IgnoreEditResult, IgnoreType
 

@@ -7,7 +7,7 @@ from datetime import datetime
 from discord.ext import commands
 from conf import Config
 from botutils import utils, permChecks, sheetsclient
-from Geckarbot import BasePlugin
+from base import BasePlugin
 
 
 lang = {

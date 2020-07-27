@@ -3,7 +3,7 @@ import inspect
 import discord
 from discord.ext import commands
 
-import Geckarbot
+from base import BasePlugin
 from conf import Config
 from botutils import utils, converter
 
@@ -38,7 +38,7 @@ wildcard_umention = "%um"
 wildcard_pref = "%"
 
 
-class Plugin(Geckarbot.BasePlugin, name="Custom CMDs"):
+class Plugin(BasePlugin, name="Custom CMDs"):
     """Provides custom cmds"""
 
     def __init__(self, bot):

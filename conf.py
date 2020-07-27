@@ -3,6 +3,7 @@ import json
 import logging
 import pkgutil
 from botutils import jsonUtils
+from base import Configurable
 
 
 class _Singleton(type):
@@ -12,32 +13,6 @@ class _Singleton(type):
         if cls not in cls._instances:
             cls._instances[cls] = super(_Singleton, cls).__call__(*args, **kwargs)
         return cls._instances[cls]
-
-
-class Configurable:
-    """Defines a class which the config of its instances can be managed by Config class"""
-
-    def __init__(self):
-        self.can_reload = False
-
-    def default_config(self):
-        """
-        Returns an empty default config
-        """
-        return {}
-
-    def get_lang(self):
-        """
-        Gets the lang dictionary for Config API.
-        """
-        return None
-
-
-class BaseSubsystem(Configurable):
-    """The base class for all subsystems"""
-    def __init__(self, bot):
-        super(BaseSubsystem, self).__init__()
-        self.bot = bot
 
 
 class PluginSlot:
