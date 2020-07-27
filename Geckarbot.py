@@ -31,7 +31,8 @@ class Exitcodes(Enum):
 class BasePlugin(commands.Cog, Configurable):
     """The base class for all plugins"""
     def __init__(self, bot):
-        super(BasePlugin, self).__init__()
+        commands.Cog.__init__(self)
+        Configurable.__init__(self)
         self.bot = bot
 
     async def shutdown(self):

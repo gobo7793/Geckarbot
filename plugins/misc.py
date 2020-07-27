@@ -15,7 +15,6 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
     def __init__(self, bot):
         super().__init__(bot)
         bot.register(self)
-        self.can_reload = True
 
         self.reminders = {}
         reminders_to_remove = []
