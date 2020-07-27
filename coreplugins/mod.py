@@ -44,9 +44,12 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
         else:
             send_msg = f"No plugin {plugin_name} found."
             for plugin in Config().plugins:
-                if plugin.name == plugin_name and plugin.instance.can_reload:
-                    Config().load(plugin.instance)
-                    send_msg = f"Configuration of plugin {plugin_name} reloaded."
+                if plugin.name == plugin_name:
+                    if plugin.instance.can_reload:
+                        Config().load(plugin.instance)
+                        send_msg = f"Configuration of plugin {plugin_name} reloaded."
+                    else:
+                        send_msg = f"Plugin {plugin_name} can't reloaded."
 
         if ctx.channel.id != Config().DEBUG_CHAN_ID:
             await ctx.send(send_msg)
