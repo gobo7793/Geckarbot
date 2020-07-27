@@ -366,12 +366,16 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             await ctx.send(self.spaetzle_lang('invalid_league'))
             return
 
+        if isinstance(user_or_league, str):
+            # Restrict the view to users area
+            pos = None
+            for i in range(len(result)):
+                pos = i if result[i][3] == user_or_league else pos
+            if pos is not None:
+                result = result[max(0, pos-3):pos+4]
+
         msg = ""
         for line in result:
-            if line[3] == user_or_league:
-                msg += "**{0} | {3} | {6}:{8} {9} | {10}**\n".format(*line)
-            else:
-                msg += "{0} | {3} | {6}:{8} {9} | {10}\n".format(*line)
-
+            msg += "{0}{1} | {4} | {7}:{9} {10} | {11}{0}\n".format("**" if line[3] == user_or_league else "", *line)
 
         await ctx.send(embed=discord.Embed(title="Tabelle Liga {}".format(league), description=msg))
