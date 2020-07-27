@@ -12,7 +12,7 @@ from pathlib import Path
 
 from discord.ext import commands
 
-from conf import Config, PluginSlot
+from conf import Config, PluginSlot, Configurable
 from botutils import utils
 from subsystems import timers, reactions, ignoring
 
@@ -28,11 +28,11 @@ class Exitcodes(Enum):
     RESTART = 11  # simple restart
 
 
-class BasePlugin(commands.Cog):
+class BasePlugin(commands.Cog, Configurable):
+    """The base class for all plugins"""
     def __init__(self, bot):
-        super().__init__()
+        super(BasePlugin, self).__init__()
         self.bot = bot
-        self.can_reload = False
 
     async def shutdown(self):
         """
@@ -40,18 +40,6 @@ class BasePlugin(commands.Cog):
         Needs to be a coroutine (async).
         """
         pass
-
-    def default_config(self):
-        """
-        Returns an empty default config
-        """
-        return {}
-
-    def get_lang(self):
-        """
-        Gets the lang dictionary for Config API.
-        """
-        return None
 
 
 class Geckarbot(commands.Bot):
