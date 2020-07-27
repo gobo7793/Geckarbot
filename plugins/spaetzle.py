@@ -41,11 +41,13 @@ teams = {
 class UserNotFound(Exception):
     pass
 
+
 class MatchStatus(Enum):
     CLOSED = ":ballot_box_with_check:"
     RUNNING = ":green_square:"
     UPCOMING = ":clock330:"
     UNKNOWN = ":grey_question:"
+
 
 class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
 
@@ -166,6 +168,23 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                 return MatchStatus.CLOSED
         except ValueError:
             return MatchStatus.UNKNOWN
+
+    def points(self, score_h, score_a, pred_h, pred_a):
+        """
+        Returns the points resulting from this score and prediction
+        """
+        try:
+            score_h, score_a, pred_h, pred_a = int(score_h), int(score_a), int(pred_h), int(pred_a)
+        except ValueError:
+            return 0
+        if (score_h, score_a) == (pred_h, pred_a):
+            return 4
+        elif (score_h - score_a) == (pred_h - pred_a):
+            return 3
+        elif ((score_h - score_a) > 0) - ((score_h - score_a) < 0) == ((pred_h - pred_a) > 0) - ((pred_h - pred_a) < 0):
+            return 2
+        else:
+            return 0
 
     @commands.group(name="spaetzle", aliases=["spätzle", "spatzle", "spätzles"], invoke_without_command=True,
                     help="commands for managing the 'Spätzles-Tippspiel'")
@@ -367,7 +386,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             for i in range(len(result)):
                 pos = i if result[i][3] == user_or_league else pos
             if pos is not None:
-                result = result[max(0, pos-3):pos+4]
+                result = result[max(0, pos - 3):pos + 4]
 
         msg = ""
         for line in result:
