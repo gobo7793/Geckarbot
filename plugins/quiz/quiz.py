@@ -6,7 +6,7 @@ import discord
 from discord.ext import commands
 from discord.errors import HTTPException
 
-import Geckarbot
+from base import BasePlugin
 from conf import Config
 from botutils import permChecks
 
@@ -90,7 +90,7 @@ class Methods(Enum):
     STATUS = "status"
 
 
-class Plugin(Geckarbot.BasePlugin, name="A trivia kwiss"):
+class Plugin(BasePlugin, name="A trivia kwiss"):
     def __init__(self, bot):
         self.logger = logging.getLogger(__name__)
         self.bot = bot
