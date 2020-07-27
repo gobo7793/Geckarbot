@@ -202,12 +202,12 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
             return item.to_message()
 
         async def write_list(itype: IgnoreType, prefix):
-            ilist = self.bot.ignoring.filter_ignore_list(itype)
+            ilist = self.bot.ignoring.get_ignore_list(itype)
             if len(ilist) > 0:
                 for msg in utils.paginate(ilist, prefix=prefix, f=get_item_msg):
                     await ctx.send(msg)
 
-        if len(self.bot.ignoring.ignorelist) < 1:
+        if self.bot.ignoring.get_full_ignore_len() < 1:
             await ctx.send("No users or commands blocked.")
             return
 
