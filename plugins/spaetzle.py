@@ -271,31 +271,54 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
 
         await ctx.send(embed=embed)
 
-    @spaetzle.command(name="duels", aliases=["duelle"], help="Displays the duels of our people!")
-    async def show_duels(self, ctx):
+    @spaetzle.command(name="duels", aliases=["duelle"],
+                      help="Displays the duels of observed users or the specified league")
+    async def show_duels(self, ctx, league: int = None):
         c = self.get_api_client()
         msg = ""
-        data_ranges = []
-        observed_users = self.spaetzle_conf()['observed_users']
 
-        for user in observed_users:
-            try:
-                col, row = self.get_user_cell(user)
-                data_ranges.append("Aktuell!{}".format(c.cellname(col, row)))
-                data_ranges.append("Aktuell!{}:{}".format(c.cellname(col, row + 10), c.cellname(col + 1, row + 11)))
-            except UserNotFound:
-                pass
-        data = c.get_multiple(data_ranges)
-        for i in range(0, len(data_ranges), 2):
-            user = data[i][0][0]
-            opponent = data[i + 1][1][1]
-            if opponent in observed_users:
-                if observed_users.index(opponent) > observed_users.index(user):
-                    msg += "**{}** [{}:{}] **{}**\n".format(user, data[i + 1][0][0], data[i + 1][1][0], opponent)
+        if league is None:
+            # Observed users
+            title = "Duelle"
+            data_ranges = []
+            observed_users = self.spaetzle_conf()['observed_users']
+
+            for user in observed_users:
+                try:
+                    col, row = self.get_user_cell(user)
+                    data_ranges.append("Aktuell!{}".format(c.cellname(col, row)))
+                    data_ranges.append("Aktuell!{}:{}".format(c.cellname(col, row + 10), c.cellname(col + 1, row + 11)))
+                except UserNotFound:
+                    pass
+            data = c.get_multiple(data_ranges)
+            for i in range(0, len(data_ranges), 2):
+                user = data[i][0][0]
+                opponent = data[i + 1][1][1]
+                if opponent in observed_users:
+                    if observed_users.index(opponent) > observed_users.index(user):
+                        msg += "**{}** [{}:{}] **{}**\n".format(user, data[i + 1][0][0], data[i + 1][1][0], opponent)
+                else:
+                    msg += "**{}** [{}:{}] {}\n".format(user, data[i + 1][0][0], data[i + 1][1][0], opponent)
+        else:
+            # League
+            title = "Duelle Liga {}".format(league)
+            if league == 1:
+                result = c.get("Aktuell!J3:T11")
+            elif league == 2:
+                result = c.get("Aktuell!V3:AF11")
+            elif league == 3:
+                result = c.get("Aktuell!AH3:AR11")
+            elif league == 4:
+                result = c.get("Aktuell!AT3:BD11")
             else:
-                msg += "**{}** [{}:{}] {}\n".format(user, data[i + 1][0][0], data[i + 1][1][0], opponent)
+                await ctx.send(self.spaetzle_lang('invalid_league'))
+                return
 
-        await ctx.send(embed=discord.Embed(title="Duelle", description=msg))
+            for match in result:
+                if len(match) >= 8:
+                    msg += "{0} [{4}:{5}] {7}\n".format(*match)
+
+        await ctx.send(embed=discord.Embed(title=title, description=msg))
 
     @spaetzle.command(name="matches", aliases=["spiele"], help="Displays the matches to be predicted")
     async def show_matches(self, ctx):
