@@ -345,6 +345,10 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
 
         msg = ""
         for line in result:
-            msg += "{0} | {3} | {6}:{8} {9} | {10}\n".format(*line)
+            if line[3] == user_or_league:
+                msg += "**{0} | {3} | {6}:{8} {9} | {10}**\n".format(*line)
+            else:
+                msg += "{0} | {3} | {6}:{8} {9} | {10}\n".format(*line)
+
 
         await ctx.send(embed=discord.Embed(title="Tabelle Liga {}".format(league), description=msg))
