@@ -200,11 +200,6 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
         except UserNotFound:
             await ctx.send(self.spaetzle_lang('user_not_found'))
 
-    @spaetzle.command(name="scrape", help="Gets the data from the thread.")
-    async def scrape(self, ctx, url):
-        await ctx.send("Dieser cmd holt sich die Tipps automatisch aus dem angegebenen Forums-Thread! Also irgendwann "
-                       "mal :c")
-
     @spaetzle.command(name="duel", aliases=["duell"], help="Displays the duel of a specific user")
     async def show_duel_single(self, ctx, user=None):
         if user is None:
@@ -379,3 +374,32 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             msg += "{0}{1} | {4} | {7}:{9} {10} | {11}{0}\n".format("**" if line[3] == user_or_league else "", *line)
 
         await ctx.send(embed=discord.Embed(title="Tabelle Liga {}".format(league), description=msg))
+
+    @spaetzle.group(name="observe", invoke_without_command=True,
+                    help="Configure which users should be observed.")
+    async def observe(self, ctx):
+        await ctx.invoke(self.bot.get_command('spaetzle observe list'))
+
+    @observe.command(name="list", help="Lists the observed users")
+    async def observe_list(self, ctx):
+        await ctx.send(", ".join(self.spaetzle_conf()['observed_users']))
+
+    @observe.command(name="add", help="Adds a user to be observed")
+    async def observe_add(self, ctx, user):
+        try:
+            self.get_user_league(user)
+        except UserNotFound:
+            await ctx.send(self.spaetzle_lang('user_not_found'))
+            return
+
+        if user not in self.spaetzle_conf()['observed_users']:
+            self.spaetzle_conf()['observed_users'].append(user)
+        await ctx.message.add_reaction(Config().CMDSUCCESS)
+
+    @observe.command(name="remove", help="Removes a user from the observation")
+    async def observe_remove(self, ctx, user):
+        if user in self.spaetzle_conf()['observed_users']:
+            self.spaetzle_conf()['observed_users'].remove(user)
+            await ctx.message.add_reaction(Config().CMDSUCCESS)
+        else:
+            await ctx.send(self.spaetzle_lang('user_not_found'))
