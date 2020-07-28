@@ -287,19 +287,19 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
         except UserNotFound:
             # Opponent not found
             oppo_predictions = self.spaetzle_lang('user_not_found')
-            matches, preds_h = c.get_multiple(["Aktuell!E3:H11",
+            matches, preds_h = c.get_multiple([self.spaetzle_conf()['matches_range'],
                                                "Aktuell!{}:{}".format(c.cellname(col1, row1 + 1),
                                                                       c.cellname(col1 + 1, row1 + 9))])
             preds_a = [["–", "–"]]*9
         else:
             # Opponent found
             oppo_predictions = ""
-            matches, preds_h, preds_a = c.get_multiple(["Aktuell!E3:H11",
+            matches, preds_h, preds_a = c.get_multiple([self.spaetzle_conf()['matches_range'],
                                                         "Aktuell!{}:{}".format(c.cellname(col1, row1 + 1),
                                                                                c.cellname(col1 + 1, row1 + 9)),
                                                         "Aktuell!{}:{}".format(c.cellname(col2, row2 + 1),
                                                                                c.cellname(col2 + 1, row2 + 9))])
-
+        # Fixing stuff
         if len(preds_h) == 0:
             preds_h = [["–", "–"]] * 9
         if len(preds_a) == 0:
@@ -311,18 +311,20 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                 preds_a[i] = ["–", "–"]
 
         # Calculating possible point difference
-
         diff1, diff2 = 0, 0
         for i in range(len(matches)):
-            diff = self.pointdiff_possible(matches[i][1:3], preds_h[i], preds_a[i])
+            if self.match_status(matches[i][1], matches[i][2]) == MatchStatus.CLOSED:
+                continue
+            diff = self.pointdiff_possible(matches[i][4:6], preds_h[i], preds_a[i])
             diff1 += diff[0]
             diff2 += diff[1]
 
         # Producing the message
         match_str = ""
         for match in matches:
-            match_str += "{} {}:{} {}\n".format(self.convert_team_name(match[0]), match[1], match[2],
-                                                self.convert_team_name(match[3]))
+            emoji = self.match_status(match[1], match[2]).value
+            match_str += "{} {} {}:{} {}\n".format(emoji, self.convert_team_name(match[3]), match[4], match[5],
+                                                   self.convert_team_name(match[6]))
 
         user_predictions = ""
         for pred in preds_h:
