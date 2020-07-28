@@ -200,6 +200,8 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             if self.valid_pred(pred1) and self.valid_pred(pred2):
                 p = 4 - self.points(pred1, pred2)
                 diff1, diff2 = p, p
+            elif not self.valid_pred(pred1) and not self.valid_pred(pred2):
+                diff1, diff2 = 0, 0
             elif not self.valid_pred(pred1):
                 diff1, diff2 = 0, 4
             else:
@@ -237,10 +239,6 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
     @spaetzle.command(name="info", help="Get info about the Spaetzles-Tippspiel")
     async def spaetzle_info(self, ctx):
         await ctx.send("Keine Spätzles. Nur Fußball :c")
-
-    @spaetzle.command(name="test")
-    async def test(self, ctx, sc1, sc2, pr1, pr2, pr3, pr4):
-        await ctx.send(self.pointdiff_possible((sc1, sc2), (pr1, pr2), (pr3, pr4)))
 
     @spaetzle.command(name="link", help="Get the link to the spreadsheet")
     async def spaetzle_doc_link(self, ctx):
@@ -288,46 +286,62 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             col2, row2 = self.get_user_cell(opponent)
         except UserNotFound:
             # Opponent not found
-            predictions = c.get_multiple(["Aktuell!E3:H11",
-                                          "Aktuell!{}:{}".format(c.cellname(col1, row1 + 1),
-                                                                 c.cellname(col1 + 1, row1 + 9))])
             oppo_predictions = self.spaetzle_lang('user_not_found')
+            matches, preds_h = c.get_multiple(["Aktuell!E3:H11",
+                                               "Aktuell!{}:{}".format(c.cellname(col1, row1 + 1),
+                                                                      c.cellname(col1 + 1, row1 + 9))])
+            preds_a = [["–", "–"]]*9
         else:
             # Opponent found
-            predictions = c.get_multiple(["Aktuell!E3:H11",
-                                          "Aktuell!{}:{}".format(c.cellname(col1, row1 + 1),
-                                                                 c.cellname(col1 + 1, row1 + 9)),
-                                          "Aktuell!{}:{}".format(c.cellname(col2, row2 + 1),
-                                                                 c.cellname(col2 + 1, row2 + 9))])
-            if len(predictions[2]) == 0:
-                oppo_predictions = "-:-\n" * 9
-            else:
-                oppo_predictions = ""
-                for pred in predictions[2]:
-                    if len(pred) < 2:
-                        oppo_predictions += "-:-\n"
-                    else:
-                        oppo_predictions += "{}:{}\n".format(pred[0], pred[1])
+            oppo_predictions = ""
+            matches, preds_h, preds_a = c.get_multiple(["Aktuell!E3:H11",
+                                                        "Aktuell!{}:{}".format(c.cellname(col1, row1 + 1),
+                                                                               c.cellname(col1 + 1, row1 + 9)),
+                                                        "Aktuell!{}:{}".format(c.cellname(col2, row2 + 1),
+                                                                               c.cellname(col2 + 1, row2 + 9))])
+
+        if len(preds_h) == 0:
+            preds_h = [["–", "–"]] * 9
+        if len(preds_a) == 0:
+            preds_a = [["–", "–"]] * 9
+        for i in range(len(matches)):
+            if len(preds_h[i]) < 2:
+                preds_h[i] = ["–", "–"]
+            if len(preds_a[i]) < 2:
+                preds_a[i] = ["–", "–"]
+
+        # Calculating possible point difference
+
+        diff1, diff2 = 0, 0
+        for i in range(len(matches)):
+            diff = self.pointdiff_possible(matches[i][1:3], preds_h[i], preds_a[i])
+            diff1 += diff[0]
+            diff2 += diff[1]
 
         # Producing the message
-        matches = ""
-        for match in predictions[0]:
-            matches += "{} {}:{} {}\n".format(self.convert_team_name(match[0]), match[1], match[2],
-                                              self.convert_team_name(match[3]))
+        match_str = ""
+        for match in matches:
+            match_str += "{} {}:{} {}\n".format(self.convert_team_name(match[0]), match[1], match[2],
+                                                self.convert_team_name(match[3]))
 
-        if len(predictions[1]) == 0:
-            user_predictions = "-:-\n" * 9
-        else:
-            user_predictions = ""
-            for pred in predictions[1]:
+        user_predictions = ""
+        for pred in preds_h:
+            if len(pred) < 2:
+                user_predictions += "-:-\n"
+            else:
+                user_predictions += "{}:{}\n".format(pred[0], pred[1])
+
+        if oppo_predictions == "":
+            for pred in preds_a:
                 if len(pred) < 2:
-                    user_predictions += "-:-\n"
+                    oppo_predictions += "-:-\n"
                 else:
-                    user_predictions += "{}:{}\n".format(pred[0], pred[1])
+                    oppo_predictions += "{}:{}\n".format(pred[0], pred[1])
 
         embed = discord.Embed(title=user)
         embed.description = "{} [{}:{}] {}".format(user, result[0][0], result[1][0], opponent)
-        embed.add_field(name="Spiele", value=matches)
+        embed.set_footer(text="Noch möglich aufzuholen: {} bzw {} Punkte".format(diff1, diff2))
+        embed.add_field(name="Spiele", value=match_str)
         embed.add_field(name=user, value=user_predictions)
         embed.add_field(name=opponent, value=oppo_predictions)
 
