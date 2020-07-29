@@ -327,3 +327,73 @@ class Question:
             if el == emoji:
                 return True
         return False
+
+
+class CategoryKey:
+    """
+    Meta category key that represents one category as given as command argument
+    """
+    def __init__(self):
+        # entries are self._entries[quizapi] = {"key": key, "name": human-readable name}
+        self._entries = {}
+
+    def add_key(self, quizapi, key, name):
+        """
+        :param quizapi: QuizAPI class that understands key
+        :param key: category key that is understood by QuizAPI
+        :param name: human-readable name
+        """
+        if quizapi in self._entries:
+            entry = self._entries[quizapi]
+            if key != entry["key"] or name != entry["name"]:
+                raise KeyError("{} already exists and is different".format(quizapi))
+            else:
+                return
+        self._entries[quizapi] = {"key": key, "name": name}
+
+    def name(self):
+        """
+        Finds the best human-readable name for this category.
+        :return: Human-readable category name; None if there is nothing registered
+        """
+        if not self._entries:
+            return None
+        points = {}
+        for quizapi in self._entries:
+            entry = self._entries[quizapi]
+            if entry["name"] in points:
+                points[entry["name"]] += 1
+            else:
+                points[entry["name"]] = 0
+
+        return sorted(points.keys(), key=lambda x: points[x], reverse=True)[0]
+
+    def iter_quizapis(self):
+        """
+        Iterates over registered quizapis
+        """
+        for el in self._entries:
+            yield el
+
+    def get(self, quizapi):
+        """
+        :param quizapi: QuizAPI class that understands key
+        :return: key, name
+        """
+        return self.key(quizapi), self._entries[quizapi]["name"]
+
+    def key(self, quizapi):
+        return self._entries[quizapi]["key"]
+
+    def merge(self, catkey):
+        """
+        :param catkey: CategoryKey element that is to be merged into this object
+        """
+        for quizapi in catkey.iter_quizapis():
+            self.add_key(quizapi, *self.get(quizapi))
+
+    def is_empty(self):
+        if not self._entries:
+            return True
+        else:
+            return False

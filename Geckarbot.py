@@ -15,7 +15,7 @@ from discord.ext import commands
 from base import BasePlugin
 from conf import Config, PluginSlot
 from botutils import utils
-from subsystems import timers, reactions, ignoring
+from subsystems import timers, reactions, ignoring, dmlisteners
 
 
 class Exitcodes(Enum):
@@ -38,6 +38,7 @@ class Geckarbot(commands.Bot):
         super().__init__(*args, **kwargs)
 
         self.reaction_listener = reactions.ReactionListener(self)
+        self.dm_listener = dmlisteners.DMListener(self)
         self.timers = timers.Mothership(self)
         self.ignoring = ignoring.Ignoring(self)
 
@@ -210,6 +211,11 @@ def main():
     @bot.event
     async def on_message(message):
         """Basic message and ignore list handling"""
+
+        # DM handling
+        if message.guild is None:
+            if await bot.dm_listener.handle_dm(message):
+                return
 
         # user on ignore list
         if bot.ignoring.check_user(message.author):

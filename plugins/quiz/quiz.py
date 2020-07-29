@@ -11,7 +11,7 @@ from conf import Config
 from botutils import permChecks
 
 from plugins.quiz.controllers import RushQuizController, PointsQuizController
-from plugins.quiz.quizapis import OpenTDBQuizAPI, quizapis, opentdb
+from plugins.quiz.quizapis import quizapis, opentdb
 from plugins.quiz.base import Difficulty
 from plugins.quiz.utils import get_best_username
 
@@ -100,7 +100,7 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
 
         self.default_controller = PointsQuizController
         self.defaults = {
-            "quizapi": OpenTDBQuizAPI,
+            "quizapi": quizapis["opentdb"],
             "questions": self.config["questions_default"],
             "method": Methods.START,
             "category": None,
@@ -331,7 +331,7 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
         # Starting a new quiz
         assert method == Methods.START
         await ctx.message.add_reaction(Config().EMOJI["success"])
-        quiz_controller = controller_class(self, self.config, OpenTDBQuizAPI, ctx.channel, ctx.message.author,
+        quiz_controller = controller_class(self, self.config, args["quizapi"], ctx.channel, ctx.message.author,
                                            category=args["category"], question_count=args["questions"],
                                            difficulty=args["difficulty"], debug=args["debug"], ranked=args["ranked"],
                                            gecki=args["gecki"])
@@ -524,15 +524,6 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
             if controller_found:
                 continue
 
-            # category: opentdb
-            cat = OpenTDBQuizAPI.category_key(arg)
-            if cat is not None:
-                if found["category"]:
-                    raise QuizInitError(self, "dupiclate_cat_arg")
-                parsed["category"] = cat
-                found["category"] = True
-                continue
-
             # ranked
             if arg == "ranked":
                 parsed["ranked"] = True
@@ -551,7 +542,34 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
                 found["debug"] = True
                 continue
 
+            # category
+            found_cat = False
+            for api in quizapis.values():
+                cat = api.category_key(arg)
+                if cat is not None:
+                    if found["category"]:
+                        raise QuizInitError(self, "dupiclate_cat_arg")
+                    parsed["category"] = arg
+                    found["category"] = True
+                    found_cat = True
+                    break
+            if found_cat:
+                continue
+
             raise QuizInitError(self, "unknown_arg", arg)
+
+        # check if quizapi supports category
+        catkey = parsed["quizapi"].category_key(parsed["category"])
+        if catkey is None:
+            apiname = None
+            for api in quizapis:
+                if quizapis[api] == parsed["quizapi"]:
+                    apiname = api
+                    break
+            assert apiname is not None
+            raise QuizInitError(self, "category_not_supported", apiname, parsed["category"])
+        else:
+            parsed["category"] = catkey
 
         self.logger.debug("Parsed kwiss args: {}".format(parsed))
         return controller, parsed

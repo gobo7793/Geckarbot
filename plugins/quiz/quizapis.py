@@ -8,7 +8,7 @@ from botutils import restclient
 
 from plugins.quiz.abc import BaseQuizAPI
 from plugins.quiz.controllers import QuizEnded
-from plugins.quiz.base import Difficulty, Question
+from plugins.quiz.base import Difficulty, Question, CategoryKey
 
 opentdb = {
     "base_url": "https://opentdb.com",
@@ -167,10 +167,8 @@ class OpenTDBQuizAPI(BaseQuizAPI):
         """
         :return: Human-readable representation of the quiz category
         """
-        for el in opentdb["cat_mapping"]:
-            if el["id"] == catkey:
-                return el["names"][0]
-        return catkey
+        _, name = catkey.get(OpenTDBQuizAPI)
+        return name
 
     @staticmethod
     def category_key(catarg):
@@ -182,7 +180,9 @@ class OpenTDBQuizAPI(BaseQuizAPI):
         for mapping in opentdb["cat_mapping"]:
             for cat in mapping["names"]:
                 if catarg.lower() == cat:
-                    return mapping["id"]
+                    catkey = CategoryKey()
+                    catkey.add_key(OpenTDBQuizAPI, mapping["id"], mapping["names"][0])
+                    return catkey
         return None
 
     def cat_count(self, cat):
@@ -217,6 +217,9 @@ class OpenTDBQuizAPI(BaseQuizAPI):
 
 
 class MetaQuizAPI(BaseQuizAPI):
+    """
+    Quiz API that combines all existing ones.
+    """
     apis = [OpenTDBQuizAPI]
 
     def __init__(self, config, channel,
@@ -307,10 +310,8 @@ class MetaQuizAPI(BaseQuizAPI):
         :return: Opaque category identifier that can be used in initialization and for category_name.
         Returns None if catarg is an unknown category.
         """
-        for mapping in opentdb["cat_mapping"]:
-            for cat in mapping["names"]:
-                if catarg.lower() == cat:
-                    return mapping["id"]
+        for api in MetaQuizAPI.apis:
+            r = api.category_key(catarg)
         return None
 
     @classmethod
@@ -359,4 +360,5 @@ class MetaQuizAPI(BaseQuizAPI):
 
 quizapis = {
     "opentdb": OpenTDBQuizAPI,
+    "meta": MetaQuizAPI,
 }

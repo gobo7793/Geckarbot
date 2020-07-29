@@ -1,6 +1,8 @@
 import discord
 import datetime
 import emoji
+import random
+import warnings
 from discord.ext.commands.bot import Bot
 from conf import Config
 from threading import Thread, Lock
@@ -20,6 +22,7 @@ class HasAlreadyRun(Exception):
 
 class AsyncTimer(Thread):
     def __init__(self, bot, t, callback, *args, **kwargs):
+        warnings.warn("utils.AsyncTimer is deprecated.")
         self.logger = logging.getLogger(__name__)
         self.loop = bot.loop
 
@@ -70,14 +73,19 @@ def get_best_username(user):
     return str(user)
 
 
-def format_andlist(andlist, ands="and", emptylist="nobody"):
+def format_andlist(andlist, ands="and", emptylist="nobody", fulllist="everyone", fulllen=None):
     """
     Builds a string such as "a, b, c and d".
     :param andlist: List of elements to be formatted in a string.
     :param ands: "and"-string that sits between the last two users.
     :param emptylist: Returned if andlist is empty.
+    :param fulllist: Returned if andlist has length fulllen.
+    :param fulllen: Length of the full andlist. Useful to say "everyone" instead of listing everyone.
     :return: String that contains all elements or emptylist if the list was empty.
     """
+    if fulllen is not None and len(andlist) == fulllen:
+        return fulllist
+
     if len(andlist) == 0:
         return emptylist
 
@@ -321,3 +329,29 @@ def paginate(items, prefix="", suffix="", msg_prefix="", delimiter="\n", f=lambd
         r = current_msg + suffix
         if not r.strip() == "":
             yield r
+
+
+def sg_pl(number, singular, plural):
+    if number == 1:
+        return singular
+    return plural
+
+
+def trueshuffle(p):
+    """
+    Shuffles a list in place so that no element is at the index where it was before. Fails on lists of length < 2.
+    :param p: List to shuffle
+    """
+    orig = p.copy()
+    for toswap_i in range(len(p)):
+        # find swap targets that do not violate "total swap" / "new home" condition
+        k = []
+        for target in range(len(p)):
+            if orig[target] == p[toswap_i] or orig[toswap_i] == p[target]:
+                k.append(target)
+
+        choosefrom = [m for m in range(len(p)) if m not in k]
+        choice = random.choice(choosefrom)
+        toswap = p[toswap_i]
+        p[toswap_i] = p[choice]
+        p[choice] = toswap

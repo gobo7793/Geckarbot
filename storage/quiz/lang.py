@@ -22,6 +22,7 @@ lang = {
         "duplicate_difficulty_arg": "You defined the difficulty more than once. Make up your mind.",
         "duplicate_mode_arg": "You defined the answering mode more than once. Make up your mind.",
         "duplicate_controller_arg": "You defined the game mode more than once. Make up your mind.",
+        "category_not_supported": "Quiz API {} does not have the category {}.",
 
         "existing_quiz": "There is already a kwiss running in this channel.",
         "status_no_quiz": "There is no kwiss running in this channel.",

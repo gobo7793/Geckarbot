@@ -40,10 +40,12 @@ class StateMachine:
         if edges is not None and source not in edges:
             raise RuntimeError("{} {} -> {} is not an allowed transition.".format(self.msg, source, state))
 
+        self.logger.debug("Setting state {}".format(state))
         self._state = state
         if state in self.ends:
             self.has_ended = True
         if coro is not None:
+            self.logger.debug("Running coro for state {}".format(state))
             asyncio.create_task(coro())  # todo allow both coro() and coro
 
     def add_state(self, state, coro, allowed_sources=None, end=False):
@@ -51,10 +53,10 @@ class StateMachine:
         Adds a state.
         :param state: Any object. Used as an identifier of the state that is set. If a state was already registered
         before, this throws a warning.
-        :param coro: Coroutine that is called. Can be None if this is an end state and nothing should happen
-        when reaching it. A coroutine is expected to change the statemachine's state on its own.
-        Unfortunately, coroutines can't return anything. If None, nothing is called.
-        :param allowed_sources: List of statest that are allowed to come before this one (basically automaton edges).
+        :param coro: Coroutine that is called. Can be None if nothing should happen when reaching this state.
+        A coroutine (or some other external force) is expected to change the statemachine's state on its own, it will
+        not happen automatically.
+        :param allowed_sources: List of states that are allowed to lead to this one (basically automaton edges).
         Raises RuntimeError if this is violated. If None, sources are ignored.
         :param end: If True, this is registered as an end state. If an end state is reached, the statemachine stops,
         the coro registered with this state is scheduled and future state changes are ignored.
