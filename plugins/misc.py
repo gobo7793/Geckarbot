@@ -63,6 +63,16 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
         embed.add_field(name=Config().lang(self, 'kicker_ATBL'), value=Config().lang(self, 'kicker_ATBL_link'))
         await ctx.send(embed=embed)
 
+    @commands.command(name="choose", help="Picks on of the options. Separate options with '|'",
+                      usage="[option1] | [option2] | ...")
+    async def choose(self, ctx, *args):
+        options = [i for i in " ".join(args).split("|") if i.strip() != ""]
+        if len(options) < 1:
+            await ctx.send(Config().lang(self, 'choose_noarg'))
+            return
+        result = random.choice(options)
+        await ctx.send(Config().lang(self, 'choose_msg') + result.strip())
+
     @commands.command(name="mud", brief="Pings the bot.")
     async def mud(self, ctx):
         await ctx.send(Config().lang(self, 'mud_out'))
