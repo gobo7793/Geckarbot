@@ -61,7 +61,7 @@ class Plugin(BasePlugin, name="Testing and debug things"):
             await ctx.message.add_reaction(Config().CMDERROR)
 
     @staticmethod
-    async def waitforreact_callback(self, event):
+    async def waitforreact_callback(event):
         msg = "PANIC!"
         if isinstance(event, ReactionAddedEvent):
             msg = "{}: You reacted on '{}' with {}!".format(utils.get_best_username(event.user),
@@ -97,3 +97,21 @@ class Plugin(BasePlugin, name="Testing and debug things"):
         str_rep = str(emoji).replace("<", "`").replace(">", "`")
         msg = await ctx.send(str_rep)
         await msg.add_reaction(emoji)
+
+    @commands.command(name="dmme")
+    async def dmme(self, ctx):
+        await ctx.author.send("Here I aaaaam, this is meeee!")
+
+    @staticmethod
+    async def dmonreaction_callback(event):
+        msg = "PANIC!"
+        if isinstance(event, ReactionAddedEvent):
+            msg = "You reacted on '{}' with {}!".format(event.message.content, event.emoji)
+        if isinstance(event, ReactionRemovedEvent):
+            msg = "You took back your {} reaction on '{}'!".format(event.message.content, event.emoji)
+        await event.user.send(msg)
+
+    @commands.command(name="dmonreaction")
+    async def dmonreaction(self, ctx):
+        msg = await ctx.channel.send("React here pls")
+        self.bot.reaction_listener.register(msg, self.dmonreaction_callback)

@@ -2,6 +2,11 @@ from enum import Enum
 from base import BaseSubsystem
 
 
+"""
+This subsystem provides listeners for reactions on messages.
+"""
+
+
 class BaseReactionEvent:
     def __init__(self, callback, data, user, member, channel, message, emoji):
         self.callback = callback

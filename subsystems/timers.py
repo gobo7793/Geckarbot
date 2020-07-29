@@ -10,6 +10,12 @@ import datetime
 from base import BaseSubsystem
 
 
+"""
+This subsystem provides cron-like timers whose execution are scheduled to run at a specific time in the future,
+periodically or only once.
+"""
+
+
 timedictformat = ["year", "month", "monthday", "weekday", "hour", "minute"]
 
 

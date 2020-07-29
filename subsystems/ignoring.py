@@ -11,6 +11,11 @@ from botutils import utils
 from subsystems import timers
 
 
+"""
+This subsystem provides the possibility to block certain commands, users or both.
+"""
+
+
 lang = {
     'en': {
         'user_ignore_msg': "User {} will be ignored{}.",
