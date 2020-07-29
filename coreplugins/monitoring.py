@@ -21,7 +21,7 @@ class Plugin(BasePlugin, name="Bot status commands for monitoring and debug purp
                             prefix="**Timer registrations:**\n",
                             suffix="\n"):
             await ctx.send(msg)
-        for msg in paginate(self.bot.dmlocks.locks,
+        for msg in paginate(self.bot.dm_listener.callbacks,
                             prefix="**DM Locks:**\n",
                             suffix="\n"):
             await ctx.send(msg)
