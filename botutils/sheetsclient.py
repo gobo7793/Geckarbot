@@ -39,22 +39,62 @@ class Client(restclient.Client):
         Adds the API key to the params dictionary
         """
         if params is None:
-            params = {}
-        params['key'] = Config().GOOGLE_API_KEY
+            params = []
+        params.append(('key', Config().GOOGLE_API_KEY))
         return params
 
     def _make_request(self, route, params=None):
         """
         Makes a Sheets Request
         """
-        route = urllib.parse.quote(route)
+        route = urllib.parse.quote(route, safe="/:")
         params = self._params_add_api_key(params)
         # self.logger.debug("Making Sheets request {}, params: {}".format(route, params))
         response = self.make_request(route, params=params)
         # self.logger.debug("Response: {}".format(response))
         return response
 
+    def number_to_column(self, num):
+        """
+        Converts a number to the name of the corresponding column
+        """
+        chars = []
+        while num > 0:
+            num, d = divmod(num, 26)
+            if d == 0:
+                num, d = num - 1, 26
+            chars.append(chr(64 + d))
+        return ''.join(reversed(chars))
+
+    def cellname(self, col, row):
+        """
+        Returns the name of the cell
+        """
+        return self.number_to_column(col) + str(row)
+
     def get(self, range):
+        """
+        Reads a single range
+        """
         route = "{}/values/{}".format(self.spreadsheet_id, range)
-        values = self._make_request(route)['values']
+        result = self._make_request(route)
+        values = result['values'] if 'values' in result else []
+        return values
+
+    def get_multiple(self, ranges):
+        """
+        Reads multiple ranges
+        :param ranges: List of ranges
+        """
+        route = "{}/values:batchGet".format(self.spreadsheet_id)
+        params = []
+        for range in ranges:
+            params.append(("ranges", range))
+        value_ranges = self._make_request(route, params=params)['valueRanges']
+        values = []
+        for vrange in value_ranges:
+            if 'values' in vrange:
+                values.append(vrange['values'])
+            else:
+                values.append([])
         return values
