@@ -77,7 +77,8 @@ class Client(restclient.Client):
         Reads a single range
         """
         route = "{}/values/{}".format(self.spreadsheet_id, range)
-        values = self._make_request(route)['values']
+        result = self._make_request(route)
+        values = result['values'] if 'values' in result else []
         return values
 
     def get_multiple(self, ranges):

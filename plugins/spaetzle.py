@@ -11,7 +11,10 @@ from conf import Config
 
 lang = {
     'en': {
+        'info': "Das Spätzle(s)-Tippspiel ist ein Tippspiel aus dem Stuttgarter TM-Forum in dem die Teilnehmer nicht "
+                "nur Bundesligaspiele tippen, sondern damit in Duellen gegeneinander antreten.",
         'invalid_league': "Invalid League. Valid Leagues: 1, 2, 3, 4",
+        'no_matches': "No matches found.",
         'user_not_bridged': "You are currently not connected with a user.",
         'user_not_found': "User not found."
     }
@@ -231,20 +234,20 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
 
         return diff1, diff2
 
-    @commands.group(name="spaetzle", aliases=["spätzle", "spatzle", "spätzles"], invoke_without_command=True,
+    @commands.group(name="spaetzle", aliases=["spätzle", "spätzles"], invoke_without_command=True,
                     help="commands for managing the 'Spätzles-Tippspiel'")
     async def spaetzle(self, ctx):
-        await ctx.invoke(self.bot.get_command('spaetzle info'))
+        await ctx.send("Keine Spätzles. Nur Fußball :c")
 
     @spaetzle.command(name="info", help="Get info about the Spaetzles-Tippspiel")
     async def spaetzle_info(self, ctx):
-        await ctx.send("Keine Spätzles. Nur Fußball :c")
+        await ctx.send(self.spaetzle_lang('info'))
 
     @spaetzle.command(name="link", help="Get the link to the spreadsheet")
     async def spaetzle_doc_link(self, ctx):
         await ctx.send("<https://docs.google.com/spreadsheets/d/{}>".format(self.spaetzle_conf()['spaetzledoc_id']))
 
-    @spaetzle.command(name="user", help="Connects your Discord user with a specific user")
+    @spaetzle.command(name="user", help="Connects your discord user with a specific spaetzle user")
     async def user_bridge(self, ctx, user=None):
         discord_user = ctx.message.author.id
         # User-Verbindung entfernen
@@ -300,6 +303,9 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                                                         "Aktuell!{}:{}".format(c.cellname(col2, row2 + 1),
                                                                                c.cellname(col2 + 1, row2 + 9))])
         # Fixing stuff
+        if len(matches) == 0:
+            await ctx.send(self.spaetzle_lang('no_matches'))
+            return
         if len(preds_h) == 0:
             preds_h = [["–", "–"]] * 9
         if len(preds_a) == 0:
@@ -402,6 +408,10 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
     async def show_matches(self, ctx):
         c = self.get_api_client()
         matches = c.get(self.spaetzle_conf()['matches_range'])
+
+        if len(matches) == 0:
+            await ctx.send(self.spaetzle_lang('no_matches'))
+            return
 
         msg = ""
         for match in matches:
