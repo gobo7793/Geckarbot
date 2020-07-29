@@ -250,7 +250,6 @@ class Config(metaclass=_Singleton):
                 else:
                     lang_code = 'en'
 
-                if lang_code in plugin_slot.lang:
-                    lang_str = plugin_slot.lang[lang_code].get(str_name, str_name)
-                    return lang_str.format(*args)
+                lang_str = plugin_slot.lang.get(lang_code, {}).get(str_name, str_name)
+                return lang_str.format(*args)
         return str_name
