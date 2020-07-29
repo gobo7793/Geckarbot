@@ -12,6 +12,7 @@ from pathlib import Path
 
 from discord.ext import commands
 
+from base import BasePlugin
 from conf import Config, PluginSlot
 from botutils import utils
 from subsystems import timers, reactions, ignoring
@@ -26,32 +27,6 @@ class Exitcodes(Enum):
     HTTP = 2  # no connection to discord
     UPDATE = 10  # shutdown, update, restart
     RESTART = 11  # simple restart
-
-
-class BasePlugin(commands.Cog):
-    def __init__(self, bot):
-        super().__init__()
-        self.bot = bot
-        self.can_reload = False
-
-    async def shutdown(self):
-        """
-        Is called when the bot is shutting down. If you have cleanup to do, do it here.
-        Needs to be a coroutine (async).
-        """
-        pass
-
-    def default_config(self):
-        """
-        Returns an empty default config
-        """
-        return {}
-
-    def get_lang(self):
-        """
-        Gets the lang dictionary for Config API.
-        """
-        return None
 
 
 class Geckarbot(commands.Bot):

@@ -5,7 +5,7 @@ from discord.ext import commands
 
 from conf import Config
 from botutils import utils, permChecks
-from Geckarbot import BasePlugin
+from base import BasePlugin
 import subsystems
 from subsystems.ignoring import IgnoreEditResult, IgnoreType
 
@@ -44,9 +44,12 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
         else:
             send_msg = f"No plugin {plugin_name} found."
             for plugin in Config().plugins:
-                if plugin.name == plugin_name and plugin.instance.can_reload:
-                    Config().load(plugin.instance)
-                    send_msg = f"Configuration of plugin {plugin_name} reloaded."
+                if plugin.name == plugin_name:
+                    if plugin.instance.can_reload:
+                        Config().load(plugin.instance)
+                        send_msg = f"Configuration of plugin {plugin_name} reloaded."
+                    else:
+                        send_msg = f"Plugin {plugin_name} can't reloaded."
 
         if ctx.channel.id != Config().DEBUG_CHAN_ID:
             await ctx.send(send_msg)
@@ -202,12 +205,12 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
             return item.to_message()
 
         async def write_list(itype: IgnoreType, prefix):
-            ilist = self.bot.ignoring.filter_ignore_list(itype)
+            ilist = self.bot.ignoring.get_ignore_list(itype)
             if len(ilist) > 0:
                 for msg in utils.paginate(ilist, prefix=prefix, f=get_item_msg):
                     await ctx.send(msg)
 
-        if len(self.bot.ignoring.ignorelist) < 1:
+        if self.bot.ignoring.get_full_ignore_len() < 1:
             await ctx.send("No users or commands blocked.")
             return
 

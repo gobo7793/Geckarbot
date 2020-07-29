@@ -1,4 +1,4 @@
-from Geckarbot import BasePlugin
+from base import BasePlugin
 
 from discord.ext import commands
 
