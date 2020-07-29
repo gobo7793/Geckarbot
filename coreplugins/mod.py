@@ -84,7 +84,7 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
                 lang = " ({})".format(Config().get(self)['privacy_notes_lang'])
             about_msg += "Privacy notes: <{}>{}.\n".format(Config().get(self)['privacy_notes_link'], lang)
 
-        about_msg += "Main developers: Fluggs, Gobo77, Lubadubs."
+        about_msg += "Main developers: Fluggs, Gobo77, Costamiri."
         if Config().get(self)['profile_pic_creator']:
             about_msg += " Profile picture by {}.".format(Config().get(self)['profile_pic_creator'])
 

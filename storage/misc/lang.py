@@ -18,6 +18,8 @@ lang = {
         'geck_out': "arbor!",
         'bully_msg': "{} mobbt uns :frowning:",
         'bully_msg_self': "Ich mobbe euch :slight_smile:",
+        'choose_msg': "I pick: ",
+        'choose_noarg': "I need an option!",
 
         # real en strings
         'mud_out': "kip!",
@@ -36,6 +38,8 @@ lang = {
         'remind_past': "Sorry, I don't have a time machine.",
     },
     'de': {
+        'choose_msg': "Ich wähle: ",
+        'choose_noarg': "Ich brauche mindestens eine Möglichkeit!",
         'remind_set': "Ich erinnere dich zum Zeitpunkt {}. Um die Erinnerung abzubrechen kannst du "
                       "`!remindme cancel {}` eingeben.",
         'remind_duration_err': "Dauer muss ein Datum, Zeit oder eine positive Zahl sein.",
