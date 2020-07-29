@@ -532,7 +532,7 @@ class Ignoring(BaseSubsystem):
         :param command_name: The command name
         :return: True if user is blocked for command, otherwise False
         """
-        ignore_list_user = self.get_ignore_list(IgnoreType.User_Command)
+        ignore_list_user = self.get_ignore_list(IgnoreType.User)
         ignore_list_user_cmd = self.get_ignore_list(IgnoreType.User_Command)
         for el in ignore_list_user:
             if user_check_func(el.user) == user_to_check:
