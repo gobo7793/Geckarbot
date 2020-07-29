@@ -4,8 +4,9 @@ from discord.ext.commands import Cog
 class Configurable:
     """Defines a class which the config of its instances can be managed by Config class"""
 
-    def __init__(self):
+    def __init__(self, bot):
         super().__init__()
+        self.bot = bot
         self.can_reload = False
 
     def default_config(self):
@@ -24,16 +25,14 @@ class Configurable:
 class BaseSubsystem(Configurable):
     """The base class for all subsystems"""
     def __init__(self, bot):
-        super().__init__()
-        self.bot = bot
+        super().__init__(bot)
 
 
 class BasePlugin(Cog, Configurable):
     """The base class for all plugins"""
     def __init__(self, bot):
         Cog.__init__(self)
-        Configurable.__init__(self)
-        self.bot = bot
+        Configurable.__init__(self, bot)
 
     async def shutdown(self):
         """
