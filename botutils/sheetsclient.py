@@ -56,7 +56,7 @@ class Client(restclient.Client):
 
     def number_to_column(self, num):
         """
-        Converts a number to the name of the corresponding number
+        Converts a number to the name of the corresponding column
         """
         chars = []
         while num > 0:
