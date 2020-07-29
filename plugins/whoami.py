@@ -117,7 +117,6 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
     @commands.group(name="werbinich", invoke_without_command=True,
                     help=h_help, description=h_description, usage=h_usage)
     async def whoami(self, ctx):
-        print(self.statemachine.state)
         if self.statemachine.state != State.IDLE:
             await ctx.send(Config.lang(self, "already_running"))
             return
@@ -170,7 +169,6 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
         to = self.config["register_timeout"]
         msg = Config.lang(self, "registering", reaction, to,
                           utils.sg_pl(to, Config.lang(self, "minute_sg"), Config.lang(self, "minute_pl")))
-        print(msg)
         msg = await self.channel.send(msg)
         await msg.add_reaction(Config.lang(self, "reaction_signup"))
 
