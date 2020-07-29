@@ -64,7 +64,7 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
         await ctx.send(embed=embed)
 
     @commands.command(name="choose", help="Picks on of the options. Separate options with '|'",
-                      usage="[option1] | [option2] | ...")
+                      usage="option1 | option2 | ...")
     async def choose(self, ctx, *args):
         options = [i for i in " ".join(args).split("|") if i.strip() != ""]
         if len(options) < 1:
