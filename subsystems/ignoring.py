@@ -525,22 +525,26 @@ class Ignoring(BaseSubsystem):
 
     def _check_user_command(self, user_to_check, user_check_func, command_name:str):
         """
-        Performs the check if user is blocked for all interaction with the command.
+        Performs the check if user is blocked for all interaction or all interactions with the specific command.
 
         :param user_to_check: The user to check
         :param user_check_func: The function with the user check will be performed, must be func(discord.User)
         :param command_name: The command name
         :return: True if user is blocked for command, otherwise False
         """
-        ignore_list = self.get_ignore_list(IgnoreType.User_Command)
-        for el in ignore_list:
+        ignore_list_user = self.get_ignore_list(IgnoreType.User)
+        ignore_list_user_cmd = self.get_ignore_list(IgnoreType.User_Command)
+        for el in ignore_list_user:
+            if user_check_func(el.user) == user_to_check:
+                return True
+        for el in ignore_list_user_cmd:
             if user_check_func(el.user) == user_to_check and el.command_name == command_name:
                 return True
         return False
 
     def check_user_id_command(self, user_id: int, command_name: str):
         """
-        Checks if the user is blocked for all interactions with the command.
+        Checks if the user id is blocked for all interactions generally or for all interactions with the command.
 
         :param user_id: The user id
         :param command_name: The command name
@@ -553,7 +557,7 @@ class Ignoring(BaseSubsystem):
 
     def check_user_name_command(self, user_name: str, command_name: str):
         """
-        Checks if the user name is blocked for all interactions with the command.
+        Checks if the user name is blocked for all interactions generally or for all interactions with the command.
 
         :param user_name: The user name (the result of get_best_username)
         :param command_name: The command name
@@ -566,7 +570,7 @@ class Ignoring(BaseSubsystem):
 
     def check_user_command(self, user: discord.User, command_name: str):
         """
-        Checks if the user is blocked for all interactions with the command.
+        Checks if the user is blocked for all interactions generally or for all interactions with the command.
 
         :param user: The user
         :param command_name: The command name
