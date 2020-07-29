@@ -11,12 +11,16 @@ from conf import Config
 
 lang = {
     'en': {
-        'info': "Das Spätzle(s)-Tippspiel ist ein Tippspiel aus dem Stuttgarter TM-Forum in dem die Teilnehmer nicht "
-                "nur Bundesligaspiele tippen, sondern damit in Duellen gegeneinander antreten.",
+        'info': "The Spaetzle(s)-Tippspiel is a prediction game where you compete in duels",
         'invalid_league': "Invalid League. Valid Leagues: 1, 2, 3, 4",
         'no_matches': "No matches found.",
         'user_not_bridged': "You are currently not connected with a user.",
         'user_not_found': "User not found."
+    },
+    'de': {
+        'info': "Das Spätzle(s)-Tippspiel ist ein Tippspiel aus dem Stuttgarter TM-Forum in dem die Teilnehmer nicht "
+                "nur Bundesligaspiele tippen, sondern damit in Duellen gegeneinander antreten.",
+        'no_matches': "Keine Spiele gefunden."
     }
 }
 
