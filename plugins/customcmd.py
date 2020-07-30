@@ -92,8 +92,8 @@ class Plugin(BasePlugin, name="Custom CMDs"):
 
         cmd_content = self.conf()[cmd_name]
 
-        cmd_content = cmd_content.replace(wildcard_user, utils.get_best_username(msg.author))
         cmd_content = cmd_content.replace(wildcard_umention, msg.author.mention)
+        cmd_content = cmd_content.replace(wildcard_user, utils.get_best_username(msg.author))
 
         for i in range(0, len(cmd_args)):
             arg = cmd_args[i]
