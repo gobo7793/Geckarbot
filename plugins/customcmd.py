@@ -168,7 +168,7 @@ class Plugin(BasePlugin, name="Custom CMDs"):
             cmd_text = " ".join(args)
             self.conf()[cmd_name] = cmd_text
             Config.save(self)
-            await utils.log_to_admin_channel(ctx)
+            # await utils.log_to_admin_channel(ctx)
             await ctx.message.add_reaction(Config().CMDSUCCESS)
             await utils.write_debug_channel(self.bot, Config.lang(self, 'cmd_added', self.get_raw_cmd(cmd_name)))
 
@@ -179,7 +179,7 @@ class Plugin(BasePlugin, name="Custom CMDs"):
             cmd_raw = self.get_raw_cmd(cmd_name)
             del self.conf()[cmd_name]
             Config.save(self)
-            await utils.log_to_admin_channel(ctx)
+            # await utils.log_to_admin_channel(ctx)
             await ctx.message.add_reaction(Config().CMDSUCCESS)
             await utils.write_debug_channel(self.bot, Config.lang(self, 'cmd_removed', cmd_raw))
         else:
