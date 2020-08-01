@@ -65,6 +65,7 @@ class Plugin(BasePlugin, name="Custom CMDs"):
                              'https://youtu.be/lIiUR2gV0xk',
             'kris': 'mood <:kristoph:717524523662180383>',
             'slap': "_slaps %1 around a bit with a large trout_",
+            'liebe': "https://www.youtube.com/watch?v=TfmJPDmaQdg",
         }
 
     def get_lang(self):

@@ -97,10 +97,6 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
             return
         await ctx.send(Config().lang(self, 'geck_out'), file=file)
 
-    @commands.command(name="liebe", help="Provides love to the channel")
-    async def liebe(self, ctx):
-        await ctx.send(Config().lang(self, 'liebe_out'))
-
     # todo: read directly from sheets
     @commands.command(name="tippspiel", help="Gives the link to the Tippspiel-Sheet")
     async def tippspiel(self, ctx):
