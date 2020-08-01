@@ -1,6 +1,6 @@
 import inspect
+import re
 
-import discord
 from discord.ext import commands
 
 from base import BasePlugin
@@ -46,6 +46,7 @@ class Plugin(BasePlugin, name="Custom CMDs"):
         self.can_reload = True
         bot.register(self)
 
+        self.cmd_re = re.compile("(\"([^\"]*)\"|\\S+)")
         self.prefix = self.conf()[prefix_key]
 
         @bot.listen()
@@ -82,8 +83,8 @@ class Plugin(BasePlugin, name="Custom CMDs"):
 
     async def on_message(self, msg):
         """Will be called from on_message listener to react for custom cmds"""
-        msg_args = msg.content.split(' ')
-        cmd_name = msg_args[0][len(self.prefix):]
+        msg_args = self.cmd_re.findall(msg.content)
+        cmd_name = msg_args[0][0][len(self.prefix):]
         cmd_args = msg_args[1:]
         if cmd_name not in self.conf():
             return
@@ -97,7 +98,7 @@ class Plugin(BasePlugin, name="Custom CMDs"):
         cmd_content = cmd_content.replace(wildcard_user, utils.get_best_username(msg.author))
 
         for i in range(0, len(cmd_args)):
-            arg = cmd_args[i]
+            arg = cmd_args[i][0] if cmd_args[i][1] is None else cmd_args[i][1]
             try:
                 member = await converter.convert_member(self.bot, msg, arg)
                 if member is not None and self.bot.ignoring.check_user_command(member, cmd_name):
