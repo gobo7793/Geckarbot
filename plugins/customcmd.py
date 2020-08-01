@@ -98,7 +98,7 @@ class Plugin(BasePlugin, name="Custom CMDs"):
         cmd_content = cmd_content.replace(wildcard_user, utils.get_best_username(msg.author))
 
         for i in range(0, len(cmd_args)):
-            arg = cmd_args[i][0] if cmd_args[i][1] is None else cmd_args[i][1]
+            arg = cmd_args[i][1] if cmd_args[i][1] else cmd_args[i][0]
             try:
                 member = await converter.convert_member(self.bot, msg, arg)
                 if member is not None and self.bot.ignoring.check_user_command(member, cmd_name):
