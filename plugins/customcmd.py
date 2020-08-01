@@ -1,11 +1,12 @@
 import inspect
 import re
+import random
 
 from discord.ext import commands
 
 from base import BasePlugin
 from conf import Config
-from botutils import utils, converter
+from botutils import utils, converter, permChecks
 
 
 lang = {
@@ -18,16 +19,18 @@ lang = {
         'cmd_removed': "Added custom command: {}",
         'invalid_prefix': "The prefix can't be the same like for regular commands.",
         'user_blocked': "The user {} has blocked the command.",
+        'current_prefix': "The current prefix for custom commands is: {0}\nExample: {0}{1}",
     },
     'de': {
-        'raw_doesnt_exists': "Ein Kommando \"{}\" existiert nicht, erstell es doch einfach selbst!",
-        'del_doesnt_exists': "Das Kommando \"{}\" kann nicht gelöscht werden weil es nicht existiert...",
-        'add_exists': "Ein Kommando \"{}\" existiert bereits.",
-        'list_no_cmds': "Ich kenne keine Kommandos :frowning:",
-        'cmd_added': "Kommando hinzugefügt: {}",
-        'cmd_removed': "Kommando gelöscht: {}",
-        'invalid_prefix': "Das Prefix kann nicht das gleiche wie für normale Kommandos sein.",
-        'user_blocked': "{} hat das Kommando geblockt.",
+        'raw_doesnt_exists': "Ein Benutzer-Kommando \"{}\" existiert nicht, erstell es doch einfach selbst!",
+        'del_doesnt_exists': "Das Benutzer-Kommando \"{}\" kann nicht gelöscht werden weil es nicht existiert...",
+        'add_exists': "Ein Benutzer-Kommando \"{}\" existiert bereits.",
+        'list_no_cmds': "Ich kenne keine Benutzer-Kommandos :frowning:",
+        'cmd_added': "Benutzer-Kommando hinzugefügt: {}",
+        'cmd_removed': "Benutzer-Kommando gelöscht: {}",
+        'invalid_prefix': "Das Prefix kann nicht das gleiche wie für normale Benutzer-Kommandos sein.",
+        'user_blocked': "{} hat das Benutzer-Kommando geblockt.",
+        'current_prefix': "Das aktuelle Präfix für Benutzer-Kommandos ist: {0}\nBeispiel: {0}{1}",
     }
 }
 
@@ -113,19 +116,31 @@ class Plugin(BasePlugin, name="Custom CMDs"):
 
     @commands.group(name="cmd", invoke_without_command=True, help="Adds, list or (for admins) removes a custom command",
                     description="Adds, list or removes a custom command. Custom commands can be added and removed in "
-                                "runtime. To use a custom command, the message must start with the setted prefix.")
+                                "runtime. To use a custom command, the message must start with the setted prefix, "
+                                "which can be returned using the prefix subcommand.")
     async def cmd(self, ctx):
         await ctx.send_help(self.cmd)
 
-    @cmd.command(name="prefix", help="Sets the custom command prefix",
-                 description="Sets the custom command prefix. Can't be the same like for regular commands.")
-    @commands.has_any_role(*Config().FULL_ACCESS_ROLES)
-    async def cmd_prefix(self, ctx, prefix):
-        if prefix == ctx.prefix:
+    @cmd.command(name="prefix", help="Returns or sets the prefix",
+                 description="Returns or sets the custom command prefix. Only admins can set a new prefix which "
+                             "mustn't be the same like for regular commands.")
+    async def cmd_prefix(self, ctx, new_prefix=None):
+        # get current prefix
+        if new_prefix is None:
+            example = random.choice(list(self.conf().keys()))
+            await ctx.send(Config.lang(self, 'current_prefix', self.conf()[prefix_key], example))
+            return
+
+        # set new prefix
+        if not permChecks.check_full_access(ctx.author):
+            await ctx.message.add_reaction(Config().CMDERROR)
+            raise commands.BotMissingAnyRole(Config().FULL_ACCESS_ROLES)
+
+        if new_prefix == ctx.prefix:
             await ctx.message.add_reaction(Config().CMDERROR)
             await ctx.send(Config.lang(self, 'invalid_prefix'))
         else:
-            self.conf()[prefix_key] = prefix
+            self.conf()[prefix_key] = new_prefix
             Config.save(self)
             await ctx.message.add_reaction(Config().CMDSUCCESS)
 
