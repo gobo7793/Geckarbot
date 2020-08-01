@@ -104,6 +104,7 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
         self.channel = None
         self.initiator = None
         self.participants = []
+        self.participants_last_game = []
 
         self.statemachine = statemachine.StateMachine()
         self.statemachine.add_state(State.IDLE, None)
@@ -157,6 +158,16 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
             return
         await ctx.message.add_reaction(Config().CMDSUCCESS)
         self.cleanup()
+
+    @whoami.command(name="show", help="Shows the participants of the last game for spectators")
+    async def showcmd(self, ctx):
+        if ctx.author in [x.user for x in self.participants]:
+            await ctx.message.add_reaction(Config().CMDERROR)
+            await ctx.send(Config.lang(self, "no_spoiler"))
+            return
+
+        for msg in utils.paginate(self.participants_last_game, prefix=Config.lang(self, "participants_last_round")):
+            await ctx.author.send(msg)
 
     """
     Transitions
@@ -237,7 +248,9 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
         self.statemachine.state = State.IDLE
 
     def cleanup(self):
+        self.participants_last_game = []
         for el in self.participants:
+            self.participants_last_game.append(el.to_msg())
             el.cleanup()
         self.participants = []
         self.initiator = None
