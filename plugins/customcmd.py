@@ -139,6 +139,7 @@ class Plugin(BasePlugin, name="Custom CMDs"):
             await ctx.send(Config.lang(self, 'list_no_cmds'))
             return
 
+        cmds.sort()
         cmd_msgs = utils.paginate(cmds, delimiter=", ")
         for msg in cmd_msgs:
             await ctx.send(msg)
