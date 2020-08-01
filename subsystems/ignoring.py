@@ -226,9 +226,6 @@ class Ignoring(BaseSubsystem):
         async def on_ready():
             self._load()
 
-    def default_config(self):
-        return {}
-
     def get_lang(self):
         return lang
 
@@ -476,6 +473,30 @@ class Ignoring(BaseSubsystem):
     # Checking
     #######
 
+    @staticmethod
+    def _user_name_check_func(user: discord.User):
+        """The user name check function"""
+        return utils.get_best_username(user)
+
+    @staticmethod
+    def _user_id_check_func(user: discord.User):
+        """The user id check function"""
+        return user.id
+
+    def _check_user(self, user_to_check, user_check_func):
+        """
+        Performs the check if all bot interaction with user should be blocked.
+
+        :param user_to_check: The user to check
+        :param user_check_func: The function with the user check will be performed, must be func(discord.User)
+        :return: True if user interactions should be blocked, otherwise False
+        """
+        ignore_list_user = self.get_ignore_list(IgnoreType.User)
+        for el in ignore_list_user:
+            if user_check_func(el.user) == user_to_check:
+                return True
+        return False
+
     def check_user_id(self, user_id: int):
         """
         Checks if all bot interaction with user should be blocked
@@ -483,11 +504,16 @@ class Ignoring(BaseSubsystem):
         :param user_id: the user id
         :return: True if user interactions should be blocked, otherwise False
         """
-        ignore_list = self.get_ignore_list(IgnoreType.User)
-        for el in ignore_list:
-            if el.user.id == user_id:
-                return True
-        return False
+        return self._check_user(user_id, self._user_id_check_func)
+
+    def check_user_name(self, user_name: str):
+        """
+        Checks if all bot interaction with user should be blocked
+
+        :param user_name: the user name, returned by utils.get_best_username()
+        :return: True if user interactions should be blocked, otherwise False
+        """
+        return self._check_user(user_name, self._user_name_check_func)
 
     def check_user(self, user: discord.User):
         """
@@ -532,11 +558,9 @@ class Ignoring(BaseSubsystem):
         :param command_name: The command name
         :return: True if user is blocked for command, otherwise False
         """
-        ignore_list_user = self.get_ignore_list(IgnoreType.User)
+        if self._check_user(user_to_check, user_check_func):
+            return True
         ignore_list_user_cmd = self.get_ignore_list(IgnoreType.User_Command)
-        for el in ignore_list_user:
-            if user_check_func(el.user) == user_to_check:
-                return True
         for el in ignore_list_user_cmd:
             if user_check_func(el.user) == user_to_check and el.command_name == command_name:
                 return True
@@ -550,23 +574,19 @@ class Ignoring(BaseSubsystem):
         :param command_name: The command name
         :return: True if user is blocked for command, otherwise False
         """
-        def user_check_func(user: discord.User):
-            return user.id
 
-        return self._check_user_command(user_id, user_check_func, command_name)
+        return self._check_user_command(user_id, self._user_id_check_func, command_name)
 
     def check_user_name_command(self, user_name: str, command_name: str):
         """
         Checks if the user name is blocked for all interactions generally or for all interactions with the command.
 
-        :param user_name: The user name (the result of get_best_username)
+        :param user_name: The user name, returned by utils.get_best_username()
         :param command_name: The command name
         :return: True if user is blocked for command, otherwise False
         """
-        def user_check_func(user: discord.User):
-            return utils.get_best_username(user)
 
-        return self._check_user_command(user_name, user_check_func, command_name)
+        return self._check_user_command(user_name, self._user_name_check_func, command_name)
 
     def check_user_command(self, user: discord.User, command_name: str):
         """
