@@ -178,6 +178,7 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
             await ctx.send(Config.lang(self, error))
             return
 
+        await ctx.message.add_reaction(Config().CMDSUCCESS)
         for msg in utils.paginate(self.participants, prefix=Config.lang(self, "participants_last_round"),
                                   f=lambda x: x.to_msg()):
             await ctx.author.send(msg)
