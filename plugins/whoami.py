@@ -83,7 +83,8 @@ class Participant:
         return await self.user.send(msg)
 
     def to_msg(self):
-        return "**{}**: {}".format(utils.get_best_username(self.assigned.user), self.chosen)
+        return "**{}**: {} (von {})".format(utils.get_best_username(self.assigned.user), self.chosen,
+                                            utils.get_best_username(self.user))
 
     def cleanup(self):
         self.plugin.logger.debug("Cleaning up participant {}".format(self.user))
