@@ -161,7 +161,7 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
         self.cleanup()
 
     @whoami.command(name="spoiler", help=h_spoiler)
-    async def showcmd(self, ctx):
+    async def spoilercmd(self, ctx):
         # State check
         error = None
         if self.statemachine.state != State.IDLE:
