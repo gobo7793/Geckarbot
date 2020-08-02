@@ -108,17 +108,14 @@ class Plugin(BasePlugin, name="Custom CMDs"):
                 break
 
             wildcard = all_args_positions[i][0]
-            print(wildcard)
             arg_num = int(all_args_positions[i][1]) - 1
             arg = cmd_args[arg_num][1] if cmd_args[arg_num][1] else cmd_args[arg_num][0]
-            print(arg)
 
             if all_args_positions[i][2]:
                 for j in range(i + 1, len(cmd_args)):
                     arg_num = j
                     arg = "{} {}".format(arg, cmd_args[arg_num][1] if cmd_args[arg_num][1] else cmd_args[arg_num][0])
 
-            print(arg)
             try:
                 member = await converter.convert_member(self.bot, msg, arg)
                 if member is not None and self.bot.ignoring.check_user_command(member, cmd_name):
