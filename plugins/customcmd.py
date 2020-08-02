@@ -50,6 +50,7 @@ class Plugin(BasePlugin, name="Custom CMDs"):
         bot.register(self)
 
         self.cmd_re = re.compile("(\"([^\"]*)\"|\\S+)")
+        self.arg_list_re = re.compile("%\\d")
         self.prefix = self.conf()[prefix_key]
 
         @bot.listen()
@@ -149,13 +150,14 @@ class Plugin(BasePlugin, name="Custom CMDs"):
         cmds = []
         for k in self.conf().keys():
             if k != prefix_key:
-                cmds.append(k)
+                arg_list = self.arg_list_re.findall(self.conf()[k])
+                cmds.append("{} <{}>".format(k, len(arg_list)))
 
         if not cmds:
             await ctx.send(Config.lang(self, 'list_no_cmds'))
             return
 
-        cmds.sort()
+        cmds.sort(key=str.lower)
         cmd_msgs = utils.paginate(cmds, delimiter=", ")
         for msg in cmd_msgs:
             await ctx.send(msg)
