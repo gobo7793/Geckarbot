@@ -22,6 +22,6 @@ class Plugin(BasePlugin, name="Bot status commands for monitoring and debug purp
                             suffix="\n"):
             await ctx.send(msg)
         for msg in paginate(self.bot.dm_listener.callbacks,
-                            prefix="**DM Locks:**\n",
+                            prefix="**DM Listeners:**\n",
                             suffix="\n"):
             await ctx.send(msg)

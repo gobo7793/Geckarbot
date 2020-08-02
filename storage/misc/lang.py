@@ -25,7 +25,6 @@ lang = {
         'mud_out': "kip!",
         'mudkip_out': "https://www.youtube.com/watch?v=3DkqMjfqqPc",
         'tree_out': "cko!",
-        'liebe_out': "https://www.youtube.com/watch?v=TfmJPDmaQdg",
         'remind_set': "I will remind you at {}. To cancel it, type `!remindme cancel {}`.",
         'remind_duration_err': "Duration must be a date and time or a positive number.",
         'remind_del_id_err': "ID must be a number",
