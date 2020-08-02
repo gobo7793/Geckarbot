@@ -22,6 +22,7 @@ h_description = "Startet ein Wer bin ich?. Nach einer Registrierungsphase ordne 
                 "(spoilerfreie) Ergebnis wird ebenfalls jedem Spieler per PN mitgeteilt."
 h_usage = ""
 h_spoiler = "Zuschauer-Kommando, mit dem diese das letzte Spiel erfragen können."
+h_clear = "Entfernt das letzte Spiel, sodass !werbinich spoiler nichts zurückgibt."
 
 
 class State(Enum):
@@ -182,6 +183,14 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
         for msg in utils.paginate(self.participants, prefix=Config.lang(self, "participants_last_round"),
                                   f=lambda x: x.to_msg()):
             await ctx.author.send(msg)
+
+    @whoami.command(name="fertig", help=h_clear)
+    async def clearcmd(self, ctx):
+        if not self.participants:
+            await ctx.message.add_reaction(Config().CMDERROR)
+            return
+        self.participants = []
+        await ctx.message.add_reaction(Config().CMDSUCCESS)
 
     """
     Transitions
