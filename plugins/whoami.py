@@ -261,6 +261,8 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
         self.statemachine.state = State.IDLE
 
     def cleanup(self):
+        for el in self.participants:
+            el.cleanup()
         self.initiator = None
         self.channel = None
         self.statemachine.state = State.IDLE
