@@ -22,8 +22,12 @@ lang = {
         "dmblocked": "Eine meiner Funktionen blockiert gerade den DM-Kanal von {}. Ich kann daher das Spiel nicht"
                      "beginnen.",
         "list_participants": "Teilnehmer: {}",
+
+        # Show
         "participants_last_round": "Teilnehmer der letzten Runde:",
         "no_spoiler": "Ich werde dich nicht spoilern.",
+        "show_running": "Es läuft gerade ein Spiel, gedulde dich bitte.",
+        "show_not_found": "Es fand bisher noch kein Spiel statt.",
 
         # Status
         "not_running": "Es läuft gerade kein Spiel.",

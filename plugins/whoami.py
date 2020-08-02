@@ -21,6 +21,7 @@ h_description = "Startet ein Wer bin ich?. Nach einer Registrierungsphase ordne 
                 "anderen Spieler zu, für den dieser per PN einen zu erratenden Namen angeben darf. Das " \
                 "(spoilerfreie) Ergebnis wird ebenfalls jedem Spieler per PN mitgeteilt."
 h_usage = ""
+h_spoiler = "Zuschauer-Kommando, mit dem diese das letzte Spiel erfragen können."
 
 
 class State(Enum):
@@ -104,7 +105,6 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
         self.channel = None
         self.initiator = None
         self.participants = []
-        self.participants_last_game = []
 
         self.statemachine = statemachine.StateMachine()
         self.statemachine.add_state(State.IDLE, None)
@@ -159,14 +159,26 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
         await ctx.message.add_reaction(Config().CMDSUCCESS)
         self.cleanup()
 
-    @whoami.command(name="show", help="Shows the participants of the last game for spectators")
+    @whoami.command(name="spoiler", help=h_spoiler)
     async def showcmd(self, ctx):
-        if ctx.author in [x.user for x in self.participants]:
+        # State check
+        error = None
+        if self.statemachine.state != State.IDLE:
+            error = "show_running"
+
+        elif not self.participants:
+            error = "show_not_found"
+
+        elif ctx.author in [x.user for x in self.participants]:
+            error = "no_spoiler"
+
+        if error is not None:
             await ctx.message.add_reaction(Config().CMDERROR)
-            await ctx.send(Config.lang(self, "no_spoiler"))
+            await ctx.send(Config.lang(self, error))
             return
 
-        for msg in utils.paginate(self.participants_last_game, prefix=Config.lang(self, "participants_last_round")):
+        for msg in utils.paginate(self.participants, prefix=Config.lang(self, "participants_last_round"),
+                                  f=lambda x: x.to_msg()):
             await ctx.author.send(msg)
 
     """
@@ -186,6 +198,7 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
         await asyncio.sleep(to * 60)
 
         # Consume signup reactions
+        self.participants = []
         await msg.remove_reaction(Config.lang(self, "reaction_signup"), self.bot.user)
         signup_msg = discord.utils.get(self.bot.cached_messages, id=msg.id)
         reaction = None
@@ -248,11 +261,6 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
         self.statemachine.state = State.IDLE
 
     def cleanup(self):
-        self.participants_last_game = []
-        for el in self.participants:
-            self.participants_last_game.append(el.to_msg())
-            el.cleanup()
-        self.participants = []
         self.initiator = None
         self.channel = None
         self.statemachine.state = State.IDLE
