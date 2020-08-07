@@ -235,7 +235,6 @@ async def write_debug_channel(bot: Bot, message):
 
 async def write_admin_channel(bot: Bot, message):
     """Writes the given message or embed to the admin channel"""
-    return
     admin_chan = bot.get_channel(Config().ADMIN_CHAN_ID)
     if admin_chan is not None:
         log_msg = message
@@ -255,7 +254,6 @@ async def log_to_admin_channel_without_ctx(bot, **kwargs):
     :param bot: the bot instance
     :param kwargs: the key-value-list for the fields
     """
-    return
     if Config().DEBUG_MODE:
         return
 
@@ -276,7 +274,6 @@ async def log_to_admin_channel(context):
     Doesn't log if Config().DEBUG_MODE is True.
     :param context: The context to log to the admin channel
     """
-    return
     if Config().DEBUG_MODE:
         return
 
