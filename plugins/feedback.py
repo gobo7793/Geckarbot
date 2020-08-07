@@ -134,11 +134,11 @@ class Plugin(BasePlugin, name="Feedback"):
             return self.highest_id
 
     def write(self):
-        r = deepcopy(self.default_config())
+        r = {}
         for el in self.complaints:
             complaint = self.complaints[el]
-            r["complaints"][complaint.id] = complaint.serialize()
-        Config.set(self, r)
+            r[complaint.id] = complaint.serialize()
+        Config.get(self)["complaints"] = r
         Config.save(self)
 
     @commands.group(name="redact", invoke_without_command=True,
