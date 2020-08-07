@@ -38,7 +38,8 @@ lang = {
 prefix_key = "_prefix"
 wildcard_user = "%u"
 wildcard_umention = "%um"
-wildcard_pref = "%"
+wildcard_regex_pattern = "(%(\\d)(\\*?))"
+cmd_arg_regex_pattern = "(\"([^\"]*)\"|\\S+)"
 
 
 class Plugin(BasePlugin, name="Custom CMDs"):
@@ -49,7 +50,8 @@ class Plugin(BasePlugin, name="Custom CMDs"):
         self.can_reload = True
         bot.register(self)
 
-        self.cmd_re = re.compile("(\"([^\"]*)\"|\\S+)")
+        self.cmd_re = re.compile(cmd_arg_regex_pattern)
+        self.arg_list_re = re.compile(wildcard_regex_pattern)
         self.prefix = self.conf()[prefix_key]
 
         @bot.listen()
@@ -100,8 +102,20 @@ class Plugin(BasePlugin, name="Custom CMDs"):
         cmd_content = cmd_content.replace(wildcard_umention, msg.author.mention)
         cmd_content = cmd_content.replace(wildcard_user, utils.get_best_username(msg.author))
 
-        for i in range(0, len(cmd_args)):
-            arg = cmd_args[i][1] if cmd_args[i][1] else cmd_args[i][0]
+        all_args_positions = self.arg_list_re.findall(cmd_content)
+        for i in range(0, len(all_args_positions)):
+            if i >= len(cmd_args):
+                break
+
+            wildcard = all_args_positions[i][0]
+            arg_num = int(all_args_positions[i][1]) - 1
+            arg = cmd_args[arg_num][1] if cmd_args[arg_num][1] else cmd_args[arg_num][0]
+
+            if all_args_positions[i][2]:
+                for j in range(i + 1, len(cmd_args)):
+                    arg_num = j
+                    arg = "{} {}".format(arg, cmd_args[arg_num][1] if cmd_args[arg_num][1] else cmd_args[arg_num][0])
+
             try:
                 member = await converter.convert_member(self.bot, msg, arg)
                 if member is not None and self.bot.ignoring.check_user_command(member, cmd_name):
@@ -109,7 +123,6 @@ class Plugin(BasePlugin, name="Custom CMDs"):
                     return
             except commands.CommandError:
                 pass
-            wildcard = wildcard_pref + str(i + 1)
             cmd_content = cmd_content.replace(wildcard, arg)
 
         await msg.channel.send(cmd_content)
@@ -149,13 +162,14 @@ class Plugin(BasePlugin, name="Custom CMDs"):
         cmds = []
         for k in self.conf().keys():
             if k != prefix_key:
-                cmds.append(k)
+                arg_list = self.arg_list_re.findall(self.conf()[k])
+                cmds.append("{} <{}>".format(k, len(arg_list)))
 
         if not cmds:
             await ctx.send(Config.lang(self, 'list_no_cmds'))
             return
 
-        cmds.sort()
+        cmds.sort(key=str.lower)
         cmd_msgs = utils.paginate(cmds, delimiter=", ")
         for msg in cmd_msgs:
             await ctx.send(msg)
@@ -174,6 +188,7 @@ class Plugin(BasePlugin, name="Custom CMDs"):
                              "%u: The user who uses the command\n"
                              "%um: Mentions the user who uses the command\n"
                              "%n: The nth command argument\n"
+                             "%n*: The nth and all following arguments\n"
                              "Example: !cmd add test Argument1: %1 from user %u")
     async def cmd_add(self, ctx, cmd_name, *args):
         if not args:
