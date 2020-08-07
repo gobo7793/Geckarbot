@@ -1,6 +1,5 @@
 import logging
 import asyncio
-import random
 from enum import Enum
 
 import discord
