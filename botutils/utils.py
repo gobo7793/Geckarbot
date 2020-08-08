@@ -73,6 +73,17 @@ def get_best_username(user):
     return str(user)
 
 
+def get_plugin_by_name(name):
+    """
+    :param name: Name of the plugin that is to be returned.
+    :return: Configurable object of the plugin with name `name`. Returns None if no such plugin is found.
+    """
+    for pluginslot in Config().plugins:
+        if pluginslot.name == name:
+            return pluginslot.instance
+    return None
+
+
 def format_andlist(andlist, ands="and", emptylist="nobody", fulllist="everyone", fulllen=None):
     """
     Builds a string such as "a, b, c and d".

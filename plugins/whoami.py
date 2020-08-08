@@ -1,6 +1,5 @@
 import logging
 import asyncio
-import random
 from enum import Enum
 
 import discord
@@ -39,7 +38,7 @@ class Participant:
         self.user = user
         self.assigned = None  # user this one has to choose for
         self.chosen = None
-        self.registration = None
+        self.registration = self.plugin.bot.dm_listener.register(self.user, self.dm_callback, blocking=True)
         self.plugin.logger.debug("New Participant: {}".format(user))
 
     def assign(self, p):
@@ -54,7 +53,6 @@ class Participant:
 
     async def init_dm(self):
         self.plugin.logger.debug("Sending init DM to {}".format(self.user))
-        self.registration = self.plugin.bot.dm_listener.register(self.user, self.dm_callback)
         await self.send(Config.lang(self.plugin, "ask_for_entry", utils.get_best_username(self.assigned.user)))
 
     async def dm_callback(self, cb, message):
@@ -65,6 +63,7 @@ class Participant:
 
         if self.plugin.statemachine.state != State.COLLECT:
             await self.send(Config.lang(self.plugin, "entry_too_late"))
+            return
 
         first = True
         if self.chosen:
@@ -198,7 +197,6 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
     async def registering_phase(self):
 
         self.logger.debug("Starting registering phase")
-        self.statemachine.state = State.REGISTER
         reaction = Config.lang(self, "reaction_signup")
         to = self.config["register_timeout"]
         msg = Config.lang(self, "registering", reaction, to,
@@ -218,12 +216,31 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
                 reaction = el
                 break
 
+        candidates = []
+        blocked = []
         if reaction is not None:
             async for user in reaction.users():
                 if user == self.bot.user:
                     continue
 
-                self.participants.append(Participant(self, user))
+                if self.bot.dm_listener.is_blocked(user):
+                    blocked.append(utils.get_best_username(user))
+                else:
+                    candidates.append(user)
+
+        if blocked:
+            blocked = utils.format_andlist(blocked, ands=Config.lang(self, "and"))
+            await self.channel.send(Config.lang(self, "dmblocked", blocked))
+            self.statemachine.state = State.ABORT
+            return
+
+        for el in candidates:
+            try:
+                self.participants.append(Participant(self, el))
+            except RuntimeError:
+                await msg.add_reaction(Config().CMDERROR)
+                self.statemachine.state = State.ABORT
+                return
 
         players = len(self.participants)
         if players <= 1:
@@ -269,7 +286,6 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
 
     async def abort(self):
         self.cleanup()
-        self.statemachine.state = State.IDLE
 
     def cleanup(self):
         for el in self.participants:

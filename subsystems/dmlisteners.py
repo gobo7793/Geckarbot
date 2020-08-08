@@ -37,6 +37,8 @@ class DMListener:
         :param blocking: If this is set to True, sole access on the DM channel is claimed. No other listener will
         be able to be registered for this user's DM channel until this one is unregistered.
         :return: Callback object that can be used to unregister the listener.
+        :raises: RuntimeError if there already is a blocking listener for `user`.
+        :raises: KeyError if a blocking listener is to be registered but there already is a regular listener for `user`.
         """
         # find blocking violations
         for cb in self.callbacks:

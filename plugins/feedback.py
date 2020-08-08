@@ -5,13 +5,7 @@ from discord.ext import commands
 
 from base import BasePlugin
 from conf import Config
-from botutils import utils, permChecks
-
-
-lang = {
-    "complaint_received": "Complaint received. Please hold the line! A human will contact you soon. Maybe.",
-    "complaint_removed": "Complaint #{} removed.",
-}
+from botutils import utils
 
 
 def str_keys_to_int(d):
@@ -134,11 +128,11 @@ class Plugin(BasePlugin, name="Feedback"):
             return self.highest_id
 
     def write(self):
-        r = deepcopy(self.default_config())
+        r = {}
         for el in self.complaints:
             complaint = self.complaints[el]
-            r["complaints"][complaint.id] = complaint.serialize()
-        Config.set(self, r)
+            r[complaint.id] = complaint.serialize()
+        Config.get(self)["complaints"] = r
         Config.save(self)
 
     @commands.group(name="redact", invoke_without_command=True,
@@ -188,6 +182,7 @@ class Plugin(BasePlugin, name="Feedback"):
         if len(args) == 0:
             await ctx.message.add_reaction(Config().CMDERROR)
             await ctx.send(Config.lang(self, "redact_search_args"))
+            return
 
         r = []
         for i in self.complaints:
@@ -302,4 +297,3 @@ class Plugin(BasePlugin, name="Feedback"):
             return
 
         await self.bugscore_increment(ctx, args[0], increment)
-
