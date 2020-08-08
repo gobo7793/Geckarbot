@@ -11,6 +11,9 @@ import time
 import logging
 
 
+chan_logger = logging.getLogger("channel")
+
+
 class HasAlreadyRun(Exception):
     """
     Is raised by AsyncTimer if cancel() comes too late
@@ -198,8 +201,18 @@ async def demojize(emote, ctx):
     return str(converted)
 
 
-def get_embed_content_str(embed: discord.Embed):
-    """Returns the given embed contents as loggable string"""
+def get_loggable_str(embed):
+    """
+    Returns the given embed contents as loggable string.
+    If embed is no embed object, the str of the object will be returned.
+
+    :param embed: The embed
+    :return: The loggable string
+    """
+
+    if not isinstance(embed, discord.Embed):
+        return str(embed)
+
     m = ""
     if embed.title is not None and embed.title:
         m += "Embed Title: " + embed.title
@@ -219,32 +232,35 @@ def get_embed_content_str(embed: discord.Embed):
     return m
 
 
+async def _write_to_channel(bot: Bot, channel_id: int = 0, message=None, channel_type: str = ""):
+    """
+    Writes a message to a channel and logs the message
+
+    :param bot: The bot
+    :param channel_id: The channel ID of the channel to send a message to
+    :param message: The message or embed to send
+    :param channel_type: The channel type or name for the logging output
+    """
+
+    channel = bot.get_channel(channel_id)
+    if not Config().DEBUG_MODE and channel is not None and message is not None and message:
+        if isinstance(message, discord.Embed):
+            await channel.send(embed=message)
+        else:
+            await channel.send(message)
+
+    log_msg = get_loggable_str(message)
+    chan_logger.info(f"{channel_type} : {log_msg}")
+
+
 async def write_debug_channel(bot: Bot, message):
     """Writes the given message or embed to the debug channel"""
-    debug_chan = bot.get_channel(Config().DEBUG_CHAN_ID)
-    if debug_chan is not None:
-        log_msg = message
-        if isinstance(message, discord.Embed):
-            await debug_chan.send(embed=message)
-            log_msg = get_embed_content_str(message)
-        else:
-            await debug_chan.send(message)
-
-        logging.info("Written to debug chan: " + log_msg)
+    await _write_to_channel(bot, Config().DEBUG_CHAN_ID, message, "debug")
 
 
 async def write_admin_channel(bot: Bot, message):
     """Writes the given message or embed to the admin channel"""
-    admin_chan = bot.get_channel(Config().ADMIN_CHAN_ID)
-    if admin_chan is not None:
-        log_msg = message
-        if isinstance(message, discord.Embed):
-            await admin_chan.send(embed=message)
-            log_msg = get_embed_content_str(message)
-        else:
-            await admin_chan.send(message)
-
-        logging.info("Written to admin chan: " + log_msg)
+    await _write_to_channel(bot, Config().ADMIN_CHAN_ID, message, "admin")
 
 
 async def log_to_admin_channel_without_ctx(bot, **kwargs):
@@ -254,9 +270,6 @@ async def log_to_admin_channel_without_ctx(bot, **kwargs):
     :param bot: the bot instance
     :param kwargs: the key-value-list for the fields
     """
-    if Config().DEBUG_MODE:
-        return
-
     timestamp = convert_to_local_time(datetime.datetime.now()).strftime('%d.%m.%Y, %H:%M')
 
     embed = discord.Embed(title="Admin log event")
@@ -274,9 +287,6 @@ async def log_to_admin_channel(context):
     Doesn't log if Config().DEBUG_MODE is True.
     :param context: The context to log to the admin channel
     """
-    if Config().DEBUG_MODE:
-        return
-
     timestamp = convert_to_local_time(context.message.created_at).strftime('%d.%m.%Y, %H:%M')
 
     embed = discord.Embed(title="Special command used")
