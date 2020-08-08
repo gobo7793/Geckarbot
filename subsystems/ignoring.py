@@ -10,11 +10,9 @@ from conf import Config, PluginSlot
 from botutils import utils
 from subsystems import timers
 
-
 """
 This subsystem provides the possibility to block certain commands, users or both.
 """
-
 
 lang = {
     'en': {
@@ -89,14 +87,14 @@ class IgnoreDataset:
                      or channel is not None)):
             raise ValueError("User blocking only accepts the user argument.")
         elif (ignore_type == IgnoreType.Command
-                and (user is not None
-                     or not command_name
-                     or channel is None)):
+              and (user is not None
+                   or not command_name
+                   or channel is None)):
             raise ValueError("Command disabling only needs both of command_name and channel arguments.")
         elif (ignore_type == IgnoreType.User_Command
-                and (user is None
-                     or not command_name
-                     or channel is not None)):
+              and (user is None
+                   or not command_name
+                   or channel is not None)):
             raise ValueError("Blocking user interactions only needs both of user and command_name arguments.")
 
         self.ignore_type = ignore_type
@@ -217,6 +215,7 @@ class Ignoring(BaseSubsystem):
     def __init__(self, bot):
         super().__init__(bot)
         Config().plugins.append(PluginSlot(self, True))
+        self.log = logging.getLogger("ignoring")
 
         self.users = []
         self.cmds = []
@@ -290,7 +289,7 @@ class Ignoring(BaseSubsystem):
         ignore_list.append(dataset)
         if not disable_save_file:
             self.save()
-        logging.info("Added to ignore list: {}".format(dataset.to_raw_message()))
+        self.log.info("Added to ignore list: {}".format(dataset.to_raw_message()))
         return IgnoreEditResult.Success
 
     def add_user(self, user: discord.User, until: datetime = datetime.max):
@@ -388,7 +387,7 @@ class Ignoring(BaseSubsystem):
 
         self.get_ignore_list(dataset.ignore_type).remove(listed_dataset)
         self.save()
-        logging.info("Removed from ignore list: {}".format(listed_dataset.to_raw_message()))
+        self.log.info("Removed from ignore list: {}".format(listed_dataset.to_raw_message()))
         return IgnoreEditResult.Success
 
     async def _auto_remove_callback(self, job):
@@ -549,7 +548,7 @@ class Ignoring(BaseSubsystem):
         cmd_name = ctx.command.qualified_name
         return self.check_command_name(cmd_name, ctx.channel)
 
-    def _check_user_command(self, user_to_check, user_check_func, command_name:str):
+    def _check_user_command(self, user_to_check, user_check_func, command_name: str):
         """
         Performs the check if user is blocked for all interaction or all interactions with the specific command.
 
