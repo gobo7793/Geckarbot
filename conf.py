@@ -44,7 +44,7 @@ class Config(metaclass=_Singleton):
     # Basic bot info
     ######
 
-    VERSION = "1.8.2"
+    VERSION = "1.8.3"
     CONFIG_DIR = "config"
     PLUGIN_DIR = "plugins"
     CORE_PLUGIN_DIR = "coreplugins"
