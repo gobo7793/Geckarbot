@@ -331,7 +331,7 @@ class Plugin(BasePlugin, name="Role Management"):
                               "the management data will be updated. As color a color name like 'blue' can be given or "
                               "a hexcode like '#0000ff'.")
     @commands.has_any_role(*Config().FULL_ACCESS_ROLES)
-    async def role_add(self, ctx, role_name, emoji_or_modrole, color: discord.Color = None):
+    async def role_add(self, ctx, role_name, emoji_or_modrole="", color: discord.Color = None):
         emoji_str = await utils.demojize(emoji_or_modrole, ctx)
         try:
             modrole = await commands.RoleConverter().convert(ctx, emoji_or_modrole)
@@ -343,7 +343,7 @@ class Plugin(BasePlugin, name="Role Management"):
         if not emoji_str and modrole_id == 0:
             try:
                 color = await commands.ColourConverter().convert(ctx, emoji_or_modrole)
-            except commands.CommandError:
+            except (commands.CommandError, IndexError):
                 color = discord.Color.default()
 
         try:
