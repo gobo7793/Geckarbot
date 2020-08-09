@@ -260,6 +260,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
         if user is None:
             if discord_user in self.spaetzle_conf()["discord_user_bridge"]:
                 del self.spaetzle_conf()["discord_user_bridge"][discord_user]
+                Config().save(self)
                 await ctx.message.add_reaction(Config().CMDSUCCESS)
             else:
                 await ctx.send(self.spaetzle_lang('user_not_bridged'))
