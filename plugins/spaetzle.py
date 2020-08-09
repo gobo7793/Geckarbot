@@ -7,20 +7,22 @@ from discord.ext import commands
 
 from Geckarbot import BasePlugin
 from botutils import sheetsclient
-from conf import Storage, Lang
+from conf import Config
 
 lang = {
     'en': {
         'info': "The Spaetzle(s)-Tippspiel is a prediction game where you compete in duels",
         'invalid_league': "Invalid League. Valid Leagues: 1, 2, 3, 4",
         'no_matches': "No matches found.",
+        'no_observed_users': "No observed users.",
         'user_not_bridged': "You are currently not connected with a user.",
         'user_not_found': "User not found."
     },
     'de': {
         'info': "Das Spätzle(s)-Tippspiel ist ein Tippspiel aus dem Stuttgarter TM-Forum in dem die Teilnehmer nicht "
                 "nur Bundesligaspiele tippen, sondern damit in Duellen gegeneinander antreten.",
-        'no_matches': "Keine Spiele gefunden."
+        'no_matches': "Keine Spiele gefunden.",
+        'no_observed_users': "Ich beobachte noch keine Teilnehmer."
     }
 }
 
@@ -63,7 +65,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
         super().__init__(bot)
         self.can_reload = True
         bot.register(self)
-        Storage().save(self)
+        Config().save(self)
 
     def default_storage(self):
         return {
@@ -91,10 +93,10 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
         return lang
 
     def spaetzle_lang(self, str_name, *args):
-        return Lang.lang(self, str_name, *args)
+        return Config().lang(self, str_name, *args)
 
     def spaetzle_conf(self):
-        return Storage().get(self)
+        return Config().get(self)
 
     def get_api_client(self):
         return sheetsclient.Client(self.spaetzle_conf()['spaetzledoc_id'])
@@ -258,7 +260,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
         if user is None:
             if discord_user in self.spaetzle_conf()["discord_user_bridge"]:
                 del self.spaetzle_conf()["discord_user_bridge"][discord_user]
-                await ctx.message.add_reaction(Lang.CMDSUCCESS)
+                await ctx.message.add_reaction(Config().CMDSUCCESS)
             else:
                 await ctx.send(self.spaetzle_lang('user_not_bridged'))
             return
@@ -266,8 +268,8 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
         try:
             self.get_user_cell(user)
             self.spaetzle_conf()["discord_user_bridge"][ctx.message.author.id] = user
-            Storage().save(self)
-            await ctx.message.add_reaction(Lang.CMDSUCCESS)
+            Config().save(self)
+            await ctx.message.add_reaction(Config().CMDSUCCESS)
         except UserNotFound:
             await ctx.send(self.spaetzle_lang('user_not_found'))
 
@@ -371,22 +373,27 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             data_ranges = []
             observed_users = self.spaetzle_conf()['observed_users']
 
-            for user in observed_users:
-                try:
-                    col, row = self.get_user_cell(user)
-                    data_ranges.append("Aktuell!{}".format(c.cellname(col, row)))
-                    data_ranges.append("Aktuell!{}:{}".format(c.cellname(col, row + 10), c.cellname(col + 1, row + 11)))
-                except UserNotFound:
-                    pass
-            data = c.get_multiple(data_ranges)
-            for i in range(0, len(data_ranges), 2):
-                user = data[i][0][0]
-                opponent = data[i + 1][1][1]
-                if opponent in observed_users:
-                    if observed_users.index(opponent) > observed_users.index(user):
-                        msg += "**{}** [{}:{}] **{}**\n".format(user, data[i + 1][0][0], data[i + 1][1][0], opponent)
-                else:
-                    msg += "**{}** [{}:{}] {}\n".format(user, data[i + 1][0][0], data[i + 1][1][0], opponent)
+            if len(observed_users) == 0:
+                msg = self.spaetzle_lang('no_observed_users')
+            else:
+                for user in observed_users:
+                    try:
+                        col, row = self.get_user_cell(user)
+                        data_ranges.append("Aktuell!{}".format(c.cellname(col, row)))
+                        data_ranges.append(
+                            "Aktuell!{}:{}".format(c.cellname(col, row + 10), c.cellname(col + 1, row + 11)))
+                    except UserNotFound:
+                        pass
+                data = c.get_multiple(data_ranges)
+                for i in range(0, len(data_ranges), 2):
+                    user = data[i][0][0]
+                    opponent = data[i + 1][1][1]
+                    if opponent in observed_users:
+                        if observed_users.index(opponent) > observed_users.index(user):
+                            msg += "**{}** [{}:{}] **{}**\n".format(user, data[i + 1][0][0], data[i + 1][1][0],
+                                                                    opponent)
+                    else:
+                        msg += "**{}** [{}:{}] {}\n".format(user, data[i + 1][0][0], data[i + 1][1][0], opponent)
         else:
             # League
             title = "Duelle Liga {}".format(league)
@@ -479,7 +486,11 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
 
     @observe.command(name="list", help="Lists the observed users")
     async def observe_list(self, ctx):
-        await ctx.send(", ".join(self.spaetzle_conf()['observed_users']))
+        if len(self.spaetzle_conf()['observed_users']) == 0:
+            msg = self.spaetzle_lang('no_observed_users')
+        else:
+            msg = ", ".join(self.spaetzle_conf()['observed_users'])
+        await ctx.send(msg)
 
     @observe.command(name="add", help="Adds a user to be observed")
     async def observe_add(self, ctx, user):
@@ -491,12 +502,14 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
 
         if user not in self.spaetzle_conf()['observed_users']:
             self.spaetzle_conf()['observed_users'].append(user)
-        await ctx.message.add_reaction(Lang.CMDSUCCESS)
+            Config().save(self)
+        await ctx.message.add_reaction(Config().CMDSUCCESS)
 
-    @observe.command(name="remove", help="Removes a user from the observation")
+    @observe.command(name="del", help="Removes a user from the observation")
     async def observe_remove(self, ctx, user):
         if user in self.spaetzle_conf()['observed_users']:
             self.spaetzle_conf()['observed_users'].remove(user)
-            await ctx.message.add_reaction(Lang.CMDSUCCESS)
+            Config().save(self)
+            await ctx.message.add_reaction(Config().CMDSUCCESS)
         else:
             await ctx.send(self.spaetzle_lang('user_not_found'))
