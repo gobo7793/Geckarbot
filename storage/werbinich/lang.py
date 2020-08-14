@@ -32,7 +32,9 @@ lang = {
         "already_running": "Ein Spiel läuft bereits.",
         "dmblocked": "Eine meiner Funktionen blockiert gerade den DM-Kanal von {}. Ich kann daher das Spiel nicht"
                      "beginnen.",
+        "wrong_channel": "Falscher Channel.",
         "unknown_argument": "Unbekanntes Argument: {}",
+        "postgame_unauthorized": "Dieses Kommando steht nur den Spielern der letzten Runde zur Verfügung.",
 
         # Spoiler
         "participants_last_round": "Teilnehmer der letzten Runde:\n",

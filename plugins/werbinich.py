@@ -22,6 +22,7 @@ h_description = "Startet ein Wer bin ich?. Nach einer Registrierungsphase ordne 
                 "(spoilerfreie) Ergebnis wird ebenfalls jedem Spieler per PN mitgeteilt."
 h_usage = "[geheim]"
 h_spoiler = "Zuschauer-Kommando, mit dem diese das letzte Spiel erfragen können."
+h_postgame = "Erklärt das Spiel für beendet, sodass !werbinich spoiler für alle verfügbar ist."
 h_clear = "Entfernt das letzte Spiel, sodass !werbinich spoiler nichts zurückgibt."
 
 
@@ -111,6 +112,7 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
         self.channel = None
         self.initiator = None
         self.show_assignees = True
+        self.postgame = False
         self.participants = []
 
         self.statemachine = statemachine.StateMachine()
@@ -198,8 +200,28 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
                                   f=lambda x: x.to_msg()):
             await ctx.author.send(msg)
 
-    @werbinich.command(name="fertig", help=h_clear)
-    async def clearcmd(self, ctx):
+    @werbinich.command(name="fertig", help=h_postgame)
+    async def postgamecmd(self, ctx):
+        error = None
+        if ctx.channel != self.channel:
+            error = "wrong_channel"
+
+        else:
+            for user in self.participants:
+                if user.user == ctx.message.author:
+                    error = "postgame_unauthorized"
+                    break
+        if error is not None:
+            await ctx.message.add_reaction(Config().CMDERROR)
+            await ctx.send(Config.lang(self, error))
+            return
+
+        # Actual cmd
+        self.postgame = True
+        await ctx.message.add_reaction(Config().CMDSUCCESS)
+
+    @werbinich.command(name="del", help=h_clear)
+    async def delcmd(self, ctx):
         if not self.participants:
             await ctx.message.add_reaction(Config().CMDERROR)
             return
@@ -211,6 +233,7 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
     """
     async def registering_phase(self):
         self.logger.debug("Starting registering phase")
+        self.postgame = False
         reaction = Config.lang(self, "reaction_signup")
         to = self.config["register_timeout"]
         msg = Config.lang(self, "registering", reaction, to,
