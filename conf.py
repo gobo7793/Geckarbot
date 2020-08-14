@@ -34,6 +34,7 @@ class PluginSlot:
                     "{}.{}".format(self.storage_dir.replace('/', '.'), "lang"))
                 self.lang = lang_module.lang
             except Exception as e:
+                self.lang = {}
                 logging.error("Unable to load lang file from plugin: {} ({})".format(self.name, e))
             pass
 

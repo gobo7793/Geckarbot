@@ -4,6 +4,7 @@ from enum import Enum
 
 import discord
 from discord.ext import commands
+from discord.http import HTTPException
 
 from Geckarbot import BasePlugin
 from conf import Config
@@ -19,8 +20,9 @@ h_help = "Wer bin ich?"
 h_description = "Startet ein Wer bin ich?. Nach einer Registrierungsphase ordne ich jedem Spieler einen zufälligen " \
                 "anderen Spieler zu, für den dieser per PN einen zu erratenden Namen angeben darf. Das " \
                 "(spoilerfreie) Ergebnis wird ebenfalls jedem Spieler per PN mitgeteilt."
-h_usage = ""
+h_usage = "[geheim]"
 h_spoiler = "Zuschauer-Kommando, mit dem diese das letzte Spiel erfragen können."
+h_postgame = "Erklärt das Spiel für beendet, sodass !werbinich spoiler für alle verfügbar ist."
 h_clear = "Entfernt das letzte Spiel, sodass !werbinich spoiler nichts zurückgibt."
 
 
@@ -82,9 +84,13 @@ class Participant:
         self.plugin.logger.debug("Sending DM to {}: {}".format(self.user, msg))
         return await self.user.send(msg)
 
-    def to_msg(self):
-        return "**{}**: {} (von {})".format(utils.get_best_username(self.assigned.user), self.chosen,
-                                            utils.get_best_username(self.user))
+    def to_msg(self, show_assignees=True):
+        if show_assignees:
+            key = "result_with_assignees"
+        else:
+            key = "result_without_assignees"
+        return Config.lang(self.plugin, key, utils.get_best_username(self.assigned.user), self.chosen,
+                           utils.get_best_username(self.user))
 
     def cleanup(self):
         self.plugin.logger.debug("Cleaning up participant {}".format(self.user))
@@ -105,6 +111,8 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
 
         self.channel = None
         self.initiator = None
+        self.show_assignees = True
+        self.postgame = False
         self.participants = []
 
         self.statemachine = statemachine.StateMachine()
@@ -118,7 +126,16 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
 
     @commands.group(name="werbinich", invoke_without_command=True,
                     help=h_help, description=h_description, usage=h_usage)
-    async def whoami(self, ctx):
+    async def werbinich(self, ctx, *args):
+        # Argument parsing
+        for arg in args:
+            if arg == "geheim":
+                self.show_assignees = False
+            else:
+                await ctx.send(Config.lang(self, "unknown_argument", arg))
+                return
+
+        # Actual werbinich
         if self.statemachine.state != State.IDLE:
             await ctx.send(Config.lang(self, "already_running"))
             return
@@ -127,7 +144,7 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
         self.initiator = ctx.message.author
         self.statemachine.state = State.REGISTER
 
-    @whoami.command(name="status")
+    @werbinich.command(name="status")
     async def statuscmd(self, ctx):
         if self.statemachine.state == State.IDLE:
             await ctx.send(Config.lang(self, "not_running"))
@@ -151,7 +168,7 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
         wf = utils.format_andlist(waitingfor, ands=Config.lang(self, "and"), emptylist=Config.lang(self, "nobody"))
         await ctx.send(Config.lang(self, "waiting_for", wf))
 
-    @whoami.command(name="stop")
+    @werbinich.command(name="stop")
     async def stopcmd(self, ctx):
         if self.statemachine.state == State.IDLE:
             await ctx.message.add_reaction(Config().CMDERROR)
@@ -160,7 +177,7 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
         await ctx.message.add_reaction(Config().CMDSUCCESS)
         self.cleanup()
 
-    @whoami.command(name="spoiler", help=h_spoiler)
+    @werbinich.command(name="spoiler", help=h_spoiler)
     async def spoilercmd(self, ctx):
         # State check
         error = None
@@ -183,8 +200,28 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
                                   f=lambda x: x.to_msg()):
             await ctx.author.send(msg)
 
-    @whoami.command(name="fertig", help=h_clear)
-    async def clearcmd(self, ctx):
+    @werbinich.command(name="fertig", help=h_postgame)
+    async def postgamecmd(self, ctx):
+        error = None
+        if ctx.channel != self.channel:
+            error = "wrong_channel"
+
+        else:
+            for user in self.participants:
+                if user.user == ctx.message.author:
+                    error = "postgame_unauthorized"
+                    break
+        if error is not None:
+            await ctx.message.add_reaction(Config().CMDERROR)
+            await ctx.send(Config.lang(self, error))
+            return
+
+        # Actual cmd
+        self.postgame = True
+        await ctx.message.add_reaction(Config().CMDSUCCESS)
+
+    @werbinich.command(name="del", help=h_clear)
+    async def delcmd(self, ctx):
         if not self.participants:
             await ctx.message.add_reaction(Config().CMDERROR)
             return
@@ -195,14 +232,21 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
     Transitions
     """
     async def registering_phase(self):
-
         self.logger.debug("Starting registering phase")
+        self.postgame = False
         reaction = Config.lang(self, "reaction_signup")
         to = self.config["register_timeout"]
         msg = Config.lang(self, "registering", reaction, to,
                           utils.sg_pl(to, Config.lang(self, "minute_sg"), Config.lang(self, "minute_pl")))
         msg = await self.channel.send(msg)
-        await msg.add_reaction(Config.lang(self, "reaction_signup"))
+
+        try:
+            await msg.add_reaction(Config.lang(self, "reaction_signup"))
+        except HTTPException:
+            # Unable to add reaction, therefore unable to begin the game
+            await self.channel.send("PANIC")
+            self.statemachine.state = State.ABORT
+            return
 
         await asyncio.sleep(to * 60)
 
@@ -276,7 +320,7 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
             todo = []
             for el in self.participants:
                 if el.assigned != target:
-                    todo.append(el.to_msg())
+                    todo.append(el.to_msg(show_assignees=self.show_assignees))
 
             for msg in utils.paginate(todo, prefix=Config.lang(self, "list_title")):
                 await target.send(msg)
@@ -292,4 +336,5 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
             el.cleanup()
         self.initiator = None
         self.channel = None
+        self.show_assignees = True
         self.statemachine.state = State.IDLE
