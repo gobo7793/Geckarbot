@@ -7,7 +7,7 @@ from discord.ext import commands
 from discord.http import HTTPException
 
 from Geckarbot import BasePlugin
-from conf import Config
+from conf import Storage
 from botutils import utils, statemachine
 
 
@@ -55,7 +55,7 @@ class Participant:
 
     async def init_dm(self):
         self.plugin.logger.debug("Sending init DM to {}".format(self.user))
-        await self.send(Config.lang(self.plugin, "ask_for_entry", utils.get_best_username(self.assigned.user)))
+        await self.send(Storage.lang(self.plugin, "ask_for_entry", utils.get_best_username(self.assigned.user)))
 
     async def dm_callback(self, cb, message):
         self.plugin.logger.debug("Incoming message from {}: {}".format(self.user, message.content))
@@ -64,7 +64,7 @@ class Participant:
             return
 
         if self.plugin.statemachine.state != State.COLLECT:
-            await self.send(Config.lang(self.plugin, "entry_too_late"))
+            await self.send(Storage.lang(self.plugin, "entry_too_late"))
             return
 
         first = True
@@ -73,10 +73,10 @@ class Participant:
 
         self.chosen = message.content
         if first:
-            await self.send(Config.lang(self.plugin, "entry_done", utils.get_best_username(self.assigned.user),
-                                        self.chosen))
+            await self.send(Storage.lang(self.plugin, "entry_done", utils.get_best_username(self.assigned.user),
+                                         self.chosen))
         else:
-            await self.send(Config.lang(self.plugin, "entry_change", self.chosen))
+            await self.send(Storage.lang(self.plugin, "entry_change", self.chosen))
 
         self.plugin.assigned()
 
@@ -89,8 +89,8 @@ class Participant:
             key = "result_with_assignees"
         else:
             key = "result_without_assignees"
-        return Config.lang(self.plugin, key, utils.get_best_username(self.assigned.user), self.chosen,
-                           utils.get_best_username(self.user))
+        return Storage.lang(self.plugin, key, utils.get_best_username(self.assigned.user), self.chosen,
+                            utils.get_best_username(self.user))
 
     def cleanup(self):
         self.plugin.logger.debug("Cleaning up participant {}".format(self.user))
@@ -132,12 +132,12 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
             if arg == "geheim":
                 self.show_assignees = False
             else:
-                await ctx.send(Config.lang(self, "unknown_argument", arg))
+                await ctx.send(Storage.lang(self, "unknown_argument", arg))
                 return
 
         # Actual werbinich
         if self.statemachine.state != State.IDLE:
-            await ctx.send(Config.lang(self, "already_running"))
+            await ctx.send(Storage.lang(self, "already_running"))
             return
 
         self.channel = ctx.channel
@@ -147,16 +147,16 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
     @werbinich.command(name="status")
     async def statuscmd(self, ctx):
         if self.statemachine.state == State.IDLE:
-            await ctx.send(Config.lang(self, "not_running"))
+            await ctx.send(Storage.lang(self, "not_running"))
             return
         elif self.statemachine.state == State.REGISTER:
-            await ctx.send(Config.lang(self, "status_aborting"))
+            await ctx.send(Storage.lang(self, "status_aborting"))
             return
         elif self.statemachine.state == State.DELIVER:
-            await ctx.send(Config.lang(self, "status_delivering"))
+            await ctx.send(Storage.lang(self, "status_delivering"))
             return
         elif self.statemachine.state == State.ABORT:
-            await ctx.send(Config.lang(self, "status_aborting"))
+            await ctx.send(Storage.lang(self, "status_aborting"))
             return
 
         assert self.statemachine.state == State.COLLECT
@@ -165,16 +165,16 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
             if el.chosen is None:
                 waitingfor.append(utils.get_best_username(el.user))
 
-        wf = utils.format_andlist(waitingfor, ands=Config.lang(self, "and"), emptylist=Config.lang(self, "nobody"))
-        await ctx.send(Config.lang(self, "waiting_for", wf))
+        wf = utils.format_andlist(waitingfor, ands=Storage.lang(self, "and"), emptylist=Storage.lang(self, "nobody"))
+        await ctx.send(Storage.lang(self, "waiting_for", wf))
 
     @werbinich.command(name="stop")
     async def stopcmd(self, ctx):
         if self.statemachine.state == State.IDLE:
-            await ctx.message.add_reaction(Config().CMDERROR)
-            await ctx.send(Config.lang(self, "not_running"))
+            await ctx.message.add_reaction(Storage().CMDERROR)
+            await ctx.send(Storage.lang(self, "not_running"))
             return
-        await ctx.message.add_reaction(Config().CMDSUCCESS)
+        await ctx.message.add_reaction(Storage().CMDSUCCESS)
         self.cleanup()
 
     @werbinich.command(name="spoiler", help=h_spoiler)
@@ -191,12 +191,12 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
             error = "no_spoiler"
 
         if error is not None:
-            await ctx.message.add_reaction(Config().CMDERROR)
-            await ctx.send(Config.lang(self, error))
+            await ctx.message.add_reaction(Storage().CMDERROR)
+            await ctx.send(Storage.lang(self, error))
             return
 
-        await ctx.message.add_reaction(Config().CMDSUCCESS)
-        for msg in utils.paginate(self.participants, prefix=Config.lang(self, "participants_last_round"),
+        await ctx.message.add_reaction(Storage().CMDSUCCESS)
+        for msg in utils.paginate(self.participants, prefix=Storage.lang(self, "participants_last_round"),
                                   f=lambda x: x.to_msg()):
             await ctx.author.send(msg)
 
@@ -212,21 +212,21 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
                     error = "postgame_unauthorized"
                     break
         if error is not None:
-            await ctx.message.add_reaction(Config().CMDERROR)
-            await ctx.send(Config.lang(self, error))
+            await ctx.message.add_reaction(Storage().CMDERROR)
+            await ctx.send(Storage.lang(self, error))
             return
 
         # Actual cmd
         self.postgame = True
-        await ctx.message.add_reaction(Config().CMDSUCCESS)
+        await ctx.message.add_reaction(Storage().CMDSUCCESS)
 
     @werbinich.command(name="del", help=h_clear)
     async def delcmd(self, ctx):
         if not self.participants:
-            await ctx.message.add_reaction(Config().CMDERROR)
+            await ctx.message.add_reaction(Storage().CMDERROR)
             return
         self.participants = []
-        await ctx.message.add_reaction(Config().CMDSUCCESS)
+        await ctx.message.add_reaction(Storage().CMDSUCCESS)
 
     """
     Transitions
@@ -234,14 +234,14 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
     async def registering_phase(self):
         self.logger.debug("Starting registering phase")
         self.postgame = False
-        reaction = Config.lang(self, "reaction_signup")
+        reaction = Storage.lang(self, "reaction_signup")
         to = self.config["register_timeout"]
-        msg = Config.lang(self, "registering", reaction, to,
-                          utils.sg_pl(to, Config.lang(self, "minute_sg"), Config.lang(self, "minute_pl")))
+        msg = Storage.lang(self, "registering", reaction, to,
+                           utils.sg_pl(to, Storage.lang(self, "minute_sg"), Storage.lang(self, "minute_pl")))
         msg = await self.channel.send(msg)
 
         try:
-            await msg.add_reaction(Config.lang(self, "reaction_signup"))
+            await msg.add_reaction(Storage.lang(self, "reaction_signup"))
         except HTTPException:
             # Unable to add reaction, therefore unable to begin the game
             await self.channel.send("PANIC")
@@ -252,11 +252,11 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
 
         # Consume signup reactions
         self.participants = []
-        await msg.remove_reaction(Config.lang(self, "reaction_signup"), self.bot.user)
+        await msg.remove_reaction(Storage.lang(self, "reaction_signup"), self.bot.user)
         signup_msg = discord.utils.get(self.bot.cached_messages, id=msg.id)
         reaction = None
         for el in signup_msg.reactions:
-            if el.emoji == Config.lang(self, "reaction_signup"):
+            if el.emoji == Storage.lang(self, "reaction_signup"):
                 reaction = el
                 break
 
@@ -273,8 +273,8 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
                     candidates.append(user)
 
         if blocked:
-            blocked = utils.format_andlist(blocked, ands=Config.lang(self, "and"))
-            await self.channel.send(Config.lang(self, "dmblocked", blocked))
+            blocked = utils.format_andlist(blocked, ands=Storage.lang(self, "and"))
+            await self.channel.send(Storage.lang(self, "dmblocked", blocked))
             self.statemachine.state = State.ABORT
             return
 
@@ -282,13 +282,13 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
             try:
                 self.participants.append(Participant(self, el))
             except RuntimeError:
-                await msg.add_reaction(Config().CMDERROR)
+                await msg.add_reaction(Storage().CMDERROR)
                 self.statemachine.state = State.ABORT
                 return
 
         players = len(self.participants)
         if players <= 1:
-            await self.channel.send(Config.lang(self, "no_participants"))
+            await self.channel.send(Storage.lang(self, "no_participants"))
             self.statemachine.state = State.ABORT
         else:
             self.statemachine.state = State.COLLECT
@@ -297,8 +297,8 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
         assert len(self.participants) > 1
 
         msg = [utils.get_best_username(el.user) for el in self.participants]
-        msg = utils.format_andlist(msg, ands=Config.lang(self, "and"))
-        msg = Config.lang(self, "list_participants", msg)
+        msg = utils.format_andlist(msg, ands=Storage.lang(self, "and"))
+        msg = Storage.lang(self, "list_participants", msg)
         await self.channel.send(msg)
 
         shuffled = self.participants.copy()
@@ -322,9 +322,9 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
                 if el.assigned != target:
                     todo.append(el.to_msg(show_assignees=self.show_assignees))
 
-            for msg in utils.paginate(todo, prefix=Config.lang(self, "list_title")):
+            for msg in utils.paginate(todo, prefix=Storage.lang(self, "list_title")):
                 await target.send(msg)
-        await self.channel.send(Config.lang(self, "done"))
+        await self.channel.send(Storage.lang(self, "done"))
         self.cleanup()
         self.statemachine.state = State.IDLE
 

@@ -7,7 +7,7 @@ from discord.ext import commands
 from discord.errors import HTTPException
 
 from base import BasePlugin
-from conf import Config
+from conf import Storage
 from botutils import permChecks
 
 from plugins.quiz.controllers import RushQuizController, PointsQuizController
@@ -71,7 +71,7 @@ h_usage = "[<mode> <question count> <difficulty> <category> <ranked> <debug>]"
 
 class QuizInitError(Exception):
     def __init__(self, plugin, msg_id, *args):
-        super().__init__(Config().lang(plugin, msg_id, *args))
+        super().__init__(Storage().lang(plugin, msg_id, *args))
 
 
 class SubCommandEncountered(Exception):
@@ -147,7 +147,7 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
     """
     async def cmd_catlist(self, ctx, *args):
         if len(args) > 1:
-            await ctx.message.channel.send(Config().lang(self, "too_many_arguments"))
+            await ctx.message.channel.send(Storage().lang(self, "too_many_arguments"))
             return
 
         embed = discord.Embed(title="Categories:")
@@ -161,50 +161,50 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
     async def cmd_emoji(self, ctx, *args):
         # Delete emoji
         if len(args) == 1:
-            if ctx.message.author.id in Config().get(self)["emoji"]:
-                del Config().get(self)["emoji"][ctx.message.author.id]
-                await ctx.message.add_reaction(Config().CMDSUCCESS)
-                Config().save(self)
+            if ctx.message.author.id in Storage().get(self)["emoji"]:
+                del Storage().get(self)["emoji"][ctx.message.author.id]
+                await ctx.message.add_reaction(Storage().CMDSUCCESS)
+                Storage().save(self)
             else:
-                await ctx.message.add_reaction(Config().CMDERROR)
+                await ctx.message.add_reaction(Storage().CMDERROR)
             return
 
         # Too many arguments
         if len(args) != 2:
-            await ctx.message.add_reaction(Config().CMDERROR)
+            await ctx.message.add_reaction(Storage().CMDERROR)
             return
 
         emoji = args[1]
         try:
             await ctx.message.add_reaction(emoji)
         except HTTPException:
-            await ctx.message.add_reaction(Config().CMDERROR)
+            await ctx.message.add_reaction(Storage().CMDERROR)
             return
 
-        Config().get(self)["emoji"][ctx.message.author.id] = emoji
-        Config().save(self)
-        await ctx.message.add_reaction(Config().CMDSUCCESS)
+        Storage().get(self)["emoji"][ctx.message.author.id] = emoji
+        Storage().save(self)
+        await ctx.message.add_reaction(Storage().CMDSUCCESS)
 
     async def cmd_react(self, ctx, *args):
         if len(args) != 1:
-            await ctx.message.add_reaction(Config().CMDERROR)
+            await ctx.message.add_reaction(Storage().CMDERROR)
             return
 
-        emoji = Config().get(self)["emoji"].get(ctx.message.author.id)
+        emoji = Storage().get(self)["emoji"].get(ctx.message.author.id)
         if emoji is None:
-            emoji = Config().CMDERROR
+            emoji = Storage().CMDERROR
         await ctx.message.add_reaction(emoji)
 
     async def cmd_ladder(self, ctx, *args):
         if len(args) != 1:
-            await ctx.message.add_reaction(Config().CMDERROR)
+            await ctx.message.add_reaction(Storage().CMDERROR)
             return
 
         embed = discord.Embed()
         entries = {}
-        for uid in Config().get(self)["ladder"]:
+        for uid in Storage().get(self)["ladder"]:
             member = discord.utils.get(ctx.guild.members, id=uid)
-            points = Config().get(self)["ladder"][uid]
+            points = Storage().get(self)["ladder"][uid]
             if points not in entries:
                 entries[points] = [member]
             else:
@@ -215,7 +215,7 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
         place = 0
         for el in keys:
             for user in entries[el]:
-                values.append("**#{}:** {} - {}".format(place, el, get_best_username(Config().get(self), user)))
+                values.append("**#{}:** {} - {}".format(place, el, get_best_username(Storage().get(self), user)))
 
         if len(values) == 0:
             await ctx.send("So far, nobody is on the ladder.")
@@ -226,34 +226,34 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
 
     async def cmd_del(self, ctx, *args):
         if len(args) != 2:
-            await ctx.message.add_reaction(Config().CMDERROR)
+            await ctx.message.add_reaction(Storage().CMDERROR)
             return
         if not permChecks.check_full_access(ctx.message.author):
-            await ctx.message.add_reaction(Config().CMDERROR)
+            await ctx.message.add_reaction(Storage().CMDERROR)
             return
 
         try:
             user = await commands.MemberConverter().convert(ctx, args[1])
         except (commands.CommandError, IndexError):
-            await ctx.message.add_reaction(Config().CMDERROR)
+            await ctx.message.add_reaction(Storage().CMDERROR)
             return
 
-        ladder = Config().get(self)["ladder"]
+        ladder = Storage().get(self)["ladder"]
         if user.id in ladder:
             del ladder[user.id]
-            Config().save(self)
-            await ctx.message.add_reaction(Config().CMDSUCCESS)
+            Storage().save(self)
+            await ctx.message.add_reaction(Storage().CMDSUCCESS)
         else:
-            await ctx.message.add_reaction(Config().CMDNOCHANGE)
+            await ctx.message.add_reaction(Storage().CMDNOCHANGE)
 
     async def cmd_question(self, ctx, *args):
         if len(args) != 1:
-            await ctx.message.add_reaction(Config().CMDERROR)
+            await ctx.message.add_reaction(Storage().CMDERROR)
             return
 
         controller = self.get_controller(ctx.channel)
         if controller is None:
-            await ctx.message.add_reaction(Config().CMDERROR)
+            await ctx.message.add_reaction(Storage().CMDERROR)
             return
 
         embed = controller.quizapi.current_question().embed(emoji=True, info=True)
@@ -291,8 +291,8 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
                 args = (self.config["ranked_min_participants"],)
             if err == "ranked_questioncount":
                 args = (self.config["ranked_min_questions"],)
-            await ctx.message.add_reaction(Config().CMDERROR)
-            await ctx.send(Config().lang(self, err, *args))
+            await ctx.message.add_reaction(Storage().CMDERROR)
+            await ctx.send(Storage().lang(self, err, *args))
             return
 
         # Look for existing quiz
@@ -303,11 +303,11 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
             or method == Methods.SCORE \
             or method == Methods.STATUS
         if method == Methods.START and self.get_controller(channel):
-            await ctx.message.add_reaction(Config().CMDERROR)
+            await ctx.message.add_reaction(Storage().CMDERROR)
             raise QuizInitError(self, "existing_quiz")
         if modifying and self.get_controller(channel) is None:
             if method == Methods.STATUS:
-                await ctx.send(Config().lang(self, "status_no_quiz"))
+                await ctx.send(Storage().lang(self, "status_no_quiz"))
             return
 
         # Not starting a new quiz
@@ -330,29 +330,29 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
 
         # Starting a new quiz
         assert method == Methods.START
-        await ctx.message.add_reaction(Config().EMOJI["success"])
+        await ctx.message.add_reaction(Storage().EMOJI["success"])
         quiz_controller = controller_class(self, self.config, args["quizapi"], ctx.channel, ctx.message.author,
                                            category=args["category"], question_count=args["questions"],
                                            difficulty=args["difficulty"], debug=args["debug"], ranked=args["ranked"],
                                            gecki=args["gecki"])
         self.controllers[channel] = quiz_controller
         self.logger.debug("Registered quiz controller {} in channel {}".format(quiz_controller, ctx.channel))
-        await ctx.send(Config().lang(self, "quiz_start", args["questions"],
-                                     quiz_controller.quizapi.category_name(args["category"]),
-                                     Difficulty.human_readable(quiz_controller.difficulty),
-                                     self.controller_mapping[controller_class][0]))
+        await ctx.send(Storage().lang(self, "quiz_start", args["questions"],
+                                      quiz_controller.quizapi.category_name(args["category"]),
+                                      Difficulty.human_readable(quiz_controller.difficulty),
+                                      self.controller_mapping[controller_class][0]))
         await quiz_controller.start(ctx.message)
 
     """
     Interface
     """
     def update_ladder(self, member, points):
-        ladder = Config().get(self)["ladder"]
+        ladder = Storage().get(self)["ladder"]
         if member.id in ladder:
             ladder[member.id] = int(round(ladder[member.id] * 3/4 + points * 1/4))
         else:
             ladder[member.id] = int(round(points * 3/4))
-        Config().save(self)
+        Storage().save(self)
 
     def register_subcommand(self, channel, subcommand, callback):
         """
@@ -428,7 +428,7 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
                 return "ranked_difficulty"
             if args["questions"] < self.config["ranked_min_questions"]:
                 return "ranked_questioncount"
-            if not Config().DEBUG_MODE and args["gecki"]:
+            if not Storage().DEBUG_MODE and args["gecki"]:
                 return "ranked_gecki"
         return None
 

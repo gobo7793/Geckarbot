@@ -3,7 +3,7 @@ import discord
 import pkgutil
 from discord.ext import commands
 
-from conf import Config
+from conf import Storage
 from botutils import utils, permChecks
 from base import BasePlugin
 import subsystems
@@ -34,32 +34,32 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
     @commands.command(name="reload", help="Reloads the configuration.", usage="[plugin_name]",
                       description="Reloads the configuration from the given plugin."
                                   "If no plugin given, all plugin configs will be reloaded.")
-    @commands.has_any_role(Config().ADMIN_ROLE_ID, Config().BOTMASTER_ROLE_ID)
+    @commands.has_any_role(Storage().ADMIN_ROLE_ID, Storage().BOTMASTER_ROLE_ID)
     async def reload(self, ctx, plugin_name=None):
         """Reloads the config of the given plugin or all if none is given"""
         await utils.log_to_admin_channel(ctx)
         if plugin_name is None:
-            Config().load_all()
+            Storage().load_all()
             send_msg = "Configuration of all plugins reloaded."
         else:
             send_msg = f"No plugin {plugin_name} found."
-            for plugin in Config().plugins:
+            for plugin in Storage().plugins:
                 if plugin.name == plugin_name:
                     if plugin.instance.can_reload:
-                        Config().load(plugin.instance)
+                        Storage().load(plugin.instance)
                         send_msg = f"Configuration of plugin {plugin_name} reloaded."
                     else:
                         send_msg = f"Plugin {plugin_name} can't reloaded."
 
-        if ctx.channel.id != Config().DEBUG_CHAN_ID:
+        if ctx.channel.id != Storage().DEBUG_CHAN_ID:
             await ctx.send(send_msg)
         await utils.write_debug_channel(self.bot, send_msg)
 
     @commands.command(name="plugins", help="List all plugins.")
     async def plugins(self, ctx):
         """Returns registered plugins"""
-        plugin_list = "\n - ".join([plugin.name for plugin in Config().plugins])
-        await ctx.send(f"Loaded {len(Config().plugins)} plugins:\n - {plugin_list}")
+        plugin_list = "\n - ".join([plugin.name for plugin in Storage().plugins])
+        await ctx.send(f"Loaded {len(Storage().plugins)} plugins:\n - {plugin_list}")
 
         module_list = []
         for modname in pkgutil.iter_modules(subsystems.__path__):
@@ -71,22 +71,22 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
     async def about(self, ctx):
 
         about_msg = "Geckarbot {} on {}, licensed under GNU GPL v3.0. Hosted with ❤ on {} {} {}.\n".format(
-            Config().VERSION, self.bot.guild.name, platform.system(), platform.release(), platform.version())
+            Storage().VERSION, self.bot.guild.name, platform.system(), platform.release(), platform.version())
 
-        if Config().get(self)['bot_info_link']:
+        if Storage().get(self)['bot_info_link']:
             about_msg += "For general bot information on this server see <{}>.\n".format(
-                Config().get(self)['bot_info_link'])
+                Storage().get(self)['bot_info_link'])
         about_msg += "Github Repository for additional information and participation: <{}>.\n".format(
-            Config().get(self)['repo_link'])
-        if Config().get(self)['privacy_notes_link']:
+            Storage().get(self)['repo_link'])
+        if Storage().get(self)['privacy_notes_link']:
             lang = ""
-            if Config().get(self)['privacy_notes_lang']:
-                lang = " ({})".format(Config().get(self)['privacy_notes_lang'])
-            about_msg += "Privacy notes: <{}>{}.\n".format(Config().get(self)['privacy_notes_link'], lang)
+            if Storage().get(self)['privacy_notes_lang']:
+                lang = " ({})".format(Storage().get(self)['privacy_notes_lang'])
+            about_msg += "Privacy notes: <{}>{}.\n".format(Storage().get(self)['privacy_notes_link'], lang)
 
         about_msg += "Main developers: Fluggs, Gobo77, Costamiri."
-        if Config().get(self)['profile_pic_creator']:
-            about_msg += " Profile picture by {}.".format(Config().get(self)['profile_pic_creator'])
+        if Storage().get(self)['profile_pic_creator']:
+            about_msg += " Profile picture by {}.".format(Storage().get(self)['profile_pic_creator'])
 
         about_msg += "\nSpecial thanks to all contributors!"
 
@@ -125,19 +125,19 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
                 date_args_start_index = 0
 
         if user != ctx.author and not permChecks.check_full_access(ctx.author):
-            raise commands.MissingAnyRole(Config().FULL_ACCESS_ROLES)
+            raise commands.MissingAnyRole(Storage().FULL_ACCESS_ROLES)
 
         until = utils.analyze_time_input(*args[date_args_start_index:])
 
         result = self.bot.ignoring.add_user_command(user, command, until)
         if result == IgnoreEditResult.Success:
-            await ctx.message.add_reaction(Config().CMDSUCCESS)
+            await ctx.message.add_reaction(Storage().CMDSUCCESS)
         elif result == IgnoreEditResult.Already_in_list:
-            await ctx.message.add_reaction(Config().CMDERROR)
+            await ctx.message.add_reaction(Storage().CMDERROR)
             await ctx.send("Interactions with command {} are already blocked for {}."
                            .format(command, utils.get_best_username(user)))
         elif result == IgnoreEditResult.Until_in_past:
-            await ctx.message.add_reaction(Config().CMDERROR)
+            await ctx.message.add_reaction(Storage().CMDERROR)
             await ctx.send("Sorry, I don't have a time machine.")
         await utils.log_to_admin_channel(ctx)
 
@@ -151,18 +151,18 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
                                  "be blocked forever.\n"
                                  "If a blocked user uses a command, "
                                  "the bot doesn't response anything, like the command wouldn't exists.")
-    @commands.has_any_role(*Config().FULL_ACCESS_ROLES)
+    @commands.has_any_role(*Storage().FULL_ACCESS_ROLES)
     async def disable_user(self, ctx, user: discord.Member, *args):
         until = utils.analyze_time_input(*args)
 
         result = self.bot.ignoring.add_user(user, until)
         if result == IgnoreEditResult.Success:
-            await ctx.message.add_reaction(Config().CMDSUCCESS)
+            await ctx.message.add_reaction(Storage().CMDSUCCESS)
         elif result == IgnoreEditResult.Already_in_list:
-            await ctx.message.add_reaction(Config().CMDERROR)
+            await ctx.message.add_reaction(Storage().CMDERROR)
             await ctx.send("{} already blocked.".format(utils.get_best_username(user)))
         elif result == IgnoreEditResult.Until_in_past:
-            await ctx.message.add_reaction(Config().CMDERROR)
+            await ctx.message.add_reaction(Storage().CMDERROR)
             await ctx.send("Sorry, I don't have a time machine.")
         await utils.log_to_admin_channel(ctx)
 
@@ -179,10 +179,10 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
                                  "If a user uses a command which is blocked in the channel, "
                                  "the bot doesn't response anything, like the command wouldn't exists.\n"
                                  "Note: The command !enable can't be blocked to avoid deadlocks.")
-    @commands.has_any_role(*Config().FULL_ACCESS_ROLES)
+    @commands.has_any_role(*Storage().FULL_ACCESS_ROLES)
     async def disable_cmd(self, ctx, command, *args):
         if command == "enable":
-            await ctx.message.add_reaction(Config().CMDERROR)
+            await ctx.message.add_reaction(Storage().CMDERROR)
             await ctx.send("Command `!enable` can't be blocked to avoid blocking deadlocks.")
             return
 
@@ -190,12 +190,12 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
 
         result = self.bot.ignoring.add_command(command, ctx.channel, until)
         if result == IgnoreEditResult.Success:
-            await ctx.message.add_reaction(Config().CMDSUCCESS)
+            await ctx.message.add_reaction(Storage().CMDSUCCESS)
         elif result == IgnoreEditResult.Already_in_list:
-            await ctx.message.add_reaction(Config().CMDERROR)
+            await ctx.message.add_reaction(Storage().CMDERROR)
             await ctx.send("Command {} already blocked in this channel".format(command))
         elif result == IgnoreEditResult.Until_in_past:
-            await ctx.message.add_reaction(Config().CMDERROR)
+            await ctx.message.add_reaction(Storage().CMDERROR)
             await ctx.send("Sorry, I don't have a time machine.")
         await utils.log_to_admin_channel(ctx)
 
@@ -229,13 +229,13 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
             user = ctx.author
 
         if user != ctx.author and not permChecks.check_full_access(ctx.author):
-            raise commands.MissingAnyRole(*Config().FULL_ACCESS_ROLES)
+            raise commands.MissingAnyRole(*Storage().FULL_ACCESS_ROLES)
 
         result = self.bot.ignoring.remove_user_command(user, command)
         if result == IgnoreEditResult.Success:
-            await ctx.message.add_reaction(Config().CMDSUCCESS)
+            await ctx.message.add_reaction(Storage().CMDSUCCESS)
         elif result == IgnoreEditResult.Not_in_list:
-            await ctx.message.add_reaction(Config().CMDERROR)
+            await ctx.message.add_reaction(Storage().CMDERROR)
             await ctx.send("Interactions with command {} are not blocked for {}."
                            .format(command, utils.get_best_username(user)))
         await utils.log_to_admin_channel(ctx)
@@ -243,13 +243,13 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
     @enable.command(name="user", help="Unblock user to enable interactions between user and bot.",
                     description="Removes a user from bot's ignore list to enable any interaction between the user and "
                                 "the bot.")
-    @commands.has_any_role(*Config().FULL_ACCESS_ROLES)
+    @commands.has_any_role(*Storage().FULL_ACCESS_ROLES)
     async def enable_user(self, ctx, user: discord.Member):
         result = self.bot.ignoring.remove_user(user)
         if result == IgnoreEditResult.Success:
-            await ctx.message.add_reaction(Config().CMDSUCCESS)
+            await ctx.message.add_reaction(Storage().CMDSUCCESS)
         elif result == IgnoreEditResult.Not_in_list:
-            await ctx.message.add_reaction(Config().CMDERROR)
+            await ctx.message.add_reaction(Storage().CMDERROR)
             await ctx.send("{} is not blocked.".format(utils.get_best_username(user)))
         await utils.log_to_admin_channel(ctx)
 
@@ -258,12 +258,12 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
                                 "name must be the full qualified name of the command without command prefix. If a "
                                 "subcommand should be enabled, the command name must be inside quotation marks like "
                                 "\"enable cmd\".")
-    @commands.has_any_role(*Config().FULL_ACCESS_ROLES)
+    @commands.has_any_role(*Storage().FULL_ACCESS_ROLES)
     async def enable_cmd(self, ctx, command):
         result = self.bot.ignoring.remove_command(command, ctx.channel)
         if result == IgnoreEditResult.Success:
-            await ctx.message.add_reaction(Config().CMDSUCCESS)
+            await ctx.message.add_reaction(Storage().CMDSUCCESS)
         elif result == IgnoreEditResult.Not_in_list:
-            await ctx.message.add_reaction(Config().CMDERROR)
+            await ctx.message.add_reaction(Storage().CMDERROR)
             await ctx.send("Command {} is not blocked in this channel".format(command))
         await utils.log_to_admin_channel(ctx)
