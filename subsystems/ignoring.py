@@ -6,7 +6,7 @@ from discord.ext import commands
 from datetime import datetime
 
 from base import BaseSubsystem
-from conf import Config, PluginSlot
+from conf import Storage, PluginSlot
 from botutils import utils
 from subsystems import timers
 
@@ -190,18 +190,18 @@ class IgnoreDataset:
 
         dt = ""
         if self.until < datetime.max:
-            dt = Config.lang(self.ignoring_instance, 'until',
-                             self.until.strftime(Config.lang(self.ignoring_instance, 'until_strf')))
+            dt = Storage.lang(self.ignoring_instance, 'until',
+                              self.until.strftime(Storage.lang(self.ignoring_instance, 'until_strf')))
 
         if self.ignore_type == IgnoreType.User:
-            m = Config.lang(self.ignoring_instance, 'user_ignore_msg', self.user.display_name, dt)
+            m = Storage.lang(self.ignoring_instance, 'user_ignore_msg', self.user.display_name, dt)
 
         elif self.ignore_type == IgnoreType.Command:
-            m = Config.lang(self.ignoring_instance, 'cmd_ignore_msg', self.command_name, self.channel.name, dt)
+            m = Storage.lang(self.ignoring_instance, 'cmd_ignore_msg', self.command_name, self.channel.name, dt)
 
         elif self.ignore_type == IgnoreType.User_Command:
-            m = Config.lang(self.ignoring_instance, 'user_cmd_ignore_msg',
-                            self.user.display_name, self.command_name, dt)
+            m = Storage.lang(self.ignoring_instance, 'user_cmd_ignore_msg',
+                             self.user.display_name, self.command_name, dt)
 
         else:
             return self.to_raw_message()
@@ -214,7 +214,7 @@ class Ignoring(BaseSubsystem):
 
     def __init__(self, bot):
         super().__init__(bot)
-        Config().plugins.append(PluginSlot(self, True))
+        Storage().plugins.append(PluginSlot(self, True))
         self.log = logging.getLogger("ignoring")
 
         self.users = []
@@ -243,8 +243,8 @@ class Ignoring(BaseSubsystem):
 
     def _load(self):
         """Loads the ignor elist from json"""
-        Config.load(self)
-        for el in Config.get(self):
+        Storage.load(self)
+        for el in Storage.get(self):
             self.add(IgnoreDataset.deserialize(self.bot, el, self), True)
 
     def save(self):
@@ -257,8 +257,8 @@ class Ignoring(BaseSubsystem):
         jsondata = []
         for el in full_list:
             jsondata.append(el.serialize())
-        Config.set(self, jsondata)
-        Config.save(self)
+        Storage.set(self, jsondata)
+        Storage.save(self)
 
     #######
     # Adding

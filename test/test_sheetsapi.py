@@ -1,13 +1,13 @@
 import unittest
 
 import Geckarbot
-from conf import Config
+from conf import Storage
 from botutils import sheetsclient
 
 
 class SheetsApiTestCase(unittest.TestCase):
     def setUp(self):
-        Config().load_bot()
+        Storage().load_bot()
         Geckarbot.logging_setup()
 
     def test_get(self):

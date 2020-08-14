@@ -5,7 +5,7 @@ from enum import Enum
 
 import discord
 
-from conf import Config
+from conf import Storage
 
 from plugins.quiz.utils import get_best_username
 
@@ -151,7 +151,7 @@ class Score:
         return r
 
     def embed(self, end=False, sort_by_points=False):
-        embed = discord.Embed(title=Config().lang(self.plugin, "results_title"))
+        embed = discord.Embed(title=Storage().lang(self.plugin, "results_title"))
 
         ladder = self.ladder(sort_by_points=sort_by_points)
         place = 0
@@ -161,7 +161,7 @@ class Score:
                 place += 1
 
             # embed
-            name = "**#{}** {}".format(place, get_best_username(Config().get(self.plugin), user))
+            name = "**#{}** {}".format(place, get_best_username(Storage().get(self.plugin), user))
             value = "Correct answers: {}".format(self._score[user])
             if len(self) > 1:
                 value = "{}\nScore: {}".format(value, self.calc_points(user))
@@ -263,7 +263,7 @@ class Question:
         msg = await channel.send(embed=self.embed(emoji=emoji))
         if emoji:
             for i in range(len(self.all_answers)):
-                await msg.add_reaction(Config().EMOJI["lettermap"][i])  # this breaks if there are more than 26 answers
+                await msg.add_reaction(Storage().EMOJI["lettermap"][i])  # this breaks if there are more than 26 answers
         self.message = msg
         return msg
 
@@ -319,7 +319,7 @@ class Question:
     @property
     def emoji_map(self):
         if self._cached_emoji is None:
-            self._cached_emoji = Config().EMOJI["lettermap"][:len(self.all_answers)]
+            self._cached_emoji = Storage().EMOJI["lettermap"][:len(self.all_answers)]
         return self._cached_emoji
 
     def is_valid_emoji(self, emoji):

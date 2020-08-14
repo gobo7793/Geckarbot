@@ -3,7 +3,7 @@ import logging
 from datetime import datetime, timezone, timedelta
 import discord
 from discord.ext import commands
-from conf import Config
+from conf import Storage
 
 from base import BasePlugin
 from subsystems import timers
@@ -18,8 +18,8 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
 
         self.reminders = {}
         reminders_to_remove = []
-        for reminder_id in Config().get(self)['reminders']:
-            reminder = Config().get(self)['reminders'][reminder_id]
+        for reminder_id in Storage().get(self)['reminders']:
+            reminder = Storage().get(self)['reminders'][reminder_id]
             if not self.register_reminder(reminder['chan'], reminder['user'], reminder['time'],
                                           reminder_id, reminder['text'], True):
                 reminders_to_remove.append(reminder_id)
@@ -56,11 +56,11 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
 
     @commands.command(name="kicker", help="Returns frequently used links to kicker.de")
     async def kicker_table(self, ctx):
-        embed = discord.Embed(title=Config().lang(self, 'kicker_title'))
-        embed.add_field(name=Config().lang(self, 'kicker_1BL'), value=Config().lang(self, 'kicker_1BL_link'))
-        embed.add_field(name=Config().lang(self, 'kicker_2BL'), value=Config().lang(self, 'kicker_2BL_link'))
-        embed.add_field(name=Config().lang(self, 'kicker_3FL'), value=Config().lang(self, 'kicker_3FL_link'))
-        embed.add_field(name=Config().lang(self, 'kicker_ATBL'), value=Config().lang(self, 'kicker_ATBL_link'))
+        embed = discord.Embed(title=Storage().lang(self, 'kicker_title'))
+        embed.add_field(name=Storage().lang(self, 'kicker_1BL'), value=Storage().lang(self, 'kicker_1BL_link'))
+        embed.add_field(name=Storage().lang(self, 'kicker_2BL'), value=Storage().lang(self, 'kicker_2BL_link'))
+        embed.add_field(name=Storage().lang(self, 'kicker_3FL'), value=Storage().lang(self, 'kicker_3FL_link'))
+        embed.add_field(name=Storage().lang(self, 'kicker_ATBL'), value=Storage().lang(self, 'kicker_ATBL_link'))
         await ctx.send(embed=embed)
 
     @commands.command(name="choose", help="Picks on of the options. Separate options with '|'",
@@ -68,39 +68,39 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
     async def choose(self, ctx, *args):
         options = [i for i in " ".join(args).split("|") if i.strip() != ""]
         if len(options) < 1:
-            await ctx.send(Config().lang(self, 'choose_noarg'))
+            await ctx.send(Storage().lang(self, 'choose_noarg'))
             return
         result = random.choice(options)
-        await ctx.send(Config().lang(self, 'choose_msg') + result.strip())
+        await ctx.send(Storage().lang(self, 'choose_msg') + result.strip())
 
     @commands.command(name="mud", brief="Pings the bot.")
     async def mud(self, ctx):
-        await ctx.send(Config().lang(self, 'mud_out'))
+        await ctx.send(Storage().lang(self, 'mud_out'))
 
     @commands.command(name="mudkip", brief="MUDKIP!")
     async def mudkip(self, ctx):
-        await ctx.send(Config().lang(self, 'mudkip_out'))
+        await ctx.send(Storage().lang(self, 'mudkip_out'))
 
     @commands.command(name="mimimi", help="Provides an .mp3 file that plays the sound of 'mimimi'.")
     async def mimimi(self, ctx):
         await ctx.trigger_typing()
-        file = discord.File(f"{Config().storage_dir(self)}/mimimi.mp3")
+        file = discord.File(f"{Storage().resource_dir(self)}/mimimi.mp3")
         await ctx.send(file=file)
 
     @commands.command(name="geck", help="GECKARBOR!")
     async def geck(self, ctx):
         await ctx.trigger_typing()
         try:
-            file = discord.File(f"{Config().storage_dir(self)}/treecko.jpg")
+            file = discord.File(f"{Storage().resource_dir(self)}/treecko.jpg")
         except (FileNotFoundError, IsADirectoryError):
-            await ctx.message.add_reaction(Config.CMDERROR)
+            await ctx.message.add_reaction(Storage.CMDERROR)
             return
-        await ctx.send(Config().lang(self, 'geck_out'), file=file)
+        await ctx.send(Storage().lang(self, 'geck_out'), file=file)
 
     # todo: read directly from sheets
     @commands.command(name="tippspiel", help="Gives the link to the Tippspiel-Sheet")
     async def tippspiel(self, ctx):
-        await ctx.send(Config().lang(self, 'tippspiel_output'))
+        await ctx.send(Storage().lang(self, 'tippspiel_output'))
 
     @commands.command(name="werwars", alias="wermobbtgerade", help="Shows which user is bullying other users",
                       description="Shows who is bullying other users in the last 30 minutes in the current channel. "
@@ -116,9 +116,9 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
         bully = random.choice(users)
 
         if bully is self.bot.user:
-            text = Config().lang(self, "bully_msg_self")
+            text = Storage().lang(self, "bully_msg_self")
         else:
-            text = Config().lang(self, "bully_msg", utils.get_best_username(bully))
+            text = Storage().lang(self, "bully_msg", utils.get_best_username(bully))
         await ctx.send(text)
 
     @commands.command(name="remindme", help="Reminds the author.",
@@ -146,7 +146,7 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
                 try:
                     remove_id = int(args[1])
                 except ValueError:
-                    raise commands.BadArgument(message=Config().lang(self, 'remind_del_id_err'))
+                    raise commands.BadArgument(message=Storage().lang(self, 'remind_del_id_err'))
             else:
                 remove_id = -1
 
@@ -154,10 +154,10 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
             if remove_id >= 0:
                 if self.reminders[remove_id].data['user'] == ctx.author.id:
                     self.remove_reminder(remove_id)
-                    await ctx.message.add_reaction(Config().CMDSUCCESS)
+                    await ctx.message.add_reaction(Storage().CMDSUCCESS)
                     return
 
-                await ctx.send(Config().lang(self, 'remind_wrong_del'))
+                await ctx.send(Storage().lang(self, 'remind_wrong_del'))
                 return
 
             # remove all reminders from user
@@ -168,21 +168,21 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
             for el in to_remove:
                 self.remove_reminder(el)
 
-            await ctx.message.add_reaction(Config().CMDSUCCESS)
+            await ctx.message.add_reaction(Storage().CMDSUCCESS)
             return
 
         # list user's reminders
         if args[0] == "list":
-            msg = Config().lang(self, 'remind_list_prefix')
+            msg = Storage().lang(self, 'remind_list_prefix')
             reminders_msg = ""
             for job in sorted(self.reminders.values(), key=lambda x: x.next_execution()):
                 if job.data['user'] == ctx.author.id:
-                    reminders_msg += Config().lang(self, 'remind_list_element',
-                                                   job.next_execution().strftime('%d.%m.%Y %H:%M'),
-                                                   job.data['text'], job.data['id'])
+                    reminders_msg += Storage().lang(self, 'remind_list_element',
+                                                    job.next_execution().strftime('%d.%m.%Y %H:%M'),
+                                                    job.data['text'], job.data['id'])
 
             if not reminders_msg:
-                msg = Config().lang(self, 'remind_list_none')
+                msg = Storage().lang(self, 'remind_list_none')
             await ctx.send(msg + reminders_msg)
             return
 
@@ -202,19 +202,19 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
         remind_time = utils.analyze_time_input(*time_args)
 
         if remind_time == datetime.max:
-            raise commands.BadArgument(message=Config().lang(self, 'remind_duration_err'))
+            raise commands.BadArgument(message=Storage().lang(self, 'remind_duration_err'))
 
         reminder_id = self.get_new_reminder_id()
 
         if remind_time < datetime.now():
             logging.debug("Attempted reminder {} in the past: {}".format(reminder_id, remind_time))
-            await ctx.send(Config().lang(self, 'remind_past'))
+            await ctx.send(Storage().lang(self, 'remind_past'))
             return
 
         if self.register_reminder(ctx.channel.id, ctx.author.id, remind_time, reminder_id, rtext):
-            await ctx.send(Config().lang(self, 'remind_set', remind_time.strftime('%d.%m.%Y %H:%M'), reminder_id))
+            await ctx.send(Storage().lang(self, 'remind_set', remind_time.strftime('%d.%m.%Y %H:%M'), reminder_id))
         else:
-            await ctx.message.add_reaction(Config().CMDERROR)
+            await ctx.message.add_reaction(Storage().CMDERROR)
 
     def register_reminder(self, channel_id: int, user_id: int, remind_time: datetime,
                           reminder_id: int, text, is_restart: bool = False):
@@ -244,8 +244,8 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
 
         self.reminders[reminder_id] = job
         if not is_restart:
-            Config().get(self)['reminders'][reminder_id] = job_data
-            Config().save(self)
+            Storage().get(self)['reminders'][reminder_id] = job_data
+            Storage().save(self)
 
         return True
 
@@ -257,9 +257,9 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
         if reminder_id in self.reminders:
             self.reminders[reminder_id].cancel()
             del (self.reminders[reminder_id])
-        if reminder_id in Config().get(self)['reminders']:
-            del (Config().get(self)['reminders'][reminder_id])
-        Config().save(self)
+        if reminder_id in Storage().get(self)['reminders']:
+            del (Storage().get(self)['reminders'][reminder_id])
+        Storage().save(self)
         logging.info("Reminder {} removed".format(reminder_id))
 
     async def reminder_callback(self, job):
@@ -269,7 +269,7 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
         rid = job.data['id']
         remind_text = ""
         if text:
-            remind_text = Config().lang(self, 'remind_callback_msg', text)
-        await channel.send(Config().lang(self, 'remind_callback', user.mention, remind_text))
+            remind_text = Storage().lang(self, 'remind_callback_msg', text)
+        await channel.send(Storage().lang(self, 'remind_callback', user.mention, remind_text))
         logging.info("Executed reminder {}".format(rid))
         self.remove_reminder(rid)

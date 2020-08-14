@@ -13,7 +13,7 @@ from pathlib import Path
 from discord.ext import commands
 
 from base import BasePlugin
-from conf import Config, PluginSlot
+from conf import Storage, PluginSlot
 from botutils import utils
 from subsystems import timers, reactions, ignoring, dmlisteners
 
@@ -52,14 +52,14 @@ class Geckarbot(commands.Bot):
         self.geck_cogs.append(plugin_object)
 
         plugin_slot = PluginSlot(plugin_object)
-        Config().plugins.append(plugin_slot)
-        Config().load(plugin_object)
+        Storage().plugins.append(plugin_slot)
+        Storage().load(plugin_object)
 
     def plugin_objects(self):
         """
         Generator for all registered plugin objects without anything config-related
         """
-        for el in Config().plugins:
+        for el in Storage().plugins:
             yield el.instance
 
     def plugin_name(self, plugin):
@@ -106,7 +106,7 @@ def logging_setup():
     Put all debug loggers on info and everything else on info/debug, depending on config
     """
     level = logging.INFO
-    if Config().DEBUG_MODE:
+    if Storage().DEBUG_MODE:
         level = logging.DEBUG
 
     Path("logs/").mkdir(parents=True, exist_ok=True)
@@ -130,21 +130,21 @@ def logging_setup():
 
 
 def main():
-    Config().load_bot()
+    Storage().load_bot()
     logging_setup()
     logging.getLogger(__name__).debug("Debug mode: on")
     bot = Geckarbot(command_prefix='!')
     logging.info("Loading core plugins")
-    bot.plugins = bot.load_plugins(Config().CORE_PLUGIN_DIR)
+    bot.plugins = bot.load_plugins(Storage().CORE_PLUGIN_DIR)
 
     @bot.event
     async def on_ready():
         """Loads plugins and prints on server that bot is ready"""
-        guild = discord.utils.get(bot.guilds, id=Config().SERVER_ID)
+        guild = discord.utils.get(bot.guilds, id=Storage().SERVER_ID)
         bot.guild = guild
 
         logging.info("Loading plugins")
-        bot.plugins.extend(bot.load_plugins(Config().PLUGIN_DIR))
+        bot.plugins.extend(bot.load_plugins(Storage().PLUGIN_DIR))
 
         logging.info(f"{bot.user} is connected to the following server:\n"
                      f"{guild.name}(id: {guild.id})")
@@ -152,10 +152,10 @@ def main():
         members = "\n - ".join([member.name for member in guild.members])
         logging.info(f"Server Members:\n - {members}")
 
-        await utils.write_debug_channel(bot, f"Geckarbot {Config().VERSION} connected on "
+        await utils.write_debug_channel(bot, f"Geckarbot {Storage().VERSION} connected on "
                                              f"{guild.name} with {len(guild.members)} users.")
 
-    if not Config().DEBUG_MODE:
+    if not Storage().DEBUG_MODE:
         @bot.event
         async def on_error(event, *args, **kwargs):
             """On bot errors print error state in debug channel"""
@@ -222,9 +222,9 @@ def main():
             return
 
         # debug mode whitelist
-        if (Config().DEBUG_MODE
-                and len(Config().DEBUG_WHITELIST) > 0
-                and message.author.id not in Config().DEBUG_WHITELIST):
+        if (Storage().DEBUG_MODE
+                and len(Storage().DEBUG_WHITELIST) > 0
+                and message.author.id not in Storage().DEBUG_WHITELIST):
             return
 
         await bot.process_commands(message)
@@ -241,7 +241,7 @@ def main():
             raise commands.DisabledCommand()
         return True
 
-    bot.run(Config().TOKEN)
+    bot.run(Storage().TOKEN)
 
 
 if __name__ == "__main__":
