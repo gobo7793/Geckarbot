@@ -202,6 +202,11 @@ class Plugin(BasePlugin, name="Custom CMDs"):
         else:
             await ctx.send(Storage.lang(self, "raw_doesnt_exists", cmd_name))
 
+    @cmd.command(name="guidelines", help="Returns the link to the general command guidelines")
+    # TODO: MAKE BETTER AFTER NEW CONFIG/STORAGE SYSTEM IS FINISHED
+    async def cmd_guidelines(self, ctx):
+        await ctx.send("TODO: MAKE BETTER; <https://github.com/gobo7793/Geckarbot/wiki/Command-Guidelines>")
+
     @cmd.command(name="add", help="Adds a custom command",
                  description="Adds a custom command. Following wildcards can be used, which will be replaced on "
                              "using:\n"
