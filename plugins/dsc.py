@@ -24,6 +24,7 @@ lang = {
         'votings_to': "Votings to",
         'all_songs': "All songs",
         'yt_playlist': "Youtube playlist",
+        'points': "Voting system",
         'config_error_reset': "Configuration error. Please reset dsc configuration.",
         'config_error': "DSC configuration error, config values:",
         'invalid_phase': "Invalid dsc state, only \"voting\" or \"signup\" possible.",
@@ -42,6 +43,7 @@ lang = {
         'votings_to': "Votings an",
         'all_songs': "Alle Songs",
         'yt_playlist': "Youtube Playlist",
+        'points': "Voting-System",
         'config_error_reset': "Fehler in der DSC-Konfiguration, bitte zurücksetzen.",
         'config_error': "DSC-Konfigurations-Fehler, Werte:",
         'invalid_phase': "Ungültiger DSC-State, nur \"voting\" (Votingphase) und \"signup\" (Anmeldephase) möglich.",
@@ -81,6 +83,7 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
             'host_id': None,
             'state': DscState.NA,
             'yt_link': None,
+            'points': "",
             'state_end': datetime.now(),
             'status': None
         }
@@ -111,10 +114,7 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
                            "Is Google Sheets not reachable or do you set the wrong cell?")
             return ""
 
-    @commands.group(name="dsc", help="Get and manage informations about current DSC",
-                    description="Get the informations about the current dsc or manage it. "
-                                "Command only works in music channel. "
-                                "Manage DSC informations is only permitted for songmasters.")
+    @commands.group(name="dsc", help="Get and manage data about current/next DSC")
     async def dsc(self, ctx):
         if ctx.invoked_subcommand is None:
             await ctx.invoke(self.bot.get_command('dsc info'))
@@ -188,6 +188,7 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
             embed.add_field(name=self.dsc_lang('current_host'), value=host_nick)
             embed.add_field(name=self.dsc_lang('all_songs'), value=self._get_doc_link())
             embed.add_field(name=self.dsc_lang('yt_playlist'), value=self.dsc_conf()['yt_link'])
+            embed.add_field(name=self.dsc_lang('points'), value=self.dsc_conf()['points'])
             if self.dsc_conf()['status']:
                 embed.description = self.dsc_conf()['status']
             await ctx.send(embed=embed)
@@ -253,5 +254,13 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
                      description="Sets a status message for additional information. To remove give no message.")
     async def dsc_set_status(self, ctx, *message):
         self.dsc_conf()['status'] = " ".join(message)
+        Storage().save(self)
+        await ctx.message.add_reaction(Storage().CMDSUCCESS)
+
+    @dsc_set.command(name="points", help="Sets the voting system",
+                     description="Sets the point list for the current voting system. Points can be set like "
+                                 "\"12-10-...\" or \"12 10 ...\", which will be converted to the first.")
+    async def dsc_set_status(self, ctx, *points):
+        self.dsc_conf()['points'] = "-".join(points)
         Storage().save(self)
         await ctx.message.add_reaction(Storage().CMDSUCCESS)
