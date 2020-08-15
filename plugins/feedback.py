@@ -210,16 +210,19 @@ class Plugin(BasePlugin, name="Feedback"):
     """
     Bugscore
     """
+
     async def bugscore_show(self, ctx):
-        msg = Lang.lang(self, "bugscore_title")
-        for uid in sorted(
-                sorted(self.storage["bugscore"],
-                       key=lambda x: utils.get_best_username(discord.utils.get(self.bot.guild.members, id=x)).lower()),
-                key=lambda x: self.storage["bugscore"][x],
-                reverse=True):
-            user = discord.utils.get(self.bot.guild.members, id=uid)
-            msg += "\n{}: {}".format(utils.get_best_username(user), self.storage["bugscore"][uid])
-        await ctx.send(msg)
+        users = sorted(
+            sorted(self.storage["bugscore"],
+                   key=lambda x: utils.get_best_username(discord.utils.get(self.bot.guild.members, id=x)).lower()),
+            key=lambda x: self.storage["bugscore"][x],
+            reverse=True)
+        lines = list(map(lambda x:
+                         "{}: {}".format(utils.get_best_username(discord.utils.get(self.bot.guild.members, id=x)),
+                                         self.storage["bugscore"][x]),
+                         users))
+        for msg in utils.paginate(lines, prefix="{}\n".format(Storage.lang(self, "bugscore_title"))):
+            await ctx.send(msg)
 
     async def bugscore_del(self, ctx, user):
         if discord.utils.get(ctx.author.roles, id=Config().BOTMASTER_ROLE_ID) is None:
