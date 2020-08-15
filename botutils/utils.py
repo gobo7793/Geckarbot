@@ -4,7 +4,7 @@ import emoji
 import random
 import warnings
 from discord.ext.commands.bot import Bot
-from conf import Storage
+from conf import Config
 from threading import Thread, Lock
 import asyncio
 import time
@@ -76,12 +76,13 @@ def get_best_username(user):
     return str(user)
 
 
-def get_plugin_by_name(name):
+def get_plugin_by_name(bot, name):
     """
+    :param bot: Geckarbot reference
     :param name: Name of the plugin that is to be returned.
     :return: Configurable object of the plugin with name `name`. Returns None if no such plugin is found.
     """
-    for pluginslot in Storage().plugins:
+    for pluginslot in bot.plugins:
         if pluginslot.name == name:
             return pluginslot.instance
     return None
@@ -243,7 +244,7 @@ async def _write_to_channel(bot: Bot, channel_id: int = 0, message=None, channel
     """
 
     channel = bot.get_channel(channel_id)
-    if not Storage().DEBUG_MODE and channel is not None and message is not None and message:
+    if not Config().DEBUG_MODE and channel is not None and message is not None and message:
         if isinstance(message, discord.Embed):
             await channel.send(embed=message)
         else:
@@ -255,12 +256,12 @@ async def _write_to_channel(bot: Bot, channel_id: int = 0, message=None, channel
 
 async def write_debug_channel(bot: Bot, message):
     """Writes the given message or embed to the debug channel"""
-    await _write_to_channel(bot, Storage().DEBUG_CHAN_ID, message, "debug")
+    await _write_to_channel(bot, Config().DEBUG_CHAN_ID, message, "debug")
 
 
 async def write_admin_channel(bot: Bot, message):
     """Writes the given message or embed to the admin channel"""
-    await _write_to_channel(bot, Storage().ADMIN_CHAN_ID, message, "admin")
+    await _write_to_channel(bot, Config().ADMIN_CHAN_ID, message, "admin")
 
 
 async def log_to_admin_channel_without_ctx(bot, **kwargs):

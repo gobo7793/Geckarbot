@@ -5,7 +5,7 @@ import random
 from discord.ext import commands
 
 from base import BasePlugin
-from conf import Storage
+from conf import Storage, Lang, Config
 from botutils import utils, converter, permChecks
 
 lang = {
@@ -121,7 +121,7 @@ class Plugin(BasePlugin, name="Custom CMDs"):
             try:
                 member = await converter.convert_member(self.bot, msg, arg)
                 if member is not None and self.bot.ignoring.check_user_command(member, cmd_name):
-                    await msg.channel.send(Storage.lang(self, 'user_blocked', utils.get_best_username(member)))
+                    await msg.channel.send(Lang.lang(self, 'user_blocked', utils.get_best_username(member)))
                     return
             except commands.CommandError:
                 pass
@@ -156,21 +156,21 @@ class Plugin(BasePlugin, name="Custom CMDs"):
         # get current prefix
         if new_prefix is None:
             example = random.choice(list(self.conf().keys()))
-            await ctx.send(Storage.lang(self, 'current_prefix', self.conf()[prefix_key], example))
+            await ctx.send(Lang.lang(self, 'current_prefix', self.conf()[prefix_key], example))
             return
 
         # set new prefix
         if not permChecks.check_full_access(ctx.author):
-            await ctx.message.add_reaction(Storage().CMDERROR)
-            raise commands.BotMissingAnyRole(Storage().FULL_ACCESS_ROLES)
+            await ctx.message.add_reaction(Lang.CMDERROR)
+            raise commands.BotMissingAnyRole(Config().FULL_ACCESS_ROLES)
 
         if new_prefix == ctx.prefix:
-            await ctx.message.add_reaction(Storage().CMDERROR)
-            await ctx.send(Storage.lang(self, 'invalid_prefix'))
+            await ctx.message.add_reaction(Lang.CMDERROR)
+            await ctx.send(Lang.lang(self, 'invalid_prefix'))
         else:
             self.conf()[prefix_key] = new_prefix
             Storage.save(self)
-            await ctx.message.add_reaction(Storage().CMDSUCCESS)
+            await ctx.message.add_reaction(Lang.CMDSUCCESS)
 
     @cmd.command(name="list", help="Lists all custom commands.",
                  descripton="Lists all custom commands. Write anything for more to get more cmd information.")
@@ -186,7 +186,7 @@ class Plugin(BasePlugin, name="Custom CMDs"):
                 cmds.append(k)
 
         if not cmds:
-            await ctx.send(Storage.lang(self, 'list_no_cmds'))
+            await ctx.send(Lang.lang(self, 'list_no_cmds'))
             return
 
         cmds.sort(key=str.lower)
@@ -200,7 +200,7 @@ class Plugin(BasePlugin, name="Custom CMDs"):
         if raw_text:
             await ctx.send(self.conf()[prefix_key] + raw_text)
         else:
-            await ctx.send(Storage.lang(self, "raw_doesnt_exists", cmd_name))
+            await ctx.send(Lang.lang(self, "raw_doesnt_exists", cmd_name))
 
     @cmd.command(name="guidelines", help="Returns the link to the general command guidelines")
     # TODO: MAKE BETTER AFTER NEW CONFIG/STORAGE SYSTEM IS FINISHED
@@ -223,8 +223,8 @@ class Plugin(BasePlugin, name="Custom CMDs"):
             raise commands.MissingRequiredArgument(inspect.signature(self.cmd_add).parameters['args'])
 
         if cmd_name in self.conf():
-            await ctx.send(Storage.lang(self, "add_exists", cmd_name))
-            await ctx.message.add_reaction(Storage().CMDERROR)
+            await ctx.send(Lang.lang(self, "add_exists", cmd_name))
+            await ctx.message.add_reaction(Lang.CMDERROR)
         else:
             contains_me = "/me" in args[0].lower()
 
@@ -238,19 +238,19 @@ class Plugin(BasePlugin, name="Custom CMDs"):
             self.conf()[cmd_name] = cmd_text
             Storage.save(self)
             # await utils.log_to_admin_channel(ctx)
-            await ctx.message.add_reaction(Storage().CMDSUCCESS)
-            await utils.write_debug_channel(self.bot, Storage.lang(self, 'cmd_added', self.get_raw_cmd(cmd_name)))
+            await ctx.message.add_reaction(Lang.CMDSUCCESS)
+            await utils.write_debug_channel(self.bot, Lang.lang(self, 'cmd_added', self.get_raw_cmd(cmd_name)))
 
     @cmd.command(name="del", help="Deletes a custom command")
-    @commands.has_any_role(*Storage().FULL_ACCESS_ROLES)
+    @commands.has_any_role(*Config().FULL_ACCESS_ROLES)
     async def cmd_del(self, ctx, cmd_name):
         if cmd_name in self.conf():
             cmd_raw = self.get_raw_cmd(cmd_name)
             del self.conf()[cmd_name]
             Storage.save(self)
             # await utils.log_to_admin_channel(ctx)
-            await ctx.message.add_reaction(Storage().CMDSUCCESS)
-            await utils.write_debug_channel(self.bot, Storage.lang(self, 'cmd_removed', cmd_raw))
+            await ctx.message.add_reaction(Lang.CMDSUCCESS)
+            await utils.write_debug_channel(self.bot, Lang.lang(self, 'cmd_removed', cmd_raw))
         else:
-            await ctx.message.add_reaction(Storage().CMDERROR)
-            await ctx.send(Storage.lang(self, "del_doesnt_exists", cmd_name))
+            await ctx.message.add_reaction(Lang.CMDERROR)
+            await ctx.send(Lang.lang(self, "del_doesnt_exists", cmd_name))

@@ -5,7 +5,7 @@ from enum import Enum
 
 import discord
 
-from conf import Storage
+from conf import Lang, Storage
 
 from plugins.quiz.utils import get_best_username
 
@@ -151,7 +151,7 @@ class Score:
         return r
 
     def embed(self, end=False, sort_by_points=False):
-        embed = discord.Embed(title=Storage().lang(self.plugin, "results_title"))
+        embed = discord.Embed(title=Lang.lang(self.plugin, "results_title"))
 
         ladder = self.ladder(sort_by_points=sort_by_points)
         place = 0
@@ -263,7 +263,7 @@ class Question:
         msg = await channel.send(embed=self.embed(emoji=emoji))
         if emoji:
             for i in range(len(self.all_answers)):
-                await msg.add_reaction(Storage().EMOJI["lettermap"][i])  # this breaks if there are more than 26 answers
+                await msg.add_reaction(Lang.EMOJI["lettermap"][i])  # this breaks if there are more than 26 answers
         self.message = msg
         return msg
 
@@ -319,7 +319,7 @@ class Question:
     @property
     def emoji_map(self):
         if self._cached_emoji is None:
-            self._cached_emoji = Storage().EMOJI["lettermap"][:len(self.all_answers)]
+            self._cached_emoji = Lang.EMOJI["lettermap"][:len(self.all_answers)]
         return self._cached_emoji
 
     def is_valid_emoji(self, emoji):

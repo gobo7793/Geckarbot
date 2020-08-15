@@ -1,6 +1,6 @@
 import discord
 from discord.ext import commands
-from conf import Storage
+from conf import Config
 
 
 def in_channel(channel_id):
@@ -19,6 +19,6 @@ def check_full_access(user: discord.Member):
     @commands.has_any_role(*Config().FULL_ACCESS_ROLES) instead.
     """
     for role in user.roles:
-        if role.id in Storage().FULL_ACCESS_ROLES:
+        if role.id in Config().FULL_ACCESS_ROLES:
             return True
     return False

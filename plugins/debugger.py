@@ -7,7 +7,7 @@ from botutils import utils
 from subsystems.reactions import ReactionAddedEvent, ReactionRemovedEvent
 
 from base import BasePlugin
-from conf import Storage
+from conf import Config, Lang
 
 
 class Plugin(BasePlugin, name="Testing and debug things"):
@@ -24,9 +24,9 @@ class Plugin(BasePlugin, name="Testing and debug things"):
         return {}
 
     def cog_check(self, ctx):
-        role = discord.utils.get(ctx.author.roles, id=Storage().BOTMASTER_ROLE_ID)
+        role = discord.utils.get(ctx.author.roles, id=Config().BOTMASTER_ROLE_ID)
         if role is None:
-            raise commands.MissingRole(Storage().BOTMASTER_ROLE_ID)
+            raise commands.MissingRole(Config().BOTMASTER_ROLE_ID)
         return True
 
     def wake_up_sync(self):
@@ -58,7 +58,7 @@ class Plugin(BasePlugin, name="Testing and debug things"):
         try:
             await ctx.message.add_reaction(reaction)
         except HTTPException:
-            await ctx.message.add_reaction(Storage().CMDERROR)
+            await ctx.message.add_reaction(Lang.CMDERROR)
 
     @staticmethod
     async def waitforreact_callback(event):
