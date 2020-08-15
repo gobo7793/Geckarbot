@@ -26,7 +26,7 @@ lang = {
         'yt_playlist': "Youtube playlist",
         'config_error_reset': "Configuration error. Please reset dsc configuration.",
         'config_error': "DSC configuration error, config values:",
-        'invalid_phase': "Invalid dsc state.",
+        'invalid_phase': "Invalid dsc state, only \"voting\" or \"signup\" possible.",
         'winner_prefix': "**Previous DSC winners:**\n",
         'winner_msg': "**#{}**: {} with {}/{} Points ({} %, {} participants in {}/{})",
         },
@@ -44,7 +44,7 @@ lang = {
         'yt_playlist': "Youtube Playlist",
         'config_error_reset': "Fehler in der DSC-Konfiguration, bitte zurücksetzen.",
         'config_error': "DSC-Konfigurations-Fehler, Werte:",
-        'invalid_phase': "Ungültiger DSC-State.",
+        'invalid_phase': "Ungültiger DSC-State, nur \"voting\" (Votingphase) und \"signup\" (Anmeldephase) möglich.",
         'winner_prefix': "**Bisherige DSC-Gewinner:**\n",
         'winner_msg': "**#{}**: {} mit {}/{} Punkten ({} %, {} TN in {}/{})",
         }
@@ -111,13 +111,13 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
                            "Is Google Sheets not reachable or do you set the wrong cell?")
             return ""
 
-    @commands.group(name="dsc", invoke_without_command=True, help="Get and manage informations about current DSC",
+    @commands.group(name="dsc", help="Get and manage informations about current DSC",
                     description="Get the informations about the current dsc or manage it. "
                                 "Command only works in music channel. "
                                 "Manage DSC informations is only permitted for songmasters.")
-    @permChecks.in_channel(Storage().CHAN_IDS.get('music', 0))
     async def dsc(self, ctx):
-        await ctx.invoke(self.bot.get_command('dsc info'))
+        if ctx.invoked_subcommand is None:
+            await ctx.invoke(self.bot.get_command('dsc info'))
 
     @dsc.command(name="rules", help="Get the link to the DSC rules")
     async def dsc_rules(self, ctx):
@@ -203,19 +203,21 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
             embed.add_field(name="Status", value=str(self.dsc_conf()['status']))
             await utils.write_debug_channel(self.bot, embed)
 
-    @dsc.group(name="set", invoke_without_command=True, usage="<host|state|stateend|status|yt>",
+    @dsc.group(name="set",
                help="Set data about current/next DSC.")
-    @commands.has_any_role(Storage().ADMIN_ROLE_ID, Storage().BOTMASTER_ROLE_ID, Storage().ROLE_IDS.get('songmaster', 0))
+    @commands.has_any_role(*Storage().FULL_ACCESS_ROLES, Storage().ROLE_IDS.get('songmaster', 0))
+    @permChecks.in_channel(Storage().CHAN_IDS.get('music', 0))
     async def dsc_set(self, ctx):
-        await ctx.send_help(self.dsc_set)
+        if ctx.invoked_subcommand is None:
+            await ctx.send_help(self.dsc_set)
 
-    @dsc_set.command(name="host", help="Sets the current/next DSC hoster", usage="<user>")
+    @dsc_set.command(name="host", help="Sets the current/next DSC host")
     async def dsc_set_host(self, ctx, user: discord.Member):
         self.dsc_conf()['host_id'] = user.id
         Storage().save(self)
         await ctx.message.add_reaction(Storage().CMDSUCCESS)
 
-    async def dsc_save_state(self, ctx, new_state: DscState):
+    async def _dsc_save_state(self, ctx, new_state: DscState):
         self.dsc_conf()['state'] = new_state
         Storage().save(self)
         await ctx.message.add_reaction(Storage().CMDSUCCESS)
@@ -224,13 +226,13 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
                      usage="<voting|signup>")
     async def dsc_set_state(self, ctx, state):
         if state.lower() == "voting":
-            await self.dsc_save_state(ctx, DscState.Voting)
+            await self._dsc_save_state(ctx, DscState.Voting)
         elif state.lower() == "signup":
-            await self.dsc_save_state(ctx, DscState.Sign_up)
+            await self._dsc_save_state(ctx, DscState.Sign_up)
         else:
             await ctx.send(self.dsc_lang('invalid_phase'))
 
-    @dsc_set.command(name="yt", help="Sets the Youtube playlist link", usage="<link>")
+    @dsc_set.command(name="yt", help="Sets the Youtube playlist link")
     async def dsc_set_yt_link(self, ctx, link):
         link = utils.clear_link(link)
         self.dsc_conf()['yt_link'] = link
@@ -247,9 +249,9 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
         Storage().save(self)
         await ctx.message.add_reaction(Storage().CMDSUCCESS)
 
-    @dsc_set.command(name="status", help="Sets the status message", usage="[message]",
-                     description="Sets a status message for additional informations. To remove give no message.")
-    async def dsc_set_status(self, ctx, *status_message):
-        self.dsc_conf()['status'] = " ".join(status_message)
+    @dsc_set.command(name="status", help="Sets the status message",
+                     description="Sets a status message for additional information. To remove give no message.")
+    async def dsc_set_status(self, ctx, *message):
+        self.dsc_conf()['status'] = " ".join(message)
         Storage().save(self)
         await ctx.message.add_reaction(Storage().CMDSUCCESS)
