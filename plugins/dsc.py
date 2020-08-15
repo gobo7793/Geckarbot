@@ -6,7 +6,7 @@ from enum import IntEnum
 
 from datetime import datetime
 from discord.ext import commands
-from conf import Storage
+from conf import Storage, Lang, Config
 from botutils import utils, permChecks, sheetsclient
 from base import BasePlugin
 
@@ -205,7 +205,7 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
             await utils.write_debug_channel(self.bot, embed)
 
     @dsc.group(name="set", help="Set data about current/next DSC.")
-    @commands.has_any_role(*Config().FULL_ACCESS_ROLES, Storage().ROLE_IDS.get('songmaster', 0))
+    @commands.has_any_role(*Config().FULL_ACCESS_ROLES, Config().ROLE_IDS.get('songmaster', 0))
     @permChecks.in_channel(Config().CHAN_IDS.get('music', 0))
     async def dsc_set(self, ctx):
         if ctx.invoked_subcommand is None:
