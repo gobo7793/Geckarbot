@@ -207,8 +207,7 @@ class Config(IODirectory):
     @classmethod
     def resource_dir(cls, plugin):
         """Returns the storage directory for the given plugin instance."""
-        self = cls()
-        for plugin_slot in self.plugins:
+        for plugin_slot in cls().bot.plugins:
             if plugin_slot.instance is plugin:
                 return plugin_slot.resource_dir
         return None
