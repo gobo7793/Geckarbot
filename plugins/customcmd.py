@@ -64,11 +64,9 @@ class Plugin(BasePlugin, name="Custom CMDs"):
         return {
             prefix_key: '+',
             'ping': 'Pong!',
-            'nico': '***N I C O   A U F S   M A U L !***   :right_facing_fist_tone1::cow:',
             'passierschein': 'Eintragung einer Galeere? Oh, da sind Sie hier falsch! Wenden Sie sich an die '
                              'Hafenkommandantur unten im Hafen.\n'
                              'https://youtu.be/lIiUR2gV0xk',
-            'kris': 'mood <:kristoph:717524523662180383>',
             'slap': "_slaps %1 around a bit with a large trout_",
             'liebe': "https://www.youtube.com/watch?v=TfmJPDmaQdg",
         }
@@ -211,8 +209,9 @@ class Plugin(BasePlugin, name="Custom CMDs"):
                              "%n: The nth command argument\n"
                              "%n*: The nth and all following arguments\n"
                              "%a: Alias for %1*\n\n"
-                             "Supports /me."
-                             "Example: !cmd add test Argument1: %1 from user %u")
+                             "Supports /me. Custom commands must be compliant to the general command guidelines, which "
+                             "can be found at https://github.com/gobo7793/Geckarbot/wiki/Command-Guidelines.\n"
+                             "Example: !cmd add test Argument1: %1 from user %u\n")
     async def cmd_add(self, ctx, cmd_name, *args):
         if not args:
             raise commands.MissingRequiredArgument(inspect.signature(self.cmd_add).parameters['args'])
