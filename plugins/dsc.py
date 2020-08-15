@@ -1,4 +1,5 @@
 import re
+import logging
 
 import discord
 from enum import IntEnum
@@ -66,13 +67,14 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
         super().__init__(bot)
         self.can_reload = True
         bot.register(self)
+        self.log = logging.getLogger("dsc")
 
         self.dsc_conf()['rule_link'] = self._get_rule_link()
         Storage().save(self)
 
     def default_config(self):
         return {
-            'rule_cell': "Aktuell!F2",
+            'rule_cell': "Aktuell!E2",
             'rule_link': None,
             'contestdoc_id': "1HH42s5DX4FbuEeJPdm8l1TK70o2_EKADNOLkhu5qRa8",
             'winners_range': "Hall of Fame!B4:D200",
@@ -100,9 +102,14 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
         return "https://docs.google.com/spreadsheets/d/{}".format(self.dsc_conf()['contestdoc_id'])
 
     def _get_rule_link(self):
-        c = self.get_api_client()
-        values = c.get(self.dsc_conf()['rule_cell'])
-        return values[0][0]
+        try:
+            c = self.get_api_client()
+            values = c.get(self.dsc_conf()['rule_cell'])
+            return values[0][0]
+        except IndexError:
+            self.log.error("Can't read rules link from Contestdoc sheet. "
+                           "Is Google Sheets not reachable or do you set the wrong cell?")
+            return ""
 
     @commands.group(name="dsc", invoke_without_command=True, help="Get and manage informations about current DSC",
                     description="Get the informations about the current dsc or manage it. "
@@ -114,6 +121,8 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
 
     @dsc.command(name="rules", help="Get the link to the DSC rules")
     async def dsc_rules(self, ctx):
+        if not self.dsc_conf()['rule_link']:
+            self._get_rule_link()
         await ctx.send(f"<{self.dsc_conf()['rule_link']}>")
 
     @dsc.command(name="status", help="Get the current informations from the Songmasters about the current/next DSC")
