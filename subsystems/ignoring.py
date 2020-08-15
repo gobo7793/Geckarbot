@@ -6,7 +6,7 @@ from discord.ext import commands
 from datetime import datetime
 
 from base import BaseSubsystem
-from conf import Storage, PluginSlot
+from conf import Storage, PluginSlot, Lang
 from botutils import utils
 from subsystems import timers
 
@@ -190,18 +190,18 @@ class IgnoreDataset:
 
         dt = ""
         if self.until < datetime.max:
-            dt = Storage.lang(self.ignoring_instance, 'until',
-                              self.until.strftime(Storage.lang(self.ignoring_instance, 'until_strf')))
+            dt = Lang.lang(self.ignoring_instance, 'until',
+                           self.until.strftime(Lang.lang(self.ignoring_instance, 'until_strf')))
 
         if self.ignore_type == IgnoreType.User:
-            m = Storage.lang(self.ignoring_instance, 'user_ignore_msg', self.user.display_name, dt)
+            m = Lang.lang(self.ignoring_instance, 'user_ignore_msg', self.user.display_name, dt)
 
         elif self.ignore_type == IgnoreType.Command:
-            m = Storage.lang(self.ignoring_instance, 'cmd_ignore_msg', self.command_name, self.channel.name, dt)
+            m = Lang.lang(self.ignoring_instance, 'cmd_ignore_msg', self.command_name, self.channel.name, dt)
 
         elif self.ignore_type == IgnoreType.User_Command:
-            m = Storage.lang(self.ignoring_instance, 'user_cmd_ignore_msg',
-                             self.user.display_name, self.command_name, dt)
+            m = Lang.lang(self.ignoring_instance, 'user_cmd_ignore_msg',
+                          self.user.display_name, self.command_name, dt)
 
         else:
             return self.to_raw_message()
@@ -214,7 +214,7 @@ class Ignoring(BaseSubsystem):
 
     def __init__(self, bot):
         super().__init__(bot)
-        Storage().plugins.append(PluginSlot(self, True))
+        bot.plugins.append(PluginSlot(self, True))
         self.log = logging.getLogger("ignoring")
 
         self.users = []
