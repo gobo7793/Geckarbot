@@ -142,7 +142,8 @@ class Plugin(BasePlugin, name="Custom CMDs"):
                 arg, all_arg_list[arg_num][1] if all_arg_list[arg_num][1] else all_arg_list[arg_num][0])
         return arg.strip()
 
-    @commands.group(name="cmd", invoke_without_command=True, help="Adds, list or (for admins) removes a custom command",
+    @commands.group(name="cmd", invoke_without_command=True, alias="bar",
+                    help="Adds, list or (for admins) removes a custom command",
                     description="Adds, list or removes a custom command. Custom commands can be added and removed in "
                                 "runtime. To use a custom command, the message must start with the setted prefix, "
                                 "which can be returned using the prefix subcommand.")
