@@ -38,7 +38,7 @@ wildcard_user = "%u"
 wildcard_umention = "%um"
 wildcard_all_args = "%a"
 wildcard_regex_pattern = "(%(\\d)(\\*?))"
-cmd_arg_regex_pattern = "(\"([^\"]*)\"|\\S+)"
+cmd_arg_regex_pattern = "\\+?(\"([^\"]*)\"|\\S+)"
 
 
 class Plugin(BasePlugin, name="Custom CMDs"):
@@ -86,7 +86,8 @@ class Plugin(BasePlugin, name="Custom CMDs"):
     async def on_message(self, msg):
         """Will be called from on_message listener to react for custom cmds"""
         msg_args = self.cmd_re.findall(msg.content)
-        cmd_name = msg_args[0][0][len(self.prefix):]
+        cmd_name = msg_args[0][1] if msg_args[0][1] else msg_args[0][0]
+
         cmd_args = msg_args[1:]
         if cmd_name not in self.conf():
             return
