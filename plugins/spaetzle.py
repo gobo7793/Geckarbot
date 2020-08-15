@@ -7,7 +7,7 @@ from discord.ext import commands
 
 from Geckarbot import BasePlugin
 from botutils import sheetsclient
-from conf import Storage
+from conf import Storage, Lang
 
 lang = {
     'en': {
@@ -91,7 +91,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
         return lang
 
     def spaetzle_lang(self, str_name, *args):
-        return Storage().lang(self, str_name, *args)
+        return Lang.lang(self, str_name, *args)
 
     def spaetzle_conf(self):
         return Storage().get(self)
@@ -258,7 +258,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
         if user is None:
             if discord_user in self.spaetzle_conf()["discord_user_bridge"]:
                 del self.spaetzle_conf()["discord_user_bridge"][discord_user]
-                await ctx.message.add_reaction(Storage().CMDSUCCESS)
+                await ctx.message.add_reaction(Lang.CMDSUCCESS)
             else:
                 await ctx.send(self.spaetzle_lang('user_not_bridged'))
             return
@@ -267,7 +267,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             self.get_user_cell(user)
             self.spaetzle_conf()["discord_user_bridge"][ctx.message.author.id] = user
             Storage().save(self)
-            await ctx.message.add_reaction(Storage().CMDSUCCESS)
+            await ctx.message.add_reaction(Lang.CMDSUCCESS)
         except UserNotFound:
             await ctx.send(self.spaetzle_lang('user_not_found'))
 
@@ -491,12 +491,12 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
 
         if user not in self.spaetzle_conf()['observed_users']:
             self.spaetzle_conf()['observed_users'].append(user)
-        await ctx.message.add_reaction(Storage().CMDSUCCESS)
+        await ctx.message.add_reaction(Lang.CMDSUCCESS)
 
     @observe.command(name="remove", help="Removes a user from the observation")
     async def observe_remove(self, ctx, user):
         if user in self.spaetzle_conf()['observed_users']:
             self.spaetzle_conf()['observed_users'].remove(user)
-            await ctx.message.add_reaction(Storage().CMDSUCCESS)
+            await ctx.message.add_reaction(Lang.CMDSUCCESS)
         else:
             await ctx.send(self.spaetzle_lang('user_not_found'))

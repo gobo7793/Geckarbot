@@ -11,7 +11,7 @@ from discord.ext import commands
 import Geckarbot
 from base import BasePlugin
 from botutils import restclient, utils, permChecks
-from conf import Storage
+from conf import Config, Lang
 
 # Assumed version numbering system:
 # 2.3.1
@@ -307,7 +307,7 @@ class Plugin(BasePlugin, name="Bot updating system"):
             return None
 
         release = release["tag_name"]
-        if is_newer(release, Storage().VERSION):
+        if is_newer(release, Config().VERSION):
             return release
         return None
 
@@ -318,12 +318,12 @@ class Plugin(BasePlugin, name="Bot updating system"):
         :param version: Release version that the news should be about.
         """
         if version is None:
-            version = Storage().VERSION
+            version = Config().VERSION
         ver = None
         body = None
         for el in self.get_releases():
             ver = sanitize_version_s(el["tag_name"])
-            logging.getLogger(__name__).debug("Comparing versions: {} and {}".format(Storage().VERSION, ver))
+            logging.getLogger(__name__).debug("Comparing versions: {} and {}".format(Config().VERSION, ver))
             if is_equal(sanitize_version_s(version), ver):
                 body = el["body"]
                 break
@@ -395,18 +395,18 @@ class Plugin(BasePlugin, name="Bot updating system"):
     @commands.command(name="version", help="Returns the running bot version.")
     async def version(self, ctx):
         """Returns the version"""
-        await ctx.send(lang["version"].format(Storage().VERSION))
+        await ctx.send(lang["version"].format(Config().VERSION))
 
     @commands.command(name="restart", help="Restarts the bot.")
-    @commands.has_any_role(Storage().BOTMASTER_ROLE_ID)
+    @commands.has_any_role(Config().BOTMASTER_ROLE_ID)
     async def restart(self, ctx):
-        await ctx.message.add_reaction(Storage().CMDSUCCESS)
+        await ctx.message.add_reaction(Lang.CMDSUCCESS)
         await self.bot.shutdown(Geckarbot.Exitcodes.RESTART)  # This signals the runscript
 
     @commands.command(name="shutdown", help="Stops the bot.")
-    @commands.has_any_role(Storage().BOTMASTER_ROLE_ID)
+    @commands.has_any_role(Config().BOTMASTER_ROLE_ID)
     async def shutdowncmd(self, ctx):
-        await ctx.message.add_reaction(Storage().CMDSUCCESS)
+        await ctx.message.add_reaction(Lang.CMDSUCCESS)
         await self.bot.shutdown(Geckarbot.Exitcodes.SUCCESS)  # This signals the runscript
 
     @commands.command(name="replace", help="Confirms an !update command.")
@@ -422,7 +422,7 @@ class Plugin(BasePlugin, name="Bot updating system"):
             return
 
         await utils.log_to_admin_channel(self.to_log)
-        await ctx.message.add_reaction(Storage().CMDSUCCESS)
+        await ctx.message.add_reaction(Lang.CMDSUCCESS)
         self.to_log = None
         self.state = State.CONFIRMED
 
@@ -433,7 +433,7 @@ class Plugin(BasePlugin, name="Bot updating system"):
         # Argument parsing
         if not permChecks.check_full_access(ctx.author) or check == "check":
             release = self.check_release()
-            await ctx.message.add_reaction(Storage().CMDSUCCESS)
+            await ctx.message.add_reaction(Lang.CMDSUCCESS)
             if release is None:
                 await ctx.message.channel.send(lang["no_new_version"])
             else:
@@ -459,7 +459,7 @@ class Plugin(BasePlugin, name="Bot updating system"):
             await ctx.message.channel.send(lang["wont_update"])
             self.state = State.IDLE
             return
-        await ctx.message.add_reaction(Storage().CMDSUCCESS)
+        await ctx.message.add_reaction(Lang.CMDSUCCESS)
         await ctx.message.channel.send(lang["new_version_update"].format(release))
 
         # Ask for confirmation
