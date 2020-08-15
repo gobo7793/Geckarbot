@@ -152,27 +152,13 @@ class Plugin(BasePlugin, name="Feedback"):
             await ctx.send(el)
 
     @redact.command(name="del", help="Deletes a complaint", usage="<#>")
-    async def delete(self, ctx, *args):
-        # Args parsing
-        argserr = False
-        if len(args) != 1:
-            argserr = True
-        i = None
-        try:
-            i = int(args[0])
-        except (ValueError, TypeError):
-            argserr = True
-        if argserr:
-            await ctx.message.add_reaction(Lang.CMDERROR)
-            await ctx.send(Lang.lang(self, "redact_del_args"))
-            return
-
+    async def delete(self, ctx, complaint: int):
         # Delete
         try:
-            del self.complaints[i]
+            del self.complaints[complaint]
         except KeyError:
             await ctx.message.add_reaction(Lang.CMDERROR)
-            await ctx.send(Lang.lang(self, "redact_del_not_found", i))
+            await ctx.send(Lang.lang(self, "redact_del_not_found", complaint))
             return
         # await ctx.send(lang['complaint_removed'].format(i))
         await ctx.message.add_reaction(Lang.CMDSUCCESS)
