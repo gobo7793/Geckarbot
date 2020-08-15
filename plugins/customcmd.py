@@ -172,13 +172,18 @@ class Plugin(BasePlugin, name="Custom CMDs"):
             Storage.save(self)
             await ctx.message.add_reaction(Storage().CMDSUCCESS)
 
-    @cmd.command(name="list", help="Lists all custom commands")
-    async def cmd_list(self, ctx):
+    @cmd.command(name="list", help="Lists all custom commands.",
+                 descripton="Lists all custom commands. Write anything for more to get more cmd information.")
+    async def cmd_list(self, ctx, more=""):
         cmds = []
         for k in self.conf().keys():
-            if k != prefix_key:
+            if more and k != prefix_key:
                 arg_list = self.arg_list_re.findall(self.conf()[k])
-                cmds.append("{} <{}>".format(k, len(arg_list)))
+                arg_len = len(arg_list)
+                arg_len_indicator = f" <{arg_len}>" if arg_len > 0 else ""
+                cmds.append(k + arg_len_indicator)
+            elif k != prefix_key:
+                cmds.append(k)
 
         if not cmds:
             await ctx.send(Storage.lang(self, 'list_no_cmds'))
