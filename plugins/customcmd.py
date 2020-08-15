@@ -8,7 +8,6 @@ from base import BasePlugin
 from conf import Storage
 from botutils import utils, converter, permChecks
 
-
 lang = {
     'en': {
         'raw_doesnt_exists': "A command \"{}\" doesn't exists, but you can create it!",
@@ -34,10 +33,10 @@ lang = {
     }
 }
 
-
 prefix_key = "_prefix"
 wildcard_user = "%u"
 wildcard_umention = "%um"
+wildcard_all_args = "%a"
 wildcard_regex_pattern = "(%(\\d)(\\*?))"
 cmd_arg_regex_pattern = "(\"([^\"]*)\"|\\S+)"
 
@@ -94,28 +93,32 @@ class Plugin(BasePlugin, name="Custom CMDs"):
         if cmd_name not in self.conf():
             return
         elif (self.bot.ignoring.check_command_name(cmd_name, msg.channel)
-                or self.bot.ignoring.check_user_command(msg.author, cmd_name)):
+              or self.bot.ignoring.check_user_command(msg.author, cmd_name)):
             raise commands.DisabledCommand()
 
-        cmd_content = self.conf()[cmd_name]
+        cmd_content: str = self.conf()[cmd_name]
 
         cmd_content = cmd_content.replace(wildcard_umention, msg.author.mention)
         cmd_content = cmd_content.replace(wildcard_user, utils.get_best_username(msg.author))
+
+        if wildcard_all_args in cmd_content:
+            cmd_content = cmd_content.replace(wildcard_all_args, self._get_all_arg_str(0, cmd_args))
 
         all_args_positions = self.arg_list_re.findall(cmd_content)
         for i in range(0, len(all_args_positions)):
             if i >= len(cmd_args):
                 break
 
+            # Replace args
             wildcard = all_args_positions[i][0]
             arg_num = int(all_args_positions[i][1]) - 1
             arg = cmd_args[arg_num][1] if cmd_args[arg_num][1] else cmd_args[arg_num][0]
 
+            # All following args
             if all_args_positions[i][2]:
-                for j in range(i + 1, len(cmd_args)):
-                    arg_num = j
-                    arg = "{} {}".format(arg, cmd_args[arg_num][1] if cmd_args[arg_num][1] else cmd_args[arg_num][0])
+                arg += " " + self._get_all_arg_str(i + 1, cmd_args)
 
+            # Ignoring, passive user command blocking
             try:
                 member = await converter.convert_member(self.bot, msg, arg)
                 if member is not None and self.bot.ignoring.check_user_command(member, cmd_name):
@@ -126,6 +129,18 @@ class Plugin(BasePlugin, name="Custom CMDs"):
             cmd_content = cmd_content.replace(wildcard, arg)
 
         await msg.channel.send(cmd_content)
+
+    def _get_all_arg_str(self, start_index, all_arg_list):
+        """
+        Concats all args in all_arg_list starting on start_index with space to one string.
+        The all_arg_list must be created with the regex pattern cmd_arg_regex_pattern.
+        """
+        arg = ""
+        for j in range(start_index, len(all_arg_list)):
+            arg_num = j
+            arg = "{} {}".format(
+                arg, all_arg_list[arg_num][1] if all_arg_list[arg_num][1] else all_arg_list[arg_num][0])
+        return arg.strip()
 
     @commands.group(name="cmd", invoke_without_command=True, help="Adds, list or (for admins) removes a custom command",
                     description="Adds, list or removes a custom command. Custom commands can be added and removed in "
@@ -189,6 +204,7 @@ class Plugin(BasePlugin, name="Custom CMDs"):
                              "%um: Mentions the user who uses the command\n"
                              "%n: The nth command argument\n"
                              "%n*: The nth and all following arguments\n"
+                             "%a: Alias for %1*\n"
                              "Example: !cmd add test Argument1: %1 from user %u")
     async def cmd_add(self, ctx, cmd_name, *args):
         if not args:
