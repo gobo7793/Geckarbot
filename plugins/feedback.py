@@ -225,11 +225,11 @@ class Plugin(BasePlugin, name="Feedback"):
     Bugscore
     """
     async def bugscore_show(self, ctx):
-        await ctx.send(Lang.lang(self, "bugscore_title"))
-
+        msg = Lang.lang(self, "bugscore_title")
         for uid in sorted(self.storage["bugscore"], key=lambda x: self.storage["bugscore"][x], reverse=True):
             user = discord.utils.get(self.bot.guild.members, id=uid)
-            await ctx.send("{}: {}".format(utils.get_best_username(user), self.storage["bugscore"][uid]))
+            msg += "\n{}: {}".format(utils.get_best_username(user), self.storage["bugscore"][uid])
+        await ctx.send(msg)
 
     async def bugscore_del(self, ctx, user):
         if discord.utils.get(ctx.author.roles, id=Config().BOTMASTER_ROLE_ID) is None:
