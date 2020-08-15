@@ -119,7 +119,7 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
         if ctx.invoked_subcommand is None:
             await ctx.invoke(self.bot.get_command('dsc info'))
 
-    @dsc.command(name="rules", help="Get the link to the DSC rules")
+    @dsc.command(name="rules", help="Get the link to the DSC rules", alias="regeln")
     async def dsc_rules(self, ctx):
         if not self.dsc_conf()['rule_link']:
             self._get_rule_link()
