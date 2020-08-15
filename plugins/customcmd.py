@@ -204,7 +204,8 @@ class Plugin(BasePlugin, name="Custom CMDs"):
                              "%um: Mentions the user who uses the command\n"
                              "%n: The nth command argument\n"
                              "%n*: The nth and all following arguments\n"
-                             "%a: Alias for %1*\n"
+                             "%a: Alias for %1*\n\n"
+                             "Supports /me."
                              "Example: !cmd add test Argument1: %1 from user %u")
     async def cmd_add(self, ctx, cmd_name, *args):
         if not args:
@@ -214,7 +215,15 @@ class Plugin(BasePlugin, name="Custom CMDs"):
             await ctx.send(Storage.lang(self, "add_exists", cmd_name))
             await ctx.message.add_reaction(Storage().CMDERROR)
         else:
-            cmd_text = " ".join(args)
+            contains_me = "/me" in args[0].lower()
+
+            arg_start_index = 1 if contains_me else 0
+            cmd_text = " ".join(args[arg_start_index:])
+
+            # Process special discord /cmds
+            if contains_me:
+                cmd_text = "_{}_".format(cmd_text)
+
             self.conf()[cmd_name] = cmd_text
             Storage.save(self)
             # await utils.log_to_admin_channel(ctx)
