@@ -226,7 +226,11 @@ class Plugin(BasePlugin, name="Feedback"):
     """
     async def bugscore_show(self, ctx):
         msg = Lang.lang(self, "bugscore_title")
-        for uid in sorted(self.storage["bugscore"], key=lambda x: self.storage["bugscore"][x], reverse=True):
+        for uid in sorted(
+                sorted(self.storage["bugscore"],
+                       key=lambda x: utils.get_best_username(discord.utils.get(self.bot.guild.members, id=x)).lower()),
+                key=lambda x: self.storage["bugscore"][x],
+                reverse=True):
             user = discord.utils.get(self.bot.guild.members, id=uid)
             msg += "\n{}: {}".format(utils.get_best_username(user), self.storage["bugscore"][uid])
         await ctx.send(msg)
