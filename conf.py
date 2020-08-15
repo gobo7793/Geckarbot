@@ -140,9 +140,8 @@ class PluginSlot:
         self.lang = instance.get_lang()
         if self.lang is None:
             try:
-                lang_module = pkgutil.importlib.import_module(
-                    "{}.{}".format(Config().LANG_DIR.replace('/', '.'), self.name))
-                self.lang = lang_module.lang
+                with open(Config().LANG_DIR + "/" + self.name + ".json") as f:
+                    self.lang = json.load(f)
             except Exception as e:
                 self.lang = {}
                 logging.error("Unable to load lang file from plugin: {} ({})".format(self.name, e))
