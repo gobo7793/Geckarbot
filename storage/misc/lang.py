@@ -18,10 +18,11 @@ lang = {
         'geck_out': "arbor!",
         'bully_msg': "{} mobbt uns :frowning:",
         'bully_msg_self': "Ich mobbe euch :slight_smile:",
-        'choose_msg': "I pick: ",
-        'choose_noarg': "I need an option!",
 
         # real en strings
+        'choose_sabaton': "SABATON! SABATON! Sabaton is always the best choice, but...",
+        'choose_msg': "I pick: ",
+        'choose_noarg': "I need an option!",
         'mud_out': "kip!",
         'mudkip_out': "https://www.youtube.com/watch?v=3DkqMjfqqPc",
         'tree_out': "cko!",
@@ -37,6 +38,7 @@ lang = {
         'remind_past': "Sorry, I don't have a time machine.",
     },
     'de': {
+        'choose_sabaton': "NOCH EIN BIER! NOCH EIN BIER! Also Sabaton geht ja immer, aber...",
         'choose_msg': "Ich wähle: ",
         'choose_noarg': "Ich brauche mindestens eine Möglichkeit!",
         'remind_set': "Ich erinnere dich zum Zeitpunkt {}. Um die Erinnerung abzubrechen kannst du "
