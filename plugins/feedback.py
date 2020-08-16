@@ -267,6 +267,8 @@ class Plugin(BasePlugin, name="Feedback"):
             self.storage["bugscore"][user.id] += increment
         else:
             self.storage["bugscore"][user.id] = increment
+        if self.storage["bugscore"][user.id] <= 0:
+            del self.storage["bugscore"][user.id]
         Storage.save(self)
         await ctx.message.add_reaction(Lang.CMDSUCCESS)
 
