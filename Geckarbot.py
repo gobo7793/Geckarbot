@@ -14,7 +14,7 @@ from discord.ext import commands
 
 from base import BasePlugin
 from conf import Config, PluginSlot, Lang, Storage
-from botutils import utils
+from botutils import utils, permChecks
 from subsystems import timers, reactions, ignoring, dmlisteners
 
 
@@ -225,9 +225,7 @@ def main():
             return
 
         # debug mode whitelist
-        if (Config().DEBUG_MODE
-                and len(Config().DEBUG_WHITELIST) > 0
-                and message.author.id not in Config().DEBUG_WHITELIST):
+        if not permChecks.whitelist_check(message.author):
             return
 
         await bot.process_commands(message)
