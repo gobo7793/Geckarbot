@@ -32,6 +32,17 @@ lang = {
 }
 
 
+class UserBlockedCommand(Exception):
+    """
+    Will be raised if a user blocked the command.
+    Can be used for passive command checking.
+    """
+    def __init__(self, user:discord.User, command:str = ""):
+        self.user = user
+        self.command = command
+        super().__init__()
+
+
 class IgnoreType(enum.IntEnum):
     """The possible types for ignore list entries."""
 

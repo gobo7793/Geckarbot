@@ -179,8 +179,11 @@ def main():
         @bot.event
         async def on_command_error(ctx, error):
             """Error handling for bot commands"""
+            # No command or ignoring list handling
             if isinstance(error, (commands.CommandNotFound, commands.DisabledCommand)):
                 return
+            if isinstance(error, ignoring.UserBlockedCommand):
+                await ctx.send("User {} has blocked the command.".format(utils.get_best_username(error.user)))
 
             # Check Failures
             elif isinstance(error, (commands.MissingRole, commands.MissingAnyRole)):
@@ -199,6 +202,8 @@ def main():
                 await ctx.send("Error on given argument: {}".format(error))
             elif isinstance(error, commands.UserInputError):
                 await ctx.send("Wrong user input format: {}".format(error))
+
+            # Other errors
             else:
                 # error handling
                 embed = discord.Embed(title=':x: Command Error', colour=0xe74c3c)  # Red
