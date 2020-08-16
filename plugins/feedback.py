@@ -213,14 +213,14 @@ class Plugin(BasePlugin, name="Feedback"):
 
     async def bugscore_show(self, ctx):
         users = sorted(
-            sorted(self.storage["bugscore"],
-                   key=lambda x: utils.get_best_username(discord.utils.get(self.bot.guild.members, id=x)).lower()),
-            key=lambda x: self.storage["bugscore"][x],
-            reverse=True)
-        lines = list(map(lambda x:
-                         "{}: {}".format(utils.get_best_username(discord.utils.get(self.bot.guild.members, id=x)),
-                                         self.storage["bugscore"][x]),
-                         users))
+            sorted(
+                [(utils.get_best_username(discord.utils.get(self.bot.guild.members, id=user)), n) for (user, n) in
+                 self.storage["bugscore"].items()],
+                key=lambda x: x[0].lower()),
+            key=lambda x: x[1],
+            reverse=True
+        )
+        lines = ["{}: {}".format(user, p) for (user, p) in users]
         for msg in utils.paginate(lines, prefix="{}\n".format(Storage.lang(self, "bugscore_title"))):
             await ctx.send(msg)
 
