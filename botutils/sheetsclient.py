@@ -1,7 +1,7 @@
 import logging
 import urllib.parse
 
-from conf import Storage
+from conf import Config
 from botutils import restclient
 
 
@@ -24,7 +24,7 @@ class Client(restclient.Client):
         :param spreadsheet_id: The ID of the spreadsheet
         """
 
-        if not Storage().GOOGLE_API_KEY:
+        if not Config().GOOGLE_API_KEY:
             raise NoApiKey()
 
         super(Client, self).__init__("https://sheets.googleapis.com/v4/spreadsheets/")
@@ -40,7 +40,7 @@ class Client(restclient.Client):
         """
         if params is None:
             params = []
-        params.append(('key', Storage().GOOGLE_API_KEY))
+        params.append(('key', Config().GOOGLE_API_KEY))
         return params
 
     def _make_request(self, route, params=None):
