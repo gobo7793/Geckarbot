@@ -2,109 +2,117 @@ import inspect
 import re
 import random
 
+import discord
 from discord.ext import commands
 
 from base import BasePlugin
 from conf import Storage, Lang, Config
 from botutils import utils, converter, permChecks
+from subsystems.ignoring import UserBlockedCommand
 
-lang = {
-    'en': {
-        'raw_doesnt_exists': "A command \"{}\" doesn't exists, but you can create it!",
-        'del_doesnt_exists': "Command \"{}\" can't be deleted, because it doesn't exists...",
-        'add_exists': "A command \"{}\" already exists.",
-        'list_no_cmds': "I don't know any custom commands :frowning:",
-        'cmd_added': "Added custom command: {}",
-        'cmd_removed': "Added custom command: {}",
-        'invalid_prefix': "The prefix can't be the same like for regular commands.",
-        'user_blocked': "The user {} has blocked the command.",
-        'current_prefix': "The current prefix for custom commands is: {0}\nExample: {0}{1}",
-    },
-    'de': {
-        'raw_doesnt_exists': "Ein Benutzer-Kommando \"{}\" existiert nicht, erstell es doch einfach selbst!",
-        'del_doesnt_exists': "Das Benutzer-Kommando \"{}\" kann nicht gelöscht werden weil es nicht existiert...",
-        'add_exists': "Ein Benutzer-Kommando \"{}\" existiert bereits.",
-        'list_no_cmds': "Ich kenne keine Benutzer-Kommandos :frowning:",
-        'cmd_added': "Benutzer-Kommando hinzugefügt: {}",
-        'cmd_removed': "Benutzer-Kommando gelöscht: {}",
-        'invalid_prefix': "Das Prefix kann nicht das gleiche wie für normale Benutzer-Kommandos sein.",
-        'user_blocked': "{} hat das Benutzer-Kommando geblockt.",
-        'current_prefix': "Das aktuelle Präfix für Benutzer-Kommandos ist: {0}\nBeispiel: {0}{1}",
-    }
-}
 
-prefix_key = "_prefix"
 wildcard_user = "%u"
 wildcard_umention = "%um"
 wildcard_all_args = "%a"
-wildcard_regex_pattern = "(%(\\d)(\\*?))"
 cmd_arg_regex_pattern = "\\+?(\"([^\"]*)\"|\\S+)"
 
+arg_list_re = re.compile(r"(%(\d)(\*?))")
 
-class Plugin(BasePlugin, name="Custom CMDs"):
-    """Provides custom cmds"""
 
-    def __init__(self, bot):
-        super().__init__(bot)
-        self.can_reload = True
-        bot.register(self)
+def _get_all_arg_str(start_index, all_arg_list):
+    """
+    Concats all args in all_arg_list starting on start_index with space to one string.
+    The all_arg_list must be created with the regex pattern cmd_arg_regex_pattern.
+    """
+    arg = ""
+    for j in range(start_index, len(all_arg_list)):
+        arg_num = j
+        arg = "{} {}".format(
+            arg, all_arg_list[arg_num][1] if all_arg_list[arg_num][1] else all_arg_list[arg_num][0])
+    return arg.strip()
 
-        self.cmd_re = re.compile(cmd_arg_regex_pattern)
-        self.arg_list_re = re.compile(wildcard_regex_pattern)
-        self.prefix = self.conf()[prefix_key]
 
-        @bot.listen()
-        async def on_message(msg):
-            if (msg.content.startswith(self.prefix)
-                    and msg.author.id != self.bot.user.id
-                    and not self.bot.ignoring.check_user(msg.author)
-                    and permChecks.whitelist_check(msg.author)):
-                await self.on_message(msg)
+class Cmd:
+    """Represents a custom cmd"""
 
-    def default_config(self):
+    def __init__(self, name: str, creator_id: int, *texts):
+        """
+        Creates a new custom cmd
+
+        :param name: The command name, must be unique, will be lowered
+        :param creator_id: The user id of the initial creator of the cmd
+        :param texts: The output texts of the cmd
+        """
+
+        self.name = name.lower()
+        self.creator_id = creator_id
+        self.texts = list(texts)
+
+    def serialize(self):
+        """
+        Serializes the cmd data to a dict
+
+        :return: A dict with the creator and texts
+        """
         return {
-            prefix_key: '+',
-            'ping': 'Pong!',
-            'passierschein': 'Eintragung einer Galeere? Oh, da sind Sie hier falsch! Wenden Sie sich an die '
-                             'Hafenkommandantur unten im Hafen.\n'
-                             'https://youtu.be/lIiUR2gV0xk',
-            'slap': "_slaps %1 around a bit with a large trout_",
-            'liebe': "https://www.youtube.com/watch?v=TfmJPDmaQdg",
+            'creator': self.creator_id,
+            'texts': self.texts
         }
 
-    def get_lang(self):
-        return lang
+    @classmethod
+    def deserialize(cls, name, d):
+        """
+        Constructs a Cmd object from a dict.
 
-    def conf(self):
-        return Storage.get(self)
+        :param name: The command name
+        :param d: dict made by serialize()
+        :return: Cmd object
+        """
+        return Cmd(name, d['creator'], d['texts'])
 
-    def get_raw_cmd(self, cmd_name):
-        """Returns the raw cmd text or an empty string if command doesn't exists"""
-        if cmd_name in self.conf():
-            return "{} -> {}".format(cmd_name, self.conf()[cmd_name])
+    @classmethod
+    def convert_from_1x_format(cls, k, v):
+        """Converts a command from the old format with only one """
+
+    def get_ran_raw_text(self):
+        """Returns a random text of the cmd or an empty string if the cmd has no text"""
+        if len(self.texts) > 0:
+            return random.choice(self.texts)
         return ""
 
-    async def on_message(self, msg):
-        """Will be called from on_message listener to react for custom cmds"""
-        msg_args = self.cmd_re.findall(msg.content)
-        cmd_name = msg_args[0][1] if msg_args[0][1] else msg_args[0][0]
+    def get_raw_text(self, text_id):
+        """Returns the raw text with the given ID as formatted string or raise IndexError if ID not exists"""
+        return "#{}: {}".format(text_id, self.texts[text_id])
 
-        cmd_args = msg_args[1:]
-        if cmd_name not in self.conf():
-            return
-        elif (self.bot.ignoring.check_command_name(cmd_name, msg.channel)
-              or self.bot.ignoring.check_user_command(msg.author, cmd_name)):
-            raise commands.DisabledCommand()
+    def get_raw_texts(self):
+        """Returns all raw texts of the cmd as formatted string"""
+        if len(self.texts) == 1:
+            return [self.get_raw_text(0)]
+        else:
+            return [self.get_raw_text(i) for i in range(0, len(self.texts))]
 
-        cmd_content: str = self.conf()[cmd_name]
+    async def get_ran_formatted_text(self, bot, msg: discord.Message, *cmd_args):
+        """
+        Formats and replaces the wildcard of a random text of the cmd for using it as custom cmd.
+        If a mentioned user has the command on its ignore list, a UserBlockedCommand error will be raised.
 
+        :param bot: The bot
+        :param msg: The original message
+        :param cmd_args: The used command arguments
+        :returns: The formatted command text
+        """
+
+        cmd_content = self.get_ran_raw_text()
+
+        # general replaces
         cmd_content = cmd_content.replace(wildcard_umention, msg.author.mention)
         cmd_content = cmd_content.replace(wildcard_user, utils.get_best_username(msg.author))
 
         if wildcard_all_args in cmd_content:
-            cmd_content = cmd_content.replace(wildcard_all_args, self._get_all_arg_str(0, cmd_args))
+            cmd_content = cmd_content.replace(wildcard_all_args, _get_all_arg_str(0, cmd_args))
 
-        all_args_positions = self.arg_list_re.findall(cmd_content)
+        # numbered arguments
+        all_args_positions = arg_list_re.findall(cmd_content)
         for i in range(0, len(all_args_positions)):
             if i >= len(cmd_args):
                 break
@@ -116,31 +124,93 @@ class Plugin(BasePlugin, name="Custom CMDs"):
 
             # All following args
             if all_args_positions[i][2]:
-                arg += " " + self._get_all_arg_str(i + 1, cmd_args)
+                arg += " " + _get_all_arg_str(i + 1, cmd_args)
 
             # Ignoring, passive user command blocking
             try:
-                member = await converter.convert_member(self.bot, msg, arg)
-                if member is not None and self.bot.ignoring.check_user_command(member, cmd_name):
-                    await msg.channel.send(Lang.lang(self, 'user_blocked', utils.get_best_username(member)))
-                    return
-            except commands.CommandError:
-                pass
+                member = await converter.convert_member(bot, msg, arg)
+            except commands.BadArgument:
+                member = None
+
+            if member is not None and bot.ignoring.check_user_command(member, self.name):
+                raise UserBlockedCommand(member, self.name)
             cmd_content = cmd_content.replace(wildcard, arg)
 
-        await msg.channel.send(cmd_content)
+        return cmd_content
 
-    def _get_all_arg_str(self, start_index, all_arg_list):
-        """
-        Concats all args in all_arg_list starting on start_index with space to one string.
-        The all_arg_list must be created with the regex pattern cmd_arg_regex_pattern.
-        """
-        arg = ""
-        for j in range(start_index, len(all_arg_list)):
-            arg_num = j
-            arg = "{} {}".format(
-                arg, all_arg_list[arg_num][1] if all_arg_list[arg_num][1] else all_arg_list[arg_num][0])
-        return arg.strip()
+
+class Plugin(BasePlugin, name="Custom CMDs"):
+    """Provides custom cmds"""
+
+    def __init__(self, bot):
+        super().__init__(bot)
+        self.can_reload = True
+        bot.register(self)
+
+        self.cmd_re = re.compile(cmd_arg_regex_pattern)
+        self.prefix = Config.get(self)['prefix']
+        self.commands = {}
+
+        self.load()
+
+        @bot.listen()
+        async def on_message(msg):
+            if (msg.content.startswith(self.prefix)
+                    and msg.author.id != self.bot.user.id
+                    and not self.bot.ignoring.check_user(msg.author)
+                    and permChecks.whitelist_check(msg.author)):
+                await self.on_message(msg)
+
+    # def default_config(self):
+    #     return {
+    #         prefix_key: '+',  # TODO: MOVE TO CONFIG
+    #         'liebe': {
+    #             "creator": 0,
+    #             "texts": ["https://www.youtube.com/watch?v=TfmJPDmaQdg"]
+    #         },
+    #         'passierschein': {
+    #             "creator": 0,
+    #             "texts": ["Eintragung einer Galeere? Oh, da sind Sie hier falsch! "
+    #                     "Wenden Sie sich an die Hafenkommandantur unten im Hafen.\n"
+    #                     "https://youtu.be/lIiUR2gV0xk"]
+    #         },
+    #         'ping': {
+    #             "creator": 0,
+    #             "texts": ["Pong"]
+    #         },
+    #     }
+
+    def load(self):
+        """Loads the commands"""
+        for k in Storage.get(self).keys():
+            self.commands[k] = Cmd.deserialize(k, Storage.get(self)[k])
+
+    def save(self):
+        """Saves the commands to the storage"""
+        cmd_dict = {}
+        for k in self.commands:
+            cmd_dict[k.name] = k.serialize()
+
+        Storage.set(self, cmd_dict)
+        Storage.save(self)
+
+    async def on_message(self, msg):
+        """Will be called from on_message listener to react for custom cmds"""
+
+        # get cmd parts/args
+        msg_args = self.cmd_re.findall(msg.content)
+        cmd_name = msg_args[0][1].lower() if msg_args[0][1] else msg_args[0][0].lower()
+
+        cmd_args = msg_args[1:]
+        if cmd_name not in self.commands:
+            return
+        elif (self.bot.ignoring.check_command_name(cmd_name, msg.channel)
+              or self.bot.ignoring.check_user_command(msg.author, cmd_name)):
+            raise commands.DisabledCommand()
+
+        cmd_content = await self.commands[cmd_name].get_ran_formatted_text(self.bot, msg, cmd_args)
+
+        await msg.channel.send(cmd_content)
 
     @commands.group(name="cmd", invoke_without_command=True, alias="bar",
                     help="Adds, list or (for admins) removes a custom command",
@@ -156,8 +226,8 @@ class Plugin(BasePlugin, name="Custom CMDs"):
     async def cmd_prefix(self, ctx, new_prefix=None):
         # get current prefix
         if new_prefix is None:
-            example = random.choice(list(self.conf().keys()))
-            await ctx.send(Lang.lang(self, 'current_prefix', self.conf()[prefix_key], example))
+            example = random.choice(list(self.commands.keys()))
+            await ctx.send(Lang.lang(self, 'current_prefix', Config.get(self)['prefix'], example))
             return
 
         # set new prefix
@@ -169,21 +239,25 @@ class Plugin(BasePlugin, name="Custom CMDs"):
             await ctx.message.add_reaction(Lang.CMDERROR)
             await ctx.send(Lang.lang(self, 'invalid_prefix'))
         else:
-            self.conf()[prefix_key] = new_prefix
+            Config.get(self)['prefix'] = new_prefix
             Storage.save(self)
             await ctx.message.add_reaction(Lang.CMDSUCCESS)
 
     @cmd.command(name="list", help="Lists all custom commands.",
-                 descripton="Lists all custom commands. Write anything for more to get more cmd information.")
-    async def cmd_list(self, ctx, more=""):
+                 descripton="Lists all custom commands. Argument full gives more information of the commands.")
+    async def cmd_list(self, ctx, full=""):
         cmds = []
-        for k in self.conf().keys():
-            if more and k != prefix_key:
-                arg_list = self.arg_list_re.findall(self.conf()[k])
-                arg_len = len(arg_list)
-                arg_len_indicator = f" <{arg_len}>" if arg_len > 0 else ""
-                cmds.append(k + arg_len_indicator)
-            elif k != prefix_key:
+        suffix = Lang.lang(self, 'list_suffix') if full else ""
+
+        for k in self.commands.keys():
+            if full:
+                arg_lens = []
+                for t in self.commands[k].texts:
+                    arg_list = arg_list_re.findall(t)
+                    arg_lens.append(len(arg_list))
+                cmds.append(Lang.lang(self, 'list_full_data', k, len(self.commands[k].texts.max(arg_lens))))
+
+            else:
                 cmds.append(k)
 
         if not cmds:
@@ -191,24 +265,28 @@ class Plugin(BasePlugin, name="Custom CMDs"):
             return
 
         cmds.sort(key=str.lower)
-        cmd_msgs = utils.paginate(cmds, delimiter=", ")
+        cmd_msgs = utils.paginate(cmds, delimiter=", ", suffix=suffix)
         for msg in cmd_msgs:
             await ctx.send(msg)
 
     @cmd.command(name="raw", help="Gets the raw custom command text")
     async def cmd_raw(self, ctx, cmd_name):
-        raw_text = self.get_raw_cmd(cmd_name)
-        if raw_text:
-            await ctx.send(self.conf()[prefix_key] + raw_text)
+        cmd_name = cmd_name.lower()
+        if cmd_name in self.commands:
+            creator = self.bot.get_user(self.commands[cmd_name].creator)
+            for msg in utils.paginate(self.commands[cmd_name].get_raw_texts(), delimiter="\n",
+                                      prefix=Lang.lang(self, 'raw_prefix',
+                                                       self.prefix, cmd_name, utils.get_best_username(creator))):
+                await ctx.send(msg)
         else:
             await ctx.send(Lang.lang(self, "raw_doesnt_exists", cmd_name))
 
     @cmd.command(name="guidelines", help="Returns the link to the general command guidelines")
-    # TODO: MAKE BETTER AFTER NEW CONFIG/STORAGE SYSTEM IS FINISHED
     async def cmd_guidelines(self, ctx):
-        await ctx.send("TODO: MAKE BETTER; <https://github.com/gobo7793/Geckarbot/wiki/Command-Guidelines>")
+        # await ctx.send("MAKE BETTER; <https://github.com/gobo7793/Geckarbot/wiki/Command-Guidelines>")
+        await ctx.send("<{}>".format(Config.get(self)['guidelines']))
 
-    @cmd.command(name="add", help="Adds a custom command",
+    @cmd.command(name="add", help="Adds a custom command", usage="cmd_name text...",
                  description="Adds a custom command. Following wildcards can be used, which will be replaced on "
                              "using:\n"
                              "%u: The user who uses the command\n"
@@ -221,37 +299,70 @@ class Plugin(BasePlugin, name="Custom CMDs"):
                              "Example: !cmd add test Argument1: %1 from user %u\n")
     async def cmd_add(self, ctx, cmd_name, *args):
         if not args:
-            raise commands.MissingRequiredArgument(inspect.signature(self.cmd_add).parameters['args'])
-
-        if cmd_name in self.conf():
-            await ctx.send(Lang.lang(self, "add_exists", cmd_name))
             await ctx.message.add_reaction(Lang.CMDERROR)
-        else:
-            contains_me = "/me" in args[0].lower()
+            raise commands.MissingRequiredArgument(inspect.signature(self.cmd_add).parameters['args'])
+        cmd_name = cmd_name.lower()
 
-            arg_start_index = 1 if contains_me else 0
-            cmd_text = " ".join(args[arg_start_index:])
+        # TODO Process multiple output texts
+        cmd_texts = [" ".join(args)]
 
-            # Process special discord /cmds
+        # Process special discord /cmd
+        for i in range(0, len(cmd_texts)):
+            contains_me = cmd_texts[i].lower().startswith("/me")
+
             if contains_me:
-                cmd_text = "_{}_".format(cmd_text)
+                cmd_texts[i] = "_{}_".format(cmd_texts[i][3:])
 
-            self.conf()[cmd_name] = cmd_text
-            Storage.save(self)
-            # await utils.log_to_admin_channel(ctx)
+        if cmd_name in self.commands:
             await ctx.message.add_reaction(Lang.CMDSUCCESS)
-            await utils.write_debug_channel(self.bot, Lang.lang(self, 'cmd_added', self.get_raw_cmd(cmd_name)))
-
-    @cmd.command(name="del", help="Deletes a custom command")
-    @commands.has_any_role(*Config().FULL_ACCESS_ROLES)
-    async def cmd_del(self, ctx, cmd_name):
-        if cmd_name in self.conf():
-            cmd_raw = self.get_raw_cmd(cmd_name)
-            del self.conf()[cmd_name]
-            Storage.save(self)
-            # await utils.log_to_admin_channel(ctx)
-            await ctx.message.add_reaction(Lang.CMDSUCCESS)
-            await utils.write_debug_channel(self.bot, Lang.lang(self, 'cmd_removed', cmd_raw))
+            await ctx.send(Lang.lang(self, "add_exists", cmd_name))
         else:
+            self.commands[cmd_name] = Cmd(cmd_name, ctx.author.id, cmd_texts)
+            self.save()
+            # await utils.log_to_admin_channel(ctx)
+            await ctx.message.add_reaction(Lang.CMDSUCCESS)
+            await utils.write_debug_channel(self.bot,
+                                            Lang.lang(self, 'cmd_added', self.commands[cmd_name].get_raw_texts()))
+
+    @cmd.command(name="del", help="Deletes a custom command or output text",
+                 description="Deletes a custom command or one of its output texts. To delete a output text,"
+                             "the ID of the text must be given. The IDs and creator can be get via !cmd raw <command>."
+                             "Only the original command creator or admins can delete commands or its texts.")
+    async def cmd_del(self, ctx, cmd_name, text_id: int = None):
+        cmd_name = cmd_name.lower()
+
+        if cmd_name not in self.commands:
             await ctx.message.add_reaction(Lang.CMDERROR)
             await ctx.send(Lang.lang(self, "del_doesnt_exists", cmd_name))
+            return
+
+        cmd = self.commands[cmd_name]
+
+        if not permChecks.check_full_access(ctx.author) and ctx.author.id != cmd.creator_id:
+            await ctx.send(Lang.lang(self, 'del_perm_missing'))
+            return
+
+        if text_id is not None and text_id < 0:
+            await ctx.message.add_reaction(Lang.CMDERROR)
+            await ctx.send(Lang.lang(self, 'text_id_not_positive'))
+            return
+
+        if text_id is not None and text_id >= len(cmd.texts):
+            await ctx.message.add_reaction(Lang.CMDERROR)
+            await ctx.send(Lang.lang(self, 'text_id_not_exists'))
+
+        if text_id is None:
+            # Remove command
+            cmd_raw = cmd.get_raw_texts()
+            del (self.commands[cmd_name])
+            await utils.write_debug_channel(self.bot, Lang.lang(self, 'cmd_removed', cmd_raw))
+
+        else:
+            # remove text
+            cmd_raw = cmd.get_raw_text(text_id)
+            cmd.texts.remove(text_id)
+            await utils.write_debug_channel(self.bot, Lang.lang(self, 'cmd_text_removed', cmd_raw))
+
+        self.save()
+        # await utils.log_to_admin_channel(ctx)
+        await ctx.message.add_reaction(Lang.CMDSUCCESS)
