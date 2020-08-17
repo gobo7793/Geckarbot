@@ -1,9 +1,8 @@
 import os
 import json
 import logging
-import pkgutil
 from enum import Enum
-from botutils import jsonUtils
+from botutils import jsonUtils, converter
 from base import Configurable
 
 
@@ -15,115 +14,19 @@ class _Singleton(type):
     _instances = {}
 
     def __call__(cls, *args, **kwargs):
-        # print("instances: {}".format(cls._instances))
         if cls not in cls._instances:
             cls._instances[cls] = super(_Singleton, cls).__call__(*args, **kwargs)
         return cls._instances[cls]
 
 
-class IODirectory(metaclass=_Singleton):
-    def __init__(self):
-        self._plugins = []
-        self.bot = None
-
-    @property
-    def directory(self):
-        """
-        To be overwritten.
-        :return: Directory name that this class administers.
-        """
-        raise NotImplementedError
-
-    def _write_file(self, file_name: str, config_data):
-        """Writes the config to file_name.json and returns if successfull"""
-        try:
-            with open(f"{self.directory}/{file_name}.json", "w") as f:
-                json.dump(config_data, f, cls=jsonUtils.Encoder, indent=4)
-                return True
-        except (OSError, InterruptedError, OverflowError, ValueError, TypeError):
-            logging.error(f"Error writing config file {self.directory}/{file_name}.json")
-            return False
-
-    def _read_file(self, file_name: str):
-        """Reads the file_name.json and returns the content or None if errors"""
-        if not os.path.exists(f"{self.directory}/{file_name}.json"):
-            logging.info(f"Config file {self.directory}/{file_name}.json not found.")
-            return None
-        else:
-            try:
-                with open(f"{self.directory}/{file_name}.json", "r") as f:
-                    jsondata = json.load(f, cls=jsonUtils.Decoder)
-                    return jsondata
-            except (OSError, InterruptedError, json.JSONDecodeError):
-                logging.error(f"Error reading {self.directory}/{file_name}.json.")
-                return None
-
-    ######
-    # Save/Load/Get plugin config
-    ######
-    @classmethod
-    def get(cls, plugin):
-        """
-        Returns the config of the given plugin.
-        If given plugin is not registered, None will be returned.
-        :param plugin: Plugin object
-        """
-        logging.debug("IODir: get() on {} from {}".format(plugin, cls))
-        for plugin_slot in cls().bot.plugins:
-            if plugin_slot.instance is plugin:
-                return plugin_slot.config
-        return None
-
-    @classmethod
-    def set(cls, plugin, config):
-        """
-        Sets the config of the given plugin.
-        """
-        self = cls()
-        for plugin_slot in self.bot.plugins:
-            if plugin_slot.instance is plugin:
-                plugin_slot.config = config
-
-    @classmethod
-    def save(cls, plugin):
-        """
-        Saves the config of the given plugin.
-        If given plugin is not registered, None will be returned,
-        else if saving is succesfully.
-        """
-        self = cls()
-        for plugin_slot in self.bot.plugins:
-            if plugin_slot.instance is plugin:
-                return self._write_file(plugin_slot.name, plugin_slot.config)
-        return None
-
-    @classmethod
-    def load(cls, plugin):
-        """
-        Loads the managed file of the given plugin.
-        If given plugin is not registered, None will be returned, if errors
-        occured during loading False and it's default config will be used
-        as its config, otherwise True.
-        """
-        self = cls()
-        for plugin_slot in self.bot.plugins:
-            if plugin_slot.instance is plugin:
-                loaded = self._read_file(plugin_slot.name)
-                if loaded is None:
-                    plugin_slot.config = plugin.default_config()
-                    return False
-                plugin_slot.config = loaded
-                return True
-        return None
-
-
 class PluginContainer:
-    """Contains basic data for plugins"""
-
+    """
+    Contains basic data for plugins
+    """
     def __init__(self, instance: Configurable, is_subsystem=False):
         self.instance = instance
         self.name = instance.__module__.rsplit(".", 1)[1]
-        self.config = None
+        self.iodirs = {}
         self.is_subsystem = is_subsystem
 
         if not is_subsystem:
@@ -140,12 +43,141 @@ class PluginContainer:
             pass
 
 
+class IODirectory(metaclass=_Singleton):
+    def __init__(self):
+        self._plugins = []
+        self.bot = None
+
+    @property
+    def directory(self):
+        """
+        To be overwritten.
+        :return: Directory name that this class administers.
+        """
+        raise NotImplementedError
+
+    @classmethod
+    def get_default(cls, plugin):
+        """
+        To be overwritten.
+        :param plugin: Plugin object whose default structure is to be retrieved
+        :return: Default structure
+        """
+        raise NotImplementedError
+
+    @classmethod
+    def set_default(cls, plugin_cnt):
+        plugin_cnt.storage = plugin_cnt.instance.default_storage()
+
+    @classmethod
+    def has_structure(cls, plugin):
+        cnt = converter.get_plugin_container(cls().bot, plugin)
+        if cnt is None:
+            raise RuntimeError("PANIC: {} ({}) is not a registered plugin".format(plugin, plugin.name()))
+        if cls() not in cnt.iodirs or cnt.iodirs[cls()] is None:
+            return False
+        else:
+            return True
+
+    @classmethod
+    def has_file(cls, plugin):
+        """
+        :param plugin: Plugin object
+        :return: Returns whether `plugin` has a file.
+        """
+        return os.path.exists(cls()._filepath(plugin.name))
+
+    @classmethod
+    def _filepath(cls, file_name):
+        return f"{cls().directory}/{file_name}.json"
+
+    def _write_file(self, file_name: str, config_data):
+        """Writes the config to file_name.json and returns if successfull"""
+        try:
+            with open(self._filepath(file_name), "w") as f:
+                json.dump(config_data, f, cls=jsonUtils.Encoder, indent=4)
+                return True
+        except (OSError, InterruptedError, OverflowError, ValueError, TypeError):
+            logging.error(f"Error writing config file {self._filepath(file_name)}.json")
+            return False
+
+    def _read_file(self, file_name: str):
+        """Reads the file_name.json and returns the content or None if errors"""
+        if not os.path.exists(self._filepath(file_name)):
+            logging.info(f"Config file {self._filepath(file_name)}.json not found.")
+            return None
+        else:
+            try:
+                with open(self._filepath(file_name), "r") as f:
+                    jsondata = json.load(f, cls=jsonUtils.Decoder)
+                    return jsondata
+            except (OSError, InterruptedError, json.JSONDecodeError):
+                logging.error(f"Error reading {self._filepath(file_name)}.json.")
+                return None
+
+    ######
+    # Save/Load/Get plugin config
+    ######
+    @classmethod
+    def get(cls, plugin):
+        """
+        Returns the config of the given plugin.
+        If given plugin is not registered, None will be returned.
+        :param plugin: Plugin object
+        """
+        for plugin_cnt in cls().bot.plugins:
+            if plugin_cnt.instance is plugin:
+                if cls() not in plugin_cnt.iodirs:
+                    plugin_cnt.iodirs[cls()] = cls().get_default(plugin_cnt.instance)
+                return plugin_cnt.iodirs[cls()]
+        return None
+
+    @classmethod
+    def set(cls, plugin, structure):
+        """
+        Sets the structure of the given plugin.
+        """
+        self = cls()
+        for plugin_cnt in self.bot.plugins:
+            if plugin_cnt.instance is plugin:
+                plugin_cnt.iodirs[cls()] = structure
+
+    @classmethod
+    def save(cls, plugin):
+        """
+        Saves the config of the given plugin.
+        If given plugin is not registered, None will be returned,
+        else if saving is succesfully.
+        """
+        for plugin_slot in cls().bot.plugins:
+            if plugin_slot.instance is plugin:
+                return cls()._write_file(plugin_slot.name, cls.get(plugin))
+        return None
+
+    @classmethod
+    def load(cls, plugin):
+        """
+        Loads the managed file of the given plugin.
+        If given plugin is not registered, None will be returned, if errors
+        occured during loading False and it's default config will be used
+        as its config, otherwise True.
+        """
+        for plugin_cnt in cls().bot.plugins:
+            if plugin_cnt.instance is plugin:
+                loaded = cls()._read_file(plugin_cnt.name)
+                if loaded is None:
+                    cls.set_default(plugin_cnt)
+                    return False
+                plugin_cnt.iodirs[cls()] = loaded
+                return True
+        return None
+
+
 class Config(IODirectory):
 
     ######
     # Basic bot info
     ######
-
     VERSION = "1.8.3"
     CONFIG_DIR = "config"
     PLUGIN_DIR = "plugins"
@@ -153,14 +185,12 @@ class Config(IODirectory):
     STORAGE_DIR = "storage"
     RESOURCE_DIR = "resource"
     LANG_DIR = "lang"
-
-    BOT_CONFIG_FILE = "geckarbot"
-
-    ######
-    # Init
-    ######
+    BOT_CONFIG_FILE = "geckarbot"  # .json is implied
 
     def load_bot_config(self):
+        """
+        Bot init
+        """
         bot_data = self._read_file(self.BOT_CONFIG_FILE)
         if bot_data is None:
             logging.critical("Unable to load bot config.")
@@ -187,17 +217,9 @@ class Config(IODirectory):
     def directory(self):
         return self.CONFIG_DIR
 
-    @property
-    def plugins(self):
-        raise RuntimeError
-
-    ######
-    # Lang/Strings/Resources
-    ######
-
     @classmethod
     def resource_dir(cls, plugin):
-        """Returns the storage directory for the given plugin instance."""
+        """Returns the resource directory for the given plugin instance."""
         for plugin_slot in cls().bot.plugins:
             if plugin_slot.instance is plugin:
                 return plugin_slot.resource_dir
@@ -208,6 +230,10 @@ class Storage(IODirectory):
     @property
     def directory(self):
         return Config().STORAGE_DIR
+
+    @classmethod
+    def get_default(cls, plugin):
+        return plugin.default_storage()
 
 
 class Lang(metaclass=_Singleton):
@@ -280,6 +306,10 @@ class Lang(metaclass=_Singleton):
                 lang_str = plugin_slot.lang.get(lang_code, {}).get(str_name, str_name)
                 return lang_str.format(*args)
         return str_name
+
+    @classmethod
+    def get_default(cls, plugin):
+        return plugin.default_config()
 
 
 def reconfigure(bot):

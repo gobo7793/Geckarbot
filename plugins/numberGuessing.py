@@ -30,7 +30,7 @@ class Plugin(BasePlugin, name="A simple number guessing game"):
         super().__init__(bot)
         bot.register(self)
 
-    def default_config(self):
+    def default_storage(self):
         return {}
 
     @commands.group(name="guess", help="Guess a number",

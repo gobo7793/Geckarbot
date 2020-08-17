@@ -76,18 +76,6 @@ def get_best_username(user):
     return str(user)
 
 
-def get_plugin_by_name(bot, name):
-    """
-    :param bot: Geckarbot reference
-    :param name: Name of the plugin that is to be returned.
-    :return: Configurable object of the plugin with name `name`. Returns None if no such plugin is found.
-    """
-    for pluginslot in bot.plugins:
-        if pluginslot.name == name:
-            return pluginslot.instance
-    return None
-
-
 def format_andlist(andlist, ands="and", emptylist="nobody", fulllist="everyone", fulllen=None):
     """
     Builds a string such as "a, b, c and d".
@@ -338,13 +326,12 @@ def paginate(items, prefix="", suffix="", msg_prefix="", msg_suffix="", delimite
             first = False
             continue
 
+        current_msg.append(item)
         so_far = delimiter.join(current_msg)
         if len(_prefix + so_far + delimiter + item + _suffix) > threshold or i == len(items) - 1:
             yield _prefix + so_far + _suffix
             first = False
             current_msg = []
-        else:
-            current_msg.append(item)
 
         i += 1
 

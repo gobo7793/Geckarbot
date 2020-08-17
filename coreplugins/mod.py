@@ -18,7 +18,7 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
         self.can_reload = True
         bot.register(self)
 
-    def default_config(self):
+    def default_storage(self):
         return {
             'repo_link': "https://github.com/gobo7793/Geckarbot/",
             'bot_info_link': "",

@@ -130,7 +130,7 @@ class Plugin(BasePlugin, name="Role Management"):
 
         asyncio.get_event_loop().create_task(get_init_msg_data())
 
-    def default_config(self):
+    def default_storage(self):
         return {
             'message': {
                 'channel_id': Config().CHAN_IDS['announcements'],
