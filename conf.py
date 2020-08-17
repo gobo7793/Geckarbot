@@ -224,6 +224,10 @@ class Config(IODirectory):
             if plugin_slot.instance is plugin:
                 return plugin_slot.resource_dir
         return None
+    
+    @classmethod
+    def get_default(cls, plugin):
+        return plugin.default_config()
 
 
 class Storage(IODirectory):
