@@ -45,6 +45,5 @@ class Plugin(BasePlugin, name="Bot status commands for monitoring and debug purp
         if not Storage.has_structure(plugin):
             prefix = "**Warning: plugin {} does not have a storage structure.** " \
                      "This is the default storage.".format(name)
-        print("dumpcmd; dumping {}".format(dump))
         for el in utils.paginate(dump, prefix=prefix, msg_prefix="```", msg_suffix="```"):
             await ctx.send(el)
