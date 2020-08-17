@@ -128,10 +128,9 @@ class IODirectory(metaclass=_Singleton):
         logging.debug("IODir: get() on {} from {}".format(plugin.name(), cls))
         for plugin_cnt in cls().bot.plugins:
             if plugin_cnt.instance is plugin:
-                if cls() in plugin_cnt.iodirs:
-                    return plugin_cnt.iodirs[cls()]
-                else:
-                    return cls().get_default(plugin_cnt.instance)
+                if cls() not in plugin_cnt.iodirs:
+                    plugin_cnt.iodirs[cls()] = cls().get_default(plugin_cnt.instance)
+                return plugin_cnt.iodirs[cls()]
         return None
 
     @classmethod
@@ -139,6 +138,7 @@ class IODirectory(metaclass=_Singleton):
         """
         Sets the structure of the given plugin.
         """
+        logging.debug("IODir: set() on {} from {} for {}".format(plugin.name(), cls, structure))
         self = cls()
         for plugin_cnt in self.bot.plugins:
             if plugin_cnt.instance is plugin:
