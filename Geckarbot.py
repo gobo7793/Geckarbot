@@ -13,7 +13,7 @@ from pathlib import Path
 from discord.ext import commands
 
 from base import BasePlugin
-from conf import Config, PluginSlot, Lang, Storage
+from conf import Config, PluginContainer, Lang, Storage
 from botutils import utils, permChecks
 from subsystems import timers, reactions, ignoring, dmlisteners
 
@@ -50,6 +50,10 @@ class Geckarbot(commands.Bot):
     def plugins(self):
         return self._plugins
 
+    def configure(self, plugin):
+        Config().load(plugin)
+        Storage().load(plugin)
+
     def register(self, plugin_class):
         print(isinstance(plugin_class, BasePlugin))  # todo figure out why this is False
         if isinstance(plugin_class, commands.Cog):
@@ -59,22 +63,16 @@ class Geckarbot(commands.Bot):
         self.add_cog(plugin_object)
         self.geck_cogs.append(plugin_object)
 
-        plugin_slot = PluginSlot(plugin_object)
-        self.plugins.append(plugin_slot)
-        Config().load(plugin_object)
+        self.plugins.append(PluginContainer(plugin_object))
+        self.configure(plugin_object)
+        logging.debug("Registered plugin {}".format(plugin_object.name()))
 
     def plugin_objects(self):
         """
         Generator for all registered plugin objects without anything config-related
         """
-        for el in Config().plugins:
+        for el in self.plugins:
             yield el.instance
-
-    def plugin_name(self, plugin):
-        """
-        Returns a human-readable name for Plugin plugin.
-        """
-        return plugin.__module__.rsplit(".", 1)[1]  # same as for PluginSlot.name
 
     def load_plugins(self, plugin_dir):
         # import
@@ -86,7 +84,7 @@ class Geckarbot(commands.Bot):
                 if is_pkg:
                     to_import = "{}.{}.{}".format(plugin_dir, plugin, plugin)
 
-                p = pkgutil.importlib.import_module(to_import).Plugin(self)
+                pkgutil.importlib.import_module(to_import).Plugin(self)
             except Exception as e:
                 logging.error("Unable to load plugin: {}:\n{}".format(plugin, traceback.format_exc()))
                 continue

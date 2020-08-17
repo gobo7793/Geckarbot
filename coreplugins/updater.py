@@ -272,13 +272,12 @@ class Plugin(BasePlugin, name="Bot updating system"):
         self.state = State.UPDATING
         await channel.send(lang["doing_update"].format(tag))
         for plugin in self.bot.plugin_objects():
-            pname = self.bot.plugin_name(plugin)
             try:
-                await utils.write_debug_channel(self.bot, "Shutting down plugin {}".format(pname))
+                await utils.write_debug_channel(self.bot, "Shutting down plugin {}".format(plugin.name()))
                 await plugin.shutdown()
             except Exception as e:
                 msg = "{} while trying to shutdown plugin {}:\n{}".format(
-                    str(e), pname, traceback.format_exc()
+                    str(e), plugin.name(), traceback.format_exc()
                 )
                 await utils.write_debug_channel(self.bot, msg)
 
@@ -341,7 +340,7 @@ class Plugin(BasePlugin, name="Bot updating system"):
                 el = "**{}**".format(m.groups()[0])
             lines.append(el)
 
-        for page in utils.paginate(lines, prefix="**Version {}:**\n\n".format(ver), msg_prefix="_ _\n", delimiter=""):
+        for page in utils.paginate(lines, prefix="**Version {}:**\n".format(ver), msg_prefix="_ _\n", delimiter=""):
             await channel.send(page)
 
     async def was_i_updated(self):
@@ -480,6 +479,6 @@ class Plugin(BasePlugin, name="Bot updating system"):
             return
         else:
             logging.getLogger(__name__).error(
-                "{}: PANIC! I am on {}, this should not happen!".format(self.bot.plugin_name(self), self.state))
+                "{}: PANIC! I am on {}, this should not happen!".format(self.name(), self.state))
             self.state = State.IDLE
             self.waiting_for_confirm = None
