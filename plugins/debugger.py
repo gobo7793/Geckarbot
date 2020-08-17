@@ -3,11 +3,11 @@ import sys
 import discord
 from discord.ext import commands
 from discord.errors import HTTPException
-from botutils import utils
+from botutils import utils, converter
 from subsystems.reactions import ReactionAddedEvent, ReactionRemovedEvent
 
 from base import BasePlugin
-from conf import Config, Lang
+from conf import Config, Lang, Storage
 
 
 class Plugin(BasePlugin, name="Testing and debug things"):
@@ -20,7 +20,7 @@ class Plugin(BasePlugin, name="Testing and debug things"):
         self.sleeper = None
         self.channel = None
 
-    def default_config(self):
+    def default_storage(self):
         return {}
 
     def cog_check(self, ctx):
@@ -115,3 +115,13 @@ class Plugin(BasePlugin, name="Testing and debug things"):
     async def dmonreaction(self, ctx):
         msg = await ctx.channel.send("React here pls")
         self.bot.reaction_listener.register(msg, self.dmonreaction_callback)
+
+    @commands.command(name="defaultstorage")
+    async def defaultstorage(self, ctx, pluginname):
+        plugin = converter.get_plugin_by_name(self.bot, pluginname)
+        if plugin is None:
+            await ctx.message.add_reaction(Lang.CMDERROR)
+            await ctx.send("Plugin {} not found.".format(pluginname))
+            return
+        await ctx.message.add_reaction(Lang.CMDSUCCESS)
+        await ctx.send("```{}```".format(plugin.default_storage()))

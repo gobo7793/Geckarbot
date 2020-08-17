@@ -26,7 +26,7 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
         for el in reminders_to_remove:
             self.remove_reminder(el)
 
-    def default_config(self):
+    def default_storage(self):
         return {'reminders': {}}
 
     def get_new_reminder_id(self):

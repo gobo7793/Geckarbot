@@ -136,7 +136,7 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
             if quiz:
                 await quiz.on_message(msg)
 
-    def default_config(self):
+    def default_storage(self):
         return {
             "emoji": {},
             "ladder": {},

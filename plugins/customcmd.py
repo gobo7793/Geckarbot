@@ -161,7 +161,7 @@ class Plugin(BasePlugin, name="Custom CMDs"):
                     and permChecks.whitelist_check(msg.author)):
                 await self.on_message(msg)
 
-    # def default_config(self):
+    # def default_storage(self):
     #     return {
     #         prefix_key: '+',  # TODO: MOVE TO CONFIG
     #         'liebe': {

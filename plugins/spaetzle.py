@@ -65,7 +65,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
         bot.register(self)
         Storage().save(self)
 
-    def default_config(self):
+    def default_storage(self):
         return {
             'matches_range': "Aktuell!B3:H11",
             'observed_users': [],

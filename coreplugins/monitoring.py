@@ -4,7 +4,7 @@ from base import BasePlugin
 
 from discord.ext import commands
 
-from botutils import utils
+from botutils import utils, converter
 from conf import Storage, Config, Lang
 
 
@@ -30,15 +30,20 @@ class Plugin(BasePlugin, name="Bot status commands for monitoring and debug purp
                                   suffix="\n"):
             await ctx.send(msg)
 
-    @commands.command(name="pdump", help="Dumps plugin storage", usage="<plugin name>")
+    @commands.command(name="storagedump", help="Dumps plugin storage", usage="<plugin name>")
     @commands.has_any_role(Config().BOTMASTER_ROLE_ID)
     async def storagedump(self, ctx, name):
-        plugin = utils.get_plugin_by_name(self.bot, name)
+        plugin = converter.get_plugin_by_name(self.bot, name)
         if plugin is None:
+            await ctx.message.add_reaction(Lang.CMDERROR)
             await ctx.send("Plugin {} not found.".format(name))
             return
         await ctx.message.add_reaction(Lang.CMDSUCCESS)
 
         dump = pprint.pformat(Storage.get(plugin), indent=4).split("\n")
-        for el in utils.paginate(dump):
-            await ctx.send("```{}```".format(el))
+        prefix = ""
+        if not Storage.has_structure(plugin):
+            prefix = "**Warning: plugin {} does not have a storage structure.** " \
+                     "This is the default storage.".format(name)
+        for el in utils.paginate(dump, prefix=prefix, msg_prefix="```", msg_suffix="```"):
+            await ctx.send(el)
