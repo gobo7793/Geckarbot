@@ -300,7 +300,54 @@ async def log_to_admin_channel(context):
     await write_admin_channel(context.bot, embed)
 
 
-def paginate(items, prefix="", suffix="", msg_prefix="", delimiter="\n", f=lambda x: x):
+def paginate(items, prefix="", suffix="", msg_prefix="", msg_suffix="", delimiter="\n", f=lambda x: x):
+    threshold = 1900
+    current_msg = []
+    remaining = None
+    first = True
+
+    i = 0
+    while i != len(items):
+        if remaining is None:
+            item = str(f(items[i]))
+        else:
+            item = remaining
+            remaining = None
+
+        # Build potential prefix and suffix of this message candidate
+        _prefix = msg_prefix
+        if first:
+            _prefix = prefix + msg_prefix
+        _suffix = msg_suffix
+        if i == len(items) - 1:
+            _suffix = msg_suffix + suffix
+
+        # Split item if too large
+        if len(item) + len(_prefix) + len(_suffix) > threshold:
+            _suffix = msg_suffix
+            li = len(item) + len(_prefix) + len(_suffix)
+            item = item[:li]
+            remaining = item[li:]
+
+            # Handle message that was accumulated so far
+            if current_msg:
+                yield "".join(current_msg) + msg_suffix
+
+            # Handle the split message
+            yield _prefix + item + _suffix
+            first = False
+            continue
+
+        so_far = delimiter.join(current_msg)
+        if len(_prefix + so_far + delimiter + item + _suffix) > threshold:
+            yield _prefix + so_far + _suffix
+        else:
+            current_msg.append(item)
+
+        i += 1
+
+
+def paginate_old(items, prefix="", suffix="", msg_prefix="", msg_suffix="", delimiter="\n", f=lambda x: x):
     """
     Generator for pagination. Compiles the entries in `items` into strings that are shorter than 2000 (discord max
     message length). If a single item is longer than 2000, it is put into its own message. 
@@ -308,6 +355,7 @@ def paginate(items, prefix="", suffix="", msg_prefix="", delimiter="\n", f=lambd
     :param prefix: The first message has this prefix.
     :param suffix: The last message has this suffix.
     :param msg_prefix: Every message has this prefix.
+    :param msg_suffix: Every message has this suffix.
     :param delimiter: Delimiter for the list entries.
     :param f: function that is invoked on every `items` entry.
     :return: 
