@@ -1,16 +1,16 @@
-lang = {
-    'en': {
-        # Partials
+{
+    "en": {
+        "#0": "Partials",
         "results_title": "Results:",
         "and": "and",
         "nobody": "Nobody",
 
-        # Reactions
+        "#1": "Reactions",
         "reaction_signup": "📋",
         "reaction_correct": "✅",
         "reaction_incorrect": "❌",
 
-        # Argument validation
+        "#2": "Argument validation",
         "unknown_arg": "Unknown argument: {}",
         "too_many_arguments": "Too many arguments.",
         "invalid_argument": "Invalid argument: {}",
@@ -27,7 +27,7 @@ lang = {
         "existing_quiz": "There is already a kwiss running in this channel.",
         "status_no_quiz": "There is no kwiss running in this channel.",
 
-        # Ranked errors
+        "#3": "Ranked errors",
         "ranked_playercount": "Sorry, a ranked kwiss needs at least {} participants. Aborting.",
         "ranked_questioncount": "Sorry, a ranked kwiss needs at least {} questions.",
         "ranked_category": "Sorry, a ranked kwiss needs the default category.",
@@ -35,7 +35,7 @@ lang = {
         "ranked_gecki": "Sorry, I am not allowed to participate in ranked kwisses.",
         "ranked_controller": "Sorry, a ranked kwiss needs the default gamemode.",
 
-        # Quiz stuff
+        "#4": "Quiz stuff",
         "correct_answer": "{}: {} is the correct answer!",
         "quiz_start": "Starting kwiss! {} questions. Category: {}. Difficulty: {}. Game Mode: {}",
         "quiz_end": "The kwiss has ended. The winner is: **{}**! Congratulations!",
@@ -49,6 +49,6 @@ lang = {
         "quiz_phase": "The kwiss will begin in 10 seconds!",
         "points_question_done": "The correct answer was {}!\n{} answered correctly.",
         "points_timeout_warning": "Waiting for answers from {}. You have {} seconds!",
-        "points_timeout": "Timeout!",
+        "points_timeout": "Timeout!"
     }
 }

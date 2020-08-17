@@ -145,7 +145,7 @@ class Plugin(BasePlugin, name="Feedback"):
             await ctx.send(Lang.lang(self, "redact_no_complaints"))
             return
 
-        msgs = utils.paginate(self.complaints.values(),
+        msgs = utils.paginate([el for el in self.complaints.values()],
                               prefix=Lang.lang(self, "redact_title"), delimiter="\n\n", msg_prefix="_ _\n", f=to_msg)
         for el in msgs:
             await ctx.send(el)
