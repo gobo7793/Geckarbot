@@ -117,8 +117,6 @@ class IODirectory(metaclass=_Singleton):
         return None
 
 
-
-
 class PluginContainer:
     """Contains basic data for plugins"""
 

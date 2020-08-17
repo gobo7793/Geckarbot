@@ -308,11 +308,9 @@ def paginate(items, prefix="", suffix="", msg_prefix="", msg_suffix="", delimite
 
     i = 0
     while i != len(items):
-        print("loop: i = {}".format(i))
         if remaining is None:
             item = str(f(items[i]))
         else:
-            print("remaining: {}".format(remaining))
             item = remaining
             remaining = None
 
@@ -326,7 +324,6 @@ def paginate(items, prefix="", suffix="", msg_prefix="", msg_suffix="", delimite
 
         # Split item if too large
         if len(item) + len(_prefix) + len(_suffix) > threshold:
-            print("> threshold")
             _suffix = msg_suffix
             li = len(item) + len(_prefix) + len(_suffix)
             item = item[:li]
@@ -337,19 +334,16 @@ def paginate(items, prefix="", suffix="", msg_prefix="", msg_suffix="", delimite
                 yield "".join(current_msg) + msg_suffix
 
             # Handle the split message
-            print("yielding {} in split part".format(_prefix + item + _suffix))
             yield _prefix + item + _suffix
             first = False
             continue
 
         so_far = delimiter.join(current_msg)
         if len(_prefix + so_far + delimiter + item + _suffix) > threshold or i == len(items) - 1:
-            print("yielding {}".format(_prefix + so_far + _suffix))
             yield _prefix + so_far + _suffix
             first = False
             current_msg = []
         else:
-            print("adding {}".format(item))
             current_msg.append(item)
 
         i += 1
