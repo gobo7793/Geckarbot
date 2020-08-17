@@ -49,3 +49,27 @@ async def convert_member(bot, message, argument):
         raise commands.BadArgument('Member "{}" not found'.format(argument))
 
     return result
+
+
+def get_plugin_by_name(bot, name):
+    """
+    :param bot: Geckarbot reference
+    :param name: Name of the plugin that is to be returned.
+    :return: Configurable object of the plugin with name `name`. Returns None if no such plugin is found.
+    """
+    for pluginslot in bot.plugins:
+        if pluginslot.name == name:
+            return pluginslot.instance
+    return None
+
+
+def get_plugin_container(bot, plugin):
+    """
+    :param bot: Geckarbot instance
+    :param plugin: BasePlugin instance
+    :return: PluginContainer whose instance is `plugin`
+    """
+    for plugin_cnt in bot.plugins:
+        if plugin_cnt.instance == plugin:
+            return plugin_cnt
+    return None

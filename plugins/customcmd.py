@@ -61,7 +61,7 @@ class Plugin(BasePlugin, name="Custom CMDs"):
                     and not self.bot.ignoring.check_user(msg.author)):
                 await self.on_message(msg)
 
-    def default_config(self):
+    def default_storage(self):
         return {
             prefix_key: '+',
             'ping': 'Pong!',

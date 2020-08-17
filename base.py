@@ -15,11 +15,23 @@ class Configurable:
         """
         return {}
 
+    def default_storage(self):
+        """
+        Returns an empty default storage
+        """
+        return {}
+
     def get_lang(self):
         """
         Gets the lang dictionary for Config API.
         """
         return None
+
+    def name(self):
+        """
+        Returns a human-readable plugin name.
+        """
+        return self.__module__.rsplit(".", 1)[1]
 
 
 class BaseSubsystem(Configurable):
@@ -33,12 +45,6 @@ class BasePlugin(Cog, Configurable):
     def __init__(self, bot):
         Cog.__init__(self)
         Configurable.__init__(self, bot)
-
-    def name(self):
-        """
-        Returns a human-readable plugin name.
-        """
-        return self.__module__.rsplit(".", 1)[1]
 
     async def shutdown(self):
         """

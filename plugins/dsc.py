@@ -70,7 +70,7 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
         self.dsc_conf()['rule_link'] = self._get_rule_link()
         Storage().save(self)
 
-    def default_config(self):
+    def default_storage(self):
         return {
             'rule_cell': "Aktuell!F2",
             'rule_link': None,
