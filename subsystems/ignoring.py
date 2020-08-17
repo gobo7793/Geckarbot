@@ -6,7 +6,7 @@ from discord.ext import commands
 from datetime import datetime
 
 from base import BaseSubsystem
-from conf import Storage, PluginSlot, Lang
+from conf import Storage, PluginContainer, Lang
 from botutils import utils
 from subsystems import timers
 
@@ -214,7 +214,7 @@ class Ignoring(BaseSubsystem):
 
     def __init__(self, bot):
         super().__init__(bot)
-        bot.plugins.append(PluginSlot(self, True))
+        bot.plugins.append(PluginContainer(self, True))
         self.log = logging.getLogger("ignoring")
 
         self.users = []
@@ -242,7 +242,9 @@ class Ignoring(BaseSubsystem):
         return len(self.users) + len(self.cmds) + len(self.user_cmds)
 
     def _load(self):
-        """Loads the ignor elist from json"""
+        """
+        Loads the ignore list from json
+        """
         Storage.load(self)
         for el in Storage.get(self):
             self.add(IgnoreDataset.deserialize(self.bot, el, self), True)

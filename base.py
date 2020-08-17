@@ -34,6 +34,12 @@ class BasePlugin(Cog, Configurable):
         Cog.__init__(self)
         Configurable.__init__(self, bot)
 
+    def name(self):
+        """
+        Returns a human-readable plugin name.
+        """
+        return self.__module__.rsplit(".", 1)[1]
+
     async def shutdown(self):
         """
         Is called when the bot is shutting down. If you have cleanup to do, do it here.

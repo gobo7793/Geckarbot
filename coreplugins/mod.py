@@ -3,7 +3,7 @@ import discord
 import pkgutil
 from discord.ext import commands
 
-from conf import Storage, Config, Lang
+from conf import Storage, Config, Lang, reconfigure
 from botutils import utils, permChecks
 from base import BasePlugin
 import subsystems
@@ -39,14 +39,14 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
         """Reloads the config of the given plugin or all if none is given"""
         await utils.log_to_admin_channel(ctx)
         if plugin_name is None:
-            Storage().load_all()
+            reconfigure(self.bot)
             send_msg = "Configuration of all plugins reloaded."
         else:
             send_msg = f"No plugin {plugin_name} found."
-            for plugin in Storage().plugins:
+            for plugin in self.bot.plugins:
                 if plugin.name == plugin_name:
                     if plugin.instance.can_reload:
-                        Storage().load(plugin.instance)
+                        self.bot.configure(plugin.instance)
                         send_msg = f"Configuration of plugin {plugin_name} reloaded."
                     else:
                         send_msg = f"Plugin {plugin_name} can't reloaded."
@@ -58,8 +58,8 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
     @commands.command(name="plugins", help="List all plugins.")
     async def plugins(self, ctx):
         """Returns registered plugins"""
-        plugin_list = "\n - ".join([plugin.name for plugin in Storage().plugins])
-        await ctx.send(f"Loaded {len(Storage().plugins)} plugins:\n - {plugin_list}")
+        plugin_list = "\n - ".join([plugin.name for plugin in self.bot.plugins])
+        await ctx.send(f"Loaded {len(self.bot.plugins)} plugins:\n - {plugin_list}")
 
         module_list = []
         for modname in pkgutil.iter_modules(subsystems.__path__):

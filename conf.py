@@ -68,8 +68,8 @@ class IODirectory(metaclass=_Singleton):
         If given plugin is not registered, None will be returned.
         :param plugin: Plugin object
         """
-        self = cls()
-        for plugin_slot in self.bot.plugins:
+        logging.debug("IODir: get() on {} from {}".format(plugin, cls))
+        for plugin_slot in cls().bot.plugins:
             if plugin_slot.instance is plugin:
                 return plugin_slot.config
         return None
@@ -86,9 +86,11 @@ class IODirectory(metaclass=_Singleton):
 
     @classmethod
     def save(cls, plugin):
-        """Saves the config of the given plugin.
+        """
+        Saves the config of the given plugin.
         If given plugin is not registered, None will be returned,
-        else if saving is succesfully."""
+        else if saving is succesfully.
+        """
         self = cls()
         for plugin_slot in self.bot.plugins:
             if plugin_slot.instance is plugin:
@@ -97,10 +99,12 @@ class IODirectory(metaclass=_Singleton):
 
     @classmethod
     def load(cls, plugin):
-        """Loads the config of the given plugin.
+        """
+        Loads the managed file of the given plugin.
         If given plugin is not registered, None will be returned, if errors
         occured during loading False and it's default config will be used
-        as its config, otherwise True."""
+        as its config, otherwise True.
+        """
         self = cls()
         for plugin_slot in self.bot.plugins:
             if plugin_slot.instance is plugin:
@@ -112,20 +116,10 @@ class IODirectory(metaclass=_Singleton):
                 return True
         return None
 
-    @classmethod
-    def load_all(cls):
-        """Loads the config of all registered plugins. If config of a
-        plugin can't be loaded, its default config will be used as config."""
-        self = cls()
-        for plugin_slot in self.bot.plugins:
-            if plugin_slot.instance.can_reload:
-                loaded = self._read_file(plugin_slot.name)
-                if loaded is None:
-                    loaded = plugin_slot.instance.default_config()
-                plugin_slot.config = loaded
 
 
-class PluginSlot:
+
+class PluginContainer:
     """Contains basic data for plugins"""
 
     def __init__(self, instance: Configurable, is_subsystem=False):
@@ -288,3 +282,13 @@ class Lang(metaclass=_Singleton):
                 lang_str = plugin_slot.lang.get(lang_code, {}).get(str_name, str_name)
                 return lang_str.format(*args)
         return str_name
+
+
+def reconfigure(bot):
+    """
+    Loads the config of all registered plugins. If config of a
+    plugin can't be loaded, its default config will be used as config.
+    """
+    for plugin_slot in bot.plugins:
+        if plugin_slot.instance.can_reload:
+            bot.configure(plugin_slot.instance)

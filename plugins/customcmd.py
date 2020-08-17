@@ -163,15 +163,16 @@ class Plugin(BasePlugin, name="Custom CMDs"):
         for k in self.conf().keys():
             if k != prefix_key:
                 arg_list = self.arg_list_re.findall(self.conf()[k])
-                cmds.append("{} <{}>".format(k, len(arg_list)))
+                cmds.append("{} <{}>:\n{}".format(k, len(arg_list), self.conf()[k]))
 
         if not cmds:
             await ctx.send(Lang.lang(self, 'list_no_cmds'))
             return
 
         cmds.sort(key=str.lower)
-        cmd_msgs = utils.paginate(cmds, delimiter=", ")
+        cmd_msgs = utils.paginate(cmds, delimiter="\n\n", msg_prefix="```\n", msg_suffix="\n```")
         for msg in cmd_msgs:
+            print(msg)
             await ctx.send(msg)
 
     @cmd.command(name="raw", help="Gets the raw custom command text")
