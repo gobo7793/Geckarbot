@@ -7,7 +7,7 @@ from discord.ext import commands
 
 from Geckarbot import BasePlugin
 from botutils import sheetsclient
-from conf import Config
+from conf import Storage, Lang
 
 lang = {
     'en': {
@@ -65,7 +65,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
         super().__init__(bot)
         self.can_reload = True
         bot.register(self)
-        Config().save(self)
+        Storage().save(self)
 
     def default_storage(self):
         return {
@@ -93,10 +93,10 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
         return lang
 
     def spaetzle_lang(self, str_name, *args):
-        return Config().lang(self, str_name, *args)
+        return Lang.lang(self, str_name, *args)
 
     def spaetzle_conf(self):
-        return Config().get(self)
+        return Storage().get(self)
 
     def get_api_client(self):
         return sheetsclient.Client(self.spaetzle_conf()['spaetzledoc_id'])
@@ -260,8 +260,8 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
         if user is None:
             if discord_user in self.spaetzle_conf()["discord_user_bridge"]:
                 del self.spaetzle_conf()["discord_user_bridge"][discord_user]
-                Config().save(self)
-                await ctx.message.add_reaction(Config().CMDSUCCESS)
+                Storage().save(self)
+                await ctx.message.add_reaction(Lang.CMDSUCCESS)
             else:
                 await ctx.send(self.spaetzle_lang('user_not_bridged'))
             return
@@ -269,8 +269,8 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
         try:
             self.get_user_cell(user)
             self.spaetzle_conf()["discord_user_bridge"][ctx.message.author.id] = user
-            Config().save(self)
-            await ctx.message.add_reaction(Config().CMDSUCCESS)
+            Storage().save(self)
+            await ctx.message.add_reaction(Lang.CMDSUCCESS)
         except UserNotFound:
             await ctx.send(self.spaetzle_lang('user_not_found'))
 
@@ -503,14 +503,14 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
 
         if user not in self.spaetzle_conf()['observed_users']:
             self.spaetzle_conf()['observed_users'].append(user)
-            Config().save(self)
-        await ctx.message.add_reaction(Config().CMDSUCCESS)
+            Storage().save(self)
+        await ctx.message.add_reaction(Lang.CMDSUCCESS)
 
     @observe.command(name="del", help="Removes a user from the observation")
     async def observe_remove(self, ctx, user):
         if user in self.spaetzle_conf()['observed_users']:
             self.spaetzle_conf()['observed_users'].remove(user)
-            Config().save(self)
-            await ctx.message.add_reaction(Config().CMDSUCCESS)
+            Storage().save(self)
+            await ctx.message.add_reaction(Lang.CMDSUCCESS)
         else:
             await ctx.send(self.spaetzle_lang('user_not_found'))
