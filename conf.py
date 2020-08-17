@@ -125,7 +125,6 @@ class IODirectory(metaclass=_Singleton):
         If given plugin is not registered, None will be returned.
         :param plugin: Plugin object
         """
-        logging.debug("IODir: get() on {} from {}".format(plugin.name(), cls))
         for plugin_cnt in cls().bot.plugins:
             if plugin_cnt.instance is plugin:
                 if cls() not in plugin_cnt.iodirs:
@@ -138,7 +137,6 @@ class IODirectory(metaclass=_Singleton):
         """
         Sets the structure of the given plugin.
         """
-        logging.debug("IODir: set() on {} from {} for {}".format(plugin.name(), cls, structure))
         self = cls()
         for plugin_cnt in self.bot.plugins:
             if plugin_cnt.instance is plugin:
@@ -235,7 +233,6 @@ class Storage(IODirectory):
 
     @classmethod
     def get_default(cls, plugin):
-        print("Storage: retrieving default for {}; {}".format(plugin.name(), plugin.default_storage()))
         return plugin.default_storage()
 
 
