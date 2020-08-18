@@ -5,7 +5,7 @@ import urllib.parse
 from google.oauth2 import service_account
 from googleapiclient import discovery
 
-from conf import Storage, Config
+from conf import Config
 from botutils import restclient
 
 
@@ -132,16 +132,19 @@ class Client(restclient.Client):
         :param data_dict: dictionary with the range as key and range values as values
         :return: number of total updated cells
         """
+
+        """
+        data = []
+        for range in data_dict:
+            data.append({
+                'range': range,
+                'values': data_dict[range]
+            })
+        body = {
+            'valueInputOption': 'RAW',
+            'data': data
+        }
+        result = self.service.spreadsheets().values().batchUpdate(spreadsheetId=self.spreadsheet_id, body=body)
+        return result
+        """
         raise NotImplemented
-        # data = []
-        # for range in data_dict:
-        #     data.append({
-        #         'range': range,
-        #         'values': data_dict[range]
-        #     })
-        # body = {
-        #     'valueInputOption': 'RAW',
-        #     'data': data
-        # }
-        # result = self.service.spreadsheets().values().batchUpdate(spreadsheetId=self.spreadsheet_id, body=body)
-        # return result
