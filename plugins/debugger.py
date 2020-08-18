@@ -2,12 +2,14 @@ import sys
 
 import discord
 from discord.ext import commands
+from discord.ext.commands import view
 from discord.errors import HTTPException
+
 from botutils import utils, converter
 from subsystems.reactions import ReactionAddedEvent, ReactionRemovedEvent
 
 from base import BasePlugin
-from conf import Config, Lang, Storage
+from conf import Config, Lang
 
 
 class Plugin(BasePlugin, name="Testing and debug things"):
@@ -125,3 +127,8 @@ class Plugin(BasePlugin, name="Testing and debug things"):
             return
         await ctx.message.add_reaction(Lang.CMDSUCCESS)
         await ctx.send("```{}```".format(plugin.default_storage()))
+
+    @commands.command(name="libmod")
+    async def libmod(self, ctx):
+        await ctx.send(str(view._quotes))
+        await ctx.send(str(view._all_quotes))

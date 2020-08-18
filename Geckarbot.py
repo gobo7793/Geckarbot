@@ -11,6 +11,7 @@ from logging import handlers
 from pathlib import Path
 
 from discord.ext import commands
+from discord.ext.commands import view
 
 from base import BasePlugin
 from conf import Config, PluginContainer, Lang, Storage
@@ -130,8 +131,14 @@ def logging_setup():
         logger.setLevel(logging.INFO)
 
 
+def insertions():
+    view._quotes = {}
+    view._all_quotes = set()
+
+
 def main():
     Config().load_bot_config()
+    insertions()
     logging_setup()
     logging.getLogger(__name__).debug("Debug mode: on")
     bot = Geckarbot(command_prefix='!')
