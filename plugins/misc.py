@@ -1,5 +1,6 @@
 import random
 import logging
+import string
 from datetime import datetime, timezone, timedelta
 import discord
 from discord.ext import commands
@@ -100,6 +101,11 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
             await ctx.message.add_reaction(Lang.CMDERROR)
             return
         await ctx.send(Lang.lang(self, 'geck_out'), file=file)
+
+    @commands.command(name="keysmash", help="VtEGyAuGeAvBVYFSxnfgEpTwIFRUhbUXoMZIdHo")
+    async def keysmash(self, ctx):
+        msg = "".join(random.choices(string.ascii_letters + string.digits, k=random.randint(25, 50)))
+        await ctx.send(msg)
 
     # todo: read directly from sheets
     @commands.command(name="tippspiel", help="Gives the link to the Tippspiel-Sheet")
