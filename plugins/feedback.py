@@ -152,27 +152,13 @@ class Plugin(BasePlugin, name="Feedback"):
             await ctx.send(el)
 
     @redact.command(name="del", help="Deletes a complaint", usage="<#>")
-    async def delete(self, ctx, *args):
-        # Args parsing
-        argserr = False
-        if len(args) != 1:
-            argserr = True
-        i = None
-        try:
-            i = int(args[0])
-        except (ValueError, TypeError):
-            argserr = True
-        if argserr:
-            await ctx.message.add_reaction(Lang.CMDERROR)
-            await ctx.send(Lang.lang(self, "redact_del_args"))
-            return
-
+    async def delete(self, ctx, complaint: int):
         # Delete
         try:
-            del self.complaints[i]
+            del self.complaints[complaint]
         except KeyError:
             await ctx.message.add_reaction(Lang.CMDERROR)
-            await ctx.send(Lang.lang(self, "redact_del_not_found", i))
+            await ctx.send(Lang.lang(self, "redact_del_not_found", complaint))
             return
         # await ctx.send(lang['complaint_removed'].format(i))
         await ctx.message.add_reaction(Lang.CMDSUCCESS)
@@ -224,12 +210,19 @@ class Plugin(BasePlugin, name="Feedback"):
     """
     Bugscore
     """
-    async def bugscore_show(self, ctx):
-        await ctx.send(Lang.lang(self, "bugscore_title"))
 
-        for uid in sorted(self.storage["bugscore"], key=lambda x: self.storage["bugscore"][x], reverse=True):
-            user = discord.utils.get(self.bot.guild.members, id=uid)
-            await ctx.send("{}: {}".format(utils.get_best_username(user), self.storage["bugscore"][uid]))
+    async def bugscore_show(self, ctx):
+        users = sorted(
+            sorted(
+                [(utils.get_best_username(discord.utils.get(self.bot.guild.members, id=user)), n) for (user, n) in
+                 self.storage["bugscore"].items()],
+                key=lambda x: x[0].lower()),
+            key=lambda x: x[1],
+            reverse=True
+        )
+        lines = ["{}: {}".format(user, p) for (user, p) in users]
+        for msg in utils.paginate(lines, prefix="{}\n".format(Storage.lang(self, "bugscore_title"))):
+            await ctx.send(msg)
 
     async def bugscore_del(self, ctx, user):
         if discord.utils.get(ctx.author.roles, id=Config().BOTMASTER_ROLE_ID) is None:
@@ -274,6 +267,8 @@ class Plugin(BasePlugin, name="Feedback"):
             self.storage["bugscore"][user.id] += increment
         else:
             self.storage["bugscore"][user.id] = increment
+        if self.storage["bugscore"][user.id] <= 0:
+            del self.storage["bugscore"][user.id]
         Storage.save(self)
         await ctx.message.add_reaction(Lang.CMDSUCCESS)
 
