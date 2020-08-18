@@ -46,7 +46,7 @@ class Cmd:
 
         self.name = name.lower()
         self.creator_id = creator_id
-        self.texts = list(texts)
+        self.texts = list(*texts)
 
     def serialize(self):
         """
@@ -167,23 +167,27 @@ class Plugin(BasePlugin, name="Custom CMDs"):
             "guidelines": "https://github.com/gobo7793/Geckarbot/wiki/Command-Guidelines"
         }
 
-    # def default_storage(self):
-    #     return {
-    #         'liebe': {
-    #             "creator": 0,
-    #             "texts": ["https://www.youtube.com/watch?v=TfmJPDmaQdg"]
-    #         },
-    #         'passierschein': {
-    #             "creator": 0,
-    #             "texts": ["Eintragung einer Galeere? Oh, da sind Sie hier falsch! "
-    #                     "Wenden Sie sich an die Hafenkommandantur unten im Hafen.\n"
-    #                     "https://youtu.be/lIiUR2gV0xk"]
-    #         },
-    #         'ping': {
-    #             "creator": 0,
-    #             "texts": ["Pong"]
-    #         },
-    #     }
+    def default_storage(self):
+        return {
+            'fail': {
+                "creator": 0,
+                "texts": ["_lacht %1 für den Fail aus ♥_"]
+            },
+            'liebe': {
+                "creator": 0,
+                "texts": ["https://www.youtube.com/watch?v=TfmJPDmaQdg"]
+            },
+            'passierschein': {
+                "creator": 0,
+                "texts": ["Eintragung einer Galeere? Oh, da sind Sie hier falsch! "
+                          "Wenden Sie sich an die Hafenkommandantur unten im Hafen.\n"
+                          "https://youtu.be/lIiUR2gV0xk"]
+            },
+            'ping': {
+                "creator": 0,
+                "texts": ["Pong", "🏓"]
+            },
+        }
 
     def load(self):
         """Loads the commands"""
@@ -194,7 +198,7 @@ class Plugin(BasePlugin, name="Custom CMDs"):
         """Saves the commands to the storage"""
         cmd_dict = {}
         for k in self.commands:
-            cmd_dict[k.name] = k.serialize()
+            cmd_dict[k] = self.commands[k].serialize()
 
         Storage.set(self, cmd_dict)
         Storage.save(self)
@@ -249,7 +253,7 @@ class Plugin(BasePlugin, name="Custom CMDs"):
             await ctx.message.add_reaction(Lang.CMDSUCCESS)
 
     @cmd.command(name="list", help="Lists all custom commands.",
-                 descripton="Lists all custom commands. Argument full gives more information of the commands.")
+                 descripton="Lists all custom commands. Argument full gives more information about the commands.")
     async def cmd_list(self, ctx, full=""):
         cmds = []
         suffix = Lang.lang(self, 'list_suffix') if full else ""
@@ -260,7 +264,7 @@ class Plugin(BasePlugin, name="Custom CMDs"):
                 for t in self.commands[k].texts:
                     arg_list = arg_list_re.findall(t)
                     arg_lens.append(len(arg_list))
-                cmds.append(Lang.lang(self, 'list_full_data', k, len(self.commands[k].texts.max(arg_lens))))
+                cmds.append(Lang.lang(self, 'list_full_data', k, len(self.commands[k].texts), max(arg_lens)))
 
             else:
                 cmds.append(k)
@@ -274,11 +278,11 @@ class Plugin(BasePlugin, name="Custom CMDs"):
         for msg in cmd_msgs:
             await ctx.send(msg)
 
-    @cmd.command(name="raw", help="Gets the raw custom command text")
+    @cmd.command(name="info", help="Gets full info about a command")
     async def cmd_raw(self, ctx, cmd_name):
         cmd_name = cmd_name.lower()
         if cmd_name in self.commands:
-            creator = self.bot.get_user(self.commands[cmd_name].creator)
+            creator = self.bot.get_user(self.commands[cmd_name].creator_id)
             for msg in utils.paginate(self.commands[cmd_name].get_raw_texts(), delimiter="\n",
                                       prefix=Lang.lang(self, 'raw_prefix',
                                                        self.prefix, cmd_name, utils.get_best_username(creator))):
@@ -291,16 +295,16 @@ class Plugin(BasePlugin, name="Custom CMDs"):
         # await ctx.send("MAKE BETTER; <https://github.com/gobo7793/Geckarbot/wiki/Command-Guidelines>")
         await ctx.send("<{}>".format(Config.get(self)['guidelines']))
 
-    @cmd.command(name="add", help="Adds a custom command", usage="cmd_name text...",
-                 description="Adds a custom command. Following wildcards can be used, which will be replaced on "
-                             "using:\n"
+    @cmd.command(name="add", help="Adds a custom command or text", usage="cmd_name text...",
+                 description="Adds a custom command or a new output text for an existing command. "
+                             "Following wildcards can be used, which will be replaced on using:\n"
                              "%u: The user who uses the command\n"
                              "%um: Mentions the user who uses the command\n"
                              "%n: The nth command argument\n"
                              "%n*: The nth and all following arguments\n"
                              "%a: Alias for %1*\n\n"
                              "Supports /me. Custom commands must be compliant to the general command guidelines, which "
-                             "can be found at https://github.com/gobo7793/Geckarbot/wiki/Command-Guidelines.\n"
+                             "can be accessed via !cmd guidelines.\n"
                              "Example: !cmd add test Argument1: %1 from user %u\n")
     async def cmd_add(self, ctx, cmd_name, *args):
         if not args:
@@ -319,6 +323,8 @@ class Plugin(BasePlugin, name="Custom CMDs"):
                 cmd_texts[i] = "_{}_".format(cmd_texts[i][3:])
 
         if cmd_name in self.commands:
+            self.commands[cmd_name].texts.extend(cmd_texts)
+            self.save()
             await ctx.message.add_reaction(Lang.CMDSUCCESS)
             await ctx.send(Lang.lang(self, "add_exists", cmd_name))
         else:
@@ -331,7 +337,7 @@ class Plugin(BasePlugin, name="Custom CMDs"):
 
     @cmd.command(name="del", help="Deletes a custom command or output text",
                  description="Deletes a custom command or one of its output texts. To delete a output text,"
-                             "the ID of the text must be given. The IDs and creator can be get via !cmd raw <command>."
+                             "the ID of the text must be given. The IDs and creator can be get via !cmd info <command>."
                              "Only the original command creator or admins can delete commands or its texts.")
     async def cmd_del(self, ctx, cmd_name, text_id: int = None):
         cmd_name = cmd_name.lower()
@@ -365,8 +371,8 @@ class Plugin(BasePlugin, name="Custom CMDs"):
         else:
             # remove text
             cmd_raw = cmd.get_raw_text(text_id)
-            cmd.texts.remove(text_id)
-            await utils.write_debug_channel(self.bot, Lang.lang(self, 'cmd_text_removed', cmd_raw))
+            del(cmd.texts[text_id])
+            await utils.write_debug_channel(self.bot, Lang.lang(self, 'cmd_text_removed', cmd_name, cmd_raw))
 
         self.save()
         # await utils.log_to_admin_channel(ctx)

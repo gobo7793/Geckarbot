@@ -15,7 +15,7 @@
         "raw_prefix": "{}{} (Creator: {})\n",
         "text_id_not_positive": "The ID of a command text must be a positive number.",
         "text_id_not_exists": "A command text with the given ID doesn't exists.",
-        "del_perm_missing": "Only the original command creator or admins can delete commands or its texts.",
+        "del_perm_missing": "Only the original command creator or admins can delete commands or its texts."
     },
     "de": {
         "raw_doesnt_exists": "Ein Benutzer-Kommando \"{}\" existiert nicht, erstell es doch einfach selbst!",
@@ -29,10 +29,10 @@
         "user_blocked": "{} hat das Benutzer-Kommando geblockt.",
         "current_prefix": "Das aktuelle Präfix für Benutzer-Kommandos ist: {0}\nBeispiel: {0}{1}",
         "list_full_data": "{0} ({1} Ausg., {2} Arg.)",
-        "list_suffix": "Nutze `!cmd raw <command>` um alle Ausgabetexte eines Kommandos anzusehen.",
+        "list_suffix": "\nNutze `!cmd raw <command>` um alle Ausgabetexte eines Kommandos anzusehen.",
         "raw_prefix": "{}{} (Ersteller: {})\n",
         "text_id_not_positive": "Die ID eines Kommando-Ausgabetextes muss eine positive Zahl sein.",
         "text_id_not_exists": "Ein Kommando-Ausgabetext mit der angegebenen ID existiert nicht.",
-        "del_perm_missing": "Nur der Ersteller oder Admins können Kommandos oder ihre Ausgabetexte löschen.",
+        "del_perm_missing": "Nur der Ersteller oder Admins können Kommandos oder ihre Ausgabetexte löschen."
     }
 }
