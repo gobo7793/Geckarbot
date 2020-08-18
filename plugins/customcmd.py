@@ -91,7 +91,7 @@ class Cmd:
         else:
             return [self.get_raw_text(i) for i in range(0, len(self.texts))]
 
-    async def get_ran_formatted_text(self, bot, msg: discord.Message, *cmd_args):
+    async def get_ran_formatted_text(self, bot, msg: discord.Message, cmd_args:list):
         """
         Formats and replaces the wildcard of a random text of the cmd for using it as custom cmd.
         If a mentioned user has the command on its ignore list, a UserBlockedCommand error will be raised.
@@ -111,8 +111,13 @@ class Cmd:
         if wildcard_all_args in cmd_content:
             cmd_content = cmd_content.replace(wildcard_all_args, _get_all_arg_str(0, cmd_args))
 
-        # numbered arguments
         all_args_positions = arg_list_re.findall(cmd_content)
+
+        # if only one argument in cmd text and no arg given: mention the user
+        if len(all_args_positions) == 1 and len(cmd_args) == 0:
+            cmd_args = [(msg.author.mention, "")]
+
+        # numbered arguments
         for i in range(0, len(all_args_positions)):
             if i >= len(cmd_args):
                 break
@@ -120,7 +125,7 @@ class Cmd:
             # Replace args
             wildcard = all_args_positions[i][0]
             arg_num = int(all_args_positions[i][1]) - 1
-            arg = cmd_args[arg_num][1] if cmd_args[arg_num][1] else cmd_args[arg_num][0]
+            arg = cmd_args[arg_num][1] if cmd_args[arg_num][1] else cmd_args[arg_num][0]  # [1] = args inside ""
 
             # All following args
             if all_args_positions[i][2]:
@@ -295,7 +300,7 @@ class Plugin(BasePlugin, name="Custom CMDs"):
         # await ctx.send("MAKE BETTER; <https://github.com/gobo7793/Geckarbot/wiki/Command-Guidelines>")
         await ctx.send("<{}>".format(Config.get(self)['guidelines']))
 
-    @cmd.command(name="add", help="Adds a custom command or text", usage="cmd_name text...",
+    @cmd.command(name="add", help="Adds a custom command or text", usage="<cmd name> <text...>",
                  description="Adds a custom command or a new output text for an existing command. "
                              "Following wildcards can be used, which will be replaced on using:\n"
                              "%u: The user who uses the command\n"
@@ -307,7 +312,7 @@ class Plugin(BasePlugin, name="Custom CMDs"):
                              "can be accessed via !cmd guidelines.\n"
                              "Example: !cmd add test Argument1: %1 from user %u\n")
     async def cmd_add(self, ctx, cmd_name, *args):
-        if not args:
+        if not "".join(args):
             await ctx.message.add_reaction(Lang.CMDERROR)
             raise commands.MissingRequiredArgument(inspect.signature(self.cmd_add).parameters['args'])
         cmd_name = cmd_name.lower()
