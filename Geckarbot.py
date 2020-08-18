@@ -131,14 +131,14 @@ def logging_setup():
         logger.setLevel(logging.INFO)
 
 
-def insertions():
+def injections():
     view._quotes = {}
     view._all_quotes = set()
 
 
 def main():
     Config().load_bot_config()
-    insertions()
+    injections()
     logging_setup()
     logging.getLogger(__name__).debug("Debug mode: on")
     bot = Geckarbot(command_prefix='!')
