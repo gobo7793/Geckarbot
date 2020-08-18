@@ -38,8 +38,10 @@ class Client(restclient.Client):
         self.logger = logging.getLogger(__name__)
         self.logger.debug("Building Sheets API Client for spreadsheet {}".format(self.spreadsheet_id))
 
+        scopes = ["https://www.googleapis.com/auth/drive", "https://www.googleapis.com/auth/drive.file",
+                  "https://www.googleapis.com/auth/spreadsheets"]
         secret_file = os.path.join(os.getcwd(), "client_secret.json")
-        credentials = service_account.Credentials.from_service_account_file(secret_file)
+        credentials = service_account.Credentials.from_service_account_file(secret_file, scopes=scopes)
         self.service = discovery.build('sheets', 'v4', credentials=credentials)
 
     def _params_add_api_key(self, params=None):
@@ -92,6 +94,7 @@ class Client(restclient.Client):
     def get_multiple(self, ranges):
         """
         Reads multiple ranges
+
         :param ranges: List of ranges
         """
         route = "{}/values:batchGet".format(self.spreadsheet_id)
@@ -109,15 +112,36 @@ class Client(restclient.Client):
 
     def update(self, range, values):
         """
-        Updates the content of the cells
+        Updates the content of a range
+
         :param range: range to update
-        :param values: values in the format "[ rows [cells]]"
+        :param values: values as a matrix of cells
         :return: number of updated cells
         """
         data = {
             'values': values
         }
         result = self.service.spreadsheets().values().update(
-            spreadsheetId=self.spreadsheet_id, range=range,
-            valueInputOption='RAW', body=data).execute()
+            spreadsheetId=self.spreadsheet_id, range=range, valueInputOption='RAW', body=data).execute()
         return result.get('updatedCells')
+
+    def update_multiple(self, data_dict: dict):
+        """
+        Updates the content of multiple ranges
+
+        :param data_dict: dictionary with the range as key and range values as values
+        :return: number of total updated cells
+        """
+        raise NotImplemented
+        # data = []
+        # for range in data_dict:
+        #     data.append({
+        #         'range': range,
+        #         'values': data_dict[range]
+        #     })
+        # body = {
+        #     'valueInputOption': 'RAW',
+        #     'data': data
+        # }
+        # result = self.service.spreadsheets().values().batchUpdate(spreadsheetId=self.spreadsheet_id, body=body)
+        # return result
