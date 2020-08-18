@@ -340,6 +340,25 @@ class Plugin(BasePlugin, name="Custom CMDs"):
             await utils.write_debug_channel(self.bot,
                                             Lang.lang(self, 'cmd_added', self.commands[cmd_name].get_raw_texts()))
 
+    # @cmd.command(name="edit")
+    # async def cmd_edit(self, ctx, cmd_name, *args):
+    #     if not "".join(args):
+    #         raise commands.MissingRequiredArgument(inspect.signature(self.cmd_add).parameters['args'])
+    #
+    #     text_id = None
+    #     try:
+    #         text_id = int(args[0])
+    #     except ValueError:
+    #         pass
+    #
+    #     arg_text = " ".join(args)
+    #     if text_id is None:
+    #         await ctx.invoke(self.bot.get_command(f"cmd del"), cmd_name)
+    #         await ctx.invoke(self.bot.get_command(f"cmd add"), cmd_name, arg_text)
+    #     else:
+    #         await ctx.invoke(self.bot.get_command(f"cmd del"), cmd_name, text_id)
+    #         await ctx.invoke(self.bot.get_command(f"cmd add"), cmd_name, arg_text)
+
     @cmd.command(name="del", help="Deletes a custom command or output text",
                  description="Deletes a custom command or one of its output texts. To delete a output text,"
                              "the ID of the text must be given. The IDs and creator can be get via !cmd info <command>."
