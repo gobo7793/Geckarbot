@@ -1,5 +1,9 @@
 import logging
+import os
 import urllib.parse
+
+from google.oauth2 import service_account
+from googleapiclient import discovery
 
 from conf import Storage
 from botutils import restclient
@@ -33,6 +37,10 @@ class Client(restclient.Client):
 
         self.logger = logging.getLogger(__name__)
         self.logger.debug("Building Sheets API Client for spreadsheet {}".format(self.spreadsheet_id))
+
+        secret_file = os.path.join(os.getcwd(), "client_secret.json")
+        credentials = service_account.Credentials.from_service_account_file(secret_file)
+        self.service = discovery.build('sheets', 'v4', credentials=credentials)
 
     def _params_add_api_key(self, params=None):
         """
@@ -98,3 +106,18 @@ class Client(restclient.Client):
             else:
                 values.append([])
         return values
+
+    def update(self, range, values):
+        """
+        Updates the content of the cells
+        :param range: range to update
+        :param values: values in the format "[ rows [cells]]"
+        :return: number of updated cells
+        """
+        data = {
+            'values': values
+        }
+        result = self.service.spreadsheets().values().update(
+            spreadsheetId=self.spreadsheet_id, range=range,
+            valueInputOption='USER_ENTERED', body=data).execute()
+        return result.get('updatedCells')
