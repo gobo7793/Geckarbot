@@ -119,5 +119,5 @@ class Client(restclient.Client):
         }
         result = self.service.spreadsheets().values().update(
             spreadsheetId=self.spreadsheet_id, range=range,
-            valueInputOption='USER_ENTERED', body=data).execute()
+            valueInputOption='RAW', body=data).execute()
         return result.get('updatedCells')
