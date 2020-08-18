@@ -25,7 +25,7 @@ class PluginContainer:
     """
     def __init__(self, instance: Configurable, is_subsystem=False):
         self.instance = instance
-        self.name = instance.__module__.rsplit(".", 1)[1]
+        self.name = instance.name()
         self.iodirs = {}
         self.is_subsystem = is_subsystem
 
