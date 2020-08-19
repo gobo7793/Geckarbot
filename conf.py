@@ -25,7 +25,7 @@ class PluginContainer:
     """
     def __init__(self, instance: Configurable, is_subsystem=False):
         self.instance = instance
-        self.name = instance.name()
+        self.name = instance.get_name()
         self.iodirs = {}
         self.is_subsystem = is_subsystem
 
@@ -73,7 +73,7 @@ class IODirectory(metaclass=_Singleton):
     def has_structure(cls, plugin):
         cnt = converter.get_plugin_container(cls().bot, plugin)
         if cnt is None:
-            raise RuntimeError("PANIC: {} ({}) is not a registered plugin".format(plugin, plugin.name()))
+            raise RuntimeError("PANIC: {} ({}) is not a registered plugin".format(plugin, plugin.get_name()))
         if cls() not in cnt.iodirs or cnt.iodirs[cls()] is None:
             return False
         else:
@@ -85,7 +85,7 @@ class IODirectory(metaclass=_Singleton):
         :param plugin: Plugin object
         :return: Returns whether `plugin` has a file.
         """
-        return os.path.exists(cls()._filepath(plugin.name))
+        return os.path.exists(cls()._filepath(plugin.get_name))
 
     @classmethod
     def _filepath(cls, file_name):

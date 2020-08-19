@@ -66,7 +66,7 @@ class Geckarbot(commands.Bot):
 
         self.plugins.append(PluginContainer(plugin_object))
         self.configure(plugin_object)
-        logging.debug("Registered plugin {}".format(plugin_object.name()))
+        logging.debug("Registered plugin {}".format(plugin_object.get_name()))
 
     def plugin_objects(self):
         """

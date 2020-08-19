@@ -27,15 +27,19 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
         bot.register(self)
         self.log = logging.getLogger("dsc")
 
-        self.dsc_conf()['rule_link'] = self._get_rule_link()
+        Storage.get(self)['rule_link'] = self._get_rule_link()
         Storage().save(self)
 
-    def default_storage(self):
+    def default_config(self):
         return {
             'rule_cell': "Aktuell!E2",
             'rule_link': None,
             'contestdoc_id': "1HH42s5DX4FbuEeJPdm8l1TK70o2_EKADNOLkhu5qRa8",
             'winners_range': "Hall of Fame!B4:D200",
+        }
+
+    def default_storage(self):
+        return {
             'host_id': None,
             'state': DscState.NA,
             'yt_link': None,
@@ -44,23 +48,17 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
             'status': None
         }
 
-    def dsc_conf(self):
-        return Storage().get(self)
-
-    def dsc_lang(self, str_name, *args):
-        return Lang.lang(self, str_name, *args)
-
     def get_api_client(self):
         """Returns a client to access Google Sheets API for the dsc contestdoc sheet"""
-        return sheetsclient.Client(self.dsc_conf()['contestdoc_id'])
+        return sheetsclient.Client(Config.get(self)['contestdoc_id'])
 
     def _get_doc_link(self):
-        return "https://docs.google.com/spreadsheets/d/{}".format(self.dsc_conf()['contestdoc_id'])
+        return "https://docs.google.com/spreadsheets/d/{}".format(Storage.get(self)['contestdoc_id'])
 
     def _get_rule_link(self):
         try:
             c = self.get_api_client()
-            values = c.get(self.dsc_conf()['rule_cell'])
+            values = c.get(Storage.get(self)['rule_cell'])
             return values[0][0]
         except IndexError:
             self.log.error("Can't read rules link from Contestdoc sheet. "
@@ -74,23 +72,23 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
 
     @dsc.command(name="rules", help="Get the link to the DSC rules", alias="regeln")
     async def dsc_rules(self, ctx):
-        if not self.dsc_conf()['rule_link']:
+        if not Storage.get(self)['rule_link']:
             self._get_rule_link()
-        await ctx.send(f"<{self.dsc_conf()['rule_link']}>")
+        await ctx.send(f"<{Storage.get(self)['rule_link']}>")
 
     @dsc.command(name="status", help="Get the current informations from the Songmasters about the current/next DSC")
     async def dsc_status(self, ctx):
-        if self.dsc_conf()['status']:
-            status_msg = self.dsc_lang('status_base', self.dsc_conf()['status'])
+        if Storage.get(self)['status']:
+            status_msg = Lang.lang(self, 'status_base', Storage.get(self)['status'])
         else:
-            status_msg = self.dsc_lang('status_base', self.dsc_lang('status_none'))
+            status_msg = Lang.lang(self, 'status_base', Lang.lang(self, 'status_none'))
 
         await ctx.send(status_msg)
 
     @dsc.command(name="winners", help="Returns previous DSC winners")
     async def dsc_winners(self, ctx):
         c = self.get_api_client()
-        winners = c.get(self.dsc_conf()['winners_range'])
+        winners = c.get(Storage.get(self)['winners_range'])
 
         w_msgs = []
         regex = re.compile(r"\d+")
@@ -117,44 +115,44 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
     @dsc.command(name="info", help="Get informations about current DSC")
     async def dsc_info(self, ctx):
         host_nick = None
-        date_out_str = self.dsc_lang('info_date_str', self.dsc_conf()['state_end'].strftime('%d.%m.%Y, %H:%M'))
-        if not self.dsc_conf()['host_id']:
-            await ctx.send(self.dsc_lang('must_set_host'))
+        date_out_str = Lang.lang(self, 'info_date_str', Storage.get(self)['state_end'].strftime('%d.%m.%Y, %H:%M'))
+        if not Storage.get(self)['host_id']:
+            await ctx.send(Lang.lang(self, 'must_set_host'))
         else:
-            host_nick = discord.utils.get(ctx.guild.members, id=self.dsc_conf()['host_id']).mention
+            host_nick = discord.utils.get(ctx.guild.members, id=Storage.get(self)['host_id']).mention
 
-        if self.dsc_conf()['state'] == DscState.Sign_up:
-            if self.dsc_conf()['state_end'] > datetime.now():
-                date_out_str = self.dsc_lang('info_date_str', self.dsc_conf()['state_end'].strftime('%d.%m.%Y'))
+        if Storage.get(self)['state'] == DscState.Sign_up:
+            if Storage.get(self)['state_end'] > datetime.now():
+                date_out_str = Lang.lang(self, 'info_date_str', Storage.get(self)['state_end'].strftime('%d.%m.%Y'))
             else:
                 date_out_str = ""
 
-            embed = discord.Embed(title=self.dsc_lang('signup_phase_info', date_out_str))
-            embed.add_field(name=self.dsc_lang('current_host'), value=host_nick)
-            embed.add_field(name=self.dsc_lang('sign_up'), value=self._get_doc_link())
-            if self.dsc_conf()['status']:
-                embed.description = self.dsc_conf()['status']
+            embed = discord.Embed(title=Lang.lang(self, 'signup_phase_info', date_out_str))
+            embed.add_field(name=Lang.lang(self, 'current_host'), value=host_nick)
+            embed.add_field(name=Lang.lang(self, 'sign_up'), value=self._get_doc_link())
+            if Storage.get(self)['status']:
+                embed.description = Storage.get(self)['status']
             await ctx.send(embed=embed)
 
-        elif self.dsc_conf()['state'] == DscState.Voting:
-            embed = discord.Embed(title=self.dsc_lang('voting_phase_info', date_out_str))
-            embed.add_field(name=self.dsc_lang('current_host'), value=host_nick)
-            embed.add_field(name=self.dsc_lang('all_songs'), value=self._get_doc_link())
-            embed.add_field(name=self.dsc_lang('yt_playlist'), value=self.dsc_conf()['yt_link'])
-            embed.add_field(name=self.dsc_lang('points'), value=self.dsc_conf()['points'])
-            if self.dsc_conf()['status']:
-                embed.description = self.dsc_conf()['status']
+        elif Storage.get(self)['state'] == DscState.Voting:
+            embed = discord.Embed(title=Lang.lang(self, 'voting_phase_info', date_out_str))
+            embed.add_field(name=Lang.lang(self, 'current_host'), value=host_nick)
+            embed.add_field(name=Lang.lang(self, 'all_songs'), value=self._get_doc_link())
+            embed.add_field(name=Lang.lang(self, 'yt_playlist'), value=Storage.get(self)['yt_link'])
+            embed.add_field(name=Lang.lang(self, 'points'), value=Storage.get(self)['points'])
+            if Storage.get(self)['status']:
+                embed.description = Storage.get(self)['status']
             await ctx.send(embed=embed)
 
         else:
-            await ctx.send(self.dsc_lang('config_error_reset'))
-            embed = discord.Embed(title=self.dsc_lang('config_error'))
-            embed.add_field(name="Host ID", value=str(self.dsc_conf()['host_id']))
+            await ctx.send(Lang.lang(self, 'config_error_reset'))
+            embed = discord.Embed(title=Lang.lang(self, 'config_error'))
+            embed.add_field(name="Host ID", value=str(Storage.get(self)['host_id']))
             embed.add_field(name="Host Nick", value=host_nick)
-            embed.add_field(name="State", value=str(self.dsc_conf()['state']))
-            embed.add_field(name="YT Link", value=str(self.dsc_conf()['yt_link']))
-            embed.add_field(name="State End", value=str(self.dsc_conf()['state_end']))
-            embed.add_field(name="Status", value=str(self.dsc_conf()['status']))
+            embed.add_field(name="State", value=str(Storage.get(self)['state']))
+            embed.add_field(name="YT Link", value=str(Storage.get(self)['yt_link']))
+            embed.add_field(name="State End", value=str(Storage.get(self)['state_end']))
+            embed.add_field(name="Status", value=str(Storage.get(self)['status']))
             await utils.write_debug_channel(self.bot, embed)
 
     @dsc.group(name="set", help="Set data about current/next DSC.")
@@ -166,12 +164,12 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
 
     @dsc_set.command(name="host", help="Sets the current/next DSC host")
     async def dsc_set_host(self, ctx, user: discord.Member):
-        self.dsc_conf()['host_id'] = user.id
+        Storage.get(self)['host_id'] = user.id
         Storage().save(self)
         await ctx.message.add_reaction(Lang.CMDSUCCESS)
 
     async def _dsc_save_state(self, ctx, new_state: DscState):
-        self.dsc_conf()['state'] = new_state
+        Storage.get(self)['state'] = new_state
         Storage().save(self)
         await ctx.message.add_reaction(Lang.CMDSUCCESS)
 
@@ -183,12 +181,12 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
         elif state.lower() == "signup":
             await self._dsc_save_state(ctx, DscState.Sign_up)
         else:
-            await ctx.send(self.dsc_lang('invalid_phase'))
+            await ctx.send(Lang.lang(self, 'invalid_phase'))
 
     @dsc_set.command(name="yt", help="Sets the Youtube playlist link")
     async def dsc_set_yt_link(self, ctx, link):
         link = utils.clear_link(link)
-        self.dsc_conf()['yt_link'] = link
+        Storage.get(self)['yt_link'] = link
         Storage().save(self)
         await ctx.message.add_reaction(Lang.CMDSUCCESS)
 
@@ -198,14 +196,14 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
     async def dsc_set_date(self, ctx, date_str, time_str=None):
         if not time_str:
             time_str = "23:59"
-        self.dsc_conf()['state_end'] = datetime.strptime(f"{date_str} {time_str}", "%d.%m.%Y %H:%M")
+        Storage.get(self)['state_end'] = datetime.strptime(f"{date_str} {time_str}", "%d.%m.%Y %H:%M")
         Storage().save(self)
         await ctx.message.add_reaction(Lang.CMDSUCCESS)
 
     @dsc_set.command(name="status", help="Sets the status message",
                      description="Sets a status message for additional information. To remove give no message.")
     async def dsc_set_status(self, ctx, *message):
-        self.dsc_conf()['status'] = " ".join(message)
+        Storage.get(self)['status'] = " ".join(message)
         Storage().save(self)
         await ctx.message.add_reaction(Lang.CMDSUCCESS)
 
@@ -213,6 +211,18 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
                      description="Sets the point list for the current voting system. Points can be set like "
                                  "\"12-10-...\" or \"12 10 ...\", which will be converted to the first.")
     async def dsc_set_status(self, ctx, *points):
-        self.dsc_conf()['points'] = "-".join(points)
+        Storage.get(self)['points'] = "-".join(points)
         Storage().save(self)
         await ctx.message.add_reaction(Lang.CMDSUCCESS)
+
+    @dsc_set.command(name="config", help="Gets or sets general config values for the plugin")
+    async def dsc_set_config(self, ctx, key, value = None):
+        if key == "list":
+            return
+
+    @dsc_set_config.command(name="list", help="Gets or sets general config values for the plugin")
+    async def set_config(self, ctx, key, value = None):
+        if key == "list":
+            return
+
+
