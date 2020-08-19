@@ -14,23 +14,6 @@ from subsystems import timers
 This subsystem provides the possibility to block certain commands, users or both.
 """
 
-lang = {
-    'en': {
-        'user_ignore_msg': "User {} will be ignored{}.",
-        'cmd_ignore_msg': "Command {} is disabled in channel {}{}.",
-        'user_cmd_ignore_msg': "User {} will be ignored for command {}{}.",
-        'until': "until {}",
-        'until_strf': "%Y-%m-%d, %-I:%M %p",
-    },
-    'de': {
-        'user_ignore_msg': "User {0} wird{1} ignoriert",
-        'cmd_ignore_msg': "Kommando {0} ist{2} im Channel {1} deaktiviert.",
-        'user_cmd_ignore_msg': "Kommando {1} ist{2} für User {0} deaktiviert",
-        'until': " bis {0}",
-        'until_strf': "%d.%m.%Y, %H:%M",
-    }
-}
-
 
 class UserBlockedCommand(Exception):
     """

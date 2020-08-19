@@ -1,0 +1,40 @@
+{
+    "en": {
+        "status_base": "Important message from the Songmasters: {}",
+        "status_none": "Have fun and love Treecko, Mudkip and Oshawott!",
+        "must_set_host": "You must set DSC host.",
+        "info_date_str": " until {}",
+        "signup_phase_info": ":clipboard: Signing up open{}!",
+        "current_host": "Current Host",
+        "sign_up": "Sign up",
+        "voting_phase_info": ":incoming_envelope: Voting is open{}",
+        "votings_to": "Votings to",
+        "all_songs": "All songs",
+        "yt_playlist": "Youtube playlist",
+        "points": "Voting system",
+        "config_error_reset": "Configuration error. Please reset dsc configuration.",
+        "config_error": "DSC configuration error, config values:",
+        "invalid_phase": "Invalid dsc state, only \"voting\" or \"signup\" possible.",
+        "winner_prefix": "**Previous DSC winners:**\n",
+        "winner_msg": "**#{}**: {} with {}/{} Points ({} %, {} participants in {}/{})"
+        },
+    "de": {
+        "status_base": "Eine wichtige Nachricht der Songmaster: {}",
+        "status_none": "Habt Spaß und ♥ für Geckarbor, Hydropi und Ottaro!",
+        "must_set_host": "Der Ausrichter muss gesetzt werden.",
+        "info_date_str": " bis {}",
+        "signup_phase_info": ":clipboard: Anmeldung offen{}!",
+        "current_host": "Aktueller Ausrichter",
+        "sign_up": "Anmeldung",
+        "voting_phase_info": ":incoming_envelope: Votingphase läuft{}",
+        "votings_to": "Votings an",
+        "all_songs": "Alle Songs",
+        "yt_playlist": "Youtube Playlist",
+        "points": "Voting-System",
+        "config_error_reset": "Fehler in der DSC-Konfiguration, bitte zurücksetzen.",
+        "config_error": "DSC-Konfigurations-Fehler, Werte:",
+        "invalid_phase": "Ungültiger DSC-State, nur \"voting\" (Votingphase) und \"signup\" (Anmeldephase) möglich.",
+        "winner_prefix": "**Bisherige DSC-Gewinner:**\n",
+        "winner_msg": "**#{}**: {} mit {}/{} Punkten ({} %, {} TN in {}/{})"
+        }
+    }
