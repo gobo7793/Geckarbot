@@ -27,13 +27,12 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
         bot.register(self)
         self.log = logging.getLogger("dsc")
 
-        Storage.get(self)['rule_link'] = self._get_rule_link()
+        self._fill_rule_link()
         Storage().save(self)
 
     def default_config(self):
         return {
             'rule_cell': "Aktuell!E2",
-            'rule_link': None,
             'contestdoc_id': "1HH42s5DX4FbuEeJPdm8l1TK70o2_EKADNOLkhu5qRa8",
             'winners_range': "Hall of Fame!B4:D200",
             'channel_id': 0,
@@ -42,6 +41,7 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
 
     def default_storage(self):
         return {
+            'rule_link': None,
             'host_id': None,
             'state': DscState.NA,
             'yt_link': None,
@@ -56,17 +56,21 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
         pass
 
     def _get_doc_link(self):
-        return "https://docs.google.com/spreadsheets/d/{}".format(Storage.get(self)['contestdoc_id'])
+        return "https://docs.google.com/spreadsheets/d/{}".format(Config.get(self)['contestdoc_id'])
 
     def _get_rule_link(self):
         try:
             c = self.get_api_client()
-            values = c.get(Storage.get(self)['rule_cell'])
+            values = c.get(Config.get(self)['rule_cell'])
             return values[0][0]
         except IndexError:
             self.log.error("Can't read rules link from Contestdoc sheet. "
                            "Is Google Sheets not reachable or do you set the wrong cell?")
             return ""
+
+    def _fill_rule_link(self):
+        if not Storage.get(self)['rule_link']:
+            Storage.get(self)['rule_link'] = self._get_rule_link()
 
     @commands.group(name="dsc", help="Get and manage data about current/next DSC")
     async def dsc(self, ctx):
@@ -75,8 +79,7 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
 
     @dsc.command(name="rules", help="Get the link to the DSC rules", alias="regeln")
     async def dsc_rules(self, ctx):
-        if not Storage.get(self)['rule_link']:
-            self._get_rule_link()
+        self._fill_rule_link()
         await ctx.send(f"<{Storage.get(self)['rule_link']}>")
 
     @dsc.command(name="status", help="Get the current status message from the Songmasters about the current/next DSC")
@@ -91,7 +94,7 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
     @dsc.command(name="winners", help="Returns previous DSC winners")
     async def dsc_winners(self, ctx):
         c = self.get_api_client()
-        winners = c.get(Storage.get(self)['winners_range'])
+        winners = c.get(Config.get(self)['winners_range'])
 
         w_msgs = []
         regex = re.compile(r"\d+")
