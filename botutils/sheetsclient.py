@@ -42,7 +42,7 @@ class Client(restclient.Client):
         try:
             scopes = ["https://www.googleapis.com/auth/drive", "https://www.googleapis.com/auth/drive.file",
                       "https://www.googleapis.com/auth/spreadsheets"]
-            secret_file = os.path.join(os.getcwd(), "client_secret.json")
+            secret_file = os.path.join(os.getcwd(), "config/google_service_account.json")
             credentials = service_account.Credentials.from_service_account_file(secret_file, scopes=scopes)
             service = discovery.build('sheets', 'v4', credentials=credentials)
         except Exception:
@@ -96,12 +96,13 @@ class Client(restclient.Client):
         """
         if Config().GOOGLE_API_KEY:
             route = "{}/values/{}".format(self.spreadsheet_id, range)
-            result = self._make_request(route)
+            response = self._make_request(route)
         else:
-            result = self.get_service().spreadsheets().values().get(
+            response = self.get_service().spreadsheets().values().get(
                 spreadsheetId=self.spreadsheet_id, range=range).execute()
+            self.logger.debug("Response: {}".format(response))
 
-        values = result.get('values', [])
+        values = response.get('values', [])
         return values
 
     def get_multiple(self, ranges):
@@ -115,12 +116,13 @@ class Client(restclient.Client):
             params = []
             for range in ranges:
                 params.append(("ranges", range))
-            result = self._make_request(route, params=params)
+            response = self._make_request(route, params=params)
         else:
-            result = self.get_service().spreadsheets().values().batchGet(
+            response = self.get_service().spreadsheets().values().batchGet(
                 spreadsheetId=self.spreadsheet_id, ranges=ranges).execute()
+            self.logger.debug("Response: {}".format(response))
 
-        value_ranges = result.get('valueRanges', [])
+        value_ranges = response.get('valueRanges', [])
         values = []
         for vrange in value_ranges:
             values.append(vrange.get('values', []))
@@ -137,12 +139,14 @@ class Client(restclient.Client):
         data = {
             'values': values
         }
-        result = self.get_service().spreadsheets().values().update(
+        response = self.get_service().spreadsheets().values().update(
             spreadsheetId=self.spreadsheet_id, range=range, valueInputOption='RAW', body=data).execute()
-        return result.get('updatedCells')
+        self.logger.debug("Response: {}".format(response))
+        return response.get('updatedCells')
 
     def update_multiple(self, data_dict: dict):
         """
+        NOT IMPLEMENTED
         Updates the content of multiple ranges
 
         :param data_dict: dictionary with the range as key and range values as values
@@ -160,7 +164,8 @@ class Client(restclient.Client):
             'valueInputOption': 'RAW',
             'data': data
         }
-        result = self.get_service().spreadsheets().values().batchUpdate(spreadsheetId=self.spreadsheet_id, body=body)
-        return result
+        response = self.get_service().spreadsheets().values().batchUpdate(spreadsheetId=self.spreadsheet_id, body=body)
+        self.logger.debug("Response: {}".format(response))
+        return response
         """
         raise NotImplemented
