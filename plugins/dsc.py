@@ -36,6 +36,8 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
             'rule_link': None,
             'contestdoc_id': "1HH42s5DX4FbuEeJPdm8l1TK70o2_EKADNOLkhu5qRa8",
             'winners_range': "Hall of Fame!B4:D200",
+            'channel_id': 0,
+            'songmaster_role_id': 0
         }
 
     def default_storage(self):
@@ -51,6 +53,7 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
     def get_api_client(self):
         """Returns a client to access Google Sheets API for the dsc contestdoc sheet"""
         return sheetsclient.Client(Config.get(self)['contestdoc_id'])
+        pass
 
     def _get_doc_link(self):
         return "https://docs.google.com/spreadsheets/d/{}".format(Storage.get(self)['contestdoc_id'])
@@ -76,7 +79,7 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
             self._get_rule_link()
         await ctx.send(f"<{Storage.get(self)['rule_link']}>")
 
-    @dsc.command(name="status", help="Get the current informations from the Songmasters about the current/next DSC")
+    @dsc.command(name="status", help="Get the current status message from the Songmasters about the current/next DSC")
     async def dsc_status(self, ctx):
         if Storage.get(self)['status']:
             status_msg = Lang.lang(self, 'status_base', Storage.get(self)['status'])
@@ -112,7 +115,7 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
         for m in utils.paginate(w_msgs, Lang.lang(self, 'winner_prefix')):
             await ctx.send(m)
 
-    @dsc.command(name="info", help="Get informations about current DSC")
+    @dsc.command(name="info", help="Get information about current DSC")
     async def dsc_info(self, ctx):
         host_nick = None
         date_out_str = Lang.lang(self, 'info_date_str', Storage.get(self)['state_end'].strftime('%d.%m.%Y, %H:%M'))
@@ -156,9 +159,14 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
             await utils.write_debug_channel(self.bot, embed)
 
     @dsc.group(name="set", help="Set data about current/next DSC.")
-    @commands.has_any_role(*Config().FULL_ACCESS_ROLES, Config().ROLE_IDS.get('songmaster', 0))
-    @permChecks.in_channel(Config().CHAN_IDS.get('music', 0))
     async def dsc_set(self, ctx):
+        if (not permChecks.check_full_access(ctx.author)
+                and Config.get(self)['songmaster_role_id'] != 0
+                and Config.get(self)['songmaster_role_id'] not in [role.id for role in ctx.author.roles]):
+            raise commands.BotMissingAnyRole([*Config().FULL_ACCESS_ROLES, Config.get(self)['songmaster_role_id']])
+        if Config.get(self)['channel_id'] != 0 and Config.get(self)['channel_id'] != ctx.channel.id:
+            raise commands.CheckFailure()
+
         if ctx.invoked_subcommand is None:
             await ctx.send_help(self.dsc_set)
 
@@ -215,14 +223,55 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
         Storage().save(self)
         await ctx.message.add_reaction(Lang.CMDSUCCESS)
 
-    @dsc_set.command(name="config", help="Gets or sets general config values for the plugin")
-    async def dsc_set_config(self, ctx, key, value = None):
-        if key == "list":
+    @dsc_set.group(name="config", invoke_without_command=True,
+                   help="Gets or sets general config values for the plugin")
+    async def dsc_set_config(self, ctx, key="", value=""):
+        if not key and not value:
+            await ctx.invoke(self.bot.get_command("configdump"), self.get_name())
             return
 
-    @dsc_set_config.command(name="list", help="Gets or sets general config values for the plugin")
-    async def set_config(self, ctx, key, value = None):
-        if key == "list":
+        if key and not value:
+            key_value = Config.get(self).get(key, None)
+            if key_value is None:
+                await ctx.message.add_reaction(Lang.CMDERROR)
+                await ctx.send(Lang.lang(self, 'key_not_exists', key))
+            else:
+                await ctx.message.add_reaction(Lang.CMDSUCCESS)
+                await ctx.send(key_value)
             return
 
+        if key == "channel_id":
+            channel = None
+            int_value = Config.get(self)['channel_id']
+            try:
+                int_value = int(value)
+                channel = self.bot.guild.get_channel(int_value)
+            except ValueError:
+                pass
+            if channel is None:
+                Lang.lang(self, 'channel_id_int')
+                await ctx.message.add_reaction(Lang.CMDERROR)
+                return
+            else:
+                Config.get(self)[key] = int_value
 
+        elif key == "songmaster_role_id":
+            role = None
+            int_value = Config.get(self)['songmaster_role_id']
+            try:
+                int_value = int(value)
+                role = self.bot.guild.get_role(int_value)
+            except ValueError:
+                pass
+            if role is None:
+                Lang.lang(self, 'songmaster_id')
+                await ctx.message.add_reaction(Lang.CMDERROR)
+                return
+            else:
+                Config.get(self)[key] = int_value
+
+        else:
+            Config.get(self)[key] = value
+
+        Config.save(self)
+        await ctx.message.add_reaction(Lang.CMDSUCCESS)

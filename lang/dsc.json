@@ -16,7 +16,10 @@
         "config_error": "DSC configuration error, config values:",
         "invalid_phase": "Invalid dsc state, only \"voting\" or \"signup\" possible.",
         "winner_prefix": "**Previous DSC winners:**\n",
-        "winner_msg": "**#{}**: {} with {}/{} Points ({} %, {} participants in {}/{})"
+        "winner_msg": "**#{}**: {} with {}/{} Points ({} %, {} participants in {}/{})",
+        "channel_id": "The channel id for the !dsc set command must be a valid channel id on this server.",
+        "songmaster_id": "The role id for the songmaster role must be a valid role id on this server.",
+        "key_not_exists": "A key `{}` doesn't exists."
         },
     "de": {
         "status_base": "Eine wichtige Nachricht der Songmaster: {}",
@@ -35,6 +38,9 @@
         "config_error": "DSC-Konfigurations-Fehler, Werte:",
         "invalid_phase": "Ungültiger DSC-State, nur \"voting\" (Votingphase) und \"signup\" (Anmeldephase) möglich.",
         "winner_prefix": "**Bisherige DSC-Gewinner:**\n",
-        "winner_msg": "**#{}**: {} mit {}/{} Punkten ({} %, {} TN in {}/{})"
+        "winner_msg": "**#{}**: {} mit {}/{} Punkten ({} %, {} TN in {}/{})",
+        "channel_id": "Die Channel-ID für das !dsc set-Kommando muss eine gültige ID auf diesem Server sein.",
+        "songmaster_id": "Die Rollen-ID für die Songmaster-Rolle muss eine gültige ID auf diesem Server sein.",
+        "key_not_exists": "Es gibt keinen Key `{}`."
         }
     }
