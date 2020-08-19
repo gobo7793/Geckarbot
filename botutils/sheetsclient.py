@@ -13,6 +13,9 @@ class NoApiKey(Exception):
     """Raisen if no Google API Key is defined"""
     pass
 
+class NoService(Exception):
+    """Raisen if credentials for the service account are not valid"""
+    pass
 
 class Client(restclient.Client):
     """
@@ -38,11 +41,17 @@ class Client(restclient.Client):
         self.logger = logging.getLogger(__name__)
         self.logger.debug("Building Sheets API Client for spreadsheet {}".format(self.spreadsheet_id))
 
-        scopes = ["https://www.googleapis.com/auth/drive", "https://www.googleapis.com/auth/drive.file",
-                  "https://www.googleapis.com/auth/spreadsheets"]
-        secret_file = os.path.join(os.getcwd(), "client_secret.json")
-        credentials = service_account.Credentials.from_service_account_file(secret_file, scopes=scopes)
-        self.service = discovery.build('sheets', 'v4', credentials=credentials)
+    def get_service(self):
+        try:
+            scopes = ["https://www.googleapis.com/auth/drive", "https://www.googleapis.com/auth/drive.file",
+                      "https://www.googleapis.com/auth/spreadsheets"]
+            secret_file = os.path.join(os.getcwd(), "client_secret.json")
+            credentials = service_account.Credentials.from_service_account_file(secret_file, scopes=scopes)
+            service = discovery.build('sheets', 'v4', credentials=credentials)
+        except Exception:
+            raise NoService()
+
+        return service
 
     def _params_add_api_key(self, params=None):
         """
@@ -121,7 +130,7 @@ class Client(restclient.Client):
         data = {
             'values': values
         }
-        result = self.service.spreadsheets().values().update(
+        result = self.get_service().spreadsheets().values().update(
             spreadsheetId=self.spreadsheet_id, range=range, valueInputOption='RAW', body=data).execute()
         return result.get('updatedCells')
 
@@ -144,7 +153,7 @@ class Client(restclient.Client):
             'valueInputOption': 'RAW',
             'data': data
         }
-        result = self.service.spreadsheets().values().batchUpdate(spreadsheetId=self.spreadsheet_id, body=body)
+        result = self.get_service().spreadsheets().values().batchUpdate(spreadsheetId=self.spreadsheet_id, body=body)
         return result
         """
         raise NotImplemented
