@@ -18,7 +18,7 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
         self.can_reload = True
         bot.register(self)
 
-    def default_storage(self):
+    def default_config(self):
         return {
             'repo_link': "https://github.com/gobo7793/Geckarbot/",
             'bot_info_link': "",
@@ -77,14 +77,14 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
             about_msg += "For general bot information on this server see <{}>.\n".format(
                 Storage().get(self)['bot_info_link'])
         about_msg += "Github Repository for additional information and participation: <{}>.\n".format(
-            Storage().get(self)['repo_link'])
+            Storage().get(self).get('repo_link', "Please ask your local bot manager."))
         if Storage().get(self)['privacy_notes_link']:
             lang = ""
             if Storage().get(self)['privacy_notes_lang']:
                 lang = " ({})".format(Storage().get(self)['privacy_notes_lang'])
             about_msg += "Privacy notes: <{}>{}.\n".format(Storage().get(self)['privacy_notes_link'], lang)
 
-        about_msg += "Main developers: Fluggs, Gobo77, Costamiri."
+        about_msg += "Main developers: Costamiri, Fluggs, Gobo77."
         if Storage().get(self)['profile_pic_creator']:
             about_msg += " Profile picture by {}.".format(Storage().get(self)['profile_pic_creator'])
 

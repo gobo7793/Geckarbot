@@ -83,9 +83,6 @@ class Plugin(BasePlugin, name="Role Management"):
             'roles': {}
         }
 
-    def get_lang(self):
-        return lang
-
     def rc(self):
         """Returns the roles config"""
         return Storage().get(self)['roles']

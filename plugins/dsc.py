@@ -44,9 +44,6 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
             'status': None
         }
 
-    def get_lang(self):
-        return lang
-
     def dsc_conf(self):
         return Storage().get(self)
 

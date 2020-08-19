@@ -219,9 +219,6 @@ class Ignoring(BaseSubsystem):
         async def on_ready():
             self._load()
 
-    def get_lang(self):
-        return lang
-
     def get_ignore_list(self, ignore_type: IgnoreType):
         """Gets the list for the given IgnoreType or None if for the type is no list available."""
         if ignore_type == IgnoreType.User:
