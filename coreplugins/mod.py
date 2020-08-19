@@ -31,29 +31,29 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
     # Misc commands
     ######
 
-    @commands.command(name="reload", help="Reloads the configuration.", usage="[plugin_name]",
-                      description="Reloads the configuration from the given plugin."
-                                  "If no plugin given, all plugin configs will be reloaded.")
-    @commands.has_any_role(Config().ADMIN_ROLE_ID, Config().BOTMASTER_ROLE_ID)
-    async def reload(self, ctx, plugin_name=None):
-        """Reloads the config of the given plugin or all if none is given"""
-        await utils.log_to_admin_channel(ctx)
-        if plugin_name is None:
-            reconfigure(self.bot)
-            send_msg = "Configuration of all plugins reloaded."
-        else:
-            send_msg = f"No plugin {plugin_name} found."
-            for plugin in self.bot.plugins:
-                if plugin.name == plugin_name:
-                    if plugin.instance.can_reload:
-                        self.bot.configure(plugin.instance)
-                        send_msg = f"Configuration of plugin {plugin_name} reloaded."
-                    else:
-                        send_msg = f"Plugin {plugin_name} can't reloaded."
-
-        if ctx.channel.id != Config().DEBUG_CHAN_ID:
-            await ctx.send(send_msg)
-        await utils.write_debug_channel(self.bot, send_msg)
+    # @commands.command(name="reload", help="Reloads the configuration.", usage="[plugin_name]",
+    #                   description="Reloads the configuration from the given plugin."
+    #                               "If no plugin given, all plugin configs will be reloaded.")
+    # @commands.has_any_role(Config().ADMIN_ROLE_ID, Config().BOTMASTER_ROLE_ID)
+    # async def reload(self, ctx, plugin_name=None):
+    #     """Reloads the config of the given plugin or all if none is given"""
+    #     await utils.log_to_admin_channel(ctx)
+    #     if plugin_name is None:
+    #         reconfigure(self.bot)
+    #         send_msg = "Configuration of all plugins reloaded."
+    #     else:
+    #         send_msg = f"No plugin {plugin_name} found."
+    #         for plugin in self.bot.plugins:
+    #             if plugin.name == plugin_name:
+    #                 if plugin.instance.can_reload:
+    #                     self.bot.configure(plugin.instance)
+    #                     send_msg = f"Configuration of plugin {plugin_name} reloaded."
+    #                 else:
+    #                     send_msg = f"Plugin {plugin_name} can't reloaded."
+    #
+    #     if ctx.channel.id != Config().DEBUG_CHAN_ID:
+    #         await ctx.send(send_msg)
+    #     await utils.write_debug_channel(self.bot, send_msg)
 
     @commands.command(name="plugins", help="List all plugins.")
     async def plugins(self, ctx):
