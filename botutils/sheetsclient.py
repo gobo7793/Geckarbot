@@ -13,7 +13,7 @@ class NoApiKey(Exception):
     """Raisen if no Google API Key is defined"""
     pass
 
-class NoService(Exception):
+class NoCredentials(Exception):
     """Raisen if credentials for the service account are not valid"""
     pass
 
@@ -31,9 +31,6 @@ class Client(restclient.Client):
         :param spreadsheet_id: The ID of the spreadsheet
         """
 
-        if not Config().GOOGLE_API_KEY:
-            raise NoApiKey()
-
         super(Client, self).__init__("https://sheets.googleapis.com/v4/spreadsheets/")
 
         self.spreadsheet_id = spreadsheet_id
@@ -49,7 +46,7 @@ class Client(restclient.Client):
             credentials = service_account.Credentials.from_service_account_file(secret_file, scopes=scopes)
             service = discovery.build('sheets', 'v4', credentials=credentials)
         except Exception:
-            raise NoService()
+            raise NoCredentials()
 
         return service
 
@@ -57,6 +54,8 @@ class Client(restclient.Client):
         """
         Adds the API key to the params dictionary
         """
+        if not Config().GOOGLE_API_KEY:
+            raise NoApiKey()
         if params is None:
             params = []
         params.append(('key', Config().GOOGLE_API_KEY))
@@ -95,9 +94,14 @@ class Client(restclient.Client):
         """
         Reads a single range
         """
-        route = "{}/values/{}".format(self.spreadsheet_id, range)
-        result = self._make_request(route)
-        values = result['values'] if 'values' in result else []
+        if Config().GOOGLE_API_KEY:
+            route = "{}/values/{}".format(self.spreadsheet_id, range)
+            result = self._make_request(route)
+        else:
+            result = self.get_service().spreadsheets().values().get(
+                spreadsheetId=self.spreadsheet_id, range=range).execute()
+
+        values = result.get('values', [])
         return values
 
     def get_multiple(self, ranges):
@@ -106,17 +110,20 @@ class Client(restclient.Client):
 
         :param ranges: List of ranges
         """
-        route = "{}/values:batchGet".format(self.spreadsheet_id)
-        params = []
-        for range in ranges:
-            params.append(("ranges", range))
-        value_ranges = self._make_request(route, params=params)['valueRanges']
+        if Config().GOOGLE_API_KEY:
+            route = "{}/values:batchGet".format(self.spreadsheet_id)
+            params = []
+            for range in ranges:
+                params.append(("ranges", range))
+            result = self._make_request(route, params=params)
+        else:
+            result = self.get_service().spreadsheets().values().batchGet(
+                spreadsheetId=self.spreadsheet_id, ranges=ranges).execute()
+
+        value_ranges = result.get('valueRanges', [])
         values = []
         for vrange in value_ranges:
-            if 'values' in vrange:
-                values.append(vrange['values'])
-            else:
-                values.append([])
+            values.append(vrange.get('values', []))
         return values
 
     def update(self, range, values):
