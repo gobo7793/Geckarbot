@@ -23,24 +23,19 @@ class PluginContainer:
     """
     Contains basic data for plugins
     """
-    def __init__(self, instance: Configurable, is_subsystem=False):
+    def __init__(self, instance: Configurable, is_subsystem=False, category=None):
         self.instance = instance
         self.name = instance.__module__.rsplit(".", 1)[1]
         self.iodirs = {}
         self.is_subsystem = is_subsystem
+        self.category = self.name
+        if category is not None:
+            self.category = category
 
         if not is_subsystem:
             self.resource_dir = "{}/{}".format(Config().RESOURCE_DIR, self.name)
 
-        self.lang = instance.get_lang()
-        if self.lang is None:
-            try:
-                with open(Config().LANG_DIR + "/" + self.name + ".json") as f:
-                    self.lang = json.load(f)
-            except Exception as e:
-                self.lang = {}
-                logging.error("Unable to load lang file from plugin: {} ({})".format(self.name, e))
-            pass
+
 
 
 class IODirectory(metaclass=_Singleton):
@@ -283,33 +278,57 @@ class Lang(metaclass=_Singleton):
     def __init__(self):
         self.bot = None
         self.directory = Config().LANG_DIR
+        self._cache = {}
 
     @classmethod
-    def lang(cls, plugin, str_name, *args):
+    def clear_cache(cls):
+        cls()._cache = {}
+
+    @classmethod
+    def remove_from_cache(cls, configurable):
+        if configurable in cls()._cache:
+            del cls()._cache[configurable]
+
+    @classmethod
+    def read_from_cache(cls, configurable):
+        # Read from cache
+        if configurable in cls()._cache:
+            return cls()._cache[configurable]
+
+        # Read from file or configurable
+        lang = configurable.get_lang()
+        if lang is None:
+            try:
+                with open(Config().LANG_DIR + "/" + configurable.name() + ".json") as f:
+                    lang = json.load(f)
+            except Exception as e:
+                lang = {}
+                logging.error("Unable to load lang file from plugin: {} ({})".format(configurable.name(), e))
+            pass
+        cls()._cache[configurable] = lang
+        return lang
+
+    @classmethod
+    def lang(cls, configurable, str_name, *args):
         """
-        Returns the given string from plugins language/string file.
-        If language setted in Config().LANGUAGE_CODE is not supported, 'en' will be used.
+        Returns the given string from configurable's lang file.
+        If language sett in Config().LANGUAGE_CODE is not supported, 'en' will be used.
         If str_name or the configured language code cannot be found, str_name will be returned.
-        :param plugin: The plugin instance
+        :param configurable: The Configurable instance
         :param str_name: The name of the returning string.
             If not available for current language, an empty string will be returned.
         :param args: The strings to insert into the returning string via format()
         """
-        self = cls()
         if len(args) == 0:
             args = [""]  # ugly lol
 
-        for plugin_slot in self.bot.plugins:
-            if plugin_slot.instance is plugin:
-                if (Config().LANGUAGE_CODE in plugin_slot.lang
-                        and str_name in plugin_slot.lang[Config().LANGUAGE_CODE]):
-                    lang_code = Config().LANGUAGE_CODE
-                else:
-                    lang_code = 'en'
+        lang = cls().read_from_cache(configurable)
+        if Config().LANGUAGE_CODE in lang and str_name in lang[Config().LANGUAGE_CODE]:
+            lang_code = Config().LANGUAGE_CODE
+        else:
+            lang_code = 'en'
 
-                lang_str = plugin_slot.lang.get(lang_code, {}).get(str_name, str_name)
-                return lang_str.format(*args)
-        return str_name
+        return lang.get(lang_code, {}).get(str_name, str_name).format(*args)
 
     @classmethod
     def get_default(cls, plugin):
