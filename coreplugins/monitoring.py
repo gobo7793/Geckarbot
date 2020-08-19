@@ -58,7 +58,7 @@ class Plugin(BasePlugin, name="Bot status commands for monitoring and debug purp
             return
         await ctx.message.add_reaction(Lang.CMDSUCCESS)
 
-        dump = pprint.pformat(Storage.get(plugin), indent=4).split("\n")
+        dump = pprint.pformat(Config.get(plugin), indent=4).split("\n")
         prefix = ""
         if not Config.has_structure(plugin):
             prefix = "**Warning: plugin {} does not have a config structure.** " \
