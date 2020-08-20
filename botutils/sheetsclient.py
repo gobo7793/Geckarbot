@@ -2,9 +2,6 @@ import logging
 import os
 import urllib.parse
 
-from google.oauth2 import service_account
-from googleapiclient import discovery
-
 from conf import Config
 from botutils import restclient
 
@@ -40,15 +37,19 @@ class Client(restclient.Client):
 
     def get_service(self):
         try:
+            from google.oauth2 import service_account
+            from googleapiclient import discovery
             scopes = ["https://www.googleapis.com/auth/drive", "https://www.googleapis.com/auth/drive.file",
                       "https://www.googleapis.com/auth/spreadsheets"]
             secret_file = os.path.join(os.getcwd(), "config/google_service_account.json")
             credentials = service_account.Credentials.from_service_account_file(secret_file, scopes=scopes)
             service = discovery.build('sheets', 'v4', credentials=credentials)
+        except ImportError:
+            raise
         except Exception:
             raise NoCredentials()
-
-        return service
+        else:
+            return service
 
     def _params_add_api_key(self, params=None):
         """
