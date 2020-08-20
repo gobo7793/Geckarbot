@@ -14,8 +14,9 @@ from subsystems.ignoring import UserBlockedCommand
 wildcard_user = "%u"
 wildcard_umention = "%um"
 wildcard_all_args = "%a"
-cmd_arg_regex_pattern = "\\+?(\"([^\"]*)\"|\\S+)"
 
+quotation_signs = "\"‘‚‛“„‟⹂「」『』〝〞﹁﹂﹃﹄＂｢｣«»‹›《》〈〉"
+cmd_re = re.compile(rf"\+?([{quotation_signs}]([^{quotation_signs}]*)[{quotation_signs}]|\S+)")
 arg_list_re = re.compile(r"(%(\d)(\*?))")
 
 
@@ -91,7 +92,7 @@ class Cmd:
         else:
             return [self.get_raw_text(i) for i in range(0, len(self.texts))]
 
-    async def get_ran_formatted_text(self, bot, msg: discord.Message, cmd_args:list):
+    async def get_ran_formatted_text(self, bot, msg: discord.Message, cmd_args: list):
         """
         Formats and replaces the wildcard of a random text of the cmd for using it as custom cmd.
         If a mentioned user has the command on its ignore list, a UserBlockedCommand error will be raised.
@@ -152,7 +153,6 @@ class Plugin(BasePlugin, name="Custom CMDs"):
         self.can_reload = True
         bot.register(self)
 
-        self.cmd_re = re.compile(cmd_arg_regex_pattern)
         self.prefix = Config.get(self)['prefix']
         self.commands = {}
 
@@ -212,7 +212,7 @@ class Plugin(BasePlugin, name="Custom CMDs"):
         """Will be called from on_message listener to react for custom cmds"""
 
         # get cmd parts/args
-        msg_args = self.cmd_re.findall(msg.content)
+        msg_args = cmd_re.findall(msg.content)
         cmd_name = msg_args[0][1].lower() if msg_args[0][1] else msg_args[0][0].lower()
 
         cmd_args = msg_args[1:]
@@ -360,7 +360,8 @@ class Plugin(BasePlugin, name="Custom CMDs"):
     #         await ctx.invoke(self.bot.get_command(f"cmd add"), cmd_name, arg_text)
 
     @cmd.command(name="del", help="Deletes a custom command or output text",
-                 description="Deletes a custom command or one of its output texts. To delete a output text,"
+                 description="Deletes a custom command or one of its output texts. If the last output text was "
+                             "deleted, the whole command will be removed. To delete a output text,"
                              "the ID of the text must be given. The IDs and creator can be get via !cmd info <command>."
                              "Only the original command creator or admins can delete commands or its texts.")
     async def cmd_del(self, ctx, cmd_name, text_id: int = None):
@@ -386,6 +387,9 @@ class Plugin(BasePlugin, name="Custom CMDs"):
             await ctx.message.add_reaction(Lang.CMDERROR)
             await ctx.send(Lang.lang(self, 'text_id_not_exists'))
 
+        if text_id == 0 and len(cmd.texts) == 1:
+            text_id = None
+
         if text_id is None:
             # Remove command
             cmd_raw = cmd.get_raw_texts()
@@ -395,7 +399,7 @@ class Plugin(BasePlugin, name="Custom CMDs"):
         else:
             # remove text
             cmd_raw = cmd.get_raw_text(text_id)
-            del(cmd.texts[text_id])
+            del (cmd.texts[text_id])
             await utils.write_debug_channel(self.bot, Lang.lang(self, 'cmd_text_removed', cmd_name, cmd_raw))
 
         self.save()

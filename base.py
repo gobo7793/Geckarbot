@@ -27,7 +27,7 @@ class Configurable:
         """
         return None
 
-    def name(self):
+    def get_name(self):
         """
         Returns a human-readable plugin name.
         """
