@@ -15,8 +15,8 @@ wildcard_user = "%u"
 wildcard_umention = "%um"
 wildcard_all_args = "%a"
 
-
-cmd_re = re.compile(r"\+?(\"([^\"]*)\"|\S+)")
+quotation_signs = "\"‘‚‛“„‟⹂「」『』〝〞﹁﹂﹃﹄＂｢｣«»‹›《》〈〉"
+cmd_re = re.compile(rf"\+?([{quotation_signs}]([^{quotation_signs}]*)[{quotation_signs}]|\S+)")
 arg_list_re = re.compile(r"(%(\d)(\*?))")
 
 
