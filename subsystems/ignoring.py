@@ -6,7 +6,7 @@ from discord.ext import commands
 from datetime import datetime
 
 from base import BaseSubsystem
-from conf import Storage, PluginContainer, Lang
+from conf import Storage, ConfigurableContainer, Lang
 from botutils import utils
 from subsystems import timers
 
@@ -208,7 +208,7 @@ class Ignoring(BaseSubsystem):
 
     def __init__(self, bot):
         super().__init__(bot)
-        bot.plugins.append(PluginContainer(self, True))
+        bot.plugins.append(ConfigurableContainer(self))
         self.log = logging.getLogger("ignoring")
 
         self.users = []

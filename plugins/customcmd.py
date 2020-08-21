@@ -224,7 +224,6 @@ class Plugin(BasePlugin, name="Custom CMDs"):
         Updates the configuration from version 1 (indicator: contains '_prefix') to version 2
 
         :param old_config: the old config dict
-        :return:
         """
         logging.info("Update Custom CMD config from version 1 to version 2")
 

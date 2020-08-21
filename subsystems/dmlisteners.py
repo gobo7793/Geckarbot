@@ -1,3 +1,5 @@
+from base import BaseSubsystem
+
 """
 This subsystem provides listeners for direct messages (DMs) to the bot.
 """
@@ -22,8 +24,9 @@ class Callback:
         return "<dmlisteners.Callback; blocking: {}; coro: {}; user: {}>".format(self.blocking, self.coro, self.user)
 
 
-class DMListener:
+class DMListener(BaseSubsystem):
     def __init__(self, bot):
+        super().__init__(bot)
         self.bot = bot
         self.callbacks = []
 

@@ -5,7 +5,7 @@ from discord.ext import commands
 
 from conf import Storage, Config, Lang, reconfigure
 from botutils import utils, permChecks
-from base import BasePlugin
+from base import BasePlugin, ConfigurableType
 import subsystems
 from subsystems.ignoring import IgnoreEditResult, IgnoreType
 
@@ -26,6 +26,9 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
             'privacy_notes_lang': "",
             'profile_pic_creator': ""
         }
+
+    def get_configurable_type(self):
+        return ConfigurableType.COREPLUGIN
 
     ######
     # Misc commands

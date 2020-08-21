@@ -1,4 +1,12 @@
+from enum import Enum
 from discord.ext.commands import Cog
+
+
+class ConfigurableType(Enum):
+    """The Type of a Configurable"""
+    SUBSYSTEM = 0,
+    COREPLUGIN = 1,
+    PLUGIN = 2
 
 
 class Configurable:
@@ -33,11 +41,23 @@ class Configurable:
         """
         return self.__module__.rsplit(".", 1)[1]
 
+    def get_configurable_type(self):
+        """
+        Returns the ConfigurableType of self
+        """
+        raise NotImplemented
+
 
 class BaseSubsystem(Configurable):
     """The base class for all subsystems"""
     def __init__(self, bot):
         super().__init__(bot)
+
+    def get_configurable_type(self):
+        """
+        Returns the ConfigurableType of self
+        """
+        return ConfigurableType.SUBSYSTEM
 
 
 class BasePlugin(Cog, Configurable):
@@ -45,6 +65,12 @@ class BasePlugin(Cog, Configurable):
     def __init__(self, bot):
         Cog.__init__(self)
         Configurable.__init__(self, bot)
+
+    def get_configurable_type(self):
+        """
+        Returns the ConfigurableType of self
+        """
+        return ConfigurableType.PLUGIN
 
     async def shutdown(self):
         """

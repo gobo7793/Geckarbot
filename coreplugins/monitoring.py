@@ -1,6 +1,6 @@
 import pprint
 
-from base import BasePlugin
+from base import BasePlugin, ConfigurableType
 
 from discord.ext import commands
 
@@ -13,6 +13,9 @@ class Plugin(BasePlugin, name="Bot status commands for monitoring and debug purp
         self.bot = bot
         super().__init__(bot)
         bot.register(self)
+
+    def get_configurable_type(self):
+        return ConfigurableType.COREPLUGIN
 
     @commands.command(name="subsys", help="Shows registrations on subsystems")
     @commands.has_any_role(Config().BOTMASTER_ROLE_ID)
