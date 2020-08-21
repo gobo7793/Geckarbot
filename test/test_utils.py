@@ -1,6 +1,7 @@
 import unittest
 import datetime
-from botutils import utils
+from botutils import utils, permChecks
+from conf import Config
 
 
 class TestUtils(unittest.TestCase):
@@ -34,6 +35,23 @@ class TestUtils(unittest.TestCase):
         arg_list = ["11.07.", "18:36"]
         d = utils.analyze_time_input(*arg_list)
         self.assertEqual(datetime.datetime(2020, 7, 11, 18, 36), d)
+
+    def test_whitelist_check(self):
+        Config().DEBUG_MODE = False
+        Config().DEBUG_WHITELIST = [1, 2, 3]
+
+        self.assertEqual(permChecks.whitelist_check_id(1), True)
+        self.assertEqual(permChecks.whitelist_check_id(4), True)
+
+        Config().DEBUG_MODE = True
+
+        self.assertEqual(permChecks.whitelist_check_id(1), True)
+        self.assertEqual(permChecks.whitelist_check_id(4), False)
+
+        Config().DEBUG_WHITELIST = []
+
+        self.assertEqual(permChecks.whitelist_check_id(1), True)
+        self.assertEqual(permChecks.whitelist_check_id(4), True)
 
 
 if __name__ == '__main__':

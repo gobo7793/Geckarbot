@@ -47,3 +47,21 @@ class Plugin(BasePlugin, name="Bot status commands for monitoring and debug purp
                      "This is the default storage.".format(name)
         for el in utils.paginate(dump, prefix=prefix, msg_prefix="```", msg_suffix="```"):
             await ctx.send(el)
+
+    @commands.command(name="configdump", help="Dumps plugin config", usage="<plugin name>")
+    @commands.has_any_role(Config().BOTMASTER_ROLE_ID)
+    async def configdump(self, ctx, name):
+        plugin = converter.get_plugin_by_name(self.bot, name)
+        if plugin is None:
+            await ctx.message.add_reaction(Lang.CMDERROR)
+            await ctx.send("Plugin {} not found.".format(name))
+            return
+        await ctx.message.add_reaction(Lang.CMDSUCCESS)
+
+        dump = pprint.pformat(Config.get(plugin), indent=4).split("\n")
+        prefix = ""
+        if not Config.has_structure(plugin):
+            prefix = "**Warning: plugin {} does not have a config structure.** " \
+                     "This is the default config.".format(name)
+        for el in utils.paginate(dump, prefix=prefix, msg_prefix="```", msg_suffix="```"):
+            await ctx.send(el)

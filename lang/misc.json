@@ -1,6 +1,7 @@
 {
     "en": {
         "#0": "actually de strings",
+        "choose_sabaton": "SABATON! SABATON! Sabaton is always the best choice, but...",
         "kicker_title": "Kicker.de-Links",
         "kicker_1BL": "Bundesliga",
         "kicker_1BL_link": "https://www.kicker.de/1-bundesliga/spieltag",
@@ -33,6 +34,7 @@
         "remind_past": "Sorry, I don't have a time machine."
     },
     "de": {
+        "choose_sabaton": "NOCH EIN BIER! NOCH EIN BIER! Also Sabaton geht ja immer, aber...",
         "choose_msg": "Ich wähle: ",
         "choose_noarg": "Ich brauche mindestens eine Möglichkeit!",
         "remind_set": "Ich erinnere dich zum Zeitpunkt {}. Um die Erinnerung abzubrechen kannst du `!remindme cancel {}` eingeben.",

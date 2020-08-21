@@ -67,7 +67,11 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
     @commands.command(name="choose", help="Picks on of the options. Separate options with '|'",
                       usage="option1 | option2 | ...")
     async def choose(self, ctx, *args):
-        options = [i for i in " ".join(args).split("|") if i.strip() != ""]
+        full_options_str = " ".join(args)
+        if "sabaton" in full_options_str.lower():
+            await ctx.send(Storage.lang(self, 'choose_sabaton'))
+
+        options = [i for i in full_options_str.split("|") if i.strip() != ""]
         if len(options) < 1:
             await ctx.send(Lang.lang(self, 'choose_noarg'))
             return

@@ -1,4 +1,5 @@
 import re
+import logging
 
 import discord
 from enum import IntEnum
@@ -8,46 +9,6 @@ from discord.ext import commands
 from conf import Storage, Lang, Config
 from botutils import utils, permChecks, sheetsclient
 from base import BasePlugin
-
-
-lang = {
-    'en': {
-        'status_base': "Important message from the Songmasters: {}",
-        'status_none': "Have fun and love Treecko, Mudkip and Oshawott!",
-        'must_set_host': "You must set DSC host.",
-        'info_date_str': " until {}",
-        'signup_phase_info': ":clipboard: Signing up open{}!",
-        'current_host': "Current Host",
-        'sign_up': "Sign up",
-        'voting_phase_info': ":incoming_envelope: Voting is open{}",
-        'votings_to': "Votings to",
-        'all_songs': "All songs",
-        'yt_playlist': "Youtube playlist",
-        'config_error_reset': "Configuration error. Please reset dsc configuration.",
-        'config_error': "DSC configuration error, config values:",
-        'invalid_phase': "Invalid dsc state.",
-        'winner_prefix': "**Previous DSC winners:**\n",
-        'winner_msg': "**#{}**: {} with {}/{} Points ({} %, {} participants in {}/{})",
-        },
-    'de': {
-        'status_base': "Eine wichtige Nachricht der Songmaster: {}",
-        'status_none': "Habt Spaß und ♥ für Geckarbor, Hydropi und Ottaro!",
-        'must_set_host': "Der Ausrichter muss gesetzt werden.",
-        'info_date_str': " bis {}",
-        'signup_phase_info': ":clipboard: Anmeldung offen{}!",
-        'current_host': "Aktueller Ausrichter",
-        'sign_up': "Anmeldung",
-        'voting_phase_info': ":incoming_envelope: Votingphase läuft{}",
-        'votings_to': "Votings an",
-        'all_songs': "Alle Songs",
-        'yt_playlist': "Youtube Playlist",
-        'config_error_reset': "Fehler in der DSC-Konfiguration, bitte zurücksetzen.",
-        'config_error': "DSC-Konfigurations-Fehler, Werte:",
-        'invalid_phase': "Ungültiger DSC-State.",
-        'winner_prefix': "**Bisherige DSC-Gewinner:**\n",
-        'winner_msg': "**#{}**: {} mit {}/{} Punkten ({} %, {} TN in {}/{})",
-        }
-    }
 
 
 class DscState(IntEnum):
@@ -60,75 +21,80 @@ class DscState(IntEnum):
 class Plugin(BasePlugin, name="Discord Song Contest"):
     """Commands for the DSC"""
 
-    songmaster_role_id = 0
-
     def __init__(self, bot):
         super().__init__(bot)
         self.can_reload = True
         bot.register(self)
+        self.log = logging.getLogger("dsc")
 
-        self.dsc_conf()['rule_link'] = self._get_rule_link()
+        self._fill_rule_link()
         Storage().save(self)
+
+    def default_config(self):
+        return {
+            'rule_cell': "Aktuell!E2",
+            'contestdoc_id': "1HH42s5DX4FbuEeJPdm8l1TK70o2_EKADNOLkhu5qRa8",
+            'winners_range': "Hall of Fame!B4:D200",
+            'channel_id': 0,
+            'songmaster_role_id': 0
+        }
 
     def default_storage(self):
         return {
-            'rule_cell': "Aktuell!F2",
             'rule_link': None,
-            'contestdoc_id': "1HH42s5DX4FbuEeJPdm8l1TK70o2_EKADNOLkhu5qRa8",
-            'winners_range': "Hall of Fame!B4:D200",
             'host_id': None,
             'state': DscState.NA,
             'yt_link': None,
+            'points': "",
             'state_end': datetime.now(),
             'status': None
         }
 
-    def get_lang(self):
-        return lang
-
-    def dsc_conf(self):
-        return Storage().get(self)
-
-    def dsc_lang(self, str_name, *args):
-        return Lang.lang(self, str_name, *args)
-
     def get_api_client(self):
         """Returns a client to access Google Sheets API for the dsc contestdoc sheet"""
-        return sheetsclient.Client(self.dsc_conf()['contestdoc_id'])
+        return sheetsclient.Client(Config.get(self)['contestdoc_id'])
+        pass
 
     def _get_doc_link(self):
-        return "https://docs.google.com/spreadsheets/d/{}".format(self.dsc_conf()['contestdoc_id'])
+        return "https://docs.google.com/spreadsheets/d/{}".format(Config.get(self)['contestdoc_id'])
 
     def _get_rule_link(self):
-        c = self.get_api_client()
-        values = c.get(self.dsc_conf()['rule_cell'])
-        return values[0][0]
+        try:
+            c = self.get_api_client()
+            values = c.get(Config.get(self)['rule_cell'])
+            return values[0][0]
+        except IndexError:
+            self.log.error("Can't read rules link from Contestdoc sheet. "
+                           "Is Google Sheets not reachable or do you set the wrong cell?")
+            return ""
 
-    @commands.group(name="dsc", invoke_without_command=True, help="Get and manage informations about current DSC",
-                    description="Get the informations about the current dsc or manage it. "
-                                "Command only works in music channel. "
-                                "Manage DSC informations is only permitted for songmasters.")
-    @permChecks.in_channel(Config().CHAN_IDS.get('music', 0))
+    def _fill_rule_link(self):
+        if not Storage.get(self)['rule_link']:
+            Storage.get(self)['rule_link'] = self._get_rule_link()
+
+    @commands.group(name="dsc", help="Get and manage data about current/next DSC")
     async def dsc(self, ctx):
-        await ctx.invoke(self.bot.get_command('dsc info'))
+        if ctx.invoked_subcommand is None:
+            await ctx.invoke(self.bot.get_command('dsc info'))
 
-    @dsc.command(name="rules", help="Get the link to the DSC rules")
+    @dsc.command(name="rules", help="Get the link to the DSC rules", alias="regeln")
     async def dsc_rules(self, ctx):
-        await ctx.send(f"<{self.dsc_conf()['rule_link']}>")
+        self._fill_rule_link()
+        await ctx.send(f"<{Storage.get(self)['rule_link']}>")
 
-    @dsc.command(name="status", help="Get the current informations from the Songmasters about the current/next DSC")
+    @dsc.command(name="status", help="Get the current status message from the Songmasters about the current/next DSC")
     async def dsc_status(self, ctx):
-        if self.dsc_conf()['status']:
-            status_msg = self.dsc_lang('status_base', self.dsc_conf()['status'])
+        if Storage.get(self)['status']:
+            status_msg = Lang.lang(self, 'status_base', Storage.get(self)['status'])
         else:
-            status_msg = self.dsc_lang('status_base', self.dsc_lang('status_none'))
+            status_msg = Lang.lang(self, 'status_base', Lang.lang(self, 'status_none'))
 
         await ctx.send(status_msg)
 
     @dsc.command(name="winners", help="Returns previous DSC winners")
     async def dsc_winners(self, ctx):
         c = self.get_api_client()
-        winners = c.get(self.dsc_conf()['winners_range'])
+        winners = c.get(Config.get(self)['winners_range'])
 
         w_msgs = []
         regex = re.compile(r"\d+")
@@ -152,62 +118,69 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
         for m in utils.paginate(w_msgs, Lang.lang(self, 'winner_prefix')):
             await ctx.send(m)
 
-    @dsc.command(name="info", help="Get informations about current DSC")
+    @dsc.command(name="info", help="Get information about current DSC")
     async def dsc_info(self, ctx):
         host_nick = None
-        date_out_str = self.dsc_lang('info_date_str', self.dsc_conf()['state_end'].strftime('%d.%m.%Y, %H:%M'))
-        if not self.dsc_conf()['host_id']:
-            await ctx.send(self.dsc_lang('must_set_host'))
+        date_out_str = Lang.lang(self, 'info_date_str', Storage.get(self)['state_end'].strftime('%d.%m.%Y, %H:%M'))
+        if not Storage.get(self)['host_id']:
+            await ctx.send(Lang.lang(self, 'must_set_host'))
         else:
-            host_nick = discord.utils.get(ctx.guild.members, id=self.dsc_conf()['host_id']).mention
+            host_nick = discord.utils.get(ctx.guild.members, id=Storage.get(self)['host_id']).mention
 
-        if self.dsc_conf()['state'] == DscState.Sign_up:
-            if self.dsc_conf()['state_end'] > datetime.now():
-                date_out_str = self.dsc_lang('info_date_str', self.dsc_conf()['state_end'].strftime('%d.%m.%Y'))
+        if Storage.get(self)['state'] == DscState.Sign_up:
+            if Storage.get(self)['state_end'] > datetime.now():
+                date_out_str = Lang.lang(self, 'info_date_str', Storage.get(self)['state_end'].strftime('%d.%m.%Y'))
             else:
                 date_out_str = ""
 
-            embed = discord.Embed(title=self.dsc_lang('signup_phase_info', date_out_str))
-            embed.add_field(name=self.dsc_lang('current_host'), value=host_nick)
-            embed.add_field(name=self.dsc_lang('sign_up'), value=self._get_doc_link())
-            if self.dsc_conf()['status']:
-                embed.description = self.dsc_conf()['status']
+            embed = discord.Embed(title=Lang.lang(self, 'signup_phase_info', date_out_str))
+            embed.add_field(name=Lang.lang(self, 'current_host'), value=host_nick)
+            embed.add_field(name=Lang.lang(self, 'sign_up'), value=self._get_doc_link())
+            if Storage.get(self)['status']:
+                embed.description = Storage.get(self)['status']
             await ctx.send(embed=embed)
 
-        elif self.dsc_conf()['state'] == DscState.Voting:
-            embed = discord.Embed(title=self.dsc_lang('voting_phase_info', date_out_str))
-            embed.add_field(name=self.dsc_lang('current_host'), value=host_nick)
-            embed.add_field(name=self.dsc_lang('all_songs'), value=self._get_doc_link())
-            embed.add_field(name=self.dsc_lang('yt_playlist'), value=self.dsc_conf()['yt_link'])
-            if self.dsc_conf()['status']:
-                embed.description = self.dsc_conf()['status']
+        elif Storage.get(self)['state'] == DscState.Voting:
+            embed = discord.Embed(title=Lang.lang(self, 'voting_phase_info', date_out_str))
+            embed.add_field(name=Lang.lang(self, 'current_host'), value=host_nick)
+            embed.add_field(name=Lang.lang(self, 'all_songs'), value=self._get_doc_link())
+            embed.add_field(name=Lang.lang(self, 'yt_playlist'), value=Storage.get(self)['yt_link'])
+            embed.add_field(name=Lang.lang(self, 'points'), value=Storage.get(self)['points'])
+            if Storage.get(self)['status']:
+                embed.description = Storage.get(self)['status']
             await ctx.send(embed=embed)
 
         else:
-            await ctx.send(self.dsc_lang('config_error_reset'))
-            embed = discord.Embed(title=self.dsc_lang('config_error'))
-            embed.add_field(name="Host ID", value=str(self.dsc_conf()['host_id']))
+            await ctx.send(Lang.lang(self, 'config_error_reset'))
+            embed = discord.Embed(title=Lang.lang(self, 'config_error'))
+            embed.add_field(name="Host ID", value=str(Storage.get(self)['host_id']))
             embed.add_field(name="Host Nick", value=host_nick)
-            embed.add_field(name="State", value=str(self.dsc_conf()['state']))
-            embed.add_field(name="YT Link", value=str(self.dsc_conf()['yt_link']))
-            embed.add_field(name="State End", value=str(self.dsc_conf()['state_end']))
-            embed.add_field(name="Status", value=str(self.dsc_conf()['status']))
+            embed.add_field(name="State", value=str(Storage.get(self)['state']))
+            embed.add_field(name="YT Link", value=str(Storage.get(self)['yt_link']))
+            embed.add_field(name="State End", value=str(Storage.get(self)['state_end']))
+            embed.add_field(name="Status", value=str(Storage.get(self)['status']))
             await utils.write_debug_channel(self.bot, embed)
 
-    @dsc.group(name="set", invoke_without_command=True, usage="<host|state|stateend|status|yt>",
-               help="Set data about current/next DSC.")
-    @commands.has_any_role(Config().ADMIN_ROLE_ID, Config().BOTMASTER_ROLE_ID, Config().ROLE_IDS.get('songmaster', 0))
+    @dsc.group(name="set", help="Set data about current/next DSC.")
     async def dsc_set(self, ctx):
-        await ctx.send_help(self.dsc_set)
+        if (not permChecks.check_full_access(ctx.author)
+                and Config.get(self)['songmaster_role_id'] != 0
+                and Config.get(self)['songmaster_role_id'] not in [role.id for role in ctx.author.roles]):
+            raise commands.BotMissingAnyRole([*Config().FULL_ACCESS_ROLES, Config.get(self)['songmaster_role_id']])
+        if Config.get(self)['channel_id'] != 0 and Config.get(self)['channel_id'] != ctx.channel.id:
+            raise commands.CheckFailure()
 
-    @dsc_set.command(name="host", help="Sets the current/next DSC hoster", usage="<user>")
+        if ctx.invoked_subcommand is None:
+            await ctx.send_help(self.dsc_set)
+
+    @dsc_set.command(name="host", help="Sets the current/next DSC host")
     async def dsc_set_host(self, ctx, user: discord.Member):
-        self.dsc_conf()['host_id'] = user.id
+        Storage.get(self)['host_id'] = user.id
         Storage().save(self)
         await ctx.message.add_reaction(Lang.CMDSUCCESS)
 
-    async def dsc_save_state(self, ctx, new_state: DscState):
-        self.dsc_conf()['state'] = new_state
+    async def _dsc_save_state(self, ctx, new_state: DscState):
+        Storage.get(self)['state'] = new_state
         Storage().save(self)
         await ctx.message.add_reaction(Lang.CMDSUCCESS)
 
@@ -215,16 +188,16 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
                      usage="<voting|signup>")
     async def dsc_set_state(self, ctx, state):
         if state.lower() == "voting":
-            await self.dsc_save_state(ctx, DscState.Voting)
+            await self._dsc_save_state(ctx, DscState.Voting)
         elif state.lower() == "signup":
-            await self.dsc_save_state(ctx, DscState.Sign_up)
+            await self._dsc_save_state(ctx, DscState.Sign_up)
         else:
-            await ctx.send(self.dsc_lang('invalid_phase'))
+            await ctx.send(Lang.lang(self, 'invalid_phase'))
 
-    @dsc_set.command(name="yt", help="Sets the Youtube playlist link", usage="<link>")
+    @dsc_set.command(name="yt", help="Sets the Youtube playlist link")
     async def dsc_set_yt_link(self, ctx, link):
         link = utils.clear_link(link)
-        self.dsc_conf()['yt_link'] = link
+        Storage.get(self)['yt_link'] = link
         Storage().save(self)
         await ctx.message.add_reaction(Lang.CMDSUCCESS)
 
@@ -234,13 +207,74 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
     async def dsc_set_date(self, ctx, date_str, time_str=None):
         if not time_str:
             time_str = "23:59"
-        self.dsc_conf()['state_end'] = datetime.strptime(f"{date_str} {time_str}", "%d.%m.%Y %H:%M")
+        Storage.get(self)['state_end'] = datetime.strptime(f"{date_str} {time_str}", "%d.%m.%Y %H:%M")
         Storage().save(self)
         await ctx.message.add_reaction(Lang.CMDSUCCESS)
 
-    @dsc_set.command(name="status", help="Sets the status message", usage="[message]",
-                     description="Sets a status message for additional informations. To remove give no message.")
-    async def dsc_set_status(self, ctx, *status_message):
-        self.dsc_conf()['status'] = " ".join(status_message)
+    @dsc_set.command(name="status", help="Sets the status message",
+                     description="Sets a status message for additional information. To remove give no message.")
+    async def dsc_set_status(self, ctx, *message):
+        Storage.get(self)['status'] = " ".join(message)
         Storage().save(self)
+        await ctx.message.add_reaction(Lang.CMDSUCCESS)
+
+    @dsc_set.command(name="points", help="Sets the voting system",
+                     description="Sets the point list for the current voting system. Points can be set like "
+                                 "\"12-10-...\" or \"12 10 ...\", which will be converted to the first.")
+    async def dsc_set_status(self, ctx, *points):
+        Storage.get(self)['points'] = "-".join(points)
+        Storage().save(self)
+        await ctx.message.add_reaction(Lang.CMDSUCCESS)
+
+    @dsc_set.group(name="config", invoke_without_command=True,
+                   help="Gets or sets general config values for the plugin")
+    async def dsc_set_config(self, ctx, key="", value=""):
+        if not key and not value:
+            await ctx.invoke(self.bot.get_command("configdump"), self.get_name())
+            return
+
+        if key and not value:
+            key_value = Config.get(self).get(key, None)
+            if key_value is None:
+                await ctx.message.add_reaction(Lang.CMDERROR)
+                await ctx.send(Lang.lang(self, 'key_not_exists', key))
+            else:
+                await ctx.message.add_reaction(Lang.CMDSUCCESS)
+                await ctx.send(key_value)
+            return
+
+        if key == "channel_id":
+            channel = None
+            int_value = Config.get(self)['channel_id']
+            try:
+                int_value = int(value)
+                channel = self.bot.guild.get_channel(int_value)
+            except ValueError:
+                pass
+            if channel is None:
+                Lang.lang(self, 'channel_id_int')
+                await ctx.message.add_reaction(Lang.CMDERROR)
+                return
+            else:
+                Config.get(self)[key] = int_value
+
+        elif key == "songmaster_role_id":
+            role = None
+            int_value = Config.get(self)['songmaster_role_id']
+            try:
+                int_value = int(value)
+                role = self.bot.guild.get_role(int_value)
+            except ValueError:
+                pass
+            if role is None:
+                Lang.lang(self, 'songmaster_id')
+                await ctx.message.add_reaction(Lang.CMDERROR)
+                return
+            else:
+                Config.get(self)[key] = int_value
+
+        else:
+            Config.get(self)[key] = value
+
+        Config.save(self)
         await ctx.message.add_reaction(Lang.CMDSUCCESS)
