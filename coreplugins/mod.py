@@ -67,34 +67,36 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
         for modname in pkgutil.iter_modules(subsystems.__path__):
             subsys.append(modname.name)
 
-        for msg in utils.paginate(coreplugins, prefix=f"Loaded {len(coreplugins)} coreplugins:\n", delimiter=", "):
+        for msg in utils.paginate(coreplugins,
+                                  prefix=Lang.lang(self, 'plugins_loaded_cp', len(coreplugins)), delimiter=", "):
             await ctx.send(msg)
-        for msg in utils.paginate(plugins, prefix=f"Loaded {len(plugins)} plugins:\n", delimiter=", "):
+        for msg in utils.paginate(plugins,
+                                  prefix=Lang.lang(self, 'plugins_loaded_pl', len(coreplugins)), delimiter=", "):
             await ctx.send(msg)
-        for msg in utils.paginate(subsys, prefix=f"Installed {len(subsys)} subsystems:\n", delimiter=", "):
+        for msg in utils.paginate(subsys,
+                                  prefix=Lang.lang(self, 'plugins_loaded_ss', len(coreplugins)), delimiter=", "):
             await ctx.send(msg)
 
     @commands.command(name="about", aliases=["git", "github"], help="Prints the credits")
     async def about(self, ctx):
-        about_msg = "Geckarbot {} on {}, licensed under GNU GPL v3.0. Hosted with ❤ on {} {} {}.\n".format(
-            Config().VERSION, self.bot.guild.name, platform.system(), platform.release(), platform.version())
+        about_msg = Lang.lang(self, 'about_version', Config.VERSION, self.bot.guild.name,
+                              platform.system(), platform.release(), platform.version())
 
-        if Storage().get(self)['bot_info_link']:
-            about_msg += "For general bot information on this server see <{}>.\n".format(
-                Storage().get(self)['bot_info_link'])
-        about_msg += "Github Repository for additional information and participation: <{}>.\n".format(
-            Storage().get(self).get('repo_link', "Please ask your local bot manager."))
-        if Storage().get(self)['privacy_notes_link']:
+        if Config.get(self)['bot_info_link']:
+            about_msg += Lang.lang(self, 'about_general_info', Config.get(self)['bot_info_link'])
+        about_msg += Lang.lang(self, 'about_repo', Config.get(self).get('repo_link',
+                                                                           Lang.lang(self, 'about_no_repo_link')))
+        if Config.get(self)['privacy_notes_link']:
             lang = ""
-            if Storage().get(self)['privacy_notes_lang']:
-                lang = " ({})".format(Storage().get(self)['privacy_notes_lang'])
-            about_msg += "Privacy notes: <{}>{}.\n".format(Storage().get(self)['privacy_notes_link'], lang)
+            if Config.get(self)['privacy_notes_lang']:
+                lang = " ({})".format(Config.get(self)['privacy_notes_lang'])
+            about_msg += Lang.lang(self, 'about_privacy', Config.get(self)['privacy_notes_link'], lang)
 
-        about_msg += "Main developers: Costamiri, Fluggs, Gobo77."
-        if Storage().get(self)['profile_pic_creator']:
-            about_msg += " Profile picture by {}.".format(Storage().get(self)['profile_pic_creator'])
+        about_msg += Lang.lang(self, 'about_devs', "Costamiri, Fluggs, Gobo77")
+        if Config.get(self)['profile_pic_creator']:
+            about_msg += Lang.lang(self, 'about_pfp', Config.get(self)['profile_pic_creator'])
 
-        about_msg += "\nSpecial thanks to all contributors!"
+        about_msg += Lang.lang(self, 'about_thanks')
 
         await ctx.send(about_msg)
 
@@ -140,11 +142,10 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
             await ctx.message.add_reaction(Lang.CMDSUCCESS)
         elif result == IgnoreEditResult.Already_in_list:
             await ctx.message.add_reaction(Lang.CMDERROR)
-            await ctx.send("Interactions with command {} are already blocked for {}."
-                           .format(command, utils.get_best_username(user)))
+            await ctx.send(Lang.lang(self, 'user_cmd_already_blocked', command, utils.get_best_username(user)))
         elif result == IgnoreEditResult.Until_in_past:
             await ctx.message.add_reaction(Lang.CMDERROR)
-            await ctx.send("Sorry, I don't have a time machine.")
+            await ctx.send(Lang.lang(self, 'no_time_machine'))
         await utils.log_to_admin_channel(ctx)
 
     @disable.command(name="user", help="Block any interaction between user and bot.",
@@ -166,10 +167,10 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
             await ctx.message.add_reaction(Lang.CMDSUCCESS)
         elif result == IgnoreEditResult.Already_in_list:
             await ctx.message.add_reaction(Lang.CMDERROR)
-            await ctx.send("{} already blocked.".format(utils.get_best_username(user)))
+            await ctx.send(Lang.lang(self, 'user_already_blocked', utils.get_best_username(user)))
         elif result == IgnoreEditResult.Until_in_past:
             await ctx.message.add_reaction(Lang.CMDERROR)
-            await ctx.send("Sorry, I don't have a time machine.")
+            await ctx.send(Lang.lang(self, 'no_time_machine'))
         await utils.log_to_admin_channel(ctx)
 
     @disable.command(name="cmd", help="Disables a command in current channel.",
@@ -189,7 +190,7 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
     async def disable_cmd(self, ctx, command, *args):
         if command == "enable":
             await ctx.message.add_reaction(Lang.CMDERROR)
-            await ctx.send("Command `!enable` can't be blocked to avoid blocking deadlocks.")
+            await ctx.send(Lang.lang(self, 'enable_cant_blocked'))
             return
 
         until = utils.analyze_time_input(*args)
@@ -199,10 +200,10 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
             await ctx.message.add_reaction(Lang.CMDSUCCESS)
         elif result == IgnoreEditResult.Already_in_list:
             await ctx.message.add_reaction(Lang.CMDERROR)
-            await ctx.send("Command {} already blocked in this channel".format(command))
+            await ctx.send(Lang.lang(self, 'cmd_already_blocked', command))
         elif result == IgnoreEditResult.Until_in_past:
             await ctx.message.add_reaction(Lang.CMDERROR)
-            await ctx.send("Sorry, I don't have a time machine.")
+            await ctx.send(Lang.lang(self, 'no_time_machine'))
         await utils.log_to_admin_channel(ctx)
 
     @disable.command(name="list", help="Lists all blocked users and commands")
@@ -218,12 +219,12 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
                     await ctx.send(msg)
 
         if self.bot.ignoring.get_full_ignore_len() < 1:
-            await ctx.send("No users or commands blocked.")
+            await ctx.send(Lang.lang(self, 'nothing_blocked'))
             return
 
-        await write_list(IgnoreType.User, "**Blocked Users:**\n")
-        await write_list(IgnoreType.Command, "**Disabled Commands:**\n")
-        await write_list(IgnoreType.User_Command, "**Blocked Commands for Users:**\n")
+        await write_list(IgnoreType.User, Lang.lang(self, 'list_users'))
+        await write_list(IgnoreType.Command, Lang.lang(self, 'list_cmds'))
+        await write_list(IgnoreType.User_Command, Lang.lang(self, 'list_usercmds'))
 
     @commands.group(name="enable", invoke_without_command=True, help="Unblocks user or command usage.",
                     aliases=["unignore", "unblock"],
@@ -243,8 +244,7 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
             await ctx.message.add_reaction(Lang.CMDSUCCESS)
         elif result == IgnoreEditResult.Not_in_list:
             await ctx.message.add_reaction(Lang.CMDERROR)
-            await ctx.send("Interactions with command {} are not blocked for {}."
-                           .format(command, utils.get_best_username(user)))
+            await ctx.send(Lang.lang(self, 'user_cmd_not_blocked', command, utils.get_best_username(user)))
         await utils.log_to_admin_channel(ctx)
 
     @enable.command(name="user", help="Unblock user to enable interactions between user and bot.",
@@ -257,7 +257,7 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
             await ctx.message.add_reaction(Lang.CMDSUCCESS)
         elif result == IgnoreEditResult.Not_in_list:
             await ctx.message.add_reaction(Lang.CMDERROR)
-            await ctx.send("{} is not blocked.".format(utils.get_best_username(user)))
+            await ctx.send(Lang.lang(self, 'user_not_blocked', utils.get_best_username(user)))
         await utils.log_to_admin_channel(ctx)
 
     @enable.command(name="cmd", help="Enables a command in current channel.",
@@ -272,5 +272,5 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
             await ctx.message.add_reaction(Lang.CMDSUCCESS)
         elif result == IgnoreEditResult.Not_in_list:
             await ctx.message.add_reaction(Lang.CMDERROR)
-            await ctx.send("Command {} is not blocked in this channel".format(command))
+            await ctx.send(Lang.lang(self, 'cmd_not_blocked', command))
         await utils.log_to_admin_channel(ctx)
