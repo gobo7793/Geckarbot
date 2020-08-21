@@ -61,19 +61,17 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
     @commands.command(name="plugins", help="List all plugins.")
     async def plugins(self, ctx):
         """Returns registered plugins"""
-        coreplugins = [c.name for c in self.bot.plugins
-                       if c.get_configurable_type() == ConfigurableType.COREPLUGIN]
-        plugins = [c.name for c in self.bot.plugins
-                   if c.get_configurable_type() == ConfigurableType.PLUGIN]
+        coreplugins = [c.name for c in self.bot.plugins if c.type == ConfigurableType.COREPLUGIN]
+        plugins = [c.name for c in self.bot.plugins if c.type == ConfigurableType.PLUGIN]
         subsys = []
         for modname in pkgutil.iter_modules(subsystems.__path__):
-            subsys.append(modname)
+            subsys.append(modname.name)
 
-        for msg in utils.paginate(coreplugins, suffix=f"Loaded {len(coreplugins)} coreplugins:\n", delimiter=", "):
+        for msg in utils.paginate(coreplugins, prefix=f"Loaded {len(coreplugins)} coreplugins:\n", delimiter=", "):
             await ctx.send(msg)
-        for msg in utils.paginate(plugins, suffix=f"Loaded {len(plugins)} plugins:\n", delimiter=", "):
+        for msg in utils.paginate(plugins, prefix=f"Loaded {len(plugins)} plugins:\n", delimiter=", "):
             await ctx.send(msg)
-        for msg in utils.paginate(subsys, suffix=f"Installed {len(subsys)} subsystems:\n", delimiter=", "):
+        for msg in utils.paginate(subsys, prefix=f"Installed {len(subsys)} subsystems:\n", delimiter=", "):
             await ctx.send(msg)
 
     @commands.command(name="about", aliases=["git", "github"], help="Prints the credits")
