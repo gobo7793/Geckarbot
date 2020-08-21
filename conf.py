@@ -28,19 +28,10 @@ class ConfigurableContainer:
         self.name = instance.get_name()
         self.iodirs = {}
         self.type = instance.get_configurable_type()
+        self.lang = Lang.load(instance)
 
         if self.type == ConfigurableType.PLUGIN or self.type == ConfigurableType.COREPLUGIN:
             self.resource_dir = "{}/{}".format(Config().RESOURCE_DIR, self.name)
-
-        self.lang = instance.get_lang()
-        if self.lang is None:
-            try:
-                with open(Config().LANG_DIR + "/" + self.name + ".json") as f:
-                    self.lang = json.load(f)
-            except Exception as e:
-                self.lang = {}
-                logging.error("Unable to load lang file from plugin: {} ({})".format(self.name, e))
-            pass
 
 
 class IODirectory(metaclass=_Singleton):
@@ -283,6 +274,25 @@ class Lang(metaclass=_Singleton):
     def __init__(self):
         self.bot = None
         self.directory = Config().LANG_DIR
+
+    @classmethod
+    def load(cls, plugin_instance):
+        """
+        Loads the lang data from the given plugin instance
+
+        :param plugin_instance: The plugin instance
+        :return: The loaded lang dict or an empty dict of no lang data available
+        """
+        lang = plugin_instance.get_lang()
+        if lang is None:
+            try:
+                with open(f"{Config().LANG_DIR}/{plugin_instance.get_name()}.json", encoding="utf-8") as f:
+                    lang = json.load(f)
+            except Exception as e:
+                lang = {}
+                logging.error("Unable to load lang file from plugin: {} ({})".format(plugin_instance.get_name(), e))
+
+        return lang
 
     @classmethod
     def lang(cls, plugin, str_name, *args):
