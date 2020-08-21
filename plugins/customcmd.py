@@ -1,6 +1,7 @@
 import inspect
 import re
 import random
+import logging
 
 import discord
 from discord.ext import commands
@@ -168,6 +169,7 @@ class Plugin(BasePlugin, name="Custom CMDs"):
 
     def default_config(self):
         return {
+            "cfgversion": "2",
             "prefix": "+",
             "guidelines": "https://github.com/gobo7793/Geckarbot/wiki/Command-Guidelines"
         }
@@ -196,17 +198,54 @@ class Plugin(BasePlugin, name="Custom CMDs"):
 
     def load(self):
         """Loads the commands"""
+        # Update from old config versions
+        if "_prefix" in Storage.get(self):
+            self.update_config_from_1_to_2(Storage.get(self))
+        if "_prefix" in Config.get(self):
+            self.update_config_from_1_to_2(Config.get(self))
+
+        # actually load the commands
         for k in Storage.get(self).keys():
             self.commands[k] = Cmd.deserialize(k, Storage.get(self)[k])
 
     def save(self):
-        """Saves the commands to the storage"""
+        """Saves the commands to the storage and the plugin config"""
         cmd_dict = {}
         for k in self.commands:
             cmd_dict[k] = self.commands[k].serialize()
 
         Storage.set(self, cmd_dict)
         Storage.save(self)
+
+        Config.save(self)
+
+    def update_config_from_1_to_2(self, old_config):
+        """
+        Updates the configuration from version 1 (indicator: contains '_prefix') to version 2
+
+        :param old_config: the old config dict
+        """
+        logging.info("Update Custom CMD config from version 1 to version 2")
+
+        new_config = self.default_config()
+        new_config['prefix'] = old_config['_prefix']
+
+        logging.info(f"Converting {len(old_config) - 1} custom commands...")
+        new_cmds = {}
+        for cmd in old_config.keys():
+            if cmd == '_prefix':
+                continue
+            cmd_name = cmd.lower()
+
+            if cmd_name in new_cmds:
+                new_cmds[cmd_name]['texts'].append(old_config[cmd])
+            else:
+                new_cmds[cmd_name] = Cmd(cmd_name, 0, [old_config[cmd]]).serialize()
+
+        Storage.set(self, new_cmds)#
+        Config.save(self)
+        Storage.save(self)
+        logging.info("Converting finished.")
 
     async def on_message(self, msg):
         """Will be called from on_message listener to react for custom cmds"""
@@ -254,7 +293,7 @@ class Plugin(BasePlugin, name="Custom CMDs"):
             await ctx.send(Lang.lang(self, 'invalid_prefix'))
         else:
             Config.get(self)['prefix'] = new_prefix
-            Storage.save(self)
+            self.save()
             await ctx.message.add_reaction(Lang.CMDSUCCESS)
 
     @cmd.command(name="list", help="Lists all custom commands.",
@@ -338,7 +377,8 @@ class Plugin(BasePlugin, name="Custom CMDs"):
             # await utils.log_to_admin_channel(ctx)
             await ctx.message.add_reaction(Lang.CMDSUCCESS)
             await utils.write_debug_channel(self.bot,
-                                            Lang.lang(self, 'cmd_added', self.commands[cmd_name].get_raw_texts()))
+                                            Lang.lang(self, 'cmd_added',
+                                                      self.commands[cmd_name].get_raw_texts()))
 
     # @cmd.command(name="edit")
     # async def cmd_edit(self, ctx, cmd_name, *args):

@@ -1,6 +1,6 @@
 import pprint
 
-from base import BasePlugin
+from base import BasePlugin, ConfigurableType
 
 from discord.ext import commands
 
@@ -13,6 +13,9 @@ class Plugin(BasePlugin, name="Bot status commands for monitoring and debug purp
         self.bot = bot
         super().__init__(bot)
         bot.register(self)
+
+    def get_configurable_type(self):
+        return ConfigurableType.COREPLUGIN
 
     @commands.command(name="subsys", help="Shows registrations on subsystems")
     @commands.has_any_role(Config().BOTMASTER_ROLE_ID)
@@ -29,6 +32,8 @@ class Plugin(BasePlugin, name="Bot status commands for monitoring and debug purp
                                   prefix="**DM Listeners:**\n",
                                   suffix="\n"):
             await ctx.send(msg)
+
+        await ctx.invoke(self.bot.get_command("disable list"))
 
     @commands.command(name="storagedump", help="Dumps plugin storage", usage="<plugin name>")
     @commands.has_any_role(Config().BOTMASTER_ROLE_ID)
@@ -50,6 +55,7 @@ class Plugin(BasePlugin, name="Bot status commands for monitoring and debug purp
 
     @commands.command(name="configdump", help="Dumps plugin config", usage="<plugin name>")
     @commands.has_any_role(Config().BOTMASTER_ROLE_ID)
+    # NOTE: Will be invoked via "!dsc set config"
     async def configdump(self, ctx, name):
         plugin = converter.get_plugin_by_name(self.bot, name)
         if plugin is None:

@@ -12,4 +12,5 @@
         "user_cmd_ignore_msg": "Kommando {1} ist{2} für User {0} deaktiviert",
         "until": " bis {0}",
         "until_strf": "%d.%m.%Y, %H:%M"
-    },
+    }
+}

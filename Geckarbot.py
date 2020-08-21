@@ -14,7 +14,7 @@ from discord.ext import commands
 
 import injections
 from base import BasePlugin
-from conf import Config, PluginContainer, Lang, Storage
+from conf import Config, ConfigurableContainer, Lang, Storage
 from botutils import utils, permChecks
 from subsystems import timers, reactions, ignoring, dmlisteners, help
 
@@ -66,7 +66,7 @@ class Geckarbot(commands.Bot):
         self.add_cog(plugin_object)
         self.geck_cogs.append(plugin_object)
 
-        self.plugins.append(PluginContainer(plugin_object, category=category))
+        self.plugins.append(ConfigurableContainer(plugin_object, category=category))
         self.configure(plugin_object)
         logging.debug("Registered plugin {}".format(plugin_object.get_name()))
 
