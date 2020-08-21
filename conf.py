@@ -3,7 +3,7 @@ import json
 import logging
 from enum import Enum
 from botutils import jsonUtils, converter
-from base import Configurable
+from base import Configurable, ConfigurableType
 
 
 class Const(Enum):
@@ -19,17 +19,17 @@ class _Singleton(type):
         return cls._instances[cls]
 
 
-class PluginContainer:
+class ConfigurableContainer:
     """
-    Contains basic data for plugins
+    Contains basic data for Configurables
     """
-    def __init__(self, instance: Configurable, is_subsystem=False):
+    def __init__(self, instance: Configurable):
         self.instance = instance
         self.name = instance.get_name()
         self.iodirs = {}
-        self.is_subsystem = is_subsystem
+        self.type = instance.get_configurable_type()
 
-        if not is_subsystem:
+        if self.type == ConfigurableType.PLUGIN or self.type == ConfigurableType.COREPLUGIN:
             self.resource_dir = "{}/{}".format(Config().RESOURCE_DIR, self.name)
 
         self.lang = instance.get_lang()
