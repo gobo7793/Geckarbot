@@ -94,7 +94,7 @@ class IODirectory(metaclass=_Singleton):
     def _write_file(self, file_name: str, config_data):
         """Writes the config to file_name.json and returns if successfull"""
         try:
-            with open(self._filepath(file_name), "w") as f:
+            with open(self._filepath(file_name), "w", encoding="utf-8") as f:
                 json.dump(config_data, f, cls=jsonUtils.Encoder, indent=4)
                 return True
         except (OSError, InterruptedError, OverflowError, ValueError, TypeError):
@@ -108,7 +108,7 @@ class IODirectory(metaclass=_Singleton):
             return None
         else:
             try:
-                with open(self._filepath(file_name), "r") as f:
+                with open(self._filepath(file_name), "r", encoding="utf-8") as f:
                     jsondata = json.load(f, cls=jsonUtils.Decoder)
                     return jsondata
             except (OSError, InterruptedError, json.JSONDecodeError):
