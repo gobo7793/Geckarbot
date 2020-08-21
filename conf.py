@@ -3,7 +3,7 @@ import json
 import logging
 from enum import Enum
 from botutils import jsonUtils, converter
-from base import Configurable
+from base import Configurable, ConfigurableType
 
 
 class Const(Enum):
@@ -19,28 +19,19 @@ class _Singleton(type):
         return cls._instances[cls]
 
 
-class PluginContainer:
+class ConfigurableContainer:
     """
-    Contains basic data for plugins
+    Contains basic data for Configurables
     """
-    def __init__(self, instance: Configurable, is_subsystem=False):
+    def __init__(self, instance: Configurable, category=None):
         self.instance = instance
         self.name = instance.get_name()
         self.iodirs = {}
-        self.is_subsystem = is_subsystem
+        self.type = instance.get_configurable_type()
+        self.category = self.name if category is None else category
 
-        if not is_subsystem:
+        if self.type == ConfigurableType.PLUGIN or self.type == ConfigurableType.COREPLUGIN:
             self.resource_dir = "{}/{}".format(Config().RESOURCE_DIR, self.name)
-
-        self.lang = instance.get_lang()
-        if self.lang is None:
-            try:
-                with open(Config().LANG_DIR + "/" + self.name + ".json") as f:
-                    self.lang = json.load(f)
-            except Exception as e:
-                self.lang = {}
-                logging.error("Unable to load lang file from plugin: {} ({})".format(self.name, e))
-            pass
 
 
 class IODirectory(metaclass=_Singleton):
@@ -94,7 +85,7 @@ class IODirectory(metaclass=_Singleton):
     def _write_file(self, file_name: str, config_data):
         """Writes the config to file_name.json and returns if successfull"""
         try:
-            with open(self._filepath(file_name), "w") as f:
+            with open(self._filepath(file_name), "w", encoding="utf-8") as f:
                 json.dump(config_data, f, cls=jsonUtils.Encoder, indent=4)
                 return True
         except (OSError, InterruptedError, OverflowError, ValueError, TypeError):
@@ -108,7 +99,7 @@ class IODirectory(metaclass=_Singleton):
             return None
         else:
             try:
-                with open(self._filepath(file_name), "r") as f:
+                with open(self._filepath(file_name), "r", encoding="utf-8") as f:
                     jsondata = json.load(f, cls=jsonUtils.Decoder)
                     return jsondata
             except (OSError, InterruptedError, json.JSONDecodeError):
@@ -283,33 +274,57 @@ class Lang(metaclass=_Singleton):
     def __init__(self):
         self.bot = None
         self.directory = Config().LANG_DIR
+        self._cache = {}
 
     @classmethod
-    def lang(cls, plugin, str_name, *args):
+    def clear_cache(cls):
+        cls()._cache = {}
+
+    @classmethod
+    def remove_from_cache(cls, configurable):
+        if configurable in cls()._cache:
+            del cls()._cache[configurable]
+
+    @classmethod
+    def read_from_cache(cls, configurable):
+        # Read from cache
+        if configurable in cls()._cache:
+            return cls()._cache[configurable]
+
+        # Read from file or configurable
+        lang = configurable.get_lang()
+        if lang is None:
+            try:
+                with open(f"{Config().LANG_DIR}/{configurable.get_name()}.json", encoding="utf-8") as f:
+                    lang = json.load(f)
+            except Exception as e:
+                lang = {}
+                logging.error("Unable to load lang file from plugin: {} ({})".format(configurable.get_name(), e))
+            pass
+        cls()._cache[configurable] = lang
+        return lang
+
+    @classmethod
+    def lang(cls, configurable, str_name, *args):
         """
-        Returns the given string from plugins language/string file.
-        If language setted in Config().LANGUAGE_CODE is not supported, 'en' will be used.
+        Returns the given string from configurable's lang file.
+        If language sett in Config().LANGUAGE_CODE is not supported, 'en' will be used.
         If str_name or the configured language code cannot be found, str_name will be returned.
-        :param plugin: The plugin instance
+        :param configurable: The Configurable instance
         :param str_name: The name of the returning string.
             If not available for current language, an empty string will be returned.
         :param args: The strings to insert into the returning string via format()
         """
-        self = cls()
         if len(args) == 0:
             args = [""]  # ugly lol
 
-        for plugin_slot in self.bot.plugins:
-            if plugin_slot.instance is plugin:
-                if (Config().LANGUAGE_CODE in plugin_slot.lang
-                        and str_name in plugin_slot.lang[Config().LANGUAGE_CODE]):
-                    lang_code = Config().LANGUAGE_CODE
-                else:
-                    lang_code = 'en'
+        lang = cls().read_from_cache(configurable)
+        if Config().LANGUAGE_CODE in lang and str_name in lang[Config().LANGUAGE_CODE]:
+            lang_code = Config().LANGUAGE_CODE
+        else:
+            lang_code = 'en'
 
-                lang_str = plugin_slot.lang.get(lang_code, {}).get(str_name, str_name)
-                return lang_str.format(*args)
-        return str_name
+        return lang.get(lang_code, {}).get(str_name, str_name).format(*args)
 
     @classmethod
     def get_default(cls, plugin):

@@ -226,8 +226,8 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
         Storage().save(self)
         await ctx.message.add_reaction(Lang.CMDSUCCESS)
 
-    @dsc_set.group(name="config", invoke_without_command=True,
-                   help="Gets or sets general config values for the plugin")
+    @dsc_set.command(name="config", invoke_without_command=True,
+                     help="Gets or sets general config values for the plugin")
     async def dsc_set_config(self, ctx, key="", value=""):
         if not key and not value:
             await ctx.invoke(self.bot.get_command("configdump"), self.get_name())

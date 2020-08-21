@@ -11,12 +11,12 @@ from logging import handlers
 from pathlib import Path
 
 from discord.ext import commands
-from discord.ext.commands import view
 
+import injections
 from base import BasePlugin
-from conf import Config, PluginContainer, Lang, Storage
+from conf import Config, ConfigurableContainer, Lang, Storage
 from botutils import utils, permChecks
-from subsystems import timers, reactions, ignoring, dmlisteners
+from subsystems import timers, reactions, ignoring, dmlisteners, help
 
 
 class Exitcodes(Enum):
@@ -42,6 +42,7 @@ class Geckarbot(commands.Bot):
         self.dm_listener = dmlisteners.DMListener(self)
         self.timers = timers.Mothership(self)
         self.ignoring = ignoring.Ignoring(self)
+        self.helpsys = help.GeckiHelp(self)
 
         Lang().bot = self
         Config().bot = self
@@ -54,8 +55,9 @@ class Geckarbot(commands.Bot):
     def configure(self, plugin):
         Config().load(plugin)
         Storage().load(plugin)
+        Lang().remove_from_cache(plugin)
 
-    def register(self, plugin_class):
+    def register(self, plugin_class, category=None):
         print(isinstance(plugin_class, BasePlugin))  # todo figure out why this is False
         if isinstance(plugin_class, commands.Cog):
             plugin_object = plugin_class
@@ -64,7 +66,7 @@ class Geckarbot(commands.Bot):
         self.add_cog(plugin_object)
         self.geck_cogs.append(plugin_object)
 
-        self.plugins.append(PluginContainer(plugin_object))
+        self.plugins.append(ConfigurableContainer(plugin_object, category=category))
         self.configure(plugin_object)
         logging.debug("Registered plugin {}".format(plugin_object.get_name()))
 
@@ -131,17 +133,13 @@ def logging_setup():
         logger.setLevel(logging.INFO)
 
 
-def injections():
-    view._quotes = {}
-    view._all_quotes = set()
-
-
 def main():
     Config().load_bot_config()
-    injections()
+    injections.pre_injections()
     logging_setup()
     logging.getLogger(__name__).debug("Debug mode: on")
     bot = Geckarbot(command_prefix='!')
+    injections.post_injections(bot)
     logging.info("Loading core plugins")
     bot.load_plugins(Config().CORE_PLUGIN_DIR)
 

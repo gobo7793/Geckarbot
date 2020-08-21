@@ -9,7 +9,7 @@ from enum import Enum
 from discord.ext import commands
 
 import Geckarbot
-from base import BasePlugin
+from base import BasePlugin, ConfigurableType
 from botutils import restclient, utils, permChecks
 from conf import Config, Lang
 
@@ -267,6 +267,9 @@ class Plugin(BasePlugin, name="Bot updating system"):
         self.to_log = None
         self.waiting_for_confirm = None
         bot.register(self)
+
+    def get_configurable_type(self):
+        return ConfigurableType.COREPLUGIN
 
     async def do_update(self, channel, tag):
         self.state = State.UPDATING
