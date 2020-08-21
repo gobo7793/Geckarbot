@@ -208,6 +208,7 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
         await utils.log_to_admin_channel(ctx)
 
     @disable.command(name="list", help="Lists all blocked users and commands")
+    # NOTE: Will be invoked via "!subsys"
     async def disable_list(self, ctx):
         def get_item_msg(item):
             return item.to_message()

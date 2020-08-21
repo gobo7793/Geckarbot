@@ -33,6 +33,8 @@ class Plugin(BasePlugin, name="Bot status commands for monitoring and debug purp
                                   suffix="\n"):
             await ctx.send(msg)
 
+        await ctx.invoke(self.bot.get_command("disable list"))
+
     @commands.command(name="storagedump", help="Dumps plugin storage", usage="<plugin name>")
     @commands.has_any_role(Config().BOTMASTER_ROLE_ID)
     async def storagedump(self, ctx, name):
