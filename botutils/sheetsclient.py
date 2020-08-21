@@ -91,7 +91,7 @@ class Client(restclient.Client):
         """
         return self.number_to_column(col) + str(row)
 
-    def get(self, range):
+    def get(self, range) -> list:
         """
         Reads a single range
         """
@@ -106,7 +106,7 @@ class Client(restclient.Client):
         values = response.get('values', [])
         return values
 
-    def get_multiple(self, ranges):
+    def get_multiple(self, ranges) -> list:
         """
         Reads multiple ranges
 
@@ -129,7 +129,7 @@ class Client(restclient.Client):
             values.append(vrange.get('values', []))
         return values
 
-    def update(self, range, values):
+    def update(self, range, values) -> dict:
         """
         Updates the content of a range
 
@@ -143,7 +143,7 @@ class Client(restclient.Client):
         response = self.get_service().spreadsheets().values().update(
             spreadsheetId=self.spreadsheet_id, range=range, valueInputOption='RAW', body=data).execute()
         self.logger.debug("Response: {}".format(response))
-        return response.get('updatedCells')
+        return response
 
     def update_multiple(self, data_dict: dict):
         """
@@ -151,7 +151,7 @@ class Client(restclient.Client):
         Updates the content of multiple ranges
 
         :param data_dict: dictionary with the range as key and range values as values
-        :return: number of total updated cells
+        :return: response with information about the updates
         """
 
         """
@@ -170,3 +170,19 @@ class Client(restclient.Client):
         return response
         """
         raise NotImplemented
+
+    def append(self, range, values) -> dict:
+        """
+        Appends values to a table (Warning: can maybe overwrite cells below the table)
+
+        :param range: range to update
+        :param values: values as a matrix of cells
+        :return: response with information about the updates
+        """
+        data = {
+            'values': values
+        }
+        response = self.get_service().spreadsheets().values().append(
+            spreadsheetId=self.spreadsheet_id, range=range, valueInputOption='RAW', body=data).execute()
+        self.logger.debug("Response: {}".format(response))
+        return response.get('updates', {})
