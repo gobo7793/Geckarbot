@@ -61,18 +61,23 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
     @commands.command(name="plugins", help="List all plugins.")
     async def plugins(self, ctx):
         """Returns registered plugins"""
-        plugin_list = "\n - ".join([plugin.name for plugin in self.bot.plugins])
-        await ctx.send(f"Loaded {len(self.bot.plugins)} plugins:\n - {plugin_list}")
-
-        module_list = []
+        coreplugins = [c.name for c in self.bot.plugins
+                       if c.get_configurable_type() == ConfigurableType.COREPLUGIN]
+        plugins = [c.name for c in self.bot.plugins
+                   if c.get_configurable_type() == ConfigurableType.PLUGIN]
+        subsys = []
         for modname in pkgutil.iter_modules(subsystems.__path__):
-            module_list.append(modname)
-        subsys_list = "\n - ".join([m.name for m in module_list])
-        await ctx.send(f"Loaded {len(module_list)} subsystems:\n - {subsys_list}")
+            subsys.append(modname)
+
+        for msg in utils.paginate(coreplugins, suffix=f"Loaded {len(coreplugins)} coreplugins:\n", delimiter=", "):
+            await ctx.send(msg)
+        for msg in utils.paginate(plugins, suffix=f"Loaded {len(plugins)} plugins:\n", delimiter=", "):
+            await ctx.send(msg)
+        for msg in utils.paginate(subsys, suffix=f"Installed {len(subsys)} subsystems:\n", delimiter=", "):
+            await ctx.send(msg)
 
     @commands.command(name="about", aliases=["git", "github"], help="Prints the credits")
     async def about(self, ctx):
-
         about_msg = "Geckarbot {} on {}, licensed under GNU GPL v3.0. Hosted with ❤ on {} {} {}.\n".format(
             Config().VERSION, self.bot.guild.name, platform.system(), platform.release(), platform.version())
 
