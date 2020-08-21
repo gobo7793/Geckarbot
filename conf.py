@@ -295,11 +295,11 @@ class Lang(metaclass=_Singleton):
         lang = configurable.get_lang()
         if lang is None:
             try:
-                with open(Config().LANG_DIR + "/" + configurable.name() + ".json") as f:
+                with open(f"{Config().LANG_DIR}/{configurable.get_name()}.json", encoding="utf-8") as f:
                     lang = json.load(f)
             except Exception as e:
                 lang = {}
-                logging.error("Unable to load lang file from plugin: {} ({})".format(configurable.name(), e))
+                logging.error("Unable to load lang file from plugin: {} ({})".format(configurable.get_name(), e))
             pass
         cls()._cache[configurable] = lang
         return lang
