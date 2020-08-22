@@ -285,6 +285,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
 
     @spaetzle_set.command(name="matches")
     async def set_matches(self, ctx, matchday: int = None):
+        await ctx.trigger_typing()
         # Request data
         if matchday is None:
             match_list = restclient.Client("https://www.openligadb.de/api").make_request("/getmatchdata/bl1")
@@ -332,6 +333,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
 
     @spaetzle.command(name="duel", aliases=["duell"], help="Displays the duel of a specific user")
     async def show_duel_single(self, ctx, user=None):
+        await ctx.trigger_typing()
         if user is None:
             user = self.get_bridged_user(ctx.message.author.id)
             if user is None:
@@ -421,6 +423,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
     @spaetzle.command(name="duels", aliases=["duelle"],
                       help="Displays the duels of observed users or the specified league")
     async def show_duels(self, ctx, league: int = None):
+        await ctx.trigger_typing()
         c = self.get_api_client()
         msg = ""
 
@@ -474,6 +477,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
 
     @spaetzle.command(name="matches", aliases=["spiele"], help="Displays the matches to be predicted")
     async def show_matches(self, ctx):
+        await ctx.trigger_typing()
         c = self.get_api_client()
         matches = c.get(self.spaetzle_conf()['matches_range'])
 
@@ -491,6 +495,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
     @spaetzle.command(name="table", aliases=["tabelle", "league", "liga"],
                       help="Displays the table of a specific league")
     async def show_table(self, ctx, user_or_league=None):
+        await ctx.trigger_typing()
         c = self.get_api_client()
 
         if user_or_league is None:
