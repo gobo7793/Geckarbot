@@ -91,36 +91,36 @@ class Client(restclient.Client):
         """
         return self.number_to_column(col) + str(row)
 
-    def get(self, range) -> list:
+    def get(self, range, formatted: bool = True) -> list:
         """
         Reads a single range
         """
+        value_render_option = "FORMATTED_VALUE" if formatted else "UNFORMATTED_VALUE"
         if Config().GOOGLE_API_KEY:
             route = "{}/values/{}".format(self.spreadsheet_id, range)
-            response = self._make_request(route)
+            response = self._make_request(route, params=[('valueRenderOption', value_render_option)])
         else:
             response = self.get_service().spreadsheets().values().get(
-                spreadsheetId=self.spreadsheet_id, range=range).execute()
+                spreadsheetId=self.spreadsheet_id, range=range, valueRenderOption=value_render_option).execute()
             self.logger.debug("Response: {}".format(response))
 
         values = response.get('values', [])
         return values
 
-    def get_multiple(self, ranges) -> list:
+    def get_multiple(self, ranges, formatted: bool = True) -> list:
         """
         Reads multiple ranges
-
-        :param ranges: List of ranges
         """
+        value_render_option = "FORMATTED_VALUE" if formatted else "UNFORMATTED_VALUE"
         if Config().GOOGLE_API_KEY:
             route = "{}/values:batchGet".format(self.spreadsheet_id)
-            params = []
+            params = [('valueRenderOption', value_render_option)]
             for range in ranges:
                 params.append(("ranges", range))
             response = self._make_request(route, params=params)
         else:
             response = self.get_service().spreadsheets().values().batchGet(
-                spreadsheetId=self.spreadsheet_id, ranges=ranges).execute()
+                spreadsheetId=self.spreadsheet_id, ranges=ranges, valueRenderOption=value_render_option).execute()
             self.logger.debug("Response: {}".format(response))
 
         value_ranges = response.get('valueRanges', [])
