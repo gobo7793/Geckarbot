@@ -129,19 +129,21 @@ class Client(restclient.Client):
             values.append(vrange.get('values', []))
         return values
 
-    def update(self, range, values) -> dict:
+    def update(self, range, values, raw: bool = True) -> dict:
         """
         Updates the content of a range
 
         :param range: range to update
         :param values: values as a matrix of cells
-        :return: number of updated cells
+        :param raw: whether valueInputOption should be 'raw'
+        :return: UpdateValuesResponse
         """
         data = {
             'values': values
         }
+        value_input_option = 'RAW' if raw else 'USER_ENTERED'
         response = self.get_service().spreadsheets().values().update(
-            spreadsheetId=self.spreadsheet_id, range=range, valueInputOption='RAW', body=data).execute()
+            spreadsheetId=self.spreadsheet_id, range=range, valueInputOption=value_input_option, body=data).execute()
         self.logger.debug("Response: {}".format(response))
         return response
 
@@ -171,18 +173,20 @@ class Client(restclient.Client):
         """
         raise NotImplemented
 
-    def append(self, range, values) -> dict:
+    def append(self, range, values, raw: bool = True) -> dict:
         """
         Appends values to a table (Warning: can maybe overwrite cells below the table)
 
         :param range: range to update
         :param values: values as a matrix of cells
-        :return: response with information about the updates
+        :param raw: whether valueInputOption should be 'raw'
+        :return: UpdateValuesResponse
         """
         data = {
             'values': values
         }
+        value_input_option = 'RAW' if raw else 'USER_ENTERED'
         response = self.get_service().spreadsheets().values().append(
-            spreadsheetId=self.spreadsheet_id, range=range, valueInputOption='RAW', body=data).execute()
+            spreadsheetId=self.spreadsheet_id, range=range, valueInputOption=value_input_option, body=data).execute()
         self.logger.debug("Response: {}".format(response))
         return response.get('updates', {})
