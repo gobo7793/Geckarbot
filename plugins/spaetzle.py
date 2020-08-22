@@ -1,5 +1,5 @@
 import calendar
-from datetime import datetime
+from datetime import datetime, timedelta
 from enum import Enum
 from typing import Tuple
 
@@ -107,6 +107,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
     def get_user_cell(self, user):
         """
         Returns the position of the user's title cell in the 'Tipps' section
+
         :return: (col, row) of the cell
         """
         participants = self.spaetzle_conf()['participants']
@@ -129,6 +130,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
     def get_user_league(self, user):
         """
         Returns the league of the user
+
         :return: number of the league
         """
         participants = self.spaetzle_conf()['participants']
@@ -158,24 +160,20 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
         else:
             return None
 
-    def match_status(self, date, time):
+    def match_status(self, match_datetime: datetime):
         """
         Checks the status of a match (Solely time-based)
-        :param date: date of the match ('DD.MM.')
-        :param time: time of the kickoff ('HH:MM')
+
+        :param match_datetime: datetime of kick-off
         :return: CLOSED for finished matches, RUNNING for currently active matches (2 hours after kickoff) and UPCOMING
         for matches not started. UNKNOWN if unable to read the date or time
         """
         now = datetime.now()
         try:
-            day, month, _ = date.split(".")
-            hour, minute = time.split(":")
-            year = now.year if int(month) >= 7 else now.year + 1
-            match_datetime = datetime(year, int(month), int(day), int(hour), int(minute))
-            timedelta = (now - match_datetime).total_seconds()
-            if timedelta < 0:
+            timediff = (now - match_datetime).total_seconds()
+            if timediff < 0:
                 return MatchStatus.UPCOMING
-            elif timedelta < 7200:
+            elif timediff < 7200:
                 return MatchStatus.RUNNING
             else:
                 return MatchStatus.CLOSED
@@ -323,7 +321,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             values.append([calendar.day_abbr[date_time.weekday()],
                            date_time.strftime("%d.%m.%Y"), date_time.strftime("%H:%M"),
                            match.get('team_home'), None, None, match.get('team_away')])
-        c.update(self.spaetzle_conf()['matches_range'], values)  # TODO raw=false
+        c.update(self.spaetzle_conf()['matches_range'], values, raw=False)
 
         msg = ""
         for row in values:
@@ -384,7 +382,8 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
         # Calculating possible point difference
         diff1, diff2 = 0, 0
         for i in range(len(matches)):
-            if self.match_status(matches[i][1], matches[i][2]) == MatchStatus.CLOSED:
+            if self.match_status(datetime(1899, 12, 30)
+                                 + timedelta(days=matches[i][1] + matches[i][2])) == MatchStatus.CLOSED:
                 continue
             diff = self.pointdiff_possible(matches[i][4:6], preds_h[i], preds_a[i])
             diff1 += diff[0]
@@ -393,7 +392,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
         # Producing the message
         match_str = ""
         for match in matches:
-            emoji = self.match_status(match[1], match[2]).value
+            emoji = self.match_status(datetime(1899, 12, 30) + timedelta(days=match[1] + match[2])).value
             match_str += "{} {} {}:{} {}\n".format(emoji, self.convert_team_name(match[3]), match[4], match[5],
                                                    self.convert_team_name(match[6]))
 
@@ -479,7 +478,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
     async def show_matches(self, ctx):
         await ctx.trigger_typing()
         c = self.get_api_client()
-        matches = c.get(self.spaetzle_conf()['matches_range'])
+        matches = c.get(self.spaetzle_conf()['matches_range'], formatted=False)
 
         if len(matches) == 0:
             await ctx.send(self.spaetzle_lang('no_matches'))
@@ -487,9 +486,10 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
 
         msg = ""
         for match in matches:
-            emoji = self.match_status(match[1], match[2]).value
-            msg += "{0} {1} {2} {3} Uhr | {4} - {7} | {5}:{6}\n".format(emoji, *match)
-
+            date_time = datetime(1899, 12, 30) + timedelta(days=match[1] + match[2])
+            emoji = self.match_status(date_time).value
+            msg += "{0} {3} {1} {2} Uhr | {6} - {9} | {7}:{8}\n".format(emoji, date_time.strftime("%d.%m."),
+                                                                        date_time.strftime("%H:%M"), *match)
         await ctx.send(embed=discord.Embed(title="Spiele", description=msg))
 
     @spaetzle.command(name="table", aliases=["tabelle", "league", "liga"],
