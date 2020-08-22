@@ -288,12 +288,18 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
         # Request data
         if matchday is None:
             match_list = restclient.Client("https://www.openligadb.de/api").make_request("/getmatchdata/bl1")
+            try:
+                matchday = match_list[0].get('Group', {}).get('GroupOrderID', 0)
+            except IndexError:
+                await ctx.message.add_reaction(Lang.CMDERROR)
+                return
             for match in match_list:
                 if match.get('MatchIsFinished', True) is False:
-                    matchday = match.get('Group', {}).get('GroupOrderID', 0)
-                    match_list = restclient.Client("https://www.openligadb.de/api").make_request(
-                        "/getmatchdata/bl1/2020/{}".format(str(matchday)))
                     break
+            else:
+                matchday += 1
+                match_list = restclient.Client("https://www.openligadb.de/api").make_request(
+                    "/getmatchdata/bl1/2020/{}".format(str(matchday)))
         else:
             match_list = restclient.Client("https://www.openligadb.de/api").make_request(
                 "/getmatchdata/bl1/2020/{}".format(str(matchday)))
@@ -316,10 +322,13 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             values.append([calendar.day_abbr[date_time.weekday()],
                            date_time.strftime("%d.%m.%Y"), date_time.strftime("%H:%M"),
                            match.get('team_home'), None, None, match.get('team_away')])
-        c.update(self.spaetzle_conf()['matches_range'], values)
+        c.update(self.spaetzle_conf()['matches_range'], values)  # TODO raw=false
 
-        # TODO Output matches
+        msg = ""
+        for row in values:
+            msg += "{0} {1} {2} Uhr | {3} - {6}\n".format(*row)
         await ctx.message.add_reaction(Lang.CMDSUCCESS)
+        await ctx.send(embed=discord.Embed(title="Spieltag {}".format(matchday), description=msg))
 
     @spaetzle.command(name="duel", aliases=["duell"], help="Displays the duel of a specific user")
     async def show_duel_single(self, ctx, user=None):
