@@ -1,3 +1,4 @@
+import calendar
 from datetime import datetime
 from enum import Enum
 from typing import Tuple
@@ -6,7 +7,7 @@ import discord
 from discord.ext import commands
 
 from Geckarbot import BasePlugin
-from botutils import sheetsclient
+from botutils import sheetsclient, restclient
 from conf import Storage, Lang
 
 lang = {
@@ -66,22 +67,24 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
         self.can_reload = True
         bot.register(self)
         Storage().save(self)
+        self.matches = []
 
     def default_storage(self):
         return {
+            'matchday_current': 1,
             'matches_range': "Aktuell!B3:H11",
             'observed_users': [],
             'participants': {
                 'liga1': ["TN 1", "TN 2", "TN 3", "TN 4", "TN 5", "TN 6",
                           "TN 7", "TN 8", "TN 9", "TN 10", "TN 11", "TN 12",
                           "TN 13", "TN 14", "TN 15", "TN 16", "TN 17", "TN 18"],
-                'liga2': ["TN 19", "TN 20", "Costamiri", "TN 22", "TN 23", "TN 24",
-                          "TN 25", "TN 26", "gobo77", "TN 28", "TN 29", "TN 30",
+                'liga2': ["TN 19", "TN 20", "TN 21", "TN 22", "TN 23", "TN 24",
+                          "TN 25", "TN 26", "TN 27", "TN 28", "TN 29", "TN 30",
                           "TN 31", "TN 32", "TN 33", "TN 34", "TN 35", "TN 36"],
-                'liga3': ["TN 37", "TN 38", "TN 39", "TN 40", "KDDanny41", "TN 42",
+                'liga3': ["TN 37", "TN 38", "TN 39", "TN 40", "TN 41", "TN 42",
                           "TN 43", "TN 44", "TN 45", "TN 46", "TN 47", "TN 48",
                           "TN 49", "TN 50", "TN 51", "TN 52", "TN 53", "TN 54"],
-                'liga4': ["TN 55", "TN 56", "TN 57", "TN 58", "Laserdisc", "Serianoxx",
+                'liga4': ["TN 55", "TN 56", "TN 57", "TN 58", "TN 59", "TN 60",
                           "TN 61", "TN 62", "TN 63", "TN 64", "TN 65", "TN 66",
                           "TN 67", "TN 68", "TN 69", "TN 70", "TN 71", "TN 72"],
             },
@@ -240,10 +243,11 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
 
         return diff1, diff2
 
-    @commands.group(name="spaetzle", aliases=["spätzle", "spätzles"], invoke_without_command=True,
+    @commands.group(name="spaetzle", aliases=["spätzle", "spätzles"],
                     help="commands for managing the 'Spätzles-Tippspiel'")
     async def spaetzle(self, ctx):
-        await ctx.send("Keine Spätzles. Nur Fußball :c")
+        if ctx.invoked_subcommand is None:
+            await ctx.send("Keine Spätzles. Nur Fußball :c")
 
     @spaetzle.command(name="info", help="Get info about the Spaetzles-Tippspiel")
     async def spaetzle_info(self, ctx):
@@ -274,6 +278,49 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
         except UserNotFound:
             await ctx.send(self.spaetzle_lang('user_not_found'))
 
+    @spaetzle.group(name="set", help="Set data about next matchday etc")
+    async def spaetzle_set(self, ctx):
+        if ctx.invoked_subcommand is None:
+            await ctx.send_help(self.spaetzle_set)
+
+    @spaetzle_set.command(name="matches")
+    async def set_matches(self, ctx, matchday: int = None):
+        # Request data
+        if matchday is None:
+            match_list = restclient.Client("https://www.openligadb.de/api").make_request("/getmatchdata/bl1")
+            for match in match_list:
+                if match.get('MatchIsFinished', True) is False:
+                    matchday = match.get('Group', {}).get('GroupOrderID', 0)
+                    match_list = restclient.Client("https://www.openligadb.de/api").make_request(
+                        "/getmatchdata/bl1/2020/{}".format(str(matchday)))
+                    break
+        else:
+            match_list = restclient.Client("https://www.openligadb.de/api").make_request(
+                "/getmatchdata/bl1/2020/{}".format(str(matchday)))
+
+        # Extract matches
+        self.matches.clear()
+        for match in match_list:
+            self.matches.append({
+                'match_date_time': datetime.strptime(match.get('MatchDateTime', '0001-01-01T01:01:01'),
+                                                     "%Y-%m-%dT%H:%M:%S"),
+                'team_home': match.get('Team1', {}).get('TeamName', 'n.a.'),
+                'team_away': match.get('Team2', {}).get('TeamName', 'n.a.'),
+            })
+
+        # Put matches into spreadsheet
+        c = self.get_api_client()
+        values = []
+        for match in self.matches:
+            date_time = match.get('match_date_time')
+            values.append([calendar.day_abbr[date_time.weekday()],
+                           date_time.strftime("%d.%m.%Y"), date_time.strftime("%H:%M"),
+                           match.get('team_home'), None, None, match.get('team_away')])
+        c.update(self.spaetzle_conf()['matches_range'], values)
+
+        # TODO Output matches
+        await ctx.message.add_reaction(Lang.CMDSUCCESS)
+
     @spaetzle.command(name="duel", aliases=["duell"], help="Displays the duel of a specific user")
     async def show_duel_single(self, ctx, user=None):
         if user is None:
@@ -300,7 +347,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             matches, preds_h = c.get_multiple([self.spaetzle_conf()['matches_range'],
                                                "Aktuell!{}:{}".format(c.cellname(col1, row1 + 1),
                                                                       c.cellname(col1 + 1, row1 + 9))])
-            preds_a = [["–", "–"]]*9
+            preds_a = [["–", "–"]] * 9
         else:
             # Opponent found
             oppo_predictions = ""
@@ -480,10 +527,11 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
 
         await ctx.send(embed=discord.Embed(title="Tabelle Liga {}".format(league), description=msg))
 
-    @spaetzle.group(name="observe", invoke_without_command=True,
+    @spaetzle.group(name="observe",
                     help="Configure which users should be observed.")
     async def observe(self, ctx):
-        await ctx.invoke(self.bot.get_command('spaetzle observe list'))
+        if ctx.invoked_subcommand is None:
+            await ctx.invoke(self.bot.get_command('spaetzle observe list'))
 
     @observe.command(name="list", help="Lists the observed users")
     async def observe_list(self, ctx):
