@@ -1,8 +1,18 @@
 {
   "en": {
+    "help_pre_text": "!help <category> for help on a category",
+
+    "default_category_misc": "Misc",
+    "default_category_games": "Games",
+
     "cmd_not_found": "Command not found."
   },
   "de": {
+    "help_pre_text": "!help <Kategorie> für Hilfe zu einer Kategorie.",
+
+    "default_category_misc": "Sonstiges",
+    "default_category_games": "Spiele",
+
     "cmd_not_found": "Kommando nicht gefunden."
   }
 }

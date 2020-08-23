@@ -58,7 +58,6 @@ class Geckarbot(commands.Bot):
         Lang().remove_from_cache(plugin)
 
     def register(self, plugin_class, category=None):
-        print(isinstance(plugin_class, BasePlugin))  # todo figure out why this is False
         if isinstance(plugin_class, commands.Cog):
             plugin_object = plugin_class
         else:
@@ -70,11 +69,13 @@ class Geckarbot(commands.Bot):
         self.configure(plugin_object)
         logging.debug("Registered plugin {}".format(plugin_object.get_name()))
 
-    def plugin_objects(self):
+    def plugin_objects(self, plugins_only=False):
         """
         Generator for all registered plugin objects without anything config-related
         """
         for el in self.plugins:
+            if plugins_only and not isinstance(el.instance, BasePlugin):
+                continue
             yield el.instance
 
     def load_plugins(self, plugin_dir):
