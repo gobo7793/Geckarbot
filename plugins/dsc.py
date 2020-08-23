@@ -24,7 +24,7 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
     def __init__(self, bot):
         super().__init__(bot)
         self.can_reload = True
-        bot.register(self)
+        bot.register(self, category="DSC")
         self.log = logging.getLogger("dsc")
 
         self._fill_rule_link()

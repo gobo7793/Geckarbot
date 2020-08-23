@@ -7,7 +7,7 @@ from discord.ext import commands
 from conf import Storage, Lang, Config
 
 from base import BasePlugin
-from subsystems import timers
+from subsystems import timers, help
 from botutils import utils
 
 
@@ -15,7 +15,7 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
 
     def __init__(self, bot):
         super().__init__(bot)
-        bot.register(self)
+        bot.register(self, help.DefaultCategories.MISC)
 
         self.reminders = {}
         reminders_to_remove = []
@@ -69,7 +69,7 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
     async def choose(self, ctx, *args):
         full_options_str = " ".join(args)
         if "sabaton" in full_options_str.lower():
-            await ctx.send(Storage.lang(self, 'choose_sabaton'))
+            await ctx.send(Lang.lang(self, 'choose_sabaton'))
 
         options = [i for i in full_options_str.split("|") if i.strip() != ""]
         if len(options) < 1:
@@ -88,19 +88,19 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
 
     @commands.command(name="mimimi", help="Provides an .mp3 file that plays the sound of 'mimimi'.")
     async def mimimi(self, ctx):
-        await ctx.trigger_typing()
-        file = discord.File(f"{Config().resource_dir(self)}/mimimi.mp3")
-        await ctx.send(file=file)
+        async with ctx.typing():
+            file = discord.File(f"{Config().resource_dir(self)}/mimimi.mp3")
+            await ctx.send(file=file)
 
     @commands.command(name="geck", help="GECKARBOR!")
     async def geck(self, ctx):
-        await ctx.trigger_typing()
-        try:
-            file = discord.File(f"{Config().resource_dir(self)}/treecko.jpg")
-        except (FileNotFoundError, IsADirectoryError):
-            await ctx.message.add_reaction(Lang.CMDERROR)
-            return
-        await ctx.send(Lang.lang(self, 'geck_out'), file=file)
+        async with ctx.typing():
+            try:
+                file = discord.File(f"{Config().resource_dir(self)}/treecko.jpg")
+            except (FileNotFoundError, IsADirectoryError):
+                await ctx.message.add_reaction(Lang.CMDERROR)
+                return
+            await ctx.send(Lang.lang(self, 'geck_out'), file=file)
 
     @commands.command(name="keysmash", help="VtEGyAuGeAvBVYFSxnfgEpTwIFRUhbUXoMZIdHo")
     async def keysmash(self, ctx):
