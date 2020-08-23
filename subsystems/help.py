@@ -2,7 +2,7 @@ from enum import Enum
 
 from discord.ext import commands
 
-from base import BaseSubsystem, BasePlugin
+from base import BaseSubsystem, NotFound
 from conf import Lang
 from botutils.utils import paginate
 
@@ -28,10 +28,6 @@ class CategoryOrder(Enum):
     LAST = 2
 
 
-def command_help_line(command):
-    return command.name
-
-
 class HelpCog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
@@ -43,18 +39,27 @@ class HelpCog(commands.Cog):
 
 
 class HelpCategory:
-    def __init__(self, name, description="", order=CategoryOrder.MIDDLE):
+    def __init__(self, name, description="", order=CategoryOrder.MIDDLE, bot=None):
         self._name = name[0].upper() + name[1:]
         self.description = description
         self.plugins = []
         self.order = order
+        self.bot = bot
 
     @property
     def name(self):
         return self._name
 
-    def has_plugins(self):
-        return len(self.plugins) > 0
+    def match_name(self, name):
+        """
+        :return: `True` if `name` is a valid name for this category, `False` otherwise.
+        """
+        if name.lower() == self.name.lower():
+            return True
+        return False
+
+    def is_empty(self):
+        return len(self.plugins) == 0
 
     def add_plugin(self, plugin):
         self.plugins.append(plugin)
@@ -65,12 +70,20 @@ class HelpCategory:
         else:
             return self.name
 
-    def to_help(self):
-        msg = [self.single_line()]
+    def format_commands(self):
+        r = []
         for plugin in self.plugins:
             for command in plugin.get_commands():
-                msg.append("  {}".format(command_help_line(command)))
-        return msg
+                r.append("  {}".format(self.bot.helpsys.command_help_line(command)))
+        return r
+
+    async def category_help(self, ctx):
+        msg = self.format_commands()
+        for msg in paginate(msg,
+                            prefix=Lang.lang(self.bot.helpsys, "help_category_prefix", self.name) + "\n",
+                            msg_prefix="```",
+                            msg_suffix="```"):
+            await ctx.send(msg)
 
 
 class GeckiHelp(BaseSubsystem):
@@ -79,10 +92,10 @@ class GeckiHelp(BaseSubsystem):
         super().__init__(self.bot)
 
         self._categories = [
-            HelpCategory(Lang.lang(self, "default_category_misc"), order=CategoryOrder.LAST),
-            HelpCategory(Lang.lang(self, "default_category_admin")),
-            HelpCategory(Lang.lang(self, "default_category_mod")),
-            HelpCategory(Lang.lang(self, "default_category_games")),
+            HelpCategory(Lang.lang(self, "default_category_misc"), order=CategoryOrder.LAST, bot=bot),
+            HelpCategory(Lang.lang(self, "default_category_admin"), bot=bot),
+            HelpCategory(Lang.lang(self, "default_category_mod"), bot=bot),
+            HelpCategory(Lang.lang(self, "default_category_games"), bot=bot),
         ]
 
         # Setup help cmd
@@ -106,7 +119,7 @@ class GeckiHelp(BaseSubsystem):
         elif const == DefaultCategories.MOD:
             langstr = "default_category_mod"
         elif const == DefaultCategories.GAMES:
-            langstr = "default_category_misc"
+            langstr = "default_category_games"
 
         r = self.category(Lang.lang(self, langstr))
         assert r is not None
@@ -114,7 +127,7 @@ class GeckiHelp(BaseSubsystem):
 
     def category(self, name):
         for cat in self._categories:
-            if cat.name.lower() == name.lower():
+            if cat.match_name(name):
                 return cat
         return None
 
@@ -134,6 +147,7 @@ class GeckiHelp(BaseSubsystem):
         if exists:
             raise CategoryExists(category.name)
 
+        category.bot = self.bot
         self._categories.append(category)
         return category
 
@@ -142,31 +156,107 @@ class GeckiHelp(BaseSubsystem):
     """
     def find_command(self, cmdname, context):
         """
-        :return: command with the name `cmdname` in the group `context`. If `context` is None,
-        finds the top-level command with name `cmdname`. If nothing is found, returns None.
+        :return: (plugin, command).
+        `plugin` is the plugin that registered this command.
+        `command` is a Command with the name `cmdname` in the group `context`.
+        If `context` is None, finds the top-level command with name `cmdname` and sets plugin to the
+        containing plugin. Otherwise, `plugin` is None.
+        If nothing is found, returns None, None.
         """
         # Find top-level command
         if context is None:
             for plugin in self.bot.plugin_objects(plugins_only=True):
                 for cmd in plugin.get_commands():
                     if cmd.name == cmdname:  # TODO aliases
-                        return cmd
-            return None
+                        return plugin, cmd
+            return None, None
 
         # Find command in group
         if isinstance(context, commands.Group):
-            return context.get_command(cmdname)
+            return None, context.get_command(cmdname)
         else:
-            return None
+            return None, None
+
+    """
+    Format methods
+    """
+    def append_command_leaves(self, cmds, cmd):
+        """
+        Recursive helper function for `flattened_plugin_help()`.
+        :param cmds: list to append the leaves to
+        :param cmd: Command or Group
+        """
+        if not isinstance(cmd, commands.Group):
+            cmds.append(cmd)
+            return
+
+        # we are in a group
+        for command in cmd.commands:
+            self.append_command_leaves(cmds, command)
+
+    def flattened_plugin_help(self, plugin):
+        """
+        In the tree structure of existing commands and groups in a plugin, returns a list of all
+        formatted leaf command help lines.
+        :param plugin: Plugin to create a flattened command help for
+        :return: Msg list to be consumed by utils.paginate()
+        """
+        cmds = []
+        for cmd in plugin.get_commands():
+            self.append_command_leaves(cmds, cmd)
+
+        msg = []
+        for cmd in cmds:
+            msg.append(self.command_help_line(cmd))
+        return msg
+
+    def command_help_line(self, command):
+        if command.help is not None:
+            return "{}{} - {}".format(self.bot.command_prefix, command.qualified_name, command.help)
+        else:
+            return command.qualified_name
+
+    def format_subcmds(self, command):
+        r = []
+        if isinstance(command, commands.Group):
+            for cmd in command.commands:
+                r.append("  {}".format(self.command_help_line(cmd)))
+            if r:
+                r = [Lang.lang(self, "help_subcommands_prefix")] + r
+        return r
 
     """
     Output methods
     """
-    async def cmd_not_found(self, ctx):
-        await ctx.send(Lang.lang(self, "cmd_not_found"))
+    async def error(self, ctx, error):
+        await ctx.send(Lang.lang(self, error))
 
-    async def full_cmd_help(self, ctx, cmd):
-        await ctx.send("Dies ist die vollständige Hilfe für {}".format(cmd.name))
+    async def cmd_help(self, ctx, plugin, cmd):
+        try:
+            await plugin.command_help(ctx, cmd)
+            return
+        except NotFound:
+            pass
+        msg = []
+
+        # Usage
+        usage = self.bot.command_prefix + cmd.qualified_name
+        if cmd.usage is not None:
+            usage = "{} {}".format(usage, cmd.usage)
+        msg.append(usage + "\n")
+
+        # Help / Description
+        desc = cmd.qualified_name + "\n"
+        if cmd.help is not None and cmd.help.strip():
+            desc = cmd.help + "\n"
+        if cmd.description is not None and cmd.description.strip():
+            desc = cmd.description + "\n"
+        msg.append(desc)
+        msg += self.format_subcmds(cmd)
+
+        # Subcommands
+        for msg in paginate(msg, msg_prefix="```", msg_suffix="```"):
+            await ctx.send(msg)
 
     async def helpcmd(self, ctx, *args):
         # !help
@@ -176,7 +266,10 @@ class GeckiHelp(BaseSubsystem):
             middle = []
             last = []
             for cat in self._categories:
-                line = cat.single_line()
+                if cat.is_empty():
+                    continue
+
+                line = "  {}".format(cat.single_line())
                 if cat.order == CategoryOrder.FIRST:
                     first.append(line)
                 elif cat.order == CategoryOrder.LAST:
@@ -185,16 +278,38 @@ class GeckiHelp(BaseSubsystem):
                     middle.append(line)
 
             lines = first + middle + last
-            for msg in paginate(lines, prefix=Lang.lang(self, "help_pre_text") + "\n\n", msg_prefix="```",
+            for msg in paginate(lines,
+                                prefix=Lang.lang(self, "help_categories_prefix") + "\n",
+                                msg_prefix="```",
                                 msg_suffix="```"):
                 await ctx.send(msg)
             return
 
         # !help args
         else:
-            # find command that was specified
+            # find command
             cmd = None
+            plugin = None
             for arg in args:
-                cmd = self.find_command(arg, cmd)
+                p, cmd = self.find_command(arg, cmd)
+                if p is not None:
+                    plugin = p
             if cmd is not None:
-                await self.full_cmd_help(ctx, cmd)
+                await self.cmd_help(ctx, plugin, cmd)
+                return
+
+            # find category
+            if len(args) != 1:
+                # no category
+                await self.error(ctx, "cmd_not_found")
+                return
+            cat = None
+            for el in self._categories:
+                if el.match_name(args[0]):
+                    cat = el
+                    break
+            if cat is not None and not cat.is_empty():
+                await cat.category_help(ctx)
+                return
+
+            await self.error(ctx, "cmd_cat_not_found")
