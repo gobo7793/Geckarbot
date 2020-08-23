@@ -90,3 +90,19 @@ class BasePlugin(Cog, Configurable):
         :param command: Command or Group instance
         """
         raise NotFound()
+
+    def command_help_string(self, command):
+        """
+        Override to return a help string that is determined at runtime. Overwrites command.help.
+        :param command: Command that the help string is requested for.
+        :return: Help string
+        """
+        raise NotFound()
+
+    def command_description(self, command):
+        """
+        Override to return a description that is determined at runtime. Supersedes command.description.
+        :param command: Command that a description is requested for.
+        :return: Description string
+        """
+        raise NotFound()
