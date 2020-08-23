@@ -8,4 +8,5 @@ def pre_injections():
 
 
 def post_injections(bot):
-    discord.ext.commands.help.DefaultHelpCommand.command_not_found = bot.helpsys.command_not_found
+    # discord.ext.commands.help.DefaultHelpCommand.command_not_found = bot.helpsys.command_not_found
+    pass
