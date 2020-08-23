@@ -31,8 +31,7 @@ class Plugin(BasePlugin, name="NFL Fantasyliga"):
     def default_config(self):
         return {
             "channel_id": 0,
-            "mod_role_id": 0,
-            "league_count": 1
+            "mod_role_id": 0
         }
 
     def default_storage(self):
@@ -56,7 +55,6 @@ class Plugin(BasePlugin, name="NFL Fantasyliga"):
                     description="Get the information about the Fantasy Game or manage it. "
                                 "Command only works in nfl-fantasy channel."
                                 "Managing information is only permitted for fantasymasters.")
-    @permChecks.in_channel(Config().CHAN_IDS.get('nfl-fantasy', 0))
     async def fantasy(self, ctx):
         if Config.get(self)['channel_id'] != 0 and Config.get(self)['channel_id'] != ctx.channel.id:
             raise commands.CheckFailure()
@@ -87,12 +85,12 @@ class Plugin(BasePlugin, name="NFL Fantasyliga"):
     async def info(self, ctx):
         def add_commishs():
             for no in range(0, self.get_league_cnt()):
-                field_name = "{} {} {}".format(Lang.lang(self, "commish"), Lang.lang(self, "league_name"), no)
+                field_name = "{} {} {}".format(Lang.lang(self, "commish"), Lang.lang(self, "league_name"), no + 1)
                 embed.add_field(name=field_name, value=commishs[no])
 
         def add_links():
             for no in range(0, self.get_league_cnt()):
-                field_name = "{} {}".format(Lang.lang(self, "league_name"), no)
+                field_name = "{} {}".format(Lang.lang(self, "league_name"), no + 1)
                 embed.add_field(name=field_name, value=Storage.get(self)["links"][no],
                                 inline=False if no == 0 else True)
 
@@ -110,7 +108,7 @@ class Plugin(BasePlugin, name="NFL Fantasyliga"):
 
         if Storage.get(self)['state'] == FantasyState.Sign_up:
             date_out_str = Lang.lang(self, 'info_date_str', Storage.get(self)['date'].strftime('%d.%m.%Y')) \
-                if Storage.get(self)['date'] > datetime.now()\
+                if Storage.get(self)['date'] > datetime.now() \
                 else ""
             embed.title = Lang.lang(self, 'signup_phase_info', date_out_str)
             embed.add_field(name=Lang.lang(self, 'supercommish'), value=super_commish)
@@ -148,49 +146,70 @@ class Plugin(BasePlugin, name="NFL Fantasyliga"):
         await ctx.send(embed=embed)
 
     @fantasy.group(name="set", help="Set data about the fantasy game.")
-    async def set(self, ctx):
+    async def fantasy_set(self, ctx):
         if (not permChecks.check_full_access(ctx.author)
                 and Config.get(self)['mod_role_id'] != 0
                 and Config.get(self)['mod_role_id'] not in [role.id for role in ctx.author.roles]):
             raise commands.BotMissingAnyRole([*Config().FULL_ACCESS_ROLES, Config.get(self)['mod_role_id']])
 
         if ctx.invoked_subcommand is None:
-            await ctx.send_help(self.set)
+            await self.bot.helpsys.cmd_help(ctx, self, ctx.command)
 
-    @set.command(name="datalink", help="Sets the link for the Players Database")
+    @fantasy_set.command(name="datalink", help="Sets the link for the Players Database")
     async def set_datalink(self, ctx, link):
         link = utils.clear_link(link)
         Storage.get(self)['datalink'] = link
         Storage.save(self)
         await ctx.message.add_reaction(Lang.CMDSUCCESS)
 
-    @set.command(name="link", help="Sets the link for the league #",
-                 description="Sets the link for the league #. "
-                             "If the league doesn't exists, a new league will be added.")
-    async def set_link(self, ctx, link, number: int):
+    @fantasy_set.command(name="link", help="Sets the link for the league #",
+                         description="Sets the link for the league #. "
+                                     "If the league doesn't exist, a new league will be added.")
+    async def set_link(self, ctx, number: int, link):
+        if number < 1:
+            await ctx.send(Lang.lang(self, "invalid_league", number))
+            await ctx.message.add_reaction(Lang.CMDERROR)
+            return
+
         link = utils.clear_link(link)
         if number > self.get_league_cnt():
             Storage.get(self)['links'].append(link)
-            Storage.get(self)['comm'].append("")
+            Storage.get(self)['commishs'].append("")
         else:
             Storage.get(self)['links'][number - 1] = link
         Storage.save(self)
         await ctx.message.add_reaction(Lang.CMDSUCCESS)
 
-    @set.command(name="comm", help="Sets the commissioner for the league #")
-    async def set_link(self, ctx, commissioner, number: int):
-        if number > self.get_league_cnt():
-            await ctx.send(Lang.lang(self, "league_doesnt_exists", number))
+    @fantasy_set.command(name="del", help="Removes league #")
+    async def set_del(self, ctx, number: int):
+        if number < 1 or number > self.get_league_cnt():
+            await ctx.send(Lang.lang(self, "league_doesnt_exist", number))
             await ctx.message.add_reaction(Lang.CMDERROR)
             return
 
-        Storage.get(self)['comm'][number - 1] = commissioner
+        del(Storage.get(self)['links'][number - 1])
+        del(Storage.get(self)['commishs'][number - 1])
         Storage.save(self)
         await ctx.message.add_reaction(Lang.CMDSUCCESS)
 
-    @set.command(name="orga", help="Sets the Fantasy Organisator")
-    async def set_orga(self, ctx, user: discord.Member):
-        Storage.get(self)['supercommish'] = user.id
+    @fantasy_set.command(name="comm", help="Sets the commissioner for the league #")
+    async def set_comm(self, ctx, number: int, commissioner: discord.Member):
+        if number < 1:
+            await ctx.send(Lang.lang(self, "invalid_league", number))
+            await ctx.message.add_reaction(Lang.CMDERROR)
+            return
+        if number > self.get_league_cnt():
+            await ctx.send(Lang.lang(self, "league_doesnt_exist", number))
+            await ctx.message.add_reaction(Lang.CMDERROR)
+            return
+
+        Storage.get(self)['commishs'][number - 1] = commissioner.id
+        Storage.save(self)
+        await ctx.message.add_reaction(Lang.CMDSUCCESS)
+
+    @fantasy_set.command(name="orga", help="Sets the Fantasy Organisator")
+    async def set_orga(self, ctx, organisator: discord.Member):
+        Storage.get(self)['supercommish'] = organisator.id
         Storage.save(self)
         await ctx.message.add_reaction(Lang.CMDSUCCESS)
 
@@ -199,10 +218,10 @@ class Plugin(BasePlugin, name="NFL Fantasyliga"):
         Storage().save(self)
         await ctx.message.add_reaction(Lang.CMDSUCCESS)
 
-    @set.command(name="state", help="Sets the Fantasy state",
-                 description="Sets the Fantasy state. "
-                             "Possible states: Sign_Up, Predraft, Preseason, Regular, Postseason, Finished",
-                 usage="<sign_up|predraft|preseason|regular|postseason|finished>")
+    @fantasy_set.command(name="state", help="Sets the Fantasy state",
+                         description="Sets the Fantasy state. "
+                                     "Possible states: Sign_Up, Predraft, Preseason, Regular, Postseason, Finished",
+                         usage="<sign_up|predraft|preseason|regular|postseason|finished>")
     async def fantasy_set_state(self, ctx, state):
         if state.lower() == "sign_up":
             await self._save_state(ctx, FantasyState.Sign_up)
@@ -219,9 +238,9 @@ class Plugin(BasePlugin, name="NFL Fantasyliga"):
         else:
             await ctx.send(Lang.lang(self, 'invalid_phase'))
 
-    @set.command(name="date", help="Sets the state end date", usage="DD.MM.YYYY [HH:MM]",
-                 description="Sets the end date and time for all the phases. "
-                             "If no time is given, 23:59 will be used.")
+    @fantasy_set.command(name="date", help="Sets the state end date", usage="DD.MM.YYYY [HH:MM]",
+                         description="Sets the end date and time for all the phases. "
+                                     "If no time is given, 23:59 will be used.")
     async def set_date(self, ctx, date_str, time_str=None):
         if not time_str:
             time_str = "23:59"
@@ -229,14 +248,14 @@ class Plugin(BasePlugin, name="NFL Fantasyliga"):
         Storage().save(self)
         await ctx.message.add_reaction(Lang.CMDSUCCESS)
 
-    @set.command(name="status", help="Sets the status message",
-                 description="Sets a status message for additional information. To remove give no message.")
+    @fantasy_set.command(name="status", help="Sets the status message",
+                         description="Sets a status message for additional information. To remove give no message.")
     async def set_status(self, ctx, *message):
         Storage.get(self)['status'] = " ".join(message)
         Storage().save(self)
         await ctx.message.add_reaction(Lang.CMDSUCCESS)
 
-    @set.command(name="config", help="Gets or sets general config values for the plugin")
+    @fantasy_set.command(name="config", help="Gets or sets general config values for the plugin")
     async def set_config(self, ctx, key="", value=""):
         if not key and not value:
             await ctx.invoke(self.bot.get_command("configdump"), self.get_name())

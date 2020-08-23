@@ -9,7 +9,7 @@
         "status_base": "Status information provided by 'trashtalker inc.': {}",
         "status_none": "Danny is the undefeated trash talker! Always feel free to contact your Commissioner.",
         "info_date_str": " until {}",
-        "must_set_host": "You must set Fantasy Dictat... Commishs!",
+        "must_set_commish": "You must set Fantasy Dictat... Commishs!",
         "supercommish": "Organiser",
         "commish": "Commissioner",
         "signup_phase_info": ":clipboard: Signing up open{}!",
@@ -21,19 +21,8 @@
         "postseason_phase_info": ":star_struck: Playoffs Baby! Always check your lineup in these deciding weeks! The current stage goes{}!",
         "finished_phase_info": ":white_check_mark: Season is over! Sea ya' next season!",
         "config_error_reset": "Configuration error. Please reset fantasy configuration and storage.",
-        "league_doesnt_exists": "League {} doesn't exists. Add it via adding a link for the league!",
-
-
-        "config_error": "Fantasy configuration error, config values:",
-        "new_supercommish_set": "You set a new Fantasy dictator! viva la revolution!",
-        "phase_set": "New Season phase set!",
-        "invalid_phase": "Error: This Phase does not exist.",
-        "new_commish_a_set": "You set a new Commissioner for League A! Unlimited Power!",
-        "new_commish_b_set": "You set a new Commissioner for League B! This is the way.",
-        "state_end_set": "New State end set. Go Vikes!",
-        "linka_set": "New Link for League A set!",
-        "linkb_set": "New Link for League B set!",
-        "datalink_set": "You set a new link for the players database - knowledge is power!",
+        "league_doesnt_exist": "League {} doesn't exist. Add it via adding a link for the league!",
+        "invalid_league": "League {} can't exist."
         },
     "de": {
         "channel_id": "Die Channel-ID für das !dsc set-Kommando muss eine gültige ID auf diesem Server sein.",
@@ -57,6 +46,7 @@
         "postseason_phase_info": ":star_struck: Playoffs Baby! In diesen wichtigen Zeiten immer schön die Aufstellung checken! Die Playoffs gehen{}!",
         "finished_phase_info": ":white_check_mark: Die Saison ist vorbei! Bis zur nächsten Saison!",
         "config_error_reset": "Fehler in der Konfiguration. Bitte Konfiguration und Storage zurücksetzen.",
-        "league_doesnt_exists": "Liga {} gibts nicht. Füg sie hinzu, indem du ihr einen Link spendierst!"
+        "league_doesnt_exist": "Liga {} gibts nicht. Füg sie hinzu, indem du ihr einen Link spendierst!",
+        "invalid_league": "Liga {} kanns nicht geben."
     }
 }
