@@ -1,11 +1,21 @@
+from enum import IntEnum
 import discord
 
 from datetime import datetime
 from discord.ext import commands
 from conf import Config
 from botutils import utils, permChecks
-from botutils.enums import FantasyState
 from Geckarbot import BasePlugin
+
+
+class FantasyState(IntEnum):
+    """Fantasy states"""
+    NA = 0
+    Sign_up = 1
+    Predraft = 2
+    Preseason = 3
+    Regular = 4
+    Postseason = 5
 
 
 class Plugin(BasePlugin, name="NFL Fantasyliga"):
