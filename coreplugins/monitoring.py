@@ -6,13 +6,14 @@ from discord.ext import commands
 
 from botutils import utils, converter
 from conf import Storage, Config, Lang
+from subsystems import help
 
 
 class Plugin(BasePlugin, name="Bot status commands for monitoring and debug purposes"):
     def __init__(self, bot):
         self.bot = bot
         super().__init__(bot)
-        bot.register(self)
+        bot.register(self, help.DefaultCategories.ADMIN)
 
     def get_configurable_type(self):
         return ConfigurableType.COREPLUGIN

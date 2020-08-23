@@ -271,7 +271,7 @@ class Plugin(BasePlugin, name="Custom CMDs"):
                                 "runtime. To use a custom command, the message must start with the setted prefix, "
                                 "which can be returned using the prefix subcommand.")
     async def cmd(self, ctx):
-        await ctx.send_help(self.cmd)
+        await self.bot.helpsys.cmd_help(ctx, self, ctx.command)
 
     @cmd.command(name="prefix", help="Returns or sets the prefix",
                  description="Returns or sets the custom command prefix. Only admins can set a new prefix which "

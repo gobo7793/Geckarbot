@@ -12,6 +12,7 @@ import Geckarbot
 from base import BasePlugin, ConfigurableType
 from botutils import restclient, utils, permChecks
 from conf import Config, Lang
+from subsystems import help
 
 # Assumed version numbering system:
 # 2.3.1
@@ -266,7 +267,7 @@ class Plugin(BasePlugin, name="Bot updating system"):
 
         self.to_log = None
         self.waiting_for_confirm = None
-        bot.register(self)
+        bot.register(self, category=help.DefaultCategories.ADMIN)
 
     def get_configurable_type(self):
         return ConfigurableType.COREPLUGIN

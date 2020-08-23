@@ -3,10 +3,11 @@ import discord
 import pkgutil
 from discord.ext import commands
 
-from conf import Storage, Config, Lang, reconfigure
+from conf import Config, Lang
 from botutils import utils, permChecks
 from base import BasePlugin, ConfigurableType
 import subsystems
+from subsystems import help
 from subsystems.ignoring import IgnoreEditResult, IgnoreType
 
 
@@ -16,7 +17,7 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
     def __init__(self, bot):
         super().__init__(bot)
         self.can_reload = True
-        bot.register(self)
+        bot.register(self, category=help.DefaultCategories.MOD)
 
     def default_config(self):
         return {

@@ -2,6 +2,10 @@ from enum import Enum
 from discord.ext.commands import Cog
 
 
+class NotFound(Exception):
+    pass
+
+
 class ConfigurableType(Enum):
     """The Type of a Configurable"""
     SUBSYSTEM = 0,
@@ -78,3 +82,6 @@ class BasePlugin(Cog, Configurable):
         Needs to be a coroutine (async).
         """
         pass
+
+    async def help(self, ctx, command):
+        raise NotFound()
