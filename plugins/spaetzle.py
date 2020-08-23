@@ -294,265 +294,266 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
 
     @spaetzle_set.command(name="matches")
     async def set_matches(self, ctx, matchday: int = None):
-        await ctx.trigger_typing()
-        # Request data
-        if matchday is None:
-            match_list = restclient.Client("https://www.openligadb.de/api").make_request("/getmatchdata/bl1")
-            try:
-                matchday = match_list[0].get('Group', {}).get('GroupOrderID', 0)
-            except IndexError:
-                await ctx.message.add_reaction(Lang.CMDERROR)
-                return
-            for match in match_list:
-                if match.get('MatchIsFinished', True) is False:
-                    break
+        async with ctx.typing():
+            # Request data
+            if matchday is None:
+                match_list = restclient.Client("https://www.openligadb.de/api").make_request("/getmatchdata/bl1")
+                try:
+                    matchday = match_list[0].get('Group', {}).get('GroupOrderID', 0)
+                except IndexError:
+                    await ctx.message.add_reaction(Lang.CMDERROR)
+                    return
+                for match in match_list:
+                    if match.get('MatchIsFinished', True) is False:
+                        break
+                else:
+                    matchday += 1
+                    match_list = restclient.Client("https://www.openligadb.de/api").make_request(
+                        "/getmatchdata/bl1/2020/{}".format(str(matchday)))
             else:
-                matchday += 1
                 match_list = restclient.Client("https://www.openligadb.de/api").make_request(
                     "/getmatchdata/bl1/2020/{}".format(str(matchday)))
-        else:
-            match_list = restclient.Client("https://www.openligadb.de/api").make_request(
-                "/getmatchdata/bl1/2020/{}".format(str(matchday)))
 
-        # Extract matches
-        self.matches.clear()
-        for match in match_list:
-            self.matches.append({
-                'match_date_time': datetime.strptime(match.get('MatchDateTime', '0001-01-01T01:01:01'),
-                                                     "%Y-%m-%dT%H:%M:%S"),
-                'team_home': self.get_teamname_standard(match.get('Team1', {}).get('TeamName', 'n.a.')),
-                'team_away': self.get_teamname_standard(match.get('Team2', {}).get('TeamName', 'n.a.')),
-            })
+            # Extract matches
+            self.matches.clear()
+            for match in match_list:
+                self.matches.append({
+                    'match_date_time': datetime.strptime(match.get('MatchDateTime', '0001-01-01T01:01:01'),
+                                                         "%Y-%m-%dT%H:%M:%S"),
+                    'team_home': self.get_teamname_standard(match.get('Team1', {}).get('TeamName', 'n.a.')),
+                    'team_away': self.get_teamname_standard(match.get('Team2', {}).get('TeamName', 'n.a.')),
+                })
 
-        # Put matches into spreadsheet
-        c = self.get_api_client()
-        values = []
-        for match in self.matches:
-            date_time = match.get('match_date_time')
-            values.append([calendar.day_abbr[date_time.weekday()],
-                           date_time.strftime("%d.%m.%Y"), date_time.strftime("%H:%M"),
-                           match.get('team_home'), None, None, match.get('team_away')])
-        c.update(self.spaetzle_conf()['matches_range'], values, raw=False)
+            # Put matches into spreadsheet
+            c = self.get_api_client()
+            values = []
+            for match in self.matches:
+                date_time = match.get('match_date_time')
+                values.append([calendar.day_abbr[date_time.weekday()],
+                               date_time.strftime("%d.%m.%Y"), date_time.strftime("%H:%M"),
+                               match.get('team_home'), None, None, match.get('team_away')])
+            c.update(self.spaetzle_conf()['matches_range'], values, raw=False)
 
-        msg = ""
-        for row in values:
-            msg += "{0} {1} {2} Uhr | {3} - {6}\n".format(*row)
-        await ctx.message.add_reaction(Lang.CMDSUCCESS)
-        await ctx.send(embed=discord.Embed(title="Spieltag {}".format(matchday), description=msg))
+            msg = ""
+            for row in values:
+                msg += "{0} {1} {2} Uhr | {3} - {6}\n".format(*row)
+            await ctx.message.add_reaction(Lang.CMDSUCCESS)
+            await ctx.send(embed=discord.Embed(title="Spieltag {}".format(matchday), description=msg))
 
     @spaetzle.command(name="duel", aliases=["duell"], help="Displays the duel of a specific user")
     async def show_duel_single(self, ctx, user=None):
-        await ctx.trigger_typing()
-        if user is None:
-            user = self.get_bridged_user(ctx.message.author.id)
+        async with ctx.typing():
             if user is None:
-                await ctx.send(Lang.lang(self, 'user_not_bridged'))
+                user = self.get_bridged_user(ctx.message.author.id)
+                if user is None:
+                    await ctx.send(Lang.lang(self, 'user_not_bridged'))
+                    return
+            c = self.get_api_client()
+
+            try:
+                col1, row1 = self.get_user_cell(user)
+            except UserNotFound:
+                await ctx.send(Lang.lang(self, 'user_not_found'))
                 return
-        c = self.get_api_client()
+            result = c.get("Aktuell!{}:{}".format(c.cellname(col1, row1 + 10), c.cellname(col1 + 1, row1 + 11)))
+            opponent = result[1][1]
 
-        try:
-            col1, row1 = self.get_user_cell(user)
-        except UserNotFound:
-            await ctx.send(Lang.lang(self, 'user_not_found'))
-            return
-        result = c.get("Aktuell!{}:{}".format(c.cellname(col1, row1 + 10), c.cellname(col1 + 1, row1 + 11)))
-        opponent = result[1][1]
-
-        # Getting data / Opponent-dependent parts
-        try:
-            col2, row2 = self.get_user_cell(opponent)
-        except UserNotFound:
-            # Opponent not found
-            oppo_predictions = Lang.lang(self, 'user_not_found')
-            matches, preds_h = c.get_multiple([self.spaetzle_conf()['matches_range'],
-                                               "Aktuell!{}:{}".format(c.cellname(col1, row1 + 1),
-                                                                      c.cellname(col1 + 1, row1 + 9))],
-                                              formatted=False)
-            preds_a = [["–", "–"]] * 9
-        else:
-            # Opponent found
-            oppo_predictions = ""
-            matches, preds_h, preds_a = c.get_multiple([self.spaetzle_conf()['matches_range'],
-                                                        "Aktuell!{}:{}".format(c.cellname(col1, row1 + 1),
-                                                                               c.cellname(col1 + 1, row1 + 9)),
-                                                        "Aktuell!{}:{}".format(c.cellname(col2, row2 + 1),
-                                                                               c.cellname(col2 + 1, row2 + 9))],
-                                                       formatted=False)
-        # Fixing stuff
-        if len(matches) == 0:
-            await ctx.send(Lang.lang(self, 'no_matches'))
-            return
-        if len(preds_h) == 0:
-            preds_h = [["–", "–"]] * 9
-        if len(preds_a) == 0:
-            preds_a = [["–", "–"]] * 9
-        for i in range(len(matches)):
-            if len(preds_h[i]) < 2:
-                preds_h[i] = ["–", "–"]
-            if len(preds_a[i]) < 2:
-                preds_a[i] = ["–", "–"]
-
-        # Calculating possible point difference
-        diff1, diff2 = 0, 0
-        for i in range(len(matches)):
-            if self.match_status(datetime(1899, 12, 30)
-                                 + timedelta(days=matches[i][1] + matches[i][2])) == MatchStatus.CLOSED:
-                continue
-            diff = self.pointdiff_possible(matches[i][4:6], preds_h[i], preds_a[i])
-            diff1 += diff[0]
-            diff2 += diff[1]
-
-        # Producing the message
-        match_str = ""
-        for match in matches:
-            emoji = self.match_status(datetime(1899, 12, 30) + timedelta(days=match[1] + match[2])).value
-            match_str += "{} {} {}:{} {}\n".format(emoji, self.convert_teamname(match[3]), match[4], match[5],
-                                                   self.convert_teamname(match[6]))
-
-        user_predictions = ""
-        for pred in preds_h:
-            if len(pred) < 2:
-                user_predictions += "-:-\n"
+            # Getting data / Opponent-dependent parts
+            try:
+                col2, row2 = self.get_user_cell(opponent)
+            except UserNotFound:
+                # Opponent not found
+                oppo_predictions = Lang.lang(self, 'user_not_found')
+                matches, preds_h = c.get_multiple([self.spaetzle_conf()['matches_range'],
+                                                   "Aktuell!{}:{}".format(c.cellname(col1, row1 + 1),
+                                                                          c.cellname(col1 + 1, row1 + 9))],
+                                                  formatted=False)
+                preds_a = [["–", "–"]] * 9
             else:
-                user_predictions += "{}:{}\n".format(pred[0], pred[1])
+                # Opponent found
+                oppo_predictions = ""
+                matches, preds_h, preds_a = c.get_multiple([self.spaetzle_conf()['matches_range'],
+                                                            "Aktuell!{}:{}".format(c.cellname(col1, row1 + 1),
+                                                                                   c.cellname(col1 + 1, row1 + 9)),
+                                                            "Aktuell!{}:{}".format(c.cellname(col2, row2 + 1),
+                                                                                   c.cellname(col2 + 1, row2 + 9))],
+                                                           formatted=False)
+            # Fixing stuff
+            if len(matches) == 0:
+                await ctx.send(Lang.lang(self, 'no_matches'))
+                return
+            if len(preds_h) == 0:
+                preds_h = [["–", "–"]] * 9
+            if len(preds_a) == 0:
+                preds_a = [["–", "–"]] * 9
+            for i in range(len(matches)):
+                if len(preds_h[i]) < 2:
+                    preds_h[i] = ["–", "–"]
+                if len(preds_a[i]) < 2:
+                    preds_a[i] = ["–", "–"]
 
-        if oppo_predictions == "":
-            for pred in preds_a:
+            # Calculating possible point difference
+            diff1, diff2 = 0, 0
+            for i in range(len(matches)):
+                if self.match_status(datetime(1899, 12, 30)
+                                     + timedelta(days=matches[i][1] + matches[i][2])) == MatchStatus.CLOSED:
+                    continue
+                diff = self.pointdiff_possible(matches[i][4:6], preds_h[i], preds_a[i])
+                diff1 += diff[0]
+                diff2 += diff[1]
+
+            # Producing the message
+            match_str = ""
+            for match in matches:
+                emoji = self.match_status(datetime(1899, 12, 30) + timedelta(days=match[1] + match[2])).value
+                match_str += "{} {} {}:{} {}\n".format(emoji, self.convert_teamname(match[3]), match[4], match[5],
+                                                       self.convert_teamname(match[6]))
+
+            user_predictions = ""
+            for pred in preds_h:
                 if len(pred) < 2:
-                    oppo_predictions += "-:-\n"
+                    user_predictions += "-:-\n"
                 else:
-                    oppo_predictions += "{}:{}\n".format(pred[0], pred[1])
+                    user_predictions += "{}:{}\n".format(pred[0], pred[1])
 
-        embed = discord.Embed(title=user)
-        embed.description = "{} [{}:{}] {}".format(user, result[0][0], result[1][0], opponent)
-        embed.set_footer(text="Noch möglich aufzuholen: {} bzw {} Punkte".format(diff1, diff2))
-        embed.add_field(name="Spiele", value=match_str)
-        embed.add_field(name=user, value=user_predictions)
-        embed.add_field(name=opponent, value=oppo_predictions)
+            if oppo_predictions == "":
+                for pred in preds_a:
+                    if len(pred) < 2:
+                        oppo_predictions += "-:-\n"
+                    else:
+                        oppo_predictions += "{}:{}\n".format(pred[0], pred[1])
 
-        await ctx.send(embed=embed)
+            embed = discord.Embed(title=user)
+            embed.description = "{} [{}:{}] {}".format(user, result[0][0], result[1][0], opponent)
+            embed.set_footer(text="Noch möglich aufzuholen: {} bzw {} Punkte".format(diff1, diff2))
+            embed.add_field(name="Spiele", value=match_str)
+            embed.add_field(name=user, value=user_predictions)
+            embed.add_field(name=opponent, value=oppo_predictions)
+
+            await ctx.send(embed=embed)
 
     @spaetzle.command(name="duels", aliases=["duelle"],
                       help="Displays the duels of observed users or the specified league")
     async def show_duels(self, ctx, league: int = None):
-        await ctx.trigger_typing()
-        c = self.get_api_client()
-        msg = ""
+        async with ctx.typing():
+            c = self.get_api_client()
+            msg = ""
 
-        if league is None:
-            # Observed users
-            title = "Duelle"
-            data_ranges = []
-            observed_users = self.spaetzle_conf()['observed_users']
+            if league is None:
+                # Observed users
+                title = "Duelle"
+                data_ranges = []
+                observed_users = self.spaetzle_conf()['observed_users']
 
-            if len(observed_users) == 0:
-                msg = Lang.lang(self, 'no_observed_users')
+                if len(observed_users) == 0:
+                    msg = Lang.lang(self, 'no_observed_users')
+                else:
+                    for user in observed_users:
+                        try:
+                            col, row = self.get_user_cell(user)
+                            data_ranges.append("Aktuell!{}".format(c.cellname(col, row)))
+                            data_ranges.append(
+                                "Aktuell!{}:{}".format(c.cellname(col, row + 10), c.cellname(col + 1, row + 11)))
+                        except UserNotFound:
+                            pass
+                    data = c.get_multiple(data_ranges)
+                    for i in range(0, len(data_ranges), 2):
+                        user = data[i][0][0]
+                        opponent = data[i + 1][1][1]
+                        if opponent in observed_users:
+                            if observed_users.index(opponent) > observed_users.index(user):
+                                msg += "**{}** [{}:{}] **{}**\n".format(user, data[i + 1][0][0], data[i + 1][1][0],
+                                                                        opponent)
+                        else:
+                            msg += "**{}** [{}:{}] {}\n".format(user, data[i + 1][0][0], data[i + 1][1][0], opponent)
             else:
-                for user in observed_users:
-                    try:
-                        col, row = self.get_user_cell(user)
-                        data_ranges.append("Aktuell!{}".format(c.cellname(col, row)))
-                        data_ranges.append(
-                            "Aktuell!{}:{}".format(c.cellname(col, row + 10), c.cellname(col + 1, row + 11)))
-                    except UserNotFound:
-                        pass
-                data = c.get_multiple(data_ranges)
-                for i in range(0, len(data_ranges), 2):
-                    user = data[i][0][0]
-                    opponent = data[i + 1][1][1]
-                    if opponent in observed_users:
-                        if observed_users.index(opponent) > observed_users.index(user):
-                            msg += "**{}** [{}:{}] **{}**\n".format(user, data[i + 1][0][0], data[i + 1][1][0],
-                                                                    opponent)
-                    else:
-                        msg += "**{}** [{}:{}] {}\n".format(user, data[i + 1][0][0], data[i + 1][1][0], opponent)
-        else:
-            # League
-            title = "Duelle Liga {}".format(league)
-            if league == 1:
-                result = c.get("Aktuell!J3:T11")
-            elif league == 2:
-                result = c.get("Aktuell!V3:AF11")
-            elif league == 3:
-                result = c.get("Aktuell!AH3:AR11")
-            elif league == 4:
-                result = c.get("Aktuell!AT3:BD11")
-            else:
-                await ctx.send(Lang.lang(self, 'invalid_league'))
-                return
+                # League
+                title = "Duelle Liga {}".format(league)
+                if league == 1:
+                    result = c.get("Aktuell!J3:T11")
+                elif league == 2:
+                    result = c.get("Aktuell!V3:AF11")
+                elif league == 3:
+                    result = c.get("Aktuell!AH3:AR11")
+                elif league == 4:
+                    result = c.get("Aktuell!AT3:BD11")
+                else:
+                    await ctx.send(Lang.lang(self, 'invalid_league'))
+                    return
 
-            for match in result:
-                if len(match) >= 8:
-                    msg += "{0} [{4}:{5}] {7}\n".format(*match)
+                for match in result:
+                    if len(match) >= 8:
+                        msg += "{0} [{4}:{5}] {7}\n".format(*match)
 
-        await ctx.send(embed=discord.Embed(title=title, description=msg))
+            await ctx.send(embed=discord.Embed(title=title, description=msg))
 
     @spaetzle.command(name="matches", aliases=["spiele"], help="Displays the matches to be predicted")
     async def show_matches(self, ctx):
-        await ctx.trigger_typing()
-        c = self.get_api_client()
-        matches = c.get(self.spaetzle_conf()['matches_range'], formatted=False)
+        async with ctx.typing():
+            c = self.get_api_client()
+            matches = c.get(self.spaetzle_conf()['matches_range'], formatted=False)
 
-        if len(matches) == 0:
-            await ctx.send(Lang.lang(self, 'no_matches'))
-            return
+            if len(matches) == 0:
+                await ctx.send(Lang.lang(self, 'no_matches'))
+                return
 
-        msg = ""
-        for match in matches:
-            date_time = datetime(1899, 12, 30) + timedelta(days=match[1] + match[2])
-            emoji = self.match_status(date_time).value
-            msg += "{0} {3} {1} {2} Uhr | {6} - {9} | {7}:{8}\n".format(emoji, date_time.strftime("%d.%m."),
-                                                                        date_time.strftime("%H:%M"), *match)
-        await ctx.send(embed=discord.Embed(title="Spiele", description=msg))
+            msg = ""
+            for match in matches:
+                date_time = datetime(1899, 12, 30) + timedelta(days=match[1] + match[2])
+                emoji = self.match_status(date_time).value
+                msg += "{0} {3} {1} {2} Uhr | {6} - {9} | {7}:{8}\n".format(emoji, date_time.strftime("%d.%m."),
+                                                                            date_time.strftime("%H:%M"), *match)
+            await ctx.send(embed=discord.Embed(title="Spiele", description=msg))
 
     @spaetzle.command(name="table", aliases=["tabelle", "league", "liga"],
                       help="Displays the table of a specific league")
     async def show_table(self, ctx, user_or_league=None):
-        await ctx.trigger_typing()
-        c = self.get_api_client()
+        async with ctx.typing():
+            c = self.get_api_client()
 
-        if user_or_league is None:
-            user_or_league = self.get_bridged_user(ctx.message.author.id)
             if user_or_league is None:
-                await ctx.send(Lang.lang(self, 'user_not_bridged'))
-                return
+                user_or_league = self.get_bridged_user(ctx.message.author.id)
+                if user_or_league is None:
+                    await ctx.send(Lang.lang(self, 'user_not_bridged'))
+                    return
 
-        try:
-            # League
-            league = int(user_or_league)
-        except ValueError:
-            # User
             try:
-                league = self.get_user_league(user_or_league)
-            except UserNotFound:
-                ctx.send(Lang.lang(self, 'user_not_found'))
+                # League
+                league = int(user_or_league)
+            except ValueError:
+                # User
+                try:
+                    league = self.get_user_league(user_or_league)
+                except UserNotFound:
+                    ctx.send(Lang.lang(self, 'user_not_found'))
+                    return
+
+            if league == 1:
+                result = c.get("Aktuell!J14:T31")
+            elif league == 2:
+                result = c.get("Aktuell!V14:AF31")
+            elif league == 3:
+                result = c.get("Aktuell!AH14:AR31")
+            elif league == 4:
+                result = c.get("Aktuell!AT14:BD31")
+            else:
+                await ctx.send(Lang.lang(self, 'invalid_league'))
                 return
 
-        if league == 1:
-            result = c.get("Aktuell!J14:T31")
-        elif league == 2:
-            result = c.get("Aktuell!V14:AF31")
-        elif league == 3:
-            result = c.get("Aktuell!AH14:AR31")
-        elif league == 4:
-            result = c.get("Aktuell!AT14:BD31")
-        else:
-            await ctx.send(Lang.lang(self, 'invalid_league'))
-            return
+            if isinstance(user_or_league, str):
+                # Restrict the view to users area
+                pos = None
+                for i in range(len(result)):
+                    pos = i if result[i][3] == user_or_league else pos
+                if pos is not None:
+                    result = result[max(0, pos - 3):pos + 4]
 
-        if isinstance(user_or_league, str):
-            # Restrict the view to users area
-            pos = None
-            for i in range(len(result)):
-                pos = i if result[i][3] == user_or_league else pos
-            if pos is not None:
-                result = result[max(0, pos - 3):pos + 4]
+            msg = ""
+            for line in result:
+                msg += "{0}{1} | {4} | {7}:{9} {10} | {11}{0}\n".format("**" if line[3] == user_or_league else "",
+                                                                        *line)
 
-        msg = ""
-        for line in result:
-            msg += "{0}{1} | {4} | {7}:{9} {10} | {11}{0}\n".format("**" if line[3] == user_or_league else "", *line)
-
-        await ctx.send(embed=discord.Embed(title="Tabelle Liga {}".format(league), description=msg))
+            await ctx.send(embed=discord.Embed(title="Tabelle Liga {}".format(league), description=msg))
 
     @spaetzle.group(name="observe",
                     help="Configure which users should be observed.")
