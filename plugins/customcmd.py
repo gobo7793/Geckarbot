@@ -163,13 +163,7 @@ class CustomCMDHelpCategory(HelpCategory):
         # Custom command list
         msg.append("")
         msg.append(Lang.lang(self.plugin, "help_custom_cmd_list_prefix"))
-        found = False
-        for k in self.plugin.commands.keys():
-            found = True
-            msg.append("  {}{}".format(self.plugin.prefix, k))
-
-        if not found:
-            msg.append(Lang.lang(self.plugin, "list_no_cmds"))
+        msg += self.plugin.format_cmd_list(incl_prefix=True)
 
         for msg in utils.paginate(msg, msg_prefix="```", msg_suffix="```"):
             await ctx.send(msg)
@@ -332,11 +326,10 @@ class Plugin(BasePlugin, name="Custom CMDs"):
             self.save()
             await ctx.message.add_reaction(Lang.CMDSUCCESS)
 
-    @cmd.command(name="list", help="Lists all custom commands.",
-                 descripton="Lists all custom commands. Argument full gives more information about the commands.")
-    async def cmd_list(self, ctx, full=""):
+    def format_cmd_list(self, full="", incl_prefix=False):
         cmds = []
         suffix = Lang.lang(self, 'list_suffix') if full else ""
+        prefix = self.prefix if incl_prefix else ""
 
         for k in self.commands.keys():
             if full:
@@ -344,18 +337,24 @@ class Plugin(BasePlugin, name="Custom CMDs"):
                 for t in self.commands[k].texts:
                     arg_list = arg_list_re.findall(t)
                     arg_lens.append(len(arg_list))
-                cmds.append(Lang.lang(self, 'list_full_data', k, len(self.commands[k].texts), max(arg_lens)))
+                cmds.append(Lang.lang(self, 'list_full_data', prefix, k, len(self.commands[k].texts), max(arg_lens)))
 
             else:
-                cmds.append(k)
+                cmds.append("{}{}".format(prefix, k))
 
         if not cmds:
-            await ctx.send(Lang.lang(self, 'list_no_cmds'))
-            return
+            cmds = [Lang.lang(self, 'list_no_cmds')]
 
         cmds.sort(key=str.lower)
-        cmd_msgs = utils.paginate(cmds, delimiter=", ", suffix=suffix)
-        for msg in cmd_msgs:
+        cmds = utils.paginate(cmds, delimiter=", ", suffix=suffix)
+        return cmds
+
+    @cmd.command(name="list", help="Lists all custom commands.",
+                 descripton="Lists all custom commands. Argument full gives more information about the commands.")
+    async def cmd_list(self, ctx, full=""):
+        cmds = self.format_cmd_list(full=full)
+
+        for msg in cmds:
             await ctx.send(msg)
 
     @cmd.command(name="info", help="Gets full info about a command")
