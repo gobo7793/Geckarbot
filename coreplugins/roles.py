@@ -1,58 +1,94 @@
 from copy import deepcopy
-import asyncio
 
 import discord
 import emoji
 from discord.ext import commands
 
-from base import BasePlugin
-from conf import Storage, Config, Lang
+from Geckarbot import BasePlugin
+from conf import Config
 from botutils import utils, permChecks
-from subsystems import reactions, help
+from subsystems import reactions
 
 
-async def add_user_role(member: discord.Member, role: discord.Role):
+class RoleManagement:
     """
-    Adds a role to a server member
-    :param member: the member
-    :param role: the role to add
-    :return: No exception in case of success
+    Provides basic functions to create or add roles to users
     """
-    await member.add_roles(role)
+
+    @staticmethod
+    async def add_user_role(member: discord.Member, role: discord.Role):
+        """
+        Adds a role to a server member
+        :param member: the member
+        :param role: the role to add
+        :return: No exception in case of success
+        """
+        await member.add_roles(role)
+
+    @staticmethod
+    async def remove_user_role(member: discord.Member, role: discord.Role):
+        """
+        Removes a role from a server member
+        :param member: the member
+        :param role: the role to remove
+        :return: No exception in case of success
+        """
+        await member.remove_roles(role)
+
+    @staticmethod
+    async def add_server_role(guild: discord.Guild, name, color: discord.Color = None, mentionable=True):
+        """
+        Creates a roll on the server
+        :param guild: the server guild
+        :param name: the role name
+        :param color: the color for the role, if None Color.default()
+        :param mentionable: if the role is mentionable
+        :return: The created role
+        """
+        if color is None:
+            color = discord.Color.default()
+        return await guild.create_role(name=name, color=color, mentionable=mentionable)
+
+    @staticmethod
+    async def remove_server_role(guild: discord.Guild, role: discord.Role):
+        """
+        Deletes a role on the server
+        :param guild: the server guild
+        :param role: the role to delete
+        :return: No exception in case of success
+        """
+        old_id = role.id
+        await role.delete()
 
 
-async def remove_user_role(member: discord.Member, role: discord.Role):
+class ReactionEventData:
     """
-    Removes a role from a server member
-    :param member: the member
-    :param role: the role to remove
-    :return: No exception in case of success
+    Tuple for easier reaction event handling.
     """
-    await member.remove_roles(role)
 
+    def __init__(self, user, channel, message, emoji, member=None):
+        self.user = user
+        self.channel = channel
+        self.message = message
+        self.emoji = emoji
 
-async def add_server_role(guild: discord.Guild, name, color: discord.Color = None, mentionable=True):
-    """
-    Creates a roll on the server
-    :param guild: the server guild
-    :param name: the role name
-    :param color: the color for the role, if None Color.default()
-    :param mentionable: if the role is mentionable
-    :return: The created role
-    """
-    if color is None:
-        color = discord.Color.default()
-    return await guild.create_role(name=name, color=color, mentionable=mentionable)
+        self.member = member
 
+    @staticmethod
+    async def convert(bot, payload: discord.RawReactionActionEvent):
+        """
+        Converts the raw payload data from on_raw_reaction_add and on_raw_reaction_remove
+        to usable instances for easier event handling.
+        :param bot: the bot instance to use to convert
+        :param payload: the payload with raw event data
+        :return: the converted ReactionEvent instance
+        """
+        channel = bot.get_channel(payload.channel_id)
+        user = bot.get_user(payload.user_id)
+        member = bot.guild.get_member(payload.user_id)
+        message = await channel.fetch_message(payload.message_id)
 
-async def remove_server_role(guild: discord.Guild, role: discord.Role):
-    """
-    Deletes a role on the server
-    :param guild: the server guild
-    :param role: the role to delete
-    :return: No exception in case of success
-    """
-    await role.delete()
+        return ReactionEventData(user, channel, message, payload.emoji, member)
 
 
 class Plugin(BasePlugin, name="Role Management"):
@@ -64,16 +100,14 @@ class Plugin(BasePlugin, name="Role Management"):
 
     def __init__(self, bot):
         super().__init__(bot)
-        self.can_reload = True
-        bot.register(self, help.DefaultCategories.MOD)
+        bot.register(self)
 
-        async def get_init_msg_data():
+        @bot.listen()
+        async def on_ready():
             if self.has_init_msg_set():
                 bot.reaction_listener.register(await self.get_init_msg(), self.update_reaction_based_user_role)
 
-        asyncio.get_event_loop().create_task(get_init_msg_data())
-
-    def default_storage(self):
+    def default_config(self):
         return {
             'message': {
                 'channel_id': Config().CHAN_IDS['announcements'],
@@ -85,17 +119,17 @@ class Plugin(BasePlugin, name="Role Management"):
 
     def rc(self):
         """Returns the roles config"""
-        return Storage().get(self)['roles']
+        return Config().get(self)['roles']
 
     def has_init_msg_set(self):
-        return (Storage().get(self)['message']['channel_id'] != 0
-                and Storage().get(self)['message']['message_id'] != 0)
+        return (Config().get(self)['message']['channel_id'] != 0
+                and Config().get(self)['message']['message_id'] != 0)
 
     async def get_init_msg(self):
         """Returns the role management init message or None if not set"""
         if self.has_init_msg_set():
-            channel = self.bot.get_channel(Storage().get(self)['message']['channel_id'])
-            return await channel.fetch_message(Storage().get(self)['message']['message_id'])
+            channel = self.bot.get_channel(Config().get(self)['message']['channel_id'])
+            return await channel.fetch_message(Config().get(self)['message']['message_id'])
         else:
             return None
 
@@ -106,7 +140,7 @@ class Plugin(BasePlugin, name="Role Management"):
         :param server_roles: the roles on the server
         :param ctx: The context of the used command to create the new message
         """
-        msg = "{}\n".format(Storage().get(self)['message']['content'])
+        msg = "{}\n".format(Config().get(self)['message']['content'])
 
         for rid in self.rc():
             role = discord.utils.get(server_roles, id=rid)
@@ -114,10 +148,10 @@ class Plugin(BasePlugin, name="Role Management"):
             modrole_msg = ""
 
             if self.rc()[rid]['emoji']:
-                emote_msg = Lang.lang(self, 'init_reaction', await utils.emojize(self.rc()[rid]['emoji'], ctx))
+                emote_msg = Config().lang(self, 'init_reaction', await utils.emojize(self.rc()[rid]['emoji'], ctx))
             if self.rc()[rid]['modrole'] != 0:
                 modrole = discord.utils.get(server_roles, id=self.rc()[rid]['modrole'])
-                modrole_msg = Lang.lang(self, 'init_modrole', modrole.name)
+                modrole_msg = Config().lang(self, 'init_modrole', modrole.name)
 
             if emote_msg and modrole_msg:
                 todo_part = "{}, {}".format(emote_msg, modrole_msg)
@@ -126,7 +160,7 @@ class Plugin(BasePlugin, name="Role Management"):
             elif modrole_msg:
                 todo_part = modrole_msg
             else:
-                todo_part = Lang.lang(self, 'init_admin')
+                todo_part = Config().lang(self, 'init_admin')
 
             msg += "\n{} - {}".format(role.name, todo_part)
 
@@ -144,10 +178,12 @@ class Plugin(BasePlugin, name="Role Management"):
         current_server_roles = await self.bot.guild.fetch_roles()
         server_role_ids = [r.id for r in current_server_roles]
         removed_roles = deepcopy(self.rc())
+        debug = self.rc()
+        reactions_to_clear = []
         for role_in_config in self.rc():
             if role_in_config in server_role_ids:
                 del (removed_roles[role_in_config])
-                # remove emojis and mod roles that aren't on server anymore
+                # update emojis and mod roles
                 if self.rc()[role_in_config]['modrole'] not in server_role_ids:
                     self.rc()[role_in_config]['modrole'] = 0
                 if (self.rc()[role_in_config]['emoji']
@@ -156,9 +192,11 @@ class Plugin(BasePlugin, name="Role Management"):
                         if str(e) == self.rc()[role_in_config]['emoji']:
                             break
                     else:
+                        reactions_to_clear.append(self.rc()[role_in_config]['emoji'])
                         self.rc()[role_in_config]['emoji'] = ""
 
         for role_to_remove in removed_roles:
+            reactions_to_clear.append(self.rc()[role_to_remove]['emoji'])
             del (self.rc()[role_to_remove])
 
         # update message
@@ -168,20 +206,16 @@ class Plugin(BasePlugin, name="Role Management"):
         if message is not None:
             await message.edit(content=message_text)
         else:
-            await utils.write_debug_channel(self.bot, Lang.lang(self, 'creating_init_msg'))
-            channel = self.bot.get_channel(Storage().get(self)['message']['channel_id'])
+            await utils.write_debug_channel(self.bot, Config().lang(self, 'creating_init_msg'))
+            channel = self.bot.get_channel(Config().get(self)['message']['channel_id'])
             message = await channel.send(message_text)
-            Storage().get(self)['message']['message_id'] = message.id
+            Config().get(self)['message']['message_id'] = message.id
             self.bot.reaction_listener.register(message, self.update_reaction_based_user_role)
 
-        # remove reactions w/o role
-        for reaction in message.reactions:
-            reaction_str = emoji.demojize(str(reaction), True)
-            for role in self.rc():
-                if self.rc()[role]['emoji'] == reaction_str:
-                    break
-            else:
-                await message.clear_reaction(reaction)
+        # remove reactions from old roles
+        for reaction in reactions_to_clear:
+            reaction = emoji.emojize(reaction, True)
+            await message.clear_reaction(reaction)
 
         # add reactions for new roles
         for role_config in self.rc():
@@ -191,7 +225,7 @@ class Plugin(BasePlugin, name="Role Management"):
             emote = await utils.emojize(emoji_id, ctx)
             await message.add_reaction(emote)
 
-        Storage().save(self)
+        Config().save(self)
 
     async def update_reaction_based_user_role(self, event):
         """
@@ -205,18 +239,17 @@ class Plugin(BasePlugin, name="Role Management"):
         emoji_str = emoji.demojize(str(event.emoji), True)
         update_type = ""
         has_role_update = False
-        role = None
         for configured_role in self.rc():
             configured_emoji = self.rc()[configured_role]['emoji']
             if configured_emoji == emoji_str:
                 role = discord.utils.get(self.bot.guild.roles, id=configured_role)
                 if isinstance(event, reactions.ReactionAddedEvent) and role not in event.member.roles:
                     update_type = "add"
-                    await add_user_role(event.member, role)
+                    await RoleManagement.add_user_role(event.member, role)
                     has_role_update = True
                 elif isinstance(event, reactions.ReactionRemovedEvent) and role in event.member.roles:
                     update_type = "remove"
-                    await remove_user_role(event.member, role)
+                    await RoleManagement.remove_user_role(event.member, role)
                     has_role_update = True
 
         if has_role_update:
@@ -235,29 +268,29 @@ class Plugin(BasePlugin, name="Role Management"):
     async def role(self, ctx, user: discord.Member, action, role: discord.Role):
         if not permChecks.check_full_access(ctx.author):
             if role.id not in self.rc():
-                raise commands.CheckFailure(message=Lang.lang(self, 'role_user_not_configured'))
+                raise commands.CheckFailure(message=Config().lang(self, 'role_user_not_configured'))
 
             need_mod_role_id = self.rc()[role.id]['modrole']
             if need_mod_role_id is None or need_mod_role_id == 0:
-                raise commands.CheckFailure(message=Lang.lang(self, 'role_user_no_modrole', role.name))
+                raise commands.CheckFailure(message=Config().lang(self, 'role_user_no_modrole', role.name))
 
             if need_mod_role_id not in [r.id for r in ctx.author.roles]:
                 raise commands.MissingRole(need_mod_role_id)
 
         if action.lower() == "add":
             if role in user.roles:
-                await ctx.send(Lang.lang(self, 'role_user_already', utils.get_best_username(user), role))
+                await ctx.send(Config().lang(self, 'role_user_already', utils.get_best_username(user), role))
                 return
-            await add_user_role(user, role)
-            await ctx.send(Lang.lang(self, 'role_user_added', role, utils.get_best_username(user)))
+            await RoleManagement.add_user_role(user, role)
+            await ctx.send(Config().lang(self, 'role_user_added', role, utils.get_best_username(user)))
         elif action.lower() == "del":
             if role not in user.roles:
-                await ctx.send(Lang.lang(self, 'role_user_doesnt_have', utils.get_best_username(user), role))
+                await ctx.send(Config().lang(self, 'role_user_doesnt_have', utils.get_best_username(user), role))
                 return
-            await remove_user_role(user, role)
-            await ctx.send(Lang.lang(self, 'role_user_removed', role, utils.get_best_username(user)))
+            await RoleManagement.remove_user_role(user, role)
+            await ctx.send(Config().lang(self, 'role_user_removed', role, utils.get_best_username(user)))
         else:
-            raise commands.BadArgument(Lang.lang(self, 'role_user_bad_arg'))
+            raise commands.BadArgument(Config().lang(self, 'role_user_bad_arg'))
 
         await utils.log_to_admin_channel(ctx)
 
@@ -271,7 +304,7 @@ class Plugin(BasePlugin, name="Role Management"):
                               "the management data will be updated. As color a color name like 'blue' can be given or "
                               "a hexcode like '#0000ff'.")
     @commands.has_any_role(*Config().FULL_ACCESS_ROLES)
-    async def role_add(self, ctx, role_name, emoji_or_modrole="", color: discord.Color = None):
+    async def role_add(self, ctx, role_name, emoji_or_modrole, color: discord.Color = None):
         emoji_str = await utils.demojize(emoji_or_modrole, ctx)
         try:
             modrole = await commands.RoleConverter().convert(ctx, emoji_or_modrole)
@@ -283,13 +316,10 @@ class Plugin(BasePlugin, name="Role Management"):
         if not emoji_str and modrole_id == 0:
             try:
                 color = await commands.ColourConverter().convert(ctx, emoji_or_modrole)
-            except (commands.CommandError, IndexError):
+            except commands.CommandError:
                 color = discord.Color.default()
 
-        try:
-            existing_role = await commands.RoleConverter().convert(ctx, role_name)
-        except commands.CommandError:
-            existing_role = None
+        existing_role = discord.utils.get(ctx.guild.roles, name=role_name)
         if existing_role is not None:
             if existing_role.id in self.rc():
                 # Update role data
@@ -298,35 +328,27 @@ class Plugin(BasePlugin, name="Role Management"):
                 if modrole_id != 0:
                     self.rc()[existing_role.id]['modrole'] = modrole_id
                 await self.update_role_management(ctx)
-                await ctx.send(Lang.lang(self, 'role_add_updated', role_name))
+                await ctx.send(Config().lang(self, 'role_add_updated', role_name))
             else:
                 # role exists on server, but not in config, add it there
                 self.rc()[existing_role.id] = {'emoji': emoji_str, 'modrole': modrole_id}
                 await self.update_role_management(ctx)
-                await ctx.send(Lang.lang(self, 'role_add_config', role_name))
+                await ctx.send(Config().lang(self, 'role_add_config', role_name))
             return
 
         # Execute role add
-        new_role = await add_server_role(ctx.guild, role_name, color)
+        new_role = await RoleManagement.add_server_role(ctx.guild, role_name, color)
         self.rc()[new_role.id] = {'emoji': emoji_str, 'modrole': modrole_id}
         await self.update_role_management(ctx)
-        await ctx.send(Lang.lang(self, 'role_add_created', role_name, color))
+        await ctx.send(Config().lang(self, 'role_add_created', role_name, color))
         await utils.log_to_admin_channel(ctx)
 
     @role.command(name="del", help="Deletes the role from the server and role management")
     @commands.has_any_role(*Config().FULL_ACCESS_ROLES)
     async def role_del(self, ctx, role: discord.Role):
-        await remove_server_role(ctx.guild, role)
+        await RoleManagement.remove_server_role(ctx.guild, role)
         await self.update_role_management(ctx)
-        await ctx.send(Lang.lang(self, 'role_del', role.name))
-        await utils.log_to_admin_channel(ctx)
-
-    @role.command(name="untrack", help="Removes the role from the role management, but not from server")
-    @commands.has_any_role(*Config().FULL_ACCESS_ROLES)
-    async def role_untrack(self, ctx, role: discord.Role):
-        del (self.rc()[role.id])
-        await self.update_role_management(ctx)
-        await ctx.send(Lang.lang(self, 'role_untrack', role.name))
+        await ctx.send(Config().lang(self, 'role_del', role.name))
         await utils.log_to_admin_channel(ctx)
 
     @role.command(name="request", help="Pings the corresponding mod role for a role request",
@@ -340,9 +362,9 @@ class Plugin(BasePlugin, name="Role Management"):
                 break
 
         if modrole is None:
-            await ctx.send(Lang.lang(self, 'role_request_no_modrole', role.name))
+            await ctx.send(Config().lang(self, 'role_request_no_modrole', role.name))
         else:
-            await ctx.send(Lang.lang(self, 'role_request_ping', modrole.mention, ctx.author.mention, role.name))
+            await ctx.send(Config().lang(self, 'role_request_ping', modrole.mention, ctx.author.mention, role.name))
 
     @role.command(name="update", help="Reads the server data and updates the role management",
                   description="Updates the role management from server data and removes deleted roles from role "
@@ -351,8 +373,8 @@ class Plugin(BasePlugin, name="Role Management"):
     @commands.has_any_role(*Config().FULL_ACCESS_ROLES)
     async def role_update(self, ctx, *message_content):
         if len(message_content) > 0:
-            Storage().get(self)['message']['content'] = " ".join(message_content)
-        Storage().save(self)
+            Config().get(self)['message']['content'] = " ".join(message_content)
+        Config().save(self)
         await self.update_role_management(ctx)
-        await ctx.send(Lang.lang(self, 'role_update'))
+        await ctx.send(Config().lang(self, 'role_update'))
         await utils.log_to_admin_channel(ctx)

@@ -57,7 +57,8 @@ class Geckarbot(commands.Bot):
         Storage().load(plugin)
         Lang().remove_from_cache(plugin)
 
-    def register(self, plugin_class, category=None):
+    def register(self, plugin_class, category=None, category_desc=None):
+        # Add Cog
         if isinstance(plugin_class, commands.Cog):
             plugin_object = plugin_class
         else:
@@ -66,7 +67,17 @@ class Geckarbot(commands.Bot):
         self.geck_cogs.append(plugin_object)
 
         self.plugins.append(ConfigurableContainer(plugin_object, category=category))
+
+        # Load IO
         self.configure(plugin_object)
+
+        # Set HelpCategory
+        if category is None:
+            self.helpsys.register_category_by_name(plugin_object.get_name()).add_plugin(plugin_object)
+        else:
+            cat = self.helpsys.register_category(category)
+            cat.add_plugin(plugin_object)
+
         logging.debug("Registered plugin {}".format(plugin_object.get_name()))
 
     def plugin_objects(self, plugins_only=False):

@@ -8,6 +8,7 @@ from discord.errors import HTTPException
 
 from base import BasePlugin
 from conf import Storage, Lang, Config
+from subsystems import help
 from botutils import permChecks
 
 from plugins.quiz.controllers import RushQuizController, PointsQuizController
@@ -128,7 +129,7 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
         self.register_subcommand(None, "info", self.cmd_info)
 
         super().__init__(bot)
-        bot.register(self)
+        bot.register(self, help.DefaultCategories.GAMES)
 
         @bot.listen()
         async def on_message(msg):
