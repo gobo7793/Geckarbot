@@ -10,23 +10,6 @@ from Geckarbot import BasePlugin
 from botutils import sheetsclient, restclient
 from conf import Storage, Lang
 
-lang = {
-    'en': {
-        'info': "The Spaetzle(s)-Tippspiel is a prediction game where you compete in duels",
-        'invalid_league': "Invalid League. Valid Leagues: 1, 2, 3, 4",
-        'no_matches': "No matches found.",
-        'no_observed_users': "No observed users.",
-        'user_not_bridged': "You are currently not connected with a user.",
-        'user_not_found': "User not found."
-    },
-    'de': {
-        'info': "Das Spätzle(s)-Tippspiel ist ein Tippspiel aus dem Stuttgarter TM-Forum in dem die Teilnehmer nicht "
-                "nur Bundesligaspiele tippen, sondern damit in Duellen gegeneinander antreten.",
-        'no_matches': "Keine Spiele gefunden.",
-        'no_observed_users': "Ich beobachte noch keine Teilnehmer."
-    }
-}
-
 teams = {
     "FC Bayern München": "FCB",
     "Borussia Dortmund": "BVB",
@@ -91,12 +74,6 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             'spaetzledoc_id': "1ZzEGP_J9WxJGeAm1Ri3er89L1IR1riq7PH2iKVDmfP8",
             'discord_user_bridge': {}
         }
-
-    def get_lang(self):
-        return lang
-
-    def spaetzle_lang(self, str_name, *args):
-        return Lang.lang(self, str_name, *args)
 
     def spaetzle_conf(self):
         return Storage().get(self)
@@ -249,7 +226,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
 
     @spaetzle.command(name="info", help="Get info about the Spaetzles-Tippspiel")
     async def spaetzle_info(self, ctx):
-        await ctx.send(self.spaetzle_lang('info'))
+        await ctx.send(Lang.lang(self, 'info'))
 
     @spaetzle.command(name="link", help="Get the link to the spreadsheet")
     async def spaetzle_doc_link(self, ctx):
@@ -265,7 +242,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                 Storage().save(self)
                 await ctx.message.add_reaction(Lang.CMDSUCCESS)
             else:
-                await ctx.send(self.spaetzle_lang('user_not_bridged'))
+                await ctx.send(Lang.lang(self, 'user_not_bridged'))
             return
         # User-Verbindung hinzufügen
         try:
@@ -274,7 +251,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             Storage().save(self)
             await ctx.message.add_reaction(Lang.CMDSUCCESS)
         except UserNotFound:
-            await ctx.send(self.spaetzle_lang('user_not_found'))
+            await ctx.send(Lang.lang(self, 'user_not_found'))
 
     @spaetzle.group(name="set", help="Set data about next matchday etc")
     async def spaetzle_set(self, ctx):
@@ -335,14 +312,14 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
         if user is None:
             user = self.get_bridged_user(ctx.message.author.id)
             if user is None:
-                await ctx.send(self.spaetzle_lang('user_not_bridged'))
+                await ctx.send(Lang.lang(self, 'user_not_bridged'))
                 return
         c = self.get_api_client()
 
         try:
             col1, row1 = self.get_user_cell(user)
         except UserNotFound:
-            await ctx.send(self.spaetzle_lang('user_not_found'))
+            await ctx.send(Lang.lang(self, 'user_not_found'))
             return
         result = c.get("Aktuell!{}:{}".format(c.cellname(col1, row1 + 10), c.cellname(col1 + 1, row1 + 11)))
         opponent = result[1][1]
@@ -352,7 +329,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             col2, row2 = self.get_user_cell(opponent)
         except UserNotFound:
             # Opponent not found
-            oppo_predictions = self.spaetzle_lang('user_not_found')
+            oppo_predictions = Lang.lang(self, 'user_not_found')
             matches, preds_h = c.get_multiple([self.spaetzle_conf()['matches_range'],
                                                "Aktuell!{}:{}".format(c.cellname(col1, row1 + 1),
                                                                       c.cellname(col1 + 1, row1 + 9))])
@@ -367,7 +344,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                                                                                c.cellname(col2 + 1, row2 + 9))])
         # Fixing stuff
         if len(matches) == 0:
-            await ctx.send(self.spaetzle_lang('no_matches'))
+            await ctx.send(Lang.lang(self, 'no_matches'))
             return
         if len(preds_h) == 0:
             preds_h = [["–", "–"]] * 9
@@ -433,7 +410,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             observed_users = self.spaetzle_conf()['observed_users']
 
             if len(observed_users) == 0:
-                msg = self.spaetzle_lang('no_observed_users')
+                msg = Lang.lang(self, 'no_observed_users')
             else:
                 for user in observed_users:
                     try:
@@ -465,7 +442,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             elif league == 4:
                 result = c.get("Aktuell!AT3:BD11")
             else:
-                await ctx.send(self.spaetzle_lang('invalid_league'))
+                await ctx.send(Lang.lang(self, 'invalid_league'))
                 return
 
             for match in result:
@@ -481,7 +458,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
         matches = c.get(self.spaetzle_conf()['matches_range'], formatted=False)
 
         if len(matches) == 0:
-            await ctx.send(self.spaetzle_lang('no_matches'))
+            await ctx.send(Lang.lang(self, 'no_matches'))
             return
 
         msg = ""
@@ -501,7 +478,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
         if user_or_league is None:
             user_or_league = self.get_bridged_user(ctx.message.author.id)
             if user_or_league is None:
-                await ctx.send(self.spaetzle_lang('user_not_bridged'))
+                await ctx.send(Lang.lang(self, 'user_not_bridged'))
                 return
 
         try:
@@ -512,7 +489,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             try:
                 league = self.get_user_league(user_or_league)
             except UserNotFound:
-                ctx.send(self.spaetzle_lang('user_not_found'))
+                ctx.send(Lang.lang(self, 'user_not_found'))
                 return
 
         if league == 1:
@@ -524,7 +501,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
         elif league == 4:
             result = c.get("Aktuell!AT14:BD31")
         else:
-            await ctx.send(self.spaetzle_lang('invalid_league'))
+            await ctx.send(Lang.lang(self, 'invalid_league'))
             return
 
         if isinstance(user_or_league, str):
@@ -550,7 +527,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
     @observe.command(name="list", help="Lists the observed users")
     async def observe_list(self, ctx):
         if len(self.spaetzle_conf()['observed_users']) == 0:
-            msg = self.spaetzle_lang('no_observed_users')
+            msg = Lang.lang(self, 'no_observed_users')
         else:
             msg = ", ".join(self.spaetzle_conf()['observed_users'])
         await ctx.send(msg)
@@ -560,7 +537,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
         try:
             self.get_user_league(user)
         except UserNotFound:
-            await ctx.send(self.spaetzle_lang('user_not_found'))
+            await ctx.send(Lang.lang(self, 'user_not_found'))
             return
 
         if user not in self.spaetzle_conf()['observed_users']:
@@ -575,4 +552,4 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             Storage().save(self)
             await ctx.message.add_reaction(Lang.CMDSUCCESS)
         else:
-            await ctx.send(self.spaetzle_lang('user_not_found'))
+            await ctx.send(Lang.lang(self, 'user_not_found'))
