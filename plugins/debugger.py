@@ -7,6 +7,7 @@ from discord.errors import HTTPException
 
 from botutils import utils, converter
 from subsystems.reactions import ReactionAddedEvent, ReactionRemovedEvent
+from subsystems import help
 
 from base import BasePlugin
 from conf import Config, Lang
@@ -18,7 +19,7 @@ class Plugin(BasePlugin, name="Testing and debug things"):
         self.bot = bot
         self.timers = {}
         super().__init__(bot)
-        bot.register(self)
+        bot.register(self, help.DefaultCategories.ADMIN)
         self.sleeper = None
         self.channel = None
 

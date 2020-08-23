@@ -7,7 +7,7 @@ from discord.ext import commands
 from conf import Storage, Lang, Config
 
 from base import BasePlugin
-from subsystems import timers
+from subsystems import timers, help
 from botutils import utils
 
 
@@ -15,7 +15,7 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
 
     def __init__(self, bot):
         super().__init__(bot)
-        bot.register(self)
+        bot.register(self, help.DefaultCategories.MISC)
 
         self.reminders = {}
         reminders_to_remove = []
