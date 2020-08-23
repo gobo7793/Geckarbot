@@ -70,11 +70,15 @@ class HelpCategory:
         else:
             return self.name
 
-    async def full_help(self, ctx):
-        msg = []
+    def format_commands(self):
+        r = []
         for plugin in self.plugins:
             for command in plugin.get_commands():
-                msg.append("  {}".format(GeckiHelp.command_help_line(command)))
+                r.append("  {}".format(self.bot.helpsys.command_help_line(command)))
+        return r
+
+    async def category_help(self, ctx):
+        msg = self.format_commands()
         for msg in paginate(msg,
                             prefix=Lang.lang(self.bot.helpsys, "help_category_prefix", self.name) + "\n",
                             msg_prefix="```",
@@ -176,10 +180,39 @@ class GeckiHelp(BaseSubsystem):
     """
     Format methods
     """
-    @staticmethod
-    def command_help_line(command):
+    def append_command_leaves(self, cmds, cmd):
+        """
+        Recursive helper function for `flattened_plugin_help()`.
+        :param cmds: list to append the leaves to
+        :param cmd: Command or Group
+        """
+        if not isinstance(cmd, commands.Group):
+            cmds.append(cmd)
+            return
+
+        # we are in a group
+        for command in cmd.commands:
+            self.append_command_leaves(cmds, command)
+
+    def flattened_plugin_help(self, plugin):
+        """
+        In the tree structure of existing commands and groups in a plugin, returns a list of all
+        formatted leaf command help lines.
+        :param plugin: Plugin to create a flattened command help for
+        :return: Msg list to be consumed by utils.paginate()
+        """
+        cmds = []
+        for cmd in plugin.get_commands():
+            self.append_command_leaves(cmds, cmd)
+
+        msg = []
+        for cmd in cmds:
+            msg.append(self.command_help_line(cmd))
+        return msg
+
+    def command_help_line(self, command):
         if command.help is not None:
-            return "{} - {}".format(command.qualified_name, command.help)
+            return "{}{} - {}".format(self.bot.command_prefix, command.qualified_name, command.help)
         else:
             return command.qualified_name
 
@@ -200,7 +233,7 @@ class GeckiHelp(BaseSubsystem):
 
     async def cmd_help(self, ctx, plugin, cmd):
         try:
-            await plugin.help(ctx, cmd)
+            await plugin.command_help(ctx, cmd)
             return
         except NotFound:
             pass
@@ -276,7 +309,7 @@ class GeckiHelp(BaseSubsystem):
                     cat = el
                     break
             if cat is not None and not cat.is_empty():
-                await cat.full_help(ctx)
+                await cat.category_help(ctx)
                 return
 
             await self.error(ctx, "cmd_cat_not_found")

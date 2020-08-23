@@ -6,10 +6,11 @@ import logging
 import discord
 from discord.ext import commands
 
-from base import BasePlugin
+from base import BasePlugin, NotFound
 from conf import Storage, Lang, Config
 from botutils import utils, converter, permChecks
 from subsystems.ignoring import UserBlockedCommand
+from subsystems.help import HelpCategory
 
 
 wildcard_user = "%u"
@@ -146,13 +147,42 @@ class Cmd:
         return cmd_content
 
 
+class CustomCMDHelpCategory(HelpCategory):
+    def __init__(self, plugin):
+        self.plugin = plugin
+        super().__init__("CustomCMD")
+
+    async def category_help(self, ctx):
+        # Command / category help
+        msg = [
+            Lang.lang(self.plugin, "help_help") + "\n",
+            Lang.lang(self.plugin, "help_cmd_list_prefix"),
+        ]
+        msg += self.plugin.bot.helpsys.flattened_plugin_help(self.plugin)
+
+        # Custom command list
+        msg.append("")
+        msg.append(Lang.lang(self.plugin, "help_custom_cmd_list_prefix"))
+        found = False
+        for k in self.plugin.commands.keys():
+            found = True
+            msg.append("  {}{}".format(self.plugin.prefix, k))
+
+        if not found:
+            msg.append(Lang.lang(self.plugin, "list_no_cmds"))
+
+        for msg in utils.paginate(msg, msg_prefix="```", msg_suffix="```"):
+            await ctx.send(msg)
+
+
 class Plugin(BasePlugin, name="Custom CMDs"):
     """Provides custom cmds"""
 
     def __init__(self, bot):
         super().__init__(bot)
         self.can_reload = True
-        bot.register(self)
+        self.help_category = CustomCMDHelpCategory(self)
+        bot.register(self, self.help_category)
 
         self.prefix = Config.get(self)['prefix']
         self.commands = {}
@@ -264,6 +294,12 @@ class Plugin(BasePlugin, name="Custom CMDs"):
         cmd_content = await self.commands[cmd_name].get_ran_formatted_text(self.bot, msg, cmd_args)
 
         await msg.channel.send(cmd_content)
+
+    async def command_help(self, ctx, command):
+        if not command.name == "cmd":
+            raise NotFound
+
+        await self.help_category.category_help(ctx)
 
     @commands.group(name="cmd", invoke_without_command=True, alias="bar",
                     help="Adds, list or (for admins) removes a custom command",

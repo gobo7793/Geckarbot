@@ -15,7 +15,11 @@
         "raw_prefix": "{}{} (Creator: {})\n",
         "text_id_not_positive": "The ID of a command text must be a positive number.",
         "text_id_not_exists": "A command text with the given ID doesn't exists.",
-        "del_perm_missing": "Only the original command creator or admins can delete commands or its texts."
+        "del_perm_missing": "Only the original command creator or admins can delete commands or its texts.",
+
+        "help_help": "Creates and manages custom commands.",
+        "help_cmd_list_prefix": "Commands:",
+        "help_custom_cmd_list_prefix": "The following commands exist:"
     },
     "de": {
         "raw_doesnt_exists": "Ein Benutzer-Kommando \"{}\" existiert nicht, erstell es doch einfach selbst!",
@@ -33,6 +37,10 @@
         "raw_prefix": "{}{} (Ersteller: {})\n",
         "text_id_not_positive": "Die ID eines Kommando-Ausgabetextes muss eine positive Zahl sein.",
         "text_id_not_exists": "Ein Kommando-Ausgabetext mit der angegebenen ID existiert nicht.",
-        "del_perm_missing": "Nur der Ersteller oder Admins können Kommandos oder ihre Ausgabetexte löschen."
+        "del_perm_missing": "Nur der Ersteller oder Admins können Kommandos oder ihre Ausgabetexte löschen.",
+
+        "help_help": "Erstellt und verwaltet Benutzer-Kommandos.",
+        "help_cmd_list_prefix": "Kommandos:",
+        "help_custom_cmd_list_prefix": "Folgende Benutzer-Kommandos sind vorhanden:"
     }
 }
