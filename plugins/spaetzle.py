@@ -1,4 +1,5 @@
 import calendar
+import logging
 from datetime import datetime, timedelta
 from enum import Enum
 from typing import Tuple
@@ -9,27 +10,6 @@ from discord.ext import commands
 from Geckarbot import BasePlugin
 from botutils import sheetsclient, restclient
 from conf import Storage, Lang
-
-teams = {
-    "FC Bayern München": "FCB",
-    "Borussia Dortmund": "BVB",
-    "Rasenballsport Leipzig": "LPZ",
-    "Bor. Mönchengladbach": "BMG",
-    "Bayer 04 Leverkusen": "LEV",
-    "TSG Hoffenheim": "HOF",
-    "VfL Wolfsburg": "WOB",
-    "SC Freiburg": "SCF",
-    "SG Eintracht Frankfurt": "SGE",
-    "Hertha BSC": "BSC",
-    "FC Union Berlin": "FCU",
-    "FC Schalke 04": "S04",
-    "FSV Mainz 05": "M05",
-    "1. FC Köln": "KOE",
-    "FC Augsburg": "FCA",
-    "SV Werder Bremen": "SVW",
-    "DSC Arminia Bielefeld": "DSC",
-    "VfB Stuttgart": "VFB"
-}
 
 
 class UserNotFound(Exception):
@@ -50,7 +30,9 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
         self.can_reload = True
         bot.register(self)
         Storage().save(self)
+        self.logger = logging.getLogger(__name__)
         self.matches = []
+        self.teamname_dict = self.build_teamname_dict()
 
     def default_storage(self):
         return {
@@ -72,7 +54,32 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                           "TN 67", "TN 68", "TN 69", "TN 70", "TN 71", "TN 72"],
             },
             'spaetzledoc_id': "1ZzEGP_J9WxJGeAm1Ri3er89L1IR1riq7PH2iKVDmfP8",
-            'discord_user_bridge': {}
+            'discord_user_bridge': {},
+            'teamnames': [
+                {'short_name': "FCB", 'long_name': "FC Bayern München", 'other': ["FC Bayern", "Bayern", "München"]},
+                {'short_name': "BVB", 'long_name': "Borussia Dortmund", 'other': ["Dortmund"]},
+                {'short_name': "LPZ", 'long_name': "Rasenballsport Leipzig",
+                 'other': ["Leipzig", "RB Leipzig", "RBL", "LEI"]},
+                {'short_name': "BMG", 'long_name': "Bor. Mönchengladbach",
+                 'other': ["Gladbach", "Borussia Mönchengladbach"]},
+                {'short_name': "LEV", 'long_name': "Bayer 04 Leverkusen",
+                 'other': ["Leverkusen", "Bayer Leverkusen", "B04"]},
+                {'short_name': "HOF", 'long_name': "TSG Hoffenheim",
+                 'other': ["Hoffenheim", "TSG 1899 Hoffenheim", "TSG"]},
+                {'short_name': "WOB", 'long_name': "VfL Wolfsburg", 'other': ["Wolfsburg", "VFL"]},
+                {'short_name': "SCF", 'long_name': "SC Freiburg", 'other': ["Freiburg"]},
+                {'short_name': "SGE", 'long_name': "Eintracht Frankfurt", 'other': ["Frankfurt", "Eintracht", "FRA"]},
+                {'short_name': "BSC", 'long_name': "Hertha BSC", 'other': ["Hertha"]},
+                {'short_name': "FCU", 'long_name': "1. FC Union Berlin", 'other': ["Union", "Berlin"]},
+                {'short_name': "S04", 'long_name': "FC Schalke 04", 'other': ["Schalke"]},
+                {'short_name': "M05", 'long_name': "1. FSV Mainz 05", 'other': ["Mainz", "FSV"]},
+                {'short_name': "KOE", 'long_name': "1. FC Köln", 'other': ["Köln", "FCK"]},
+                {'short_name': "FCA", 'long_name': "FC Augsburg", 'other': ["Augsburg"]},
+                {'short_name': "SVW", 'long_name': "SV Werder Bremen",
+                 'other': ["Bremen", "Werder", "Werder Bremen", "BRE"]},
+                {'short_name': "DSC", 'long_name': "Arminia Bielefeld", 'other': ["Bielefeld", "Arminia", "BIE"]},
+                {'short_name': "VFB", 'long_name': "VfB Stuttgart", 'other': ["Stuttgart", "STU"]}
+            ]
         }
 
     def spaetzle_conf(self):
@@ -80,6 +87,34 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
 
     def get_api_client(self):
         return sheetsclient.Client(self.spaetzle_conf()['spaetzledoc_id'])
+
+    def build_teamname_dict(self):
+        teamdict = {}
+        teamnames = self.spaetzle_conf()['teamnames']
+        for team in teamnames:
+            teamdict[team['short_name']] = team['long_name']
+            teamdict[team['long_name']] = team['short_name']
+        for team in teamnames:
+            for name in team['other']:
+                if len(name) > 3:
+                    # Long name
+                    result = teamdict.setdefault(name, team['short_name'])
+                    if result is not team['short_name']:
+                        self.logger.debug("{} is already noted with the abbreviation {}".format(name, result))
+                else:
+                    # Abbreviation
+                    result = teamdict.setdefault(name, team['long_name'])
+                    if result is not team['long_name']:
+                        self.logger.debug("{} is already noted with the name {}".format(name, result))
+        return teamdict
+
+    def convert_teamname(self, team):
+        """Switch between the short and long version of a team name"""
+        return self.teamname_dict.get(team, "???")
+
+    def get_teamname_standard(self, team):
+        """Returns the standardized long name or abbreviation"""
+        return self.teamname_dict[self.teamname_dict[team]]
 
     def get_user_cell(self, user):
         """
@@ -122,12 +157,6 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
         else:
             raise UserNotFound
 
-    def convert_team_name(self, team):
-        """
-        Switch between die short and long version of a team name
-        """
-        return teams[team]
-
     def get_bridged_user(self, user_id):
         """
         Bridge between a Discord user and a Spätzle participant
@@ -157,8 +186,13 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
         except ValueError:
             return MatchStatus.UNKNOWN
 
-    def valid_pred(self, pred: Tuple[str, str]):
-        return True if pred[0].isnumeric() and pred[1].isnumeric() else False
+    def valid_pred(self, pred: tuple):
+        try:
+            int(pred[0]), int(pred[1])
+        except ValueError:
+            return False
+        else:
+            return True
 
     def pred_reachable(self, score: Tuple[int, int], pred: Tuple[int, int]):
         return score[0] <= pred[0] and score[1] <= pred[1]
@@ -332,7 +366,8 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             oppo_predictions = Lang.lang(self, 'user_not_found')
             matches, preds_h = c.get_multiple([self.spaetzle_conf()['matches_range'],
                                                "Aktuell!{}:{}".format(c.cellname(col1, row1 + 1),
-                                                                      c.cellname(col1 + 1, row1 + 9))])
+                                                                      c.cellname(col1 + 1, row1 + 9))],
+                                              formatted=False)
             preds_a = [["–", "–"]] * 9
         else:
             # Opponent found
@@ -341,7 +376,8 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                                                         "Aktuell!{}:{}".format(c.cellname(col1, row1 + 1),
                                                                                c.cellname(col1 + 1, row1 + 9)),
                                                         "Aktuell!{}:{}".format(c.cellname(col2, row2 + 1),
-                                                                               c.cellname(col2 + 1, row2 + 9))])
+                                                                               c.cellname(col2 + 1, row2 + 9))],
+                                                       formatted=False)
         # Fixing stuff
         if len(matches) == 0:
             await ctx.send(Lang.lang(self, 'no_matches'))
@@ -370,8 +406,8 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
         match_str = ""
         for match in matches:
             emoji = self.match_status(datetime(1899, 12, 30) + timedelta(days=match[1] + match[2])).value
-            match_str += "{} {} {}:{} {}\n".format(emoji, self.convert_team_name(match[3]), match[4], match[5],
-                                                   self.convert_team_name(match[6]))
+            match_str += "{} {} {}:{} {}\n".format(emoji, self.convert_teamname(match[3]), match[4], match[5],
+                                                   self.convert_teamname(match[6]))
 
         user_predictions = ""
         for pred in preds_h:
