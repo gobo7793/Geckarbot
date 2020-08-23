@@ -6,7 +6,7 @@ from discord.ext import commands
 from datetime import datetime
 
 from base import BaseSubsystem
-from conf import Storage, PluginContainer, Lang
+from conf import Storage, ConfigurableContainer, Lang
 from botutils import utils
 from subsystems import timers
 
@@ -14,22 +14,16 @@ from subsystems import timers
 This subsystem provides the possibility to block certain commands, users or both.
 """
 
-lang = {
-    'en': {
-        'user_ignore_msg': "User {} will be ignored{}.",
-        'cmd_ignore_msg': "Command {} is disabled in channel {}{}.",
-        'user_cmd_ignore_msg': "User {} will be ignored for command {}{}.",
-        'until': "until {}",
-        'until_strf': "%Y-%m-%d, %-I:%M %p",
-    },
-    'de': {
-        'user_ignore_msg': "User {0} wird{1} ignoriert",
-        'cmd_ignore_msg': "Kommando {0} ist{2} im Channel {1} deaktiviert.",
-        'user_cmd_ignore_msg': "Kommando {1} ist{2} für User {0} deaktiviert",
-        'until': " bis {0}",
-        'until_strf': "%d.%m.%Y, %H:%M",
-    }
-}
+
+class UserBlockedCommand(Exception):
+    """
+    Will be raised if a user blocked the command.
+    Can be used for passive command checking.
+    """
+    def __init__(self, user:discord.User, command:str = ""):
+        self.user = user
+        self.command = command
+        super().__init__()
 
 
 class IgnoreType(enum.IntEnum):
@@ -214,7 +208,7 @@ class Ignoring(BaseSubsystem):
 
     def __init__(self, bot):
         super().__init__(bot)
-        bot.plugins.append(PluginContainer(self, True))
+        bot.plugins.append(ConfigurableContainer(self))
         self.log = logging.getLogger("ignoring")
 
         self.users = []
@@ -224,9 +218,6 @@ class Ignoring(BaseSubsystem):
         @bot.listen()
         async def on_ready():
             self._load()
-
-    def get_lang(self):
-        return lang
 
     def get_ignore_list(self, ignore_type: IgnoreType):
         """Gets the list for the given IgnoreType or None if for the type is no list available."""

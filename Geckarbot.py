@@ -14,8 +14,8 @@ from discord.ext import commands
 
 import injections
 from base import BasePlugin
-from conf import Config, PluginContainer, Lang, Storage
-from botutils import utils
+from conf import Config, ConfigurableContainer, Lang, Storage
+from botutils import utils, permChecks
 from subsystems import timers, reactions, ignoring, dmlisteners, help
 
 
@@ -65,9 +65,9 @@ class Geckarbot(commands.Bot):
         self.add_cog(plugin_object)
         self.geck_cogs.append(plugin_object)
 
-        self.plugins.append(PluginContainer(plugin_object, category=category))
+        self.plugins.append(ConfigurableContainer(plugin_object, category=category))
         self.configure(plugin_object)
-        logging.debug("Registered plugin {}".format(plugin_object.name()))
+        logging.debug("Registered plugin {}".format(plugin_object.get_name()))
 
     def plugin_objects(self, plugins_only=False):
         """
@@ -183,8 +183,11 @@ def main():
         @bot.event
         async def on_command_error(ctx, error):
             """Error handling for bot commands"""
+            # No command or ignoring list handling
             if isinstance(error, (commands.CommandNotFound, commands.DisabledCommand)):
                 return
+            if isinstance(error, ignoring.UserBlockedCommand):
+                await ctx.send("User {} has blocked the command.".format(utils.get_best_username(error.user)))
 
             # Check Failures
             elif isinstance(error, (commands.MissingRole, commands.MissingAnyRole)):
@@ -203,6 +206,8 @@ def main():
                 await ctx.send("Error on given argument: {}".format(error))
             elif isinstance(error, commands.UserInputError):
                 await ctx.send("Wrong user input format: {}".format(error))
+
+            # Other errors
             else:
                 # error handling
                 embed = discord.Embed(title=':x: Command Error', colour=0xe74c3c)  # Red
@@ -229,9 +234,7 @@ def main():
             return
 
         # debug mode whitelist
-        if (Config().DEBUG_MODE
-                and len(Config().DEBUG_WHITELIST) > 0
-                and message.author.id not in Config().DEBUG_WHITELIST):
+        if not permChecks.whitelist_check(message.author):
             return
 
         await bot.process_commands(message)

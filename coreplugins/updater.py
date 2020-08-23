@@ -9,7 +9,7 @@ from enum import Enum
 from discord.ext import commands
 
 import Geckarbot
-from base import BasePlugin
+from base import BasePlugin, ConfigurableType
 from botutils import restclient, utils, permChecks
 from conf import Config, Lang
 
@@ -268,16 +268,19 @@ class Plugin(BasePlugin, name="Bot updating system"):
         self.waiting_for_confirm = None
         bot.register(self)
 
+    def get_configurable_type(self):
+        return ConfigurableType.COREPLUGIN
+
     async def do_update(self, channel, tag):
         self.state = State.UPDATING
         await channel.send(lang["doing_update"].format(tag))
         for plugin in self.bot.plugin_objects():
             try:
-                await utils.write_debug_channel(self.bot, "Shutting down plugin {}".format(plugin.name()))
+                await utils.write_debug_channel(self.bot, "Shutting down plugin {}".format(plugin.get_name()))
                 await plugin.shutdown()
             except Exception as e:
                 msg = "{} while trying to shutdown plugin {}:\n{}".format(
-                    str(e), plugin.name(), traceback.format_exc()
+                    str(e), plugin.get_name(), traceback.format_exc()
                 )
                 await utils.write_debug_channel(self.bot, msg)
 
@@ -479,6 +482,6 @@ class Plugin(BasePlugin, name="Bot updating system"):
             return
         else:
             logging.getLogger(__name__).error(
-                "{}: PANIC! I am on {}, this should not happen!".format(self.name(), self.state))
+                "{}: PANIC! I am on {}, this should not happen!".format(self.get_name(), self.state))
             self.state = State.IDLE
             self.waiting_for_confirm = None

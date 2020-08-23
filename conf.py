@@ -3,7 +3,7 @@ import json
 import logging
 from enum import Enum
 from botutils import jsonUtils, converter
-from base import Configurable
+from base import Configurable, ConfigurableType
 
 
 class Const(Enum):
@@ -19,23 +19,19 @@ class _Singleton(type):
         return cls._instances[cls]
 
 
-class PluginContainer:
+class ConfigurableContainer:
     """
-    Contains basic data for plugins
+    Contains basic data for Configurables
     """
-    def __init__(self, instance: Configurable, is_subsystem=False, category=None):
+    def __init__(self, instance: Configurable, category=None):
         self.instance = instance
-        self.name = instance.__module__.rsplit(".", 1)[1]
+        self.name = instance.get_name()
         self.iodirs = {}
-        self.is_subsystem = is_subsystem
-        self.category = self.name
-        if category is not None:
-            self.category = category
+        self.type = instance.get_configurable_type()
+        self.category = self.name if category is None else category
 
-        if not is_subsystem:
+        if self.type == ConfigurableType.PLUGIN or self.type == ConfigurableType.COREPLUGIN:
             self.resource_dir = "{}/{}".format(Config().RESOURCE_DIR, self.name)
-
-
 
 
 class IODirectory(metaclass=_Singleton):
@@ -68,7 +64,7 @@ class IODirectory(metaclass=_Singleton):
     def has_structure(cls, plugin):
         cnt = converter.get_plugin_container(cls().bot, plugin)
         if cnt is None:
-            raise RuntimeError("PANIC: {} ({}) is not a registered plugin".format(plugin, plugin.name()))
+            raise RuntimeError("PANIC: {} ({}) is not a registered plugin".format(plugin, plugin.get_name()))
         if cls() not in cnt.iodirs or cnt.iodirs[cls()] is None:
             return False
         else:
@@ -80,7 +76,7 @@ class IODirectory(metaclass=_Singleton):
         :param plugin: Plugin object
         :return: Returns whether `plugin` has a file.
         """
-        return os.path.exists(cls()._filepath(plugin.name))
+        return os.path.exists(cls()._filepath(plugin.get_name))
 
     @classmethod
     def _filepath(cls, file_name):
@@ -89,7 +85,7 @@ class IODirectory(metaclass=_Singleton):
     def _write_file(self, file_name: str, config_data):
         """Writes the config to file_name.json and returns if successfull"""
         try:
-            with open(self._filepath(file_name), "w") as f:
+            with open(self._filepath(file_name), "w", encoding="utf-8") as f:
                 json.dump(config_data, f, cls=jsonUtils.Encoder, indent=4)
                 return True
         except (OSError, InterruptedError, OverflowError, ValueError, TypeError):
@@ -103,7 +99,7 @@ class IODirectory(metaclass=_Singleton):
             return None
         else:
             try:
-                with open(self._filepath(file_name), "r") as f:
+                with open(self._filepath(file_name), "r", encoding="utf-8") as f:
                     jsondata = json.load(f, cls=jsonUtils.Decoder)
                     return jsondata
             except (OSError, InterruptedError, json.JSONDecodeError):
@@ -299,11 +295,11 @@ class Lang(metaclass=_Singleton):
         lang = configurable.get_lang()
         if lang is None:
             try:
-                with open(Config().LANG_DIR + "/" + configurable.name() + ".json") as f:
+                with open(f"{Config().LANG_DIR}/{configurable.get_name()}.json", encoding="utf-8") as f:
                     lang = json.load(f)
             except Exception as e:
                 lang = {}
-                logging.error("Unable to load lang file from plugin: {} ({})".format(configurable.name(), e))
+                logging.error("Unable to load lang file from plugin: {} ({})".format(configurable.get_name(), e))
             pass
         cls()._cache[configurable] = lang
         return lang
