@@ -56,7 +56,7 @@ class Plugin(BasePlugin, name="Bot status commands for monitoring and debug purp
 
     @commands.command(name="configdump", help="Dumps plugin config", usage="<plugin name>")
     @commands.has_any_role(Config().BOTMASTER_ROLE_ID)
-    # NOTE: Will be invoked via "!dsc set config"
+    # NOTE: Will be invoked via "!dsc set config" and "!fantasy set config"
     async def configdump(self, ctx, name):
         plugin = converter.get_plugin_by_name(self.bot, name)
         if plugin is None:
