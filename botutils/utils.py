@@ -288,7 +288,22 @@ async def log_to_admin_channel(context):
     await write_admin_channel(context.bot, embed)
 
 
-def paginate(items, prefix="", suffix="", msg_prefix="", msg_suffix="", delimiter="\n", f=lambda x: x):
+def paginate(items, prefix="", suffix="", msg_prefix="", msg_suffix="", delimiter="\n", f=lambda x: x,
+             prefix_within_msg_prefix=True):
+    """
+    Generator for pagination. Compiles the entries in `items` into strings that are shorter than 2000 (discord max
+    message length). If a single item is longer than 2000, it is put into its own message.
+    :param items: List of items that are to be put into message strings
+    :param prefix: The first message has this prefix.
+    :param suffix: The last message has this suffix.
+    :param msg_prefix: Every message has this prefix.
+    :param msg_suffix: Every message has this suffix.
+    :param delimiter: Delimiter for the list entries.
+    :param f: function that is invoked on every `items` entry.
+    :param prefix_within_msg_prefix: If this is True, `msg_prefix` comes before `prefix` in the first message.
+    If not, `prefix` comes before `msg_prefix` in the first message.
+    :return:
+    """
     threshold = 1900
     current_msg = []
     remaining = None
@@ -305,7 +320,10 @@ def paginate(items, prefix="", suffix="", msg_prefix="", msg_suffix="", delimite
         # Build potential prefix and suffix of this message candidate
         _prefix = msg_prefix
         if first:
-            _prefix = prefix + msg_prefix
+            if prefix_within_msg_prefix:
+                _prefix = msg_prefix + prefix
+            else:
+                _prefix = prefix + msg_prefix
         _suffix = msg_suffix
         if i == len(items) - 1:
             _suffix = msg_suffix + suffix
@@ -334,60 +352,6 @@ def paginate(items, prefix="", suffix="", msg_prefix="", msg_suffix="", delimite
             current_msg = []
 
         i += 1
-
-
-def paginate_old(items, prefix="", suffix="", msg_prefix="", msg_suffix="", delimiter="\n", f=lambda x: x):
-    """
-    Generator for pagination. Compiles the entries in `items` into strings that are shorter than 2000 (discord max
-    message length). If a single item is longer than 2000, it is put into its own message. 
-    :param items: List of items that are to be put into message strings
-    :param prefix: The first message has this prefix.
-    :param suffix: The last message has this suffix.
-    :param msg_prefix: Every message has this prefix.
-    :param msg_suffix: Every message has this suffix.
-    :param delimiter: Delimiter for the list entries.
-    :param f: function that is invoked on every `items` entry.
-    :return: 
-    """
-    threshold = 1900
-    current_msg = []
-    first = True
-    for i in items:
-        to_add = str(f(i))
-        if len(to_add) > threshold:  # really really long entry
-            yield to_add
-            continue
-
-        if first:
-            first = False
-            to_add = prefix + to_add
-
-        # sum up current len
-        length = 0
-        for k in current_msg:
-            length += len(k) + len(delimiter)
-
-        if length + len(to_add) > threshold:
-            yield delimiter.join(current_msg)
-            current_msg = [msg_prefix + to_add]
-        else:
-            current_msg.append(to_add)
-
-    # Empty list
-    if first:
-        r = prefix + suffix
-        if r.strip() != "":
-            yield r
-
-    # Handle last msg
-    current_msg = delimiter.join(current_msg)
-    if len(current_msg) + len(suffix) > threshold:
-        yield current_msg
-        yield suffix
-    else:
-        r = current_msg + suffix
-        if not r.strip() == "":
-            yield r
 
 
 def sg_pl(number, singular, plural):

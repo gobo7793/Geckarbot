@@ -132,3 +132,20 @@ class Plugin(BasePlugin, name="Testing and debug things"):
     async def libmod(self, ctx):
         await ctx.send(str(view._quotes))
         await ctx.send(str(view._all_quotes))
+
+    @commands.command(name="cmdplugin")
+    async def cmdplugin(self, ctx, *args):
+        for plugin in self.bot.plugins:
+            if not isinstance(plugin.instance, BasePlugin):
+                continue
+            print("=======")
+            print("plugin: " + plugin.name)
+            for cmd in plugin.instance.get_commands():
+                print("  cmd name: {}".format(cmd.name))
+                print("    qualified name: " + cmd.qualified_name)
+                print("    signature: " + cmd.signature)
+                print("    parents: " + str(cmd.parents))
+                print("    help: " + str(cmd.help))
+                print("    description: " + str(cmd.description))
+                print("    brief: " + str(cmd.brief))
+                print("    usage: " + str(cmd.usage))

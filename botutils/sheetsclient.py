@@ -91,36 +91,36 @@ class Client(restclient.Client):
         """
         return self.number_to_column(col) + str(row)
 
-    def get(self, range) -> list:
+    def get(self, range, formatted: bool = True) -> list:
         """
         Reads a single range
         """
+        value_render_option = "FORMATTED_VALUE" if formatted else "UNFORMATTED_VALUE"
         if Config().GOOGLE_API_KEY:
             route = "{}/values/{}".format(self.spreadsheet_id, range)
-            response = self._make_request(route)
+            response = self._make_request(route, params=[('valueRenderOption', value_render_option)])
         else:
             response = self.get_service().spreadsheets().values().get(
-                spreadsheetId=self.spreadsheet_id, range=range).execute()
+                spreadsheetId=self.spreadsheet_id, range=range, valueRenderOption=value_render_option).execute()
             self.logger.debug("Response: {}".format(response))
 
         values = response.get('values', [])
         return values
 
-    def get_multiple(self, ranges) -> list:
+    def get_multiple(self, ranges, formatted: bool = True) -> list:
         """
         Reads multiple ranges
-
-        :param ranges: List of ranges
         """
+        value_render_option = "FORMATTED_VALUE" if formatted else "UNFORMATTED_VALUE"
         if Config().GOOGLE_API_KEY:
             route = "{}/values:batchGet".format(self.spreadsheet_id)
-            params = []
+            params = [('valueRenderOption', value_render_option)]
             for range in ranges:
                 params.append(("ranges", range))
             response = self._make_request(route, params=params)
         else:
             response = self.get_service().spreadsheets().values().batchGet(
-                spreadsheetId=self.spreadsheet_id, ranges=ranges).execute()
+                spreadsheetId=self.spreadsheet_id, ranges=ranges, valueRenderOption=value_render_option).execute()
             self.logger.debug("Response: {}".format(response))
 
         value_ranges = response.get('valueRanges', [])
@@ -129,19 +129,21 @@ class Client(restclient.Client):
             values.append(vrange.get('values', []))
         return values
 
-    def update(self, range, values) -> dict:
+    def update(self, range, values, raw: bool = True) -> dict:
         """
         Updates the content of a range
 
         :param range: range to update
         :param values: values as a matrix of cells
-        :return: number of updated cells
+        :param raw: whether valueInputOption should be 'raw'
+        :return: UpdateValuesResponse
         """
         data = {
             'values': values
         }
+        value_input_option = 'RAW' if raw else 'USER_ENTERED'
         response = self.get_service().spreadsheets().values().update(
-            spreadsheetId=self.spreadsheet_id, range=range, valueInputOption='RAW', body=data).execute()
+            spreadsheetId=self.spreadsheet_id, range=range, valueInputOption=value_input_option, body=data).execute()
         self.logger.debug("Response: {}".format(response))
         return response
 
@@ -171,18 +173,20 @@ class Client(restclient.Client):
         """
         raise NotImplemented
 
-    def append(self, range, values) -> dict:
+    def append(self, range, values, raw: bool = True) -> dict:
         """
         Appends values to a table (Warning: can maybe overwrite cells below the table)
 
         :param range: range to update
         :param values: values as a matrix of cells
-        :return: response with information about the updates
+        :param raw: whether valueInputOption should be 'raw'
+        :return: UpdateValuesResponse
         """
         data = {
             'values': values
         }
+        value_input_option = 'RAW' if raw else 'USER_ENTERED'
         response = self.get_service().spreadsheets().values().append(
-            spreadsheetId=self.spreadsheet_id, range=range, valueInputOption='RAW', body=data).execute()
+            spreadsheetId=self.spreadsheet_id, range=range, valueInputOption=value_input_option, body=data).execute()
         self.logger.debug("Response: {}".format(response))
         return response.get('updates', {})
