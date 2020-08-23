@@ -152,7 +152,7 @@ class CustomCMDHelpCategory(HelpCategory):
         self.plugin = plugin
         super().__init__("CustomCMD")
 
-    async def category_help(self, ctx):
+    async def send_category_help(self, ctx):
         # Command / category help
         msg = [
             Lang.lang(self.plugin, "help_help") + "\n",
@@ -293,7 +293,7 @@ class Plugin(BasePlugin, name="Custom CMDs"):
         if not command.name == "cmd":
             raise NotFound
 
-        await self.help_category.category_help(ctx)
+        await self.help_category.send_category_help(ctx)
 
     @commands.group(name="cmd", invoke_without_command=True, alias="bar",
                     help="Adds, list or (for admins) removes a custom command",
