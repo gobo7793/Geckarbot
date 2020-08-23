@@ -320,8 +320,8 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             self.matches.append({
                 'match_date_time': datetime.strptime(match.get('MatchDateTime', '0001-01-01T01:01:01'),
                                                      "%Y-%m-%dT%H:%M:%S"),
-                'team_home': match.get('Team1', {}).get('TeamName', 'n.a.'),
-                'team_away': match.get('Team2', {}).get('TeamName', 'n.a.'),
+                'team_home': self.get_teamname_standard(match.get('Team1', {}).get('TeamName', 'n.a.')),
+                'team_away': self.get_teamname_standard(match.get('Team2', {}).get('TeamName', 'n.a.')),
             })
 
         # Put matches into spreadsheet
