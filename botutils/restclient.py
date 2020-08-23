@@ -5,6 +5,7 @@ import urllib.request
 import urllib.error
 from urllib.parse import urlencode
 import base64
+import logging
 
 # Config #######
 verbose = False
@@ -68,6 +69,8 @@ class Client:
 
         self.decoder = json.JSONDecoder()
         self.encoder = json.JSONEncoder()
+
+        self.logger = logging.getLogger(__name__)
 
     @staticmethod
     def _normalize_url_part(part):
@@ -179,13 +182,13 @@ class Client:
             data = data.encode("utf-8")
             maskprint(self.decoder.decode(data.decode("utf-8")), prefix="data: ")
         else:
-            log("data: ")
+            self.logger.debug("data: ")
 
         if self.cookie is not None:
             headers_to_add.update(self.cookie)
 
         # base64 auth (initial use case: jira)
-        if self.auth is "basic":
+        if self.auth == "basic":
             auth = self.credentials["username"] + ":" + self.credentials["password"]
             auth = base64.encodebytes(auth.encode("utf-8"))
             auth = "Basic ".encode("utf-8") + auth
@@ -198,13 +201,14 @@ class Client:
         headers.update(headers_to_add)
 
         maskprint(headers, prefix="headers: ")
-        request = urllib.request.Request(self.url(endpoint=endpoint, appendix=appendix, params=params),
+        url = self.url(endpoint=endpoint, appendix=appendix, params=params)
+        request = urllib.request.Request(url,
                                          data=data, headers=headers, method=method)
-        log("url: {}".format(self.url(endpoint=endpoint, appendix=appendix, params=params)))
+        self.logger.debug("url: {}".format(url))
 
-        log("doing request")
+        self.logger.debug("doing request")
         response = urllib.request.urlopen(request).read().decode("utf-8")
-        log("Response: {}".format(response))
+        self.logger.debug("Response: {}".format(response))
 
         if parse_json:
             response = self.parse_response(response)

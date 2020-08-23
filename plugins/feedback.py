@@ -3,15 +3,10 @@ from copy import deepcopy
 import discord.utils
 from discord.ext import commands
 
-from Geckarbot import BasePlugin
-from conf import Config
-from botutils import utils, permChecks
+from base import BasePlugin
+from conf import Storage, Config, Lang
+from botutils import utils
 
-
-lang = {
-    "complaint_received": "Complaint received. Please hold the line! A human will contact you soon. Maybe.",
-    "complaint_removed": "Complaint #{} removed.",
-}
 
 def str_keys_to_int(d):
     """
@@ -83,28 +78,39 @@ class Complaint:
         return r
 
 
+def to_msg(el: Complaint):
+    return el.to_message()
+
+
 class Plugin(BasePlugin, name="Feedback"):
     def __init__(self, bot):
         super().__init__(bot)
         bot.register(self)
 
-        self.storage = Config().get(self)
+        self.storage = Storage.get(self)
         self.complaints = {}
         self.highest_id = None
 
         # Load complaints from storage
         if self.storage is None:
-            self.storage = deepcopy(self.default_config())
+            self.storage = deepcopy(self.default_storage())
         else:
+            print("Feedback storage: {}".format(self.storage))
             str_keys_to_int(self.storage["complaints"])
         for cid in self.storage["complaints"]:
             self.complaints[cid] = Complaint.deserialize(self.bot, cid, self.storage["complaints"][cid])
 
+        # Migration 1.7 -> 1.8
+        if "bugscore" not in self.storage:
+            self.storage["bugscore"] = {}
+            Storage.save(self)
+
         self.get_new_id(init=True)
 
-    def default_config(self):
+    def default_storage(self):
         return {
-            "complaints": {}
+            "complaints": {},
+            "bugscore": {},
         }
 
     def get_new_id(self, init=False):
@@ -123,50 +129,167 @@ class Plugin(BasePlugin, name="Feedback"):
             return self.highest_id
 
     def write(self):
-        r = deepcopy(self.default_config())
+        r = {}
         for el in self.complaints:
             complaint = self.complaints[el]
-            r["complaints"][complaint.id] = complaint.serialize()
-        Config().set(self, r)
-        Config().save(self)
+            r[complaint.id] = complaint.serialize()
+        Storage.get(self)["complaints"] = r
+        Storage.save(self)
 
-    @commands.command(name="redact", help="Redacts the list of complaints (i.e. read and delete)", usage="[del x]",
-                      description="Returns the accumulated feedback. Use [del x] to delete feedback #x.")
+    @commands.group(name="redact", invoke_without_command=True,
+                    help="Redacts the list of complaints (i.e. read and delete)", usage="[del x]",
+                    description="Returns the accumulated feedback. Use [del x] to delete feedback #x.")
     @commands.has_any_role(Config().ADMIN_ROLE_ID, Config().BOTMASTER_ROLE_ID)
-    async def redact(self, ctx, *args):
-        # Argument parsing / delete subcmd
-        if len(args) == 2:
-            error = False
-            if args[0] != "del":
-                error = True
-            try:
-                i = int(args[1])
-            except (ValueError, TypeError):
-                error = True
-            if error:
-                await ctx.message.channel.send("Unexpected argument structure; expected !redact or !redact del #")
-                return
-            del self.complaints[i]
-            await ctx.send(lang['complaint_removed'].format(i))
-            self.write()
-            return
-
+    async def redact(self, ctx):
         # Printing complaints
         if len(self.complaints) == 0:
-            await ctx.message.channel.send("No complaints.")
+            await ctx.send(Lang.lang(self, "redact_no_complaints"))
             return
+
+        msgs = utils.paginate([el for el in self.complaints.values()],
+                              prefix=Lang.lang(self, "redact_title"), delimiter="\n\n", msg_prefix="_ _\n", f=to_msg)
+        for el in msgs:
+            await ctx.send(el)
+
+    @redact.command(name="del", help="Deletes a complaint", usage="<#>")
+    async def delete(self, ctx, complaint: int):
+        # Delete
+        try:
+            del self.complaints[complaint]
+        except KeyError:
+            await ctx.message.add_reaction(Lang.CMDERROR)
+            await ctx.send(Lang.lang(self, "redact_del_not_found", complaint))
+            return
+        # await ctx.send(lang['complaint_removed'].format(i))
+        await ctx.message.add_reaction(Lang.CMDSUCCESS)
+        self.write()
+
+    @redact.command(name="search", help="Finds all complaints that contain all search terms", usage="<search terms>")
+    async def search(self, ctx, *args):
+        if len(args) == 0:
+            await ctx.message.add_reaction(Lang.CMDERROR)
+            await ctx.send(Lang.lang(self, "redact_search_args"))
+            return
+
         r = []
-        for el in self.complaints:
-            r.append(self.complaints[el].to_message())
-        await ctx.message.channel.send("**Complaints:**\n{}".format("\n\n".join(r)))
+        for i in self.complaints:
+            complaint = self.complaints[i]
+            found = True
+            for searchterm in args:
+                # Search check
+                if searchterm.lower() not in complaint.to_message().lower():
+                    found = False
+                    break
+            if not found:
+                continue
+
+            # Search result
+            r.append(complaint)
+
+        if not r:
+            await ctx.send(Lang.lang(self, "redact_search_not_found"))
+            return
+
+        msgs = utils.paginate(r, prefix=Lang.lang(self, "redact_search_title"), delimiter="\n\n", f=to_msg)
+        for el in msgs:
+            await ctx.send(el)
 
     @commands.command(name="complain", help="Takes a complaint and stores it", usage="<message>",
-                      description="Delivers a feedback message."
-                                  " The admins and botmasters can then read the accumulated feedback."
-                                  " The bot saves the feedback author, the message and a link to the message for context.")
+                      description="Delivers a feedback message. "
+                                  "The admins and botmasters can then read the accumulated feedback. "
+                                  "The bot saves the feedback author, "
+                                  "the message and a link to the message for context.")
     async def complain(self, ctx, *args):
         msg = ctx.message
         complaint = Complaint.from_message(self, msg)
         self.complaints[complaint.id] = complaint
-        await msg.channel.send(lang["complaint_received"])
+        await ctx.message.add_reaction(Lang.CMDSUCCESS)
+        # await msg.channel.send(lang["complaint_received"])
         self.write()
+
+    """
+    Bugscore
+    """
+
+    async def bugscore_show(self, ctx):
+        users = sorted(
+            sorted(
+                [(utils.get_best_username(discord.utils.get(self.bot.guild.members, id=user)), n) for (user, n) in
+                 self.storage["bugscore"].items()],
+                key=lambda x: x[0].lower()),
+            key=lambda x: x[1],
+            reverse=True
+        )
+        lines = ["{}: {}".format(user, p) for (user, p) in users]
+        for msg in utils.paginate(lines, prefix="{}\n".format(Storage.lang(self, "bugscore_title"))):
+            await ctx.send(msg)
+
+    async def bugscore_del(self, ctx, user):
+        if discord.utils.get(ctx.author.roles, id=Config().BOTMASTER_ROLE_ID) is None:
+            await ctx.message.add_reaction(Lang.CMDNOPERMISSIONS)
+            return
+        try:
+            user = await commands.MemberConverter().convert(ctx, user)
+        except (commands.CommandError, IndexError):
+            await ctx.send(Lang.lang(self, "bugscore_user_not_found", user))
+            await ctx.message.add_reaction(Lang.CMDERROR)
+            return
+
+        if user.id in self.storage["bugscore"]:
+            del self.storage["bugscore"][user.id]
+            Storage.save(self)
+            await ctx.message.add_reaction(Lang.CMDSUCCESS)
+        else:
+            await ctx.message.add_reaction(Lang.CMDNOCHANGE)
+
+    @commands.has_any_role(Config().BOTMASTER_ROLE_ID)
+    async def bugscore_increment(self, ctx, user, increment):
+        if discord.utils.get(ctx.author.roles, id=Config().BOTMASTER_ROLE_ID) is None:
+            await ctx.message.add_reaction(Lang.CMDNOPERMISSIONS)
+            return
+
+        # find user
+        try:
+            user = await commands.MemberConverter().convert(ctx, user)
+        except (commands.CommandError, IndexError):
+            await ctx.send(Lang.lang(self, "bugscore_user_not_found", user))
+            await ctx.message.add_reaction(Lang.CMDERROR)
+            return
+
+        try:
+            increment = int(increment)
+        except (ValueError, TypeError):
+            await ctx.send(Lang.lang(self, "bugscore_nan", increment))
+            await ctx.message.add_reaction(Lang.CMDERROR)
+            return
+
+        if user.id in self.storage["bugscore"]:
+            self.storage["bugscore"][user.id] += increment
+        else:
+            self.storage["bugscore"][user.id] = increment
+        if self.storage["bugscore"][user.id] <= 0:
+            del self.storage["bugscore"][user.id]
+        Storage.save(self)
+        await ctx.message.add_reaction(Lang.CMDSUCCESS)
+
+    @commands.command(name="bugscore", help="High score for users who found bugs",
+                      description="Shows the current bug score.\n\n"
+                                  "Admins:\n!bugscore <user> [increment]\n!bugscore del <user>")
+    async def bugscore(self, ctx, *args):
+        if len(args) == 0:
+            await self.bugscore_show(ctx)
+            return
+
+        if len(args) == 2 and args[0] == "del":
+            await self.bugscore_del(ctx, args[1])
+            return
+
+        increment = 1
+        if len(args) == 2:
+            increment = args[1]
+
+        if len(args) > 2:
+            await ctx.send(Lang.lang(self, "bugscore_args"))
+            return
+
+        await self.bugscore_increment(ctx, args[0], increment)

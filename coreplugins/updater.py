@@ -2,15 +2,16 @@ import string
 import logging
 import traceback
 import os
-import sys
 import asyncio
+import re
 from enum import Enum
 
 from discord.ext import commands
 
 import Geckarbot
+from base import BasePlugin, ConfigurableType
 from botutils import restclient, utils, permChecks
-from conf import Config
+from conf import Config, Lang
 
 # Assumed version numbering system:
 # 2.3.1
@@ -28,8 +29,6 @@ ENDPOINT = "repos/{}/{}/releases".format(OWNER, REPO)
 # these values are coordinated with runscript.sh
 TAGFILE = ".update"
 ERRORCODE = "FAILURE"
-SHUTDOWNCODE = 0
-UPDATECODE = 10
 
 lang = {
     "version": "I am Geckarbot {}.",
@@ -256,7 +255,7 @@ class State(Enum):
     UPDATING = 4
 
 
-class Plugin(Geckarbot.BasePlugin, name="Bot updating system"):
+class Plugin(BasePlugin, name="Bot updating system"):
     def __init__(self, bot):
         super().__init__(bot)
         self.bot = bot
@@ -269,24 +268,26 @@ class Plugin(Geckarbot.BasePlugin, name="Bot updating system"):
         self.waiting_for_confirm = None
         bot.register(self)
 
+    def get_configurable_type(self):
+        return ConfigurableType.COREPLUGIN
+
     async def do_update(self, channel, tag):
         self.state = State.UPDATING
         await channel.send(lang["doing_update"].format(tag))
         for plugin in self.bot.plugin_objects():
-            pname = self.bot.plugin_name(plugin)
             try:
-                await utils.write_debug_channel(self.bot, "Shutting down plugin {}".format(pname))
+                await utils.write_debug_channel(self.bot, "Shutting down plugin {}".format(plugin.get_name()))
                 await plugin.shutdown()
             except Exception as e:
                 msg = "{} while trying to shutdown plugin {}:\n{}".format(
-                    str(e), pname, traceback.format_exc()
+                    str(e), plugin.get_name(), traceback.format_exc()
                 )
                 await utils.write_debug_channel(self.bot, msg)
 
         await self.bot.close()
         with open(TAGFILE, "w") as f:
             f.write(tag)
-        sys.exit(UPDATECODE)  # This signals the runscript
+        await self.bot.shutdown(Geckarbot.Exitcodes.UPDATE)  # This signals the runscript
 
     def get_releases(self):
         r = self.client.make_request(ENDPOINT)
@@ -320,16 +321,30 @@ class Plugin(Geckarbot.BasePlugin, name="Bot updating system"):
         """
         if version is None:
             version = Config().VERSION
-        found = False
+        ver = None
+        body = None
         for el in self.get_releases():
             ver = sanitize_version_s(el["tag_name"])
             logging.getLogger(__name__).debug("Comparing versions: {} and {}".format(Config().VERSION, ver))
             if is_equal(sanitize_version_s(version), ver):
-                found = True
-                await channel.send("{}:\n{}".format(ver, el["body"]))
+                body = el["body"]
+                break
 
-        if not found:
+        if body is None:
             await channel.send(lang["err_no_news_for_version"].format(version))
+            return
+
+        # Make headlines great again!
+        lines = []
+        p = re.compile(r"\s*#+\s*(.*)")
+        for el in body.split("\n"):
+            m = p.match(el)
+            if m:
+                el = "**{}**".format(m.groups()[0])
+            lines.append(el)
+
+        for page in utils.paginate(lines, prefix="**Version {}:**\n".format(ver), msg_prefix="_ _\n", delimiter=""):
+            await channel.send(page)
 
     async def was_i_updated(self):
         """
@@ -337,7 +352,6 @@ class Plugin(Geckarbot.BasePlugin, name="Bot updating system"):
         Does not delete TAGFILE if it had unexpected content.
         :return: True if there was a successful update, False if not
         """
-
         try:
             f = open(TAGFILE)
         except FileNotFoundError:
@@ -385,6 +399,18 @@ class Plugin(Geckarbot.BasePlugin, name="Bot updating system"):
         """Returns the version"""
         await ctx.send(lang["version"].format(Config().VERSION))
 
+    @commands.command(name="restart", help="Restarts the bot.")
+    @commands.has_any_role(Config().BOTMASTER_ROLE_ID)
+    async def restart(self, ctx):
+        await ctx.message.add_reaction(Lang.CMDSUCCESS)
+        await self.bot.shutdown(Geckarbot.Exitcodes.RESTART)  # This signals the runscript
+
+    @commands.command(name="shutdown", help="Stops the bot.")
+    @commands.has_any_role(Config().BOTMASTER_ROLE_ID)
+    async def shutdowncmd(self, ctx):
+        await ctx.message.add_reaction(Lang.CMDSUCCESS)
+        await self.bot.shutdown(Geckarbot.Exitcodes.SUCCESS)  # This signals the runscript
+
     @commands.command(name="replace", help="Confirms an !update command.")
     async def confirm(self, ctx):
         # Check if there is an update request running
@@ -398,26 +424,23 @@ class Plugin(Geckarbot.BasePlugin, name="Bot updating system"):
             return
 
         await utils.log_to_admin_channel(self.to_log)
+        await ctx.message.add_reaction(Lang.CMDSUCCESS)
         self.to_log = None
         self.state = State.CONFIRMED
 
-    @commands.command(name="update", help="Updates the bot if an update is available", usage="[check]",
+    @commands.command(name="update", help="Updates the bot if an update is available",
                       description="Updates the Bot to the newest version (if available)."
-                                   " This includes a shutdown, so be careful.")
-    async def update(self, ctx, *args):
+                                  " This includes a shutdown, so be careful.")
+    async def update(self, ctx, check=None):
         # Argument parsing
-        if "check" in args and len(args) == 1:
+        if not permChecks.check_full_access(ctx.author) or check == "check":
             release = self.check_release()
+            await ctx.message.add_reaction(Lang.CMDSUCCESS)
             if release is None:
                 await ctx.message.channel.send(lang["no_new_version"])
             else:
                 await ctx.message.channel.send(lang["new_version"].format(release))
             return
-        elif len(args) != 0:
-            return
-
-        if not permChecks.check_full_access(ctx.author):
-            raise commands.MissingAnyRole([Config().ADMIN_ROLE_ID, Config().BOTMASTER_ROLE_ID])
 
         # Check state and send error messages if necessary
         if self.state == State.CHECKING or self.state == State.CONFIRMED or self.state == State.UPDATING:
@@ -438,6 +461,7 @@ class Plugin(Geckarbot.BasePlugin, name="Bot updating system"):
             await ctx.message.channel.send(lang["wont_update"])
             self.state = State.IDLE
             return
+        await ctx.message.add_reaction(Lang.CMDSUCCESS)
         await ctx.message.channel.send(lang["new_version_update"].format(release))
 
         # Ask for confirmation
@@ -458,6 +482,6 @@ class Plugin(Geckarbot.BasePlugin, name="Bot updating system"):
             return
         else:
             logging.getLogger(__name__).error(
-                "{}: PANIC! I am on {}, this should not happen!".format(self.bot.plugin_name(self), self.state))
+                "{}: PANIC! I am on {}, this should not happen!".format(self.get_name(), self.state))
             self.state = State.IDLE
             self.waiting_for_confirm = None

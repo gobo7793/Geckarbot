@@ -4,7 +4,8 @@ import logging
 import discord
 from discord.ext import commands
 
-from Geckarbot import BasePlugin
+from base import BasePlugin
+from subsystems import help
 
 return_code = {
     "error": 0,
@@ -28,9 +29,9 @@ class Plugin(BasePlugin, name="A simple number guessing game"):
         self.games_channel    = {}
 
         super().__init__(bot)
-        bot.register(self)
+        bot.register(self, help.DefaultCategories.GAMES)
 
-    def default_config(self):
+    def default_storage(self):
         return {}
 
     @commands.group(name="guess", help="Guess a number",
@@ -84,9 +85,6 @@ class Plugin(BasePlugin, name="A simple number guessing game"):
                     first_line = False
                 message = message + line
             if len(message) > 0:
-                test = [message]
-                test.append("blubb")
-                print(test)
                 await msg.send(message)
 
         else:
@@ -142,14 +140,10 @@ class Plugin(BasePlugin, name="A simple number guessing game"):
                 elif channel_id in self.games_channel:
                     del self.games_channel[channel_id]
 
-
-
     def start_single(self, user_id):
         game = NumberGuessing(single_game)
         self.games_user[user_id] = game
         return game
-
-
 
     def start_channel(self, channel_id):
         # logging.info("Starting Channelgame: {}".format(channel_game))
@@ -157,12 +151,9 @@ class Plugin(BasePlugin, name="A simple number guessing game"):
         self.games_channel[channel_id] = game
         return game
 
-
-
     def append_channel_games(self, channel_id = None):
         ind = int(1)
-        text = []
-        text.append("**Channel games**")
+        text = ["**Channel games**"]
 
         if channel_id is None:
             for channel_id in self.games_channel.keys():
@@ -175,18 +166,15 @@ class Plugin(BasePlugin, name="A simple number guessing game"):
                 name = str(self.bot.get_channel(channel_id))
                 game = self.games_channel[channel_id]
                 text.append(self.format_line(name, game))
-                ind +=1
+                ind += 1
         if ind == 1:
             text.append("currently no active games")
 
         return text
 
-
-
     def append_user_games(self, user_id = None):
         ind = int(1)
-        text = []
-        text.append("**Single games**")
+        text = ["**Single games**"]
 
         if user_id is None:
             for user_id in self.games_user.keys():
@@ -205,8 +193,6 @@ class Plugin(BasePlugin, name="A simple number guessing game"):
 
         return text
 
-
-
     def format_line(self, name, game, ind = int(0)):
         tries   = game.get_tries()
         minimum = game.get_min()
@@ -217,8 +203,6 @@ class Plugin(BasePlugin, name="A simple number guessing game"):
             line = line + "{}: ".format(ind)
         line = line + "{} (Tries: **{}**, Minimum: **{}**, Maximum: **{}**, Range: **{}** possibilities)".format(name, tries, minimum, maximum, amount)
         return line
-
-
 
 
 class NumberGuessing:
@@ -266,7 +250,7 @@ class NumberGuessing:
                 if self.isPlaying is False:
                     await self.start()
                     ret = return_code["game continuing"]
-                if guess < 1:
+                if guess < 1:  # @Dubsi das hier stirbt wenn guess == None
                     guess = 0
                 if guess == 0:
                     await self.send_message("Please enter a number starting from 1!")
