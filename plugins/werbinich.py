@@ -9,6 +9,7 @@ from discord.http import HTTPException
 from Geckarbot import BasePlugin
 from conf import Lang
 from botutils import utils, statemachine
+from subsystems import help
 
 
 jsonify = {
@@ -105,7 +106,7 @@ class Participant:
 class Plugin(BasePlugin, name="Wer bin ich?"):
     def __init__(self, bot):
         super().__init__(bot)
-        bot.register(self)
+        bot.register(self, help.DefaultCategories.GAMES)
         self.logger = logging.getLogger(__name__)
         self.config = jsonify
 

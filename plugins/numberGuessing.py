@@ -5,6 +5,7 @@ import discord
 from discord.ext import commands
 
 from base import BasePlugin
+from subsystems import help
 
 return_code = {
     "error": 0,
@@ -28,7 +29,7 @@ class Plugin(BasePlugin, name="A simple number guessing game"):
         self.games_channel    = {}
 
         super().__init__(bot)
-        bot.register(self)
+        bot.register(self, help.DefaultCategories.GAMES)
 
     def default_storage(self):
         return {}

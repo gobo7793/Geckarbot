@@ -8,7 +8,7 @@ from discord.ext import commands
 from base import BasePlugin
 from conf import Storage, Config, Lang
 from botutils import utils, permChecks
-from subsystems import reactions
+from subsystems import reactions, help
 
 
 async def add_user_role(member: discord.Member, role: discord.Role):
@@ -65,7 +65,7 @@ class Plugin(BasePlugin, name="Role Management"):
     def __init__(self, bot):
         super().__init__(bot)
         self.can_reload = True
-        bot.register(self)
+        bot.register(self, help.DefaultCategories.MOD)
 
         async def get_init_msg_data():
             if self.has_init_msg_set():
