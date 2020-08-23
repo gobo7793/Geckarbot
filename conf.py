@@ -95,14 +95,13 @@ class IODirectory(metaclass=_Singleton):
     def _read_file(self, file_name: str):
         """Reads the file_name.json and returns the content or None if errors"""
         if not os.path.exists(self._filepath(file_name)):
-            logging.info(f"Config file {self._filepath(file_name)}.json not found.")
             return None
         else:
             try:
                 with open(self._filepath(file_name), "r", encoding="utf-8") as f:
                     jsondata = json.load(f, cls=jsonUtils.Decoder)
                     return jsondata
-            except (OSError, InterruptedError, json.JSONDecodeError):
+            except (IsADirectoryError, OSError, InterruptedError, json.JSONDecodeError):
                 logging.error(f"Error reading {self._filepath(file_name)}.json.")
                 return None
 
@@ -297,9 +296,12 @@ class Lang(metaclass=_Singleton):
             try:
                 with open(f"{Config().LANG_DIR}/{configurable.get_name()}.json", encoding="utf-8") as f:
                     lang = json.load(f)
+            except (IsADirectoryError, FileNotFoundError, PermissionError, OSError):
+                lang = {}
             except Exception as e:
                 lang = {}
-                logging.error("Unable to load lang file from plugin: {} ({})".format(configurable.get_name(), e))
+                logging.error("Uncaught exception while loading lang file from plugin {}: {}"
+                              .format(configurable.get_name(), e))
             pass
         cls()._cache[configurable] = lang
         return lang
