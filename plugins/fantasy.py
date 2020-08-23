@@ -3,7 +3,7 @@ import discord
 
 from datetime import datetime
 from discord.ext import commands
-from conf import Config
+from conf import Config, Storage, Lang
 from botutils import utils, permChecks
 from Geckarbot import BasePlugin
 
@@ -40,10 +40,10 @@ class Plugin(BasePlugin, name="NFL Fantasyliga"):
         }
 
     def fantasy_conf(self):
-        return Config().get(self)
+        return Storage.get(self)
 
     def fantasy_lang(self, str_name, *args):
-        return Config().lang(self, str_name, *args)
+        return Lang.lang(self, str_name, *args)
 
 
     @commands.group(name="fantasy", help="Get and manage informations about the NFL Fantasy Game",
