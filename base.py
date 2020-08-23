@@ -2,7 +2,17 @@ from enum import Enum
 from discord.ext.commands import Cog
 
 
+class NotLoadable(Exception):
+    """
+    Raised by plugins to signal that it was unable to load correctly.
+    """
+    pass
+
+
 class NotFound(Exception):
+    """
+    Raised by override methods to signal that the method was not overridden.
+    """
     pass
 
 

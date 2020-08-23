@@ -5,7 +5,7 @@ import discord
 import emoji
 from discord.ext import commands
 
-from base import BasePlugin
+from base import BasePlugin, NotLoadable
 from conf import Storage, Config, Lang
 from botutils import utils, permChecks
 from subsystems import reactions, help
@@ -65,6 +65,10 @@ class Plugin(BasePlugin, name="Role Management"):
     def __init__(self, bot):
         super().__init__(bot)
         self.can_reload = True
+
+        if 'announcements' not in Config().CHAN_IDS:
+            raise NotLoadable("Announcements channel is not configured")
+
         bot.register(self, help.DefaultCategories.MOD)
 
         async def get_init_msg_data():
