@@ -6,10 +6,11 @@ import logging
 import discord
 from discord.ext import commands
 
-from base import BasePlugin
+from base import BasePlugin, NotFound
 from conf import Storage, Lang, Config
 from botutils import utils, converter, permChecks
 from subsystems.ignoring import UserBlockedCommand
+from subsystems.help import HelpCategory
 
 
 wildcard_user = "%u"
@@ -146,13 +147,36 @@ class Cmd:
         return cmd_content
 
 
+class CustomCMDHelpCategory(HelpCategory):
+    def __init__(self, plugin):
+        self.plugin = plugin
+        super().__init__("CustomCMD")
+
+    async def category_help(self, ctx):
+        # Command / category help
+        msg = [
+            Lang.lang(self.plugin, "help_help") + "\n",
+            Lang.lang(self.plugin, "help_cmd_list_prefix"),
+        ]
+        msg += self.plugin.bot.helpsys.flattened_plugin_help(self.plugin)
+
+        # Custom command list
+        msg.append("")
+        msg.append(Lang.lang(self.plugin, "help_custom_cmd_list_prefix"))
+        msg += self.plugin.format_cmd_list(incl_prefix=True)
+
+        for msg in utils.paginate(msg, msg_prefix="```", msg_suffix="```"):
+            await ctx.send(msg)
+
+
 class Plugin(BasePlugin, name="Custom CMDs"):
     """Provides custom cmds"""
 
     def __init__(self, bot):
         super().__init__(bot)
         self.can_reload = True
-        bot.register(self)
+        self.help_category = CustomCMDHelpCategory(self)
+        bot.register(self, self.help_category)
 
         self.prefix = Config.get(self)['prefix']
         self.commands = {}
@@ -265,13 +289,19 @@ class Plugin(BasePlugin, name="Custom CMDs"):
 
         await msg.channel.send(cmd_content)
 
+    async def command_help(self, ctx, command):
+        if not command.name == "cmd":
+            raise NotFound
+
+        await self.help_category.category_help(ctx)
+
     @commands.group(name="cmd", invoke_without_command=True, alias="bar",
                     help="Adds, list or (for admins) removes a custom command",
                     description="Adds, list or removes a custom command. Custom commands can be added and removed in "
                                 "runtime. To use a custom command, the message must start with the setted prefix, "
                                 "which can be returned using the prefix subcommand.")
     async def cmd(self, ctx):
-        await ctx.send_help(self.cmd)
+        await self.bot.helpsys.cmd_help(ctx, self, ctx.command)
 
     @cmd.command(name="prefix", help="Returns or sets the prefix",
                  description="Returns or sets the custom command prefix. Only admins can set a new prefix which "
@@ -296,11 +326,10 @@ class Plugin(BasePlugin, name="Custom CMDs"):
             self.save()
             await ctx.message.add_reaction(Lang.CMDSUCCESS)
 
-    @cmd.command(name="list", help="Lists all custom commands.",
-                 descripton="Lists all custom commands. Argument full gives more information about the commands.")
-    async def cmd_list(self, ctx, full=""):
+    def format_cmd_list(self, full="", incl_prefix=False):
         cmds = []
         suffix = Lang.lang(self, 'list_suffix') if full else ""
+        prefix = self.prefix if incl_prefix else ""
 
         for k in self.commands.keys():
             if full:
@@ -308,18 +337,24 @@ class Plugin(BasePlugin, name="Custom CMDs"):
                 for t in self.commands[k].texts:
                     arg_list = arg_list_re.findall(t)
                     arg_lens.append(len(arg_list))
-                cmds.append(Lang.lang(self, 'list_full_data', k, len(self.commands[k].texts), max(arg_lens)))
+                cmds.append(Lang.lang(self, 'list_full_data', prefix, k, len(self.commands[k].texts), max(arg_lens)))
 
             else:
-                cmds.append(k)
+                cmds.append("{}{}".format(prefix, k))
 
         if not cmds:
-            await ctx.send(Lang.lang(self, 'list_no_cmds'))
-            return
+            cmds = [Lang.lang(self, 'list_no_cmds')]
 
         cmds.sort(key=str.lower)
-        cmd_msgs = utils.paginate(cmds, delimiter=", ", suffix=suffix)
-        for msg in cmd_msgs:
+        cmds = utils.paginate(cmds, delimiter=", ", suffix=suffix)
+        return cmds
+
+    @cmd.command(name="list", help="Lists all custom commands.",
+                 descripton="Lists all custom commands. Argument full gives more information about the commands.")
+    async def cmd_list(self, ctx, full=""):
+        cmds = self.format_cmd_list(full=full)
+
+        for msg in cmds:
             await ctx.send(msg)
 
     @cmd.command(name="info", help="Gets full info about a command")

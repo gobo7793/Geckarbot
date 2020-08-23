@@ -1,18 +1,28 @@
 {
   "en": {
-    "help_pre_text": "!help <category> for help on a category",
+    "help_categories_prefix": "!help <category> for help on a category.\n\nCategories:",
+    "help_category_prefix": "Category {}:",
+    "help_subcommands_prefix": "Subcommands:",
 
     "default_category_misc": "Misc",
+    "default_category_admin": "Admin",
+    "default_category_mod": "Mod",
     "default_category_games": "Games",
 
-    "cmd_not_found": "Command not found."
+    "cmd_not_found": "Command not found.",
+    "cmd_cat_not_found": "Command or category not found."
   },
   "de": {
-    "help_pre_text": "!help <Kategorie> für Hilfe zu einer Kategorie.",
+    "help_categories_prefix": "!help <Kategorie> für Hilfe zu einer Kategorie.\n\nKategorien:",
+    "help_category_prefix": "!kommando zum Ausführen eines Kommandos.\n!help kommando für Hilfe zu einem Kommando.\n\nKategorie {} hat folgende Kommandos:",
+    "help_subcommands_prefix": "Unterkommandos:",
 
     "default_category_misc": "Sonstiges",
+    "default_category_admin": "Botmaster",
+    "default_category_mod": "Mod",
     "default_category_games": "Spiele",
 
-    "cmd_not_found": "Kommando nicht gefunden."
+    "cmd_not_found": "Kommando nicht gefunden.",
+    "cmd_cat_not_found": "Kategorie oder Kommando nicht gefunden."
   }
 }
