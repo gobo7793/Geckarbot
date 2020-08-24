@@ -4,7 +4,7 @@ import discord
 from datetime import datetime
 from discord.ext import commands
 from conf import Config, Storage, Lang
-from botutils import utils, permChecks
+from botutils import utils, permchecks
 from Geckarbot import BasePlugin
 
 
@@ -147,7 +147,7 @@ class Plugin(BasePlugin, name="NFL Fantasyliga"):
 
     @fantasy.group(name="set", help="Set data about the fantasy game.")
     async def fantasy_set(self, ctx):
-        if (not permChecks.check_full_access(ctx.author)
+        if (not permchecks.check_full_access(ctx.author)
                 and Config.get(self)['mod_role_id'] != 0
                 and Config.get(self)['mod_role_id'] not in [role.id for role in ctx.author.roles]):
             raise commands.BotMissingAnyRole([*Config().FULL_ACCESS_ROLES, Config.get(self)['mod_role_id']])

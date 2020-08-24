@@ -15,7 +15,7 @@ from discord.ext import commands
 import injections
 from base import BasePlugin, NotLoadable
 from conf import Config, ConfigurableContainer, Lang, Storage
-from botutils import utils, permChecks
+from botutils import utils, permchecks
 from subsystems import timers, reactions, ignoring, dmlisteners, help
 
 
@@ -251,7 +251,7 @@ def main():
             return
 
         # debug mode whitelist
-        if not permChecks.whitelist_check(message.author):
+        if not permchecks.whitelist_check(message.author):
             return
 
         await bot.process_commands(message)

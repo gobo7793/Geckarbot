@@ -9,7 +9,7 @@ from discord.errors import HTTPException
 from base import BasePlugin
 from conf import Storage, Lang, Config
 from subsystems import help
-from botutils import permChecks
+from botutils import permchecks
 
 from plugins.quiz.controllers import RushQuizController, PointsQuizController
 from plugins.quiz.quizapis import quizapis, opentdb
@@ -229,7 +229,7 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
         if len(args) != 2:
             await ctx.message.add_reaction(Lang.CMDERROR)
             return
-        if not permChecks.check_full_access(ctx.message.author):
+        if not permchecks.check_full_access(ctx.message.author):
             await ctx.message.add_reaction(Lang.CMDERROR)
             return
 
@@ -321,7 +321,7 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
             elif method == Methods.SCORE:
                 await ctx.send(embed=quiz_controller.score.embed())
             elif method == Methods.STOP:
-                if permChecks.check_full_access(ctx.message.author) or quiz_controller.requester == ctx.message.author:
+                if permchecks.check_full_access(ctx.message.author) or quiz_controller.requester == ctx.message.author:
                     await self.abort_quiz(channel, ctx.message)
             elif method == Methods.STATUS:
                 await quiz_controller.status(ctx.message)
@@ -332,13 +332,21 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
         # Starting a new quiz
         assert method == Methods.START
         await ctx.message.add_reaction(Lang.EMOJI["success"])
-        quiz_controller = controller_class(self, self.config, args["quizapi"], ctx.channel, ctx.message.author,
-                                           category=args["category"], question_count=args["questions"],
-                                           difficulty=args["difficulty"], debug=args["debug"], ranked=args["ranked"],
+        quiz_controller = controller_class(self,
+                                           self.config,
+                                           args["quizapi"],
+                                           ctx.channel,
+                                           ctx.message.author,
+                                           category=args["category"],
+                                           question_count=args["questions"],
+                                           difficulty=args["difficulty"],
+                                           debug=args["debug"],
+                                           ranked=args["ranked"],
                                            gecki=args["gecki"])
         self.controllers[channel] = quiz_controller
         self.logger.debug("Registered quiz controller {} in channel {}".format(quiz_controller, ctx.channel))
-        await ctx.send(Lang.lang(self, "quiz_start", args["questions"],
+        await ctx.send(Lang.lang(self, "quiz_start",
+                                 args["questions"],
                                  quiz_controller.quizapi.category_name(args["category"]),
                                  Difficulty.human_readable(quiz_controller.difficulty),
                                  self.controller_mapping[controller_class][0]))

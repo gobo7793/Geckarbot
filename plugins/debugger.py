@@ -5,7 +5,7 @@ from discord.ext import commands
 from discord.ext.commands import view
 from discord.errors import HTTPException
 
-from botutils import utils, converter
+from botutils import utils, converters
 from subsystems.reactions import ReactionAddedEvent, ReactionRemovedEvent
 from subsystems import help
 
@@ -121,7 +121,7 @@ class Plugin(BasePlugin, name="Testing and debug things"):
 
     @commands.command(name="defaultstorage")
     async def defaultstorage(self, ctx, pluginname):
-        plugin = converter.get_plugin_by_name(self.bot, pluginname)
+        plugin = converters.get_plugin_by_name(self.bot, pluginname)
         if plugin is None:
             await ctx.message.add_reaction(Lang.CMDERROR)
             await ctx.send("Plugin {} not found.".format(pluginname))
