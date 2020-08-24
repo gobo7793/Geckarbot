@@ -4,7 +4,8 @@ from base import BasePlugin, ConfigurableType
 
 from discord.ext import commands
 
-from botutils import utils, converters
+from botutils import converters
+from botutils.stringutils import paginate
 from conf import Storage, Config, Lang
 from subsystems import help
 
@@ -21,17 +22,17 @@ class Plugin(BasePlugin, name="Bot status commands for monitoring and debug purp
     @commands.command(name="subsys", help="Shows registrations on subsystems")
     @commands.has_any_role(Config().BOTMASTER_ROLE_ID)
     async def subsys(self, ctx):
-        for msg in utils.paginate(self.bot.reaction_listener.callbacks,
-                                  prefix="**Reactions registrations:**\n",
-                                  suffix="\n"):
+        for msg in paginate(self.bot.reaction_listener.callbacks,
+                            prefix="**Reactions registrations:**\n",
+                            suffix="\n"):
             await ctx.send(msg)
-        for msg in utils.paginate(self.bot.timers.jobs,
-                                  prefix="**Timer registrations:**\n",
-                                  suffix="\n"):
+        for msg in paginate(self.bot.timers.jobs,
+                            prefix="**Timer registrations:**\n",
+                            suffix="\n"):
             await ctx.send(msg)
-        for msg in utils.paginate(self.bot.dm_listener.callbacks,
-                                  prefix="**DM Listeners:**\n",
-                                  suffix="\n"):
+        for msg in paginate(self.bot.dm_listener.callbacks,
+                            prefix="**DM Listeners:**\n",
+                            suffix="\n"):
             await ctx.send(msg)
 
         await ctx.invoke(self.bot.get_command("disable list"))
@@ -51,7 +52,7 @@ class Plugin(BasePlugin, name="Bot status commands for monitoring and debug purp
         if not Storage.has_structure(plugin):
             prefix = "**Warning: plugin {} does not have a storage structure.** " \
                      "This is the default storage.".format(name)
-        for el in utils.paginate(dump, prefix=prefix, msg_prefix="```", msg_suffix="```"):
+        for el in paginate(dump, prefix=prefix, msg_prefix="```", msg_suffix="```"):
             await ctx.send(el)
 
     @commands.command(name="configdump", help="Dumps plugin config", usage="<plugin name>")
@@ -70,5 +71,5 @@ class Plugin(BasePlugin, name="Bot status commands for monitoring and debug purp
         if not Config.has_structure(plugin):
             prefix = "**Warning: plugin {} does not have a config structure.** " \
                      "This is the default config.".format(name)
-        for el in utils.paginate(dump, prefix=prefix, msg_prefix="```", msg_suffix="```"):
+        for el in paginate(dump, prefix=prefix, msg_prefix="```", msg_suffix="```"):
             await ctx.send(el)

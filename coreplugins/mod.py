@@ -5,6 +5,7 @@ from discord.ext import commands
 
 from conf import Config, Lang
 from botutils import utils, permchecks
+from botutils.stringutils import paginate
 from base import BasePlugin, ConfigurableType
 import subsystems
 from subsystems import help
@@ -68,14 +69,14 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
         for modname in pkgutil.iter_modules(subsystems.__path__):
             subsys.append(modname.name)
 
-        for msg in utils.paginate(coreplugins,
-                                  prefix=Lang.lang(self, 'plugins_loaded_cp', len(coreplugins)), delimiter=", "):
+        for msg in paginate(coreplugins,
+                            prefix=Lang.lang(self, 'plugins_loaded_cp', len(coreplugins)), delimiter=", "):
             await ctx.send(msg)
-        for msg in utils.paginate(plugins,
-                                  prefix=Lang.lang(self, 'plugins_loaded_pl', len(coreplugins)), delimiter=", "):
+        for msg in paginate(plugins,
+                            prefix=Lang.lang(self, 'plugins_loaded_pl', len(coreplugins)), delimiter=", "):
             await ctx.send(msg)
-        for msg in utils.paginate(subsys,
-                                  prefix=Lang.lang(self, 'plugins_loaded_ss', len(coreplugins)), delimiter=", "):
+        for msg in paginate(subsys,
+                            prefix=Lang.lang(self, 'plugins_loaded_ss', len(coreplugins)), delimiter=", "):
             await ctx.send(msg)
 
     @commands.command(name="about", aliases=["git", "github"], help="Prints the credits")
@@ -216,7 +217,7 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
         async def write_list(itype: IgnoreType, prefix):
             ilist = self.bot.ignoring.get_ignore_list(itype)
             if len(ilist) > 0:
-                for msg in utils.paginate(ilist, prefix=prefix, f=get_item_msg):
+                for msg in paginate(ilist, prefix=prefix, f=get_item_msg):
                     await ctx.send(msg)
 
         if self.bot.ignoring.get_full_ignore_len() < 1:

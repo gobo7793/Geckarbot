@@ -7,7 +7,8 @@ from enum import IntEnum
 from datetime import datetime
 from discord.ext import commands
 from conf import Storage, Lang, Config
-from botutils import utils, permchecks, sheetsclient
+from botutils import utils, permchecks, sheetsclient, stringutils
+from botutils.stringutils import paginate
 from base import BasePlugin
 
 
@@ -115,7 +116,7 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
             w_msgs.append(Lang.lang(self, 'winner_msg', no, winner_name, pts_winner, pts_max, pts_percentage,
                                     participator_coutn, dt.month, dt.year))
 
-        for m in utils.paginate(w_msgs, Lang.lang(self, 'winner_prefix')):
+        for m in paginate(w_msgs, Lang.lang(self, 'winner_prefix')):
             await ctx.send(m)
 
     @dsc.command(name="info", help="Get information about current DSC")
@@ -196,7 +197,7 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
 
     @dsc_set.command(name="yt", help="Sets the Youtube playlist link")
     async def dsc_set_yt_link(self, ctx, link):
-        link = utils.clear_link(link)
+        link = stringutils.clear_link(link)
         Storage.get(self)['yt_link'] = link
         Storage().save(self)
         await ctx.message.add_reaction(Lang.CMDSUCCESS)

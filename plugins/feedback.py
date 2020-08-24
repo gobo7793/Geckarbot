@@ -6,6 +6,7 @@ from discord.ext import commands
 from base import BasePlugin
 from conf import Storage, Config, Lang
 from botutils import utils
+from botutils.stringutils import paginate
 
 
 def str_keys_to_int(d):
@@ -145,8 +146,11 @@ class Plugin(BasePlugin, name="Feedback"):
             await ctx.send(Lang.lang(self, "redact_no_complaints"))
             return
 
-        msgs = utils.paginate([el for el in self.complaints.values()],
-                              prefix=Lang.lang(self, "redact_title"), delimiter="\n\n", msg_prefix="_ _\n", f=to_msg)
+        msgs = paginate([el for el in self.complaints.values()],
+                        prefix=Lang.lang(self, "redact_title", len(self.complaints)),
+                        delimiter="\n\n",
+                        msg_prefix="_ _\n",
+                        f=to_msg)
         for el in msgs:
             await ctx.send(el)
 
@@ -189,7 +193,7 @@ class Plugin(BasePlugin, name="Feedback"):
             await ctx.send(Lang.lang(self, "redact_search_not_found"))
             return
 
-        msgs = utils.paginate(r, prefix=Lang.lang(self, "redact_search_title"), delimiter="\n\n", f=to_msg)
+        msgs = paginate(r, prefix=Lang.lang(self, "redact_search_title"), delimiter="\n\n", f=to_msg)
         for el in msgs:
             await ctx.send(el)
 
@@ -203,7 +207,6 @@ class Plugin(BasePlugin, name="Feedback"):
         complaint = Complaint.from_message(self, msg)
         self.complaints[complaint.id] = complaint
         await ctx.message.add_reaction(Lang.CMDSUCCESS)
-        # await msg.channel.send(lang["complaint_received"])
         self.write()
 
     """
@@ -220,7 +223,7 @@ class Plugin(BasePlugin, name="Feedback"):
             reverse=True
         )
         lines = ["{}: {}".format(user, p) for (user, p) in users]
-        for msg in utils.paginate(lines, prefix="{}\n".format(Storage.lang(self, "bugscore_title"))):
+        for msg in paginate(lines, prefix="{}\n".format(Lang.lang(self, "bugscore_title"))):
             await ctx.send(msg)
 
     async def bugscore_del(self, ctx, user):

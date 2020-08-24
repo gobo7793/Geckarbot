@@ -379,3 +379,60 @@ def next_occurence(ntd, now=None, ignore_now=False):
 
         # Month is over
         startday = 1
+
+
+"""
+Old AsyncTimer; TODO slowly merge into Mothership
+"""
+
+
+class HasAlreadyRun(Exception):
+    """
+    Is raised by AsyncTimer if cancel() comes too late
+    """
+
+    def __init__(self, callback):
+        super().__init__("Timer callback has already run, callback was {}".format(callback))
+
+
+# todo move to subsystems.timers and slowly merge into it
+class AsyncTimer(Thread):
+    def __init__(self, bot, t, callback, *args, **kwargs):
+        warnings.warn("utils.AsyncTimer is deprecated.")
+        self.logger = logging.getLogger(__name__)
+        self.loop = bot.loop
+
+        self.t = t
+        self.callback = callback
+        self.args = args
+        self.kwargs = kwargs
+
+        self.cancelled = False
+        self.has_run = False
+        self.cancel_lock = Lock()
+
+        super().__init__()
+        self.start()
+
+    def run(self):
+        self.logger.debug("Running timer, will be back in {} seconds (callback: {})".format(self.t, self.callback))
+        sleep(self.t)
+
+        with self.cancel_lock:
+            if self.cancelled:
+                self.logger.debug("Timer was cancelled (callback: {})".format(self.callback))
+                return
+            self.has_run = True
+            self.logger.debug("Timer over, running callback {}".format(self.callback))
+
+            try:
+                asyncio.run_coroutine_threadsafe(self.callback(*self.args, **self.kwargs), self.loop)
+            except Exception as e:
+                self.logger.error(e)
+                raise e
+
+    def cancel(self):
+        with self.cancel_lock:
+            if self.has_run:
+                raise HasAlreadyRun(self.callback)
+            self.cancelled = True
