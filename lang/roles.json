@@ -18,7 +18,11 @@
         "role_untrack": "I removed role {} from my role management, so it isn't my problem anymore.",
         "role_request_no_modrole": "Sorry, but I can't find a mod role for {} :frowning:",
         "role_request_ping": "Hey {}, the user {} requests the role {}!",
-        "role_update": "I'm a lazy Treecko, but especially for you, I updated my role management."
+        "role_update": "I'm a lazy Treecko, but especially for you, I updated my role management.",
+        "must_set_channel_id": "For updating role management, the channel for the init message bust be set before via `!role update channel=<channel name>`.",
+        "channel_cant_changed": "A init message is already set, so the channel can't changed.",
+        "invalid_channel": "The channel must be an existing channel on this server.",
+        "channel_updated": "The channel is updated."
     },
     "de": {
         "init_reaction": "Reaction: {}",
@@ -39,6 +43,10 @@
         "role_untrack": "Ich habe die Rolle {} von meinem Rollenmanagement gelöscht, also ist sie nun nicht mehr mein Problem.",
         "role_request_no_modrole": "Sorry, aber ich kann keine Modrolle für {} finden :frowning:",
         "role_request_ping": "Hey {}, da fragt {} ob man ihm/ihr/whatever die Rolle {} geben kann!",
-        "role_update": "Ich bin ein faules Geckarbor, aber extra für dich hab ich mein Rollenmanagement ausnahmsweise doch aktualisiert."
+        "role_update": "Ich bin ein faules Geckarbor, aber extra für dich hab ich mein Rollenmanagement ausnahmsweise doch aktualisiert.",
+        "must_set_channel_id": "Bevor das Rollenmanagement aktualisiert werden kann, muss zuvor ein Channel mithilfe von `!role update channel=<channel name>` festgelegt werden.",
+        "channel_cant_changed": "Eine Init-Nachricht ist bereits gesetzt, der Channel kann daher nicht mehr geändert werden.",
+        "invalid_channel": "Der Channel muss ein existierender Channel auf diesem Server sein.",
+        "channel_updated": "Channel aktualisiert."
     }
 }

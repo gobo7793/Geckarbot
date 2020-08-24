@@ -66,9 +66,6 @@ class Plugin(BasePlugin, name="Role Management"):
         super().__init__(bot)
         self.can_reload = True
 
-        if 'announcements' not in Config().CHAN_IDS:
-            raise NotLoadable("Announcements channel is not configured")
-
         bot.register(self, help.DefaultCategories.MOD)
 
         async def get_init_msg_data():
@@ -80,7 +77,7 @@ class Plugin(BasePlugin, name="Role Management"):
     def default_storage(self):
         return {
             'message': {
-                'channel_id': Config().CHAN_IDS['announcements'],
+                'channel_id': 0,
                 'message_id': 0,
                 'content': ""
             },
@@ -89,17 +86,17 @@ class Plugin(BasePlugin, name="Role Management"):
 
     def rc(self):
         """Returns the roles config"""
-        return Storage().get(self)['roles']
+        return Storage.get(self)['roles']
 
     def has_init_msg_set(self):
-        return (Storage().get(self)['message']['channel_id'] != 0
-                and Storage().get(self)['message']['message_id'] != 0)
+        return (Storage.get(self)['message']['channel_id'] != 0
+                and Storage.get(self)['message']['message_id'] != 0)
 
     async def get_init_msg(self):
         """Returns the role management init message or None if not set"""
         if self.has_init_msg_set():
-            channel = self.bot.get_channel(Storage().get(self)['message']['channel_id'])
-            return await channel.fetch_message(Storage().get(self)['message']['message_id'])
+            channel = self.bot.get_channel(Storage.get(self)['message']['channel_id'])
+            return await channel.fetch_message(Storage.get(self)['message']['message_id'])
         else:
             return None
 
@@ -110,7 +107,7 @@ class Plugin(BasePlugin, name="Role Management"):
         :param server_roles: the roles on the server
         :param ctx: The context of the used command to create the new message
         """
-        msg = "{}\n".format(Storage().get(self)['message']['content'])
+        msg = "{}\n".format(Storage.get(self)['message']['content'])
 
         for rid in self.rc():
             role = discord.utils.get(server_roles, id=rid)
@@ -144,6 +141,13 @@ class Plugin(BasePlugin, name="Role Management"):
         add new roles and their emojis and reactions to the init message.
         """
 
+        channel = self.bot.get_channel(Storage.get(self)['message']['channel_id'])
+        if channel is None:
+            await ctx.message.add_reaction(Lang.CMDERROR)
+            await utils.write_debug_channel(self.bot, Lang.lang(self, 'must_set_channel_id'))
+            await ctx.send(self.bot, Lang.lang(self, 'must_set_channel_id'))
+            return
+
         # Remove old roles
         current_server_roles = await self.bot.guild.fetch_roles()
         server_role_ids = [r.id for r in current_server_roles]
@@ -173,9 +177,8 @@ class Plugin(BasePlugin, name="Role Management"):
             await message.edit(content=message_text)
         else:
             await utils.write_debug_channel(self.bot, Lang.lang(self, 'creating_init_msg'))
-            channel = self.bot.get_channel(Storage().get(self)['message']['channel_id'])
             message = await channel.send(message_text)
-            Storage().get(self)['message']['message_id'] = message.id
+            Storage.get(self)['message']['message_id'] = message.id
             self.bot.reaction_listener.register(message, self.update_reaction_based_user_role)
 
         # remove reactions w/o role
@@ -195,7 +198,7 @@ class Plugin(BasePlugin, name="Role Management"):
             emote = await utils.emojize(emoji_id, ctx)
             await message.add_reaction(emote)
 
-        Storage().save(self)
+        Storage.save(self)
 
     async def update_reaction_based_user_role(self, event):
         """
@@ -351,12 +354,32 @@ class Plugin(BasePlugin, name="Role Management"):
     @role.command(name="update", help="Reads the server data and updates the role management",
                   description="Updates the role management from server data and removes deleted roles from role "
                               "management. If a message content is given, this message will be used for the role "
-                              "management init message text.")
+                              "management init message text.\n"
+                              "Before using the role management, the channel must be set via "
+                              "!role update channel=<channel>")
     @commands.has_any_role(*Config().FULL_ACCESS_ROLES)
-    async def role_update(self, ctx, *message_content):
-        if len(message_content) > 0:
-            Storage().get(self)['message']['content'] = " ".join(message_content)
-        Storage().save(self)
+    async def role_update(self, ctx, *message):
+        chan_key = "channel="
+        msg = " ".join(message)
+        if msg.startswith(chan_key):
+            if self.has_init_msg_set():
+                await ctx.send(Lang.lang(self, 'channel_cant_changed'))
+                return
+
+            try:
+                channel = await commands.TextChannelConverter().convert(ctx, msg[len(chan_key):])
+            except commands.CommandError:
+                await ctx.send(Lang.lang(self, 'invalid_channel'))
+                return
+
+            Storage.get(self)['message']['channel_id'] = channel.id
+            await ctx.send(Lang.lang(self, 'channel_updated'))
+            return
+
+        if len(msg) > 0:
+            Storage.get(self)['message']['content'] = msg
+
+        Storage.save(self)
         await self.update_role_management(ctx)
         await ctx.send(Lang.lang(self, 'role_update'))
         await utils.log_to_admin_channel(ctx)
