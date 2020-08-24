@@ -13,7 +13,7 @@ from pathlib import Path
 from discord.ext import commands
 
 import injections
-from base import BasePlugin
+from base import BasePlugin, NotLoadable
 from conf import Config, ConfigurableContainer, Lang, Storage
 from botutils import utils, permChecks
 from subsystems import timers, reactions, ignoring, dmlisteners, help
@@ -72,6 +72,10 @@ class Geckarbot(commands.Bot):
         self.configure(plugin_object)
 
         # Set HelpCategory
+        if isinstance(category, str) and category:
+            if category_desc is None:
+                category_desc = ""
+            category = help.HelpCategory(category, description=category_desc)
         if category is None:
             self.helpsys.register_category_by_name(plugin_object.get_name()).add_plugin(plugin_object)
         else:
@@ -100,6 +104,8 @@ class Geckarbot(commands.Bot):
                     to_import = "{}.{}.{}".format(plugin_dir, plugin, plugin)
 
                 pkgutil.importlib.import_module(to_import).Plugin(self)
+            except NotLoadable as e:
+                logging.warning("Plugin {} could not be loaded: {}".format(plugin, e))
             except Exception as e:
                 logging.error("Unable to load plugin: {}:\n{}".format(plugin, traceback.format_exc()))
                 continue

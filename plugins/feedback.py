@@ -95,7 +95,6 @@ class Plugin(BasePlugin, name="Feedback"):
         if self.storage is None:
             self.storage = deepcopy(self.default_storage())
         else:
-            print("Feedback storage: {}".format(self.storage))
             str_keys_to_int(self.storage["complaints"])
         for cid in self.storage["complaints"]:
             self.complaints[cid] = Complaint.deserialize(self.bot, cid, self.storage["complaints"][cid])

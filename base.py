@@ -2,7 +2,17 @@ from enum import Enum
 from discord.ext.commands import Cog
 
 
+class NotLoadable(Exception):
+    """
+    Raised by plugins to signal that it was unable to load correctly.
+    """
+    pass
+
+
 class NotFound(Exception):
+    """
+    Raised by override methods to signal that the method was not overridden.
+    """
     pass
 
 
@@ -88,5 +98,21 @@ class BasePlugin(Cog, Configurable):
         Used to override command help. Raise NotFound to give control back to the help command.
         :param ctx: Context
         :param command: Command or Group instance
+        """
+        raise NotFound()
+
+    def command_help_string(self, command):
+        """
+        Override to return a help string that is determined at runtime. Overwrites command.help.
+        :param command: Command that the help string is requested for.
+        :return: Help string
+        """
+        raise NotFound()
+
+    def command_description(self, command):
+        """
+        Override to return a description that is determined at runtime. Supersedes command.description.
+        :param command: Command that a description is requested for.
+        :return: Description string
         """
         raise NotFound()

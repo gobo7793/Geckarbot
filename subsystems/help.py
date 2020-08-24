@@ -59,25 +59,42 @@ class HelpCategory:
         return False
 
     def is_empty(self):
+        """
+        :return: True if this HelpCategory does not contain any plugins, False otherwise.
+        """
         return len(self.plugins) == 0
 
     def add_plugin(self, plugin):
+        """
+        Adds a plugin to this HelpCategory.
+        :param plugin: BasePlugin instance to be added to the category
+        """
         self.plugins.append(plugin)
 
     def single_line(self):
+        """
+        :return: One-line string that represents this HelpCategory.
+        """
         if self.description:
             return "{} - {}".format(self.name, self.description)
         else:
             return self.name
 
     def format_commands(self):
+        """
+        :return: Message list with all commands that this category contains to be consumed by paginate().
+        """
         r = []
         for plugin in self.plugins:
             for command in plugin.get_commands():
-                r.append("  {}".format(self.bot.helpsys.command_help_line(command)))
+                r.append("  {}".format(self.bot.helpsys.format_command_help_line(command)))
         return r
 
-    async def category_help(self, ctx):
+    async def send_category_help(self, ctx):
+        """
+        Sends a help message for this category.
+        :param ctx: Context that the help message is to be sent to.
+        """
         msg = self.format_commands()
         for msg in paginate(msg,
                             prefix=Lang.lang(self.bot.helpsys, "help_category_prefix", self.name) + "\n",
@@ -126,6 +143,10 @@ class GeckiHelp(BaseSubsystem):
         return r
 
     def category(self, name):
+        """
+        :param name: Category name
+        :return: Returns the HelpCategory with name `name`. None if no such HelpCategory is found.
+        """
         for cat in self._categories:
             if cat.match_name(name):
                 return cat
@@ -139,6 +160,12 @@ class GeckiHelp(BaseSubsystem):
         return cat
 
     def register_category(self, category):
+        """
+        Registers a category with Help. If a DefaultCategory is parsed, nothing is registered,
+        but the corresponding registered HelpCategory is returned.
+        :param category: HelpCategory instance or DefaultCategory instance
+        :return: The registered HelpCategory
+        """
         # Catch default category
         if isinstance(category, DefaultCategories):
             return self.default_category(category)
@@ -207,20 +234,29 @@ class GeckiHelp(BaseSubsystem):
 
         msg = []
         for cmd in cmds:
-            msg.append(self.command_help_line(cmd))
+            msg.append(self.format_command_help_line(plugin, cmd))
         return msg
 
-    def command_help_line(self, command):
-        if command.help is not None:
-            return "{}{} - {}".format(self.bot.command_prefix, command.qualified_name, command.help)
+    def format_command_help_line(self, plugin, command):
+        """
+        :param plugin: BasePlugin object that this command belongs to
+        :param command: Command that the help line concerns
+        :return: One-line string that represents a help list entry for `command`
+        """
+        try:
+            helpstr = plugin.command_help_string(command)
+        except NotFound:
+            helpstr = command.help
+        if helpstr is not None and helpstr.strip():
+            return "{}{} - {}".format(self.bot.command_prefix, command.qualified_name, helpstr)
         else:
-            return command.qualified_name
+            return "{}{}".format(self.bot.command_prefix, command.qualified_name)
 
-    def format_subcmds(self, command):
+    def format_subcmds(self, plugin, command):
         r = []
         if isinstance(command, commands.Group):
             for cmd in command.commands:
-                r.append("  {}".format(self.command_help_line(cmd)))
+                r.append("  {}".format(self.format_command_help_line(plugin, cmd)))
             if r:
                 r = [Lang.lang(self, "help_subcommands_prefix")] + r
         return r
@@ -232,6 +268,12 @@ class GeckiHelp(BaseSubsystem):
         await ctx.send(Lang.lang(self, error))
 
     async def cmd_help(self, ctx, plugin, cmd):
+        """
+        Sends a help message for a command.
+        :param ctx: Context to send the help message to
+        :param plugin: Plugin that contains the command
+        :param cmd: Command the help message concerns
+        """
         try:
             await plugin.command_help(ctx, cmd)
             return
@@ -240,25 +282,35 @@ class GeckiHelp(BaseSubsystem):
         msg = []
 
         # Usage
-        usage = self.bot.command_prefix + cmd.qualified_name
-        if cmd.usage is not None:
-            usage = "{} {}".format(usage, cmd.usage)
+        parent = self.bot.command_prefix + cmd.qualified_name
+        usage = cmd.usage
+        if usage is None or not usage.strip():
+            usage = cmd.signature
+        usage = "{} {}".format(parent, usage)
         msg.append(usage + "\n")
 
         # Help / Description
-        desc = cmd.qualified_name + "\n"
-        if cmd.help is not None and cmd.help.strip():
-            desc = cmd.help + "\n"
-        if cmd.description is not None and cmd.description.strip():
-            desc = cmd.description + "\n"
+        try:
+            desc = plugin.command_description(cmd) + "\n"
+        except NotFound:
+            desc = cmd.qualified_name + "\n"
+            if cmd.help is not None and cmd.help.strip():
+                desc = cmd.help + "\n"
+            if cmd.description is not None and cmd.description.strip():
+                desc = cmd.description + "\n"
         msg.append(desc)
-        msg += self.format_subcmds(cmd)
+        msg += self.format_subcmds(plugin, cmd)
 
         # Subcommands
         for msg in paginate(msg, msg_prefix="```", msg_suffix="```"):
             await ctx.send(msg)
 
     async def helpcmd(self, ctx, *args):
+        """
+        Handles any help command.
+        :param ctx: Context
+        :param args: Arguments that the help command was called with
+        """
         # !help
         if len(args) == 0:
             # build ordering lists
@@ -309,7 +361,7 @@ class GeckiHelp(BaseSubsystem):
                     cat = el
                     break
             if cat is not None and not cat.is_empty():
-                await cat.category_help(ctx)
+                await cat.send_category_help(ctx)
                 return
 
             await self.error(ctx, "cmd_cat_not_found")

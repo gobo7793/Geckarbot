@@ -6,7 +6,7 @@ import discord
 from discord.ext import commands
 from discord.http import HTTPException
 
-from Geckarbot import BasePlugin
+from base import BasePlugin, NotFound
 from conf import Lang
 from botutils import utils, statemachine
 from subsystems import help
@@ -124,6 +124,12 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
 
         self.statemachine.add_state(State.ABORT, self.abort)
         self.statemachine.state = State.IDLE
+
+    def command_help_string(self, command):
+        return Lang.lang(self, "help_{}".format(command.name))
+
+    def command_description(self, command):
+        return Lang.lang(self, "description_{}".format(command.name))
 
     @commands.group(name="werbinich", invoke_without_command=True,
                     help=h_help, description=h_description, usage=h_usage)

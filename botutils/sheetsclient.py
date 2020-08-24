@@ -4,6 +4,7 @@ import urllib.parse
 
 from conf import Config
 from botutils import restclient
+from base import NotLoadable
 
 
 class NoApiKey(Exception):
@@ -45,7 +46,7 @@ class Client(restclient.Client):
             credentials = service_account.Credentials.from_service_account_file(secret_file, scopes=scopes)
             service = discovery.build('sheets', 'v4', credentials=credentials)
         except ImportError:
-            raise
+            raise NotLoadable("Google API modules not installed.")
         except Exception:
             raise NoCredentials()
         else:
