@@ -3,6 +3,7 @@ import discord
 import pkgutil
 from discord.ext import commands
 
+import botutils.parsers
 from conf import Config, Lang
 from botutils import utils, permchecks
 from botutils.stringutils import paginate
@@ -138,7 +139,7 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
         if user != ctx.author and not permchecks.check_full_access(ctx.author):
             raise commands.MissingAnyRole(Config().FULL_ACCESS_ROLES)
 
-        until = utils.analyze_time_input(*args[date_args_start_index:])
+        until = botutils.parsers.parse_time_input(*args[date_args_start_index:])
 
         result = self.bot.ignoring.add_user_command(user, command, until)
         if result == IgnoreEditResult.Success:
@@ -163,7 +164,7 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
                                  "the bot doesn't response anything, like the command wouldn't exists.")
     @commands.has_any_role(*Config().FULL_ACCESS_ROLES)
     async def disable_user(self, ctx, user: discord.Member, *args):
-        until = utils.analyze_time_input(*args)
+        until = botutils.parsers.parse_time_input(*args)
 
         result = self.bot.ignoring.add_user(user, until)
         if result == IgnoreEditResult.Success:
@@ -196,7 +197,7 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
             await ctx.send(Lang.lang(self, 'enable_cant_blocked'))
             return
 
-        until = utils.analyze_time_input(*args)
+        until = botutils.parsers.parse_time_input(*args)
 
         result = self.bot.ignoring.add_command(command, ctx.channel, until)
         if result == IgnoreEditResult.Success:
