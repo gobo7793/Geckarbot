@@ -110,7 +110,7 @@ class Cmd:
 
         # general replaces
         cmd_content = cmd_content.replace(wildcard_umention, msg.author.mention)
-        cmd_content = cmd_content.replace(wildcard_user, utils.get_best_username(msg.author))
+        cmd_content = cmd_content.replace(wildcard_user, converters.get_best_username(msg.author))
 
         if wildcard_all_args in cmd_content:
             cmd_content = cmd_content.replace(wildcard_all_args, _get_all_arg_str(0, cmd_args))
@@ -365,7 +365,7 @@ class Plugin(BasePlugin, name="Custom CMDs"):
             creator = self.bot.get_user(self.commands[cmd_name].creator_id)
             for msg in paginate(self.commands[cmd_name].get_raw_texts(), delimiter="\n",
                                 prefix=Lang.lang(self, 'raw_prefix',
-                                                       self.prefix, cmd_name, utils.get_best_username(creator))):
+                                                       self.prefix, cmd_name, converters.get_best_username(creator))):
                 await ctx.send(msg)
         else:
             await ctx.send(Lang.lang(self, "raw_doesnt_exists", cmd_name))

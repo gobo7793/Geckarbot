@@ -1,6 +1,5 @@
 import discord
 import datetime
-import emoji
 import random
 from discord.ext.commands.bot import Bot
 from conf import Config
@@ -8,18 +7,6 @@ import logging
 
 
 chan_logger = logging.getLogger("channel")
-
-
-# todo move to converters
-def get_best_username(user):
-    """
-    Gets the best username for the given user or the str representation of the given object.
-    :param user: User (Member or User instance) that is to be identified
-    :return: Returns the best fit for a human-readable identifier ("username") of user.
-    """
-    if isinstance(user, discord.abc.User):
-        return user.display_name
-    return str(user)
 
 
 def convert_to_local_time(timestamp):
@@ -75,36 +62,6 @@ def analyze_time_input(*args):
 
     # No valid time input
     return datetime.datetime.max
-
-
-# todo move to converters
-async def emojize(demote_str, ctx):
-    """
-    Converts the demojized str represantation of the emoji back to an emoji string
-    :param demote_str: The string representation of the emoji
-    :param ctx: The command context for the discord.py emoji converters
-    :return: The emojized string
-    """
-    try:
-        emote = await discord.ext.commands.PartialEmojiConverter().convert(ctx, demote_str)
-    except discord.ext.commands.CommandError:
-        emote = emoji.emojize(demote_str, True)
-    return str(emote)
-
-
-# todo move to converters
-async def demojize(emote, ctx):
-    """
-    Converts the emojized str of the emoji to its demojized str representation
-    :param emote: The msg with the emoji (only the emoji)
-    :param ctx: The command context for the discord.py emoji converters
-    :return: The demojized string or an empty string if no emoji found
-    """
-    try:
-        converted = await discord.ext.commands.PartialEmojiConverter().convert(ctx, emote)
-    except discord.ext.commands.CommandError:
-        converted = emoji.demojize(emote, True)
-    return str(converted)
 
 
 # todo move to converters and rename to something that contains the word "embed"

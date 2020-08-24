@@ -53,7 +53,7 @@ class Plugin(BasePlugin, name="Testing and debug things"):
 
     @commands.command(name="identify", help="calls utils.get_best_username")
     async def identify(self, ctx, *args):
-        await ctx.channel.send("I will call you {}.".format(utils.get_best_username(ctx.message.author)))
+        await ctx.channel.send("I will call you {}.".format(converters.get_best_username(ctx.message.author)))
 
     @commands.command(name="react")
     async def react(self, ctx, reaction):
@@ -67,10 +67,10 @@ class Plugin(BasePlugin, name="Testing and debug things"):
     async def waitforreact_callback(event):
         msg = "PANIC!"
         if isinstance(event, ReactionAddedEvent):
-            msg = "{}: You reacted on '{}' with {}!".format(utils.get_best_username(event.user),
+            msg = "{}: You reacted on '{}' with {}!".format(converters.get_best_username(event.user),
                                                             event.message.content, event.emoji)
         if isinstance(event, ReactionRemovedEvent):
-            msg = "{}: You took back your {} reaction on '{}'!".format(utils.get_best_username(event.user),
+            msg = "{}: You took back your {} reaction on '{}'!".format(converters.get_best_username(event.user),
                                                                        event.message.content, event.emoji)
         await event.channel.send(msg)
 

@@ -5,7 +5,7 @@ from discord.ext import commands
 
 from base import BasePlugin
 from conf import Storage, Config, Lang
-from botutils import utils
+from botutils import utils, converters
 from botutils.stringutils import paginate
 
 
@@ -72,7 +72,7 @@ class Complaint:
     def to_message(self):
         authorname = "Not found"
         if self.author is not None:
-            authorname = utils.get_best_username(self.author)
+            authorname = converters.get_best_username(self.author)
         r = "**#{}**: {}: {}".format(self.id, authorname, self.content)
         if self.msg_link is not None:
             r += "\n{}".format(self.msg_link)
@@ -216,7 +216,7 @@ class Plugin(BasePlugin, name="Feedback"):
     async def bugscore_show(self, ctx):
         users = sorted(
             sorted(
-                [(utils.get_best_username(discord.utils.get(self.bot.guild.members, id=user)), n) for (user, n) in
+                [(converters.get_best_username(discord.utils.get(self.bot.guild.members, id=user)), n) for (user, n) in
                  self.storage["bugscore"].items()],
                 key=lambda x: x[0].lower()),
             key=lambda x: x[1],

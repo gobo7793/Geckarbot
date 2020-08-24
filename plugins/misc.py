@@ -9,6 +9,7 @@ from conf import Storage, Lang, Config
 from base import BasePlugin
 from subsystems import timers, help
 from botutils import utils
+from botutils.converters import get_best_username
 
 
 class Plugin(BasePlugin, name="Funny/Misc Commands"):
@@ -128,7 +129,7 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
         if bully is self.bot.user:
             text = Lang.lang(self, "bully_msg_self")
         else:
-            text = Lang.lang(self, "bully_msg", utils.get_best_username(bully))
+            text = Lang.lang(self, "bully_msg", get_best_username(bully))
         await ctx.send(text)
 
     @commands.command(name="remindme", help="Reminds the author.",

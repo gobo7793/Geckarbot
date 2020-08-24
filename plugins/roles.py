@@ -7,7 +7,7 @@ from discord.ext import commands
 
 from base import BasePlugin, NotLoadable
 from conf import Storage, Config, Lang
-from botutils import utils, permchecks
+from botutils import utils, permchecks, converters, stringutils
 from subsystems import reactions, help
 
 
@@ -118,7 +118,7 @@ class Plugin(BasePlugin, name="Role Management"):
             modrole_msg = ""
 
             if self.rc()[rid]['emoji']:
-                emote_msg = Lang.lang(self, 'init_reaction', await utils.emojize(self.rc()[rid]['emoji'], ctx))
+                emote_msg = Lang.lang(self, 'init_reaction', await stringutils.emojize(self.rc()[rid]['emoji'], ctx))
             if self.rc()[rid]['modrole'] != 0:
                 modrole = discord.utils.get(server_roles, id=self.rc()[rid]['modrole'])
                 modrole_msg = Lang.lang(self, 'init_modrole', modrole.name)
@@ -192,7 +192,7 @@ class Plugin(BasePlugin, name="Role Management"):
             emoji_id = self.rc()[role_config]['emoji']
             if not emoji_id:
                 continue
-            emote = await utils.emojize(emoji_id, ctx)
+            emote = await stringutils.emojize(emoji_id, ctx)
             await message.add_reaction(emote)
 
         Storage().save(self)
@@ -250,16 +250,16 @@ class Plugin(BasePlugin, name="Role Management"):
 
         if action.lower() == "add":
             if role in user.roles:
-                await ctx.send(Lang.lang(self, 'role_user_already', utils.get_best_username(user), role))
+                await ctx.send(Lang.lang(self, 'role_user_already', converters.get_best_username(user), role))
                 return
             await add_user_role(user, role)
-            await ctx.send(Lang.lang(self, 'role_user_added', role, utils.get_best_username(user)))
+            await ctx.send(Lang.lang(self, 'role_user_added', role, converters.get_best_username(user)))
         elif action.lower() == "del":
             if role not in user.roles:
-                await ctx.send(Lang.lang(self, 'role_user_doesnt_have', utils.get_best_username(user), role))
+                await ctx.send(Lang.lang(self, 'role_user_doesnt_have', converters.get_best_username(user), role))
                 return
             await remove_user_role(user, role)
-            await ctx.send(Lang.lang(self, 'role_user_removed', role, utils.get_best_username(user)))
+            await ctx.send(Lang.lang(self, 'role_user_removed', role, converters.get_best_username(user)))
         else:
             raise commands.BadArgument(Lang.lang(self, 'role_user_bad_arg'))
 
@@ -276,7 +276,7 @@ class Plugin(BasePlugin, name="Role Management"):
                               "a hexcode like '#0000ff'.")
     @commands.has_any_role(*Config().FULL_ACCESS_ROLES)
     async def role_add(self, ctx, role_name, emoji_or_modrole="", color: discord.Color = None):
-        emoji_str = await utils.demojize(emoji_or_modrole, ctx)
+        emoji_str = await stringutils.demojize(emoji_or_modrole, ctx)
         try:
             modrole = await commands.RoleConverter().convert(ctx, emoji_or_modrole)
             modrole_id = modrole.id

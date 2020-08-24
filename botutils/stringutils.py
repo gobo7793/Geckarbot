@@ -1,3 +1,7 @@
+import emoji
+from discord.ext import commands
+
+
 def paginate(items, prefix="", suffix="", msg_prefix="", msg_suffix="", delimiter="\n", f=lambda x: x,
              prefix_within_msg_prefix=True):
     """
@@ -91,6 +95,34 @@ def sg_pl(number, singular, plural):
     if number == 1:
         return singular
     return plural
+
+
+async def emojize(demote_str, ctx):
+    """
+    Converts the demojized str represantation of the emoji back to an emoji string
+    :param demote_str: The string representation of the emoji
+    :param ctx: The command context for the discord.py emoji converters
+    :return: The emojized string
+    """
+    try:
+        emote = await commands.PartialEmojiConverter().convert(ctx, demote_str)
+    except commands.CommandError:
+        emote = emoji.emojize(demote_str, True)
+    return str(emote)
+
+
+async def demojize(emote, ctx):
+    """
+    Converts the emojized str of the emoji to its demojized str representation
+    :param emote: The msg with the emoji (only the emoji)
+    :param ctx: The command context for the discord.py emoji converters
+    :return: The demojized string or an empty string if no emoji found
+    """
+    try:
+        converted = await commands.PartialEmojiConverter().convert(ctx, emote)
+    except commands.CommandError:
+        converted = emoji.demojize(emote, True)
+    return str(converted)
 
 
 def clear_link(link):
