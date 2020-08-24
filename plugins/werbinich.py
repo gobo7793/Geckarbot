@@ -147,6 +147,7 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
             await ctx.send(Lang.lang(self, "already_running"))
             return
 
+        self.postgame = False
         self.channel = ctx.channel
         self.initiator = ctx.message.author
         self.statemachine.state = State.REGISTER
@@ -154,10 +155,26 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
     @werbinich.command(name="status")
     async def statuscmd(self, ctx):
         if self.statemachine.state == State.IDLE:
-            await ctx.send(Lang.lang(self, "not_running"))
+            # Post-game and game in mem
+            if self.channel is not None and self.postgame:
+                msg = "{} {}".format(
+                    Lang.lang(self, "post_game_status"),
+                    Lang.lang(self, "past_game_in_mem", self.channel.mention))
+
+            # Idle and game in mem but not postgame
+            elif self.channel:
+                msg = "{} {}".format(
+                    Lang.lang(self, "not_running"),
+                    Lang.lang(self, "past_game_in_mem", self.channel.mention))
+
+            # No game in mem
+            else:
+                msg = Lang.lang(self, "not_running")
+
+            await ctx.send(msg)
             return
         elif self.statemachine.state == State.REGISTER:
-            await ctx.send(Lang.lang(self, "status_aborting"))
+            await ctx.send(Lang.lang(self, "status_registering"))
             return
         elif self.statemachine.state == State.DELIVER:
             await ctx.send(Lang.lang(self, "status_delivering"))
@@ -194,7 +211,7 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
         elif not self.participants:
             error = "show_not_found"
 
-        elif ctx.author in [x.user for x in self.participants]:
+        elif ctx.author in [x.user for x in self.participants] and not self.postgame:
             error = "no_spoiler"
 
         if error is not None:
@@ -214,10 +231,14 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
             error = "wrong_channel"
 
         else:
+            found = False
             for user in self.participants:
                 if user.user == ctx.message.author:
-                    error = "postgame_unauthorized"
+                    found = True
                     break
+            if not found:
+                error = "postgame_unauthorized"
+
         if error is not None:
             await ctx.message.add_reaction(Lang.CMDERROR)
             await ctx.send(Lang.lang(self, error))
@@ -233,6 +254,7 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
             await ctx.message.add_reaction(Lang.CMDERROR)
             return
         self.participants = []
+        self.channel = None
         await ctx.message.add_reaction(Lang.CMDSUCCESS)
 
     """
@@ -327,6 +349,10 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
     async def delivering_phase(self):
         for target in self.participants:
             todo = []
+            if self.show_assignees:
+                for el in self.participants:
+                    if el.assigned == target:
+                        todo.append(Lang.lang(self, "user_assignee", converters.get_best_username(el.user)))
             for el in self.participants:
                 if el.assigned != target:
                     todo.append(el.to_msg(show_assignees=self.show_assignees))
@@ -344,6 +370,5 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
         for el in self.participants:
             el.cleanup()
         self.initiator = None
-        self.channel = None
         self.show_assignees = True
         self.statemachine.state = State.IDLE

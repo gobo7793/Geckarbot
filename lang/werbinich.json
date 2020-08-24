@@ -36,7 +36,7 @@
         "entry_change": "Du hast dich zu {} umentschieden.",
         "entry_too_late": "Zu spääääät",
         "list_title": "Alle Teilnehmer sind fertig. Folgendes wurde eingereicht:\n",
-        "user_assignee": "{} hat für dich ausgesucht.",
+        "user_assignee": "**{}** hat für dich ausgesucht.",
         "result_with_assignees": "**{}**: {} (von {})",
         "result_without_assignees": "**{}**: {}",
 
@@ -56,6 +56,8 @@
 
         "#6": "Status",
         "not_running": "Es läuft gerade kein Spiel.",
+        "past_game_in_mem": "Das letzte Spiel fand in {} statt.",
+        "post_game_status": "Es wurde beendet.",
         "status_registering": "Ich warte auf Registrierungen.",
         "status_delivering": "Ich verteile gerade die Ergebnisse.",
         "status_aborting": "Ich breche gerade das Spiel ab.",
