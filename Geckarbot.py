@@ -170,6 +170,8 @@ def main():
         logging.info("Loading plugins")
         bot.load_plugins(Config().PLUGIN_DIR)
 
+        await bot.change_presence(activity=discord.Game(name=f"Version {Config().VERSION}"))
+
         logging.info(f"{bot.user} is connected to the following server:\n"
                      f"{guild.name}(id: {guild.id})")
 
@@ -231,6 +233,8 @@ def main():
                 embed.add_field(name='Error', value=error)
                 embed.add_field(name='Command', value=ctx.command)
                 embed.add_field(name='Message', value=ctx.message.clean_content)
+                embed.add_field(name='Channel', value=ctx.channel.name)
+                embed.url = ctx.message.jump_url
                 embed.description = '```python\n{}\n```'.format(
                     "".join(traceback.TracebackException.from_exception(error).format()))
                 embed.timestamp = datetime.datetime.utcnow()
