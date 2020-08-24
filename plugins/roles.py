@@ -7,7 +7,7 @@ from discord.ext import commands
 
 from base import BasePlugin, NotLoadable
 from conf import Storage, Config, Lang
-from botutils import utils, permChecks
+from botutils import utils, permchecks
 from subsystems import reactions, help
 
 
@@ -237,7 +237,7 @@ class Plugin(BasePlugin, name="Role Management"):
                                 " Only usable for users with corresponding mod role."
                                 " Admins can add/remove all roles including roles which aren't in the role management.")
     async def role(self, ctx, user: discord.Member, action, role: discord.Role):
-        if not permChecks.check_full_access(ctx.author):
+        if not permchecks.check_full_access(ctx.author):
             if role.id not in self.rc():
                 raise commands.CheckFailure(message=Lang.lang(self, 'role_user_not_configured'))
 

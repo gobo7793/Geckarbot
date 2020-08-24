@@ -10,7 +10,7 @@ from discord.ext import commands
 
 import Geckarbot
 from base import BasePlugin, ConfigurableType
-from botutils import restclient, utils, permChecks
+from botutils import restclient, utils, permchecks
 from conf import Config, Lang
 from subsystems import help
 
@@ -434,7 +434,7 @@ class Plugin(BasePlugin, name="Bot updating system"):
                                   " This includes a shutdown, so be careful.")
     async def update(self, ctx, check=None):
         # Argument parsing
-        if not permChecks.check_full_access(ctx.author) or check == "check":
+        if not permchecks.check_full_access(ctx.author) or check == "check":
             release = self.check_release()
             await ctx.message.add_reaction(Lang.CMDSUCCESS)
             if release is None:

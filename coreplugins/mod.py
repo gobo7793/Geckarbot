@@ -4,7 +4,7 @@ import pkgutil
 from discord.ext import commands
 
 from conf import Config, Lang
-from botutils import utils, permChecks
+from botutils import utils, permchecks
 from base import BasePlugin, ConfigurableType
 import subsystems
 from subsystems import help
@@ -133,7 +133,7 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
             except (commands.CommandError, IndexError):
                 date_args_start_index = 0
 
-        if user != ctx.author and not permChecks.check_full_access(ctx.author):
+        if user != ctx.author and not permchecks.check_full_access(ctx.author):
             raise commands.MissingAnyRole(Config().FULL_ACCESS_ROLES)
 
         until = utils.analyze_time_input(*args[date_args_start_index:])
@@ -237,7 +237,7 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
         if user is None:
             user = ctx.author
 
-        if user != ctx.author and not permChecks.check_full_access(ctx.author):
+        if user != ctx.author and not permchecks.check_full_access(ctx.author):
             raise commands.MissingAnyRole(*Config().FULL_ACCESS_ROLES)
 
         result = self.bot.ignoring.remove_user_command(user, command)

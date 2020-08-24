@@ -15,6 +15,7 @@ opentdb = {
     "token_route": "api_token.php",
     "api_route": "api.php",
     "api_count_route": "api_count.php",
+    "default_cat": "any",
     "cat_mapping": [
         {'id': -1, 'names': ['Any', 'any', 'none', 'all', 'null']},
         {'id': 9, 'names': ['General', 'general']},
@@ -70,26 +71,31 @@ class OpenTDBQuizAPI(BaseQuizAPI):
         self.client = restclient.Client(opentdb["base_url"])
         self.current_question_i = -1
 
-        self.category = None
-        self.parse_category(category)
+        self.category = category
         self.questions = []
 
-        # acquire API token
+        # Acquire API token
         self.token = self.client.make_request(opentdb["token_route"], params={"command": "request"})
         self.token = self.token["token"]
 
-        # Acquire questions
+        # Build request params
         params = {
             "token": self.token,
             "amount": self.question_count,
             "encode": "url3986",
             "type": "multiple",
         }
-        if self.category is not None and self.category > 0:
-            params["category"] = self.category
+        if self.category is None:
+            self.category = self.category_key(self.category)
+        print("CATEGORY: {}".format(self.category))
+        catkey, _ = self.category.get(OpenTDBQuizAPI)
+        if catkey > 0:
+            params["category"] = catkey
         if self.difficulty != Difficulty.ANY:
             params["difficulty"] = self.difficulty.value
 
+        # Acquire questions
+        logging.getLogger(__name__).debug("Fetching questions; params: {}".format(params))
         questions_raw = self.client.make_request(opentdb["api_route"], params=params)["results"]
         for i in range(len(questions_raw)):
             el = questions_raw[i]
@@ -104,20 +110,6 @@ class OpenTDBQuizAPI(BaseQuizAPI):
 
     def current_question_index(self):
         return self.current_question_i
-
-    def parse_category(self, cat):
-        """
-        Takes all available info to determine the correct category.
-        :param cat: Category that was given by User. None if none was given.
-        """
-        if cat is not None:
-            self.category = cat
-
-        elif self.channel.id in self.config["channel_mapping"]:
-            self.category = self.config["channel_mapping"][self.channel.id]
-
-        else:
-            self.category = self.config["default_category"]
 
     @classmethod
     def size(cls, **kwargs):
@@ -167,6 +159,8 @@ class OpenTDBQuizAPI(BaseQuizAPI):
         """
         :return: Human-readable representation of the quiz category
         """
+        if catkey is None:
+            catkey = OpenTDBQuizAPI.category_key(opentdb["default_cat"])
         _, name = catkey.get(OpenTDBQuizAPI)
         return name
 
@@ -177,11 +171,14 @@ class OpenTDBQuizAPI(BaseQuizAPI):
         :return: Opaque category identifier that can be used in initialization and for category_name.
         Returns None if catarg is an unknown category.
         """
+        if catarg is None:
+            catarg = opentdb["default_cat"]
         for mapping in opentdb["cat_mapping"]:
             for cat in mapping["names"]:
                 if catarg.lower() == cat:
                     catkey = CategoryKey()
                     catkey.add_key(OpenTDBQuizAPI, mapping["id"], mapping["names"][0])
+                    print("found category {}".format(catkey))
                     return catkey
         return None
 
