@@ -45,7 +45,7 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
             'host_id': None,
             'state': DscState.NA,
             'yt_link': None,
-            'points': "",
+            'points': None,
             'date': datetime.now(),
             'status': None
         }
