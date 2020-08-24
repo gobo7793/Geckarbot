@@ -353,6 +353,7 @@ class GeckiHelp(BaseSubsystem):
             # find category
             if len(args) != 1:
                 # no category
+                await ctx.message.add_reaction(Lang.CMDERROR)
                 await self.error(ctx, "cmd_not_found")
                 return
             cat = None
@@ -364,4 +365,5 @@ class GeckiHelp(BaseSubsystem):
                 await cat.send_category_help(ctx)
                 return
 
+            await ctx.message.add_reaction(Lang.CMDERROR)
             await self.error(ctx, "cmd_cat_not_found")
