@@ -170,6 +170,8 @@ def main():
         logging.info("Loading plugins")
         bot.load_plugins(Config().PLUGIN_DIR)
 
+        await bot.change_presence(activity=discord.Game(name=f"Version {Config().VERSION}"))
+
         logging.info(f"{bot.user} is connected to the following server:\n"
                      f"{guild.name}(id: {guild.id})")
 
