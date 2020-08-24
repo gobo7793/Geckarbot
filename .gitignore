@@ -480,6 +480,9 @@ dmypy.json
 .update
 /logs
 
+# geckarbot.json
+/config/geckarbot.json
+
 # special storage files
 *.jpg
 *.png
