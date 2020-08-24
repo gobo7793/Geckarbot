@@ -84,3 +84,34 @@ def get_plugin_container(bot, plugin):
         if plugin_cnt.instance == plugin:
             return plugin_cnt
     return None
+
+
+def get_embed_str(embed):
+    """
+    Returns the given embed contents as loggable string.
+    If embed is no embed object, the str of the object will be returned.
+
+    :param embed: The embed
+    :return: The loggable string
+    """
+
+    if not isinstance(embed, discord.Embed):
+        return str(embed)
+
+    m = ""
+    if embed.title is not None and embed.title:
+        m += "Embed Title: " + embed.title
+    if embed.author is not None and embed.author:
+        m += ", Author: " + embed.author
+    if embed.description is not None and embed.description:
+        m += ", Description: " + embed.description
+    if embed.url is not None and embed.url:
+        m += ", URL: " + embed.url
+    if embed.footer is not None and embed.footer:
+        m += ", Footer: " + embed.footer
+    if embed.timestamp is not None and embed.timestamp:
+        m += ", Timestamp: " + str(embed.timestamp)
+    for f in embed.fields:
+        m += ", Field {}={}".format(f.name, f.value)
+
+    return m
