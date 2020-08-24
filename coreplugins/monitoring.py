@@ -4,7 +4,7 @@ from base import BasePlugin, ConfigurableType
 
 from discord.ext import commands
 
-from botutils import utils, converter
+from botutils import utils, converters
 from conf import Storage, Config, Lang
 from subsystems import help
 
@@ -39,7 +39,7 @@ class Plugin(BasePlugin, name="Bot status commands for monitoring and debug purp
     @commands.command(name="storagedump", help="Dumps plugin storage", usage="<plugin name>")
     @commands.has_any_role(Config().BOTMASTER_ROLE_ID)
     async def storagedump(self, ctx, name):
-        plugin = converter.get_plugin_by_name(self.bot, name)
+        plugin = converters.get_plugin_by_name(self.bot, name)
         if plugin is None:
             await ctx.message.add_reaction(Lang.CMDERROR)
             await ctx.send("Plugin {} not found.".format(name))
@@ -58,7 +58,7 @@ class Plugin(BasePlugin, name="Bot status commands for monitoring and debug purp
     @commands.has_any_role(Config().BOTMASTER_ROLE_ID)
     # NOTE: Will be invoked via "!dsc set config" and "!fantasy set config"
     async def configdump(self, ctx, name):
-        plugin = converter.get_plugin_by_name(self.bot, name)
+        plugin = converters.get_plugin_by_name(self.bot, name)
         if plugin is None:
             await ctx.message.add_reaction(Lang.CMDERROR)
             await ctx.send("Plugin {} not found.".format(name))

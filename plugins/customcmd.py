@@ -8,7 +8,7 @@ from discord.ext import commands
 
 from base import BasePlugin, NotFound
 from conf import Storage, Lang, Config
-from botutils import utils, converter, permChecks
+from botutils import utils, converters, permchecks
 from subsystems.ignoring import UserBlockedCommand
 from subsystems.help import HelpCategory
 
@@ -136,7 +136,7 @@ class Cmd:
 
             # Ignoring, passive user command blocking
             try:
-                member = await converter.convert_member(bot, msg, arg)
+                member = await converters.convert_member(bot, msg, arg)
             except commands.BadArgument:
                 member = None
 
@@ -188,7 +188,7 @@ class Plugin(BasePlugin, name="Custom CMDs"):
             if (msg.content.startswith(self.prefix)
                     and msg.author.id != self.bot.user.id
                     and not self.bot.ignoring.check_user(msg.author)
-                    and permChecks.whitelist_check(msg.author)):
+                    and permchecks.whitelist_check(msg.author)):
                 await self.on_message(msg)
 
     def default_config(self):
@@ -314,7 +314,7 @@ class Plugin(BasePlugin, name="Custom CMDs"):
             return
 
         # set new prefix
-        if not permChecks.check_full_access(ctx.author):
+        if not permchecks.check_full_access(ctx.author):
             await ctx.message.add_reaction(Lang.CMDERROR)
             raise commands.BotMissingAnyRole(Config().FULL_ACCESS_ROLES)
 
@@ -449,7 +449,7 @@ class Plugin(BasePlugin, name="Custom CMDs"):
 
         cmd = self.commands[cmd_name]
 
-        if not permChecks.check_full_access(ctx.author) and ctx.author.id != cmd.creator_id:
+        if not permchecks.check_full_access(ctx.author) and ctx.author.id != cmd.creator_id:
             await ctx.send(Lang.lang(self, 'del_perm_missing'))
             return
 

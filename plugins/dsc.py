@@ -7,7 +7,7 @@ from enum import IntEnum
 from datetime import datetime
 from discord.ext import commands
 from conf import Storage, Lang, Config
-from botutils import utils, permChecks, sheetsclient
+from botutils import utils, permchecks, sheetsclient
 from base import BasePlugin
 
 
@@ -155,7 +155,7 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
 
     @dsc.group(name="set", help="Set data about current/next DSC.")
     async def dsc_set(self, ctx):
-        if (not permChecks.check_full_access(ctx.author)
+        if (not permchecks.check_full_access(ctx.author)
                 and Config.get(self)['songmaster_role_id'] != 0
                 and Config.get(self)['songmaster_role_id'] not in [role.id for role in ctx.author.roles]):
             raise commands.BotMissingAnyRole([*Config().FULL_ACCESS_ROLES, Config.get(self)['songmaster_role_id']])

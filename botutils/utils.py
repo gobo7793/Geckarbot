@@ -23,6 +23,7 @@ class HasAlreadyRun(Exception):
         super().__init__("Timer callback has already run, callback was {}".format(callback))
 
 
+# todo move to subsystems.timers and slowly merge into it
 class AsyncTimer(Thread):
     def __init__(self, bot, t, callback, *args, **kwargs):
         warnings.warn("utils.AsyncTimer is deprecated.")
@@ -65,6 +66,7 @@ class AsyncTimer(Thread):
             self.cancelled = True
 
 
+# todo move to converters
 def get_best_username(user):
     """
     Gets the best username for the given user or the str representation of the given object.
@@ -76,6 +78,7 @@ def get_best_username(user):
     return str(user)
 
 
+# todo move to stringutils
 def format_andlist(andlist, ands="and", emptylist="nobody", fulllist="everyone", fulllen=None):
     """
     Builds a string such as "a, b, c and d".
@@ -99,6 +102,7 @@ def format_andlist(andlist, ands="and", emptylist="nobody", fulllist="everyone",
     return "{} {} {}".format(s, ands, andlist[-1])
 
 
+# todo move to stringutils
 def clear_link(link):
     """Removes trailing and leading < and > from links"""
     if link.startswith('<'):
@@ -116,6 +120,7 @@ def convert_to_local_time(timestamp):
     return timestamp.replace(tzinfo=datetime.timezone.utc).astimezone(tz=None)
 
 
+# todo move to ... eh ... parsers?
 def analyze_time_input(*args):
     """
     Analyzes the given command args for following syntax and returns a datetime object after duration or on given
@@ -162,6 +167,7 @@ def analyze_time_input(*args):
     return datetime.datetime.max
 
 
+# todo move to converters
 async def emojize(demote_str, ctx):
     """
     Converts the demojized str represantation of the emoji back to an emoji string
@@ -176,6 +182,7 @@ async def emojize(demote_str, ctx):
     return str(emote)
 
 
+# todo move to converters
 async def demojize(emote, ctx):
     """
     Converts the emojized str of the emoji to its demojized str representation
@@ -190,6 +197,7 @@ async def demojize(emote, ctx):
     return str(converted)
 
 
+# todo move to converters and rename to something that contains the word "embed"
 def get_loggable_str(embed):
     """
     Returns the given embed contents as loggable string.
@@ -288,6 +296,7 @@ async def log_to_admin_channel(context):
     await write_admin_channel(context.bot, embed)
 
 
+# todo move to stringutils
 def paginate(items, prefix="", suffix="", msg_prefix="", msg_suffix="", delimiter="\n", f=lambda x: x,
              prefix_within_msg_prefix=True):
     """
@@ -354,6 +363,7 @@ def paginate(items, prefix="", suffix="", msg_prefix="", msg_suffix="", delimite
         i += 1
 
 
+# todo move to stringutils
 def sg_pl(number, singular, plural):
     if number == 1:
         return singular

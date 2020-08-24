@@ -239,7 +239,11 @@ class PointsQuizController(BaseQuizController):
             self.score.increase(user, self.current_question, totalcorr=len(correctly_answered))
 
         correct = [get_best_username(Storage().get(self.plugin), el) for el in correctly_answered]
-        correct = utils.format_andlist(correct, Lang.lang(self.plugin, "and"), Lang.lang(self.plugin, "nobody"))
+        correct = utils.format_andlist(correct,
+                                       ands=Lang.lang(self.plugin, "and"),
+                                       emptylist=Lang.lang(self.plugin, "nobody"),
+                                       fulllist=Lang.lang(self.plugin, "everyone"),
+                                       fulllen=len(self.registered_participants))
         if self.config["emoji_in_pose"]:
             ca = question.correct_answer_emoji
         else:
@@ -263,8 +267,14 @@ class PointsQuizController(BaseQuizController):
             msgkey = "quiz_end_pl"
         elif len(winners) == 0:
             msgkey = "quiz_end_no_winner"
-        winners = utils.format_andlist(winners, ands=Lang.lang(self.plugin, "and"),
-                                       emptylist=Lang.lang(self.plugin, "nobody"))
+        fulllen = len(self.registered_participants)
+        if fulllen <= 1:
+            fulllen = None
+        winners = utils.format_andlist(winners,
+                                       ands=Lang.lang(self.plugin, "and"),
+                                       emptylist=Lang.lang(self.plugin, "nobody"),
+                                       fulllist=Lang.lang(self.plugin, "everyone"),
+                                       fulllen=fulllen)
         msg = Lang.lang(self.plugin, msgkey, winners)
         if msg is None:
             await self.channel.send(embed=embed)
@@ -347,7 +357,9 @@ class PointsQuizController(BaseQuizController):
 
         msg = Lang.lang(self.plugin, "points_timeout_warning",
                         utils.format_andlist(self.havent_answered_hr(),
-                                             ands=Lang.lang(self.plugin, "and")),
+                                             ands=Lang.lang(self.plugin, "and"),
+                                             fulllist=Lang.lang(self.plugin, "everyone"),
+                                             fulllen=len(self.registered_participants)),
                         self.config["points_quiz_question_timeout"] // 2)
         panic = not self.havent_answered_hr()
         await self.channel.send(msg)
@@ -366,7 +378,10 @@ class PointsQuizController(BaseQuizController):
         self.current_question_timer = None
         self.plugin.logger.debug("Question timeout")
         msg = Lang.lang(self.plugin, "points_timeout", self.quizapi.current_question_index(),
-                        utils.format_andlist(self.havent_answered_hr(), ands=Lang.lang(self.plugin, "and")))
+                        utils.format_andlist(self.havent_answered_hr(),
+                                             ands=Lang.lang(self.plugin, "and"),
+                                             fulllist=Lang.lang(self.plugin, "everyone"),
+                                             fulllen=len(self.registered_participants)))
         self.state = Phases.EVAL
         await self.channel.send(msg)
 
@@ -378,9 +393,13 @@ class PointsQuizController(BaseQuizController):
         Called when the start command is invoked.
         """
         # Fetch questions
-        self.quizapi = self.quizapi(self.config, self.channel,
-                                    category=self.category, question_count=self.question_count,
-                                    difficulty=self.difficulty, debug=self.debug)
+        print("category: {}".format(self.category))
+        self.quizapi = self.quizapi(self.config,
+                                    self.channel,
+                                    category=self.category,
+                                    question_count=self.question_count,
+                                    difficulty=self.difficulty,
+                                    debug=self.debug)
         self.state = Phases.REGISTERING
 
     async def register_command(self, msg, *args):

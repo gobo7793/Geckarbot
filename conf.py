@@ -2,7 +2,7 @@ import os
 import json
 import logging
 from enum import Enum
-from botutils import jsonUtils, converter
+from botutils import jsonutils, converters
 from base import Configurable, ConfigurableType
 
 
@@ -62,7 +62,7 @@ class IODirectory(metaclass=_Singleton):
 
     @classmethod
     def has_structure(cls, plugin):
-        cnt = converter.get_plugin_container(cls().bot, plugin)
+        cnt = converters.get_plugin_container(cls().bot, plugin)
         if cnt is None:
             raise RuntimeError("PANIC: {} ({}) is not a registered plugin".format(plugin, plugin.get_name()))
         if cls() not in cnt.iodirs or cnt.iodirs[cls()] is None:
@@ -86,7 +86,7 @@ class IODirectory(metaclass=_Singleton):
         """Writes the config to file_name.json and returns if successfull"""
         try:
             with open(self._filepath(file_name), "w", encoding="utf-8") as f:
-                json.dump(config_data, f, cls=jsonUtils.Encoder, indent=4)
+                json.dump(config_data, f, cls=jsonutils.Encoder, indent=4)
                 return True
         except (OSError, InterruptedError, OverflowError, ValueError, TypeError):
             logging.error(f"Error writing config file {self._filepath(file_name)}.json")
@@ -99,7 +99,7 @@ class IODirectory(metaclass=_Singleton):
         else:
             try:
                 with open(self._filepath(file_name), "r", encoding="utf-8") as f:
-                    jsondata = json.load(f, cls=jsonUtils.Decoder)
+                    jsondata = json.load(f, cls=jsonutils.Decoder)
                     return jsondata
             except (IsADirectoryError, OSError, InterruptedError, json.JSONDecodeError):
                 logging.error(f"Error reading {self._filepath(file_name)}.json.")
