@@ -296,7 +296,7 @@ class Plugin(BasePlugin, name="Custom CMDs"):
 
         await self.help_category.send_category_help(ctx)
 
-    @commands.group(name="cmd", invoke_without_command=True, alias="bar",
+    @commands.group(name="cmd", invoke_without_command=True, aliases=["bar"],
                     help="Adds, list or (for admins) removes a custom command",
                     description="Adds, list or removes a custom command. Custom commands can be added and removed in "
                                 "runtime. To use a custom command, the message must start with the setted prefix, "
