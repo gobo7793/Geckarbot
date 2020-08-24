@@ -157,9 +157,9 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
     @dsc.group(name="set", help="Set data about current/next DSC.")
     async def dsc_set(self, ctx):
         if (not permchecks.check_full_access(ctx.author)
-                and Config.get(self)['songmaster_role_id'] != 0
-                and Config.get(self)['songmaster_role_id'] not in [role.id for role in ctx.author.roles]):
-            raise commands.BotMissingAnyRole([*Config().FULL_ACCESS_ROLES, Config.get(self)['songmaster_role_id']])
+                and Config.get(self)['mod_role_id'] != 0
+                and Config.get(self)['mod_role_id'] not in [role.id for role in ctx.author.roles]):
+            raise commands.BotMissingAnyRole([*Config().FULL_ACCESS_ROLES, Config.get(self)['mod_role_id']])
         if Config.get(self)['channel_id'] != 0 and Config.get(self)['channel_id'] != ctx.channel.id:
             raise commands.CheckFailure()
 
