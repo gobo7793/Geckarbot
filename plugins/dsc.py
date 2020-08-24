@@ -36,7 +36,7 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
             'contestdoc_id': "1HH42s5DX4FbuEeJPdm8l1TK70o2_EKADNOLkhu5qRa8",
             'winners_range': "Hall of Fame!B4:D200",
             'channel_id': 0,
-            'songmaster_role_id': 0
+            'mod_role_id': 0
         }
 
     def default_storage(self):
@@ -46,7 +46,7 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
             'state': DscState.NA,
             'yt_link': None,
             'points': "",
-            'state_end': datetime.now(),
+            'date': datetime.now(),
             'status': None
         }
 
@@ -120,46 +120,38 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
 
     @dsc.command(name="info", help="Get information about current DSC")
     async def dsc_info(self, ctx):
-        host_nick = None
-        date_out_str = Lang.lang(self, 'info_date_str', Storage.get(self)['state_end'].strftime('%d.%m.%Y, %H:%M'))
+        date_out_str = Lang.lang(self, 'info_date_str', Storage.get(self)['date'].strftime('%d.%m.%Y, %H:%M'))
         if not Storage.get(self)['host_id']:
             await ctx.send(Lang.lang(self, 'must_set_host'))
-        else:
-            host_nick = discord.utils.get(ctx.guild.members, id=Storage.get(self)['host_id']).mention
+            return
+
+        host_nick = discord.utils.get(ctx.guild.members, id=Storage.get(self)['host_id']).mention
+
+        embed = discord.Embed()
+        embed.add_field(name=Lang.lang(self, 'current_host'), value=host_nick)
+        if Storage.get(self)['status']:
+            embed.description = Storage.get(self)['status']
 
         if Storage.get(self)['state'] == DscState.Sign_up:
-            if Storage.get(self)['state_end'] > datetime.now():
-                date_out_str = Lang.lang(self, 'info_date_str', Storage.get(self)['state_end'].strftime('%d.%m.%Y'))
-            else:
-                date_out_str = ""
-
-            embed = discord.Embed(title=Lang.lang(self, 'signup_phase_info', date_out_str))
-            embed.add_field(name=Lang.lang(self, 'current_host'), value=host_nick)
+            date_out_str = Lang.lang(self, 'info_date_str', Storage.get(self)['date'].strftime('%d.%m.%Y')) \
+                if Storage.get(self)['date'] > datetime.now() \
+                else ""
+            embed.title = Lang.lang(self, 'signup_phase_info', date_out_str)
             embed.add_field(name=Lang.lang(self, 'sign_up'), value=self._get_doc_link())
-            if Storage.get(self)['status']:
-                embed.description = Storage.get(self)['status']
-            await ctx.send(embed=embed)
 
         elif Storage.get(self)['state'] == DscState.Voting:
-            embed = discord.Embed(title=Lang.lang(self, 'voting_phase_info', date_out_str))
-            embed.add_field(name=Lang.lang(self, 'current_host'), value=host_nick)
+            embed.title = Lang.lang(self, 'voting_phase_info', date_out_str)
             embed.add_field(name=Lang.lang(self, 'all_songs'), value=self._get_doc_link())
             embed.add_field(name=Lang.lang(self, 'yt_playlist'), value=Storage.get(self)['yt_link'])
             embed.add_field(name=Lang.lang(self, 'points'), value=Storage.get(self)['points'])
-            if Storage.get(self)['status']:
-                embed.description = Storage.get(self)['status']
-            await ctx.send(embed=embed)
 
         else:
             await ctx.send(Lang.lang(self, 'config_error_reset'))
-            embed = discord.Embed(title=Lang.lang(self, 'config_error'))
-            embed.add_field(name="Host ID", value=str(Storage.get(self)['host_id']))
-            embed.add_field(name="Host Nick", value=host_nick)
-            embed.add_field(name="State", value=str(Storage.get(self)['state']))
-            embed.add_field(name="YT Link", value=str(Storage.get(self)['yt_link']))
-            embed.add_field(name="State End", value=str(Storage.get(self)['state_end']))
-            embed.add_field(name="Status", value=str(Storage.get(self)['status']))
-            await utils.write_debug_channel(self.bot, embed)
+            await ctx.invoke(self.bot.get_command("configdump"), self.get_name())
+            await ctx.invoke(self.bot.get_command("storagedump"), self.get_name())
+            return
+
+        await ctx.send(embed=embed)
 
     @dsc.group(name="set", help="Set data about current/next DSC.")
     async def dsc_set(self, ctx):
@@ -207,7 +199,7 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
     async def dsc_set_date(self, ctx, date_str, time_str=None):
         if not time_str:
             time_str = "23:59"
-        Storage.get(self)['state_end'] = datetime.strptime(f"{date_str} {time_str}", "%d.%m.%Y %H:%M")
+        Storage.get(self)['date'] = datetime.strptime(f"{date_str} {time_str}", "%d.%m.%Y %H:%M")
         Storage().save(self)
         await ctx.message.add_reaction(Lang.CMDSUCCESS)
 
@@ -237,7 +229,7 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
             key_value = Config.get(self).get(key, None)
             if key_value is None:
                 await ctx.message.add_reaction(Lang.CMDERROR)
-                await ctx.send(Lang.lang(self, 'key_not_exists', key))
+                await ctx.send(Lang.lang(self, 'key_not_exist', key))
             else:
                 await ctx.message.add_reaction(Lang.CMDSUCCESS)
                 await ctx.send(key_value)
@@ -252,15 +244,15 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
             except ValueError:
                 pass
             if channel is None:
-                Lang.lang(self, 'channel_id_int')
+                Lang.lang(self, 'channel_id')
                 await ctx.message.add_reaction(Lang.CMDERROR)
                 return
             else:
                 Config.get(self)[key] = int_value
 
-        elif key == "songmaster_role_id":
+        elif key == "mod_role_id":
             role = None
-            int_value = Config.get(self)['songmaster_role_id']
+            int_value = Config.get(self)['mod_role_id']
             try:
                 int_value = int(value)
                 role = self.bot.guild.get_role(int_value)
