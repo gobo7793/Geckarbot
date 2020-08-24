@@ -1,4 +1,4 @@
-from botutils import utils
+from botutils import converters
 
 
 def uemoji(config, user):
@@ -13,5 +13,5 @@ def get_best_username(config, user, mention=False):
     if mention:
         s = user.mention
     else:
-        s = utils.get_best_username(user)
+        s = converters.get_best_username(user)
     return "{}{}".format(uemoji(config, user), s)

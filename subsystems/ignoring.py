@@ -8,6 +8,7 @@ from datetime import datetime
 from base import BaseSubsystem
 from conf import Storage, ConfigurableContainer, Lang
 from botutils import utils
+from botutils.converters import get_best_username
 from subsystems import timers
 
 """
@@ -468,7 +469,7 @@ class Ignoring(BaseSubsystem):
     @staticmethod
     def _user_name_check_func(user: discord.User):
         """The user name check function"""
-        return utils.get_best_username(user)
+        return get_best_username(user)
 
     @staticmethod
     def _user_id_check_func(user: discord.User):

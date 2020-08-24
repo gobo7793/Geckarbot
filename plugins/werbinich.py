@@ -6,9 +6,9 @@ import discord
 from discord.ext import commands
 from discord.http import HTTPException
 
-from base import BasePlugin, NotFound
+from base import BasePlugin
 from conf import Lang
-from botutils import utils, statemachine
+from botutils import utils, statemachine, stringutils, converters
 from subsystems import help
 
 
@@ -56,7 +56,7 @@ class Participant:
 
     async def init_dm(self):
         self.plugin.logger.debug("Sending init DM to {}".format(self.user))
-        await self.send(Lang.lang(self.plugin, "ask_for_entry", utils.get_best_username(self.assigned.user)))
+        await self.send(Lang.lang(self.plugin, "ask_for_entry", converters.get_best_username(self.assigned.user)))
 
     async def dm_callback(self, cb, message):
         self.plugin.logger.debug("Incoming message from {}: {}".format(self.user, message.content))
@@ -74,7 +74,7 @@ class Participant:
 
         self.chosen = message.content
         if first:
-            await self.send(Lang.lang(self.plugin, "entry_done", utils.get_best_username(self.assigned.user),
+            await self.send(Lang.lang(self.plugin, "entry_done", converters.get_best_username(self.assigned.user),
                                       self.chosen))
         else:
             await self.send(Lang.lang(self.plugin, "entry_change", self.chosen))
@@ -90,8 +90,8 @@ class Participant:
             key = "result_with_assignees"
         else:
             key = "result_without_assignees"
-        return Lang.lang(self.plugin, key, utils.get_best_username(self.assigned.user), self.chosen,
-                         utils.get_best_username(self.user))
+        return Lang.lang(self.plugin, key, converters.get_best_username(self.assigned.user), self.chosen,
+                         converters.get_best_username(self.user))
 
     def cleanup(self):
         self.plugin.logger.debug("Cleaning up participant {}".format(self.user))
@@ -170,9 +170,9 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
         waitingfor = []
         for el in self.participants:
             if el.chosen is None:
-                waitingfor.append(utils.get_best_username(el.user))
+                waitingfor.append(converters.get_best_username(el.user))
 
-        wf = utils.format_andlist(waitingfor, ands=Lang.lang(self, "and"), emptylist=Lang.lang(self, "nobody"))
+        wf = stringutils.format_andlist(waitingfor, ands=Lang.lang(self, "and"), emptylist=Lang.lang(self, "nobody"))
         await ctx.send(Lang.lang(self, "waiting_for", wf))
 
     @werbinich.command(name="stop")
@@ -203,8 +203,8 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
             return
 
         await ctx.message.add_reaction(Lang.CMDSUCCESS)
-        for msg in utils.paginate(self.participants, prefix=Lang.lang(self, "participants_last_round"),
-                                  f=lambda x: x.to_msg()):
+        for msg in stringutils.paginate(self.participants, prefix=Lang.lang(self, "participants_last_round"),
+                                        f=lambda x: x.to_msg()):
             await ctx.author.send(msg)
 
     @werbinich.command(name="fertig", help=h_postgame)
@@ -244,7 +244,7 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
         reaction = Lang.lang(self, "reaction_signup")
         to = self.config["register_timeout"]
         msg = Lang.lang(self, "registering", reaction, to,
-                        utils.sg_pl(to, Lang.lang(self, "minute_sg"), Lang.lang(self, "minute_pl")))
+                        stringutils.sg_pl(to, Lang.lang(self, "minute_sg"), Lang.lang(self, "minute_pl")))
         msg = await self.channel.send(msg)
 
         try:
@@ -275,12 +275,12 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
                     continue
 
                 if self.bot.dm_listener.is_blocked(user):
-                    blocked.append(utils.get_best_username(user))
+                    blocked.append(converters.get_best_username(user))
                 else:
                     candidates.append(user)
 
         if blocked:
-            blocked = utils.format_andlist(blocked, ands=Lang.lang(self, "and"))
+            blocked = stringutils.format_andlist(blocked, ands=Lang.lang(self, "and"))
             await self.channel.send(Lang.lang(self, "dmblocked", blocked))
             self.statemachine.state = State.ABORT
             return
@@ -303,16 +303,18 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
     async def collecting_phase(self):
         assert len(self.participants) > 1
 
-        msg = [utils.get_best_username(el.user) for el in self.participants]
-        msg = utils.format_andlist(msg, ands=Lang.lang(self, "and"))
+        msg = [converters.get_best_username(el.user) for el in self.participants]
+        msg = stringutils.format_andlist(msg, ands=Lang.lang(self, "and"))
         msg = Lang.lang(self, "list_participants", msg)
-        await self.channel.send(msg)
 
         shuffled = self.participants.copy()
         utils.trueshuffle(shuffled)
         for i in range(len(self.participants)):
             self.participants[i].assign(shuffled[i])
 
+        self.participants = sorted(self.participants, key=converters.get_best_username)
+
+        await self.channel.send(msg)
         for el in self.participants:
             await el.init_dm()
 
@@ -329,7 +331,7 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
                 if el.assigned != target:
                     todo.append(el.to_msg(show_assignees=self.show_assignees))
 
-            for msg in utils.paginate(todo, prefix=Lang.lang(self, "list_title")):
+            for msg in stringutils.paginate(todo, prefix=Lang.lang(self, "list_title")):
                 await target.send(msg)
         await self.channel.send(Lang.lang(self, "done"))
         self.cleanup()

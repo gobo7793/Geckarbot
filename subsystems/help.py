@@ -4,7 +4,7 @@ from discord.ext import commands
 
 from base import BaseSubsystem, NotFound
 from conf import Lang
-from botutils.utils import paginate
+from botutils.stringutils import paginate
 
 
 class CategoryNotFound(Exception):

@@ -5,7 +5,9 @@ from enum import Enum
 import discord
 
 from subsystems.reactions import ReactionRemovedEvent
+from subsystems import timers
 from botutils import utils, statemachine
+from botutils.stringutils import format_andlist
 from conf import Storage, Lang
 
 from plugins.quiz.abc import BaseQuizController
@@ -176,8 +178,8 @@ class PointsQuizController(BaseQuizController):
             self.state = Phases.END
             return
 
-        self.current_question_timer = utils.AsyncTimer(self.plugin.bot, self.config["points_quiz_question_timeout"],
-                                                       self.timeout_warning, self.current_question)
+        self.current_question_timer = timers.AsyncTimer(self.plugin.bot, self.config["points_quiz_question_timeout"],
+                                                        self.timeout_warning, self.current_question)
         msg = await self.current_question.pose(self.channel, emoji=self.config["emoji_in_pose"])
         self.current_reaction_listener = self.plugin.bot.reaction_listener.register(
             msg, self.on_reaction, data=self.current_question)
@@ -210,7 +212,7 @@ class PointsQuizController(BaseQuizController):
         if self.current_question_timer is not None:
             try:
                 self.current_question_timer.cancel()
-            except utils.HasAlreadyRun:
+            except timers.HasAlreadyRun:
                 self.plugin.logger.warning("This should really, really not happen.")
             self.current_question_timer = None
         else:
@@ -239,11 +241,11 @@ class PointsQuizController(BaseQuizController):
             self.score.increase(user, self.current_question, totalcorr=len(correctly_answered))
 
         correct = [get_best_username(Storage().get(self.plugin), el) for el in correctly_answered]
-        correct = utils.format_andlist(correct,
-                                       ands=Lang.lang(self.plugin, "and"),
-                                       emptylist=Lang.lang(self.plugin, "nobody"),
-                                       fulllist=Lang.lang(self.plugin, "everyone"),
-                                       fulllen=len(self.registered_participants))
+        correct = format_andlist(correct,
+                                 ands=Lang.lang(self.plugin, "and"),
+                                 emptylist=Lang.lang(self.plugin, "nobody"),
+                                 fulllist=Lang.lang(self.plugin, "everyone"),
+                                 fulllen=len(self.registered_participants))
         if self.config["emoji_in_pose"]:
             ca = question.correct_answer_emoji
         else:
@@ -270,11 +272,11 @@ class PointsQuizController(BaseQuizController):
         fulllen = len(self.registered_participants)
         if fulllen <= 1:
             fulllen = None
-        winners = utils.format_andlist(winners,
-                                       ands=Lang.lang(self.plugin, "and"),
-                                       emptylist=Lang.lang(self.plugin, "nobody"),
-                                       fulllist=Lang.lang(self.plugin, "everyone"),
-                                       fulllen=fulllen)
+        winners = format_andlist(winners,
+                                 ands=Lang.lang(self.plugin, "and"),
+                                 emptylist=Lang.lang(self.plugin, "nobody"),
+                                 fulllist=Lang.lang(self.plugin, "everyone"),
+                                 fulllen=fulllen)
         msg = Lang.lang(self.plugin, msgkey, winners)
         if msg is None:
             await self.channel.send(embed=embed)
@@ -294,7 +296,7 @@ class PointsQuizController(BaseQuizController):
         if self.current_question_timer is not None:
             try:
                 self.current_question_timer.cancel()
-            except utils.HasAlreadyRun:
+            except timers.HasAlreadyRun:
                 pass
         if self.ranked and len(self.registered_participants) < self.config["ranked_min_players"]:
             await self.channel.send(Lang.lang(self.plugin, "ranked_playercount", self.config["ranked_min_players"]))
@@ -351,15 +353,15 @@ class PointsQuizController(BaseQuizController):
             return
 
         self.plugin.logger.debug("Question timeout warning")
-        self.current_question_timer = utils.AsyncTimer(self.plugin.bot,
-                                                       self.config["points_quiz_question_timeout"] // 2,
-                                                       self.timeout, self.current_question)
+        self.current_question_timer = timers.AsyncTimer(self.plugin.bot,
+                                                        self.config["points_quiz_question_timeout"] // 2,
+                                                        self.timeout, self.current_question)
 
         msg = Lang.lang(self.plugin, "points_timeout_warning",
-                        utils.format_andlist(self.havent_answered_hr(),
-                                             ands=Lang.lang(self.plugin, "and"),
-                                             fulllist=Lang.lang(self.plugin, "everyone"),
-                                             fulllen=len(self.registered_participants)),
+                        format_andlist(self.havent_answered_hr(),
+                                       ands=Lang.lang(self.plugin, "and"),
+                                       fulllist=Lang.lang(self.plugin, "everyone"),
+                                       fulllen=len(self.registered_participants)),
                         self.config["points_quiz_question_timeout"] // 2)
         panic = not self.havent_answered_hr()
         await self.channel.send(msg)
@@ -378,10 +380,10 @@ class PointsQuizController(BaseQuizController):
         self.current_question_timer = None
         self.plugin.logger.debug("Question timeout")
         msg = Lang.lang(self.plugin, "points_timeout", self.quizapi.current_question_index(),
-                        utils.format_andlist(self.havent_answered_hr(),
-                                             ands=Lang.lang(self.plugin, "and"),
-                                             fulllist=Lang.lang(self.plugin, "everyone"),
-                                             fulllen=len(self.registered_participants)))
+                        format_andlist(self.havent_answered_hr(),
+                                       ands=Lang.lang(self.plugin, "and"),
+                                       fulllist=Lang.lang(self.plugin, "everyone"),
+                                       fulllen=len(self.registered_participants)))
         self.state = Phases.EVAL
         await self.channel.send(msg)
 
@@ -612,8 +614,8 @@ class RushQuizController(BaseQuizController):
             msgkey = "quiz_end_pl"
         elif len(winners) == 0:
             msgkey = "quiz_end_no_winner"
-        winners = utils.format_andlist(winners, ands=Lang.lang(self.plugin, "and"),
-                                       emptylist=Lang.lang(self.plugin, "nobody"))
+        winners = format_andlist(winners, ands=Lang.lang(self.plugin, "and"),
+                                 emptylist=Lang.lang(self.plugin, "nobody"))
         msg = Lang.lang(self.plugin, msgkey, winners)
 
         if msg is None:

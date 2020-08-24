@@ -5,7 +5,8 @@ from discord.ext import commands
 
 from base import BasePlugin
 from conf import Storage, Config, Lang
-from botutils import utils
+from botutils import utils, converters
+from botutils.stringutils import paginate
 
 
 def str_keys_to_int(d):
@@ -71,7 +72,7 @@ class Complaint:
     def to_message(self):
         authorname = "Not found"
         if self.author is not None:
-            authorname = utils.get_best_username(self.author)
+            authorname = converters.get_best_username(self.author)
         r = "**#{}**: {}: {}".format(self.id, authorname, self.content)
         if self.msg_link is not None:
             r += "\n{}".format(self.msg_link)
@@ -145,8 +146,11 @@ class Plugin(BasePlugin, name="Feedback"):
             await ctx.send(Lang.lang(self, "redact_no_complaints"))
             return
 
-        msgs = utils.paginate([el for el in self.complaints.values()],
-                              prefix=Lang.lang(self, "redact_title"), delimiter="\n\n", msg_prefix="_ _\n", f=to_msg)
+        msgs = paginate([el for el in self.complaints.values()],
+                        prefix=Lang.lang(self, "redact_title", len(self.complaints)),
+                        delimiter="\n\n",
+                        msg_prefix="_ _\n",
+                        f=to_msg)
         for el in msgs:
             await ctx.send(el)
 
@@ -189,7 +193,7 @@ class Plugin(BasePlugin, name="Feedback"):
             await ctx.send(Lang.lang(self, "redact_search_not_found"))
             return
 
-        msgs = utils.paginate(r, prefix=Lang.lang(self, "redact_search_title"), delimiter="\n\n", f=to_msg)
+        msgs = paginate(r, prefix=Lang.lang(self, "redact_search_title"), delimiter="\n\n", f=to_msg)
         for el in msgs:
             await ctx.send(el)
 
@@ -203,7 +207,6 @@ class Plugin(BasePlugin, name="Feedback"):
         complaint = Complaint.from_message(self, msg)
         self.complaints[complaint.id] = complaint
         await ctx.message.add_reaction(Lang.CMDSUCCESS)
-        # await msg.channel.send(lang["complaint_received"])
         self.write()
 
     """
@@ -213,14 +216,14 @@ class Plugin(BasePlugin, name="Feedback"):
     async def bugscore_show(self, ctx):
         users = sorted(
             sorted(
-                [(utils.get_best_username(discord.utils.get(self.bot.guild.members, id=user)), n) for (user, n) in
+                [(converters.get_best_username(discord.utils.get(self.bot.guild.members, id=user)), n) for (user, n) in
                  self.storage["bugscore"].items()],
                 key=lambda x: x[0].lower()),
             key=lambda x: x[1],
             reverse=True
         )
         lines = ["{}: {}".format(user, p) for (user, p) in users]
-        for msg in utils.paginate(lines, prefix="{}\n".format(Storage.lang(self, "bugscore_title"))):
+        for msg in paginate(lines, prefix="{}\n".format(Lang.lang(self, "bugscore_title"))):
             await ctx.send(msg)
 
     async def bugscore_del(self, ctx, user):

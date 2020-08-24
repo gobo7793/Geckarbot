@@ -15,7 +15,7 @@ from discord.ext import commands
 import injections
 from base import BasePlugin, NotLoadable
 from conf import Config, ConfigurableContainer, Lang, Storage
-from botutils import utils, permchecks
+from botutils import utils, permchecks, converters
 from subsystems import timers, reactions, ignoring, dmlisteners, help
 
 
@@ -204,7 +204,7 @@ def main():
             if isinstance(error, (commands.CommandNotFound, commands.DisabledCommand)):
                 return
             if isinstance(error, ignoring.UserBlockedCommand):
-                await ctx.send("User {} has blocked the command.".format(utils.get_best_username(error.user)))
+                await ctx.send("User {} has blocked the command.".format(converters.get_best_username(error.user)))
 
             # Check Failures
             elif isinstance(error, (commands.MissingRole, commands.MissingAnyRole)):

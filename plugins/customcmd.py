@@ -9,6 +9,7 @@ from discord.ext import commands
 from base import BasePlugin, NotFound
 from conf import Storage, Lang, Config
 from botutils import utils, converters, permchecks
+from botutils.stringutils import paginate
 from subsystems.ignoring import UserBlockedCommand
 from subsystems.help import HelpCategory
 
@@ -109,7 +110,7 @@ class Cmd:
 
         # general replaces
         cmd_content = cmd_content.replace(wildcard_umention, msg.author.mention)
-        cmd_content = cmd_content.replace(wildcard_user, utils.get_best_username(msg.author))
+        cmd_content = cmd_content.replace(wildcard_user, converters.get_best_username(msg.author))
 
         if wildcard_all_args in cmd_content:
             cmd_content = cmd_content.replace(wildcard_all_args, _get_all_arg_str(0, cmd_args))
@@ -165,7 +166,7 @@ class CustomCMDHelpCategory(HelpCategory):
         msg.append(Lang.lang(self.plugin, "help_custom_cmd_list_prefix"))
         msg += self.plugin.format_cmd_list(incl_prefix=True)
 
-        for msg in utils.paginate(msg, msg_prefix="```", msg_suffix="```"):
+        for msg in paginate(msg, msg_prefix="```", msg_suffix="```"):
             await ctx.send(msg)
 
 
@@ -346,7 +347,7 @@ class Plugin(BasePlugin, name="Custom CMDs"):
             cmds = [Lang.lang(self, 'list_no_cmds')]
 
         cmds.sort(key=str.lower)
-        cmds = utils.paginate(cmds, delimiter=", ", suffix=suffix)
+        cmds = paginate(cmds, delimiter=", ", suffix=suffix)
         return cmds
 
     @cmd.command(name="list", help="Lists all custom commands.",
@@ -362,9 +363,9 @@ class Plugin(BasePlugin, name="Custom CMDs"):
         cmd_name = cmd_name.lower()
         if cmd_name in self.commands:
             creator = self.bot.get_user(self.commands[cmd_name].creator_id)
-            for msg in utils.paginate(self.commands[cmd_name].get_raw_texts(), delimiter="\n",
-                                      prefix=Lang.lang(self, 'raw_prefix',
-                                                       self.prefix, cmd_name, utils.get_best_username(creator))):
+            for msg in paginate(self.commands[cmd_name].get_raw_texts(), delimiter="\n",
+                                prefix=Lang.lang(self, 'raw_prefix',
+                                                       self.prefix, cmd_name, converters.get_best_username(creator))):
                 await ctx.send(msg)
         else:
             await ctx.send(Lang.lang(self, "raw_doesnt_exists", cmd_name))

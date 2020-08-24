@@ -20,6 +20,17 @@ def _get_from_guilds(bot, getter, argument):
     return result
 
 
+def get_best_username(user):
+    """
+    Gets the best username for the given user or the str representation of the given object.
+    :param user: User (Member or User instance) that is to be identified
+    :return: Returns the best fit for a human-readable identifier ("username") of user.
+    """
+    if isinstance(user, discord.abc.User):
+        return user.display_name
+    return str(user)
+
+
 async def convert_member(bot, message, argument):
     """
     Tries to convert the given argument to a discord Member object like the Member converter, but w/o context.

@@ -4,7 +4,8 @@ import discord
 from datetime import datetime
 from discord.ext import commands
 from conf import Config, Storage, Lang
-from botutils import utils, permchecks
+from botutils import stringutils, permchecks
+from botutils.stringutils import paginate
 from Geckarbot import BasePlugin
 
 
@@ -68,7 +69,7 @@ class Plugin(BasePlugin, name="NFL Fantasyliga"):
             return "{}: <{}>".format(Lang.lang(self, "league_name", number + 1), Storage.get(self)["links"][number])
 
         prefix_str_name = "league_link" if self.is_single_league() else "league_link_multileague"
-        for msg in utils.paginate(range(0, self.get_league_cnt()),
+        for msg in paginate(range(0, self.get_league_cnt()),
                                   prefix=Lang.lang(self, prefix_str_name), f=to_msg):
             await ctx.send(msg)
 
@@ -157,7 +158,7 @@ class Plugin(BasePlugin, name="NFL Fantasyliga"):
 
     @fantasy_set.command(name="datalink", help="Sets the link for the Players Database")
     async def set_datalink(self, ctx, link):
-        link = utils.clear_link(link)
+        link = stringutils.clear_link(link)
         Storage.get(self)['datalink'] = link
         Storage.save(self)
         await ctx.message.add_reaction(Lang.CMDSUCCESS)
@@ -171,7 +172,7 @@ class Plugin(BasePlugin, name="NFL Fantasyliga"):
             await ctx.message.add_reaction(Lang.CMDERROR)
             return
 
-        link = utils.clear_link(link)
+        link = stringutils.clear_link(link)
         if number > self.get_league_cnt():
             Storage.get(self)['links'].append(link)
             Storage.get(self)['commishs'].append("")

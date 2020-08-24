@@ -11,6 +11,7 @@ from discord.ext import commands
 import Geckarbot
 from base import BasePlugin, ConfigurableType
 from botutils import restclient, utils, permchecks
+from botutils.stringutils import paginate
 from conf import Config, Lang
 from subsystems import help
 
@@ -344,7 +345,7 @@ class Plugin(BasePlugin, name="Bot updating system"):
                 el = "**{}**".format(m.groups()[0])
             lines.append(el)
 
-        for page in utils.paginate(lines, prefix="**Version {}:**\n".format(ver), msg_prefix="_ _\n", delimiter=""):
+        for page in paginate(lines, prefix="**Version {}:**\n".format(ver), msg_prefix="_ _\n", delimiter=""):
             await channel.send(page)
 
     async def was_i_updated(self):
