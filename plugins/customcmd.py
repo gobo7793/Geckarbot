@@ -437,9 +437,10 @@ class Plugin(BasePlugin, name="Custom CMDs"):
 
     @cmd.command(name="del", help="Deletes a custom command or output text",
                  description="Deletes a custom command or one of its output texts. If the last output text was "
-                             "deleted, the whole command will be removed. To delete a output text,"
-                             "the ID of the text must be given. The IDs and creator can be get via !cmd info <command>."
-                             "Only the original command creator or admins can delete commands or its texts.")
+                             "deleted, the whole command will be removed. To delete a output text, "
+                             "the ID of the text must be given. The IDs and creator can be get via "
+                             "!cmd info <command>. Only the original command creator or admins can delete commands "
+                             "or its texts.")
     async def cmd_del(self, ctx, cmd_name, text_id: int = None):
         cmd_name = cmd_name.lower()
 
