@@ -474,7 +474,6 @@ dmypy.json
 .pyre/
 
 # local config/log files
-/config/*.json
 /storage/*
 /resource/*
 .update
