@@ -87,7 +87,7 @@ class HelpCategory:
         r = []
         for plugin in self.plugins:
             for command in plugin.get_commands():
-                r.append("  {}".format(self.bot.helpsys.format_command_help_line(command)))
+                r.append("  {}".format(self.bot.helpsys.format_command_help_line(plugin, command)))
         return r
 
     async def send_category_help(self, ctx):

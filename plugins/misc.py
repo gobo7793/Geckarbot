@@ -10,7 +10,6 @@ from conf import Storage, Lang, Config
 
 from base import BasePlugin
 from subsystems import timers, help
-from botutils import utils
 from botutils.converters import get_best_username
 
 
