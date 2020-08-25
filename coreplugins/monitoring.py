@@ -78,13 +78,14 @@ class Plugin(BasePlugin, name="Bot status commands for monitoring and debug purp
     @commands.command(name="date", help="Current date and time")
     async def date(self, ctx):
         now = datetime.now()
-        await ctx.send(now.strftime('%d.%m.%Y %H:%M'))
+        await ctx.send(now.strftime('%d.%m.%Y %H:%M:%S.%f'))
 
     @commands.command(name="debug", help="Print or change debug mode at runtime", usage="[true|on|off|false|toggle]")
     @commands.has_any_role(Config().BOTMASTER_ROLE_ID)
-    async def debug(self, ctx, arg):
+    async def debug(self, ctx, arg=None):
         toggle = None
-        arg = arg.lower()
+        if arg is not None:
+            arg = arg.lower()
         if arg == "toggle":
             toggle = not Config().DEBUG_MODE
         elif arg == "on" or arg == "true" or arg == "set":
