@@ -386,14 +386,14 @@ class Plugin(BasePlugin, name="Custom CMDs"):
                              "Supports /me. Custom commands must be compliant to the general command guidelines, which "
                              "can be accessed via !cmd guidelines.\n"
                              "Example: !cmd add test Argument1: %1 from user %u\n")
-    async def cmd_add(self, ctx, cmd_name, *args):
-        if not "".join(args):
+    async def cmd_add(self, ctx, cmd_name, *, args: str):
+        if not args:
             await ctx.message.add_reaction(Lang.CMDERROR)
             raise commands.MissingRequiredArgument(inspect.signature(self.cmd_add).parameters['args'])
         cmd_name = cmd_name.lower()
 
         # TODO Process multiple output texts
-        cmd_texts = [" ".join(args)]
+        cmd_texts = [args]
 
         # Process special discord /cmd
         for i in range(0, len(cmd_texts)):
@@ -406,15 +406,15 @@ class Plugin(BasePlugin, name="Custom CMDs"):
             self.commands[cmd_name].texts.extend(cmd_texts)
             self.save()
             await ctx.message.add_reaction(Lang.CMDSUCCESS)
+            await utils.write_debug_channel(self.bot, Lang.lang(self, 'cmd_text_added', cmd_texts))
             await ctx.send(Lang.lang(self, "add_exists", cmd_name))
         else:
             self.commands[cmd_name] = Cmd(cmd_name, ctx.author.id, cmd_texts)
             self.save()
             # await utils.log_to_admin_channel(ctx)
             await ctx.message.add_reaction(Lang.CMDSUCCESS)
-            await utils.write_debug_channel(self.bot,
-                                            Lang.lang(self, 'cmd_added',
-                                                      self.commands[cmd_name].get_raw_texts()))
+            await utils.write_debug_channel(self.bot, Lang.lang(self, 'cmd_added',
+                                                                self.commands[cmd_name].get_raw_texts()))
 
     # @cmd.command(name="edit")
     # async def cmd_edit(self, ctx, cmd_name, *args):
