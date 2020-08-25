@@ -2,7 +2,7 @@ from enum import Enum
 
 from discord.ext import commands
 
-from base import BaseSubsystem, NotFound
+from base import BaseSubsystem, NotFound, BasePlugin
 from conf import Lang
 from botutils.stringutils import paginate
 
@@ -28,14 +28,20 @@ class CategoryOrder(Enum):
     LAST = 2
 
 
-class HelpCog(commands.Cog):
+class HelpCog(BasePlugin):
     def __init__(self, bot):
         self.bot = bot
-        super().__init__()
+        super().__init__(bot)
+        self.category = HelpCategory(Lang.lang(self, "self_category_name"))
+        self.category.add_plugin(self)
 
-    @commands.command(name="help")
+    @commands.command(name="help", description="Zu Hülfe!", usage="[command | category]")
     async def helpcmd(self, ctx, *args):
         await self.bot.helpsys.helpcmd(ctx, *args)
+
+    @commands.command(name="usage", description="Kurzer Benutzungshinweis", usage="[command | category]")
+    async def usagecmd(self, ctx, *args):
+        await self.bot.helpsys.usagecmd(ctx, *args)
 
 
 class HelpCategory:
@@ -119,6 +125,7 @@ class GeckiHelp(BaseSubsystem):
         self.bot.remove_command("help")
         self.cog = HelpCog(self.bot)
         self.bot.add_cog(self.cog)
+        self.register_category(self.cog.category)
 
     """
     Housekeeping methods
@@ -166,6 +173,7 @@ class GeckiHelp(BaseSubsystem):
         :param category: HelpCategory instance or DefaultCategory instance
         :return: The registered HelpCategory
         """
+        print("registering category {}".format(category.name))
         # Catch default category
         if isinstance(category, DefaultCategories):
             return self.default_category(category)
@@ -181,26 +189,36 @@ class GeckiHelp(BaseSubsystem):
     """
     Parsing methods
     """
-    def find_command(self, cmdname, context):
+    def find_command(self, args):
         """
-        :return: (plugin, command).
-        `plugin` is the plugin that registered this command.
-        `command` is a Command with the name `cmdname` in the group `context`.
-        If `context` is None, finds the top-level command with name `cmdname` and sets plugin to the
-        containing plugin. Otherwise, `plugin` is None.
+        Finds the command that is resembled by `args`.
+        :return: `(plugin, command)`.
+        `plugin` is the plugin where the found command `command` is registered in.
         If nothing is found, returns None, None.
         """
-        # Find top-level command
-        if context is None:
-            for plugin in self.bot.plugin_objects(plugins_only=True):
-                for cmd in plugin.get_commands():
-                    if cmd.name == cmdname:  # TODO aliases
-                        return plugin, cmd
+        plugins = [self.cog] + [el for el in self.bot.plugin_objects(plugins_only=True)]
+
+        # find plugin
+        assert len(args) > 0
+        plugin = None
+        cmd = None
+        for el in plugins:
+            for command in el.get_commands():
+                if command.name == args[0] or args[0] in command.aliases:
+                    cmd = command
+                    plugin = el
+                    break
+        if plugin is None:
             return None, None
 
-        # Find command in group
-        if isinstance(context, commands.Group):
-            return None, context.get_command(cmdname)
+        # find cmd
+        for arg in args[1:]:
+            if isinstance(cmd, commands.Group):
+                cmd = cmd.get_command(arg)
+            else:
+                return None, None
+        if cmd is not None:
+            return plugin, cmd
         else:
             return None, None
 
@@ -305,6 +323,27 @@ class GeckiHelp(BaseSubsystem):
         for msg in paginate(msg, msg_prefix="```", msg_suffix="```"):
             await ctx.send(msg)
 
+    """
+    Commands
+    """
+    async def usagecmd(self, ctx, *args):
+        """
+        Handles any usage command.
+        :param ctx: Context
+        :param args: Arguments that the usage command was called with
+        """
+        plugin, cmd = self.find_command(args)
+        if cmd is None:
+            await ctx.message.add_reaction(Lang.CMDERROR)
+            await self.error(ctx, "cmd_not_found")
+            return
+
+        parent = self.bot.command_prefix + cmd.qualified_name
+        usage = cmd.usage
+        if usage is None or not usage.strip():
+            usage = cmd.signature
+        await ctx.send("```{} {}```".format(parent, usage))
+
     async def helpcmd(self, ctx, *args):
         """
         Handles any help command.
@@ -340,12 +379,7 @@ class GeckiHelp(BaseSubsystem):
         # !help args
         else:
             # find command
-            cmd = None
-            plugin = None
-            for arg in args:
-                p, cmd = self.find_command(arg, cmd)
-                if p is not None:
-                    plugin = p
+            plugin, cmd = self.find_command(args)
             if cmd is not None:
                 await self.cmd_help(ctx, plugin, cmd)
                 return

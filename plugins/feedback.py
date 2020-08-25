@@ -5,8 +5,11 @@ from discord.ext import commands
 
 from base import BasePlugin
 from conf import Storage, Config, Lang
-from botutils import utils, converters
+from botutils import converters
 from botutils.stringutils import paginate
+
+
+h_usage = "[del <#> | search <searchterm>]"
 
 
 def str_keys_to_int(d):
@@ -137,7 +140,7 @@ class Plugin(BasePlugin, name="Feedback"):
         Storage.save(self)
 
     @commands.group(name="redact", invoke_without_command=True,
-                    help="Redacts the list of complaints (i.e. read and delete)", usage="[del x]",
+                    help="Redacts the list of complaints (i.e. read and delete)", usage=h_usage,
                     description="Returns the accumulated feedback. Use [del x] to delete feedback #x.")
     @commands.has_any_role(Config().ADMIN_ROLE_ID, Config().BOTMASTER_ROLE_ID)
     async def redact(self, ctx):
