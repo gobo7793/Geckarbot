@@ -65,7 +65,8 @@ class Mothership(BaseSubsystem, Thread):
                 executed = []
                 todel = []
                 for el in self.jobs:
-                    if (el.next_execution() - now).total_seconds() < 60:
+                    if (el.next_execution() - now).total_seconds() < 10:  # with this, it should always be < 0
+                        print((el.next_execution() - now).total_seconds())
                         try:
                             el.execute()
                             executed.append(el)
@@ -169,6 +170,7 @@ class Job:
     def next_execution(self):
         if self._cached_next_exec is None:
             self._cached_next_exec = next_occurence(self._timedict)
+        self._mothership.logger.debug("Next execution: {}".format(self._cached_next_exec))
         return self._cached_next_exec
 
     def __str__(self):

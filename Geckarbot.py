@@ -112,6 +112,17 @@ class Geckarbot(commands.Bot):
             else:
                 logging.info("Loaded plugin {}".format(plugin))
 
+    @staticmethod
+    def set_debug_mode(mode):
+        if mode == Config().DEBUG_MODE:
+            return
+
+        if mode:
+            Config().DEBUG_MODE = True
+        else:
+            Config().DEBUG_MODE = False
+        logging_setup()
+
     async def shutdown(self, status):
         try:
             status = status.value

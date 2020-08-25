@@ -3,7 +3,7 @@ from discord.ext import commands
 
 
 def paginate(items, prefix="", suffix="", msg_prefix="", msg_suffix="", delimiter="\n", f=lambda x: x,
-             prefix_within_msg_prefix=True):
+             if_empty=None, prefix_within_msg_prefix=True):
     """
     Generator for pagination. Compiles the entries in `items` into strings that are shorter than 2000 (discord max
     message length). If a single item is longer than 2000, it is put into its own message.
@@ -16,12 +16,17 @@ def paginate(items, prefix="", suffix="", msg_prefix="", msg_suffix="", delimite
     :param f: function that is invoked on every `items` entry.
     :param prefix_within_msg_prefix: If this is True, `msg_prefix` comes before `prefix` in the first message.
     If not, `prefix` comes before `msg_prefix` in the first message.
+    :param if_empty: If the list of items is empty, this one is inserted as the only item. Caution: f is executed
+    on this.
     :return:
     """
     threshold = 1900
     current_msg = []
     remaining = None
     first = True
+
+    if len(items) == 0 and if_empty is not None:
+        items = [if_empty]
 
     i = 0
     while i != len(items):
