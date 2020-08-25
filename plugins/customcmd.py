@@ -406,7 +406,7 @@ class Plugin(BasePlugin, name="Custom CMDs"):
             self.commands[cmd_name].texts.extend(cmd_texts)
             self.save()
             await ctx.message.add_reaction(Lang.CMDSUCCESS)
-            await utils.write_debug_channel(self.bot, Lang.lang(self, 'cmd_text_added', cmd_texts))
+            await utils.write_debug_channel(self.bot, Lang.lang(self, 'cmd_text_added', cmd_name, cmd_texts))
             await ctx.send(Lang.lang(self, "add_exists", cmd_name))
         else:
             self.commands[cmd_name] = Cmd(cmd_name, ctx.author.id, cmd_texts)
