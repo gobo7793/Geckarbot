@@ -25,15 +25,20 @@ class Plugin(BasePlugin, name="Bot status commands for monitoring and debug purp
     async def subsys(self, ctx):
         for msg in paginate(self.bot.reaction_listener.callbacks,
                             prefix="**Reactions registrations:**\n",
-                            suffix="\n"):
+                            suffix="\n",
+                            if_empty="None"):
             await ctx.send(msg)
+
+        status = "up" if self.bot.timers.is_alive() else "down"
         for msg in paginate(self.bot.timers.jobs,
-                            prefix="**Timer registrations:**\n",
-                            suffix="\n"):
+                            prefix="**Timers: Thread is {}; registrations:**\n".format(status),
+                            suffix="\n",
+                            if_empty="None"):
             await ctx.send(msg)
         for msg in paginate(self.bot.dm_listener.callbacks,
                             prefix="**DM Listeners:**\n",
-                            suffix="\n"):
+                            suffix="\n",
+                            if_empty="None"):
             await ctx.send(msg)
 
         await ctx.invoke(self.bot.get_command("disable list"))
