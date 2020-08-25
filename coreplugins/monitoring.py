@@ -1,4 +1,5 @@
 import pprint
+from datetime import datetime
 
 from base import BasePlugin, ConfigurableType
 
@@ -57,7 +58,7 @@ class Plugin(BasePlugin, name="Bot status commands for monitoring and debug purp
 
     @commands.command(name="configdump", help="Dumps plugin config", usage="<plugin name>")
     @commands.has_any_role(Config().BOTMASTER_ROLE_ID)
-    # NOTE: Will be invoked via "!dsc set config" and "!fantasy set config"
+    # NOTE: Is called by "!dsc set config" and "!fantasy set config"
     async def configdump(self, ctx, name):
         plugin = converters.get_plugin_by_name(self.bot, name)
         if plugin is None:
@@ -73,3 +74,29 @@ class Plugin(BasePlugin, name="Bot status commands for monitoring and debug purp
                      "This is the default config.".format(name)
         for el in paginate(dump, prefix=prefix, msg_prefix="```", msg_suffix="```"):
             await ctx.send(el)
+
+    @commands.command(name="date", help="Current date and time")
+    async def date(self, ctx):
+        now = datetime.now()
+        await ctx.send(now.strftime('%d.%m.%Y %H:%M'))
+
+    @commands.command(name="debug", help="Print or change debug mode at runtime", usage="[true|on|off|false|toggle]")
+    @commands.has_any_role(Config().BOTMASTER_ROLE_ID)
+    async def debug(self, ctx, arg):
+        toggle = None
+        arg = arg.lower()
+        if arg == "toggle":
+            toggle = not Config().DEBUG_MODE
+        elif arg == "on" or arg == "true" or arg == "set":
+            toggle = True
+        elif arg == "off" or arg == "false":
+            toggle = False
+
+        if toggle is None:
+            if Config().DEBUG_MODE:
+                await ctx.send("I am in debug mode.")
+            else:
+                await ctx.send("I am not in debug mode.")
+        else:
+            self.bot.set_debug_mode(toggle)
+            await ctx.message.add_reaction(Lang.CMDSUCCESS)
