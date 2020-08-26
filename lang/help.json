@@ -1,5 +1,8 @@
 {
   "en": {
+    "self_category_name": "Help",
+    "self_help_string": "Displays help",
+
     "help_categories_prefix": "!help <category> for help on a category.\n\nCategories:",
     "help_category_prefix": "Category {}:",
     "help_subcommands_prefix": "Subcommands:",
@@ -13,6 +16,9 @@
     "cmd_cat_not_found": "Command or category not found."
   },
   "de": {
+    "self_category_name": "Hilfe",
+    "self_help_string": "Zu Hülfe!",
+
     "help_categories_prefix": "!help <Kategorie> für Hilfe zu einer Kategorie.\n\nKategorien:",
     "help_category_prefix": "!kommando zum Ausführen eines Kommandos.\n!help kommando für Hilfe zu einem Kommando.\n\nKategorie {} hat folgende Kommandos:",
     "help_subcommands_prefix": "Unterkommandos:",
