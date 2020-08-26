@@ -244,7 +244,12 @@ def main():
                 embed.add_field(name='Error', value=error)
                 embed.add_field(name='Command', value=ctx.command)
                 embed.add_field(name='Message', value=ctx.message.clean_content)
-                embed.add_field(name='Channel', value=ctx.channel.name)
+                if isinstance(ctx.channel, discord.TextChannel):
+                    embed.add_field(name='Channel', value=ctx.channel.name)
+                if isinstance(ctx.channel, discord.DMChannel):
+                    embed.add_field(name='Channel', value=ctx.channel.recipient)
+                if isinstance(ctx.channel, discord.GroupChannel):
+                    embed.add_field(name='Channel', value=ctx.channel.recipients)
                 embed.url = ctx.message.jump_url
                 embed.description = '```python\n{}\n```'.format(
                     "".join(traceback.TracebackException.from_exception(error).format()))
