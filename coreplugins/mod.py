@@ -1,3 +1,4 @@
+from datetime import datetime
 import platform
 import discord
 import pkgutil
@@ -127,7 +128,12 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
                                 "If a user uses a command which is blocked for the user, "
                                 "the bot doesn't response anything, like the command wouldn't exists.")
     async def disable(self, ctx, command, *args):
-        user = ctx.author
+        if command == "enable":
+            await ctx.message.add_reaction(Lang.CMDERROR)
+            await ctx.send(Lang.lang(self, 'enable_cant_blocked'))
+            return
+
+        user = None
         date_args_start_index = 0
         if len(args) > 0:
             try:
@@ -140,6 +146,14 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
             raise commands.MissingAnyRole(Config().FULL_ACCESS_ROLES)
 
         until = botutils.parsers.parse_time_input(*args[date_args_start_index:])
+
+        if user is None:
+            if len(args) > 0 and until == datetime.max:
+                await ctx.message.add_reaction(Lang.CMDERROR)
+                await ctx.send(Lang.lang(self, 'member_or_time_not_found'))
+                return
+            else:
+                user = ctx.author
 
         result = self.bot.ignoring.add_user_command(user, command, until)
         if result == IgnoreEditResult.Success:
