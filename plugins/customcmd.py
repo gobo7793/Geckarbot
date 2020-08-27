@@ -370,7 +370,6 @@ class Plugin(BasePlugin, name="Custom CMDs"):
                                                  self.prefix,
                                                  cmd_name,
                                                  converters.get_best_username(creator))):
-                print("to print (len {}): {}".format(len(msg), msg))
                 await ctx.send(msg)
         else:
             await ctx.send(Lang.lang(self, "raw_doesnt_exists", cmd_name))
