@@ -363,9 +363,14 @@ class Plugin(BasePlugin, name="Custom CMDs"):
         cmd_name = cmd_name.lower()
         if cmd_name in self.commands:
             creator = self.bot.get_user(self.commands[cmd_name].creator_id)
-            for msg in paginate(self.commands[cmd_name].get_raw_texts(), delimiter="\n",
-                                prefix=Lang.lang(self, 'raw_prefix',
-                                                       self.prefix, cmd_name, converters.get_best_username(creator))):
+            for msg in paginate(self.commands[cmd_name].get_raw_texts(),
+                                delimiter="\n",
+                                prefix=Lang.lang(self,
+                                                 'raw_prefix',
+                                                 self.prefix,
+                                                 cmd_name,
+                                                 converters.get_best_username(creator))):
+                print("to print (len {}): {}".format(len(msg), msg))
                 await ctx.send(msg)
         else:
             await ctx.send(Lang.lang(self, "raw_doesnt_exists", cmd_name))
