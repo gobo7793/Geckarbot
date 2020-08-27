@@ -25,6 +25,8 @@ def check_full_access(user: discord.User):
     """
     if not isinstance(user, discord.Member):
         user = discord.utils.get(Config().bot.guild.members, id=user.id)
+    if user is None:
+        return False
     for role in user.roles:
         if role.id in Config().FULL_ACCESS_ROLES:
             return True
