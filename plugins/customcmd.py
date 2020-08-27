@@ -455,7 +455,7 @@ class Plugin(BasePlugin, name="Custom CMDs"):
 
         cmd = self.commands[cmd_name]
 
-        if not permchecks.check_full_access(ctx.author) and ctx.author.id != cmd.creator_id:
+        if ctx.author.id != cmd.creator_id and not permchecks.check_full_access(ctx.author):
             await ctx.send(Lang.lang(self, 'del_perm_missing'))
             return
 

@@ -177,6 +177,8 @@ class Config(IODirectory):
     LANG_DIR = "lang"
     BOT_CONFIG_FILE = "geckarbot"  # .json is implied
 
+    bot = None
+
     def load_bot_config(self):
         """
         Bot init

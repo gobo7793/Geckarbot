@@ -18,11 +18,13 @@ def in_channel(channel_id):
     return commands.check(predicate)
 
 
-def check_full_access(user: discord.Member):
+def check_full_access(user: discord.User):
     """
     Checks if the user has full access to bot commands. If you can, use
     @commands.has_any_role(*Config().FULL_ACCESS_ROLES) instead.
     """
+    if not isinstance(user, discord.Member):
+        user = discord.utils.get(Config().bot.guild.members, id=user.id)
     for role in user.roles:
         if role.id in Config().FULL_ACCESS_ROLES:
             return True
