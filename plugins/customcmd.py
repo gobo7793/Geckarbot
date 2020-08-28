@@ -232,6 +232,7 @@ class Plugin(BasePlugin, name="Custom CMDs"):
         # actually load the commands
         for k in Storage.get(self).keys():
             self.commands[k] = Cmd.deserialize(k, Storage.get(self)[k])
+            self.bot.ignoring.add_additional_command(k)
 
     def save(self):
         """Saves the commands to the storage and the plugin config"""
@@ -267,7 +268,7 @@ class Plugin(BasePlugin, name="Custom CMDs"):
             else:
                 new_cmds[cmd_name] = Cmd(cmd_name, 0, [old_config[cmd]]).serialize()
 
-        Storage.set(self, new_cmds)#
+        Storage.set(self, new_cmds)
         Config.save(self)
         Storage.save(self)
         logging.info("Converting finished.")
@@ -414,6 +415,7 @@ class Plugin(BasePlugin, name="Custom CMDs"):
             await ctx.send(Lang.lang(self, "add_exists", cmd_name))
         else:
             self.commands[cmd_name] = Cmd(cmd_name, ctx.author.id, cmd_texts)
+            self.bot.ignoring.add_additional_command(cmd_name)
             self.save()
             # await utils.log_to_admin_channel(ctx)
             await ctx.message.add_reaction(Lang.CMDSUCCESS)

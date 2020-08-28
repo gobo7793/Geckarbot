@@ -5,8 +5,8 @@ import pkgutil
 from discord.ext import commands
 
 import botutils.parsers
-from conf import Config, Lang, Storage
-from botutils import utils, permchecks, converters
+from conf import Config, Lang
+from botutils import utils, permchecks
 from botutils.stringutils import paginate
 from botutils.converters import get_best_username
 from base import BasePlugin, ConfigurableType
@@ -128,7 +128,7 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
                                 "If a user uses a command which is blocked for the user, "
                                 "the bot doesn't response anything, like the command wouldn't exists.")
     async def disable(self, ctx, command, *args):
-        customcmds = Storage.get(converters.get_plugin_by_name(self.bot, "customcmd"))
+        customcmds = self.bot.ignoring.get_additional_commands()
         if command not in self.bot.all_commands and command not in customcmds:
             await ctx.message.add_reaction(Lang.CMDERROR)
             await ctx.send(Lang.lang(self, 'cmd_not_found', command))
