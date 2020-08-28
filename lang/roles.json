@@ -25,7 +25,7 @@
         "channel_updated": "The channel is updated."
     },
     "de": {
-        "init_reaction": "Reaction: {}",
+        "init_reaction": "{}",
         "init_modrole": "Modrolle: {}",
         "init_admin": "Nur via Admins.",
         "creating_init_msg": "Erstelle neue Rollenmanagement-Init-Nachricht.",

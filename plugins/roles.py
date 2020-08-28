@@ -121,15 +121,13 @@ class Plugin(BasePlugin, name="Role Management"):
                 modrole_msg = Lang.lang(self, 'init_modrole', modrole.name)
 
             if emote_msg and modrole_msg:
-                todo_part = "{}, {}".format(emote_msg, modrole_msg)
+                msg = "\n{} - {}; {}".format(emote_msg, role.name, modrole_msg)
             elif emote_msg:
-                todo_part = emote_msg
+                msg = "\n{} - {}".format(emote_msg, role.name)
             elif modrole_msg:
-                todo_part = modrole_msg
+                msg = "\n{}; {}".format(role.name, modrole_msg)
             else:
-                todo_part = Lang.lang(self, 'init_admin')
-
-            msg += "\n{} - {}".format(role.name, todo_part)
+                msg = "\n{}; {}".format(role.name, Lang.lang(self, 'init_admin'))
 
         return msg
 
