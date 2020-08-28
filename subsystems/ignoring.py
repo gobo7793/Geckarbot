@@ -212,6 +212,8 @@ class Ignoring(BaseSubsystem):
         bot.plugins.append(ConfigurableContainer(self))
         self.log = logging.getLogger("ignoring")
 
+        self.additional_cmds = []
+
         self.users = []
         self.cmds = []
         self.user_cmds = []
@@ -590,3 +592,15 @@ class Ignoring(BaseSubsystem):
         :return: True if user is blocked for command, otherwise False
         """
         return self.check_user_id_command(user.id, command_name)
+
+    def add_additional_command(self, command_name: str):
+        """
+        Adds a (custom) command to be ignorable
+
+        :param command_name: The command name
+        """
+        self.additional_cmds.append(command_name)
+
+    def get_additional_commands(self):
+        """Return additional ignorable commands"""
+        return self.additional_cmds
