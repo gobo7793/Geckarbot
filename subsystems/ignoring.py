@@ -21,7 +21,7 @@ class UserBlockedCommand(Exception):
     Will be raised if a user blocked the command.
     Can be used for passive command checking.
     """
-    def __init__(self, user:discord.User, command:str = ""):
+    def __init__(self, user: discord.User, command: str = ""):
         self.user = user
         self.command = command
         super().__init__()
@@ -104,7 +104,7 @@ class IgnoreDataset:
         if isinstance(other, IgnoreDataset):
             type_res = self.ignore_type == other.ignore_type
             user_res = IgnoreDataset._eq(self.user, other.user)
-            cmd_res = self.command_name == other.command_name
+            cmd_res = str(self.command_name) == str(other.command_name)
             chan_res = IgnoreDataset._eq(self.channel, other.channel)
 
             return type_res and user_res and cmd_res and chan_res
