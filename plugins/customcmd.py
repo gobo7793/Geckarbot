@@ -82,7 +82,7 @@ class Cmd:
 
     def get_raw_text(self, text_id):
         """Returns the raw text with the given ID as formatted string or raise IndexError if ID not exists"""
-        return Lang.lang(self.plugin, 'raw_text', text_id, self.texts[text_id],
+        return Lang.lang(self.plugin, 'raw_text', text_id + 1, self.texts[text_id],
                          converters.get_best_username(self.plugin.bot.get_user(self.author_ids[text_id])))
 
     def get_raw_texts(self):
@@ -482,6 +482,8 @@ class Plugin(BasePlugin, name="Custom CMDs"):
                              "or its texts.")
     async def cmd_del(self, ctx, cmd_name, text_id: int = None):
         cmd_name = cmd_name.lower()
+        if text_id is not None:
+            text_id -= 1
 
         if cmd_name not in self.commands:
             await ctx.message.add_reaction(Lang.CMDERROR)
