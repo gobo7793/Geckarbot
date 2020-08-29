@@ -469,6 +469,7 @@ class Plugin(BasePlugin, name="Custom CMDs"):
         if text_id is not None and text_id >= len(cmd.texts):
             await ctx.message.add_reaction(Lang.CMDERROR)
             await ctx.send(Lang.lang(self, 'text_id_not_exists'))
+            return
 
         if text_id == 0 and len(cmd.texts) == 1:
             text_id = None
