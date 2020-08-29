@@ -419,7 +419,7 @@ class Plugin(BasePlugin, name="Custom CMDs"):
             self.save()
             # await utils.log_to_admin_channel(ctx)
             await ctx.message.add_reaction(Lang.CMDSUCCESS)
-            await utils.write_debug_channel(self.bot, Lang.lang(self, 'cmd_added',
+            await utils.write_debug_channel(self.bot, Lang.lang(self, 'cmd_added', cmd_name,
                                                                 self.commands[cmd_name].get_raw_texts()))
 
     # @cmd.command(name="edit")
@@ -477,7 +477,7 @@ class Plugin(BasePlugin, name="Custom CMDs"):
             # Remove command
             cmd_raw = cmd.get_raw_texts()
             del (self.commands[cmd_name])
-            await utils.write_debug_channel(self.bot, Lang.lang(self, 'cmd_removed', cmd_raw))
+            await utils.write_debug_channel(self.bot, Lang.lang(self, 'cmd_removed', cmd_name, cmd_raw))
 
         else:
             # remove text
