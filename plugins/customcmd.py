@@ -80,12 +80,6 @@ class Cmd:
         """
         return Cmd(plugin, name, d['creator'], d['texts'], author_ids=d.get('authors', []))
 
-    def get_ran_raw_text(self):
-        """Returns a random text of the cmd or an empty string if the cmd has no text"""
-        if len(self.texts) > 0:
-            return random.choice(self.texts)
-        return ""
-
     def get_raw_text(self, text_id):
         """Returns the raw text with the given ID as formatted string or raise IndexError if ID not exists"""
         return Lang.lang(self.plugin, 'raw_text', text_id, self.texts[text_id],
@@ -95,18 +89,19 @@ class Cmd:
         """Returns all raw texts of the cmd as formatted string"""
         return [self.get_raw_text(i) for i in range(0, len(self.texts))]
 
-    async def get_ran_formatted_text(self, bot, msg: discord.Message, cmd_args: list):
+    async def get_formatted_text(self, bot, text_id: int, msg: discord.Message, cmd_args: list):
         """
-        Formats and replaces the wildcard of a random text of the cmd for using it as custom cmd.
+        Formats and replaces the wildcards of a given text id of the cmd for using it as custom cmd.
         If a mentioned user has the command on its ignore list, a UserBlockedCommand error will be raised.
 
         :param bot: The bot
+        :param text_id: The text id
         :param msg: The original message
         :param cmd_args: The used command arguments
         :returns: The formatted command text
         """
 
-        cmd_content = self.get_ran_raw_text()
+        cmd_content = self.get_raw_text(text_id)
 
         # general replaces
         cmd_content = cmd_content.replace(wildcard_umention, msg.author.mention)
@@ -146,6 +141,23 @@ class Cmd:
             cmd_content = cmd_content.replace(wildcard, arg)
 
         return cmd_content
+
+    async def get_ran_formatted_text(self, bot, msg: discord.Message, cmd_args: list):
+        """
+        Formats and replaces the wildcards of a random text of the cmd for using it as custom cmd.
+        If a mentioned user has the command on its ignore list, a UserBlockedCommand error will be raised.
+
+        :param bot: The bot
+        :param msg: The original message
+        :param cmd_args: The used command arguments
+        :returns: The formatted command text
+        """
+
+        text_len = len(self.texts)
+        if text_len > 0:
+            text_id = random.choice(range(0, text_len))
+            return self.get_formatted_text(bot, text_id, msg, cmd_args)
+        return ""
 
 
 class CustomCMDHelpCategory(HelpCategory):
