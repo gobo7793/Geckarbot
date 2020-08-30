@@ -34,6 +34,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
         self.matches = []
         self.matches_by_team = {}
         self.teamname_dict = self.build_teamname_dict()
+        self.get_matches_from_sheets()
 
     def default_storage(self):
         return {
@@ -264,7 +265,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
         abbr = self.get_teamname_abbr(team)
         if abbr is not None:
             match = self.matches_by_team[abbr]
-            match[abbr] = goals if goals is not None else match[abbr] + 1
+            match[abbr]['goals'] = goals if goals is not None else match[abbr]['goals'] + 1
             title = "{0} [{1}:{3}] {2}".format(match['team_home'], match[self.get_teamname_abbr(match['team_home'])],
                                                match['team_away'], match[self.get_teamname_abbr(match['team_away'])])
             embed = discord.Embed(title=title, description="Hier kommen die veränderten Duellstände hin")
@@ -334,7 +335,8 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
 
             # Extract matches
             self.matches.clear()
-            for match in match_list:
+            for i in range(len(match_list)):
+                match = match_list[i]
                 home = self.get_teamname_abbr(match.get('Team1', {}).get('TeamName', 'n.a.'))
                 away = self.get_teamname_abbr(match.get('Team2', {}).get('TeamName', 'n.a.'))
                 match_dict = {
@@ -342,8 +344,14 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                                                          "%Y-%m-%dT%H:%M:%S"),
                     'team_home': self.get_teamname_long(home),
                     'team_away': self.get_teamname_long(away),
-                    home: 0,
-                    away: 0,
+                    home: {
+                        'cell': (4, i),
+                        'goals': 0
+                    },
+                    away: {
+                        'cell': (5, i),
+                        'goals': 0
+                    },
                 }
                 self.matches.append(match_dict)
                 self.matches_by_team[home] = match_dict
@@ -364,6 +372,36 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                 msg += "{0} {1} {2} Uhr | {3} - {6}\n".format(*row)
             await ctx.message.add_reaction(Lang.CMDSUCCESS)
             await ctx.send(embed=discord.Embed(title="Spieltag {}".format(matchday), description=msg))
+
+    def get_matches_from_sheets(self):
+        """
+        Reads the matches from the sheet
+        """
+        c = self.get_api_client()
+        matches = c.get(self.spaetzle_conf()['matches_range'], formatted=False)
+
+        # Extract matches
+        self.matches.clear()
+        for i in range(len(matches)):
+            match = matches[i]
+            home = self.get_teamname_abbr(match[3])
+            away = self.get_teamname_abbr(match[6])
+            match_dict = {
+                'match_date_time': datetime(1899, 12, 30) + timedelta(days=match[1] + match[2]),
+                'team_home': self.get_teamname_long(home),
+                'team_away': self.get_teamname_long(away),
+                home: {
+                    'cell': (4, i),
+                    'goals': match[4] if isinstance(match[4], int) else 0
+                },
+                away: {
+                    'cell': (5, i),
+                    'goals': match[5] if isinstance(match[5], int) else 0
+                },
+            }
+            self.matches.append(match_dict)
+            self.matches_by_team[home] = match_dict
+            self.matches_by_team[away] = match_dict
 
     @spaetzle.command(name="duel", aliases=["duell"], help="Displays the duel of a specific user")
     async def show_duel_single(self, ctx, user=None):
@@ -630,6 +668,6 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             msg += "{} {} {} Uhr | {} - {} | {}:{}\n".format(calendar.day_abbr[date_time.weekday()],
                                                              date_time.strftime("%d.%m."), date_time.strftime("%H:%M"),
                                                              home, away,
-                                                             match.get(self.get_teamname_abbr(home)),
-                                                             match.get(self.get_teamname_abbr(away)))
+                                                             match.get(self.get_teamname_abbr(home)).get('goals'),
+                                                             match.get(self.get_teamname_abbr(away)).get('goals'))
         await ctx.send(embed=discord.Embed(title="self.matches", description=msg))
