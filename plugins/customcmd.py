@@ -394,7 +394,10 @@ class Plugin(BasePlugin, name="Custom CMDs"):
     async def cmd_raw(self, ctx, cmd_name):
         cmd_name = cmd_name.lower()
         if cmd_name in self.commands:
-            creator = self.bot.get_user(self.commands[cmd_name].creator_id)
+            creator_member = self.bot.guild.get_member(self.commands[cmd_name].creator_id)
+            creator = creator_member\
+                if creator_member is not None\
+                else self.bot.get_user(self.commands[cmd_name].creator_id)
             for msg in paginate(self.commands[cmd_name].get_raw_texts(),
                                 delimiter="\n",
                                 prefix=Lang.lang(self,
