@@ -250,6 +250,7 @@ def main():
                     embed.add_field(name='Channel', value=ctx.channel.recipient)
                 if isinstance(ctx.channel, discord.GroupChannel):
                     embed.add_field(name='Channel', value=ctx.channel.recipients)
+                embed.add_field(name='Author', value=ctx.author.display_name)
                 embed.url = ctx.message.jump_url
                 embed.description = '```python\n{}\n```'.format(
                     "".join(traceback.TracebackException.from_exception(error).format()))
@@ -283,6 +284,8 @@ def main():
         This check will be executed before other command checks.
         """
         if bot.ignoring.check_command(ctx):
+            raise commands.DisabledCommand()
+        if bot.ignoring.check_active_usage(ctx.author, ctx.command.qualified_name):
             raise commands.DisabledCommand()
         if bot.ignoring.check_passive_usage(ctx.author, ctx.command.qualified_name):
             raise commands.DisabledCommand()

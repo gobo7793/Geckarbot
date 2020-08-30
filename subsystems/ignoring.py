@@ -224,6 +224,10 @@ class IgnoreDataset:
             m = Lang.lang(self.ignoring_instance, 'user_cmd_ignore_msg',
                           self.user.display_name, self.command_name, dt)
 
+        elif self.ignore_type == IgnoreType.Active_Usage:
+            m = Lang.lang(self.ignoring_instance, 'user_cmd_ignore_msg',
+                          self.user.display_name, self.command_name, dt)
+
         else:
             return self.to_raw_message()
 
@@ -534,6 +538,30 @@ class Ignoring(BaseSubsystem):
         :param user_id: The id of the user to re-enable
         :param command_name: The command to re-enable for the user, Should be, but not necessarily, the full qualified
             command name. Depending on the checking implementation for the specific command.
+        :return: Code based on IgnoreEditResult
+        """
+        user = self.bot.get_user(user_id)
+        return self.remove_passive(user, command_name)
+
+    def remove_active(self, user: discord.User, command_name: str):
+        """
+        Removes the active usage block for the user for the command from ignore list to re-enable any
+        interactions of the user with the specific command.
+
+        :param user: The user to re-enable
+        :param command_name: The command to block for the user, must be the full qualified command name (eg. 'dsc set')
+        :return: Code based on IgnoreEditResult
+        """
+        dataset = IgnoreDataset(IgnoreType.Active_Usage, user=user, command_name=command_name)
+        return self.remove(dataset)
+
+    def remove_active_uid(self, user_id: int, command_name: str):
+        """
+        Removes the active usage block for the user for the command from ignore list to re-enable any
+        interactions of the user with the specific command.
+
+        :param user_id: The id of the user to re-enable
+        :param command_name: The command to block for the user, must be the full qualified command name (eg. 'dsc set')
         :return: Code based on IgnoreEditResult
         """
         user = self.bot.get_user(user_id)
