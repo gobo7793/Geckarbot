@@ -301,11 +301,14 @@ class GeckiHelp(BaseSubsystem):
 
         # Usage
         parent = self.bot.command_prefix + cmd.qualified_name
-        usage = cmd.usage
-        if usage is None or not usage.strip():
-            usage = cmd.signature
-        usage = "{} {}".format(parent, usage)
-        msg.append(usage + "\n")
+        try:
+            usage = plugin.command_usage(cmd) + "\n"
+        except NotFound:
+            if cmd.usage is None or not cmd.usage.strip():
+                usage = cmd.signature + "\n"
+            else:
+                usage = cmd.usage + "\n"
+        msg.append("{} {}".format(parent, usage))
 
         # Help / Description
         try:

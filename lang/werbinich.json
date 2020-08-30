@@ -24,6 +24,7 @@
         "description_spoiler": "Teilt Nicht-Teilnehmern die von den Teilnehmern ausgewählten Zuordnungen mit.",
         "description_fertig": "Erklärt ein Spiel für beendet. Ist ein Spiel beendet, ist !werbinich spoiler auch für Teilnehmer verfügbar.",
         "description_del": "Löscht das letzte Spiel aus dem Speicher. !werbinich spoiler funktioniert dann nicht mehr.",
+        "usage_werbinich": "[geheim]\n\nOptionen:\n  geheim - Die Teilnehmer erfahren nicht, wer für wen ausgesucht hat.",
 
         "#2": "Public",
         "registering": "Ein Wer bin ich? wurde gestartet! Um teilzunehmen, melde dich mit einer {}-Reaktion an. Ihr habt {} {} Zeit.",
