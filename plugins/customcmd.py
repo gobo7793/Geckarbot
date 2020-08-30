@@ -186,7 +186,6 @@ class Plugin(BasePlugin, name="Custom CMDs"):
 
     def __init__(self, bot):
         super().__init__(bot)
-        self.can_reload = True
         self.help_category = CustomCMDHelpCategory(self)
         bot.register(self, self.help_category)
 
