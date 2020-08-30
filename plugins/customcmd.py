@@ -390,20 +390,30 @@ class Plugin(BasePlugin, name="Custom CMDs"):
             await ctx.send(msg)
 
     @cmd.command(name="info", help="Gets full info about a command")
-    async def cmd_raw(self, ctx, cmd_name):
+    async def cmd_raw(self, ctx, cmd_name, index=None):
         cmd_name = cmd_name.lower()
+
+        # Parse index
+        if index.endswith("+"):
+            full_output = False
+            index = index[:-1]
+        else:
+            full_output = True
+
         if cmd_name in self.commands:
             creator_member = self.bot.guild.get_member(self.commands[cmd_name].creator_id)
             creator = creator_member\
                 if creator_member is not None\
                 else self.bot.get_user(self.commands[cmd_name].creator_id)
-            for msg in paginate(self.commands[cmd_name].get_raw_texts(),
+            raw_texts = self.commands[cmd_name].get_raw_texts()
+            for msg in paginate(raw_texts,
                                 delimiter="\n",
                                 prefix=Lang.lang(self,
                                                  'raw_prefix',
                                                  self.prefix,
                                                  cmd_name,
-                                                 converters.get_best_username(creator))):
+                                                 converters.get_best_username(creator),
+                                                 len(raw_texts))):
                 await ctx.send(msg)
         else:
             await ctx.send(Lang.lang(self, "raw_doesnt_exists", cmd_name))
