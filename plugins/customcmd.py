@@ -13,7 +13,6 @@ from botutils.stringutils import paginate
 from subsystems.ignoring import UserBlockedCommand
 from subsystems.help import HelpCategory
 
-
 wildcard_user = "%u"
 wildcard_umention = "%um"
 wildcard_all_args = "%a"
@@ -39,7 +38,7 @@ def _get_all_arg_str(start_index, all_arg_list):
 class Cmd:
     """Represents a custom cmd"""
 
-    def __init__(self, plugin, name: str, creator_id: int, *texts, author_ids: list = []):
+    def __init__(self, plugin, name: str, creator_id: int, *texts, author_ids: list = None):
         """
         Creates a new custom cmd
 
@@ -53,7 +52,7 @@ class Cmd:
         self.plugin = plugin
         self.name = str(name).lower()
         self.creator_id = creator_id
-        self.author_ids = [author_ids[i] if author_ids else creator_id for i in range(0, len(*texts))]
+        self.author_ids = [author_ids[i] if author_ids is not None else creator_id for i in range(0, len(*texts))]
         self.texts = list(*texts)
 
     def serialize(self):
@@ -515,7 +514,8 @@ class Plugin(BasePlugin, name="Custom CMDs"):
             # Remove command
             cmd_raw = cmd.get_raw_texts()
             del (self.commands[cmd_name])
-            await utils.write_debug_channel(self.bot, Lang.lang(self, 'cmd_removed', cmd_name, cmd_raw))
+            for msg in paginate(cmd_raw, prefix=Lang.lang(self, 'cmd_removed', cmd_name)):
+                await utils.write_debug_channel(self.bot, msg)
 
         else:
             # remove text
