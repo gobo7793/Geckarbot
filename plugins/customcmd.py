@@ -84,9 +84,9 @@ class Cmd:
         return Lang.lang(self.plugin, 'raw_text', text_id + 1, self.texts[text_id],
                          converters.get_best_username(self.plugin.bot.get_user(self.author_ids[text_id])))
 
-    def get_raw_texts(self):
+    def get_raw_texts(self, index=0):
         """Returns all raw texts of the cmd as formatted string"""
-        return [self.get_raw_text(i) for i in range(0, len(self.texts))]
+        return [self.get_raw_text(i) for i in range(index, len(self.texts))]
 
     async def get_formatted_text(self, bot, text_id: int, msg: discord.Message, cmd_args: list):
         """
@@ -234,6 +234,12 @@ class Plugin(BasePlugin, name="Custom CMDs"):
                 "texts": ["Pong", "🏓"]
             },
         }
+
+    def command_description(self, command):
+        if command.name == "info":
+            return Lang.lang(self, "help_info_options")
+        else:
+            raise NotFound()
 
     def load(self):
         """Loads the commands"""
@@ -389,23 +395,44 @@ class Plugin(BasePlugin, name="Custom CMDs"):
         for msg in cmds:
             await ctx.send(msg)
 
-    @cmd.command(name="info", help="Gets full info about a command")
+    @cmd.command(name="info",
+                 help="Gets full info about a command",
+                 usage="<command> [# | #+ | #++]")
     async def cmd_raw(self, ctx, cmd_name, index=None):
         cmd_name = cmd_name.lower()
 
         # Parse index
-        if index.endswith("+"):
-            full_output = False
-            index = index[:-1]
+        single_page = False  # index == "17+"
+        single_text = False  # index == "17"
+        if index is not None:
+            if index.endswith("++"):
+                index = index[:-2]
+            elif index.endswith("+"):
+                single_page = True
+                index = index[:-1]
+            else:
+                single_text = True
+            try:
+                index = int(index) - 1
+            except (ValueError, TypeError):
+                await ctx.send(Lang.lang(self, "text_id_not_positive"))
+                return
         else:
-            full_output = True
+            index = 0
 
         if cmd_name in self.commands:
+            if index < 0 or index >= len(self.commands[cmd_name].texts):
+                await ctx.send(Lang.lang(self, "text_id_not_found"))
+                return
             creator_member = self.bot.guild.get_member(self.commands[cmd_name].creator_id)
             creator = creator_member\
                 if creator_member is not None\
                 else self.bot.get_user(self.commands[cmd_name].creator_id)
-            raw_texts = self.commands[cmd_name].get_raw_texts()
+
+            if single_text:
+                raw_texts = [self.commands[cmd_name].get_raw_text(index)]
+            else:
+                raw_texts = self.commands[cmd_name].get_raw_texts()
             for msg in paginate(raw_texts,
                                 delimiter="\n",
                                 prefix=Lang.lang(self,
@@ -415,8 +442,10 @@ class Plugin(BasePlugin, name="Custom CMDs"):
                                                  converters.get_best_username(creator),
                                                  len(raw_texts))):
                 await ctx.send(msg)
+                if single_page:
+                    break
         else:
-            await ctx.send(Lang.lang(self, "raw_doesnt_exists", cmd_name))
+            await ctx.send(Lang.lang(self, "raw_doesnt_exist", cmd_name))
 
     @cmd.command(name="guidelines", help="Returns the link to the general command guidelines")
     async def cmd_guidelines(self, ctx):
@@ -500,7 +529,7 @@ class Plugin(BasePlugin, name="Custom CMDs"):
 
         if cmd_name not in self.commands:
             await ctx.message.add_reaction(Lang.CMDERROR)
-            await ctx.send(Lang.lang(self, "del_doesnt_exists", cmd_name))
+            await ctx.send(Lang.lang(self, "del_doesnt_exist", cmd_name))
             return
 
         cmd = self.commands[cmd_name]
@@ -512,7 +541,7 @@ class Plugin(BasePlugin, name="Custom CMDs"):
 
         if text_id is not None and text_id >= len(cmd.texts):
             await ctx.message.add_reaction(Lang.CMDERROR)
-            await ctx.send(Lang.lang(self, 'text_id_not_exists'))
+            await ctx.send(Lang.lang(self, 'text_id_not_found'))
             return
 
         if text_id is None or (text_id is not None and ctx.author.id != cmd.author_ids[text_id]):
