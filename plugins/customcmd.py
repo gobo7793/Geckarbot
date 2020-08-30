@@ -135,7 +135,7 @@ class Cmd:
             except commands.BadArgument:
                 member = None
 
-            if member is not None and bot.ignoring.check_user_command(member, self.name):
+            if member is not None and bot.ignoring.check_passive_usage(member, self.name):
                 raise UserBlockedCommand(member, self.name)
             cmd_content = cmd_content.replace(wildcard, arg)
 
@@ -314,7 +314,7 @@ class Plugin(BasePlugin, name="Custom CMDs"):
         if cmd_name not in self.commands:
             return
         elif (self.bot.ignoring.check_command_name(cmd_name, msg.channel)
-              or self.bot.ignoring.check_user_command(msg.author, cmd_name)):
+              or self.bot.ignoring.check_passive_usage(msg.author, cmd_name)):
             raise commands.DisabledCommand()
 
         cmd_content = await self.commands[cmd_name].get_ran_formatted_text(self.bot, msg, cmd_args)
@@ -331,7 +331,8 @@ class Plugin(BasePlugin, name="Custom CMDs"):
                     help="Adds, list or (for admins) removes a custom command",
                     description="Adds, list or removes a custom command. Custom commands can be added and removed in "
                                 "runtime. To use a custom command, the message must start with the setted prefix, "
-                                "which can be returned using the prefix subcommand.")
+                                "which can be returned using the prefix subcommand.\n"
+                                "More info about adding commands, see !help cmd add.")
     async def cmd(self, ctx):
         await self.bot.helpsys.cmd_help(ctx, self, ctx.command)
 
@@ -418,8 +419,9 @@ class Plugin(BasePlugin, name="Custom CMDs"):
                              "%n: The nth command argument\n"
                              "%n*: The nth and all following arguments\n"
                              "%a: Alias for %1*\n\n"
-                             "Supports /me. Custom commands must be compliant to the general command guidelines, which "
-                             "can be accessed via !cmd guidelines.\n"
+                             "Supports /me. If a picture should be added, a URL is required. "
+                             "Custom commands must be compliant to the general command guidelines, "
+                             "which can be accessed via !cmd guidelines.\n"
                              "Example: !cmd add test Argument1: %1 from user %u\n")
     async def cmd_add(self, ctx, cmd_name, *, args: str):
         if not args:
