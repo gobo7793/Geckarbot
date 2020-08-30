@@ -12,13 +12,13 @@ from botutils.converters import get_best_username
 from subsystems import timers
 
 """
-This subsystem provides the possibility to block certain commands, users or both.
+This subsystem provides the possibility to block certain commands, users or active and passive command usage.
 """
 
 
 class UserBlockedCommand(Exception):
     """
-    Will be raised if a user blocked the command.
+    Will be raised if a command is blocked for the specific user.
     Can be used for passive command checking.
     """
     def __init__(self, user: discord.User, command: str = ""):
@@ -31,13 +31,33 @@ class IgnoreType(enum.IntEnum):
     """The possible types for ignore list entries."""
 
     NA = 0
-    """Not defined"""
+    """
+    Not defined
+    """
+
     User = 1
-    """Blocks any interactions between user and bot. Disables command_name and channel arguments in IgnoreDataset."""
+    """
+    Blocks any interactions between user and bot.
+    Disables command_name and channel arguments in IgnoreDataset.
+    """
+
     Command = 2
-    """Disables command usage in specific channel. Disables user argument in IgnoreDataset."""
-    User_Command = 3
-    """Blocks any interactions for an user on a specific command. Disables channel argument in IgnoreDataset."""
+    """
+    Disables command usage in specific channel.
+    Disables user argument in IgnoreDataset.
+    """
+
+    Passive_Usage = 3
+    """
+    Blocks any active and passive usage of the command for a specific user.
+    Disables channel argument in IgnoreDataset.
+    """
+
+    Active_Usage = 4
+    """
+    Blocks any active (not passive) usage of the command for a specific user.
+    Disables channel argument in IgnoreDataset.
+    """
 
 
 class IgnoreEditResult(enum.Enum):
@@ -68,9 +88,10 @@ class IgnoreDataset:
         Disabled arguments based on type raises ValueError.
 
         :param ignore_type: The type of the ignore dataset, defines not possible arguments
-        :param user: The user to ignore. For IgnoreType.User and IgnoreType.User_Command.
-        :param command_name: The command name to disabling for a user or completely in a channel.
-            For IgnoreType.Command and IgnoreType.User_Command.
+        :param user: The user to ignore.
+            For IgnoreType.User, IgnoreType.Passive_Usage and IgnoreType.Active_Usage.
+        :param command_name: The command name to disabling for active/passive usage or completely in a channel.
+            For IgnoreType.User, IgnoreType.Passive_Usage and IgnoreType.Active_Usage.
         :param channel: The channel in which a command is disabled. For IgnoreType.Command.
         :param until: The datetime on which the ignoring entry will be auto-removed. Possible for all types.
         :param job: The timer subsystem job for auto-remove
@@ -80,17 +101,22 @@ class IgnoreDataset:
                 and (user is None
                      or command_name
                      or channel is not None)):
-            raise ValueError("User blocking only accepts the user argument.")
+            raise ValueError("User blocking accepts the user argument only.")
         elif (ignore_type == IgnoreType.Command
               and (user is not None
                    or not command_name
                    or channel is None)):
-            raise ValueError("Command disabling only needs both of command_name and channel arguments.")
-        elif (ignore_type == IgnoreType.User_Command
+            raise ValueError("Command disabling needs both of command_name and channel arguments only.")
+        elif (ignore_type == IgnoreType.Passive_Usage
               and (user is None
                    or not command_name
                    or channel is not None)):
-            raise ValueError("Blocking user interactions only needs both of user and command_name arguments.")
+            raise ValueError("Blocking active and passive usage needs both of user and command_name arguments only.")
+        elif (ignore_type == IgnoreType.Active_Usage
+              and (user is None
+                   or not command_name
+                   or channel is not None)):
+            raise ValueError("Blocking active usage needs both of user and command_name arguments only.")
 
         self.ignore_type = ignore_type
         self.user = user
@@ -194,7 +220,7 @@ class IgnoreDataset:
         elif self.ignore_type == IgnoreType.Command:
             m = Lang.lang(self.ignoring_instance, 'cmd_ignore_msg', self.command_name, self.channel.name, dt)
 
-        elif self.ignore_type == IgnoreType.User_Command:
+        elif self.ignore_type == IgnoreType.Passive_Usage:
             m = Lang.lang(self.ignoring_instance, 'user_cmd_ignore_msg',
                           self.user.display_name, self.command_name, dt)
 
@@ -216,7 +242,8 @@ class Ignoring(BaseSubsystem):
 
         self.users = []
         self.cmds = []
-        self.user_cmds = []
+        self.passive = []
+        self.active = []
 
         @bot.listen()
         async def on_ready():
@@ -228,12 +255,14 @@ class Ignoring(BaseSubsystem):
             return self.users
         if ignore_type == IgnoreType.Command:
             return self.cmds
-        if ignore_type == IgnoreType.User_Command:
-            return self.user_cmds
+        if ignore_type == IgnoreType.Passive_Usage:
+            return self.passive
+        if ignore_type == IgnoreType.Active_Usage:
+            return self.active
         return None
 
     def get_full_ignore_len(self):
-        return len(self.users) + len(self.cmds) + len(self.user_cmds)
+        return len(self.users) + len(self.cmds) + len(self.passive) + len(self.active)
 
     def _load(self):
         """
@@ -248,7 +277,8 @@ class Ignoring(BaseSubsystem):
         full_list = []
         full_list.extend(self.users)
         full_list.extend(self.cmds)
-        full_list.extend(self.user_cmds)
+        full_list.extend(self.passive)
+        full_list.extend(self.active)
 
         jsondata = []
         for el in full_list:
@@ -351,9 +381,10 @@ class Ignoring(BaseSubsystem):
         channel = self.bot.get_channel(channel_id)
         return self.add_command(command_name, channel, until)
 
-    def add_user_command(self, user: discord.User, command_name: str, until: datetime = datetime.max):
+    def add_passive(self, user: discord.User, command_name: str, until: datetime = datetime.max):
         """
-        Adds the user and command to ignore list to block any interactions of the user with the specific command.
+        Adds a active and passive usage block for the user for the command to ignore list
+        to block any interactions of the user with the specific command.
 
         :param user: The user to block
         :param command_name: The command to block for the user, Should be, but not necessarily, the full qualified
@@ -361,13 +392,14 @@ class Ignoring(BaseSubsystem):
         :param until: The datetime to auto-remove the command from ignore list
         :return: Code based on IgnoreEditResult
         """
-        dataset = IgnoreDataset(IgnoreType.User_Command, user=user,
+        dataset = IgnoreDataset(IgnoreType.Passive_Usage, user=user,
                                 command_name=command_name, until=until, ignoring_instance=self)
         return self.add(dataset)
 
-    def add_user_id_command(self, user_id: int, command_name: str, until: datetime = datetime.max):
+    def add_passive_uid(self, user_id: int, command_name: str, until: datetime = datetime.max):
         """
-        Adds the user and command to ignore list to block any interactions of the user with the specific command.
+        Adds a active and passive usage block for the user for the command to ignore list
+        to block any interactions of the user with the specific command.
 
         :param user_id: The id of the user to block
         :param command_name: The command to block for the user, Should be, but not necessarily, the full qualified
@@ -376,7 +408,34 @@ class Ignoring(BaseSubsystem):
         :return: Code based on IgnoreEditResult
         """
         user = self.bot.get_user(user_id)
-        return self.add_user_command(user, command_name, until)
+        return self.add_passive(user, command_name, until)
+
+    def add_active(self, user: discord.User, command_name: str, until: datetime = datetime.max):
+        """
+        Adds a active usage block for the user for the command to ignore list
+        to block the usage of the command for the specific user.
+
+        :param user: The user to block
+        :param command_name: The command to block for the user, must be the full qualified command name (eg. 'dsc set')
+        :param until: The datetime to auto-remove the command from ignore list
+        :return: Code based on IgnoreEditResult
+        """
+        dataset = IgnoreDataset(IgnoreType.Active_Usage, user=user,
+                                command_name=command_name, until=until, ignoring_instance=self)
+        return self.add(dataset)
+
+    def add_active_uid(self, user_id: int, command_name: str, until: datetime = datetime.max):
+        """
+        Adds a active usage block for the user for the command to ignore list
+        to block the usage of the command for the specific user.
+
+        :param user_id: The user to block
+        :param command_name: The command to block for the user, must be the full qualified command name (eg. 'dsc set')
+        :param until: The datetime to auto-remove the command from ignore list
+        :return: Code based on IgnoreEditResult
+        """
+        user = self.bot.get_user(user_id)
+        return self.add_active(user, command_name, until)
 
     #######
     # Removing
@@ -454,23 +513,23 @@ class Ignoring(BaseSubsystem):
         channel = self.bot.get_channel(channel_id)
         return self.remove_command(command_name, channel)
 
-    def remove_user_command(self, user: discord.User, command_name: str):
+    def remove_passive(self, user: discord.User, command_name: str):
         """
-        Removes the user and command from ignore list to re-enable any interactions
-        of the user with the specific command.
+        Removes the active and passive usage block for the user for the command from ignore list to re-enable any
+        interactions of the user with the specific command.
 
         :param user: The user to re-enable
         :param command_name: The command to re-enable for the user, Should be, but not necessarily, the full qualified
             command name. Depending on the checking implementation for the specific command.
         :return: Code based on IgnoreEditResult
         """
-        dataset = IgnoreDataset(IgnoreType.User_Command, user=user, command_name=command_name)
+        dataset = IgnoreDataset(IgnoreType.Passive_Usage, user=user, command_name=command_name)
         return self.remove(dataset)
 
-    def remove_user_id_command(self, user_id: int, command_name: str):
+    def remove_passive_uid(self, user_id: int, command_name: str):
         """
-        Removes the user and command from ignore list to re-enable any interactions
-        of the user with the specific command.
+        Removes the active and passive usage block for the user for the command from ignore list to re-enable any
+        interactions of the user with the specific command.
 
         :param user_id: The id of the user to re-enable
         :param command_name: The command to re-enable for the user, Should be, but not necessarily, the full qualified
@@ -478,7 +537,7 @@ class Ignoring(BaseSubsystem):
         :return: Code based on IgnoreEditResult
         """
         user = self.bot.get_user(user_id)
-        return self.remove_user_command(user, command_name)
+        return self.remove_passive(user, command_name)
 
     #######
     # Checking
@@ -560,9 +619,9 @@ class Ignoring(BaseSubsystem):
         cmd_name = ctx.command.qualified_name
         return self.check_command_name(cmd_name, ctx.channel)
 
-    def _check_user_command(self, user_to_check, user_check_func, command_name: str):
+    def _check_passive_usage(self, user_to_check, user_check_func, command_name: str):
         """
-        Performs the check if user is blocked for all interaction or all interactions with the specific command.
+        Performs the check if a command is active and passive blocked for the specific user.
 
         :param user_to_check: The user to check
         :param user_check_func: The function with the user check will be performed, must be func(discord.User)
@@ -571,40 +630,89 @@ class Ignoring(BaseSubsystem):
         """
         if self._check_user(user_to_check, user_check_func):
             return True
-        ignore_list_user_cmd = self.get_ignore_list(IgnoreType.User_Command)
+        ignore_list_user_cmd = self.get_ignore_list(IgnoreType.Passive_Usage)
         for el in ignore_list_user_cmd:
             if user_check_func(el.user) == user_to_check and el.command_name == command_name:
                 return True
         return False
 
-    def check_user_id_command(self, user_id: int, command_name: str):
+    def check_passive_usage_uid(self, user_id: int, command_name: str):
         """
-        Checks if the user id is blocked for all interactions generally or for all interactions with the command.
+        Checks if a command is active and passive blocked for the specific user id.
 
         :param user_id: The user id
         :param command_name: The command name
         :return: True if user is blocked for command, otherwise False
         """
 
-        return self._check_user_command(user_id, self._user_id_check_func, command_name)
+        return self._check_passive_usage(user_id, self._user_id_check_func, command_name)
 
-    def check_user_name_command(self, user_name: str, command_name: str):
+    def check_passive_usage_uname(self, user_name: str, command_name: str):
         """
-        Checks if the user name is blocked for all interactions generally or for all interactions with the command.
+        Checks if a command is active and passive blocked for the specific user name.
 
         :param user_name: The user name, returned by utils.get_best_username()
         :param command_name: The command name
         :return: True if user is blocked for command, otherwise False
         """
 
-        return self._check_user_command(user_name, self._user_name_check_func, command_name)
+        return self._check_passive_usage(user_name, self._user_name_check_func, command_name)
 
-    def check_user_command(self, user: discord.User, command_name: str):
+    def check_passive_usage(self, user: discord.User, command_name: str):
         """
-        Checks if the user is blocked for all interactions generally or for all interactions with the command.
+        Checks if a command is active and passive blocked for the specific user.
 
         :param user: The user
         :param command_name: The command name
         :return: True if user is blocked for command, otherwise False
         """
-        return self.check_user_id_command(user.id, command_name)
+        return self.check_passive_usage_uid(user.id, command_name)
+
+    def _check_active_usage(self, user_to_check, user_check_func, command_name: str):
+        """
+        Performs the check if a active command usage is blocked for the specific user.
+
+        :param user_to_check: The user to check
+        :param user_check_func: The function with the user check will be performed, must be func(discord.User)
+        :param command_name: The command name
+        :return: True if user is blocked for command, otherwise False
+        """
+        if self._check_user(user_to_check, user_check_func):
+            return True
+        ignore_list_user_cmd = self.get_ignore_list(IgnoreType.Active_Usage)
+        for el in ignore_list_user_cmd:
+            if user_check_func(el.user) == user_to_check and el.command_name == command_name:
+                return True
+        return False
+
+    def check_active_usage_uid(self, user_id: int, command_name: str):
+        """
+        Checks if a active command usage is blocked for the specific user id.
+
+        :param user_id: The user id
+        :param command_name: The command name
+        :return: True if user is blocked for command, otherwise False
+        """
+
+        return self._check_active_usage(user_id, self._user_id_check_func, command_name)
+
+    def check_active_usage_uname(self, user_name: str, command_name: str):
+        """
+        Checks if a active command usage is blocked for the specific user name.
+
+        :param user_name: The user name, returned by utils.get_best_username()
+        :param command_name: The command name
+        :return: True if user is blocked for command, otherwise False
+        """
+
+        return self._check_active_usage(user_name, self._user_name_check_func, command_name)
+
+    def check_active_usage(self, user: discord.User, command_name: str):
+        """
+        Checks if a active command usage is blocked for the specific user.
+
+        :param user: The user
+        :param command_name: The command name
+        :return: True if user is blocked for command, otherwise False
+        """
+        return self.check_active_usage_uid(user.id, command_name)

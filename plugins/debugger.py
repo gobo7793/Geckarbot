@@ -90,7 +90,7 @@ class Plugin(BasePlugin, name="Testing and debug things"):
 
     @commands.command(name="mentionuser", help="Mentions a user, supports user cmd disabling.")
     async def mentionuser(self, ctx, user: discord.Member):
-        if self.bot.ignoring.check_user_command(user, ctx.command.qualified_name):
+        if self.bot.ignoring.check_passive_usage(user, ctx.command.qualified_name):
             await ctx.send("Command blocked for user!")
         else:
             await ctx.send(user.mention)

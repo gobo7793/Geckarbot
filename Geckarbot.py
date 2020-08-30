@@ -284,7 +284,7 @@ def main():
         """
         if bot.ignoring.check_command(ctx):
             raise commands.DisabledCommand()
-        if bot.ignoring.check_user_command(ctx.author, ctx.command.qualified_name):
+        if bot.ignoring.check_passive_usage(ctx.author, ctx.command.qualified_name):
             raise commands.DisabledCommand()
         return True
 
