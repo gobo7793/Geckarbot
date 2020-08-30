@@ -476,6 +476,7 @@ dmypy.json
 # local config/log files
 /storage/*
 /resource/*
+/config/*
 .update
 /logs
 

@@ -129,7 +129,10 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
         return Lang.lang(self, "help_{}".format(command.name))
 
     def command_description(self, command):
-        return Lang.lang(self, "description_{}".format(command.name))
+        msg = Lang.lang(self, "description_{}".format(command.name))
+        if command.name == "werbinich":
+            msg += Lang.lang(self, "options_werbinich")
+        return msg
 
     def command_usage(self, command):
         if command.name == "werbinich":
