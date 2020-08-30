@@ -90,7 +90,7 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
         if Config.get(self)['bot_info_link']:
             about_msg += Lang.lang(self, 'about_general_info', Config.get(self)['bot_info_link'])
         about_msg += Lang.lang(self, 'about_repo', Config.get(self).get('repo_link',
-                                                                           Lang.lang(self, 'about_no_repo_link')))
+                                                                        Lang.lang(self, 'about_no_repo_link')))
         if Config.get(self)['privacy_notes_link']:
             lang = ""
             if Config.get(self)['privacy_notes_lang']:
@@ -109,14 +109,34 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
     # Ignoring subsystem
     ######
 
-    @commands.group(name="disable", invoke_without_command=True, help="Blocks user or command usage.",
-                    brief="Blocks user or command usage", aliases=["ignore", "block"],
+    async def _pre_cmd_checks(self, ctx, command):
+        """
+        Some pre-checks for command disabling
+
+        :param ctx: command context
+        :param command: the command to disable
+        :return: True if command can be disabled
+        """
+        customcmds = self.bot.ignoring.get_additional_commands()
+        if command not in self.bot.all_commands and command not in customcmds:
+            await ctx.message.add_reaction(Lang.CMDERROR)
+            await ctx.send(Lang.lang(self, 'cmd_not_found', command))
+            return False
+        if command == "enable":
+            await ctx.message.add_reaction(Lang.CMDERROR)
+            await ctx.send(Lang.lang(self, 'enable_cant_blocked'))
+            return False
+        return True
+
+    @commands.group(name="disable", invoke_without_command=True, help="Blocks user or command usage",
+                    aliases=["ignore", "block"],
                     usage="<command> [user] [#m|#h|#d|DD.MM.YYYY|HH:MM|DD.MM.YYYY HH:MM|DD.MM. HH:MM]",
-                    description="Adds a command to users ignore list to disable any interactions between the user and "
-                                "the command.\n"
+                    description="Adds a command to ignore list to disable active and passive command usage "
+                                "for the user for the specific command.\n"
                                 "To block command usage for the user, the command name must be the full qualified "
                                 "name of the command without command prefix. If a subcommand should be blocked, "
-                                "the command name must be inside quotation marks like \"disable cmd\".\n "
+                                "the command name must be inside quotation marks like \"disable cmd\". "
+                                "Doesn't support aliases, you always need the main command name.\n"
                                 "To block other interactions than command usage itself, the command must support "
                                 "blocking usage for specific users.\n"
                                 "The time can be a fixed date and/or time or a duration after that the "
@@ -128,14 +148,7 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
                                 "If a user uses a command which is blocked for the user, "
                                 "the bot doesn't response anything, like the command wouldn't exists.")
     async def disable(self, ctx, command, *args):
-        customcmds = self.bot.ignoring.get_additional_commands()
-        if command not in self.bot.all_commands and command not in customcmds:
-            await ctx.message.add_reaction(Lang.CMDERROR)
-            await ctx.send(Lang.lang(self, 'cmd_not_found', command))
-            return
-        if command == "enable":
-            await ctx.message.add_reaction(Lang.CMDERROR)
-            await ctx.send(Lang.lang(self, 'enable_cant_blocked'))
+        if not await self._pre_cmd_checks(ctx, command):
             return
 
         user = None
@@ -160,20 +173,51 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
             else:
                 user = ctx.author
 
-        result = self.bot.ignoring.add_user_command(user, command, until)
+        result = self.bot.ignoring.add_passive(user, command, until)
         if result == IgnoreEditResult.Success:
             await ctx.message.add_reaction(Lang.CMDSUCCESS)
         elif result == IgnoreEditResult.Already_in_list:
             await ctx.message.add_reaction(Lang.CMDERROR)
-            await ctx.send(Lang.lang(self, 'user_cmd_already_blocked', command, get_best_username(user)))
+            await ctx.send(Lang.lang(self, 'passive_already_blocked', get_best_username(user), command))
         elif result == IgnoreEditResult.Until_in_past:
             await ctx.message.add_reaction(Lang.CMDERROR)
             await ctx.send(Lang.lang(self, 'no_time_machine'))
         await utils.log_to_admin_channel(ctx)
 
-    @disable.command(name="user", help="Block any interaction between user and bot.",
+    @disable.command(name="use", help="Blocks active command usage for user",
+                     usage="<command> <user> [#m|#h|#d|DD.MM.YYYY|HH:MM|DD.MM.YYYY HH:MM|DD.MM. HH:MM]",
+                     description="Adds a command to ignore list to disable active command usage "
+                                 "for the user for the specific command.\n"
+                                 "To block command usage for the user, the command name must be the full qualified "
+                                 "name of the command without command prefix. If a subcommand should be blocked, "
+                                 "the command name must be inside quotation marks like \"disable cmd\". "
+                                 "Doesn't support aliases, you always need the main command name.\n"
+                                 "The time can be a fixed date and/or time or a duration after that the "
+                                 "command will be auto-removed from the ignore list. The duration unit must be set "
+                                 "with trailing m for minutes, h for hours or d for days. If no date/duration is "
+                                 "given, the user can't interact with that command forever.\n"
+                                 "If a user uses a command which is blocked for the user, "
+                                 "the bot doesn't response anything, like the command wouldn't exists.")
+    async def disable_use(self, ctx, command, user: discord.Member, *args):
+        if not await self._pre_cmd_checks(ctx, command):
+            return
+
+        until = botutils.parsers.parse_time_input(*args)
+
+        result = self.bot.ignoring.add_active(user, command, until)
+        if result == IgnoreEditResult.Success:
+            await ctx.message.add_reaction(Lang.CMDSUCCESS)
+        elif result == IgnoreEditResult.Already_in_list:
+            await ctx.message.add_reaction(Lang.CMDERROR)
+            await ctx.send(Lang.lang(self, 'active_already_blocked', get_best_username(user), command))
+        elif result == IgnoreEditResult.Until_in_past:
+            await ctx.message.add_reaction(Lang.CMDERROR)
+            await ctx.send(Lang.lang(self, 'no_time_machine'))
+        await utils.log_to_admin_channel(ctx)
+
+    @disable.command(name="user", help="Block any interaction between user and bot",
                      usage="<user> [#m|#h|#d|DD.MM.YYYY|HH:MM|DD.MM.YYYY HH:MM|DD.MM. HH:MM]",
-                     description="Adds a user to bot's ignore list to block any interaction between the user and the "
+                     description="Adds a user to the ignore list to block any interaction between the user and the "
                                  "bot.\n "
                                  "The time can be a fixed date and/or time or a duration after that the user will be "
                                  "auto-removed from the ignore list. The duration unit must be set with trailing m "
@@ -196,12 +240,12 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
             await ctx.send(Lang.lang(self, 'no_time_machine'))
         await utils.log_to_admin_channel(ctx)
 
-    @disable.command(name="cmd", help="Disables a command in current channel.",
+    @disable.command(name="cmd", help="Disables a command in current channel",
                      usage="<command> [#m|#h|#d|DD.MM.YYYY|HH:MM|DD.MM.YYYY HH:MM|DD.MM. HH:MM]",
-                     description="Adds a command to bot's ignore list to disable it in current channel. The command "
+                     description="Adds a command to the ignore list to disable it in current channel. The command "
                                  "name must be the full qualified name of the command without command prefix. If a "
                                  "subcommand should be blocked, the command name must be inside quotation marks like "
-                                 "\"disable cmd\".\n"
+                                 "\"disable cmd\". Doesn't support aliases, you always need the main command name.\n"
                                  "The time can be a fixed date and/or time or a duration after that the command will "
                                  "be auto-removed from the ignore list. The duration unit must be set with trailing m "
                                  "for minutes, h for hours or d for days. If no date/duration is given, the command "
@@ -211,9 +255,7 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
                                  "Note: The command !enable can't be blocked to avoid deadlocks.")
     @commands.has_any_role(*Config().FULL_ACCESS_ROLES)
     async def disable_cmd(self, ctx, command, *args):
-        if command == "enable":
-            await ctx.message.add_reaction(Lang.CMDERROR)
-            await ctx.send(Lang.lang(self, 'enable_cant_blocked'))
+        if not await self._pre_cmd_checks(ctx, command):
             return
 
         until = botutils.parsers.parse_time_input(*args)
@@ -230,7 +272,7 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
         await utils.log_to_admin_channel(ctx)
 
     @disable.command(name="list", help="Lists all blocked users and commands")
-    # NOTE: Will be invoked via "!subsys"
+    # NOTE: Will be used by "!subsys"
     async def disable_list(self, ctx):
         def get_item_msg(item):
             return item.to_message()
@@ -247,12 +289,13 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
 
         await write_list(IgnoreType.User, Lang.lang(self, 'list_users'))
         await write_list(IgnoreType.Command, Lang.lang(self, 'list_cmds'))
-        await write_list(IgnoreType.User_Command, Lang.lang(self, 'list_usercmds'))
+        await write_list(IgnoreType.Active_Usage, Lang.lang(self, 'list_active'))
+        await write_list(IgnoreType.Passive_Usage, Lang.lang(self, 'list_passive'))
 
-    @commands.group(name="enable", invoke_without_command=True, help="Unblocks user or command usage.",
+    @commands.group(name="enable", invoke_without_command=True, help="Unblocks user or command usage",
                     aliases=["unignore", "unblock"],
-                    description="Removes a command from users ignore list to enable any interactions between the user "
-                                "and the command.\n"
+                    description="Removes a command from the ignore list to enable active and passive command usage "
+                                "for the user for the specific command.\n"
                                 "Users can enable command interactions for themselves only, but Admins also for "
                                 "other users.")
     async def enable(self, ctx, command, user: discord.Member = None):
@@ -262,16 +305,29 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
         if user != ctx.author and not permchecks.check_full_access(ctx.author):
             raise commands.MissingAnyRole(*Config().FULL_ACCESS_ROLES)
 
-        result = self.bot.ignoring.remove_user_command(user, command)
+        result = self.bot.ignoring.remove_passive(user, command)
         if result == IgnoreEditResult.Success:
             await ctx.message.add_reaction(Lang.CMDSUCCESS)
         elif result == IgnoreEditResult.Not_in_list:
             await ctx.message.add_reaction(Lang.CMDERROR)
-            await ctx.send(Lang.lang(self, 'user_cmd_not_blocked', command, get_best_username(user)))
+            await ctx.send(Lang.lang(self, 'passive_not_blocked', get_best_username(user), command))
         await utils.log_to_admin_channel(ctx)
 
-    @enable.command(name="user", help="Unblock user to enable interactions between user and bot.",
-                    description="Removes a user from bot's ignore list to enable any interaction between the user and "
+    @enable.command(name="use", help="Unblocks active command usage for user",
+                    description="Removes a command from the ignore list to enable active command usage "
+                                "for the user for the specific command.")
+    @commands.has_any_role(*Config().FULL_ACCESS_ROLES)
+    async def enable_use(self, ctx, command, user: discord.Member):
+        result = self.bot.ignoring.remove_active(user, command)
+        if result == IgnoreEditResult.Success:
+            await ctx.message.add_reaction(Lang.CMDSUCCESS)
+        elif result == IgnoreEditResult.Not_in_list:
+            await ctx.message.add_reaction(Lang.CMDERROR)
+            await ctx.send(Lang.lang(self, 'active_not_blocked', get_best_username(user), command))
+        await utils.log_to_admin_channel(ctx)
+
+    @enable.command(name="user", help="Unblock user to enable interactions between user and bot",
+                    description="Removes a user from the ignore list to enable any interaction between the user and "
                                 "the bot.")
     @commands.has_any_role(*Config().FULL_ACCESS_ROLES)
     async def enable_user(self, ctx, user: discord.Member):
@@ -283,8 +339,8 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
             await ctx.send(Lang.lang(self, 'user_not_blocked', get_best_username(user)))
         await utils.log_to_admin_channel(ctx)
 
-    @enable.command(name="cmd", help="Enables a command in current channel.",
-                    description="Removes a command from bot's ignore list to enable it in current channel. The command "
+    @enable.command(name="cmd", help="Enables a command in current channel",
+                    description="Removes a command from the ignore list to enable it in current channel. The command "
                                 "name must be the full qualified name of the command without command prefix. If a "
                                 "subcommand should be enabled, the command name must be inside quotation marks like "
                                 "\"enable cmd\".")

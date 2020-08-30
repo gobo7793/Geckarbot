@@ -114,7 +114,7 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
     async def tippspiel(self, ctx):
         await ctx.send(Lang.lang(self, 'tippspiel_output'))
 
-    @commands.command(name="werwars", alias="wermobbtgerade", help="Shows which user is bullying other users",
+    @commands.command(name="werwars", alsiases=["wermobbtgerade"], help="Shows which user is bullying other users",
                       description="Shows who is bullying other users in the last 30 minutes in the current channel. "
                                   "Supports ignore list.")
     async def who_mobbing(self, ctx):

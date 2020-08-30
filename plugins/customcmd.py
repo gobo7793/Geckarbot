@@ -13,7 +13,6 @@ from botutils.stringutils import paginate
 from subsystems.ignoring import UserBlockedCommand
 from subsystems.help import HelpCategory
 
-
 wildcard_user = "%u"
 wildcard_umention = "%um"
 wildcard_all_args = "%a"
@@ -39,17 +38,21 @@ def _get_all_arg_str(start_index, all_arg_list):
 class Cmd:
     """Represents a custom cmd"""
 
-    def __init__(self, name: str, creator_id: int, *texts):
+    def __init__(self, plugin, name: str, creator_id: int, *texts, author_ids: list = None):
         """
         Creates a new custom cmd
 
+        :param plugin: The plugin instance
         :param name: The command name, must be unique, will be lowered
         :param creator_id: The user id of the initial creator of the cmd
         :param texts: The output texts of the cmd
+        :param author_ids: The author ids for the output texts
         """
 
-        self.name = name.lower()
+        self.plugin = plugin
+        self.name = str(name).lower()
         self.creator_id = creator_id
+        self.author_ids = [author_ids[i] if author_ids is not None else creator_id for i in range(0, len(*texts))]
         self.texts = list(*texts)
 
     def serialize(self):
@@ -60,53 +63,44 @@ class Cmd:
         """
         return {
             'creator': self.creator_id,
+            'authors': self.author_ids,
             'texts': self.texts
         }
 
     @classmethod
-    def deserialize(cls, name, d):
+    def deserialize(cls, plugin, name, d: dict):
         """
         Constructs a Cmd object from a dict.
 
+        :param plugin: The plugin instance
         :param name: The command name
         :param d: dict made by serialize()
         :return: Cmd object
         """
-        return Cmd(name, d['creator'], d['texts'])
-
-    @classmethod
-    def convert_from_1x_format(cls, k, v):
-        """Converts a command from the old format with only one """
-
-    def get_ran_raw_text(self):
-        """Returns a random text of the cmd or an empty string if the cmd has no text"""
-        if len(self.texts) > 0:
-            return random.choice(self.texts)
-        return ""
+        return Cmd(plugin, name, d['creator'], d['texts'], author_ids=d.get('authors', []))
 
     def get_raw_text(self, text_id):
         """Returns the raw text with the given ID as formatted string or raise IndexError if ID not exists"""
-        return "#{}: {}".format(text_id, self.texts[text_id])
+        return Lang.lang(self.plugin, 'raw_text', text_id + 1, self.texts[text_id],
+                         converters.get_best_username(self.plugin.bot.get_user(self.author_ids[text_id])))
 
     def get_raw_texts(self):
         """Returns all raw texts of the cmd as formatted string"""
-        if len(self.texts) == 1:
-            return [self.get_raw_text(0)]
-        else:
-            return [self.get_raw_text(i) for i in range(0, len(self.texts))]
+        return [self.get_raw_text(i) for i in range(0, len(self.texts))]
 
-    async def get_ran_formatted_text(self, bot, msg: discord.Message, cmd_args: list):
+    async def get_formatted_text(self, bot, text_id: int, msg: discord.Message, cmd_args: list):
         """
-        Formats and replaces the wildcard of a random text of the cmd for using it as custom cmd.
+        Formats and replaces the wildcards of a given text id of the cmd for using it as custom cmd.
         If a mentioned user has the command on its ignore list, a UserBlockedCommand error will be raised.
 
         :param bot: The bot
+        :param text_id: The text id
         :param msg: The original message
         :param cmd_args: The used command arguments
         :returns: The formatted command text
         """
 
-        cmd_content = self.get_ran_raw_text()
+        cmd_content = self.get_raw_text(text_id)
 
         # general replaces
         cmd_content = cmd_content.replace(wildcard_umention, msg.author.mention)
@@ -141,11 +135,28 @@ class Cmd:
             except commands.BadArgument:
                 member = None
 
-            if member is not None and bot.ignoring.check_user_command(member, self.name):
+            if member is not None and bot.ignoring.check_passive_usage(member, self.name):
                 raise UserBlockedCommand(member, self.name)
             cmd_content = cmd_content.replace(wildcard, arg)
 
         return cmd_content
+
+    async def get_ran_formatted_text(self, bot, msg: discord.Message, cmd_args: list):
+        """
+        Formats and replaces the wildcards of a random text of the cmd for using it as custom cmd.
+        If a mentioned user has the command on its ignore list, a UserBlockedCommand error will be raised.
+
+        :param bot: The bot
+        :param msg: The original message
+        :param cmd_args: The used command arguments
+        :returns: The formatted command text
+        """
+
+        text_len = len(self.texts)
+        if text_len > 0:
+            text_id = random.choice(range(0, text_len))
+            return self.get_formatted_text(bot, text_id, msg, cmd_args)
+        return ""
 
 
 class CustomCMDHelpCategory(HelpCategory):
@@ -175,7 +186,6 @@ class Plugin(BasePlugin, name="Custom CMDs"):
 
     def __init__(self, bot):
         super().__init__(bot)
-        self.can_reload = True
         self.help_category = CustomCMDHelpCategory(self)
         bot.register(self, self.help_category)
 
@@ -194,7 +204,7 @@ class Plugin(BasePlugin, name="Custom CMDs"):
 
     def default_config(self):
         return {
-            "cfgversion": "2",
+            "cfgversion": 3,
             "prefix": "+",
             "guidelines": "https://github.com/gobo7793/Geckarbot/wiki/Command-Guidelines"
         }
@@ -203,20 +213,24 @@ class Plugin(BasePlugin, name="Custom CMDs"):
         return {
             'fail': {
                 "creator": 0,
+                "authors": [0],
                 "texts": ["_lacht %1 für den Fail aus ♥_"]
             },
             'liebe': {
                 "creator": 0,
+                "authors": [0],
                 "texts": ["https://www.youtube.com/watch?v=TfmJPDmaQdg"]
             },
             'passierschein': {
                 "creator": 0,
+                "authors": [0],
                 "texts": ["Eintragung einer Galeere? Oh, da sind Sie hier falsch! "
                           "Wenden Sie sich an die Hafenkommandantur unten im Hafen.\n"
                           "https://youtu.be/lIiUR2gV0xk"]
             },
             'ping': {
                 "creator": 0,
+                "authors": [0, 0],
                 "texts": ["Pong", "🏓"]
             },
         }
@@ -226,12 +240,15 @@ class Plugin(BasePlugin, name="Custom CMDs"):
         # Update from old config versions
         if "_prefix" in Storage.get(self):
             self.update_config_from_1_to_2(Storage.get(self))
-        if "_prefix" in Config.get(self):
+        elif "_prefix" in Config.get(self):
             self.update_config_from_1_to_2(Config.get(self))
+
+        if Config.get(self)['cfgversion'] == 2:
+            self.update_config_from_2_to_3()
 
         # actually load the commands
         for k in Storage.get(self).keys():
-            self.commands[k] = Cmd.deserialize(k, Storage.get(self)[k])
+            self.commands[str(k)] = Cmd.deserialize(self, k, Storage.get(self)[k])
             self.bot.ignoring.add_additional_command(k)
 
     def save(self):
@@ -245,9 +262,21 @@ class Plugin(BasePlugin, name="Custom CMDs"):
 
         Config.save(self)
 
+    def update_config_from_2_to_3(self):
+        """Updates the configuration from version 2 to version 3 (adding authors for output texts)"""
+        logging.info("Update Custom CMD config from version 2 to version 3")
+
+        for cmd in Storage.get(self).values():
+            cmd['authors'] = [0 for i in range(0, len(cmd['texts']))]
+
+        Config.get(self)['cfgversion'] = 3
+        Storage.save(self)
+        Config.save(self)
+        logging.info("Converting finished.")
+
     def update_config_from_1_to_2(self, old_config):
         """
-        Updates the configuration from version 1 (indicator: contains '_prefix') to version 2
+        Updates the configuration from version 1 (indicator: contains '_prefix') to version 2 (split Config/Storage)
 
         :param old_config: the old config dict
         """
@@ -266,7 +295,7 @@ class Plugin(BasePlugin, name="Custom CMDs"):
             if cmd_name in new_cmds:
                 new_cmds[cmd_name]['texts'].append(old_config[cmd])
             else:
-                new_cmds[cmd_name] = Cmd(cmd_name, 0, [old_config[cmd]]).serialize()
+                new_cmds[cmd_name] = Cmd(self, cmd_name, 0, [old_config[cmd]]).serialize()
 
         Storage.set(self, new_cmds)
         Config.save(self)
@@ -284,7 +313,7 @@ class Plugin(BasePlugin, name="Custom CMDs"):
         if cmd_name not in self.commands:
             return
         elif (self.bot.ignoring.check_command_name(cmd_name, msg.channel)
-              or self.bot.ignoring.check_user_command(msg.author, cmd_name)):
+              or self.bot.ignoring.check_passive_usage(msg.author, cmd_name)):
             raise commands.DisabledCommand()
 
         cmd_content = await self.commands[cmd_name].get_ran_formatted_text(self.bot, msg, cmd_args)
@@ -301,7 +330,8 @@ class Plugin(BasePlugin, name="Custom CMDs"):
                     help="Adds, list or (for admins) removes a custom command",
                     description="Adds, list or removes a custom command. Custom commands can be added and removed in "
                                 "runtime. To use a custom command, the message must start with the setted prefix, "
-                                "which can be returned using the prefix subcommand.")
+                                "which can be returned using the prefix subcommand.\n"
+                                "More info about adding commands, see !help cmd add.")
     async def cmd(self, ctx):
         await self.bot.helpsys.cmd_help(ctx, self, ctx.command)
 
@@ -363,7 +393,10 @@ class Plugin(BasePlugin, name="Custom CMDs"):
     async def cmd_raw(self, ctx, cmd_name):
         cmd_name = cmd_name.lower()
         if cmd_name in self.commands:
-            creator = self.bot.get_user(self.commands[cmd_name].creator_id)
+            creator_member = self.bot.guild.get_member(self.commands[cmd_name].creator_id)
+            creator = creator_member\
+                if creator_member is not None\
+                else self.bot.get_user(self.commands[cmd_name].creator_id)
             for msg in paginate(self.commands[cmd_name].get_raw_texts(),
                                 delimiter="\n",
                                 prefix=Lang.lang(self,
@@ -388,8 +421,9 @@ class Plugin(BasePlugin, name="Custom CMDs"):
                              "%n: The nth command argument\n"
                              "%n*: The nth and all following arguments\n"
                              "%a: Alias for %1*\n\n"
-                             "Supports /me. Custom commands must be compliant to the general command guidelines, which "
-                             "can be accessed via !cmd guidelines.\n"
+                             "Supports /me. If a picture should be added, a URL is required. "
+                             "Custom commands must be compliant to the general command guidelines, "
+                             "which can be accessed via !cmd guidelines.\n"
                              "Example: !cmd add test Argument1: %1 from user %u\n")
     async def cmd_add(self, ctx, cmd_name, *, args: str):
         if not args:
@@ -399,6 +433,7 @@ class Plugin(BasePlugin, name="Custom CMDs"):
 
         # TODO Process multiple output texts
         cmd_texts = [args]
+        text_authors = [ctx.author.id for i in range(0, len(cmd_texts))]
 
         # Process special discord /cmd
         for i in range(0, len(cmd_texts)):
@@ -409,17 +444,18 @@ class Plugin(BasePlugin, name="Custom CMDs"):
 
         if cmd_name in self.commands:
             self.commands[cmd_name].texts.extend(cmd_texts)
+            self.commands[cmd_name].author_ids.extend(text_authors)
             self.save()
             await ctx.message.add_reaction(Lang.CMDSUCCESS)
             await utils.write_debug_channel(self.bot, Lang.lang(self, 'cmd_text_added', cmd_name, cmd_texts))
             await ctx.send(Lang.lang(self, "add_exists", cmd_name))
         else:
-            self.commands[cmd_name] = Cmd(cmd_name, ctx.author.id, cmd_texts)
+            self.commands[cmd_name] = Cmd(self, cmd_name, ctx.author.id, cmd_texts)
             self.bot.ignoring.add_additional_command(cmd_name)
             self.save()
             # await utils.log_to_admin_channel(ctx)
             await ctx.message.add_reaction(Lang.CMDSUCCESS)
-            await utils.write_debug_channel(self.bot, Lang.lang(self, 'cmd_added',
+            await utils.write_debug_channel(self.bot, Lang.lang(self, 'cmd_added', cmd_name,
                                                                 self.commands[cmd_name].get_raw_texts()))
 
     # @cmd.command(name="edit")
@@ -449,6 +485,8 @@ class Plugin(BasePlugin, name="Custom CMDs"):
                              "or its texts.")
     async def cmd_del(self, ctx, cmd_name, text_id: int = None):
         cmd_name = cmd_name.lower()
+        if text_id is not None:
+            text_id -= 1
 
         if cmd_name not in self.commands:
             await ctx.message.add_reaction(Lang.CMDERROR)
@@ -456,10 +494,6 @@ class Plugin(BasePlugin, name="Custom CMDs"):
             return
 
         cmd = self.commands[cmd_name]
-
-        if ctx.author.id != cmd.creator_id and not permchecks.check_full_access(ctx.author):
-            await ctx.send(Lang.lang(self, 'del_perm_missing'))
-            return
 
         if text_id is not None and text_id < 0:
             await ctx.message.add_reaction(Lang.CMDERROR)
@@ -471,6 +505,12 @@ class Plugin(BasePlugin, name="Custom CMDs"):
             await ctx.send(Lang.lang(self, 'text_id_not_exists'))
             return
 
+        if text_id is None or (text_id is not None and ctx.author.id != cmd.author_ids[text_id]):
+            if ctx.author.id != cmd.creator_id:
+                if not permchecks.check_full_access(ctx.author):
+                    await ctx.send(Lang.lang(self, 'del_perm_missing'))
+                    return
+
         if text_id == 0 and len(cmd.texts) == 1:
             text_id = None
 
@@ -478,11 +518,13 @@ class Plugin(BasePlugin, name="Custom CMDs"):
             # Remove command
             cmd_raw = cmd.get_raw_texts()
             del (self.commands[cmd_name])
-            await utils.write_debug_channel(self.bot, Lang.lang(self, 'cmd_removed', cmd_raw))
+            for msg in paginate(cmd_raw, prefix=Lang.lang(self, 'cmd_removed', cmd_name)):
+                await utils.write_debug_channel(self.bot, msg)
 
         else:
             # remove text
             cmd_raw = cmd.get_raw_text(text_id)
+            del (cmd.author_ids[text_id])
             del (cmd.texts[text_id])
             await utils.write_debug_channel(self.bot, Lang.lang(self, 'cmd_text_removed', cmd_name, cmd_raw))
 
