@@ -6,7 +6,7 @@ import discord
 from discord.ext import commands
 from discord.http import HTTPException
 
-from base import BasePlugin
+from base import BasePlugin, NotFound
 from conf import Lang
 from botutils import utils, statemachine, stringutils, converters
 from subsystems import help
@@ -130,6 +130,12 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
 
     def command_description(self, command):
         return Lang.lang(self, "description_{}".format(command.name))
+
+    def command_usage(self, command):
+        if command.name == "werbinich":
+            return Lang.lang(self, "usage_{}".format(command.name))
+        else:
+            raise NotFound()
 
     @commands.group(name="werbinich", invoke_without_command=True,
                     help=h_help, description=h_description, usage=h_usage)

@@ -116,3 +116,11 @@ class BasePlugin(Cog, Configurable):
         :return: Description string
         """
         raise NotFound()
+
+    def command_usage(self, command):
+        """
+        Override to return a usage string that is determined at runtime. Supersedes command.usage.
+        :param command: Command that a usage string is requested for.
+        :return: Usage string
+        """
+        raise NotFound()

@@ -42,7 +42,7 @@
         "del_perm_missing": "Nur der Ersteller oder Admins können Kommandos oder ihre Ausgabetexte löschen.",
 
         "help_help": "Erstellt und verwaltet Benutzer-Kommandos.",
-        "help_cmd_list_prefix": "Kommandos:",
+        "help_cmd_list_prefix": "Unterkommandos:",
         "help_custom_cmd_list_prefix": "Folgende Benutzer-Kommandos sind vorhanden:"
     }
 }
