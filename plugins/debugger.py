@@ -58,10 +58,7 @@ class Plugin(BasePlugin, name="Testing and debug things"):
     @commands.command(name="react")
     async def react(self, ctx, reaction):
         print(reaction)
-        try:
-            await ctx.message.add_reaction(reaction)
-        except HTTPException:
-            await ctx.message.add_reaction(Lang.CMDERROR)
+        await utils.add_reaction(ctx.message, reaction)
 
     @staticmethod
     async def waitforreact_callback(event):

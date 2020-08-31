@@ -11,6 +11,19 @@ import logging
 chan_logger = logging.getLogger("channel")
 
 
+async def add_reaction(message: discord.Message, reaction):
+    """
+    Adds a reaction to the message, or if not possible, post the reaction in an own message.
+
+    :param message: The message to react
+    :param reaction: The reaction, can be a unicode emoji,
+                     discord.Emoji, discord.PartialEmoji or discord.Reaction
+    """
+    try:
+        await message.add_reaction(reaction)
+    except discord.HTTPException:
+        await message.channel.send(reaction)
+
 def to_local_time(timestamp):
     """
     Converts the given timestamp from UTC to local time
