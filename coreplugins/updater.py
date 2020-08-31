@@ -276,7 +276,7 @@ class Plugin(BasePlugin, name="Bot updating system"):
     async def do_update(self, channel, tag):
         self.state = State.UPDATING
         await channel.send(lang["doing_update"].format(tag))
-        for plugin in self.bot.plugin_objects():
+        for plugin in self.bot.plugin_objects(plugins_only=True):
             try:
                 await utils.write_debug_channel(self.bot, "Shutting down plugin {}".format(plugin.get_name()))
                 await plugin.shutdown()
