@@ -43,7 +43,23 @@
         "user_not_blocked": "{} is not blocked.",
         "active_not_blocked": "{} can use command `{}` already.",
 
-        "#3": "help"
+        "#3": "help textes",
+        "help_plugins": "List all plugins",
+        "help_about": "Print the credits",
+        "help_disable": "Disable commands",
+        "help_disable_mod": "Disable commands or block users",
+        "help_disable_list": "List all disabled commands or blocked users",
+        "help_enable": "Enable disabled commands",
+        "help_enable_mod": "Enable commands or unblock users",
+
+        "#4": "help descs",
+        "desc_plugins": "List all plugins.",
+        "desc_about": "Print the credits.",
+        "desc_disable": "Add a command to your ignore list to disable acitve usage for you and passive usage with you as context.\nThe command name must be the full qualified command name without the prefix or aliases like 'disable list'. To re-enable the command, use the 'enable' command.\nIf a disabled command will be used, the bot ignores it like the used command wouldn't exists.",
+        "desc_disable_mod": "Add a command to the ignore list to disable it in the current channel, disables active usage for a command for a specific user or block a user completely.\nArguments can given in any order. If a valid command will be given, the command will be disabled in the current channel and nobody can use it. If a user is given, the user will be blocked and the user can't use any command. If a command and a user is given, the given command will be disabled for the specific user, so the user can't use the command anymore, but can be used as command context.\nDisabled commands or blocked user can re-enabled/unblocked using the 'enable' command or automatically if a until date or time is given. Following syntax is accepted for parameter 'until':\n[#|#m|#h|#d|[DD.MM.[YYYY]] [HH:MM]]\nIf a disabled command will be used or the user is blocked, the bot ignores it like the used command wouldn't exists.",
+        "desc_disable_list": "List all disabled commands or users.",
+        "desc_enable": "Removes a command from your ignore list to enable active usage for you and passive usage with you as context.\nThe command name must be the full qualified command name without the prefix or aliases like 'disable list'. If no command is given, all your currently disabled commands will be enabled.",
+        "desc_enable_mod": "Removes a command from the ignore list to enable it in the current channel, enables active usage for a command for a specific user or unblock a user (but not the disabled commands for the user).\nArguments can given in any order. If a valid command will be given, the command will be enabled in the current channel. If a user is given, the user will be unblocked for any command usage for commands, which aren't explicitly disabled for the user. If a command and user is given, the given command will be enabled for the specific user."
     },
     "de": {
         "#0": "misc commands",
@@ -89,6 +105,22 @@
         "user_not_blocked": "{} ist nicht blockiert.",
         "active_not_blocked": "{} darf das Kommando `{}` bereits nutzen.",
 
-        "#3": "help"
-    }
+        "#3": "help textes",
+        "help_plugins": "Listet alle Plugins auf",
+        "help_about": "Zeigt die Credits an",
+        "help_disable": "Deaktiviert Kommandos",
+        "help_disable_mod": "Deaktiviert Kommandos oder blockiert Leute",
+        "help_disable_list": "Zeigt die Liste der deaktivierten Kommandos und blockierten Leute",
+        "help_enable": "Aktiviert Kommandos",
+        "help_enable_mod": "Aktiviert Kommandos oder entblockt Leute",
+
+        "#4": "help descs",
+        "desc_plugins": "Listet alle Plugins auf.",
+        "desc_about": "Zeigt die Credits an.",
+        "desc_disable": "Fügt ein Kommando deiner Ignore-Liste hinzu, um die aktive des Kommandos für dich und die passive Nutzung von dir als Kontext des Kommandos zu deaktivieren.\nDer Kommando-Name muss der vollständige Name ohne Präfix oder Alias sein, z.B. 'disable list'. Um ein Kommando wieder zu aktivieren kann das 'enable'-Kommando genutzt werden.\nWenn ein deaktiviertes Kommando genutzt wird, wird es ignoriert als ob es nicht existieren würde.",
+        "desc_disable_mod": "Fügt ein Kommando der Ignore-Liste hinzu, um es im aktuellen Channel zu deaktivieren, deaktiviert die aktive Kommando-Nutzung für eine bestimmte Person oder blockiert eine Person komplett.\nArgumente können in beliebiger Reihenfolge angegeben werden. Wenn ein gültiges Kommando angegeben wird, wird es im aktuellen Channel deaktiviert, sodass es niemand mehr benutzen kann. Wenn eine Person angegeben wird, kann diese komplett blockiert und kann keine Kommandos mehr benutzen. Wenn ein Kommando und eine Person angegeben werden, wird das Kommando für diese Person deaktiviert. Sie kann das Kommando dann nicht mehr aktiv nutzen, jedoch vom Kommando betroffen sein.\nDeaktivierte Kommandos oder blockierte Personen können mithilfe des 'enable'-Kommandos oder automatisch mit der Angabe eines Datum oder Zeit im 'unitl'-Argument wieder aktiviert/entblockt werden. Der Syntax hierfür ist:\n[#|#m|#h|#d|[DD.MM.[YYYY]] [HH:MM]]\nWenn ein deaktiviertes Kommando oder eine blockierte Person eines nutzt, wird die Nutzung ignoriert als ob es das Kommando nicht geben würde.",
+        "desc_disable_list": "Zeigt die Liste der deaktivierten Kommandos und blockierten Leute.",
+        "desc_enable": "Entfernt ein Kommando von deiner Ignore-Liste, sodass du das Kommando wieder nutzen kannst und das Kommando dich.\nDer Kommando-Name muss der vollständige Name ohne Präfix oder Alias sein, z.B. 'disable list'. Wenn kein Kommando angegeben ist, werden all deine deaktivierten Kommandos wieder aktiviert.",
+        "desc_enable_mod": "Entfernt ein Kommando aus der Ignore-Liste um es im aktuellen Channel zu aktivieren, aktiviert die aktive Kommando-Nutzung für eine bestimmte Person oder entblockt eine Person (aber nicht die für sie deaktivierten Kommandos).\nArgumente können in beliebiger Reihenfolge angegeben werden. Wenn ein gültiges Kommando angegeben wird, wird es im aktuellen Channel aktiviert. Wenn eine Person angegeben wird, wird diese entblockt und kann wieder alle Kommandos nutzen, die nicht explizit für die Person deaktiviert sind. Wenn ein Kommando und eine Person angegeben ist, wird das Kommando für diese Person aktiviert."
+        }
 }

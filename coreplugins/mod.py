@@ -34,6 +34,12 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
     def get_configurable_type(self):
         return ConfigurableType.COREPLUGIN
 
+    def command_help_string(self, command):
+        return Lang.lang(self, "help_{}".format(command.qualified_name.replace(" ", "_")))
+
+    def command_description(self, command):
+        return Lang.lang(self, "desc_{}".format(command.qualified_name.replace(" ", "_")))
+
     ######
     # Misc commands
     ######
@@ -62,7 +68,7 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
     #         await ctx.send(send_msg)
     #     await utils.write_debug_channel(self.bot, send_msg)
 
-    @commands.command(name="plugins", help="List all plugins.")
+    @commands.command(name="plugins")
     async def plugins(self, ctx):
         """Returns registered plugins"""
         coreplugins = [c.name for c in self.bot.plugins if c.type == ConfigurableType.COREPLUGIN]
@@ -81,7 +87,7 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
                             prefix=Lang.lang(self, 'plugins_loaded_ss', len(coreplugins)), delimiter=", "):
             await ctx.send(msg)
 
-    @commands.command(name="about", aliases=["git", "github"], help="Prints the credits")
+    @commands.command(name="about", aliases=["git", "github"])
     async def about(self, ctx):
         about_msg = Lang.lang(self, 'about_version', Config.VERSION, self.bot.guild.name,
                               platform.system(), platform.release(), platform.version())
@@ -108,20 +114,22 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
     # Ignoring subsystem
     ######
 
-    @commands.group(name="disable", invoke_without_command=True, aliases=["ignore", "block"])
-    async def disable(self, ctx, command):
-        if not await self._pre_cmd_checks(ctx.message, command):
+    @commands.group(name="disable", invoke_without_command=True, aliases=["ignore", "block"],
+                    usage="<full command name>")
+    async def disable(self, ctx, *command):
+        cmd = " ".join(command)
+        if not await self._pre_cmd_checks(ctx.message, cmd):
             return
 
-        result = self.bot.ignoring.add_passive(ctx.author, command)
+        result = self.bot.ignoring.add_passive(ctx.author, cmd)
         if result == IgnoreEditResult.Success:
             await ctx.message.add_reaction(Lang.CMDSUCCESS)
         elif result == IgnoreEditResult.Already_in_list:
             await ctx.message.add_reaction(Lang.CMDERROR)
-            await ctx.send(Lang.lang(self, 'passive_already_blocked', command))
+            await ctx.send(Lang.lang(self, 'passive_already_blocked', cmd))
         await utils.log_to_admin_channel(ctx)
 
-    @disable.command(name="mod")
+    @disable.command(name="mod", usage="[user|command|until]")
     @commands.has_any_role(*Config().FULL_ACCESS_ROLES)
     async def disable_mod(self, ctx, *args):
         user, command, until = await self._parse_mod_args(ctx.message, *args)
@@ -204,7 +212,8 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
         await write_list(IgnoreType.Active_Usage, Lang.lang(self, 'list_active'))
         await write_list(IgnoreType.Passive_Usage, Lang.lang(self, 'list_passive'))
 
-    @commands.group(name="enable", invoke_without_command=True, aliases=["unignore", "unblock"])
+    @commands.group(name="enable", invoke_without_command=True, aliases=["unignore", "unblock"],
+                    usage="[full command name]")
     async def enable(self, ctx, command=None):
         final_msg = None
         reaction = Lang.CMDERROR
@@ -235,7 +244,7 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
         await ctx.message.add_reaction(reaction)
         await ctx.send(final_msg)
 
-    @enable.command(name="mod")
+    @enable.command(name="mod", usage="[user|command]")
     @commands.has_any_role(*Config().FULL_ACCESS_ROLES)
     async def enable_mod(self, ctx, *args):
         user, command, until = await self._parse_mod_args(ctx.message, *args)
