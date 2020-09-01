@@ -110,7 +110,7 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
 
     @commands.group(name="disable", invoke_without_command=True, aliases=["ignore", "block"])
     async def disable(self, ctx, command):
-        if not await self._pre_cmd_checks(ctx, command):
+        if not await self._pre_cmd_checks(ctx.message, command):
             return
 
         result = self.bot.ignoring.add_passive(ctx.author, command)
@@ -205,14 +205,35 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
         await write_list(IgnoreType.Passive_Usage, Lang.lang(self, 'list_passive'))
 
     @commands.group(name="enable", invoke_without_command=True, aliases=["unignore", "unblock"])
-    async def enable(self, ctx, command):
-        result = self.bot.ignoring.remove_passive(ctx.author, command)
-        if result == IgnoreEditResult.Success:
-            await ctx.message.add_reaction(Lang.CMDSUCCESS)
-        elif result == IgnoreEditResult.Not_in_list:
-            await ctx.message.add_reaction(Lang.CMDERROR)
-            await ctx.send(Lang.lang(self, 'passive_not_blocked', command))
+    async def enable(self, ctx, command=None):
+        final_msg = None
+        reaction = Lang.CMDERROR
+
+        # remove all commands if no command given
+        if command is None:
+            all_entries = [entry
+                           for entry
+                           in self.bot.ignoring.get_ignore_list(IgnoreType.Passive_Usage)
+                           if entry.user == ctx.author]
+
+            for entry in all_entries:
+                self.bot.ignoring.remove(entry)
+
+            reaction = Lang.CMDSUCCESS
+            final_msg = Lang.lang(self, 'all_passives_unblocked', command)
+
+        # remove given command
+        else:
+            result = self.bot.ignoring.remove_passive(ctx.author, command)
+            if result == IgnoreEditResult.Success:
+                reaction = Lang.CMDSUCCESS
+            elif result == IgnoreEditResult.Not_in_list:
+                reaction = Lang.CMDERROR
+                final_msg = Lang.lang(self, 'passive_not_blocked', command)
+
         await utils.log_to_admin_channel(ctx)
+        await ctx.message.add_reaction(reaction)
+        await ctx.send(final_msg)
 
     @enable.command(name="mod")
     @commands.has_any_role(*Config().FULL_ACCESS_ROLES)
@@ -275,21 +296,21 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
             return True
         return False
 
-    async def _pre_cmd_checks(self, ctx, command):
+    async def _pre_cmd_checks(self, message, command):
         """
         Some pre-checks for command disabling
 
-        :param ctx: command context
+        :param message: the message
         :param command: the command to disable
         :return: True if command can be disabled
         """
         if not await self._is_valid_command(command):
-            await ctx.message.add_reaction(Lang.CMDERROR)
-            await ctx.send(Lang.lang(self, 'cmd_not_found', command))
+            await utils.add_reaction(message, Lang.CMDERROR)
+            await message.channel.send(Lang.lang(self, 'cmd_not_found', command))
             return False
         if command == "enable":
-            await ctx.message.add_reaction(Lang.CMDERROR)
-            await ctx.send(Lang.lang(self, 'enable_cant_blocked'))
+            await utils.add_reaction(message, Lang.CMDERROR)
+            await message.channel.send(Lang.lang(self, 'enable_cant_blocked'))
             return False
         return True
 
@@ -316,8 +337,9 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
                     pass
 
             if command is None and await self._is_valid_command(arg):
-                command = arg
-                continue
+                if await self._pre_cmd_checks(message, arg):
+                    command = arg
+                    continue
 
             if until is None:
                 parsed_time = parse_time_input(arg)
