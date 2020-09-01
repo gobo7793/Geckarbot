@@ -342,9 +342,11 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
                     continue
 
             if until is None:
-                parsed_time = parse_time_input(arg)
-                if parsed_time == datetime.max and len(args) > i + 1:
-                    parsed_time = parse_time_input(arg)
+                parsed_time = datetime.max
+                if len(args) > i + 1:
+                    parsed_time = parse_time_input(*args[i:i + 2], end_of_day=True)
+                if parsed_time == datetime.max:
+                    parsed_time = parse_time_input(arg, end_of_day=True)
 
                 if parsed_time < datetime.max:
                     until = parsed_time
