@@ -20,7 +20,7 @@
     "self_help_string": "Zu Hülfe!",
 
     "help_categories_prefix": "!help <Kategorie> für Hilfe zu einer Kategorie.\n\nKategorien:",
-    "help_category_prefix": "!kommando zum Ausführen eines Kommandos.\n!help kommando für Hilfe zu einem Kommando.\n\nKategorie {} hat folgende Kommandos:",
+    "help_category_prefix": "!kommando zum Ausführen eines Kommandos.\n!help kommando für Hilfe zu einem Kommando.\n\nDie Kategorie {} hat folgende Kommandos:",
     "help_subcommands_prefix": "Unterkommandos:",
 
     "default_category_misc": "Sonstiges",

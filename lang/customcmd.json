@@ -1,7 +1,7 @@
 {
     "en": {
-        "raw_doesnt_exists": "A command \"{}\" doesn't exists, but you can create it!",
-        "del_doesnt_exists": "Command \"{}\" can't be deleted, because it doesn't exists...",
+        "raw_doesnt_exist": "A command \"{}\" doesn't exists, but you can create it!",
+        "del_doesnt_exist": "Command \"{}\" can't be deleted, because it doesn't exists...",
         "add_exists": "A command \"{}\" already exists, adding new output text.",
         "list_no_cmds": "I don't know any custom commands :frowning:",
         "cmd_added": "Added custom command `{}`: {}",
@@ -21,30 +21,34 @@
 
         "help_help": "Creates and manages custom commands.",
         "help_cmd_list_prefix": "Commands:",
-        "help_custom_cmd_list_prefix": "The following commands exist:"
+        "help_custom_cmd_list_prefix": "The following custom commands exist:"
     },
     "de": {
-        "raw_doesnt_exists": "Ein Benutzer-Kommando \"{}\" existiert nicht, erstell es doch einfach selbst!",
-        "del_doesnt_exists": "Das Benutzer-Kommando \"{}\" kann nicht gelöscht werden weil es nicht existiert...",
-        "add_exists": "Ein Benutzer-Kommando \"{}\" existiert bereits, neuer Ausgabetext wird hinzugefügt.",
+        "add_exists": "Neuer Ausgabetext wird zum Benutzer-Kommando \"{}\" hinzugefügt.",
         "list_no_cmds": "Ich kenne keine Benutzer-Kommandos :frowning:",
         "cmd_added": "Benutzer-Kommando `{}` hinzugefügt: {}",
         "cmd_removed_prefix": "Benutzer-Kommando `{}` gelöscht:\n",
         "cmd_text_added": "Ausgabetext zu Benutzer-Kommando `{}` hinzugefügt: {}",
         "cmd_text_removed": "Ausgabetext von Benutzer-Kommando `{}` gelöscht: {}",
-        "invalid_prefix": "Das Prefix kann nicht das gleiche wie für normale Benutzer-Kommandos sein.",
         "user_blocked": "{} hat das Benutzer-Kommando geblockt.",
         "current_prefix": "Das aktuelle Präfix für Benutzer-Kommandos ist: {0}\nBeispiel: {0}{1}",
         "list_full_data": "{0}{1} ({2} Ausg., {3} Arg.)",
         "list_suffix": "\nNutze `!cmd info <command>` um alle Ausgabetexte eines Kommandos anzusehen.",
-        "raw_prefix": "{}{} (erstellt von {})\n",
         "raw_text": "#{}: {} (hinzugefügt von {})",
+        "raw_prefix": "{}{} (erstellt von {}, Ausgabetexte: {})\n",
+
+        "Errors": "",
+        "raw_doesnt_exist": "Ein Benutzer-Kommando \"{}\" existiert nicht, erstell es doch einfach selbst!",
+        "del_doesnt_exist": "Das Benutzer-Kommando \"{}\" kann nicht gelöscht werden, da es nicht existiert.",
+        "invalid_prefix": "Das Prefix kann nicht das gleiche wie für normale Benutzer-Kommandos sein.",
         "text_id_not_positive": "Die ID eines Kommando-Ausgabetextes muss eine positive Zahl sein.",
-        "text_id_not_exists": "Ein Kommando-Ausgabetext mit der angegebenen ID existiert nicht.",
+        "text_id_not_found": "Ein Kommando-Ausgabetext mit der angegebenen ID existiert nicht.",
         "del_perm_missing": "Nur der Ersteller oder Admins können Kommandos oder ihre Ausgabetexte löschen.",
 
+        "Help": "",
         "help_help": "Erstellt und verwaltet Benutzer-Kommandos.",
-        "help_cmd_list_prefix": "Kommandos:",
-        "help_custom_cmd_list_prefix": "Folgende Benutzer-Kommandos sind vorhanden:"
+        "help_cmd_list_prefix": "Unterkommandos:",
+        "help_custom_cmd_list_prefix": "Folgende Benutzer-Kommandos sind vorhanden:",
+        "help_info_options": "Optionen:\n  # - Gibt den Ausgabetext mit der Nummer # aus.\n  #+ - Gibt den Ausgabetext mit der Nummer # sowie alle folgenden, die in eine Nachricht passen, aus.\n  #++ - Gibt alle Ausgabetexte mit der Nummer # sowie alle folgenden aus."
     }
 }
