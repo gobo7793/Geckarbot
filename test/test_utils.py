@@ -31,12 +31,18 @@ class TestUtils(unittest.TestCase):
         self.assertEqual(datetime.datetime(now.year, 12, 7, 14, 15), d)
         d = botutils.parsers.parse_time_input("abcd")
         self.assertEqual(datetime.datetime.max, d)
-        arg_list = ["07.12.2020", "14:15"]
-        d = botutils.parsers.parse_time_input(*arg_list)
+        arg_list = ("07.12.2020", "14:15")
+        d = botutils.parsers.parse_time_input(arg_list)
         self.assertEqual(datetime.datetime(2020, 12, 7, 14, 15), d)
-        arg_list = ["11.07.", "18:36"]
-        d = botutils.parsers.parse_time_input(*arg_list)
+        arg_list = ("11.07.", "18:36")
+        d = botutils.parsers.parse_time_input(arg_list)
         self.assertEqual(datetime.datetime(2020, 7, 11, 18, 36), d)
+        arg_list = "11.07."
+        d = botutils.parsers.parse_time_input(arg_list)
+        self.assertEqual(datetime.datetime(now.year, 7, 11, now.hour, now.minute), d)
+        arg_list = "11.07."
+        d = botutils.parsers.parse_time_input(arg_list, end_of_day=True)
+        self.assertEqual(datetime.datetime(now.year, 7, 11, now.time().max.hour, now.time().max.minute), d)
 
     def test_whitelist_check(self):
         Config().DEBUG_MODE = False
