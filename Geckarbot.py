@@ -256,7 +256,8 @@ def main():
                     "".join(traceback.TracebackException.from_exception(error).format()))
                 embed.timestamp = datetime.datetime.utcnow()
                 await utils.write_debug_channel(bot, embed)
-                await ctx.send("Error while executing command.")
+                await utils.add_reaction(ctx.message, Lang.CMDERROR)
+                await ctx.send("Unknown error while executing command.")
 
     @bot.event
     async def on_message(message):

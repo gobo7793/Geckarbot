@@ -1,0 +1,28 @@
+{
+    "en": {
+        "must_manager": "I won't let you do this until you're TIL manager.",
+        "new_manager": "Oh my god, you're my new TIL manager now :scream:",
+        "no_facts": "I'm a dumb Treecko and don't know any interest facts :frowning:",
+        "invalid_id": "Sorry, but I don't know a fact with that ID.",
+        "info_prefix": "I already learned {} moves, and I want learn more facts from {}!\n",
+
+        "help_til": "Learn an interesting fact",
+        "help_add": "Add a new fact",
+        "help_del": "Removes a fact",
+        "help_info": "Show how many facts I have",
+        "help_manager": "Set the fact manager"
+    },
+    "de": {
+        "must_manager": "Ich werd dich das erst machen lassen, wenn du TIL-Manager bist.",
+        "new_manager": "Oh mein Gott, du bist jetzt mein neuer TIL-Manager :scream:",
+        "no_facts": "Ich bin ein dummes Geckarbor und kenne keine interessanten Fakten :frowning:",
+        "invalid_id": "Sorry, aber ich kenne keinen Fakt mit der ID.",
+        "info_prefix": "Ich habe bereits {} Attacken gelernt und von {} möchte ich mehr Fakten lernen!\n",
+
+        "help_til": "Lerne einen neuen Fakt",
+        "help_add": "Füge einen neuen Fakt hinzu",
+        "help_del": "Löscht einen Fakt",
+        "help_info": "Zeigt an wie viele Fakten ich habe",
+        "help_manager": "Setzt einen Faktenmanager"
+    }
+}

@@ -4,7 +4,7 @@ import discord
 from datetime import datetime
 from discord.ext import commands
 from conf import Config, Storage, Lang
-from botutils import stringutils, permchecks
+from botutils import stringutils, permchecks, parsers
 from botutils.stringutils import paginate
 from Geckarbot import BasePlugin
 
@@ -239,13 +239,12 @@ class Plugin(BasePlugin, name="NFL Fantasyliga"):
         else:
             await ctx.send(Lang.lang(self, 'invalid_phase'))
 
-    @fantasy_set.command(name="date", help="Sets the state end date", usage="DD.MM.YYYY [HH:MM]",
+    @fantasy_set.command(name="date", help="Sets the state end date", usage="DD.MM.[YYYY] [HH:MM]",
                          description="Sets the end date and time for all the phases. "
                                      "If no time is given, 23:59 will be used.")
-    async def set_date(self, ctx, date_str, time_str=None):
-        if not time_str:
-            time_str = "23:59"
-        Storage.get(self)['date'] = datetime.strptime(f"{date_str} {time_str}", "%d.%m.%Y %H:%M")
+    async def set_date(self, ctx, *args):
+        date = parsers.parse_time_input(args, end_of_day=True)
+        Storage.get(self)['date'] = date
         Storage().save(self)
         await ctx.message.add_reaction(Lang.CMDSUCCESS)
 

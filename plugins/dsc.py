@@ -7,7 +7,7 @@ from enum import IntEnum
 from datetime import datetime
 from discord.ext import commands
 from conf import Storage, Lang, Config
-from botutils import utils, permchecks, sheetsclient, stringutils
+from botutils import parsers, permchecks, sheetsclient, stringutils
 from botutils.stringutils import paginate
 from base import BasePlugin
 
@@ -78,7 +78,7 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
         if ctx.invoked_subcommand is None:
             await ctx.invoke(self.bot.get_command('dsc info'))
 
-    @dsc.command(name="rules", help="Get the link to the DSC rules", alias="regeln")
+    @dsc.command(name="rules", help="Get the link to the DSC rules", aliases=["regeln"])
     async def dsc_rules(self, ctx):
         self._fill_rule_link()
         await ctx.send(f"<{Storage.get(self)['rule_link']}>")
@@ -196,13 +196,12 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
         Storage().save(self)
         await ctx.message.add_reaction(Lang.CMDSUCCESS)
 
-    @dsc_set.command(name="date", help="Sets the registration/voting end date", usage="DD.MM.YYYY [HH:MM]",
+    @dsc_set.command(name="date", help="Sets the registration/voting end date", usage="DD.MM.[YYYY] [HH:MM]",
                      description="Sets the end date and time for registration and voting phase. "
                                  "If no time is given, 23:59 will be used.")
-    async def dsc_set_date(self, ctx, date_str, time_str=None):
-        if not time_str:
-            time_str = "23:59"
-        Storage.get(self)['date'] = datetime.strptime(f"{date_str} {time_str}", "%d.%m.%Y %H:%M")
+    async def dsc_set_date(self, ctx, *args):
+        date = parsers.parse_time_input(args, end_of_day=True)
+        Storage.get(self)['date'] = date
         Storage().save(self)
         await ctx.message.add_reaction(Lang.CMDSUCCESS)
 
