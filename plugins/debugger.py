@@ -80,6 +80,10 @@ class Plugin(BasePlugin, name="Testing and debug things"):
     async def do_error(self, ctx):
         raise commands.CommandError("Testerror")
 
+    @commands.command(name="write")
+    async def write(self, ctx, *, args):
+        await ctx.send(args)
+
     @commands.command(name="writelogs")
     async def write_logs(self, ctx):
         await utils.log_to_admin_channel(ctx)
