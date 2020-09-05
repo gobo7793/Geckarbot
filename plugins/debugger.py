@@ -3,14 +3,13 @@ import sys
 import discord
 from discord.ext import commands
 from discord.ext.commands import view
-from discord.errors import HTTPException
-
-from botutils import utils, converters
-from subsystems.reactions import ReactionAddedEvent, ReactionRemovedEvent
-from subsystems import help
 
 from base import BasePlugin
+from botutils import utils, converters
 from conf import Config, Lang
+from subsystems import help
+from subsystems.presence import PresencePriority
+from subsystems.reactions import ReactionAddedEvent, ReactionRemovedEvent
 
 
 class Plugin(BasePlugin, name="Testing and debug things"):
@@ -31,6 +30,71 @@ class Plugin(BasePlugin, name="Testing and debug things"):
         if role is None:
             raise commands.MissingRole(Config().BOTMASTER_ROLE_ID)
         return True
+
+    # Maybe really useful debugging commands
+
+    @commands.command(name="getemojiid", help="Gets the emoji ids to use in strings")
+    async def get_emoji_id(self, ctx, emoji: discord.Emoji):
+        str_rep = str(emoji).replace("<", "`").replace(">", "`")
+        msg = await ctx.send(str_rep)
+        await msg.add_reaction(emoji)
+
+    @commands.command(name="defaultstorage")
+    async def defaultstorage(self, ctx, pluginname):
+        plugin = converters.get_plugin_by_name(self.bot, pluginname)
+        if plugin is None:
+            await ctx.message.add_reaction(Lang.CMDERROR)
+            await ctx.send("Plugin {} not found.".format(pluginname))
+            return
+        await ctx.message.add_reaction(Lang.CMDSUCCESS)
+        await ctx.send("```{}```".format(plugin.default_storage()))
+
+    @commands.command(name="cmdplugin")
+    async def cmdplugin(self, ctx, *args):
+        for plugin in self.bot.plugins:
+            if not isinstance(plugin.instance, BasePlugin):
+                continue
+            print("=======")
+            print("plugin: " + plugin.name)
+            for cmd in plugin.instance.get_commands():
+                print("  cmd name: {}".format(cmd.name))
+                print("    qualified name: " + cmd.qualified_name)
+                print("    signature: " + cmd.signature)
+                print("    parents: " + str(cmd.parents))
+                print("    help: " + str(cmd.help))
+                print("    description: " + str(cmd.description))
+                print("    brief: " + str(cmd.brief))
+                print("    usage: " + str(cmd.usage))
+
+    @commands.command(name="presenceadd", help="Adds presence messages")
+    async def add_presence(self, ctx, prio, *, message):
+        if prio.lower() == "low":
+            priority = PresencePriority.LOW
+        elif prio.lower() == "default":
+            priority = PresencePriority.DEFAULT
+        elif prio.lower() == "high":
+            priority = PresencePriority.HIGH
+        else:
+            raise commands.BadArgument("prio must be low, default or high")
+
+        new_id = await self.bot.presence.register(message, priority)
+        await ctx.send("registered with id {}".format(new_id))
+
+    @commands.command(name="presencedel", help="Removes presence messages, with raw IDs")
+    async def del_presence(self, ctx, prio, presence_id: int):
+        if prio.lower() == "low":
+            priority = PresencePriority.LOW
+        elif prio.lower() == "default":
+            priority = PresencePriority.DEFAULT
+        elif prio.lower() == "high":
+            priority = PresencePriority.HIGH
+        else:
+            raise commands.BadArgument("prio must be low, default or high")
+
+        result = await self.bot.presence.deregister(priority, presence_id)
+        await ctx.send("deregistered with result {}".format(result))
+
+    # Testing debugging commands
 
     def wake_up_sync(self):
         self.bot.loop.create_task(self.wake_up())
@@ -96,12 +160,6 @@ class Plugin(BasePlugin, name="Testing and debug things"):
         else:
             await ctx.send(user.mention)
 
-    @commands.command(name="getemojiid", help="Gets the emoji ids to use in strings")
-    async def get_emoji_id(self, ctx, emoji: discord.Emoji):
-        str_rep = str(emoji).replace("<", "`").replace(">", "`")
-        msg = await ctx.send(str_rep)
-        await msg.add_reaction(emoji)
-
     @commands.command(name="dmme")
     async def dmme(self, ctx):
         await ctx.author.send("Here I aaaaam, this is meeee!")
@@ -120,34 +178,7 @@ class Plugin(BasePlugin, name="Testing and debug things"):
         msg = await ctx.channel.send("React here pls")
         self.bot.reaction_listener.register(msg, self.dmonreaction_callback)
 
-    @commands.command(name="defaultstorage")
-    async def defaultstorage(self, ctx, pluginname):
-        plugin = converters.get_plugin_by_name(self.bot, pluginname)
-        if plugin is None:
-            await ctx.message.add_reaction(Lang.CMDERROR)
-            await ctx.send("Plugin {} not found.".format(pluginname))
-            return
-        await ctx.message.add_reaction(Lang.CMDSUCCESS)
-        await ctx.send("```{}```".format(plugin.default_storage()))
-
     @commands.command(name="libmod")
     async def libmod(self, ctx):
         await ctx.send(str(view._quotes))
         await ctx.send(str(view._all_quotes))
-
-    @commands.command(name="cmdplugin")
-    async def cmdplugin(self, ctx, *args):
-        for plugin in self.bot.plugins:
-            if not isinstance(plugin.instance, BasePlugin):
-                continue
-            print("=======")
-            print("plugin: " + plugin.name)
-            for cmd in plugin.instance.get_commands():
-                print("  cmd name: {}".format(cmd.name))
-                print("    qualified name: " + cmd.qualified_name)
-                print("    signature: " + cmd.signature)
-                print("    parents: " + str(cmd.parents))
-                print("    help: " + str(cmd.help))
-                print("    description: " + str(cmd.description))
-                print("    brief: " + str(cmd.brief))
-                print("    usage: " + str(cmd.usage))

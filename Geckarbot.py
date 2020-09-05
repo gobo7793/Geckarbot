@@ -16,7 +16,7 @@ import injections
 from base import BasePlugin, NotLoadable
 from conf import Config, ConfigurableContainer, Lang, Storage
 from botutils import utils, permchecks, converters
-from subsystems import timers, reactions, ignoring, dmlisteners, help
+from subsystems import timers, reactions, ignoring, dmlisteners, help, presence
 
 
 class Exitcodes(Enum):
@@ -38,15 +38,16 @@ class Geckarbot(commands.Bot):
 
         super().__init__(*args, **kwargs)
 
+        Lang().bot = self
+        Config().bot = self
+        Storage().bot = self
+
         self.reaction_listener = reactions.ReactionListener(self)
         self.dm_listener = dmlisteners.DMListener(self)
         self.timers = timers.Mothership(self)
         self.ignoring = ignoring.Ignoring(self)
         self.helpsys = help.GeckiHelp(self)
-
-        Lang().bot = self
-        Config().bot = self
-        Storage().bot = self
+        self.presence = presence.Presence(self)
 
     @property
     def plugins(self):
@@ -181,10 +182,10 @@ def main():
         logging.info("Loading plugins")
         bot.load_plugins(Config().PLUGIN_DIR)
 
-        await bot.change_presence(activity=discord.Game(name=f"Version {Config().VERSION}"))
+        await bot.presence.start()
 
-        logging.info(f"{bot.user} is connected to the following server:\n"
-                     f"{guild.name}(id: {guild.id})")
+        logging.info(f"{bot.user} is connected to the following server: "
+                     f"{guild.name} (id: {guild.id})")
 
         members = "\n - ".join([member.name for member in guild.members])
         logging.info(f"Server Members:\n - {members}")
