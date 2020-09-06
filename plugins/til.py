@@ -31,7 +31,7 @@ class Plugin(BasePlugin, name="TIL"):
     def command_help_string(self, command):
         return Lang.lang(self, "help_{}".format(command.name))
 
-    async def _manager_check(self, ctx, show_errors = True):
+    async def _manager_check(self, ctx, show_errors=True):
         """Checks if author is manager and returns False if not"""
         if ctx.author.id == Config.get(self)['manager'] or check_full_access(ctx.author):
             return True
@@ -64,7 +64,7 @@ class Plugin(BasePlugin, name="TIL"):
                 await ctx.send(Lang.lang(self, "invalid_id"))
                 return
 
-            del(Storage.get(self)[fact_id])
+            del (Storage.get(self)[fact_id])
             Storage.save(self)
             await add_reaction(ctx.message, Lang.CMDSUCCESS)
 

@@ -12,6 +12,7 @@ from base import BasePlugin, ConfigurableType
 import subsystems
 from subsystems import help
 from subsystems.ignoring import IgnoreEditResult, IgnoreType
+from subsystems.presence import PresencePriority
 
 
 class Plugin(BasePlugin, name="Bot Management Commands"):
@@ -109,6 +110,39 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
         about_msg += Lang.lang(self, 'about_thanks')
 
         await ctx.send(about_msg)
+
+    ######
+    # Presence subsystem
+    ######
+
+    @commands.group(name="presence", invoke_without_command=True)
+    async def presence(self, ctx):
+        await ctx.invoke(self.bot.get_command("presence list"))
+
+    @presence.command(name="list")
+    async def presence_list(self, ctx):
+        def get_message(item):
+            prio, index, msg = item
+            Lang.lang(self, "presence_entry", index + 1, msg)
+
+        entries = [el for el in self.bot.presence.get_presence_messages_list() if el[0] == PresencePriority.LOW]
+        for msg in paginate(entries, prefix=Lang.lang(self, "presence_prefix"), f=get_message):
+            await ctx.send(msg)
+
+    @presence.command(name="add")
+    @commands.has_any_role(*Config().FULL_ACCESS_ROLES)
+    async def presence_add(self, ctx, *, message):
+        self.bot.presence.register(message, PresencePriority.LOW)
+        await utils.add_reaction(ctx.message, Lang.CMDSUCCESS)
+
+    @presence.command(name="del", usage="<id>")
+    @commands.has_any_role(*Config().FULL_ACCESS_ROLES)
+    async def presence_del(self, ctx, entry_id):
+        if self.bot.presence.deregister(PresencePriority.LOW, entry_id - 1):
+            await utils.add_reaction(ctx.message, Lang.CMDSUCCESS)
+        else:
+            await utils.add_reaction(ctx.message, Lang.CMDERROR)
+            await ctx.send(Lang.lang(self, "presence_not_exists", entry_id))
 
     ######
     # Ignoring subsystem

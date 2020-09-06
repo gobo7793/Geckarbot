@@ -100,7 +100,7 @@ class Cmd:
         :returns: The formatted command text
         """
 
-        cmd_content = self.get_raw_text(text_id)
+        cmd_content = self.texts[text_id]
 
         # general replaces
         cmd_content = cmd_content.replace(wildcard_umention, msg.author.mention)
@@ -155,7 +155,7 @@ class Cmd:
         text_len = len(self.texts)
         if text_len > 0:
             text_id = random.choice(range(0, text_len))
-            return self.get_formatted_text(bot, text_id, msg, cmd_args)
+            return await self.get_formatted_text(bot, text_id, msg, cmd_args)
         return ""
 
 
@@ -312,7 +312,9 @@ class Plugin(BasePlugin, name="Custom CMDs"):
         """Will be called from on_message listener to react for custom cmds"""
 
         # get cmd parts/args
-        msg_args = cmd_re.findall(msg.content)
+        msg_args = cmd_re.findall(msg.content[len(self.prefix):])
+        if len(msg_args) < 1:
+            return
         cmd_name = msg_args[0][1].lower() if msg_args[0][1] else msg_args[0][0].lower()
 
         cmd_args = msg_args[1:]
