@@ -11,6 +11,15 @@
         "bugscore_title": "**Bug Score:**",
         "bugscore_args": "Too many arguments.",
         "bugscore_user_not_found": "User not found: {}",
-        "bugscore_nan": "{} is not a number."
+        "bugscore_nan": "{} is not a number.",
+        "bugscore_empty": "Nobody has found any bugs yet :("
+    },
+
+    "de": {
+        "bugscore_title": "**Bug Score:**",
+        "bugscore_args": "Zu viele Argumente.",
+        "bugscore_user_not_found": "User nicht gefunden: {}",
+        "bugscore_nan": "{} ist keine Zahl.",
+        "bugscore_empty": "Niemand hat bisher Bugs gefunden :("
     }
 }
