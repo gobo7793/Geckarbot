@@ -235,9 +235,17 @@ class Plugin(BasePlugin, name="Custom CMDs"):
             },
         }
 
+    def command_usage(self, command):
+        if command.name == "search":
+            return Lang.lang(self, "help_search_usage")
+        else:
+            raise NotFound()
+
     def command_description(self, command):
         if command.name == "info":
             return Lang.lang(self, "help_info_options")
+        elif command.name == "search":
+            return Lang.lang(self, "help_search_desc")
         else:
             raise NotFound()
 
@@ -448,6 +456,34 @@ class Plugin(BasePlugin, name="Custom CMDs"):
                     break
         else:
             await ctx.send(Lang.lang(self, "raw_doesnt_exist", cmd_name))
+
+    @cmd.command(name="search")
+    async def cmd_search(self, ctx, cmd_name, *args):
+        cmd_name = cmd_name.lower()
+        if cmd_name not in self.commands:
+            await ctx.send(Lang.lang(self, "raw_doesnt_exist"))
+            return
+
+        found = []
+        cmd = self.commands[cmd_name]
+        for i in range(len(cmd.texts)):
+            text = cmd.texts[i]
+            hit = False
+            for term in args:
+                if term.lower() in text.lower():
+                    hit = True
+                else:
+                    hit = False
+                    break
+            if hit:
+                found.append(cmd.get_raw_text(i))
+
+        # Output
+        if len(found) == 0:
+            await ctx.send(Lang.lang(self, "search_empty"))
+        else:
+            for msg in paginate(found, prefix=Lang.lang(self, "search_prefix")):
+                await ctx.send(msg)
 
     @cmd.command(name="guidelines", help="Returns the link to the general command guidelines")
     async def cmd_guidelines(self, ctx):

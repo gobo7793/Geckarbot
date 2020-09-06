@@ -3,8 +3,10 @@ import discord.ext.commands.help
 
 
 def pre_injections():
-    discord.ext.commands.view._quotes = {}
-    discord.ext.commands.view._all_quotes = set()
+    quotes = discord.ext.commands.view._quotes
+    quotes["‚"] = "’"
+    quotes["„"] = "“"
+    discord.ext.commands.view._all_quotes = set(quotes.keys()) | set(quotes.values())
 
 
 def post_injections(bot):
