@@ -19,7 +19,8 @@
         "winner_msg": "**#{}**: {} with {}/{} Points ({} %, {} participants in {}/{})",
         "channel_id": "The channel id for the !dsc set command must be a valid channel id on this server.",
         "songmaster_id": "The role id for the songmaster role must be a valid role id on this server.",
-        "key_not_exist": "A key `{}` doesn't exist."
+        "key_not_exist": "A key `{}` doesn't exist.",
+        "presence_voting": "DSC voting started"
         },
     "de": {
         "status_base": "Eine wichtige Nachricht der Songmaster: {}",
@@ -41,6 +42,7 @@
         "winner_msg": "**#{}**: {} mit {}/{} Punkten ({} %, {} TN in {}/{})",
         "channel_id": "Die Channel-ID für das !dsc set-Kommando muss eine gültige ID auf diesem Server sein.",
         "songmaster_id": "Die Rollen-ID für die Songmaster-Rolle muss eine gültige ID auf diesem Server sein.",
-        "key_not_exist": "Es gibt keinen Key `{}`."
+        "key_not_exist": "Es gibt keinen Key `{}`.",
+        "presence_voting": "DSC-Voting läuft"
         }
     }

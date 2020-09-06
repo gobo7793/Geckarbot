@@ -77,22 +77,17 @@ class Plugin(BasePlugin, name="Testing and debug things"):
         else:
             raise commands.BadArgument("prio must be low, default or high")
 
-        new_id = await self.bot.presence.register(message, priority)
-        await ctx.send("registered with id {}".format(new_id))
+        new_id = self.bot.presence.register(message, priority)
+        await ctx.send("registered with result {}".format(new_id))
 
     @commands.command(name="presencedel", help="Removes presence messages, with raw IDs")
-    async def del_presence(self, ctx, prio, presence_id: int):
-        if prio.lower() == "low":
-            priority = PresencePriority.LOW
-        elif prio.lower() == "default":
-            priority = PresencePriority.DEFAULT
-        elif prio.lower() == "high":
-            priority = PresencePriority.HIGH
-        else:
-            raise commands.BadArgument("prio must be low, default or high")
-
-        result = await self.bot.presence.deregister(priority, presence_id)
+    async def del_presence(self, ctx, presence_id: int):
+        result = self.bot.presence.deregister_id(presence_id)
         await ctx.send("deregistered with result {}".format(result))
+
+    @commands.command(name="write")
+    async def write(self, ctx, *, args):
+        await ctx.send(args)
 
     # Testing debugging commands
 
@@ -143,10 +138,6 @@ class Plugin(BasePlugin, name="Testing and debug things"):
     @commands.command(name="doerror")
     async def do_error(self, ctx):
         raise commands.CommandError("Testerror")
-
-    @commands.command(name="write")
-    async def write(self, ctx, *, args):
-        await ctx.send(args)
 
     @commands.command(name="writelogs")
     async def write_logs(self, ctx):

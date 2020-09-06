@@ -23,12 +23,6 @@ class Plugin(BasePlugin, name="Bot status commands for monitoring and debug purp
     @commands.command(name="subsys", help="Shows registrations on subsystems")
     @commands.has_any_role(Config().BOTMASTER_ROLE_ID)
     async def subsys(self, ctx):
-        def format_presence_entry(item):
-            if isinstance(item, str):
-                return item
-            prio, index, entry = item
-            return "{}, #{}: {}".format(str(prio), index, entry)
-
         for msg in paginate(self.bot.reaction_listener.callbacks,
                             prefix="**Reactions registrations:**\n",
                             suffix="\n",
@@ -47,11 +41,10 @@ class Plugin(BasePlugin, name="Bot status commands for monitoring and debug purp
                             if_empty="None"):
             await ctx.send(msg)
 
-        for msg in paginate(self.bot.presence.get_presence_messages_list(),
-                            prefix="**Full presence entries (raw IDs):**\n",
+        for msg in paginate(list(self.bot.presence.messages.values()),
+                            prefix="**Full presence entries:**\n",
                             suffix="\n",
-                            if_empty="None",
-                            f=format_presence_entry):
+                            if_empty="None"):
             await ctx.send(msg)
 
         await ctx.invoke(self.bot.get_command("disable list"))

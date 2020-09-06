@@ -11,11 +11,9 @@ from conf import Lang
 from botutils import utils, statemachine, stringutils, converters
 from subsystems import help, presence
 
-
 jsonify = {
     "register_timeout": 1,
 }
-
 
 h_help = "Wer bin ich?"
 h_description = "Startet ein Wer bin ich?. Nach einer Registrierungsphase ordne ich jedem Spieler einen zufälligen " \
@@ -114,7 +112,7 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
         self.initiator = None
         self.show_assignees = True
         self.postgame = False
-        self.presenceid = None
+        self.presence_messsage = None
         self.participants = []
 
         self.statemachine = statemachine.StateMachine()
@@ -270,11 +268,12 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
     """
     Transitions
     """
+
     async def registering_phase(self):
         self.logger.debug("Starting registering phase")
         self.postgame = False
-        self.presenceid = await self.bot.presence.register(Lang.lang(self, "presence", self.channel.name),
-                                                           priority=presence.PresencePriority.HIGH)
+        self.presence_messsage = self.bot.presence.register(Lang.lang(self, "presence", self.channel.name),
+                                                            priority=presence.PresencePriority.HIGH)
         reaction = Lang.lang(self, "reaction_signup")
         to = self.config["register_timeout"]
         msg = Lang.lang(self, "registering", reaction, to,
@@ -381,8 +380,7 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
     async def cleanup(self):
         for el in self.participants:
             el.cleanup()
-        await self.bot.presence.deregister(presence.PresencePriority.HIGH, self.presenceid)
-        self.presenceid = None
+        self.presence_messsage.deregister()
         self.initiator = None
         self.show_assignees = True
         self.statemachine.state = State.IDLE
