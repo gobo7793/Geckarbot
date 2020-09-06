@@ -9,7 +9,7 @@ from discord.http import HTTPException
 from base import BasePlugin, NotFound
 from conf import Lang
 from botutils import utils, statemachine, stringutils, converters
-from subsystems import help
+from subsystems import help, presence
 
 
 jsonify = {
@@ -114,6 +114,7 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
         self.initiator = None
         self.show_assignees = True
         self.postgame = False
+        self.presenceid = None
         self.participants = []
 
         self.statemachine = statemachine.StateMachine()
@@ -208,7 +209,7 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
             await ctx.send(Lang.lang(self, "not_running"))
             return
         await ctx.message.add_reaction(Lang.CMDSUCCESS)
-        self.cleanup()
+        await self.cleanup()
 
     @werbinich.command(name="spoiler", help=h_spoiler)
     async def spoilercmd(self, ctx):
@@ -272,6 +273,8 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
     async def registering_phase(self):
         self.logger.debug("Starting registering phase")
         self.postgame = False
+        self.presenceid = await self.bot.presence.register(Lang.lang(self, "presence", self.channel.name),
+                                                           priority=presence.PresencePriority.HIGH)
         reaction = Lang.lang(self, "reaction_signup")
         to = self.config["register_timeout"]
         msg = Lang.lang(self, "registering", reaction, to,
@@ -369,15 +372,17 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
             for msg in stringutils.paginate(todo, prefix=Lang.lang(self, "list_title")):
                 await target.send(msg)
         await self.channel.send(Lang.lang(self, "done"))
-        self.cleanup()
+        await self.cleanup()
         self.statemachine.state = State.IDLE
 
     async def abort(self):
-        self.cleanup()
+        await self.cleanup()
 
-    def cleanup(self):
+    async def cleanup(self):
         for el in self.participants:
             el.cleanup()
+        await self.bot.presence.deregister(presence.PresencePriority.DEFAULT, self.presenceid)
+        self.presenceid = None
         self.initiator = None
         self.show_assignees = True
         self.statemachine.state = State.IDLE

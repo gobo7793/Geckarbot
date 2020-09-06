@@ -299,12 +299,13 @@ class Lang(metaclass=_Singleton):
                 with open(f"{Config().LANG_DIR}/{configurable.get_name()}.json", encoding="utf-8") as f:
                     lang = json.load(f)
             except (IsADirectoryError, FileNotFoundError, PermissionError, OSError):
+                logging.warning("Language file not found or unable to open for plugin {}"
+                                .format(configurable.get_name()))
                 lang = {}
             except Exception as e:
                 lang = {}
                 logging.error("Uncaught exception while loading lang file from plugin {}: {}"
                               .format(configurable.get_name(), e))
-            pass
         cls()._cache[configurable] = lang
         return lang
 

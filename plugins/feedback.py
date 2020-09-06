@@ -53,6 +53,7 @@ class Complaint:
             "authorid": authorid,
             "msglink": self.msg_link,
             "content": self.content,
+            "category": None,
         }
 
     @classmethod

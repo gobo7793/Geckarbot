@@ -63,6 +63,9 @@
         "status_registering": "Ich warte auf Registrierungen.",
         "status_delivering": "Ich verteile gerade die Ergebnisse.",
         "status_aborting": "Ich breche gerade das Spiel ab.",
-        "waiting_for": "Wir warten auf {}."
+        "waiting_for": "Wir warten auf {}.",
+
+        "#7": "Presence",
+        "presence": "Werbinich? in #{}"
     }
 }
