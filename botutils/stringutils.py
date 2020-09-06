@@ -69,12 +69,11 @@ def paginate(items, prefix="", suffix="", msg_prefix="", msg_suffix="", delimite
             first = False
             current_msg = []
 
-        # Last
-        elif i == len(items) - 1:
-            current_msg.append(item)
-            yield _prefix + delimiter.join(current_msg) + _suffix
-
         current_msg.append(item)
+
+        # Last
+        if i == len(items) - 1:
+            yield _prefix + delimiter.join(current_msg) + _suffix
         i += 1
 
 
