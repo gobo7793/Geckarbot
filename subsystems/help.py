@@ -279,6 +279,11 @@ class GeckiHelp(BaseSubsystem):
                 r = [Lang.lang(self, "help_subcommands_prefix")] + r
         return r
 
+    def format_aliases(self, command):
+        aliases = ", ".join(command.aliases)
+        r = Lang.lang(self, "help_aliases", aliases) + "\n"
+        return r
+
     """
     Output methods
     """
@@ -309,6 +314,10 @@ class GeckiHelp(BaseSubsystem):
             else:
                 usage = cmd.usage + "\n"
         msg.append("{} {}".format(parent, usage))
+
+        # Aliases
+        if len(cmd.aliases) > 0:
+            msg.append(self.format_aliases(cmd))
 
         # Help / Description
         try:
