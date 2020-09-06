@@ -122,10 +122,9 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
     @presence.command(name="list")
     async def presence_list(self, ctx):
         def get_message(item):
-            prio, index, msg = item
-            Lang.lang(self, "presence_entry", index + 1, msg)
+            return Lang.lang(self, "presence_entry", item.presence_id + 1, item.message)
 
-        entries = [el for el in self.bot.presence.get_presence_messages_list() if el[0] == PresencePriority.LOW]
+        entries = self.bot.presence.filter_messages_list(PresencePriority.LOW)
         for msg in paginate(entries, prefix=Lang.lang(self, "presence_prefix"), f=get_message):
             await ctx.send(msg)
 
@@ -137,8 +136,8 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
 
     @presence.command(name="del", usage="<id>")
     @commands.has_any_role(*Config().FULL_ACCESS_ROLES)
-    async def presence_del(self, ctx, entry_id):
-        if self.bot.presence.deregister(PresencePriority.LOW, entry_id - 1):
+    async def presence_del(self, ctx, entry_id: int):
+        if self.bot.presence.deregister_id(entry_id - 1):
             await utils.add_reaction(ctx.message, Lang.CMDSUCCESS)
         else:
             await utils.add_reaction(ctx.message, Lang.CMDERROR)

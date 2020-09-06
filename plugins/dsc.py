@@ -7,8 +7,8 @@ from enum import IntEnum
 from datetime import datetime
 from discord.ext import commands
 from conf import Storage, Lang, Config
-from botutils import parsers, permchecks, sheetsclient, stringutils
-from botutils.stringutils import paginate
+from botutils import parsers, permchecks, sheetsclient, utils
+from botutils.stringutils import paginate, clear_link
 from base import BasePlugin
 
 
@@ -27,6 +27,10 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
         self.can_reload = True
         bot.register(self, category="DSC")
         self.log = logging.getLogger("dsc")
+
+        self.presence = None
+        if Storage.get(self)["state"] == DscState.Voting:
+            self.register_presence()
 
         self._fill_rule_link()
         Storage().save(self)
@@ -72,6 +76,14 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
     def _fill_rule_link(self):
         if not Storage.get(self)['rule_link']:
             Storage.get(self)['rule_link'] = self._get_rule_link()
+            
+    def register_presence(self):
+        """Registers the presence message"""
+        self.presence = self.bot.presence.register(Lang.lang(self, "presence_voting"))
+            
+    def deregister_presence(self):
+        """Deregisters the presence message"""
+        self.bot.presence.deregister(self.presence)
 
     @commands.group(name="dsc", help="Get and manage data about current/next DSC")
     async def dsc(self, ctx):
@@ -172,29 +184,31 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
     async def dsc_set_host(self, ctx, user: discord.Member):
         Storage.get(self)['host_id'] = user.id
         Storage().save(self)
-        await ctx.message.add_reaction(Lang.CMDSUCCESS)
+        await utils.add_reaction(ctx.message, Lang.CMDSUCCESS)
 
     async def _dsc_save_state(self, ctx, new_state: DscState):
         Storage.get(self)['state'] = new_state
         Storage().save(self)
-        await ctx.message.add_reaction(Lang.CMDSUCCESS)
+        await utils.add_reaction(ctx.message, Lang.CMDSUCCESS)
 
     @dsc_set.command(name="state", help="Sets the current DSC state (Voting/Sign up)",
                      usage="<voting|signup>")
     async def dsc_set_state(self, ctx, state):
         if state.lower() == "voting":
             await self._dsc_save_state(ctx, DscState.Voting)
+            self.register_presence()
         elif state.lower() == "signup":
             await self._dsc_save_state(ctx, DscState.Sign_up)
+            self.deregister_presence()
         else:
             await ctx.send(Lang.lang(self, 'invalid_phase'))
 
     @dsc_set.command(name="yt", help="Sets the Youtube playlist link")
     async def dsc_set_yt_link(self, ctx, link):
-        link = stringutils.clear_link(link)
+        link = clear_link(link)
         Storage.get(self)['yt_link'] = link
         Storage().save(self)
-        await ctx.message.add_reaction(Lang.CMDSUCCESS)
+        await utils.add_reaction(ctx.message, Lang.CMDSUCCESS)
 
     @dsc_set.command(name="date", help="Sets the registration/voting end date", usage="DD.MM.[YYYY] [HH:MM]",
                      description="Sets the end date and time for registration and voting phase. "
@@ -203,14 +217,14 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
         date = parsers.parse_time_input(args, end_of_day=True)
         Storage.get(self)['date'] = date
         Storage().save(self)
-        await ctx.message.add_reaction(Lang.CMDSUCCESS)
+        await utils.add_reaction(ctx.message, Lang.CMDSUCCESS)
 
     @dsc_set.command(name="status", help="Sets the status message",
                      description="Sets a status message for additional information. To remove give no message.")
     async def dsc_set_status(self, ctx, *message):
         Storage.get(self)['status'] = " ".join(message)
         Storage().save(self)
-        await ctx.message.add_reaction(Lang.CMDSUCCESS)
+        await utils.add_reaction(ctx.message, Lang.CMDSUCCESS)
 
     @dsc_set.command(name="points", help="Sets the voting system",
                      description="Sets the point list for the current voting system. Points can be set like "
@@ -218,7 +232,7 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
     async def dsc_set_status(self, ctx, *points):
         Storage.get(self)['points'] = "-".join(points)
         Storage().save(self)
-        await ctx.message.add_reaction(Lang.CMDSUCCESS)
+        await utils.add_reaction(ctx.message, Lang.CMDSUCCESS)
 
     @dsc_set.command(name="config", invoke_without_command=True,
                      help="Gets or sets general config values for the plugin")
@@ -230,10 +244,10 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
         if key and not value:
             key_value = Config.get(self).get(key, None)
             if key_value is None:
-                await ctx.message.add_reaction(Lang.CMDERROR)
+                await utils.add_reaction(ctx.message, Lang.CMDERROR)
                 await ctx.send(Lang.lang(self, 'key_not_exist', key))
             else:
-                await ctx.message.add_reaction(Lang.CMDSUCCESS)
+                await utils.add_reaction(ctx.message, Lang.CMDSUCCESS)
                 await ctx.send(key_value)
             return
 
@@ -247,7 +261,7 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
                 pass
             if channel is None:
                 Lang.lang(self, 'channel_id')
-                await ctx.message.add_reaction(Lang.CMDERROR)
+                await utils.add_reaction(ctx.message, Lang.CMDERROR)
                 return
             else:
                 Config.get(self)[key] = int_value
@@ -262,7 +276,7 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
                 pass
             if role is None:
                 Lang.lang(self, 'songmaster_id')
-                await ctx.message.add_reaction(Lang.CMDERROR)
+                await utils.add_reaction(ctx.message, Lang.CMDERROR)
                 return
             else:
                 Config.get(self)[key] = int_value
@@ -271,4 +285,4 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
             Config.get(self)[key] = value
 
         Config.save(self)
-        await ctx.message.add_reaction(Lang.CMDSUCCESS)
+        await utils.add_reaction(ctx.message, Lang.CMDSUCCESS)
