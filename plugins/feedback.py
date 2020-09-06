@@ -226,7 +226,17 @@ class Plugin(BasePlugin, name="Feedback"):
             key=lambda x: x[1],
             reverse=True
         )
-        lines = ["{}: {}".format(user, p) for (user, p) in users]
+
+        # Handle empty bug score
+        if len(users) == 0:
+            await ctx.send(Lang.lang(self, "bugscore_empty"))
+            return
+
+        # Format populated bug score
+        lines = []
+        for i in range(len(users)):
+            user, p = users[i]
+            lines.append("**#{}** {}: {}".format(i + 1, user, p))
         for msg in paginate(lines, prefix="{}\n".format(Lang.lang(self, "bugscore_title"))):
             await ctx.send(msg)
 

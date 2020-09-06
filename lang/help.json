@@ -6,6 +6,7 @@
     "help_categories_prefix": "!help <category> for help on a category.\n\nCategories:",
     "help_category_prefix": "Category {}:",
     "help_subcommands_prefix": "Subcommands:",
+    "help_aliases": "Aliases: {}",
 
     "default_category_misc": "Misc",
     "default_category_admin": "Admin",
@@ -22,6 +23,7 @@
     "help_categories_prefix": "!help <Kategorie> für Hilfe zu einer Kategorie.\n\nKategorien:",
     "help_category_prefix": "!kommando zum Ausführen eines Kommandos.\n!help kommando für Hilfe zu einem Kommando.\n\nDie Kategorie {} hat folgende Kommandos:",
     "help_subcommands_prefix": "Unterkommandos:",
+    "help_aliases": "Alias: {}",
 
     "default_category_misc": "Sonstiges",
     "default_category_admin": "Botmaster",
