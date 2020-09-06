@@ -381,7 +381,7 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
     async def cleanup(self):
         for el in self.participants:
             el.cleanup()
-        await self.bot.presence.deregister(presence.PresencePriority.DEFAULT, self.presenceid)
+        await self.bot.presence.deregister(presence.PresencePriority.HIGH, self.presenceid)
         self.presenceid = None
         self.initiator = None
         self.show_assignees = True
