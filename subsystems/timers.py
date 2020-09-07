@@ -66,7 +66,6 @@ class Mothership(BaseSubsystem, Thread):
                 todel = []
                 for el in self.jobs:
                     if (el.next_execution() - now).total_seconds() < 10:  # with this, it should always be < 0
-                        print((el.next_execution() - now).total_seconds())
                         try:
                             el.execute()
                             executed.append(el)

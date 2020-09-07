@@ -7,6 +7,7 @@
     "help_category_prefix": "Category {}:",
     "help_subcommands_prefix": "Subcommands:",
     "help_aliases": "Aliases: {}",
+    "help_no_desc": "This command does not have a description. You are on your own.",
 
     "default_category_misc": "Misc",
     "default_category_admin": "Admin",
@@ -24,6 +25,7 @@
     "help_category_prefix": "!kommando zum Ausführen eines Kommandos.\n!help kommando für Hilfe zu einem Kommando.\n\nDie Kategorie {} hat folgende Kommandos:",
     "help_subcommands_prefix": "Unterkommandos:",
     "help_aliases": "Alias: {}",
+    "help_no_desc": "Dieses Kommando hat keine Description. Du bist auf dich allein gestellt. Viel Glück.",
 
     "default_category_misc": "Sonstiges",
     "default_category_admin": "Botmaster",

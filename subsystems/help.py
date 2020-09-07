@@ -223,6 +223,33 @@ class GeckiHelp(BaseSubsystem):
             return None, None
 
     """
+    Evaluation methods
+    """
+    @staticmethod
+    def get_command_help(plugin, cmd):
+        r = None
+        try:
+            r = plugin.command_help_string(cmd)
+        except NotFound:
+            if cmd.help is not None and cmd.help.strip():
+                r = cmd.help
+        return r
+
+    def get_command_description(self, plugin, cmd):
+        try:
+            desc = plugin.command_description(cmd)
+        except NotFound:
+            if cmd.description is not None and cmd.description.strip():
+                desc = cmd.description
+            else:
+                desc = self.get_command_help(plugin, cmd)
+
+        if desc is None:
+            desc = Lang.lang(self, "help_no_desc")
+
+        return desc + "\n"
+
+    """
     Format methods
     """
     def append_command_leaves(self, cmds, cmd):
@@ -320,15 +347,8 @@ class GeckiHelp(BaseSubsystem):
             msg.append(self.format_aliases(cmd))
 
         # Help / Description
-        try:
-            desc = plugin.command_description(cmd) + "\n"
-        except NotFound:
-            desc = cmd.qualified_name + "\n"
-            if cmd.help is not None and cmd.help.strip():
-                desc = cmd.help + "\n"
-            if cmd.description is not None and cmd.description.strip():
-                desc = cmd.description + "\n"
-        msg.append(desc)
+        msg.append(self.get_command_description(plugin, cmd))
+
         msg += self.format_subcmds(plugin, cmd)
 
         # Subcommands
