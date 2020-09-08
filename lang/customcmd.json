@@ -23,7 +23,8 @@
 
         "help_help": "Creates and manages custom commands.",
         "help_cmd_list_prefix": "Commands:",
-        "help_custom_cmd_list_prefix": "The following custom commands exist:"
+        "help_custom_cmd_list_prefix": "The following custom commands exist:",
+        "unknown_user": "unknown"
     },
     "de": {
         "add_exists": "Neuer Ausgabetext wird zum Benutzer-Kommando \"{}\" hinzugefügt.",
@@ -40,6 +41,7 @@
         "raw_prefix": "{}{} (erstellt von {}, Ausgabetexte: {})\n",
         "search_prefix": "Suchergebnisse:\n",
         "search_empty": "Nichts gefunden!",
+        "unknown_user": "einem unbekannten User",
 
         "Errors": "",
         "raw_doesnt_exist": "Ein Benutzer-Kommando \"{}\" existiert nicht, erstell es doch einfach selbst!",
