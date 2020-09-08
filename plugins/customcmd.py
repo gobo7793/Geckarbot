@@ -81,9 +81,12 @@ class Cmd:
 
     def get_raw_text(self, text_id):
         """Returns the raw text with the given ID as formatted string or raise IndexError if ID not exists"""
-        member = converters.convert_member(self.plugin.bot, self.author_ids[text_id])
-        return Lang.lang(self.plugin, 'raw_text', text_id + 1, self.texts[text_id],
-                         converters.get_best_username(member))
+        member = self.plugin.bot.guild.get_member(self.author_ids[text_id])
+        if member is None:
+            member = Lang.lang(self.plugin, "unknown_user")
+        else:
+            member = converters.get_best_username(member)
+        return Lang.lang(self.plugin, 'raw_text', text_id + 1, self.texts[text_id], member)
 
     def get_raw_texts(self, index=0):
         """Returns all raw texts of the cmd as formatted string"""
