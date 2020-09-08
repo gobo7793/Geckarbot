@@ -39,7 +39,6 @@ def convert_member(bot, argument):
     :param argument: The argument to convert
     :return: The Member or None
     """
-    print("isint: {}".format(isinstance(argument, int)))
     match = argument if isinstance(argument, int) else _get_id_match(argument) or re.match(r'<@!?([0-9]+)>$', argument)
     guild = bot.guild
     result = None
