@@ -81,14 +81,15 @@ class Cmd:
 
     def get_raw_text(self, text_id):
         """Returns the raw text with the given ID as formatted string or raise IndexError if ID not exists"""
+        member = converters.convert_member(self.plugin.bot, self.author_ids[text_id])
         return Lang.lang(self.plugin, 'raw_text', text_id + 1, self.texts[text_id],
-                         converters.get_best_username(self.plugin.bot.get_user(self.author_ids[text_id])))
+                         converters.get_best_username(member))
 
     def get_raw_texts(self, index=0):
         """Returns all raw texts of the cmd as formatted string"""
         return [self.get_raw_text(i) for i in range(index, len(self.texts))]
 
-    async def get_formatted_text(self, bot, text_id: int, msg: discord.Message, cmd_args: list):
+    def get_formatted_text(self, bot, text_id: int, msg: discord.Message, cmd_args: list):
         """
         Formats and replaces the wildcards of a given text id of the cmd for using it as custom cmd.
         If a mentioned user has the command on its ignore list, a UserBlockedCommand error will be raised.
@@ -131,7 +132,7 @@ class Cmd:
 
             # Ignoring, passive user command blocking
             try:
-                member = await converters.convert_member(bot, msg, arg)
+                member = converters.convert_member(bot, arg)
             except commands.BadArgument:
                 member = None
 
@@ -141,7 +142,7 @@ class Cmd:
 
         return cmd_content
 
-    async def get_ran_formatted_text(self, bot, msg: discord.Message, cmd_args: list):
+    def get_ran_formatted_text(self, bot, msg: discord.Message, cmd_args: list):
         """
         Formats and replaces the wildcards of a random text of the cmd for using it as custom cmd.
         If a mentioned user has the command on its ignore list, a UserBlockedCommand error will be raised.
@@ -155,7 +156,7 @@ class Cmd:
         text_len = len(self.texts)
         if text_len > 0:
             text_id = random.choice(range(0, text_len))
-            return await self.get_formatted_text(bot, text_id, msg, cmd_args)
+            return self.get_formatted_text(bot, text_id, msg, cmd_args)
         return ""
 
 
@@ -332,7 +333,7 @@ class Plugin(BasePlugin, name="Custom CMDs"):
               or self.bot.ignoring.check_passive_usage(msg.author, cmd_name)):
             raise commands.DisabledCommand()
 
-        cmd_content = await self.commands[cmd_name].get_ran_formatted_text(self.bot, msg, cmd_args)
+        cmd_content = self.commands[cmd_name].get_ran_formatted_text(self.bot, msg, cmd_args)
 
         await msg.channel.send(cmd_content)
 
@@ -442,7 +443,7 @@ class Plugin(BasePlugin, name="Custom CMDs"):
             if single_text:
                 raw_texts = [self.commands[cmd_name].get_raw_text(index)]
             else:
-                raw_texts = self.commands[cmd_name].get_raw_texts()
+                raw_texts = self.commands[cmd_name].get_raw_texts(index=index)
             for msg in paginate(raw_texts,
                                 delimiter="\n",
                                 prefix=Lang.lang(self,

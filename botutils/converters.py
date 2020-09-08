@@ -31,17 +31,16 @@ def get_best_username(user):
     return str(user)
 
 
-async def convert_member(bot, message, argument):
+def convert_member(bot, argument):
     """
     Tries to convert the given argument to a discord Member object like the Member converter, but w/o context.
 
     :param bot: The bot
-    :param message: The message
     :param argument: The argument to convert
     :return: The Member or None
     """
-    match = _get_id_match(argument) or re.match(r'<@!?([0-9]+)>$', argument)
-    guild = message.guild
+    match = argument if isinstance(argument, int) else _get_id_match(argument) or re.match(r'<@!?([0-9]+)>$', argument)
+    guild = bot.guild
     result = None
     if match is None:
         # not a mention...
@@ -50,11 +49,9 @@ async def convert_member(bot, message, argument):
         else:
             result = _get_from_guilds(bot, 'get_member_named', argument)
     else:
-        user_id = int(match.group(1))
+        user_id = match if isinstance(match, int) else int(match.group(1))
         if guild:
-            result = guild.get_member(user_id) or discord.utils.get(message.mentions, id=user_id)
-        else:
-            result = _get_from_guilds(bot, 'get_member', user_id)
+            result = guild.get_member(user_id)
 
     if result is None:
         raise commands.BadArgument('Member "{}" not found'.format(argument))
