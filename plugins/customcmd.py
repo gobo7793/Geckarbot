@@ -442,7 +442,7 @@ class Plugin(BasePlugin, name="Custom CMDs"):
             if single_text:
                 raw_texts = [self.commands[cmd_name].get_raw_text(index)]
             else:
-                raw_texts = self.commands[cmd_name].get_raw_texts()
+                raw_texts = self.commands[cmd_name].get_raw_texts(index=index)
             for msg in paginate(raw_texts,
                                 delimiter="\n",
                                 prefix=Lang.lang(self,
