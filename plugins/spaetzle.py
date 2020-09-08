@@ -16,6 +16,10 @@ class UserNotFound(Exception):
     pass
 
 
+class LeagueNotFound(Exception):
+    pass
+
+
 class MatchStatus(Enum):
     CLOSED = ":ballot_box_with_check:"
     RUNNING = ":green_square:"
@@ -111,6 +115,36 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                     if result is not team['short_name']:
                         self.logger.debug("{} is already noted with the abbreviation {}".format(name, result))
         return teamdict
+
+    def get_schedule(self, league: int, matchday: int):
+        matchday = [5, 16, 15, 1, 12, 9, 8, 4, 13, 10, 11, 7, 14, 3, 6, 0, 2][matchday-1]  # "Randomize" input
+        participants = self.spaetzle_conf()['participants'].get('liga{}'.format(league))
+        if participants is None:
+            raise LeagueNotFound()
+        participants = participants[0:1] + participants[matchday-1:] + participants[1:matchday-1]
+        schedule = [
+            (participants[0], participants[1]),
+            (participants[2], participants[17]),
+            (participants[3], participants[16]),
+            (participants[4], participants[15]),
+            (participants[5], participants[14]),
+            (participants[6], participants[13]),
+            (participants[7], participants[12]),
+            (participants[8], participants[11]),
+            (participants[9], participants[10])
+        ]
+        return schedule
+
+    def get_schedule_opponent(self, participant, matchday: int):
+        league = self.get_user_league(participant)
+        schedule = self.get_schedule(league, matchday)
+        for home, away in schedule:
+            if home == participant:
+                return away
+            if away == participant:
+                return home
+        else:
+            return None
 
     def get_teamname_long(self, team):
         name = self.teamname_dict.get(team)
@@ -311,7 +345,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
         if ctx.invoked_subcommand is None:
             await ctx.send_help(self.spaetzle_set)
 
-    @spaetzle_set.command(name="matches")
+    @spaetzle_set.command(name="matches", aliases=["spiele"])
     async def set_matches(self, ctx, matchday: int = None):
         async with ctx.typing():
             # Request data
@@ -372,6 +406,31 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                 msg += "{0} {1} {2} Uhr | {3} - {6}\n".format(*row)
             await ctx.message.add_reaction(Lang.CMDSUCCESS)
             await ctx.send(embed=discord.Embed(title="Spieltag {}".format(matchday), description=msg))
+
+    @spaetzle_set.command(name="duels", aliases=["duelle"])
+    async def set_duels(self, ctx, matchday: int, league: int = None):
+        if matchday < 1 or matchday > 17:
+            await ctx.message.add_reaction(Lang.CMDERROR)
+            await ctx.send(Lang.lang(self, 'matchday_out_of_range'))
+
+        if league is None:
+            schedules = (self.get_schedule(1, matchday), self.get_schedule(2, matchday),
+                         self.get_schedule(3, matchday), self.get_schedule(4, matchday))
+            embed = discord.Embed(title="Spieltag {} - Duelle".format(matchday))
+            for i in range(len(schedules)):
+                msg = ""
+                for duel in schedules[i]:
+                    msg += "{} - {}\n".format(*duel)
+                embed.add_field(name="Liga {}".format(i+1), value=msg)
+            await ctx.send(embed=embed)
+        else:
+            schedule = self.get_schedule(league, matchday)
+            msg = ""
+            for duel in schedule:
+                msg += "{} - {}\n".format(*duel)
+            await ctx.send(embed=discord.Embed(title="Liga {} - Spieltag {}".format(league, matchday), description=msg))
+        # TODO confirm before setting
+        # TODO put duels really into the spreadsheet
 
     def get_matches_from_sheets(self):
         """
@@ -617,6 +676,20 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                                                                         *line)
 
             await ctx.send(embed=discord.Embed(title="Tabelle Liga {}".format(league), description=msg))
+
+    @spaetzle.command(name="fixtures", help="Lists fixtures for a specific participant")
+    async def show_fixtures(self, ctx, user=None):
+        if user is None:
+            user = self.get_bridged_user(ctx.message.author.id)
+            if user is None:
+                await ctx.send(Lang.lang(self, 'user_not_bridged'))
+                return
+
+        msg = ""
+        for i in range(1, 18):
+            msg += "{} | {}\n".format(i, self.get_schedule_opponent(user, i))
+
+        await ctx.send(embed=discord.Embed(title="Gegner von {}".format(user), description=msg))
 
     @spaetzle.group(name="observe",
                     help="Configure which users should be observed.")
