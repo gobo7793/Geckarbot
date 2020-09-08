@@ -115,7 +115,7 @@ class Plugin(BasePlugin, name="Feedback"):
             self.storage["bugscore"] = {}
             Storage.save(self)
 
-        self.get_new_id(init=True)
+        self.reset_highest_id()
 
     def default_storage(self):
         return {
@@ -123,20 +123,19 @@ class Plugin(BasePlugin, name="Feedback"):
             "bugscore": {},
         }
 
-    def get_new_id(self, init=False):
+    def reset_highest_id(self):
+        self.highest_id = 0
+        for el in self.complaints:
+            if el > self.highest_id:
+                self.highest_id = el
+
+    def get_new_id(self):
         """
         Acquires a new complaint id
-        :param init: if True, only sets self.highest_id but does not return anything. Useful for plugin init.
         :return: free unique id that can be used for a new complaint
         """
-        if self.highest_id is None:
-            self.highest_id = 0
-            for el in self.complaints:
-                if el > self.highest_id:
-                    self.highest_id = el
-        if not init:
-            self.highest_id += 1
-            return self.highest_id
+        self.highest_id += 1
+        return self.highest_id
 
     def write(self):
         r = {}
@@ -151,7 +150,7 @@ class Plugin(BasePlugin, name="Feedback"):
                     description="Returns the accumulated feedback. Use [del x] to delete feedback #x.")
     @commands.has_any_role(Config().ADMIN_ROLE_ID, Config().BOTMASTER_ROLE_ID)
     async def redact(self, ctx):
-        # Printing complaints
+        # Print complaints
         if len(self.complaints) == 0:
             await ctx.send(Lang.lang(self, "redact_no_complaints"))
             return
@@ -174,8 +173,9 @@ class Plugin(BasePlugin, name="Feedback"):
             await ctx.send(Lang.lang(self, "redact_del_not_found", complaint))
             return
         # await ctx.send(lang['complaint_removed'].format(i))
-        await ctx.message.add_reaction(Lang.CMDSUCCESS)
         self.write()
+        self.reset_highest_id()
+        await ctx.message.add_reaction(Lang.CMDSUCCESS)
 
     @redact.command(name="search", help="Finds all complaints that contain all search terms", usage="<search terms>")
     async def search(self, ctx, *args):
