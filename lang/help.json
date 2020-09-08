@@ -25,7 +25,7 @@
     "help_category_prefix": "!kommando zum Ausführen eines Kommandos.\n!help kommando für Hilfe zu einem Kommando.\n\nDie Kategorie {} hat folgende Kommandos:",
     "help_subcommands_prefix": "Unterkommandos:",
     "help_aliases": "Alias: {}",
-    "help_no_desc": "Dieses Kommando hat keine Description. Du bist auf dich allein gestellt. Viel Glück.",
+    "help_no_desc": "Dieses Kommando hat keine Beschreibung. Du bist auf dich allein gestellt. Viel Glück.",
 
     "default_category_misc": "Sonstiges",
     "default_category_admin": "Botmaster",

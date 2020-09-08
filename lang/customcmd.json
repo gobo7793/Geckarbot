@@ -55,6 +55,6 @@
         "help_custom_cmd_list_prefix": "Folgende Benutzer-Kommandos sind vorhanden:",
         "help_info_options": "Optionen:\n  # - Gibt den Ausgabetext mit der Nummer # aus.\n  #+ - Gibt den Ausgabetext mit der Nummer # sowie alle folgenden, die in eine Nachricht passen, aus.\n  #++ - Gibt alle Ausgabetexte mit der Nummer # sowie alle folgenden aus.",
         "help_search_usage": "<Kommandoname> <Suchbegriffe>",
-        "help_search_desc": "Findet alle Ausgabetexte im Kommando, das alle Suchbegriffe enthält."
+        "help_search_desc": "Findet alle Ausgabetexte im Kommando, die jeweils alle Suchbegriffe enthalten."
     }
 }

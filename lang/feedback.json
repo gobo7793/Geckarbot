@@ -1,5 +1,6 @@
 {
     "en": {
+        "too_many_args": "Too many arguments.",
         "redact_no_complaints": "No complaints.",
         "redact_del_args": "Unexpected argument structure; expected !redact del #",
         "redact_del_not_found": "Complaint #{} not found.",
@@ -7,6 +8,17 @@
         "redact_search_not_found": "No complaints found.",
         "redact_title": "**Complaints ({}):**\n",
         "redact_search_title": "**Search results:**\n",
+        "redact_count": "There are {} complaints.",
+        "redact_cat_appendix": "Category: {}",
+
+        "redact_cat_show_prefix": "**Category *{}* contains the following complaints:**\n",
+        "redact_cat_list_prefix": "**Categories:**\n",
+        "redact_cat_list_empty": "There are no categories.",
+        "redact_cat_moved": "Moved complaint **#{}** from category **{}** to category **{}**.",
+        "redact_cat_removed": "Removed complaint **#{}** from category **{}**.",
+        "redact_cat_not_found": "Category **{}** does not exist.",
+        "redact_cat_invalid_id": "Invalid complaint ID: {}",
+        "redact_cat_complaint_not_found": "Complaint **#{}** does not exist.",
 
         "bugscore_title": "**Bug Score:**",
         "bugscore_args": "Too many arguments.",
