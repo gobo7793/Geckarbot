@@ -373,7 +373,7 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
 
             if user is None:
                 try:
-                    user = await convert_member(self.bot, message, arg)
+                    user = convert_member(self.bot, arg)
                     continue
                 except commands.CommandError:
                     pass
