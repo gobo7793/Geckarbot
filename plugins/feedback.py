@@ -9,7 +9,15 @@ from botutils import converters
 from botutils.stringutils import paginate
 
 
-h_usage = "[del <#> | search <searchterm>]"
+h_usage = "[full]"
+h_search_usage = "[<search terms>]"
+h_del_usage = "#"
+h_cat_usage = "[<# ...> | <# ...> <category> | <category>]"
+h_cat_desc = "Manages complaint categories. Usage:\n" \
+             "  !redact category                    - lists all categories.\n" \
+             "  !redact category <category>         - lists all complaints in a category.\n" \
+             "  !redact category <# ...> <category> - adds complaints to a category.\n" \
+             "  !redact category <# ...>            - removes the categories from complaints.\n."
 
 
 def str_keys_to_int(d):
@@ -145,25 +153,50 @@ class Plugin(BasePlugin, name="Feedback"):
         Storage.get(self)["complaints"] = r
         Storage.save(self)
 
-    @commands.group(name="redact", invoke_without_command=True,
-                    help="Redacts the list of complaints (i.e. read and delete)", usage=h_usage,
-                    description="Returns the accumulated feedback. Use [del x] to delete feedback #x.")
+    @commands.group(name="redact",
+                    invoke_without_command=True,
+                    help="Redacts the list of complaints (i.e. read and delete)",
+                    usage=h_usage,
+                    description="Returns the accumulated feedback. Use [del x] to delete feedback #x"
+                                "and [full] to include categorized complaints.")
     @commands.has_any_role(Config().ADMIN_ROLE_ID, Config().BOTMASTER_ROLE_ID)
-    async def redact(self, ctx):
-        # Print complaints
-        if len(self.complaints) == 0:
+    async def redact(self, ctx, *args):
+        aliases = ["all", "full"]
+        full = True if len(args) > 0 and args[0] in aliases else False
+
+        # Build msg list and calculate sums
+        categorized = 0
+        uncategorized = 0
+        msgs = []
+        for el in self.complaints:
+            complaint = self.complaints[el]
+            if full or complaint.category is None:
+                msgs.append(complaint.to_message())
+
+            # Sums
+            if complaint.category is None:
+                uncategorized += 1
+            else:
+                categorized += 1
+
+        csum = categorized + uncategorized
+        if len(msgs) == 0:
             await ctx.send(Lang.lang(self, "redact_no_complaints"))
             return
 
-        msgs = paginate([el for el in self.complaints.values()],
-                        prefix=Lang.lang(self, "redact_title", len(self.complaints)),
+        if full:
+            sumstr = Lang.lang(self, "redact_title_full", csum, categorized, uncategorized)
+        else:
+            sumstr = Lang.lang(self, "redact_title_uncat", uncategorized, categorized)
+
+        msgs = paginate(msgs,
+                        prefix=Lang.lang(self, "redact_title", sumstr),
                         delimiter="\n\n",
-                        msg_prefix="_ _\n",
-                        f=to_msg)
+                        msg_prefix="_ _\n")
         for el in msgs:
             await ctx.send(el)
 
-    @redact.command(name="del", help="Deletes a complaint", usage="<#>")
+    @redact.command(name="del", help="Deletes a complaint", usage=h_del_usage)
     async def delete(self, ctx, complaint: int):
         # Delete
         try:
@@ -177,7 +210,7 @@ class Plugin(BasePlugin, name="Feedback"):
         self.reset_highest_id()
         await ctx.message.add_reaction(Lang.CMDSUCCESS)
 
-    @redact.command(name="search", help="Finds all complaints that contain all search terms", usage="<search terms>")
+    @redact.command(name="search", help="Finds all complaints that contain all search terms", usage=h_search_usage)
     async def search(self, ctx, *args):
         if len(args) == 0:
             await ctx.message.add_reaction(Lang.CMDERROR)
@@ -281,7 +314,8 @@ class Plugin(BasePlugin, name="Feedback"):
     @redact.command(name="category",
                     aliases=["cat"],
                     help="Adds complaints to categories and lists categories.",
-                    usage="[<# ...> [category] | category]")
+                    description=h_cat_desc,
+                    usage=h_cat_usage)
     async def category(self, ctx, *args):
         # List
         if len(args) == 0:
