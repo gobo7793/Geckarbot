@@ -43,6 +43,10 @@ class HelpCog(BasePlugin):
     async def usagecmd(self, ctx, *args):
         await self.bot.helpsys.usagecmd(ctx, *args)
 
+    @commands.command(name="helpall")
+    async def listcmd(self, ctx, *args):
+        await self.bot.helpsys.listcmd(ctx, *args)
+
 
 class HelpCategory:
     def __init__(self, name, description="", order=CategoryOrder.MIDDLE, bot=None):
@@ -223,6 +227,33 @@ class GeckiHelp(BaseSubsystem):
             return None, None
 
     """
+    Evaluation methods
+    """
+    @staticmethod
+    def get_command_help(plugin, cmd):
+        r = None
+        try:
+            r = plugin.command_help_string(cmd)
+        except NotFound:
+            if cmd.help is not None and cmd.help.strip():
+                r = cmd.help
+        return r
+
+    def get_command_description(self, plugin, cmd):
+        try:
+            desc = plugin.command_description(cmd)
+        except NotFound:
+            if cmd.description is not None and cmd.description.strip():
+                desc = cmd.description
+            else:
+                desc = self.get_command_help(plugin, cmd)
+
+        if desc is None:
+            desc = Lang.lang(self, "help_no_desc")
+
+        return desc + "\n"
+
+    """
     Format methods
     """
     def append_command_leaves(self, cmds, cmd):
@@ -320,15 +351,8 @@ class GeckiHelp(BaseSubsystem):
             msg.append(self.format_aliases(cmd))
 
         # Help / Description
-        try:
-            desc = plugin.command_description(cmd) + "\n"
-        except NotFound:
-            desc = cmd.qualified_name + "\n"
-            if cmd.help is not None and cmd.help.strip():
-                desc = cmd.help + "\n"
-            if cmd.description is not None and cmd.description.strip():
-                desc = cmd.description + "\n"
-        msg.append(desc)
+        msg.append(self.get_command_description(plugin, cmd))
+
         msg += self.format_subcmds(plugin, cmd)
 
         # Subcommands
@@ -338,24 +362,6 @@ class GeckiHelp(BaseSubsystem):
     """
     Commands
     """
-    async def usagecmd(self, ctx, *args):
-        """
-        Handles any usage command.
-        :param ctx: Context
-        :param args: Arguments that the usage command was called with
-        """
-        plugin, cmd = self.find_command(args)
-        if cmd is None:
-            await ctx.message.add_reaction(Lang.CMDERROR)
-            await self.error(ctx, "cmd_not_found")
-            return
-
-        parent = self.bot.command_prefix + cmd.qualified_name
-        usage = cmd.usage
-        if usage is None or not usage.strip():
-            usage = cmd.signature
-        await ctx.send("```{} {}```".format(parent, usage))
-
     async def helpcmd(self, ctx, *args):
         """
         Handles any help command.
@@ -413,3 +419,42 @@ class GeckiHelp(BaseSubsystem):
 
             await ctx.message.add_reaction(Lang.CMDERROR)
             await self.error(ctx, "cmd_cat_not_found")
+
+    async def usagecmd(self, ctx, *args):
+        """
+        Handles any usage command.
+        :param ctx: Context
+        :param args: Arguments that the usage command was called with
+        """
+        plugin, cmd = self.find_command(args)
+        if cmd is None:
+            await ctx.message.add_reaction(Lang.CMDERROR)
+            await self.error(ctx, "cmd_not_found")
+            return
+
+        parent = self.bot.command_prefix + cmd.qualified_name
+        usage = cmd.usage
+        if usage is None or not usage.strip():
+            usage = cmd.signature
+        await ctx.send("```{} {}```".format(parent, usage))
+
+    async def listcmd(self, ctx, *args):
+        """
+        Handles any helpall command.
+        :param ctx: Context
+        """
+        debug = False
+        if "debug" in args:
+            debug = True
+        plugins = [self.cog]
+        for plugin in self.bot.plugin_objects(plugins_only=True):
+            if debug or "debug" not in plugin.get_name():
+                plugins.append(plugin)
+        cmds = []
+        for plugin in plugins:
+            for cmd in plugin.get_commands():
+                cmds.append(self.format_command_help_line(plugin, cmd))
+
+        cmds = sorted(cmds)
+        for msg in paginate(cmds, msg_prefix="```", msg_suffix="```"):
+            await ctx.send(msg)

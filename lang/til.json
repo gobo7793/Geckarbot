@@ -17,7 +17,7 @@
         "new_manager": "Oh mein Gott, du bist jetzt mein neuer TIL-Manager :scream:",
         "no_facts": "Ich bin ein dummes Geckarbor und kenne keine interessanten Fakten :frowning:",
         "invalid_id": "Sorry, aber ich kenne keinen Fakt mit der ID.",
-        "info_prefix": "Ich habe bereits {} Attacken gelernt und von {} möchte ich mehr Fakten lernen!\n",
+        "info_prefix": "Ich habe bereits {} Attacken gelernt und möchte von {} mehr Fakten lernen!\n",
 
         "help_til": "Lerne einen neuen Fakt",
         "help_add": "Füge einen neuen Fakt hinzu",

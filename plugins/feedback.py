@@ -28,17 +28,21 @@ def str_keys_to_int(d):
 
 
 class Complaint:
-    def __init__(self, complaint_id, author, msg_link, content):
+    def __init__(self, plugin, complaint_id, author, msg_link, content, category):
         """
+        :param plugin: Plugin object
         :param complaint_id: unique complaint id
-        :param author:
-        :param msg_link:
-        :param content:
+        :param author: Complaint author; User object
+        :param msg_link: URL to message
+        :param content: Complaint message content
+        :param category: Category, can be None
         """
+        self.plugin = plugin
         self.id = complaint_id
         self.author = author
         self.msg_link = msg_link
         self.content = content
+        self.category = category
 
     def serialize(self):
         """
@@ -53,33 +57,35 @@ class Complaint:
             "authorid": authorid,
             "msglink": self.msg_link,
             "content": self.content,
-            "category": None,
+            "category": self.category,
         }
 
     @classmethod
-    def deserialize(cls, bot, cid, d):
+    def deserialize(cls, plugin, cid, d):
         """
         Constructs a Complaint object from a dict.
-        :param bot: Geckarbot reference
+        :param plugin: Plugin reference
         :param cid: Complaint id
         :param d: dict made by serialize()
         :return: Complaint object
         """
-        author = discord.utils.get(bot.guild.members, id=d["authorid"])
-        return Complaint(cid, author, d["msglink"], d["content"])
+        author = discord.utils.get(plugin.bot.guild.members, id=d["authorid"])
+        return cls(plugin, cid, author, d["msglink"], d["content"], d["category"])
 
     @classmethod
     def from_message(cls, plugin, msg):
         content = msg.content[len("!complain"):].strip()  # todo check if necessary
-        return cls(plugin.get_new_id(), msg.author, msg.jump_url, content)
+        return cls(plugin, plugin.get_new_id(), msg.author, msg.jump_url, content, None)
 
-    def to_message(self):
+    def to_message(self, show_cat=True):
         authorname = "Not found"
         if self.author is not None:
             authorname = converters.get_best_username(self.author)
         r = "**#{}**: {}: {}".format(self.id, authorname, self.content)
         if self.msg_link is not None:
             r += "\n{}".format(self.msg_link)
+        if show_cat and self.category is not None:
+            r += "\n{}".format(Lang.lang(self.plugin, "redact_cat_appendix", self.category))
         return r
 
 
@@ -102,14 +108,14 @@ class Plugin(BasePlugin, name="Feedback"):
         else:
             str_keys_to_int(self.storage["complaints"])
         for cid in self.storage["complaints"]:
-            self.complaints[cid] = Complaint.deserialize(self.bot, cid, self.storage["complaints"][cid])
+            self.complaints[cid] = Complaint.deserialize(self, cid, self.storage["complaints"][cid])
 
         # Migration 1.7 -> 1.8
         if "bugscore" not in self.storage:
             self.storage["bugscore"] = {}
             Storage.save(self)
 
-        self.get_new_id(init=True)
+        self.reset_highest_id()
 
     def default_storage(self):
         return {
@@ -117,20 +123,19 @@ class Plugin(BasePlugin, name="Feedback"):
             "bugscore": {},
         }
 
-    def get_new_id(self, init=False):
+    def reset_highest_id(self):
+        self.highest_id = 0
+        for el in self.complaints:
+            if el > self.highest_id:
+                self.highest_id = el
+
+    def get_new_id(self):
         """
         Acquires a new complaint id
-        :param init: if True, only sets self.highest_id but does not return anything. Useful for plugin init.
         :return: free unique id that can be used for a new complaint
         """
-        if self.highest_id is None:
-            self.highest_id = 0
-            for el in self.complaints:
-                if el > self.highest_id:
-                    self.highest_id = el
-        if not init:
-            self.highest_id += 1
-            return self.highest_id
+        self.highest_id += 1
+        return self.highest_id
 
     def write(self):
         r = {}
@@ -145,7 +150,7 @@ class Plugin(BasePlugin, name="Feedback"):
                     description="Returns the accumulated feedback. Use [del x] to delete feedback #x.")
     @commands.has_any_role(Config().ADMIN_ROLE_ID, Config().BOTMASTER_ROLE_ID)
     async def redact(self, ctx):
-        # Printing complaints
+        # Print complaints
         if len(self.complaints) == 0:
             await ctx.send(Lang.lang(self, "redact_no_complaints"))
             return
@@ -168,8 +173,9 @@ class Plugin(BasePlugin, name="Feedback"):
             await ctx.send(Lang.lang(self, "redact_del_not_found", complaint))
             return
         # await ctx.send(lang['complaint_removed'].format(i))
-        await ctx.message.add_reaction(Lang.CMDSUCCESS)
         self.write()
+        self.reset_highest_id()
+        await ctx.message.add_reaction(Lang.CMDSUCCESS)
 
     @redact.command(name="search", help="Finds all complaints that contain all search terms", usage="<search terms>")
     async def search(self, ctx, *args):
@@ -201,6 +207,127 @@ class Plugin(BasePlugin, name="Feedback"):
         for el in msgs:
             await ctx.send(el)
 
+    @redact.command(name="count", help="Shows the amount of complaints that exist")
+    async def count(self, ctx):
+        await ctx.send(Lang.lang(self, "redact_count", len(self.complaints)))
+
+    async def category_move(self, ctx, complaint_ids: list, category):
+        """
+        Moves a complaint to a category.
+        :param ctx: Context
+        :param complaint_ids: List of IDs of (existing!) complaints to be moved
+        :param category: New category
+        """
+        assert complaint_ids
+        msgs = []
+        for cid in complaint_ids:
+            precat = self.complaints[cid].category
+            self.complaints[cid].category = category
+
+            # Category removed from complaint with existing category
+            if category is None and precat is not None:
+                msgs.append(Lang.lang(self, "redact_cat_removed", cid, precat))
+
+            # Existing category changed
+            elif precat is not None and category is not None:
+                msgs.append(Lang.lang(self, "redact_cat_moved", cid, precat, category))
+
+        self.write()
+        await ctx.message.add_reaction(Lang.CMDSUCCESS)
+        if msgs:
+            for msg in paginate(msgs):
+                await ctx.send(msg)
+
+    async def category_show(self, ctx, category):
+        """
+        Shows the content of a category.
+        :param ctx: Context
+        :param category: Category that is to be shown
+        """
+        msgs = []
+        for el in self.complaints:
+            complaint = self.complaints[el]
+            if complaint.category == category:
+                msgs.append(complaint.to_message(show_cat=False))
+
+        if not msgs:
+            await ctx.send(Lang.lang(self, "redact_cat_not_found", category))
+            return
+
+        for msg in paginate(msgs,
+                            prefix=Lang.lang(self, "redact_cat_show_prefix", category),
+                            delimiter="\n\n",
+                            msg_prefix="_ _\n"):
+            await ctx.send(msg)
+
+    async def category_list(self, ctx):
+        """
+        Lists all categories.
+        :param ctx: Context
+        """
+        cats = []
+        for el in self.complaints:
+            cat = self.complaints[el].category
+            if cat is not None and cat not in cats:
+                cats.append(cat)
+        cats = sorted(cats, key=lambda x: x.lower())
+
+        if not cats:
+            await ctx.send(Lang.lang(self, "redact_cat_list_empty"))
+        else:
+            for msg in paginate(cats, prefix=Lang.lang(self, "redact_cat_list_prefix")):
+                await ctx.send(msg)
+
+    @redact.command(name="category",
+                    aliases=["cat"],
+                    help="Adds complaints to categories and lists categories.",
+                    usage="[<# ...> [category] | category]")
+    async def category(self, ctx, *args):
+        # List
+        if len(args) == 0:
+            await self.category_list(ctx)
+            return
+
+        # Show
+        try:
+            cid = int(args[0])
+        except (ValueError, TypeError):
+            # Not an int, therefore interpreted as a category name
+            if len(args) != 1:
+                await ctx.message.add_reaction(Lang.CMDERROR)
+                await ctx.send(Lang.lang(self, "too_many_args"))
+            else:
+                await self.category_show(ctx, args[0])
+            return
+
+        # Move (first arg is an int)
+        cids = []
+        cat = None
+        for i in range(len(args)):
+            error = None
+            cid = None
+            try:
+                cid = int(args[i])
+            except (ValueError, TypeError):
+                if cat is None:
+                    cat = args[i]
+                else:
+                    cid = cat
+                    error = "redact_cat_invalid_id"
+
+            if error is None and cid is not None and cid not in self.complaints:
+                error = "redact_cat_complaint_not_found"
+
+            if error is not None:
+                await ctx.message.add_reaction(Lang.CMDERROR)
+                await ctx.send(Lang.lang(self, error, cid))
+                return
+            else:
+                if cid is not None:
+                    cids.append(cid)
+
+        await self.category_move(ctx, cids, cat)
+
     @commands.command(name="complain", help="Takes a complaint and stores it", usage="<message>",
                       description="Delivers a feedback message. "
                                   "The admins and botmasters can then read the accumulated feedback. "
@@ -216,7 +343,6 @@ class Plugin(BasePlugin, name="Feedback"):
     """
     Bugscore
     """
-
     async def bugscore_show(self, ctx):
         users = sorted(
             sorted(
