@@ -105,7 +105,7 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
             "questions": self.config["questions_default"],
             "method": Methods.START,
             "category": None,
-            "difficulty": Difficulty.ANY,
+            "difficulty": Difficulty.EASY,
             "ranked": False,
             "gecki": False,
             "debug": False,
@@ -118,14 +118,9 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
         }
 
         # Documented subcommands
-        self.register_subcommand(None, "categories", self.cmd_catlist)
-        self.register_subcommand(None, "emoji", self.cmd_emoji)
-        self.register_subcommand(None, "ladder", self.cmd_ladder)
         self.register_subcommand(None, "question", self.cmd_question)
-        self.register_subcommand(None, "del", self.cmd_del)
 
         # Undocumented subcommands
-        self.register_subcommand(None, "react", self.cmd_react)
         self.register_subcommand(None, "info", self.cmd_info)
 
         super().__init__(bot)
@@ -144,128 +139,50 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
         }
 
     """
+    Help
+    """
+    def command_help_string(self, command):
+        return Lang.lang(self, "help_{}".format(command.name))
+
+    def command_description(self, command):
+        return Lang.lang(self, "desc_{}".format(command.name))
+
+    @staticmethod
+    def sort_subcommands(subcommands):
+        order = [
+            "status",
+            "score",
+            "stop",
+            "emoji",
+            "ladder",
+            "categories",
+            "del",
+            "question",
+        ]
+        todel = []
+        for i in range(len(order) - 1, -1, -1):
+            found = False
+            for cmd in subcommands:
+                if cmd.name == order[i]:
+                    order[i] = cmd
+                    found = True
+                    break
+            if not found:
+                todel.append(i)
+
+        for i in todel:
+            del order[i]
+
+        return order
+
+    """
     Commands
     """
-    async def cmd_catlist(self, ctx, *args):
-        if len(args) > 1:
-            await ctx.message.channel.send(Lang.lang(self, "too_many_arguments"))
-            return
-
-        embed = discord.Embed(title="Categories:")
-        s = []
-        for el in opentdb["cat_mapping"]:
-            cat = el["names"]
-            s.append("**{}**: {}".format(cat[0], cat[1]))
-        embed.add_field(name="Name: Command", value="\n".join(s))
-        await ctx.send(embed=embed)
-
-    async def cmd_emoji(self, ctx, *args):
-        # Delete emoji
-        if len(args) == 1:
-            if ctx.message.author.id in Storage().get(self)["emoji"]:
-                del Storage().get(self)["emoji"][ctx.message.author.id]
-                await ctx.message.add_reaction(Lang.CMDSUCCESS)
-                Storage().save(self)
-            else:
-                await ctx.message.add_reaction(Lang.CMDERROR)
-            return
-
-        # Too many arguments
-        if len(args) != 2:
-            await ctx.message.add_reaction(Lang.CMDERROR)
-            return
-
-        emoji = args[1]
-        try:
-            await ctx.message.add_reaction(emoji)
-        except HTTPException:
-            await ctx.message.add_reaction(Lang.CMDERROR)
-            return
-
-        Storage().get(self)["emoji"][ctx.message.author.id] = emoji
-        Storage().save(self)
-        await ctx.message.add_reaction(Lang.CMDSUCCESS)
-
-    async def cmd_react(self, ctx, *args):
-        if len(args) != 1:
-            await ctx.message.add_reaction(Lang.CMDERROR)
-            return
-
-        emoji = Storage().get(self)["emoji"].get(ctx.message.author.id)
-        if emoji is None:
-            emoji = Lang.CMDERROR
-        await ctx.message.add_reaction(emoji)
-
-    async def cmd_ladder(self, ctx, *args):
-        if len(args) != 1:
-            await ctx.message.add_reaction(Lang.CMDERROR)
-            return
-
-        embed = discord.Embed()
-        entries = {}
-        for uid in Storage().get(self)["ladder"]:
-            member = discord.utils.get(ctx.guild.members, id=uid)
-            points = Storage().get(self)["ladder"][uid]
-            if points not in entries:
-                entries[points] = [member]
-            else:
-                entries[points].append(member)
-
-        values = []
-        keys = sorted(entries.keys(), reverse=True)
-        place = 0
-        for el in keys:
-            for user in entries[el]:
-                values.append("**#{}:** {} - {}".format(place, el, get_best_username(Storage().get(self), user)))
-
-        if len(values) == 0:
-            await ctx.send("So far, nobody is on the ladder.")
-            return
-
-        embed.add_field(name="Ladder:", value="\n".join(values))
-        await ctx.send(embed=embed)
-
-    async def cmd_del(self, ctx, *args):
-        if len(args) != 2:
-            await ctx.message.add_reaction(Lang.CMDERROR)
-            return
-        if not permchecks.check_full_access(ctx.message.author):
-            await ctx.message.add_reaction(Lang.CMDERROR)
-            return
-
-        try:
-            user = await commands.MemberConverter().convert(ctx, args[1])
-        except (commands.CommandError, IndexError):
-            await ctx.message.add_reaction(Lang.CMDERROR)
-            return
-
-        ladder = Storage().get(self)["ladder"]
-        if user.id in ladder:
-            del ladder[user.id]
-            Storage().save(self)
-            await ctx.message.add_reaction(Lang.CMDSUCCESS)
-        else:
-            await ctx.message.add_reaction(Lang.CMDNOCHANGE)
-
-    async def cmd_question(self, ctx, *args):
-        if len(args) != 1:
-            await ctx.message.add_reaction(Lang.CMDERROR)
-            return
-
-        controller = self.get_controller(ctx.channel)
-        if controller is None:
-            await ctx.message.add_reaction(Lang.CMDERROR)
-            return
-
-        embed = controller.quizapi.current_question().embed(emoji=True, info=True)
-        await ctx.channel.send(embed=embed)
-
-    async def cmd_info(self, ctx, *args):
-        args = args[1:]
-        controller, args = self.parse_args(ctx.channel, args, subcommands=False)
-        await ctx.send(args["quizapi"].info(**args))
-
-    @commands.command(name="kwiss", help=h_help, description=h_description, usage=h_usage)
+    @commands.group(name="kwiss",
+                    help=h_help,
+                    description=h_description,
+                    usage=h_usage,
+                    invoke_without_command=True)
     async def kwiss(self, ctx, *args):
         """
         !kwiss command
@@ -298,36 +215,9 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
 
         # Look for existing quiz
         method = args["method"]
-        modifying = method == Methods.STOP \
-            or method == Methods.PAUSE \
-            or method == Methods.RESUME \
-            or method == Methods.SCORE \
-            or method == Methods.STATUS
         if method == Methods.START and self.get_controller(channel):
             await ctx.message.add_reaction(Lang.CMDERROR)
             raise QuizInitError(self, "existing_quiz")
-        if modifying and self.get_controller(channel) is None:
-            if method == Methods.STATUS:
-                await ctx.send(Lang.lang(self, "status_no_quiz"))
-            return
-
-        # Not starting a new quiz
-        if modifying:
-            quiz_controller = self.get_controller(channel)
-            if method == Methods.PAUSE:
-                await quiz_controller.pause(ctx.message)
-            elif method == Methods.RESUME:
-                await quiz_controller.resume(ctx.message)
-            elif method == Methods.SCORE:
-                await ctx.send(embed=quiz_controller.score.embed())
-            elif method == Methods.STOP:
-                if permchecks.check_full_access(ctx.message.author) or quiz_controller.requester == ctx.message.author:
-                    await self.abort_quiz(channel, ctx.message)
-            elif method == Methods.STATUS:
-                await quiz_controller.status(ctx.message)
-            else:
-                assert False
-            return
 
         # Starting a new quiz
         assert method == Methods.START
@@ -351,6 +241,141 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
                                  Difficulty.human_readable(quiz_controller.difficulty),
                                  self.controller_mapping[controller_class][0]))
         await quiz_controller.start(ctx.message)
+
+    @kwiss.command(name="status")
+    async def cmd_status(self, ctx):
+        controller = self.get_controller(ctx.channel)
+        if controller is None:
+            await ctx.message.add_reaction(Lang.CMDERROR)
+            await ctx.send(Lang.lang(self, "status_no_quiz"))
+        else:
+            await controller.status(ctx.message)
+
+    @kwiss.command(name="score")
+    async def cmd_score(self, ctx):
+        controller = self.get_controller(ctx.channel)
+        if controller is None:
+            await ctx.message.add_reaction(Lang.CMDERROR)
+        else:
+            await ctx.send(embed=controller.score.embed())
+
+    @kwiss.command(name="stop")
+    async def cmd_stop(self, ctx):
+        controller = self.get_controller(ctx.channel)
+        if controller is None:
+            await ctx.message.add_reaction(Lang.CMDERROR)
+        elif permchecks.check_full_access(ctx.message.author) or controller.requester == ctx.message.author:
+            await self.abort_quiz(ctx.channel, ctx.message)
+        else:
+            await ctx.message.add_reaction(Lang.CMDNOPERMISSIONS)
+
+    @kwiss.command(name="emoji")
+    async def cmd_emoji(self, ctx, *args):
+        # Delete emoji
+        if len(args) == 0:
+            if ctx.message.author.id in Storage().get(self)["emoji"]:
+                del Storage().get(self)["emoji"][ctx.message.author.id]
+                await ctx.message.add_reaction(Lang.CMDSUCCESS)
+                Storage().save(self)
+            else:
+                await ctx.message.add_reaction(Lang.CMDNOCHANGE)
+            return
+
+        # Too many arguments
+        if len(args) != 1:
+            await ctx.message.add_reaction(Lang.CMDERROR)
+            return
+
+        emoji = args[0]
+        try:
+            await ctx.message.add_reaction(emoji)
+        except HTTPException:
+            await ctx.message.add_reaction(Lang.CMDERROR)
+            return
+
+        Storage().get(self)["emoji"][ctx.message.author.id] = emoji
+        Storage().save(self)
+        await ctx.message.add_reaction(Lang.CMDSUCCESS)
+
+    @kwiss.command(name="ladder")
+    async def cmd_ladder(self, ctx):
+        embed = discord.Embed()
+        entries = {}
+        for uid in Storage().get(self)["ladder"]:
+            member = discord.utils.get(ctx.guild.members, id=uid)
+            points = Storage().get(self)["ladder"][uid]
+            if points not in entries:
+                entries[points] = [member]
+            else:
+                entries[points].append(member)
+
+        values = []
+        keys = sorted(entries.keys(), reverse=True)
+        place = 0
+        for el in keys:
+            place += 1
+            for user in entries[el]:
+                values.append("**#{}:** {} - {}".format(place, el, get_best_username(Storage().get(self), user)))
+
+        if len(values) == 0:
+            await ctx.send("So far, nobody is on the ladder.")
+            return
+
+        embed.add_field(name="Ladder:", value="\n".join(values))
+        await ctx.send(embed=embed)
+
+    @kwiss.command(name="categories", aliases=["cat", "cats", "category"])
+    async def cmd_catlist(self, ctx, *args):
+        embed = discord.Embed(title="Categories:")
+        s = []
+        for el in opentdb["cat_mapping"]:
+            cat = el["names"]
+            s.append("**{}**: {}".format(cat[0], cat[1]))
+        embed.add_field(name="Name: Command", value="\n".join(s))
+        await ctx.send(embed=embed)
+
+    @kwiss.command(name="del", usage="<user>")
+    async def cmd_del(self, ctx, *args):
+        if len(args) != 1:
+            await ctx.message.add_reaction(Lang.CMDERROR)
+            return
+        if not permchecks.check_full_access(ctx.message.author):
+            await ctx.message.add_reaction(Lang.CMDERROR)
+            return
+
+        try:
+            user = await commands.MemberConverter().convert(ctx, args[0])
+        except (commands.CommandError, IndexError):
+            await ctx.message.add_reaction(Lang.CMDERROR)
+            return
+
+        ladder = Storage().get(self)["ladder"]
+        if user.id in ladder:
+            del ladder[user.id]
+            Storage().save(self)
+            await ctx.message.add_reaction(Lang.CMDSUCCESS)
+        else:
+            await ctx.message.add_reaction(Lang.CMDNOCHANGE)
+
+    @kwiss.command(name="question")
+    async def cmd_question(self, ctx, *args):
+        if len(args) != 1:
+            await ctx.message.add_reaction(Lang.CMDERROR)
+            return
+
+        controller = self.get_controller(ctx.channel)
+        if controller is None:
+            await ctx.message.add_reaction(Lang.CMDERROR)
+            return
+
+        embed = controller.quizapi.current_question().embed(emoji=True, info=True)
+        await ctx.channel.send(embed=embed)
+
+    @kwiss.command(name="info", hidden=True)
+    async def cmd_info(self, ctx, *args):
+        args = args[1:]
+        controller, args = self.parse_args(ctx.channel, args, subcommands=False)
+        await ctx.send(args["quizapi"].info(**args))
 
     """
     Interface
@@ -427,14 +452,14 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
         :param args: args dict
         :return: lang code for error msg, None if the arg combination is okay
         """
-        # Ranked stuff
+        # Ranked constraints
         if args["ranked"] and not args["debug"]:
             if controller != self.default_controller:
-                return "ranked_controller"
+                return "ranked_constraints"
             if args["category"] != self.defaults["category"]:
-                return "ranked_category"
+                return "ranked_constraints"
             if args["difficulty"] != self.defaults["difficulty"]:
-                return "ranked_difficulty"
+                return "ranked_constraints"
             if args["questions"] < self.config["ranked_min_questions"]:
                 return "ranked_questioncount"
             if not Config().DEBUG_MODE and args["gecki"]:
