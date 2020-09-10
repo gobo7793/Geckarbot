@@ -147,8 +147,7 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
     def command_description(self, command):
         return Lang.lang(self, "desc_{}".format(command.name))
 
-    @staticmethod
-    def sort_subcommands(subcommands):
+    def sort_subcommands(self, cmd, subcommands):
         order = [
             "status",
             "score",
