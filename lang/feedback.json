@@ -10,7 +10,7 @@
         "redact_title_uncat": "{} uncategorized, {} categorized (not shown)",
         "redact_title_full": "{}, {} categorized, {} uncategorized",
         "redact_search_title": "**Search results:**\n",
-        "redact_count": "There are {} complaints.",
+        "redact_count": "There are {} complaints ({} categorized, {} uncategorized) and {} categories.",
         "redact_cat_appendix": "Category: {}",
 
         "redact_cat_show_prefix": "**Category *{}* contains the following complaints:**\n",
