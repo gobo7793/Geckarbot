@@ -2,6 +2,9 @@ from botutils import converters
 
 
 def uemoji(config, user):
+    if user is None:
+        return ""
+
     if not isinstance(user, int):
         user = user.id
     if user in config["emoji"]:

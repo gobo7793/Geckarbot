@@ -194,7 +194,7 @@ class PointsQuizController(BaseQuizController):
                 if self.current_question.all_answers[i] == self.current_question.correct_answer:
                     if correct:
                         found = i
-                    break
+                        break
                 if not correct:
                     found = i
                     break
