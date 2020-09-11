@@ -125,20 +125,35 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
             return Lang.lang(self, "presence_entry", item.presence_id + 1, item.message)
 
         entries = self.bot.presence.filter_messages_list(PresencePriority.LOW)
-        for msg in paginate(entries, prefix=Lang.lang(self, "presence_prefix"), f=get_message):
-            await ctx.send(msg)
+        if not entries:
+            await ctx.send(Lang.lang(self, "no_presences"))
+        else:
+            for msg in paginate(entries,
+                                prefix=Lang.lang(self, "presence_prefix"),
+                                f=get_message):
+                await ctx.send(msg)
 
     @presence.command(name="add")
     @commands.has_any_role(*Config().FULL_ACCESS_ROLES)
     async def presence_add(self, ctx, *, message):
-        self.bot.presence.register(message, PresencePriority.LOW)
-        await utils.add_reaction(ctx.message, Lang.CMDSUCCESS)
+        if self.bot.presence.register(message, PresencePriority.LOW) is not None:
+            await utils.add_reaction(ctx.message, Lang.CMDSUCCESS)
+            await utils.write_debug_channel(self.bot, Lang.lang(self, "presence_added_debug", message))
+        else:
+            await utils.add_reaction(ctx.message, Lang.CMDERROR)
+            await ctx.send(Lang.lang(self, "presence_unknown_error"))
 
     @presence.command(name="del", usage="<id>")
     @commands.has_any_role(*Config().FULL_ACCESS_ROLES)
     async def presence_del(self, ctx, entry_id: int):
-        if self.bot.presence.deregister_id(entry_id - 1):
+        entry_id -= 1
+        presence_message = "❓❔❓"
+        if entry_id in self.bot.presence.messages:
+            presence_message = self.bot.presence.messages[entry_id].message
+
+        if self.bot.presence.deregister_id(entry_id):
             await utils.add_reaction(ctx.message, Lang.CMDSUCCESS)
+            await utils.write_debug_channel(self.bot, Lang.lang(self, "presence_removed_debug", presence_message))
         else:
             await utils.add_reaction(ctx.message, Lang.CMDERROR)
             await ctx.send(Lang.lang(self, "presence_not_exists", entry_id))

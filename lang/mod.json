@@ -41,6 +41,10 @@
         "presence_prefix": "**Current custom presence messages:**\n",
         "presence_entry": "#{}: {}",
         "presence_not_exists": "A presence message with the ID {} doesn't exist.",
+        "presence_added_debug": "Presence message added: {}",
+        "presence_removed_debug": "Presence message removed: {}",
+        "presence_unknown_error": "PANIC! An unknown error occured!",
+        "no_presences": "There are no custom presences...",
 
         "#3": "ignore",
         "nothing_blocked": "No users or commands blocked.",
@@ -114,6 +118,10 @@
         "presence_prefix": "**Benutzerdefinierte Statusnachrichten:**\n",
         "presence_entry": "#{}: {}",
         "presence_not_exists": "Eine Statusnachricht mit der ID {} gibts nicht.",
+        "presence_added_debug": "Statusnachricht hinzugefügt: {}",
+        "presence_removed_debug": "Statusnachricht gelöscht: {}",
+        "presence_unknown_error": "PANIK! Ein unbekannter Fehler ist aufgetreten!",
+        "no_presences": "Es gibt keine benutzerdefinierten Statusnachrichten...",
 
         "#3": "ignore",
         "nothing_blocked": "Keine User oder Kommandos blockiert.",
