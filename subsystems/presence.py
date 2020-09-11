@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import random
 from enum import IntEnum
 from typing import Optional, List, Dict
 
@@ -112,7 +113,6 @@ class Presence(BaseSubsystem):
         """
         Acquires a new presence message id
 
-        :param init: if True, only sets self.highest_id but does not return anything. Useful for init.
         :return: free unique id that can be used for a new presence message
         """
         return max(self.messages) + 1
@@ -138,6 +138,30 @@ class Presence(BaseSubsystem):
                     return current_id
             if current_id > self.highest_id:
                 current_id = -1
+
+    def get_ran_id(self, excluded_id: int, priority: PresencePriority = None):
+        """
+        Returns a random existing unique presence message ID, excluding the excluded_id
+        If the given ID is the last existing ID, the first ID will be returned.
+        If no message is registered, -1 will be returned.
+
+        :param excluded_id: the excluded id
+        :param priority: If given, returns only IDs of messages with given priority
+        :return: The next registered unique ID
+        """
+        if not self.messages:
+            return -1
+
+        message_list = list(self.messages.values()) if priority is None else self.filter_messages_list(priority)
+        if len(message_list) < 1:
+            return 0
+        if len(message_list) == 1:
+            return message_list[0]
+
+        while True:
+            select = random.choice(message_list)
+            if select.presence_id != excluded_id:
+                return select.presence_id
 
     def filter_messages_list(self, priority: PresencePriority) -> List[PresenceMessage]:
         """Returns all messages with the given priority"""
@@ -270,7 +294,7 @@ class Presence(BaseSubsystem):
             if job.data["last_prio"] == PresencePriority.HIGH:
                 last_id = job.data["id_before_high"] - 1  # restore last message before high
 
-        next_id = self.get_next_id(last_id, next_prio)
+        next_id = self.get_ran_id(last_id, next_prio)
 
         if next_id == last_id:
             return  # do nothing if the same message should be displayed again
