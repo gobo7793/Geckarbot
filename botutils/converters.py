@@ -31,6 +31,20 @@ def get_best_username(user):
     return str(user)
 
 
+def get_best_user(bot, uid):
+    """
+    Gets the member object of the given user id, or if member not found, the user object, or None of nothing found.
+
+    :param bot: The bot
+    :param uid: The user id from which the member/user object has to be returned
+    :return: The member or user object or None if no user found
+    """
+    result = bot.guild.get_member(uid)
+    if result is None:
+        result = bot.get_user(uid)
+    return result
+
+
 def convert_member(bot, argument):
     """
     Tries to convert the given argument to a discord Member object like the Member converter, but w/o context.
