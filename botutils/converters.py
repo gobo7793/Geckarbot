@@ -1,5 +1,5 @@
 import re
-from typing import Optional
+from typing import Optional, Union
 
 import discord
 from discord.ext import commands
@@ -32,7 +32,7 @@ def get_best_username(user):
     return str(user)
 
 
-def get_best_user(bot, uid) -> Optional[discord.Member, discord.User]:
+def get_best_user(bot, uid) -> Optional[Union[discord.Member, discord.User]]:
     """
     Gets the member object of the given user id, or if member not found, the user object, or None of nothing found.
 

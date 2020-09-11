@@ -21,6 +21,7 @@ class UserBlockedCommand(Exception):
     Will be raised if a command is blocked for the specific user.
     Can be used for passive command checking.
     """
+
     def __init__(self, user: discord.User, command: str = ""):
         self.user = user
         self.command = command
@@ -144,6 +145,10 @@ class IgnoreDataset:
         else:
             return self is None and other is None
 
+    def __str__(self):
+        return "<ignoring.IgnoreDataset; {}, user: {}, command: {}, channel: {}, until: {}>".format(
+            str(IgnoreType(self.ignore_type)), self.user, self.command_name, self.channel, self.until)
+
     def serialize(self):
         """
         Serializes the dataset to a dict
@@ -182,17 +187,6 @@ class IgnoreDataset:
         return IgnoreDataset(d["type"], user, d["command_name"], channel, d["until"],
                              ignoring_instance=ignoring_instance)
 
-    def to_raw_message(self):
-        """
-        Builds an raw output message with the raw data.
-
-        Format: IgnoreDataset: User: user_name, Command: command_name, Channel: channel_name, Until: datetime
-
-        :return: The raw message
-        """
-        return "IgnoreDataset: Type: {}, User: {}, Command: {}, Channel: {}, Until: {}".format(
-            str(self.ignore_type), self.user, self.command_name, self.channel, self.until)
-
     def to_message(self):
         """
         Builds an well formatted output message for listing the entries on ignore list.
@@ -207,7 +201,7 @@ class IgnoreDataset:
         """
 
         if self.ignoring_instance is None:
-            return self.to_raw_message()
+            return str(self)
 
         dt = ""
         if self.until < datetime.max:
@@ -229,7 +223,7 @@ class IgnoreDataset:
                           self.user.display_name, self.command_name, dt)
 
         else:
-            return self.to_raw_message()
+            return str(self)
 
         return m
 
@@ -265,6 +259,15 @@ class Ignoring(BaseSubsystem):
             return self.active
         return None
 
+    def get_full_ignore_list(self):
+        """Returns the full ignore list with all entries"""
+        li = []
+        li.extend(self.users)
+        li.extend(self.cmds)
+        li.extend(self.active)
+        li.extend(self.passive)
+        return li
+
     def get_full_ignore_len(self):
         return len(self.users) + len(self.cmds) + len(self.passive) + len(self.active)
 
@@ -278,11 +281,7 @@ class Ignoring(BaseSubsystem):
 
     def save(self):
         """Saves the current ignorelist to json"""
-        full_list = []
-        full_list.extend(self.users)
-        full_list.extend(self.cmds)
-        full_list.extend(self.passive)
-        full_list.extend(self.active)
+        full_list = self.get_full_ignore_list()
 
         jsondata = []
         for el in full_list:
@@ -335,7 +334,7 @@ class Ignoring(BaseSubsystem):
         ignore_list.append(dataset)
         if not disable_save_file:
             self.save()
-        self.log.info("Added to ignore list: {}".format(dataset.to_raw_message()))
+        self.log.info("Added to ignore list: {}".format(dataset))
         return IgnoreEditResult.Success
 
     def add_user(self, user: discord.User, until: datetime = datetime.max):
@@ -462,7 +461,7 @@ class Ignoring(BaseSubsystem):
 
         self.get_ignore_list(dataset.ignore_type).remove(listed_dataset)
         self.save()
-        self.log.info("Removed from ignore list: {}".format(listed_dataset.to_raw_message()))
+        self.log.info("Removed from ignore list: {}".format(listed_dataset))
         return IgnoreEditResult.Success
 
     async def _auto_remove_callback(self, job):
@@ -472,7 +471,7 @@ class Ignoring(BaseSubsystem):
         :param job: the auto-remove job with the dataset
         """
         remove_result = self.remove(job.data)
-        msg = "Attempt auto-removing {}, Result: {}".format(job.data.to_raw_message(), str(remove_result))
+        msg = "Attempt auto-removing {}, Result: {}".format(job.data, str(remove_result))
         await utils.write_admin_channel(self.bot, msg)
 
     def remove_user(self, user: discord.User):

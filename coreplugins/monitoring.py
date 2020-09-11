@@ -40,14 +40,16 @@ class Plugin(BasePlugin, name="Bot status commands for monitoring and debug purp
                             suffix="\n",
                             if_empty="None"):
             await ctx.send(msg)
-
         for msg in paginate(list(self.bot.presence.messages.values()),
                             prefix="**Full presence entries:**\n",
                             suffix="\n",
                             if_empty="None"):
             await ctx.send(msg)
-
-        await ctx.invoke(self.bot.get_command("disable list"))
+        for msg in paginate(list(self.bot.ignoring.get_full_ignore_list()),
+                            prefix="**Ignoring entries:**\n",
+                            suffix="\n",
+                            if_empty="None"):
+            await ctx.send(msg)
 
     @commands.command(name="storagedump", help="Dumps plugin storage", usage="<plugin name>")
     @commands.has_any_role(Config().BOTMASTER_ROLE_ID)

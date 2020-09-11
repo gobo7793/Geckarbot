@@ -225,7 +225,6 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
         await ctx.send(final_msg)
 
     @disable.command(name="list")
-    # NOTE: Will be used by "!subsys"
     async def disable_list(self, ctx):
         def get_item_msg(item):
             return item.to_message()
