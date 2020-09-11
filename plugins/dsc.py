@@ -9,6 +9,7 @@ from discord.ext import commands
 from conf import Storage, Lang, Config
 from botutils import parsers, permchecks, sheetsclient, utils
 from botutils.stringutils import paginate, clear_link
+from botutils.converters import get_username_from_id
 from base import BasePlugin
 
 
@@ -138,9 +139,7 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
             await ctx.send(Lang.lang(self, 'must_set_host'))
             return
 
-        host_nick = self.bot.guild.get_member(Storage.get(self)['host_id'])
-        if host_nick is None:
-            host_nick = self.bot.get_user(Storage.get(self)['host_id'])
+        host_nick = get_username_from_id(self.bot, Storage.get(self)['host_id'])
 
         embed = discord.Embed()
         embed.add_field(name=Lang.lang(self, 'current_host'), value=host_nick)

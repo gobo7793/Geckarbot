@@ -1,4 +1,5 @@
 import re
+from typing import Optional
 
 import discord
 from discord.ext import commands
@@ -31,7 +32,7 @@ def get_best_username(user):
     return str(user)
 
 
-def get_best_user(bot, uid):
+def get_best_user(bot, uid) -> Optional[discord.Member, discord.User]:
     """
     Gets the member object of the given user id, or if member not found, the user object, or None of nothing found.
 
@@ -45,7 +46,22 @@ def get_best_user(bot, uid):
     return result
 
 
-def convert_member(bot, argument):
+def get_username_from_id(bot, uid) -> Optional[str]:
+    """
+    Gets the best username from the given user id, or None if user id not found.
+    Short: Calls get_best_user() and then get_best_username()
+
+    :param bot: The bot
+    :param uid: The user id from which the user name should be given
+    :return: The best user name or None if user id not found
+    """
+    user = get_best_user(bot, uid)
+    if user is None:
+        return None
+    return get_best_username(user)
+
+
+def convert_member(bot, argument) -> Optional[discord.Member]:
     """
     Tries to convert the given argument to a discord Member object like the Member converter, but w/o context.
 
