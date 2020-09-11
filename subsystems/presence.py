@@ -108,19 +108,14 @@ class Presence(BaseSubsystem):
     def default_storage(self):
         return []
 
-    def get_new_id(self, init=False):
+    def get_new_id(self):
         """
         Acquires a new presence message id
 
         :param init: if True, only sets self.highest_id but does not return anything. Useful for init.
         :return: free unique id that can be used for a new presence message
         """
-        if self.highest_id is None:
-            self.highest_id = max(self.messages)
-
-        if not init:
-            self.highest_id += 1
-            return self.highest_id
+        return max(self.messages) + 1
 
     def get_next_id(self, start_id: int, priority: PresencePriority = None):
         """
@@ -160,8 +155,6 @@ class Presence(BaseSubsystem):
         for el in Storage.get(self):
             presence_msg = PresenceMessage.deserialize(self.bot, el)
             self.messages[presence_msg.presence_id] = presence_msg
-
-        self.get_new_id(init=True)
 
         self.log.info("Loaded {} messages".format(len(self.messages)))
 
@@ -228,8 +221,7 @@ class Presence(BaseSubsystem):
         self.log.debug("Message deregistered, Priority: {}, ID {}: {}".format(
             dataset.priority, dataset.presence_id, dataset.message))
 
-        if dataset.priority == PresencePriority.HIGH:
-            self._execute_change()
+        self._execute_removing_change(dataset.presence_id)
 
         return True
 
@@ -255,8 +247,14 @@ class Presence(BaseSubsystem):
         self.log.debug("Change displayed message to: {}".format(message))
         await self.bot.change_presence(activity=discord.Game(name=message))
 
+    def _execute_removing_change(self, removed_id: int):
+        """Executes _change_callback() w/o awaiting with special handling for removed presence messages"""
+        if (self.timer_job.data["last_prio"] == PresencePriority.HIGH
+                or self.timer_job.data["current_id"] == removed_id):
+            self._execute_change()
+
     def _execute_change(self):
-        """Executes _change_callback() w/o awaiting"""
+        """Executes _change_callback() w/o awaiting (every time this method is called)"""
         asyncio.run_coroutine_threadsafe(self._change_callback(self.timer_job), self.bot.loop)
 
     async def _change_callback(self, job):
