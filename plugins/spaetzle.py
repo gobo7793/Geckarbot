@@ -9,7 +9,10 @@ from discord.ext import commands
 
 from Geckarbot import BasePlugin
 from botutils import sheetsclient, restclient
-from conf import Storage, Lang
+from botutils.converters import get_best_username
+from botutils.permchecks import check_full_access
+from botutils.utils import add_reaction
+from conf import Config, Storage, Lang
 
 
 class UserNotFound(Exception):
@@ -40,10 +43,16 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
         self.teamname_dict = self.build_teamname_dict()
         self.get_matches_from_sheets()
 
+    def default_config(self):
+        return {
+            'manager': 0,
+            'trusted': [],
+            'matches_range': "Aktuell!B3:H11",
+            'spaetzledoc_id': "1ZzEGP_J9WxJGeAm1Ri3er89L1IR1riq7PH2iKVDmfP8"
+        }
+
     def default_storage(self):
         return {
-            'matches_range': "Aktuell!B3:H11",
-            'spaetzledoc_id': "1ZzEGP_J9WxJGeAm1Ri3er89L1IR1riq7PH2iKVDmfP8",
             'discord_user_bridge': {},
             'observed_users': [],
             'participants': {
@@ -87,18 +96,24 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             ]
         }
 
-    def spaetzle_conf(self):
-        return Storage().get(self)
-
     def get_api_client(self):
-        return sheetsclient.Client(self.spaetzle_conf()['spaetzledoc_id'])
+        return sheetsclient.Client(Config().get(self)['spaetzledoc_id'])
+
+    async def trusted_check(self, ctx, show_error=True):
+        if ctx.message.author.id in Config.get(self)['trusted'] or ctx.message.author.id == Config.get(self)['manager']:
+            return True
+        else:
+            if show_error:
+                await add_reaction(ctx.message, Lang.CMDERROR)
+                await ctx.send(Lang.lang(self, 'not_trusted'))
+            return False
 
     def is_teamname_abbr(self, team):
         return team is not None and len(team) <= 3
 
     def build_teamname_dict(self):
         teamdict = {}
-        teamnames = self.spaetzle_conf()['teamnames']
+        teamnames = Storage().get(self)['teamnames']
         for team in teamnames:
             teamdict[team['short_name']] = team['long_name']
             teamdict[team['long_name']] = team['short_name']
@@ -116,9 +131,21 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                         self.logger.debug("{} is already noted with the abbreviation {}".format(name, result))
         return teamdict
 
+    def get_teamname_long(self, team):
+        name = self.teamname_dict.get(team)
+        if self.is_teamname_abbr(name):
+            name = self.teamname_dict.get(name)
+        return name
+
+    def get_teamname_abbr(self, team):
+        name = self.teamname_dict.get(team)
+        if not self.is_teamname_abbr(name):
+            name = self.teamname_dict.get(name)
+        return name
+
     def get_schedule(self, league: int, matchday: int):
         matchday = [5, 16, 15, 1, 12, 9, 8, 4, 13, 10, 11, 7, 14, 3, 6, 0, 2][matchday-1]  # "Randomize" input
-        participants = self.spaetzle_conf()['participants'].get('liga{}'.format(league))
+        participants = Storage().get(self)['participants'].get('liga{}'.format(league))
         if participants is None:
             raise LeagueNotFound()
         participants = participants[0:1] + participants[matchday-1:] + participants[1:matchday-1]
@@ -146,25 +173,13 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
         else:
             return None
 
-    def get_teamname_long(self, team):
-        name = self.teamname_dict.get(team)
-        if self.is_teamname_abbr(name):
-            name = self.teamname_dict.get(name)
-        return name
-
-    def get_teamname_abbr(self, team):
-        name = self.teamname_dict.get(team)
-        if not self.is_teamname_abbr(name):
-            name = self.teamname_dict.get(name)
-        return name
-
     def get_user_cell(self, user):
         """
         Returns the position of the user's title cell in the 'Tipps' section
 
         :return: (col, row) of the cell
         """
-        participants = self.spaetzle_conf()['participants']
+        participants = Storage().get(self)['participants']
         if user in participants['liga1']:
             col = 60 + (2 * participants['liga1'].index(user))
             row = 2
@@ -187,7 +202,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
 
         :return: number of the league
         """
-        participants = self.spaetzle_conf()['participants']
+        participants = Storage().get(self)['participants']
         if user in participants['liga1']:
             return 1
         elif user in participants['liga2']:
@@ -203,8 +218,8 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
         """
         Bridge between a Discord user and a Spätzle participant
         """
-        if user_id in self.spaetzle_conf()['discord_user_bridge']:
-            return self.spaetzle_conf()['discord_user_bridge'][user_id]
+        if user_id in Storage().get(self)['discord_user_bridge']:
+            return Storage().get(self)['discord_user_bridge'][user_id]
         else:
             return None
 
@@ -317,26 +332,26 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
 
     @spaetzle.command(name="link", help="Get the link to the spreadsheet")
     async def spaetzle_doc_link(self, ctx):
-        await ctx.send("<https://docs.google.com/spreadsheets/d/{}>".format(self.spaetzle_conf()['spaetzledoc_id']))
+        await ctx.send("<https://docs.google.com/spreadsheets/d/{}>".format(Config().get(self)['spaetzledoc_id']))
 
     @spaetzle.command(name="user", help="Connects your discord user with a specific spaetzle user")
     async def user_bridge(self, ctx, user=None):
         discord_user = ctx.message.author.id
         # User-Verbindung entfernen
         if user is None:
-            if discord_user in self.spaetzle_conf()["discord_user_bridge"]:
-                del self.spaetzle_conf()["discord_user_bridge"][discord_user]
+            if discord_user in Storage().get(self)["discord_user_bridge"]:
+                del Storage().get(self)["discord_user_bridge"][discord_user]
                 Storage().save(self)
-                await ctx.message.add_reaction(Lang.CMDSUCCESS)
+                await add_reaction(ctx.message, Lang.CMDSUCCESS)
             else:
                 await ctx.send(Lang.lang(self, 'user_not_bridged'))
             return
         # User-Verbindung hinzufügen
         try:
             self.get_user_cell(user)
-            self.spaetzle_conf()["discord_user_bridge"][ctx.message.author.id] = user
+            Storage().get(self)["discord_user_bridge"][ctx.message.author.id] = user
             Storage().save(self)
-            await ctx.message.add_reaction(Lang.CMDSUCCESS)
+            await add_reaction(ctx.message, Lang.CMDSUCCESS)
         except UserNotFound:
             await ctx.send(Lang.lang(self, 'user_not_found'))
 
@@ -347,6 +362,8 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
 
     @spaetzle_set.command(name="matches", aliases=["spiele"])
     async def set_matches(self, ctx, matchday: int = None):
+        if not await self.trusted_check(ctx):
+            return
         async with ctx.typing():
             # Request data
             if matchday is None:
@@ -354,7 +371,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                 try:
                     matchday = match_list[0].get('Group', {}).get('GroupOrderID', 0)
                 except IndexError:
-                    await ctx.message.add_reaction(Lang.CMDERROR)
+                    await add_reaction(ctx.message, Lang.CMDERROR)
                     return
                 for match in match_list:
                     if match.get('MatchIsFinished', True) is False:
@@ -399,18 +416,20 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                 values.append([calendar.day_abbr[date_time.weekday()],
                                date_time.strftime("%d.%m.%Y"), date_time.strftime("%H:%M"),
                                match.get('team_home'), "–", "–", match.get('team_away')])
-            c.update(self.spaetzle_conf()['matches_range'], values, raw=False)
+            c.update(Config().get(self)['matches_range'], values, raw=False)
 
             msg = ""
             for row in values:
                 msg += "{0} {1} {2} Uhr | {3} - {6}\n".format(*row)
-            await ctx.message.add_reaction(Lang.CMDSUCCESS)
+            await add_reaction(ctx.message, Lang.CMDSUCCESS)
             await ctx.send(embed=discord.Embed(title="Spieltag {}".format(matchday), description=msg))
 
     @spaetzle_set.command(name="duels", aliases=["duelle"])
     async def set_duels(self, ctx, matchday: int, league: int = None):
+        if not await self.trusted_check(ctx):
+            return
         if matchday < 1 or matchday > 17:
-            await ctx.message.add_reaction(Lang.CMDERROR)
+            await add_reaction(ctx.message, Lang.CMDERROR)
             await ctx.send(Lang.lang(self, 'matchday_out_of_range'))
 
         if league is None:
@@ -437,7 +456,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
         Reads the matches from the sheet
         """
         c = self.get_api_client()
-        matches = c.get(self.spaetzle_conf()['matches_range'], formatted=False)
+        matches = c.get(Config().get(self)['matches_range'], formatted=False)
 
         # Extract matches
         self.matches.clear()
@@ -486,7 +505,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             except UserNotFound:
                 # Opponent not found
                 oppo_predictions = Lang.lang(self, 'user_not_found')
-                matches, preds_h = c.get_multiple([self.spaetzle_conf()['matches_range'],
+                matches, preds_h = c.get_multiple([Config().get(self)['matches_range'],
                                                    "Aktuell!{}:{}".format(c.cellname(col1, row1 + 1),
                                                                           c.cellname(col1 + 1, row1 + 9))],
                                                   formatted=False)
@@ -494,7 +513,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             else:
                 # Opponent found
                 oppo_predictions = ""
-                matches, preds_h, preds_a = c.get_multiple([self.spaetzle_conf()['matches_range'],
+                matches, preds_h, preds_a = c.get_multiple([Config().get(self)['matches_range'],
                                                             "Aktuell!{}:{}".format(c.cellname(col1, row1 + 1),
                                                                                    c.cellname(col1 + 1, row1 + 9)),
                                                             "Aktuell!{}:{}".format(c.cellname(col2, row2 + 1),
@@ -565,7 +584,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                 # Observed users
                 title = "Duelle"
                 data_ranges = []
-                observed_users = self.spaetzle_conf()['observed_users']
+                observed_users = Storage().get(self)['observed_users']
 
                 if len(observed_users) == 0:
                     msg = Lang.lang(self, 'no_observed_users')
@@ -613,7 +632,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
     async def show_matches(self, ctx):
         async with ctx.typing():
             c = self.get_api_client()
-            matches = c.get(self.spaetzle_conf()['matches_range'], formatted=False)
+            matches = c.get(Config().get(self)['matches_range'], formatted=False)
 
             if len(matches) == 0:
                 await ctx.send(Lang.lang(self, 'no_matches'))
@@ -691,18 +710,66 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
 
         await ctx.send(embed=discord.Embed(title="Gegner von {}".format(user), description=msg))
 
-    @spaetzle.group(name="observe",
-                    help="Configure which users should be observed.")
+    @spaetzle.group(name="trusted", help="Configures which users are allowed to edit")
+    async def trusted(self, ctx):
+        if ctx.invoked_subcommand is None:
+            await ctx.invoke(self.bot.get_command('spaetzle trusted list'))
+
+    @trusted.command(name="list", help="Lists all trusted users")
+    async def trusted_list(self, ctx):
+        raw = [Config.get(self)['manager']] + Config.get(self)['trusted']
+        trusted_users = []
+        for user_id in raw:
+            user = self.bot.guild.get_member(user_id)
+            if user is None:
+                user = self.bot.get_user(user_id)
+            trusted_users.append(get_best_username(user))
+        msg = "{} {}\n{} {}".format(Lang.lang(self, 'manager_prefix'), trusted_users[0],
+                                    Lang.lang(self, 'trusted_prefix'), ", ".join(trusted_users[1:]))
+        await ctx.send(msg)
+
+    @trusted.command(name="add", help="Adds a user to the trusted list.")
+    async def trusted_add(self, ctx, user: discord.User):
+        if ctx.message.author.id == Config.get(self)['manager']:
+            if user.id not in Config.get(self)['trusted']:
+                Config.get(self)['trusted'].append(user.id)
+                Config().save(self)
+            await add_reaction(ctx.message, Lang.CMDSUCCESS)
+        else:
+            await add_reaction(ctx.message, Lang.CMDNOPERMISSIONS)
+            await ctx.send(Lang.lang(self, 'manager_only'))
+
+    @trusted.command(name="del", help="Removes user from the trusted list")
+    async def trusted_remove(self, ctx, user: discord.User):
+        if ctx.message.author.id == Config.get(self)['manager']:
+            if user.id in Config.get(self)['trusted']:
+                Config.get(self)['trusted'].remove(user.id)
+                Config().save(self)
+            await add_reaction(ctx.message, Lang.CMDSUCCESS)
+        else:
+            await add_reaction(ctx.message, Lang.CMDNOPERMISSIONS)
+            await ctx.send(Lang.lang(self, 'manager_only'))
+
+    @trusted.command(name="manager", help="Sets the manager")
+    async def trusted_manager(self, ctx, user: discord.User):
+        if ctx.author.id == Config.get(self)['manager'] or check_full_access(ctx.author):
+            Config.get(self)['manager'] = user.id
+            Config().save(self)
+            await add_reaction(ctx.message, Lang.CMDSUCCESS)
+        else:
+            await add_reaction(ctx.message, Lang.CMDNOPERMISSIONS)
+
+    @spaetzle.group(name="observe", help="Configure which users should be observed.")
     async def observe(self, ctx):
         if ctx.invoked_subcommand is None:
             await ctx.invoke(self.bot.get_command('spaetzle observe list'))
 
     @observe.command(name="list", help="Lists the observed users")
     async def observe_list(self, ctx):
-        if len(self.spaetzle_conf()['observed_users']) == 0:
+        if len(Storage().get(self)['observed_users']) == 0:
             msg = Lang.lang(self, 'no_observed_users')
         else:
-            msg = ", ".join(self.spaetzle_conf()['observed_users'])
+            msg = "{} {}".format(Lang.lang(self, 'observe_prefix'), ", ".join(Storage().get(self)['observed_users']))
         await ctx.send(msg)
 
     @observe.command(name="add", help="Adds a user to be observed")
@@ -713,17 +780,17 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             await ctx.send(Lang.lang(self, 'user_not_found'))
             return
 
-        if user not in self.spaetzle_conf()['observed_users']:
-            self.spaetzle_conf()['observed_users'].append(user)
+        if user not in Storage().get(self)['observed_users']:
+            Storage().get(self)['observed_users'].append(user)
             Storage().save(self)
-        await ctx.message.add_reaction(Lang.CMDSUCCESS)
+        await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
     @observe.command(name="del", help="Removes a user from the observation")
     async def observe_remove(self, ctx, user):
-        if user in self.spaetzle_conf()['observed_users']:
-            self.spaetzle_conf()['observed_users'].remove(user)
+        if user in Storage().get(self)['observed_users']:
+            Storage().get(self)['observed_users'].remove(user)
             Storage().save(self)
-            await ctx.message.add_reaction(Lang.CMDSUCCESS)
+            await add_reaction(ctx.message, Lang.CMDSUCCESS)
         else:
             await ctx.send(Lang.lang(self, 'user_not_found'))
 

@@ -6,6 +6,10 @@
         "matchday_out_of_range": "Invalid matchday. Valid matchdays: 1 to 17",
         "no_matches": "No matches found.",
         "no_observed_users": "No observed users.",
+        "observe_prefix": "Observed users:",
+        "manager_prefix": "Manager:",
+        "trusted_prefix": "Trusted:",
+        "manager_only": "Sorry, only the manager can perform this action.",
         "user_not_bridged": "You are currently not connected with a user.",
         "user_not_found": "User not found."
     },
@@ -15,6 +19,9 @@
         "invalid_league": "Existierende Ligen: 1, 2, 3, 4",
         "matchday_out_of_range": "Spieltage außerhalb 1 bis 17 sind nicht gültig.",
         "no_matches": "Keine Spiele gefunden.",
-        "no_observed_users": "Ich beobachte noch keine Teilnehmer."
+        "no_observed_users": "Ich beobachte noch keine Teilnehmer.",
+        "observe_prefix": "Ich beobachte:",
+        "manager_only": "Sorry, only the manager can perform this action.",
+        "user_not_bridged": "Es scheint als wüsste ich noch nicht, wer du bist."
     }
 }
