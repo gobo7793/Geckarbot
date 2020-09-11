@@ -22,7 +22,7 @@ class UserBlockedCommand(Exception):
     Can be used for passive command checking.
     """
 
-    def __init__(self, user: discord.User, command: str = ""):
+    def __init__(self, user: discord.abc.User, command: str = ""):
         self.user = user
         self.command = command
         super().__init__()

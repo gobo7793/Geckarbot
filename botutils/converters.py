@@ -32,7 +32,7 @@ def get_best_username(user):
     return str(user)
 
 
-def get_best_user(bot, uid) -> Optional[Union[discord.Member, discord.User]]:
+def get_best_user(bot, uid) -> Union[discord.Member, discord.User, None]:
     """
     Gets the member object of the given user id, or if member not found, the user object, or None of nothing found.
 
