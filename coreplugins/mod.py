@@ -82,10 +82,10 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
                             prefix=Lang.lang(self, 'plugins_loaded_cp', len(coreplugins)), delimiter=", "):
             await ctx.send(msg)
         for msg in paginate(plugins,
-                            prefix=Lang.lang(self, 'plugins_loaded_pl', len(coreplugins)), delimiter=", "):
+                            prefix=Lang.lang(self, 'plugins_loaded_pl', len(plugins)), delimiter=", "):
             await ctx.send(msg)
         for msg in paginate(subsys,
-                            prefix=Lang.lang(self, 'plugins_loaded_ss', len(coreplugins)), delimiter=", "):
+                            prefix=Lang.lang(self, 'plugins_loaded_ss', len(subsys)), delimiter=", "):
             await ctx.send(msg)
 
     @commands.command(name="about", aliases=["git", "github"])
