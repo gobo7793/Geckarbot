@@ -101,7 +101,7 @@ class Presence(BaseSubsystem):
 
     def default_config(self):
         return {
-            "update_period_min": 3,
+            "update_period_min": 10,
             "loading_msg": "Loading..."
         }
 
