@@ -167,7 +167,7 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
     async def disable_mod(self, ctx, *args):
         user, command, until = await self._parse_mod_args(ctx.message, *args)
 
-        final_msg = None
+        final_msg = "❓❔❓"
         reaction = Lang.CMDERROR
         until_str = ""
 
@@ -247,7 +247,7 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
     @commands.group(name="enable", invoke_without_command=True, aliases=["unignore", "unblock"],
                     usage="[full command name]")
     async def enable(self, ctx, command=None):
-        final_msg = None
+        final_msg = "❓❔❓"
         reaction = Lang.CMDERROR
 
         # remove all commands if no command given
@@ -281,7 +281,7 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
     async def enable_mod(self, ctx, *args):
         user, command, until = await self._parse_mod_args(ctx.message, *args)
 
-        final_msg = None
+        final_msg = "❓❔❓"
         reaction = Lang.CMDERROR
 
         # enable command in current channel
