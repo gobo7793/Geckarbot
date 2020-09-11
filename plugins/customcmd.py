@@ -20,6 +20,7 @@ wildcard_all_args = "%a"
 quotation_signs = "\"‘‚‛“„‟⹂「」『』〝〞﹁﹂﹃﹄＂｢｣«»‹›《》〈〉"
 cmd_re = re.compile(rf"\+?([{quotation_signs}]([^{quotation_signs}]*)[{quotation_signs}]|\S+)")
 arg_list_re = re.compile(r"(%(\d)(\*?))")
+mention_re = re.compile(r"<[@!#&]{0,2}\d+>")
 
 
 def _get_all_arg_str(start_index, all_arg_list):
@@ -510,7 +511,7 @@ class Plugin(BasePlugin, name="Custom CMDs"):
             raise commands.MissingRequiredArgument(inspect.signature(self.cmd_add).parameters['message'])
         cmd_name = cmd_name.lower()
 
-        if cmd_name.startswith("<@"):
+        if mention_re.match(cmd_name) is not None:
             await utils.add_reaction(ctx.message, Lang.CMDERROR)
             await ctx.send(Lang.lang(self, 'no_mention_allowed'))
             return
