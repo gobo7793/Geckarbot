@@ -47,12 +47,26 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
         return {
             'manager': 0,
             'trusted': [],
-            'matches_range': "Aktuell!B3:H11",
-            'spaetzledoc_id': "1ZzEGP_J9WxJGeAm1Ri3er89L1IR1riq7PH2iKVDmfP8"
+            'spaetzledoc_id': "1ZzEGP_J9WxJGeAm1Ri3er89L1IR1riq7PH2iKVDmfP8",
+            'matches_range': "B3:H11",
+            'duel_ranges': {
+                1: "J3:T11",
+                2: "V3:AF11",
+                3: "AH3:AR11",
+                4: "AT3:BD11"
+            },
+            'table_ranges': {
+                1: "J14:T31",
+                2: "V14:AF31",
+                3: "AH14:AR31",
+                4: "AT14:BD31"
+            },
+            'predictions_range': "BH2:CQ49"
         }
 
     def default_storage(self):
         return {
+            'matchday': 0,
             'discord_user_bridge': {},
             'observed_users': [],
             'participants': {
@@ -416,13 +430,18 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                 values.append([calendar.day_abbr[date_time.weekday()],
                                date_time.strftime("%d.%m.%Y"), date_time.strftime("%H:%M"),
                                match.get('team_home'), "–", "–", match.get('team_away')])
-            c.update(Config().get(self)['matches_range'], values, raw=False)
+            c.update("Aktuell!{}".format(Config().get(self)['matches_range']), values, raw=False)
+
+            # Set matchday
+            Storage().get(self)['matchday'] = matchday
+            Storage().save(self)
 
             msg = ""
             for row in values:
                 msg += "{0} {1} {2} Uhr | {3} - {6}\n".format(*row)
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
         await ctx.send(embed=discord.Embed(title="Spieltag {}".format(matchday), description=msg))
+        # TODO confirm before setting
 
     @spaetzle_set.command(name="duels", aliases=["duelle"])
     async def set_duels(self, ctx, matchday: int, league: int = None):
@@ -431,32 +450,49 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
         if matchday < 1 or matchday > 17:
             await add_reaction(ctx.message, Lang.CMDERROR)
             await ctx.send(Lang.lang(self, 'matchday_out_of_range'))
+        if league is not None and (league < 1 or league > 4):
+            await add_reaction(ctx.message, Lang.CMDERROR)
+            await ctx.send(Lang.lang(self, 'invalid_league'))
 
-        if league is None:
-            schedules = (self.get_schedule(1, matchday), self.get_schedule(2, matchday),
-                         self.get_schedule(3, matchday), self.get_schedule(4, matchday))
-            embed = discord.Embed(title="Spieltag {} - Duelle".format(matchday))
-            for i in range(len(schedules)):
+        async with ctx.typing():
+            c = self.get_api_client()
+            embed = discord.Embed()
+            if league is None:
+                schedules = {
+                    1: self.get_schedule(1, matchday),
+                    2: self.get_schedule(2, matchday),
+                    3: self.get_schedule(3, matchday),
+                    4: self.get_schedule(4, matchday)
+                }
+                embed.title = "Spieltag {} - Duelle".format(matchday)
+            else:
+                schedules = {
+                    league: self.get_schedule(league, matchday)
+                }
+                embed.title = "Spieltag {} - Duelle Liga {}".format(matchday, league)
+
+            data = {}
+            for league, duels in schedules.items():
                 msg = ""
-                for duel in schedules[i]:
+                data[league] = []
+                for duel in duels:
                     msg += "{} - {}\n".format(*duel)
-                embed.add_field(name="Liga {}".format(i + 1), value=msg)
-            await ctx.send(embed=embed)
-        else:
-            schedule = self.get_schedule(league, matchday)
-            msg = ""
-            for duel in schedule:
-                msg += "{} - {}\n".format(*duel)
-            await ctx.send(embed=discord.Embed(title="Liga {} - Spieltag {}".format(league, matchday), description=msg))
-        # TODO confirm before setting
-        # TODO put duels really into the spreadsheet
+                    data[league].append([duel[0], None, None, None, None, None, None, duel[1]])
+                if len(schedules) > 1:
+                    embed.add_field(name="Liga {}".format(league), value=msg)
+                else:
+                    embed.description = msg
+            message = await ctx.send(embed=embed)
+            for league, values in data.items():
+                c.update(Config().get(self)['duel_ranges'].get(league), values)
+        await add_reaction(message, Lang.CMDSUCCESS)
 
     def get_matches_from_sheets(self):
         """
         Reads the matches from the sheet
         """
         c = self.get_api_client()
-        matches = c.get(Config().get(self)['matches_range'], formatted=False)
+        matches = c.get("Aktuell!{}".format(Config().get(self)['matches_range']), formatted=False)
 
         # Extract matches
         self.matches.clear()
@@ -505,7 +541,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             except UserNotFound:
                 # Opponent not found
                 oppo_predictions = Lang.lang(self, 'user_not_found')
-                matches, preds_h = c.get_multiple([Config().get(self)['matches_range'],
+                matches, preds_h = c.get_multiple(["Aktuell!{}".format(Config().get(self)['matches_range']),
                                                    "Aktuell!{}:{}".format(c.cellname(col1, row1 + 1),
                                                                           c.cellname(col1 + 1, row1 + 9))],
                                                   formatted=False)
@@ -513,7 +549,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             else:
                 # Opponent found
                 oppo_predictions = ""
-                matches, preds_h, preds_a = c.get_multiple([Config().get(self)['matches_range'],
+                matches, preds_h, preds_a = c.get_multiple(["Aktuell!{}".format(Config().get(self)['matches_range']),
                                                             "Aktuell!{}:{}".format(c.cellname(col1, row1 + 1),
                                                                                    c.cellname(col1 + 1, row1 + 9)),
                                                             "Aktuell!{}:{}".format(c.cellname(col2, row2 + 1),
@@ -625,16 +661,11 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             c = self.get_api_client()
             msg = ""
 
-            range = {
-                1: "Aktuell!J3:T11",
-                2: "Aktuell!V3:AF11",
-                3: "Aktuell!AH3:AR11",
-                4: "Aktuell!AT3:BD11"
-            }.get(league)
-            if range is None:
+            data_range = "Aktuell!{}".format(Config().get(self)['duel_ranges'].get(league))
+            if data_range is None:
                 await ctx.send(Lang.lang(self, 'invalid_league'))
                 return
-            result = c.get(range)
+            result = c.get(data_range)
 
             for duel in result:
                 duel.extend([""]*(8-len(duel)))
@@ -660,7 +691,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
     async def show_matches(self, ctx):
         async with ctx.typing():
             c = self.get_api_client()
-            matches = c.get(Config().get(self)['matches_range'], formatted=False)
+            matches = c.get("Aktuell!{}".format(Config().get(self)['matches_range']), formatted=False)
 
             if len(matches) == 0:
                 await ctx.send(Lang.lang(self, 'no_matches'))
@@ -697,17 +728,12 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                     ctx.send(Lang.lang(self, 'user_not_found'))
                     return
 
-            if league == 1:
-                result = c.get("Aktuell!J14:T31")
-            elif league == 2:
-                result = c.get("Aktuell!V14:AF31")
-            elif league == 3:
-                result = c.get("Aktuell!AH14:AR31")
-            elif league == 4:
-                result = c.get("Aktuell!AT14:BD31")
-            else:
+
+            data_range = "Aktuell!{}".format(Config().get(self)['table_ranges'].get(league))
+            if data_range is None:
                 await ctx.send(Lang.lang(self, 'invalid_league'))
                 return
+            result = c.get(data_range)
 
             if not user_or_league.isnumeric():
                 # Restrict the view to users area
