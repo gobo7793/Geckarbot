@@ -90,7 +90,7 @@ class Presence(BaseSubsystem):
         self.log = logging.getLogger("presence")
         self.messages = {}  # type: Dict[int]
         self.highest_id = None  # type: Optional[int]
-        self.timer_job = None  # type: Optional[Job]
+        self._timer_job = None  # type: Optional[Job]
 
         self.log.info("Initializing presence subsystem")
         bot.plugins.append(ConfigurableContainer(self))
@@ -98,7 +98,11 @@ class Presence(BaseSubsystem):
 
         @bot.listen()
         async def on_connect():
-            await self._set_presence(Config.get(self)["loading_msg"])
+            if Config().DEBUG_MODE:
+                init_msg = "in Debug-Mode"
+            else:
+                init_msg = Config.get(self)["loading_msg"]
+            await self._set_presence(init_msg)
 
     def default_config(self):
         return {
@@ -108,6 +112,10 @@ class Presence(BaseSubsystem):
 
     def default_storage(self):
         return []
+
+    @property
+    def is_timer_up(self):
+        return self._timer_job is not None and not self._timer_job.cancelled
 
     def get_new_id(self):
         """
@@ -251,20 +259,25 @@ class Presence(BaseSubsystem):
 
     async def start(self):
         """Starts the timer to change the presence messages periodically"""
-        if self.timer_job is not None:
+        if self.is_timer_up:
             self.log.warning("Timer job already started. This call shouldn't happen.")
             return
 
         self.log.info("Start presence changing timer")
         time_dict = timedict(minute=[i for i in range(0, 60, Config.get(self)["update_period_min"])])
-        self.timer_job = self.bot.timers.schedule(self._change_callback, time_dict, repeat=True)
+        self._timer_job = self.bot.timers.schedule(self._change_callback, time_dict, repeat=True)
         job_data = {
             "current_id": -1,
             "last_prio": PresencePriority.DEFAULT,
             "id_before_high": -1
         }
-        self.timer_job.data = job_data
-        await self._change_callback(self.timer_job)
+        self._timer_job.data = job_data
+        await self._change_callback(self._timer_job)
+
+    def stop(self):
+        """Stops the timer to change the presence messsage"""
+        self._timer_job.cancel()
+        self._timer_job = None
 
     async def _set_presence(self, message):
         """Sets the presence message, based on discord.Game activity"""
@@ -273,13 +286,13 @@ class Presence(BaseSubsystem):
 
     def _execute_removing_change(self, removed_id: int):
         """Executes _change_callback() w/o awaiting with special handling for removed presence messages"""
-        if (self.timer_job.data["last_prio"] == PresencePriority.HIGH
-                or self.timer_job.data["current_id"] == removed_id):
+        if (self._timer_job.data["last_prio"] == PresencePriority.HIGH
+                or self._timer_job.data["current_id"] == removed_id):
             self._execute_change()
 
     def _execute_change(self):
         """Executes _change_callback() w/o awaiting (every time this method is called)"""
-        asyncio.run_coroutine_threadsafe(self._change_callback(self.timer_job), self.bot.loop)
+        asyncio.run_coroutine_threadsafe(self._change_callback(self._timer_job), self.bot.loop)
 
     async def _change_callback(self, job):
         """The callback method for the timer subsystem to change the presence message"""

@@ -182,7 +182,8 @@ def main():
         logging.info("Loading plugins")
         bot.load_plugins(Config().PLUGIN_DIR)
 
-        await bot.presence.start()
+        if not Config().DEBUG_MODE:
+            await bot.presence.start()
 
         logging.info(f"{bot.user} is connected to the following server: "
                      f"{guild.name} (id: {guild.id})")
