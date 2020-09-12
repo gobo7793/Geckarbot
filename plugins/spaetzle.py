@@ -144,11 +144,11 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
         return name
 
     def get_schedule(self, league: int, matchday: int):
-        matchday = [5, 16, 15, 1, 12, 9, 8, 4, 13, 10, 11, 7, 14, 3, 6, 0, 2][matchday-1]  # "Randomize" input
+        matchday = [5, 16, 15, 1, 12, 9, 8, 4, 13, 10, 11, 7, 14, 3, 6, 0, 2][matchday - 1]  # "Randomize" input
         participants = Storage().get(self)['participants'].get('liga{}'.format(league))
         if participants is None:
             raise LeagueNotFound()
-        participants = participants[0:1] + participants[matchday-1:] + participants[1:matchday-1]
+        participants = participants[0:1] + participants[matchday - 1:] + participants[1:matchday - 1]
         schedule = [
             (participants[0], participants[1]),
             (participants[2], participants[17]),
@@ -421,8 +421,8 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             msg = ""
             for row in values:
                 msg += "{0} {1} {2} Uhr | {3} - {6}\n".format(*row)
-            await add_reaction(ctx.message, Lang.CMDSUCCESS)
-            await ctx.send(embed=discord.Embed(title="Spieltag {}".format(matchday), description=msg))
+        await add_reaction(ctx.message, Lang.CMDSUCCESS)
+        await ctx.send(embed=discord.Embed(title="Spieltag {}".format(matchday), description=msg))
 
     @spaetzle_set.command(name="duels", aliases=["duelle"])
     async def set_duels(self, ctx, matchday: int, league: int = None):
@@ -440,7 +440,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                 msg = ""
                 for duel in schedules[i]:
                     msg += "{} - {}\n".format(*duel)
-                embed.add_field(name="Liga {}".format(i+1), value=msg)
+                embed.add_field(name="Liga {}".format(i + 1), value=msg)
             await ctx.send(embed=embed)
         else:
             schedule = self.get_schedule(league, matchday)
@@ -571,62 +571,91 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             embed.add_field(name=user, value=user_predictions)
             embed.add_field(name=opponent, value=oppo_predictions)
 
-            await ctx.send(embed=embed)
+        await ctx.send(embed=embed)
 
     @spaetzle.command(name="duels", aliases=["duelle"],
                       help="Displays the duels of observed users or the specified league")
-    async def show_duels(self, ctx, league: int = None):
+    async def show_duels(self, ctx, league: str = None):
+        if league is None:
+            # Observed users
+            await self.show_duels_observed(ctx)
+        else:
+            if league == "all":
+                # All leagues
+                await self.show_duels_all(ctx)
+            elif league.isnumeric():
+                # League
+                await self.show_duels_league(ctx, int(league))
+            else:
+                await add_reaction(ctx.message, Lang.CMDERROR)
+
+    async def show_duels_observed(self, ctx):
         async with ctx.typing():
             c = self.get_api_client()
             msg = ""
 
-            if league is None:
-                # Observed users
-                title = "Duelle"
-                data_ranges = []
-                observed_users = Storage().get(self)['observed_users']
+            data_ranges = []
+            observed_users = Storage().get(self)['observed_users']
 
-                if len(observed_users) == 0:
-                    msg = Lang.lang(self, 'no_observed_users')
-                else:
-                    for user in observed_users:
-                        try:
-                            col, row = self.get_user_cell(user)
-                            data_ranges.append("Aktuell!{}".format(c.cellname(col, row)))
-                            data_ranges.append(
-                                "Aktuell!{}:{}".format(c.cellname(col, row + 10), c.cellname(col + 1, row + 11)))
-                        except UserNotFound:
-                            pass
-                    data = c.get_multiple(data_ranges)
-                    for i in range(0, len(data_ranges), 2):
-                        user = data[i][0][0]
-                        opponent = data[i + 1][1][1]
-                        if opponent in observed_users:
-                            if observed_users.index(opponent) > observed_users.index(user):
-                                msg += "**{}** [{}:{}] **{}**\n".format(user, data[i + 1][0][0], data[i + 1][1][0],
-                                                                        opponent)
-                        else:
-                            msg += "**{}** [{}:{}] {}\n".format(user, data[i + 1][0][0], data[i + 1][1][0], opponent)
+            if len(observed_users) == 0:
+                msg = Lang.lang(self, 'no_observed_users')
             else:
-                # League
-                title = "Duelle Liga {}".format(league)
-                if league == 1:
-                    result = c.get("Aktuell!J3:T11")
-                elif league == 2:
-                    result = c.get("Aktuell!V3:AF11")
-                elif league == 3:
-                    result = c.get("Aktuell!AH3:AR11")
-                elif league == 4:
-                    result = c.get("Aktuell!AT3:BD11")
-                else:
-                    await ctx.send(Lang.lang(self, 'invalid_league'))
-                    return
+                for user in observed_users:
+                    try:
+                        col, row = self.get_user_cell(user)
+                        data_ranges.append("Aktuell!{}".format(c.cellname(col, row)))
+                        data_ranges.append(
+                            "Aktuell!{}:{}".format(c.cellname(col, row + 10), c.cellname(col + 1, row + 11)))
+                    except UserNotFound:
+                        pass
+                data = c.get_multiple(data_ranges)
+                for i in range(0, len(data_ranges), 2):
+                    user = data[i][0][0]
+                    opponent = data[i + 1][1][1]
+                    if opponent in observed_users:
+                        if observed_users.index(opponent) > observed_users.index(user):
+                            msg += "**{}** [{}:{}] **{}**\n".format(user, data[i + 1][0][0], data[i + 1][1][0],
+                                                                    opponent)
+                    else:
+                        msg += "**{}** [{}:{}] {}\n".format(user, data[i + 1][0][0], data[i + 1][1][0], opponent)
+        await ctx.send(embed=discord.Embed(title="Duelle", description=msg))
 
-                for match in result:
-                    if len(match) >= 8:
-                        msg += "{0} [{4}:{5}] {7}\n".format(*match)
+    async def show_duels_league(self, ctx, league: int):
+        async with ctx.typing():
+            c = self.get_api_client()
+            msg = ""
 
-            await ctx.send(embed=discord.Embed(title=title, description=msg))
+            if league == 1:
+                result = c.get("Aktuell!J3:T11")
+            elif league == 2:
+                result = c.get("Aktuell!V3:AF11")
+            elif league == 3:
+                result = c.get("Aktuell!AH3:AR11")
+            elif league == 4:
+                result = c.get("Aktuell!AT3:BD11")
+            else:
+                await ctx.send(Lang.lang(self, 'invalid_league'))
+                return
+
+            for duel in result:
+                duel.extend([""]*(8-len(duel)))
+                msg += "{0} [{4}:{5}] {7}\n".format(*duel)
+        await ctx.send(embed=discord.Embed(title="Duelle Liga {}".format(league), description=msg))
+
+    async def show_duels_all(self, ctx):
+        async with ctx.typing():
+            c = self.get_api_client()
+            data_ranges = ["Aktuell!J3:T11", "Aktuell!V3:AF11", "Aktuell!AH3:AR11", "Aktuell!AT3:BD11"]
+            results = c.get_multiple(data_ranges)
+            embed = discord.Embed(title="Duelle")
+
+            for i in range(len(results)):
+                msg = ""
+                for duel in results[i]:
+                    duel.extend([""]*(8-len(duel)))
+                    msg += "{0} [{4}:{5}] {7}\n".format(*duel)
+                embed.add_field(name="Liga {}".format(i + 1), value=msg)
+        await ctx.send(embed=embed)
 
     @spaetzle.command(name="matches", aliases=["spiele"], help="Displays the matches to be predicted")
     async def show_matches(self, ctx):
@@ -644,7 +673,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                 emoji = self.match_status(date_time).value
                 msg += "{0} {3} {1} {2} Uhr | {6} - {9} | {7}:{8}\n".format(emoji, date_time.strftime("%d.%m."),
                                                                             date_time.strftime("%H:%M"), *match)
-            await ctx.send(embed=discord.Embed(title="Spiele", description=msg))
+        await ctx.send(embed=discord.Embed(title="Spiele", description=msg))
 
     @spaetzle.command(name="table", aliases=["tabelle", "league", "liga"],
                       help="Displays the table of a specific league")
@@ -694,7 +723,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                 msg += "{0}{1} | {4} | {7}:{9} {10} | {11}{0}\n".format("**" if line[3] == user_or_league else "",
                                                                         *line)
 
-            await ctx.send(embed=discord.Embed(title="Tabelle Liga {}".format(league), description=msg))
+        await ctx.send(embed=discord.Embed(title="Tabelle Liga {}".format(league), description=msg))
 
     @spaetzle.command(name="fixtures", help="Lists fixtures for a specific participant")
     async def show_fixtures(self, ctx, user=None):
