@@ -1,16 +1,16 @@
-import re
 import logging
-
-import discord
+import re
+from datetime import datetime
 from enum import IntEnum
 
-from datetime import datetime
+import discord
 from discord.ext import commands
-from conf import Storage, Lang, Config
-from botutils import parsers, permchecks, sheetsclient, utils
-from botutils.stringutils import paginate, clear_link
-from botutils.converters import get_best_user
+
 from base import BasePlugin
+from botutils import permchecks, sheetsclient, utils, timeutils
+from botutils.converters import get_best_user
+from botutils.stringutils import paginate, clear_link
+from conf import Storage, Lang, Config
 
 
 class DscState(IntEnum):
@@ -213,7 +213,7 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
                      description="Sets the end date and time for registration and voting phase. "
                                  "If no time is given, 23:59 will be used.")
     async def dsc_set_date(self, ctx, *args):
-        date = parsers.parse_time_input(args, end_of_day=True)
+        date = timeutils.parse_time_input(args, end_of_day=True)
         Storage.get(self)['date'] = date
         Storage().save(self)
         await utils.add_reaction(ctx.message, Lang.CMDSUCCESS)

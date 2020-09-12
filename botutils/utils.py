@@ -4,6 +4,7 @@ import random
 from discord.ext.commands.bot import Bot
 
 from botutils.converters import get_embed_str
+from botutils.timeutils import to_local_time
 from conf import Config
 import logging
 
@@ -23,13 +24,6 @@ async def add_reaction(message: discord.Message, reaction):
         await message.add_reaction(reaction)
     except discord.HTTPException:
         await message.channel.send(reaction)
-
-def to_local_time(timestamp):
-    """
-    Converts the given timestamp from UTC to local time
-    :param timestamp: The datetime instance of the timestamp
-    """
-    return timestamp.replace(tzinfo=datetime.timezone.utc).astimezone(tz=None)
 
 
 async def _write_to_channel(bot: Bot, channel_id: int = 0, message=None, channel_type: str = ""):

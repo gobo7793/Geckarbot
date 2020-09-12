@@ -29,9 +29,9 @@ class Plugin(BasePlugin, name="Bot status commands for monitoring and debug purp
                             if_empty="None"):
             await ctx.send(msg)
 
-        status = "up" if self.bot.timers.is_alive() else "down"
+        timer_status = "up" if self.bot.timers.is_alive() else "down"
         for msg in paginate(self.bot.timers.jobs,
-                            prefix="**Timers: Thread is {}; registrations:**\n".format(status),
+                            prefix="**Timers: Thread is {}; registrations:**\n".format(timer_status),
                             suffix="\n",
                             if_empty="None"):
             await ctx.send(msg)
@@ -40,8 +40,10 @@ class Plugin(BasePlugin, name="Bot status commands for monitoring and debug purp
                             suffix="\n",
                             if_empty="None"):
             await ctx.send(msg)
+
+        presence_timer_status = "up" if self.bot.presence.is_timer_up else "down"
         for msg in paginate(list(self.bot.presence.messages.values()),
-                            prefix="**Full presence entries:**\n",
+                            prefix="**Full presence entries, Timer is {}:**\n".format(presence_timer_status),
                             suffix="\n",
                             if_empty="None"):
             await ctx.send(msg)

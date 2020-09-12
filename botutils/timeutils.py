@@ -1,4 +1,22 @@
-import datetime
+from datetime import timezone, date, datetime, time, timedelta
+
+
+def to_local_time(timestamp):
+    """
+    Converts the given timestamp from UTC to local time
+    :param timestamp: The datetime instance of the timestamp
+    """
+    return timestamp.replace(tzinfo=timezone.utc).astimezone(tz=None)
+
+
+def from_epoch_ms(timestamp):
+    """
+    Converts the given timestamp from linux epoch in milliseconds to datetime object
+
+    :param timestamp: linux epoch in ms
+    :return: datetime object
+    """
+    return datetime.fromtimestamp(timestamp / 1000)
 
 
 def parse_time_input(*args, end_of_day=False):
@@ -27,40 +45,40 @@ def parse_time_input(*args, end_of_day=False):
             return "".join(t)
         return arg_list
 
-    today = datetime.date.today()
-    fill_time = datetime.time.max if end_of_day else datetime.datetime.now().time()
+    today = date.today()
+    fill_time = time.max if end_of_day else datetime.now().time()
     arg = unpack_tuple(args).replace(" ", "")
 
     try:  # duration: #|#m|#h|#d
         if arg.endswith("m"):
-            return datetime.datetime.now() + datetime.timedelta(minutes=int(arg[:-1]))
+            return datetime.now() + timedelta(minutes=int(arg[:-1]))
         elif arg.endswith("h"):
-            return datetime.datetime.now() + datetime.timedelta(hours=int(arg[:-1]))
+            return datetime.now() + timedelta(hours=int(arg[:-1]))
         elif arg.endswith("d"):
-            return datetime.datetime.now() + datetime.timedelta(days=int(arg[:-1]))
+            return datetime.now() + timedelta(days=int(arg[:-1]))
         else:
-            return datetime.datetime.now() + datetime.timedelta(minutes=int(arg))
+            return datetime.now() + timedelta(minutes=int(arg))
     except ValueError:
         try:  # date: DD.MM.YYYY
-            parsed = datetime.datetime.strptime(arg, "%d.%m.%Y")
-            return datetime.datetime.combine(parsed.date(), fill_time)
+            parsed = datetime.strptime(arg, "%d.%m.%Y")
+            return datetime.combine(parsed.date(), fill_time)
         except ValueError:
             try:  # full datetime: DD.MM.YYYY HH:MM
-                return datetime.datetime.strptime(arg, "%d.%m.%Y%H:%M")
+                return datetime.strptime(arg, "%d.%m.%Y%H:%M")
             except ValueError:
                 try:  # date: DD.MM
-                    parsed = datetime.datetime.strptime(arg, "%d.%m.")
-                    return datetime.datetime(today.year, parsed.month, parsed.day, fill_time.hour, fill_time.minute)
+                    parsed = datetime.strptime(arg, "%d.%m.")
+                    return datetime(today.year, parsed.month, parsed.day, fill_time.hour, fill_time.minute)
                 except ValueError:
                     try:  # datetime w/o year: DD.MM. HH:MM
-                        parsed = datetime.datetime.strptime(arg, "%d.%m.%H:%M")
-                        return datetime.datetime(today.year, parsed.month, parsed.day, parsed.hour, parsed.minute)
+                        parsed = datetime.strptime(arg, "%d.%m.%H:%M")
+                        return datetime(today.year, parsed.month, parsed.day, parsed.hour, parsed.minute)
                     except ValueError:
                         try:  # time: HH:MM
-                            parsed = datetime.datetime.strptime(arg, "%H:%M")
-                            return datetime.datetime.combine(today, parsed.time())
+                            parsed = datetime.strptime(arg, "%H:%M")
+                            return datetime.combine(today, parsed.time())
                         except ValueError:
                             pass
 
     # No valid time input
-    return datetime.datetime.max
+    return datetime.max

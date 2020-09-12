@@ -5,7 +5,7 @@ from datetime import datetime, timezone, timedelta
 import discord
 from discord.ext import commands
 
-import botutils.parsers
+import botutils.timeutils
 from conf import Storage, Lang, Config
 
 from base import BasePlugin
@@ -211,7 +211,7 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
             except (ValueError, IndexError):
                 rtext = " ".join(args[1:])
                 time_args = [args[0]]
-        remind_time = botutils.parsers.parse_time_input(*time_args)
+        remind_time = botutils.timeutils.parse_time_input(*time_args)
 
         if remind_time == datetime.max:
             raise commands.BadArgument(message=Lang.lang(self, 'remind_duration_err'))

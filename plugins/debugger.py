@@ -85,19 +85,19 @@ class Plugin(BasePlugin, name="Testing and debug things"):
         result = self.bot.presence.deregister_id(presence_id)
         await ctx.send("deregistered with result {}".format(result))
 
-    @commands.command(name="presencestart", help="Starts the presence timer in debug mode")
+    @commands.command(name="presencestart", help="Starts the presence timer")
     async def start_presence(self, ctx):
-        if Config().DEBUG_MODE:
+        if not self.bot.presence.is_timer_up:
             await self.bot.presence.start()
         else:
-            await ctx.send("Bot is not in debug mode")
+            await ctx.send("Timer already started")
 
     @commands.command(name="presencestop", help="Stops the presence timer in debug mode")
     async def stop_presence(self, ctx):
-        if Config().DEBUG_MODE and self.bot.presence.is_timer_up:
+        if self.bot.presence.is_timer_up:
             self.bot.presence.stop()
         else:
-            await ctx.send("Bot is not in debug mode or presence timer not started")
+            await ctx.send("Timer not started")
 
     @commands.command(name="write")
     async def write(self, ctx, *, args):

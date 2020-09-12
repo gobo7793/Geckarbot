@@ -5,7 +5,7 @@ from discord.ext import commands
 
 from conf import Config, Lang
 from botutils import utils
-from botutils.parsers import parse_time_input
+from botutils.timeutils import parse_time_input
 from botutils.stringutils import paginate
 from botutils.converters import get_best_username, convert_member
 from base import BasePlugin, ConfigurableType
