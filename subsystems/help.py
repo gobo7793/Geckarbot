@@ -304,7 +304,7 @@ class GeckiHelp(BaseSubsystem):
     def format_subcmds(self, plugin, command):
         r = []
         if isinstance(command, commands.Group):
-            for cmd in command.commands:
+            for cmd in plugin.sort_subcommands(command, command.commands):
                 r.append("  {}".format(self.format_command_help_line(plugin, cmd)))
             if r:
                 r = [Lang.lang(self, "help_subcommands_prefix")] + r

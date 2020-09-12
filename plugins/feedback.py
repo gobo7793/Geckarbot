@@ -85,12 +85,12 @@ class Complaint:
         content = msg.content[len("!complain"):].strip()  # todo check if necessary
         return cls(plugin, plugin.get_new_id(), msg.author, msg.jump_url, content, None)
 
-    def to_message(self, show_cat=True):
+    def to_message(self, show_cat=True, include_url=True):
         authorname = "Not found"
         if self.author is not None:
             authorname = converters.get_best_username(self.author)
         r = "**#{}**: {}: {}".format(self.id, authorname, self.content)
-        if self.msg_link is not None:
+        if include_url and self.msg_link is not None:
             r += "\n{}".format(self.msg_link)
         if show_cat and self.category is not None:
             r += "\n{}".format(Lang.lang(self.plugin, "redact_cat_appendix", self.category))
@@ -132,8 +132,9 @@ class Plugin(BasePlugin, name="Feedback"):
         }
 
     def reset_highest_id(self):
-        self.highest_id = 0
+        self.highest_id = 1
         for el in self.complaints:
+            assert el > 0
             if el > self.highest_id:
                 self.highest_id = el
 
@@ -197,7 +198,7 @@ class Plugin(BasePlugin, name="Feedback"):
             await ctx.send(el)
 
     @redact.command(name="del", help="Deletes a complaint", usage=h_del_usage)
-    async def delete(self, ctx, complaint: int):
+    async def cmd_delete(self, ctx, complaint: int):
         # Delete
         try:
             del self.complaints[complaint]
@@ -211,7 +212,7 @@ class Plugin(BasePlugin, name="Feedback"):
         await ctx.message.add_reaction(Lang.CMDSUCCESS)
 
     @redact.command(name="search", help="Finds all complaints that contain all search terms", usage=h_search_usage)
-    async def search(self, ctx, *args):
+    async def cmd_search(self, ctx, *args):
         if len(args) == 0:
             await ctx.message.add_reaction(Lang.CMDERROR)
             await ctx.send(Lang.lang(self, "redact_search_args"))
@@ -223,7 +224,7 @@ class Plugin(BasePlugin, name="Feedback"):
             found = True
             for searchterm in args:
                 # Search check
-                if searchterm.lower() not in complaint.to_message().lower():
+                if searchterm.lower() not in complaint.to_message(include_url=False).lower():
                     found = False
                     break
             if not found:
@@ -241,8 +242,32 @@ class Plugin(BasePlugin, name="Feedback"):
             await ctx.send(el)
 
     @redact.command(name="count", help="Shows the amount of complaints that exist")
-    async def count(self, ctx):
-        await ctx.send(Lang.lang(self, "redact_count", len(self.complaints)))
+    async def cmd_count(self, ctx):
+        cats = set()
+        uncategorized = 0
+        categorized = 0
+        for el in self.complaints:
+            complaint = self.complaints[el]
+            if complaint.category is not None:
+                cats.add(complaint.category)
+                categorized += 1
+            else:
+                uncategorized += 1
+        total = uncategorized + categorized
+        await ctx.send(Lang.lang(self, "redact_count", total, categorized, uncategorized, len(cats)))
+
+    @redact.command(name="flatten", hidden=True, help="Flattens the complaint IDs")
+    async def cmd_flatten(self, ctx):
+        i = 1
+        new = {}
+        for el in sorted(self.complaints.keys()):
+            new[i] = self.complaints[el]
+            new[i].id = i
+            i += 1
+
+        self.complaints = new
+        self.write()
+        ctx.message.add_reaction(Lang.CMDSUCCESS)
 
     async def category_move(self, ctx, complaint_ids: list, category):
         """
