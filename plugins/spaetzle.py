@@ -676,7 +676,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
 
     @spaetzle.command(name="table", aliases=["tabelle", "league", "liga"],
                       help="Displays the table of a specific league")
-    async def show_table(self, ctx, user_or_league=None):
+    async def show_table(self, ctx, user_or_league: str = None):
         async with ctx.typing():
             c = self.get_api_client()
 
@@ -709,7 +709,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                 await ctx.send(Lang.lang(self, 'invalid_league'))
                 return
 
-            if isinstance(user_or_league, str):
+            if not user_or_league.isnumeric():
                 # Restrict the view to users area
                 pos = None
                 for i in range(len(result)):
