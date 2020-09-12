@@ -132,8 +132,9 @@ class Plugin(BasePlugin, name="Feedback"):
         }
 
     def reset_highest_id(self):
-        self.highest_id = 0
+        self.highest_id = 1
         for el in self.complaints:
+            assert el > 0
             if el > self.highest_id:
                 self.highest_id = el
 
@@ -246,13 +247,27 @@ class Plugin(BasePlugin, name="Feedback"):
         uncategorized = 0
         categorized = 0
         for el in self.complaints:
-            if el.category is not None:
-                cats.add(el.category)
+            complaint = self.complaints[el]
+            if complaint.category is not None:
+                cats.add(complaint.category)
                 categorized += 1
             else:
                 uncategorized += 1
         total = uncategorized + categorized
         await ctx.send(Lang.lang(self, "redact_count", total, categorized, uncategorized, len(cats)))
+
+    @redact.command(name="flatten", hidden=True, help="Flattens the complaint IDs")
+    async def cmd_flatten(self, ctx):
+        i = 1
+        new = {}
+        for el in sorted(self.complaints.keys()):
+            new[i] = self.complaints[el]
+            new[i].id = i
+            i += 1
+
+        self.complaints = new
+        self.write()
+        ctx.message.add_reaction(Lang.CMDSUCCESS)
 
     async def category_move(self, ctx, complaint_ids: list, category):
         """
