@@ -625,17 +625,16 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             c = self.get_api_client()
             msg = ""
 
-            if league == 1:
-                result = c.get("Aktuell!J3:T11")
-            elif league == 2:
-                result = c.get("Aktuell!V3:AF11")
-            elif league == 3:
-                result = c.get("Aktuell!AH3:AR11")
-            elif league == 4:
-                result = c.get("Aktuell!AT3:BD11")
-            else:
+            range = {
+                1: "Aktuell!J3:T11",
+                2: "Aktuell!V3:AF11",
+                3: "Aktuell!AH3:AR11",
+                4: "Aktuell!AT3:BD11"
+            }.get(league)
+            if range is None:
                 await ctx.send(Lang.lang(self, 'invalid_league'))
                 return
+            result = c.get(range)
 
             for duel in result:
                 duel.extend([""]*(8-len(duel)))
