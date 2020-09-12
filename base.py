@@ -124,3 +124,12 @@ class BasePlugin(Cog, Configurable):
         :return: Usage string
         """
         raise NotFound()
+
+    def sort_subcommands(self, command, subcommands):
+        """
+        Override to sort the subcommands of `command` yourself.
+        :param command: Command whose subcommands are to be sorted
+        :param subcommands: List of commands to be sorted
+        :return: Sorted list of commands
+        """
+        return sorted(subcommands, key=lambda x: x.name.lower())
