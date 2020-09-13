@@ -13,7 +13,7 @@ Some of the current Geckarbot features includes:
 - Subsystems for common used features like reaction and timer listeners
 - Ignore list to block users, commands or commands for specific users
 - Role management including self-assignable roles via reactions
-- Some useful or just funny commands
+- Some useful or just funny commands, including custom cmds which can be added and managed by users
 - Manage data for server events
 - Some games like a kwiss or number guessing
 
