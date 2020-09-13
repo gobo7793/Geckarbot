@@ -1,15 +1,16 @@
-from datetime import datetime
-import platform
 import pkgutil
+import platform
+from datetime import datetime
+
 from discord.ext import commands
 
-from conf import Config, Lang
-from botutils import utils
-from botutils.timeutils import parse_time_input
-from botutils.stringutils import paginate
-from botutils.converters import get_best_username, convert_member, get_plugin_by_name
-from base import BasePlugin, ConfigurableType
 import subsystems
+from base import BasePlugin, ConfigurableType
+from botutils import utils
+from botutils.converters import get_best_username, convert_member, get_plugin_by_name
+from botutils.stringutils import paginate
+from botutils.timeutils import parse_time_input
+from conf import Config, Lang
 from subsystems import help
 from subsystems.ignoring import IgnoreEditResult, IgnoreType
 from subsystems.presence import PresencePriority
@@ -96,9 +97,9 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
     #         await ctx.send(send_msg)
     #     await utils.write_debug_channel(self.bot, send_msg)
 
-    @commands.group(name="plugin", invoke_without_command=True)
+    @commands.group(name="plugin", aliases=["plugins"], invoke_without_command=True)
     async def plugins(self, ctx):
-        await ctx.invoke(self.bot.get_command("plugins list"))
+        await ctx.invoke(self.bot.get_command("plugin list"))
 
     @plugins.command(name="list")
     async def plugins_list(self, ctx):
@@ -108,14 +109,13 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
         for modname in pkgutil.iter_modules(subsystems.__path__):
             subsys.append(modname.name)
 
-        for msg in paginate(coreplugins,
-                            prefix=Lang.lang(self, 'plugins_loaded_cp', len(coreplugins)), delimiter=", "):
-            await ctx.send(msg)
-        for msg in paginate(plugins,
-                            prefix=Lang.lang(self, 'plugins_loaded_pl', len(plugins)), delimiter=", "):
-            await ctx.send(msg)
-        for msg in paginate(subsys,
-                            prefix=Lang.lang(self, 'plugins_loaded_ss', len(subsys)), delimiter=", "):
+        msgs = [
+            "{}\n{}".format(Lang.lang(self, 'plugins_loaded_ss', len(subsys)), ", ".join(subsys)),
+            "{}\n{}".format(Lang.lang(self, 'plugins_loaded_cp', len(coreplugins)), ", ".join(coreplugins)),
+            "{}\n{}".format(Lang.lang(self, 'plugins_loaded_pl', len(plugins)), ", ".join(plugins))
+        ]
+
+        for msg in paginate(msgs, delimiter="\n\n"):
             await ctx.send(msg)
 
     @plugins.command(name="unload")
