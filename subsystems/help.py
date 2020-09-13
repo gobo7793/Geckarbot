@@ -52,12 +52,13 @@ class HelpCog(BasePlugin):
 
 
 class HelpCategory:
-    def __init__(self, name, description="", order=CategoryOrder.MIDDLE, bot=None):
+    def __init__(self, name, description="", order=CategoryOrder.MIDDLE, bot=None, defaultcat=False):
         self._name = name[0].upper() + name[1:]
         self.description = description
         self.plugins = []
         self.order = order
         self.bot = bot
+        self.default = defaultcat
 
     def __str__(self):
         return "<help.HelpCategory; name: {}, order: {}>".format(self.name, self.order)
@@ -94,6 +95,9 @@ class HelpCategory:
         """
         if plugin in self.plugins:
             self.plugins.remove(plugin)
+
+        if self.is_empty() and not self.default:
+            self.bot.helpsys.deregister_category(self)
 
     def single_line(self):
         """
@@ -133,10 +137,10 @@ class GeckiHelp(BaseSubsystem):
         super().__init__(self.bot)
 
         self._categories = [
-            HelpCategory(Lang.lang(self, "default_category_misc"), order=CategoryOrder.LAST, bot=bot),
-            HelpCategory(Lang.lang(self, "default_category_admin"), bot=bot),
-            HelpCategory(Lang.lang(self, "default_category_mod"), bot=bot),
-            HelpCategory(Lang.lang(self, "default_category_games"), bot=bot),
+            HelpCategory(Lang.lang(self, "default_category_misc"), order=CategoryOrder.LAST, bot=bot, defaultcat=True),
+            HelpCategory(Lang.lang(self, "default_category_admin"), bot=bot, defaultcat=True),
+            HelpCategory(Lang.lang(self, "default_category_mod"), bot=bot, defaultcat=True),
+            HelpCategory(Lang.lang(self, "default_category_games"), bot=bot, defaultcat=True),
         ]
 
         # Setup help cmd
@@ -213,15 +217,9 @@ class GeckiHelp(BaseSubsystem):
         self._categories.append(category)
         return category
 
-    def deregister_category_by_name(self, name):
-        cat = self.category(name)
-        if cat is not None:
-            self.deregister_category(cat)
-
     def deregister_category(self, category):
         """
         Deregisters a help category. If a DefaultCategory is parsed, nothing is deregistered.
-
         :param category: HelpCategory instance or DefaultCategory instance
         """
         if isinstance(category, DefaultCategories):

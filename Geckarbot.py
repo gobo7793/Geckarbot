@@ -99,8 +99,6 @@ class Geckarbot(commands.Bot):
 
         # remove help data
         container.category.remove_plugin(plugin_instance)
-        if container.category.is_empty():
-            self.helpsys.deregister_category(container.category)
 
         # remove cog
         self.remove_cog(plugin_instance.qualified_name)
