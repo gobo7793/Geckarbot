@@ -23,15 +23,20 @@ class ConfigurableContainer:
     """
     Contains basic data for Configurables
     """
-    def __init__(self, instance: Configurable, category=None):
+    def __init__(self, instance: Configurable):
         self.instance = instance
         self.name = instance.get_name()
         self.iodirs = {}
         self.type = instance.get_configurable_type()
-        self.category = self.name if category is None else category
+        self.category = None
+        self.resource_dir = None
 
         if self.type == ConfigurableType.PLUGIN or self.type == ConfigurableType.COREPLUGIN:
             self.resource_dir = "{}/{}".format(Config().RESOURCE_DIR, self.name)
+
+    def set_category(self, category=None):
+        if category is not None:
+            self.category = category
 
 
 class IODirectory(metaclass=_Singleton):

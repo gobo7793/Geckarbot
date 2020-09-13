@@ -20,6 +20,7 @@ wildcard_all_args = "%a"
 quotation_signs = "\"‘‚‛“„‟⹂「」『』〝〞﹁﹂﹃﹄＂｢｣«»‹›《》〈〉"
 cmd_re = re.compile(rf"\+?([{quotation_signs}]([^{quotation_signs}]*)[{quotation_signs}]|\S+)")
 arg_list_re = re.compile(r"(%(\d)(\*?))")
+mention_re = re.compile(r"<[@!#&]{0,2}\d+>")
 
 
 def _get_all_arg_str(start_index, all_arg_list):
@@ -81,11 +82,9 @@ class Cmd:
 
     def get_raw_text(self, text_id):
         """Returns the raw text with the given ID as formatted string or raise IndexError if ID not exists"""
-        member = self.plugin.bot.guild.get_member(self.author_ids[text_id])
+        member = converters.get_username_from_id(self.plugin.bot, self.author_ids[text_id])
         if member is None:
             member = Lang.lang(self.plugin, "unknown_user")
-        else:
-            member = converters.get_best_username(member)
         return Lang.lang(self.plugin, 'raw_text', text_id + 1, self.texts[text_id], member)
 
     def get_raw_texts(self, index=0):
@@ -198,13 +197,13 @@ class Plugin(BasePlugin, name="Custom CMDs"):
 
         self.load()
 
-        @bot.listen()
-        async def on_message(msg):
-            if (msg.content.startswith(self.prefix)
-                    and msg.author.id != self.bot.user.id
-                    and not self.bot.ignoring.check_user(msg.author)
-                    and permchecks.whitelist_check(msg.author)):
-                await self.on_message(msg)
+    @commands.Cog.listener()
+    async def on_message(self, msg):
+        if (msg.content.startswith(self.prefix)
+                and msg.author.id != self.bot.user.id
+                and not self.bot.ignoring.check_user(msg.author)
+                and permchecks.whitelist_check(msg.author)):
+            await self.process_message(msg)
 
     def default_config(self):
         return {
@@ -320,7 +319,7 @@ class Plugin(BasePlugin, name="Custom CMDs"):
         Storage.save(self)
         logging.info("Converting finished.")
 
-    async def on_message(self, msg):
+    async def process_message(self, msg):
         """Will be called from on_message listener to react for custom cmds"""
 
         # get cmd parts/args
@@ -367,16 +366,16 @@ class Plugin(BasePlugin, name="Custom CMDs"):
 
         # set new prefix
         if not permchecks.check_full_access(ctx.author):
-            await ctx.message.add_reaction(Lang.CMDERROR)
+            await utils.add_reaction(ctx.message, Lang.CMDERROR)
             raise commands.BotMissingAnyRole(Config().FULL_ACCESS_ROLES)
 
         if new_prefix == ctx.prefix:
-            await ctx.message.add_reaction(Lang.CMDERROR)
+            await utils.add_reaction(ctx.message, Lang.CMDERROR)
             await ctx.send(Lang.lang(self, 'invalid_prefix'))
         else:
             Config.get(self)['prefix'] = new_prefix
             self.save()
-            await ctx.message.add_reaction(Lang.CMDSUCCESS)
+            await utils.add_reaction(ctx.message, Lang.CMDSUCCESS)
 
     def format_cmd_list(self, full="", incl_prefix=False):
         cmds = []
@@ -506,14 +505,19 @@ class Plugin(BasePlugin, name="Custom CMDs"):
                              "Custom commands must be compliant to the general command guidelines, "
                              "which can be accessed via !cmd guidelines.\n"
                              "Example: !cmd add test Argument1: %1 from user %u\n")
-    async def cmd_add(self, ctx, cmd_name, *, args: str):
-        if not args:
-            await ctx.message.add_reaction(Lang.CMDERROR)
-            raise commands.MissingRequiredArgument(inspect.signature(self.cmd_add).parameters['args'])
+    async def cmd_add(self, ctx, cmd_name, *, message: str):
+        if not message:
+            await utils.add_reaction(ctx.message, Lang.CMDERROR)
+            raise commands.MissingRequiredArgument(inspect.signature(self.cmd_add).parameters['message'])
         cmd_name = cmd_name.lower()
 
+        if mention_re.match(cmd_name) is not None:
+            await utils.add_reaction(ctx.message, Lang.CMDERROR)
+            await ctx.send(Lang.lang(self, 'no_mention_allowed'))
+            return
+
         # TODO Process multiple output texts
-        cmd_texts = [args]
+        cmd_texts = [message]
         text_authors = [ctx.author.id for i in range(0, len(cmd_texts))]
 
         # Process special discord /cmd
@@ -527,7 +531,7 @@ class Plugin(BasePlugin, name="Custom CMDs"):
             self.commands[cmd_name].texts.extend(cmd_texts)
             self.commands[cmd_name].author_ids.extend(text_authors)
             self.save()
-            await ctx.message.add_reaction(Lang.CMDSUCCESS)
+            await utils.add_reaction(ctx.message, Lang.CMDSUCCESS)
             await utils.write_debug_channel(self.bot, Lang.lang(self, 'cmd_text_added', cmd_name, cmd_texts))
             await ctx.send(Lang.lang(self, "add_exists", cmd_name))
         else:
@@ -535,7 +539,7 @@ class Plugin(BasePlugin, name="Custom CMDs"):
             self.bot.ignoring.add_additional_command(cmd_name)
             self.save()
             # await utils.log_to_admin_channel(ctx)
-            await ctx.message.add_reaction(Lang.CMDSUCCESS)
+            await utils.add_reaction(ctx.message, Lang.CMDSUCCESS)
             await utils.write_debug_channel(self.bot, Lang.lang(self, 'cmd_added', cmd_name,
                                                                 self.commands[cmd_name].get_raw_texts()))
 
@@ -570,19 +574,19 @@ class Plugin(BasePlugin, name="Custom CMDs"):
             text_id -= 1
 
         if cmd_name not in self.commands:
-            await ctx.message.add_reaction(Lang.CMDERROR)
+            await utils.add_reaction(ctx.message, Lang.CMDERROR)
             await ctx.send(Lang.lang(self, "del_doesnt_exist", cmd_name))
             return
 
         cmd = self.commands[cmd_name]
 
         if text_id is not None and text_id < 0:
-            await ctx.message.add_reaction(Lang.CMDERROR)
+            await utils.add_reaction(ctx.message, Lang.CMDERROR)
             await ctx.send(Lang.lang(self, 'text_id_not_positive'))
             return
 
         if text_id is not None and text_id >= len(cmd.texts):
-            await ctx.message.add_reaction(Lang.CMDERROR)
+            await utils.add_reaction(ctx.message, Lang.CMDERROR)
             await ctx.send(Lang.lang(self, 'text_id_not_found'))
             return
 
@@ -611,4 +615,4 @@ class Plugin(BasePlugin, name="Custom CMDs"):
 
         self.save()
         # await utils.log_to_admin_channel(ctx)
-        await ctx.message.add_reaction(Lang.CMDSUCCESS)
+        await utils.add_reaction(ctx.message, Lang.CMDSUCCESS)

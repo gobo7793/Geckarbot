@@ -13,7 +13,7 @@ Some of the current Geckarbot features includes:
 - Subsystems for common used features like reaction and timer listeners
 - Ignore list to block users, commands or commands for specific users
 - Role management including self-assignable roles via reactions
-- Some useful or just funny commands
+- Some useful or just funny commands, including custom cmds which can be added and managed by users
 - Manage data for server events
 - Some games like a kwiss or number guessing
 
@@ -26,8 +26,11 @@ Required pip packages:
 - discord.py 
 - dateutils
 - emoji
+- espn_api (for fantasy plugin)
+- google-api-python-client (if sheetsclient will be used)
+- google-auth-httplib2 (if sheetsclient will be used)
 
-Pip packages can be installed using `pip3 install -r requirements.txt`.
+All pip packages can be installed using `pip3 install -r requirements.txt`.
 
 To start the bot, you need an own Discord server and Discord application with a bot user. Discord applications can created at [Discord's Developer Portal](https://discord.com/developers/applications):
 1. Create Application

@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
-
+import asyncio
 import datetime
+import inspect
+from asyncio import Task
+from typing import List
+
 import discord
 import pkgutil
 import logging
@@ -32,7 +36,7 @@ class Exitcodes(Enum):
 
 class Geckarbot(commands.Bot):
     def __init__(self, *args, **kwargs):
-        self.geck_cogs = []
+        # self.geck_cogs = []
         self.guild = None
         self._plugins = []
 
@@ -50,7 +54,7 @@ class Geckarbot(commands.Bot):
         self.presence = presence.Presence(self)
 
     @property
-    def plugins(self):
+    def plugins(self) -> List[ConfigurableContainer]:
         return self._plugins
 
     def configure(self, plugin):
@@ -59,15 +63,17 @@ class Geckarbot(commands.Bot):
         Lang().remove_from_cache(plugin)
 
     def register(self, plugin_class, category=None, category_desc=None):
+        """Registers the given plugin class or instance"""
         # Add Cog
         if isinstance(plugin_class, commands.Cog):
             plugin_object = plugin_class
         else:
             plugin_object = plugin_class(self)
         self.add_cog(plugin_object)
-        self.geck_cogs.append(plugin_object)
+        # self.geck_cogs.append(plugin_object)
 
-        self.plugins.append(ConfigurableContainer(plugin_object, category=category))
+        container = ConfigurableContainer(plugin_object)
+        self.plugins.append(container)
 
         # Load IO
         self.configure(plugin_object)
@@ -78,12 +84,27 @@ class Geckarbot(commands.Bot):
                 category_desc = ""
             category = help.HelpCategory(category, description=category_desc)
         if category is None:
-            self.helpsys.register_category_by_name(plugin_object.get_name()).add_plugin(plugin_object)
+            cat = self.helpsys.register_category_by_name(plugin_object.get_name())
+            cat.add_plugin(plugin_object)
         else:
             cat = self.helpsys.register_category(category)
             cat.add_plugin(plugin_object)
+        container.set_category(cat)
 
         logging.debug("Registered plugin {}".format(plugin_object.get_name()))
+
+    def deregister(self, plugin_instance: BasePlugin):
+        """Deregisters the given plugin instance"""
+        container = converters.get_plugin_container(self, plugin_instance)
+
+        # remove help data
+        container.category.remove_plugin(plugin_instance)
+
+        # remove cog
+        self.remove_cog(plugin_instance.qualified_name)
+        self.plugins.remove(container)
+
+        logging.debug("Deregistered plugin {}".format(plugin_instance.get_name()))
 
     def plugin_objects(self, plugins_only=False):
         """
@@ -95,23 +116,63 @@ class Geckarbot(commands.Bot):
             yield el.instance
 
     def load_plugins(self, plugin_dir):
+        """Loads all plugins in plugin_dir"""
         # import
         for el in pkgutil.iter_modules([plugin_dir]):
-            plugin = el[1]
-            is_pkg = el[2]
-            try:
-                to_import = "{}.{}".format(plugin_dir, plugin)
-                if is_pkg:
-                    to_import = "{}.{}.{}".format(plugin_dir, plugin, plugin)
+            self.load_plugin(plugin_dir, el[1])
+            # plugin = el[1]
+            # is_pkg = el[2]
+            # try:
+            #     to_import = "{}.{}".format(plugin_dir, plugin)
+            #     if is_pkg:
+            #         to_import = "{}.{}.{}".format(plugin_dir, plugin, plugin)
+            #
+            #     pkgutil.importlib.import_module(to_import).Plugin(self)
+            # except NotLoadable as e:
+            #     logging.warning("Plugin {} could not be loaded: {}".format(plugin, e))
+            # except Exception as e:
+            #     logging.error("Unable to load plugin: {}:\n{}".format(plugin, traceback.format_exc()))
+            #     continue
+            # else:
+            #     logging.info("Loaded plugin {}".format(plugin))
 
+    def load_plugin(self, plugin_dir, plugin_name):
+        """Loads the given plugin_name in plugin_dir, returns True if plugin loaded successfully"""
+        try:
+            to_import = "{}.{}".format(plugin_dir, plugin_name)
+            try:
                 pkgutil.importlib.import_module(to_import).Plugin(self)
-            except NotLoadable as e:
-                logging.warning("Plugin {} could not be loaded: {}".format(plugin, e))
-            except Exception as e:
-                logging.error("Unable to load plugin: {}:\n{}".format(plugin, traceback.format_exc()))
-                continue
-            else:
-                logging.info("Loaded plugin {}".format(plugin))
+            except AttributeError:
+                to_import = "{}.{}.{}".format(plugin_dir, plugin_name, plugin_name)
+                pkgutil.importlib.import_module(to_import).Plugin(self)
+        except NotLoadable as e:
+            logging.warning("Plugin {} could not be loaded: {}".format(plugin_name, e))
+            return False
+        except Exception as e:
+            logging.error("Unable to load plugin: {}:\n{}".format(plugin_name, traceback.format_exc()))
+            return False
+        else:
+            logging.info("Loaded plugin {}".format(plugin_name))
+            return True
+
+    def unload_plugin(self, plugin_name, save_config=True):
+        """Unloads the plugin with the given plugin_name, returns True if plugin unloaded successfully"""
+        try:
+            plugin = converters.get_plugin_by_name(self, plugin_name)
+            if plugin is None:
+                return
+            self.loop.create_task(plugin.shutdown())
+            if save_config:
+                Config.save(plugin)
+                Storage.save(plugin)
+
+            self.deregister(plugin)
+        except Exception as e:
+            logging.error("Unable to unload plugin: {}:\n{}".format(plugin_name, traceback.format_exc()))
+            return False
+        else:
+            logging.info("Unloaded plugin {}".format(plugin_name))
+            return True
 
     @staticmethod
     def set_debug_mode(mode):
@@ -182,7 +243,8 @@ def main():
         logging.info("Loading plugins")
         bot.load_plugins(Config().PLUGIN_DIR)
 
-        await bot.presence.start()
+        if not Config().DEBUG_MODE:
+            await bot.presence.start()
 
         logging.info(f"{bot.user} is connected to the following server: "
                      f"{guild.name} (id: {guild.id})")

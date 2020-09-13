@@ -85,6 +85,20 @@ class Plugin(BasePlugin, name="Testing and debug things"):
         result = self.bot.presence.deregister_id(presence_id)
         await ctx.send("deregistered with result {}".format(result))
 
+    @commands.command(name="presencestart", help="Starts the presence timer")
+    async def start_presence(self, ctx):
+        if not self.bot.presence.is_timer_up:
+            await self.bot.presence.start()
+        else:
+            await ctx.send("Timer already started")
+
+    @commands.command(name="presencestop", help="Stops the presence timer in debug mode")
+    async def stop_presence(self, ctx):
+        if self.bot.presence.is_timer_up:
+            self.bot.presence.stop()
+        else:
+            await ctx.send("Timer not started")
+
     @commands.command(name="write")
     async def write(self, ctx, *, args):
         await ctx.send(args)
@@ -173,3 +187,17 @@ class Plugin(BasePlugin, name="Testing and debug things"):
     async def libmod(self, ctx):
         await ctx.send(str(view._quotes))
         await ctx.send(str(view._all_quotes))
+
+    # @commands.command(name="plunload")
+    # async def plunload(self, ctx, plugin):
+    #     await ctx.invoke(self.bot.get_command("plugins"))
+    #     instance = converters.get_plugin_by_name(self.bot, plugin)
+    #     print(instance.get_listeners())
+    #     self.bot.unload_plugin(plugin)
+    #     await ctx.invoke(self.bot.get_command("plugins"))
+    #
+    # @commands.command(name="plload")
+    # async def plload(self, ctx, plugin):
+    #     await ctx.invoke(self.bot.get_command("plugins"))
+    #     self.bot.load_plugin(Config.PLUGIN_DIR, plugin)
+    #     await ctx.invoke(self.bot.get_command("plugins"))

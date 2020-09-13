@@ -20,10 +20,15 @@
         "text_id_not_positive": "The ID of a command text must be a positive number.",
         "text_id_not_exists": "A command text with the given ID doesn't exists.",
         "del_perm_missing": "Only the original command creator or admins can delete commands or its texts.",
+        "text_id_not_found": "An output text with that ID doesn't exist.",
+        "no_mention_allowed": "No mentions allowed as command name.",
 
         "help_help": "Creates and manages custom commands.",
         "help_cmd_list_prefix": "Commands:",
         "help_custom_cmd_list_prefix": "The following custom commands exist:",
+        "help_info_options": "Options:\n  # - Returns the output text no. #\n  #+ - Returns all output texts beginning no. # and all following which fits in one message.\n  #++ - Returns all output texsts beginning with no. #.",
+        "help_search_usage": "<command name> <search keywords>",
+        "help_search_desc": "Returns all output texsts which are containing all search keywords.",
         "unknown_user": "unknown"
     },
     "de": {
@@ -50,6 +55,7 @@
         "text_id_not_positive": "Die ID eines Kommando-Ausgabetextes muss eine positive Zahl sein.",
         "text_id_not_found": "Ein Kommando-Ausgabetext mit der angegebenen ID existiert nicht.",
         "del_perm_missing": "Nur der Ersteller oder Admins können Kommandos oder ihre Ausgabetexte löschen.",
+        "no_mention_allowed": "Ein Kommandoname darf keine Erwähnung sein.",
 
         "Help": "",
         "help_help": "Erstellt und verwaltet Benutzer-Kommandos.",

@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import random
 from enum import IntEnum
 from typing import Optional, List, Dict
 
@@ -89,7 +90,7 @@ class Presence(BaseSubsystem):
         self.log = logging.getLogger("presence")
         self.messages = {}  # type: Dict[int]
         self.highest_id = None  # type: Optional[int]
-        self.timer_job = None  # type: Optional[Job]
+        self._timer_job = None  # type: Optional[Job]
 
         self.log.info("Initializing presence subsystem")
         bot.plugins.append(ConfigurableContainer(self))
@@ -97,30 +98,32 @@ class Presence(BaseSubsystem):
 
         @bot.listen()
         async def on_connect():
-            await self._set_presence(Config.get(self)["loading_msg"])
+            if Config().DEBUG_MODE:
+                init_msg = "in Debug-Mode"
+            else:
+                init_msg = Config.get(self)["loading_msg"]
+            await self._set_presence(init_msg)
 
     def default_config(self):
         return {
-            "update_period_min": 3,
+            "update_period_min": 10,
             "loading_msg": "Loading..."
         }
 
     def default_storage(self):
         return []
 
-    def get_new_id(self, init=False):
+    @property
+    def is_timer_up(self):
+        return self._timer_job is not None and not self._timer_job.cancelled
+
+    def get_new_id(self):
         """
         Acquires a new presence message id
 
-        :param init: if True, only sets self.highest_id but does not return anything. Useful for init.
         :return: free unique id that can be used for a new presence message
         """
-        if self.highest_id is None:
-            self.highest_id = max(self.messages)
-
-        if not init:
-            self.highest_id += 1
-            return self.highest_id
+        return max(self.messages) + 1
 
     def get_next_id(self, start_id: int, priority: PresencePriority = None):
         """
@@ -144,6 +147,30 @@ class Presence(BaseSubsystem):
             if current_id > self.highest_id:
                 current_id = -1
 
+    def get_ran_id(self, excluded_id: int, priority: PresencePriority = None):
+        """
+        Returns a random existing unique presence message ID, excluding the excluded_id
+        If the given ID is the last existing ID, the first ID will be returned.
+        If no message is registered, -1 will be returned.
+
+        :param excluded_id: the excluded id
+        :param priority: If given, returns only IDs of messages with given priority
+        :return: The next registered unique ID
+        """
+        if not self.messages:
+            return -1
+
+        message_list = list(self.messages.values()) if priority is None else self.filter_messages_list(priority)
+        if len(message_list) < 1:
+            return 0
+        if len(message_list) == 1:
+            return message_list[0]
+
+        while True:
+            select = random.choice(message_list)
+            if select.presence_id != excluded_id:
+                return select.presence_id
+
     def filter_messages_list(self, priority: PresencePriority) -> List[PresenceMessage]:
         """Returns all messages with the given priority"""
         return [msg for msg in self.messages.values() if msg.priority == priority]
@@ -160,8 +187,6 @@ class Presence(BaseSubsystem):
         for el in Storage.get(self):
             presence_msg = PresenceMessage.deserialize(self.bot, el)
             self.messages[presence_msg.presence_id] = presence_msg
-
-        self.get_new_id(init=True)
 
         self.log.info("Loaded {} messages".format(len(self.messages)))
 
@@ -228,36 +253,46 @@ class Presence(BaseSubsystem):
         self.log.debug("Message deregistered, Priority: {}, ID {}: {}".format(
             dataset.priority, dataset.presence_id, dataset.message))
 
-        if dataset.priority == PresencePriority.HIGH:
-            self._execute_change()
+        self._execute_removing_change(dataset.presence_id)
 
         return True
 
     async def start(self):
         """Starts the timer to change the presence messages periodically"""
-        if self.timer_job is not None:
+        if self.is_timer_up:
             self.log.warning("Timer job already started. This call shouldn't happen.")
             return
 
         self.log.info("Start presence changing timer")
         time_dict = timedict(minute=[i for i in range(0, 60, Config.get(self)["update_period_min"])])
-        self.timer_job = self.bot.timers.schedule(self._change_callback, time_dict, repeat=True)
+        self._timer_job = self.bot.timers.schedule(self._change_callback, time_dict, repeat=True)
         job_data = {
             "current_id": -1,
             "last_prio": PresencePriority.DEFAULT,
             "id_before_high": -1
         }
-        self.timer_job.data = job_data
-        await self._change_callback(self.timer_job)
+        self._timer_job.data = job_data
+        await self._change_callback(self._timer_job)
+
+    def stop(self):
+        """Stops the timer to change the presence messsage"""
+        self._timer_job.cancel()
+        self._timer_job = None
 
     async def _set_presence(self, message):
         """Sets the presence message, based on discord.Game activity"""
         self.log.debug("Change displayed message to: {}".format(message))
         await self.bot.change_presence(activity=discord.Game(name=message))
 
+    def _execute_removing_change(self, removed_id: int):
+        """Executes _change_callback() w/o awaiting with special handling for removed presence messages"""
+        if (self._timer_job.data["last_prio"] == PresencePriority.HIGH
+                or self._timer_job.data["current_id"] == removed_id):
+            self._execute_change()
+
     def _execute_change(self):
-        """Executes _change_callback() w/o awaiting"""
-        asyncio.run_coroutine_threadsafe(self._change_callback(self.timer_job), self.bot.loop)
+        """Executes _change_callback() w/o awaiting (every time this method is called)"""
+        asyncio.run_coroutine_threadsafe(self._change_callback(self._timer_job), self.bot.loop)
 
     async def _change_callback(self, job):
         """The callback method for the timer subsystem to change the presence message"""
@@ -272,7 +307,7 @@ class Presence(BaseSubsystem):
             if job.data["last_prio"] == PresencePriority.HIGH:
                 last_id = job.data["id_before_high"] - 1  # restore last message before high
 
-        next_id = self.get_next_id(last_id, next_prio)
+        next_id = self.get_ran_id(last_id, next_prio)
 
         if next_id == last_id:
             return  # do nothing if the same message should be displayed again

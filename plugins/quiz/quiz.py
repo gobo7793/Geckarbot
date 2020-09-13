@@ -126,7 +126,7 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
         super().__init__(bot)
         bot.register(self, help.DefaultCategories.GAMES)
 
-        @bot.listen()
+        @commands.Cog.listener()
         async def on_message(msg):
             quiz = self.get_controller(msg.channel)
             if quiz:
