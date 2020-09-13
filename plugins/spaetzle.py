@@ -472,19 +472,27 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                 embed.title = "Spieltag {} - Duelle Liga {}".format(matchday, league)
 
             data = {}
-            for league, duels in schedules.items():
+            for leag, duels in schedules.items():
                 msg = ""
-                data[league] = []
+                data[leag] = []
                 for duel in duels:
                     msg += "{} - {}\n".format(*duel)
-                    data[league].append([duel[0], None, None, None, None, None, None, duel[1]])
+                    data[leag].append([duel[0], None, None, None, None, None, None, duel[1]])
                 if len(schedules) > 1:
-                    embed.add_field(name="Liga {}".format(league), value=msg)
+                    embed.add_field(name="Liga {}".format(leag), value=msg)
                 else:
                     embed.description = msg
             message = await ctx.send(embed=embed)
-            for league, values in data.items():
-                c.update(Config().get(self)['duel_ranges'].get(league), values)
+
+            # FIXME replace with update_multiple once its working fine
+            if league is None:
+                combined_data = [[], [], [], [], [], [], [], [], []]
+                for values in data.values():
+                    for i in range(len(values)):
+                        combined_data[i].extend(values[i] + [None] * 4)
+                c.update("Aktuell!J3:BD11", combined_data)
+            else:
+                c.update(Config().get(self)['duel_ranges'].get(league), data.get(league))
         await add_reaction(message, Lang.CMDSUCCESS)
 
     def get_matches_from_sheets(self):
