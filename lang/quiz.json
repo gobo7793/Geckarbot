@@ -51,19 +51,33 @@
         "ranked_gecki": "Nah, I don't play ranked.",
 
         "#5": "Quiz stuff",
-        "correct_answer": "{}: {} is the correct answer!",
         "quiz_start": "Starting kwiss! {} questions. Category: {}. Difficulty: {}. Game Mode: {}",
         "quiz_end": "The kwiss has ended. The winner is: **{}**! Congratulations!",
         "quiz_end_pl": "The kwiss has ended. The winners are: **{}**! Congratulations!",
         "quiz_end_no_winner": "The kwiss has ended. The winner is: **{}**! Congratulations, you suck!",
         "quiz_abort": "The kwiss was aborted.",
-        "answering_order": "{}: Please let someone else answer first.",
+        "quiz_phase": "The kwiss will begin in 10 seconds!",
+        "quiz_no_players": "Nobody wants to play with me :(",
+
+        "#6": "Points",
         "registering_phase": "Please register for the upcoming kwiss via a {} reaction. I will wait {} minute.",
         "registering_too_late": "{}: Sorry, too late. The kwiss has already begun.",
         "register_success": "{}: You're in!",
-        "quiz_phase": "The kwiss will begin in 10 seconds!",
+        "points_timeout": "Timeout!",
         "points_question_done": "The correct answer was {}!\n{} answered correctly.",
         "points_timeout_warning": "Waiting for answers from {}. You have {} seconds!",
-        "points_timeout": "Timeout!"
+        "registration_late": "Registered new player {}",
+
+        "#7": "Rush",
+        "answering_order": "{}: Please let someone else answer first.",
+        "correct_answer": "{}: {} is the correct answer!",
+
+        "#8": "Status",
+        "status_title_ingame": "Kwiss: question {}/{}",
+        "status_title_init": "Starting kwiss!",
+
+        "#9": "Ladder",
+        "ladder_entry": "**#{}:** {} - {} ({})",
+        "ladder_suffix": "(#) denotes the amount of games played."
     }
 }

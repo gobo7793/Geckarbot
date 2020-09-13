@@ -342,10 +342,10 @@ class GeckiHelp(BaseSubsystem):
         else:
             return "{}{}".format(self.bot.command_prefix, command.qualified_name)
 
-    def format_subcmds(self, plugin, command):
+    def format_subcmds(self, ctx, plugin, command):
         r = []
         if isinstance(command, commands.Group):
-            for cmd in plugin.sort_subcommands(command, command.commands):
+            for cmd in plugin.sort_subcommands(ctx, command, command.commands):
                 r.append("  {}".format(self.format_command_help_line(plugin, cmd)))
             if r:
                 r = [Lang.lang(self, "help_subcommands_prefix")] + r
@@ -394,7 +394,7 @@ class GeckiHelp(BaseSubsystem):
         # Help / Description
         msg.append(self.get_command_description(plugin, cmd))
 
-        msg += self.format_subcmds(plugin, cmd)
+        msg += self.format_subcmds(ctx, plugin, cmd)
 
         # Subcommands
         for msg in paginate(msg, msg_prefix="```", msg_suffix="```"):

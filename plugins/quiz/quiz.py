@@ -15,6 +15,7 @@ from plugins.quiz.controllers import RushQuizController, PointsQuizController
 from plugins.quiz.quizapis import quizapis, opentdb
 from plugins.quiz.base import Difficulty
 from plugins.quiz.utils import get_best_username
+from plugins.quiz.migrations import migration
 
 jsonify = {
     "timeout": 20,  # answering timeout in minutes; not impl yet TODO
@@ -28,6 +29,7 @@ jsonify = {
     "points_quiz_question_timeout": 20,  # warning after this value, actual timeout after 1.5*this value
     "ranked_min_players": 4,
     "ranked_min_questions": 7,
+    "ranked_register_additional_tries": 2,
     "emoji_in_pose": True,
     "channel_mapping": {
         706125113728172084: "any",
@@ -126,6 +128,9 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
         super().__init__(bot)
         bot.register(self, help.DefaultCategories.GAMES)
 
+        # Migrate data if necessary
+        migration(self, self.logger)
+
         @commands.Cog.listener()
         async def on_message(msg):
             quiz = self.get_controller(msg.channel)
@@ -147,7 +152,7 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
     def command_description(self, command):
         return Lang.lang(self, "desc_{}".format(command.name))
 
-    def sort_subcommands(self, cmd, subcommands):
+    def sort_subcommands(self, ctx, cmd, subcommands):
         order = [
             "status",
             "score",
@@ -221,25 +226,22 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
         # Starting a new quiz
         assert method == Methods.START
         await ctx.message.add_reaction(Lang.EMOJI["success"])
-        quiz_controller = controller_class(self,
-                                           self.config,
-                                           args["quizapi"],
-                                           ctx.channel,
-                                           ctx.message.author,
-                                           category=args["category"],
-                                           question_count=args["questions"],
-                                           difficulty=args["difficulty"],
-                                           debug=args["debug"],
-                                           ranked=args["ranked"],
-                                           gecki=args["gecki"])
-        self.controllers[channel] = quiz_controller
-        self.logger.debug("Registered quiz controller {} in channel {}".format(quiz_controller, ctx.channel))
-        await ctx.send(Lang.lang(self, "quiz_start",
-                                 args["questions"],
-                                 quiz_controller.quizapi.category_name(args["category"]),
-                                 Difficulty.human_readable(quiz_controller.difficulty),
-                                 self.controller_mapping[controller_class][0]))
-        await quiz_controller.start(ctx.message)
+        async with ctx.typing():
+            quiz_controller = controller_class(self,
+                                               self.config,
+                                               args["quizapi"],
+                                               ctx.channel,
+                                               ctx.message.author,
+                                               category=args["category"],
+                                               question_count=args["questions"],
+                                               difficulty=args["difficulty"],
+                                               debug=args["debug"],
+                                               ranked=args["ranked"],
+                                               gecki=args["gecki"])
+            self.controllers[channel] = quiz_controller
+            self.logger.debug("Registered quiz controller {} in channel {}".format(quiz_controller, ctx.channel))
+            await quiz_controller.status(ctx.message)
+            await quiz_controller.start(ctx.message)
 
     @kwiss.command(name="status")
     async def cmd_status(self, ctx):
@@ -300,27 +302,31 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
     async def cmd_ladder(self, ctx):
         embed = discord.Embed()
         entries = {}
-        for uid in Storage().get(self)["ladder"]:
+        ladder = Storage().get(self)["ladder"]
+        for uid in ladder:
             member = discord.utils.get(ctx.guild.members, id=uid)
-            points = Storage().get(self)["ladder"][uid]
+            points = ladder[uid]["points"]
+            games_played = ladder[uid]["games_played"]
             if points not in entries:
-                entries[points] = [member]
+                entries[points] = [(member, games_played)]
             else:
-                entries[points].append(member)
+                entries[points].append((member, games_played))
 
         values = []
         keys = sorted(entries.keys(), reverse=True)
         place = 0
         for el in keys:
             place += 1
-            for user in entries[el]:
-                values.append("**#{}:** {} - {}".format(place, el, get_best_username(Storage().get(self), user)))
+            for user, games_played in entries[el]:
+                uname = get_best_username(Storage().get(self), user)
+                values.append(Lang.lang(self, "ladder_entry", place, el, uname, games_played))
 
         if len(values) == 0:
             await ctx.send("So far, nobody is on the ladder.")
             return
 
         embed.add_field(name="Ladder:", value="\n".join(values))
+        embed.set_footer(text=Lang.lang(self, "ladder_suffix"))
         await ctx.send(embed=embed)
 
     @kwiss.command(name="categories", aliases=["cat", "cats", "category"])
@@ -382,9 +388,13 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
     def update_ladder(self, member, points):
         ladder = Storage().get(self)["ladder"]
         if member.id in ladder:
-            ladder[member.id] = int(round(ladder[member.id] * 3/4 + points * 1/4))
+            ladder[member.id]["points"] = int(round(ladder[member.id]["points"] * 3/4 + points * 1/4))
+            ladder[member.id]["games_played"] += 1
         else:
-            ladder[member.id] = int(round(points * 3/4))
+            ladder[member.id] = {
+                "points": int(round(points * 3/4)),
+                "games_played": 1,
+            }
         Storage().save(self)
 
     def register_subcommand(self, channel, subcommand, callback):

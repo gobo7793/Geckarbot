@@ -178,7 +178,6 @@ class OpenTDBQuizAPI(BaseQuizAPI):
                 if catarg.lower() == cat:
                     catkey = CategoryKey()
                     catkey.add_key(OpenTDBQuizAPI, mapping["id"], mapping["names"][0])
-                    print("found category {}".format(catkey))
                     return catkey
         return None
 
