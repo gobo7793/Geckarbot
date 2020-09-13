@@ -333,8 +333,6 @@ class PointsQuizController(BaseQuizController):
         if self.state != Phases.QUESTION or self.current_question != event.data:
             return
         if event.member not in self.registered_participants:
-            print("Unregistered user {}".format(event.member))
-            print("Valid emoji: {}".format(self.quizapi.current_question().is_valid_emoji(event.emoji)))
             # register user if not ranked and answer is valid
             if not self.ranked and self.quizapi.current_question().is_valid_emoji(event.emoji.name):
                 self.register_participant(event.member)
@@ -342,7 +340,6 @@ class PointsQuizController(BaseQuizController):
                                                   "registration_late",
                                                   get_best_username(Storage().get(self.plugin), event.member)))
             else:
-                print("returning")
                 return
 
         # Reaction removed

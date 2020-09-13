@@ -345,9 +345,7 @@ class Question:
         return self._cached_emoji
 
     def is_valid_emoji(self, emoji):
-        print("emoji in map: {}".format(emoji in self.emoji_map))
         for el in self.emoji_map:
-            print("comparing '{}' from map to '{}'".format(el, emoji))
             # print("true with .name: {}".format(el == emoji.name))
             if el == emoji:
                 return True
