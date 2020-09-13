@@ -92,7 +92,8 @@ class HelpCategory:
         Removes a plugin from this HelpCategory.
         :param plugin: BasePlugin instance to be added to the category
         """
-        self.plugins.remove(plugin)
+        if plugin in self.plugins:
+            self.plugins.remove(plugin)
 
     def single_line(self):
         """
@@ -173,6 +174,16 @@ class GeckiHelp(BaseSubsystem):
         """
         for cat in self._categories:
             if cat.match_name(name):
+                return cat
+        return None
+
+    def category_by_plugin(self, plugin):
+        """
+        :param plugin: Plugin
+        :return: HelpCategory that contains `plugin`
+        """
+        for cat in self._categories:
+            if plugin in cat.plugins:
                 return cat
         return None
 
