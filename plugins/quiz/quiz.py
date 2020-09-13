@@ -226,24 +226,21 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
         # Starting a new quiz
         assert method == Methods.START
         await ctx.message.add_reaction(Lang.EMOJI["success"])
-        quiz_controller = controller_class(self,
-                                           self.config,
-                                           args["quizapi"],
-                                           ctx.channel,
-                                           ctx.message.author,
-                                           category=args["category"],
-                                           question_count=args["questions"],
-                                           difficulty=args["difficulty"],
-                                           debug=args["debug"],
-                                           ranked=args["ranked"],
-                                           gecki=args["gecki"])
-        self.controllers[channel] = quiz_controller
-        self.logger.debug("Registered quiz controller {} in channel {}".format(quiz_controller, ctx.channel))
-        await ctx.send(Lang.lang(self, "quiz_start",
-                                 args["questions"],
-                                 quiz_controller.quizapi.category_name(args["category"]),
-                                 Difficulty.human_readable(quiz_controller.difficulty),
-                                 self.controller_mapping[controller_class][0]))
+        async with ctx.typing():
+            quiz_controller = controller_class(self,
+                                               self.config,
+                                               args["quizapi"],
+                                               ctx.channel,
+                                               ctx.message.author,
+                                               category=args["category"],
+                                               question_count=args["questions"],
+                                               difficulty=args["difficulty"],
+                                               debug=args["debug"],
+                                               ranked=args["ranked"],
+                                               gecki=args["gecki"])
+            self.controllers[channel] = quiz_controller
+            self.logger.debug("Registered quiz controller {} in channel {}".format(quiz_controller, ctx.channel))
+        await quiz_controller.status(ctx.message)
         await quiz_controller.start(ctx.message)
 
     @kwiss.command(name="status")

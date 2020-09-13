@@ -228,7 +228,7 @@ class Question:
 
         self.all_answers = incorrect_answers.copy()
         self.all_answers.append(correct_answer)
-        random.shuffle(self.all_answers)
+        self.shuffle_answers()
 
         self._cached_emoji = None
         self.message = None
@@ -243,6 +243,23 @@ class Question:
                 self.correct_answer_emoji = "{} {}".format(e, self.correct_answer)
                 self.correct_answer_letter = "**{}:** {}".format(letter, self.correct_answer)
                 break
+
+    def shuffle_answers(self):
+        # Try int sort
+        isint = True
+        answers = []
+        for el in self.all_answers:
+            try:
+                answers.append(int(el))
+            except (ValueError, TypeError):
+                isint = False
+                break
+        if isint:
+            self.all_answers = sorted(self.all_answers, key=lambda x: int(x))
+            return
+
+        # Regular shuffling
+        random.shuffle(self.all_answers)
 
     def letter_mapping(self, index, emoji=False, reverse=False):
         if not reverse:

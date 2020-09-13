@@ -75,13 +75,14 @@ class PointsQuizController(BaseQuizController):
         self._score = Score(self.plugin, self.config, self.question_count)
 
         # State handling
+        self.stopped_manually = False
         self.ran_into_timeout = False
         self.current_question = None
         self.current_question_timer = None
         self.current_reaction_listener = None
         self.statemachine = statemachine.StateMachine()
         self.statemachine.add_state(Phases.INIT, None, None)
-        self.statemachine.add_state(Phases.REGISTERING, self.start_registering_phase, [Phases.INIT])
+        self.statemachine.add_state(Phases.REGISTERING, self.registering_phase, [Phases.INIT])
         self.statemachine.add_state(Phases.ABOUTTOSTART, self.about_to_start, [Phases.REGISTERING])
         self.statemachine.add_state(Phases.QUESTION, self.pose_question, [Phases.ABOUTTOSTART, Phases.EVAL])
         self.statemachine.add_state(Phases.EVAL, self.eval, [Phases.QUESTION])
@@ -96,7 +97,7 @@ class PointsQuizController(BaseQuizController):
     """
     Transitions
     """
-    async def start_registering_phase(self):
+    async def registering_phase(self):
         """
         REGISTERING -> ABOUTTOSTART; REGISTERING -> ABORT
         """
@@ -108,6 +109,10 @@ class PointsQuizController(BaseQuizController):
         await signup_msg.add_reaction(Lang.lang(self.plugin, "reaction_signup"))
 
         await asyncio.sleep(self.config["points_quiz_register_timeout"])
+
+        # Kwiss was cancelled
+        if self.state != Phases.REGISTERING:
+            return
 
         # Consume signup reactions
         await signup_msg.remove_reaction(Lang.lang(self.plugin, "reaction_signup"), self.plugin.bot.user)
@@ -301,7 +306,9 @@ class PointsQuizController(BaseQuizController):
                 self.current_question_timer.cancel()
             except timers.HasAlreadyRun:
                 pass
-        if self.ranked and len(self.registered_participants) < self.config["ranked_min_players"]:
+        if self.ranked \
+                and len(self.registered_participants) < self.config["ranked_min_players"] \
+                and not self.stopped_manually:
             await self.channel.send(Lang.lang(self.plugin, "ranked_playercount", self.config["ranked_min_players"]))
         else:
             await self.channel.send(Lang.lang(self.plugin, "quiz_abort"))
@@ -462,18 +469,25 @@ class PointsQuizController(BaseQuizController):
         """
         Called when the status command is invoked.
         """
-        embed = discord.Embed(title="Kwiss: question {}/{}".format(
-            self.quizapi.current_question_index() + 1, len(self.quizapi)))
+        if self.state == Phases.INIT:
+            title = Lang.lang(self.plugin, "status_title_init")
+        else:
+            title = Lang.lang(self.plugin,
+                              "status_title_ingame",
+                              self.quizapi.current_question_index() + 1,
+                              len(self.quizapi))
+        embed = discord.Embed(title=title)
         embed.add_field(name="Category", value=self.quizapi.category_name(self.category))
         embed.add_field(name="Difficulty", value=Difficulty.human_readable(self.difficulty))
         embed.add_field(name="Mode", value="Points (Everyone answers)")
-        embed.add_field(name="Initiated by", value=get_best_username(Storage().get(self.plugin), self.requester))
+        embed.add_field(name="Questions", value=str(self.question_count))
 
-        status = ":arrow_forward: Running"
-        if self.state == Phases.REGISTERING:
-            status = ":book: Signup phase"
-        #    status = ":pause_button: Paused"
-        embed.add_field(name="Status", value=status)
+        if not self.state == Phases.INIT:
+            status = ":arrow_forward: Running"
+            if self.state == Phases.REGISTERING:
+                status = ":book: Signup phase"
+            #    status = ":pause_button: Paused"
+            embed.add_field(name="Status", value=status)
 
         if self.ranked:
             embed.add_field(name="Ranked", value=":memo:")
@@ -484,12 +498,15 @@ class PointsQuizController(BaseQuizController):
         if self.gecki:
             embed.add_field(name="Gecki", value="I'm in! 😍")
 
+        embed.add_field(name="Initiated by", value=get_best_username(Storage().get(self.plugin), self.requester))
+
         await self.channel.send(embed=embed)
 
     async def abort(self, msg):
         """
         Called when the quiz is aborted.
         """
+        self.stopped_manually = True
         self.state = Phases.ABORT
         await msg.add_reaction(Lang.CMDSUCCESS)
 

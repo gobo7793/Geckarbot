@@ -66,7 +66,11 @@
         "points_timeout_warning": "Waiting for answers from {}. You have {} seconds!",
         "points_timeout": "Timeout!",
 
-        "#6": "Ladder",
+        "#6": "Status",
+        "status_title_ingame": "Kwiss: question {}/{}",
+        "status_title_init": "Starting kwiss!",
+
+        "#7": "Ladder",
         "ladder_entry": "**#{}:** {} - {} ({})",
         "ladder_suffix": "(#) denotes the amount of games played."
     }
