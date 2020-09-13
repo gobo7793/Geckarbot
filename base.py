@@ -125,9 +125,10 @@ class BasePlugin(Cog, Configurable):
         """
         raise NotFound()
 
-    def sort_subcommands(self, command, subcommands):
+    def sort_subcommands(self, ctx, command, subcommands):
         """
         Override to sort the subcommands of `command` yourself.
+        :param ctx: Context
         :param command: Command whose subcommands are to be sorted
         :param subcommands: List of commands to be sorted
         :return: Sorted list of commands

@@ -91,6 +91,7 @@ class PointsQuizController(BaseQuizController):
 
         # Participant handling
         self.registered_participants = {}
+        self.answers_order = []
 
     """
     Transitions
@@ -136,7 +137,7 @@ class PointsQuizController(BaseQuizController):
                 self.registered_participants[self.plugin.bot.user] = []
 
         players = len(self.registered_participants)
-        if players == 0 or (self.ranked and players < self.config["ranked_min_players"]):
+        if players == 0 or (self.ranked and players < self.config["ranked_min_players"] and not self.debug):
             self.state = Phases.ABORT
         else:
             self.state = Phases.ABOUTTOSTART
@@ -200,6 +201,7 @@ class PointsQuizController(BaseQuizController):
                     break
             answer = self.current_question.letter_mapping(found, emoji=True)
             self.registered_participants[self.plugin.bot.user] = [answer]
+            self.answers_order.append(self.plugin.bot.user)
 
     async def eval(self):
         """
@@ -233,7 +235,7 @@ class PointsQuizController(BaseQuizController):
 
         # Increment scores
         correctly_answered = []
-        for user in self.registered_participants:
+        for user in self.answers_order:
             if question.check_answer(self.registered_participants[user], emoji=True):
                 correctly_answered.append(user)
 
@@ -253,6 +255,7 @@ class PointsQuizController(BaseQuizController):
         await self.channel.send(Lang.lang(self.plugin, "points_question_done", ca, correct))
 
         # Reset answers list
+        self.answers_order = []
         for user in self.registered_participants:
             self.registered_participants[user] = []
 
@@ -321,10 +324,14 @@ class PointsQuizController(BaseQuizController):
         if event.member not in self.registered_participants:
             return
 
+        # Reaction removed
         if isinstance(event, ReactionRemovedEvent):
             self.registered_participants[event.member].remove(event.emoji)
+            if not self.registered_participants[event.member]:
+                self.answers_order.remove(event.member)
             return
 
+        # Check / validate answer
         try:
             check = self.quizapi.current_question().check_answer(event.emoji, emoji=True)
             if check:
@@ -336,7 +343,10 @@ class PointsQuizController(BaseQuizController):
         except InvalidAnswer:
             return
 
+        # Register answer
         self.registered_participants[event.member].append(event.emoji)
+        if event.member not in self.answers_order:
+            self.answers_order.append(event.member)
         if not self.havent_answered_hr():
             self.state = Phases.EVAL
 
@@ -395,7 +405,7 @@ class PointsQuizController(BaseQuizController):
         Called when the start command is invoked.
         """
         # Fetch questions
-        print("category: {}".format(self.category))
+        self.plugin.logger.debug("category: {}".format(self.category))
         self.quizapi = self.quizapi(self.config,
                                     self.channel,
                                     category=self.category,

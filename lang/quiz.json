@@ -64,6 +64,10 @@
         "quiz_phase": "The kwiss will begin in 10 seconds!",
         "points_question_done": "The correct answer was {}!\n{} answered correctly.",
         "points_timeout_warning": "Waiting for answers from {}. You have {} seconds!",
-        "points_timeout": "Timeout!"
+        "points_timeout": "Timeout!",
+
+        "#6": "Ladder",
+        "ladder_entry": "**#{}:** {} - {} ({})",
+        "ladder_suffix": "(#) denotes the amount of games played."
     }
 }

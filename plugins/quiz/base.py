@@ -151,6 +151,11 @@ class Score:
         return r
 
     def embed(self, end=False, sort_by_points=False):
+        """
+        :param end: Set to true if this is the end score rather than an intermediate score
+        :param sort_by_points: Set to true if the participants are to be sorted by score rather than questions
+        :return: Sendable Embed that represents this Score
+        """
         embed = discord.Embed(title=Lang.lang(self.plugin, "results_title"))
 
         ladder = self.ladder(sort_by_points=sort_by_points)
