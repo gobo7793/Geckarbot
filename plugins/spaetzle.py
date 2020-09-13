@@ -83,31 +83,26 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                           "TN 61", "TN 62", "TN 63", "TN 64", "TN 65", "TN 66",
                           "TN 67", "TN 68", "TN 69", "TN 70", "TN 71", "TN 72"],
             },
-            'teamnames': [
-                {'short_name': "FCB", 'long_name': "FC Bayern München", 'other': ["FC Bayern", "Bayern", "München"]},
-                {'short_name': "BVB", 'long_name': "Borussia Dortmund", 'other': ["Dortmund"]},
-                {'short_name': "LPZ", 'long_name': "Rasenballsport Leipzig",
-                 'other': ["Leipzig", "RB Leipzig", "RBL", "LEI"]},
-                {'short_name': "BMG", 'long_name': "Bor. Mönchengladbach",
-                 'other': ["Gladbach", "Borussia Mönchengladbach"]},
-                {'short_name': "LEV", 'long_name': "Bayer 04 Leverkusen",
-                 'other': ["Leverkusen", "Bayer Leverkusen", "B04"]},
-                {'short_name': "HOF", 'long_name': "TSG Hoffenheim",
-                 'other': ["Hoffenheim", "TSG 1899 Hoffenheim", "TSG"]},
-                {'short_name': "WOB", 'long_name': "VfL Wolfsburg", 'other': ["Wolfsburg", "VFL"]},
-                {'short_name': "SCF", 'long_name': "SC Freiburg", 'other': ["Freiburg"]},
-                {'short_name': "SGE", 'long_name': "Eintracht Frankfurt", 'other': ["Frankfurt", "Eintracht", "FRA"]},
-                {'short_name': "BSC", 'long_name': "Hertha BSC", 'other': ["Hertha"]},
-                {'short_name': "FCU", 'long_name': "1. FC Union Berlin", 'other': ["Union", "Berlin"]},
-                {'short_name': "S04", 'long_name': "FC Schalke 04", 'other': ["Schalke"]},
-                {'short_name': "M05", 'long_name': "1. FSV Mainz 05", 'other': ["Mainz", "FSV"]},
-                {'short_name': "KOE", 'long_name': "1. FC Köln", 'other': ["Köln", "FCK"]},
-                {'short_name': "FCA", 'long_name': "FC Augsburg", 'other': ["Augsburg"]},
-                {'short_name': "SVW", 'long_name': "SV Werder Bremen",
-                 'other': ["Bremen", "Werder", "Werder Bremen", "BRE"]},
-                {'short_name': "DSC", 'long_name': "Arminia Bielefeld", 'other': ["Bielefeld", "Arminia", "BIE"]},
-                {'short_name': "VFB", 'long_name': "VfB Stuttgart", 'other': ["Stuttgart", "STU"]}
-            ]
+            'teamnames': {
+                "FC Bayern München":      {'short_name': "FCB", 'other': ["FC Bayern", "Bayern", "München"]},
+                "Borussia Dortmund":      {'short_name': "BVB", 'other': ["Dortmund"]},
+                "Rasenballsport Leipzig": {'short_name': "LPZ", 'other': ["Leipzig", "RB Leipzig", "RBL", "LEI"]},
+                "Bor. Mönchengladbach":   {'short_name': "BMG", 'other': ["Gladbach", "Borussia Mönchengladbach"]},
+                "Bayer 04 Leverkusen":    {'short_name': "LEV", 'other': ["Leverkusen", "Bayer Leverkusen", "B04"]},
+                "TSG Hoffenheim":         {'short_name': "HOF", 'other': ["Hoffenheim", "TSG 1899 Hoffenheim", "TSG"]},
+                "VfL Wolfsburg":          {'short_name': "WOB", 'other': ["Wolfsburg", "VFL"]},
+                "SC Freiburg":            {'short_name': "SCF", 'other': ["Freiburg"]},
+                "Eintracht Frankfurt":    {'short_name': "SGE", 'other': ["Frankfurt", "Eintracht", "FRA"]},
+                "Hertha BSC":             {'short_name': "BSC", 'other': ["Hertha"]},
+                "1. FC Union Berlin":     {'short_name': "FCU", 'other': ["Union", "Berlin"]},
+                "FC Schalke 04":          {'short_name': "S04", 'other': ["Schalke"]},
+                "1. FSV Mainz 05":        {'short_name': "M05", 'other': ["Mainz", "FSV"]},
+                "1. FC Köln":             {'short_name': "KOE", 'other': ["Köln", "FCK"]},
+                "FC Augsburg":            {'short_name': "FCA", 'other': ["Augsburg"]},
+                "SV Werder Bremen":       {'short_name': "SVW", 'other': ["Bremen", "Werder", "Werder Bremen", "BRE"]},
+                "Arminia Bielefeld":      {'short_name': "DSC", 'other': ["Bielefeld", "Arminia", "BIE"]},
+                "VfB Stuttgart":          {'short_name': "VFB", 'other': ["Stuttgart", "STU"]}
+            }
         }
 
     def get_api_client(self):
@@ -128,15 +123,15 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
     def build_teamname_dict(self):
         teamdict = {}
         teamnames = Storage().get(self)['teamnames']
-        for team in teamnames:
-            teamdict[team['short_name']] = team['long_name']
-            teamdict[team['long_name']] = team['short_name']
-        for team in teamnames:
+        for long_name, team in teamnames.items():
+            teamdict[team['short_name']] = long_name
+            teamdict[long_name] = team['short_name']
+        for long_name, team in teamnames.items():
             for name in team['other']:
                 if self.is_teamname_abbr(name):
                     # Abbreviation
-                    result = teamdict.setdefault(name, team['long_name'])
-                    if result is not team['long_name']:
+                    result = teamdict.setdefault(name, long_name)
+                    if result is not long_name:
                         self.logger.debug("{} is already noted with the name {}".format(name, result))
                 else:
                     # Long name
@@ -323,16 +318,32 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
 
         return diff1, diff2
 
-    @commands.command(name="goal", help="Scores a goal for a team")
+    @commands.command(name="goal", help="Scores a goal for a team (Spätzle-command)")
     async def goal(self, ctx, team, goals: int = None):
         abbr = self.get_teamname_abbr(team)
         if abbr is not None:
-            match = self.matches_by_team[abbr]
-            match[abbr]['goals'] = goals if goals is not None else match[abbr]['goals'] + 1
-            title = "{0} [{1}:{3}] {2}".format(match['team_home'], match[self.get_teamname_abbr(match['team_home'])],
-                                               match['team_away'], match[self.get_teamname_abbr(match['team_away'])])
-            embed = discord.Embed(title=title, description="Hier kommen die veränderten Duellstände hin")
-            await ctx.send(Lang.lang(self, "goal_scored", team), embed=embed)
+            async with ctx.typing():
+                c = self.get_api_client()
+                match = self.matches_by_team[abbr]
+                if self.match_status(match['match_date_time']) != MatchStatus.RUNNING:
+                    await ctx.send(Lang.lang(self, 'match_not_running'))
+                    return
+                match[abbr]['goals'] = goals if goals is not None else match[abbr]['goals'] + 1
+
+                if abbr == self.get_teamname_abbr(match['team_home']):
+                    msg = "{0} [**{1}**:{3}] {2}"
+                else:
+                    msg = "{0} [{1}:**{3}**] {2}"
+                msg = msg.format(match['team_home'], match[self.get_teamname_abbr(match['team_home'])]['goals'],
+                                 match['team_away'], match[self.get_teamname_abbr(match['team_away'])]['goals'])
+                await ctx.send("{}\n{}".format(Lang.lang(self, "goal_scored", team), msg))
+
+                data = [x[:] for x in [[None] * 10] * 10]
+                cell_x, cell_y = match[abbr]['cell']
+                data[cell_y] = data[cell_y].copy()
+                data[cell_y][cell_x] = match[abbr]['goals']
+                c.update(Config().get(self)['matches_range'], data)
+            await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
     @commands.group(name="spaetzle", aliases=["spätzle", "spätzles"],
                     help="commands for managing the 'Spätzles-Tippspiel'")
@@ -427,9 +438,10 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             values = []
             for match in self.matches:
                 date_time = match.get('match_date_time')
+                date_formula = '=IF(DATE({};{};{}) + TIME({};{};0) < F12;0;"–")'.format(*list(date_time.timetuple()))
                 values.append([calendar.day_abbr[date_time.weekday()],
                                date_time.strftime("%d.%m.%Y"), date_time.strftime("%H:%M"),
-                               match.get('team_home'), "–", "–", match.get('team_away')])
+                               match.get('team_home'), date_formula, date_formula, match.get('team_away')])
             c.update("Aktuell!{}".format(Config().get(self)['matches_range']), values, raw=False)
 
             # Set matchday
