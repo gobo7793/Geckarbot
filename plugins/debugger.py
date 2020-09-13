@@ -187,3 +187,17 @@ class Plugin(BasePlugin, name="Testing and debug things"):
     async def libmod(self, ctx):
         await ctx.send(str(view._quotes))
         await ctx.send(str(view._all_quotes))
+
+    # @commands.command(name="plunload")
+    # async def plunload(self, ctx, plugin):
+    #     await ctx.invoke(self.bot.get_command("plugins"))
+    #     instance = converters.get_plugin_by_name(self.bot, plugin)
+    #     print(instance.get_listeners())
+    #     self.bot.unload_plugin(plugin)
+    #     await ctx.invoke(self.bot.get_command("plugins"))
+    #
+    # @commands.command(name="plload")
+    # async def plload(self, ctx, plugin):
+    #     await ctx.invoke(self.bot.get_command("plugins"))
+    #     self.bot.load_plugin(Config.PLUGIN_DIR, plugin)
+    #     await ctx.invoke(self.bot.get_command("plugins"))

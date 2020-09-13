@@ -7,7 +7,7 @@ from conf import Config, Lang
 from botutils import utils
 from botutils.timeutils import parse_time_input
 from botutils.stringutils import paginate
-from botutils.converters import get_best_username, convert_member
+from botutils.converters import get_best_username, convert_member, get_plugin_by_name
 from base import BasePlugin, ConfigurableType
 import subsystems
 from subsystems import help
@@ -41,9 +41,36 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
     def command_description(self, command):
         return Lang.lang(self, "desc_{}".format(command.qualified_name.replace(" ", "_")))
 
-    ######
-    # Misc commands
-    ######
+    """
+    Misc commands
+    """
+
+    @commands.command(name="about", aliases=["git", "github"])
+    async def about(self, ctx):
+        about_msg = Lang.lang(self, 'about_version', Config.VERSION, self.bot.guild.name,
+                              platform.system(), platform.release(), platform.version())
+
+        if Config.get(self)['bot_info_link']:
+            about_msg += Lang.lang(self, 'about_general_info', Config.get(self)['bot_info_link'])
+        about_msg += Lang.lang(self, 'about_repo', Config.get(self).get('repo_link',
+                                                                        Lang.lang(self, 'about_no_repo_link')))
+        if Config.get(self)['privacy_notes_link']:
+            lang = ""
+            if Config.get(self)['privacy_notes_lang']:
+                lang = " ({})".format(Config.get(self)['privacy_notes_lang'])
+            about_msg += Lang.lang(self, 'about_privacy', Config.get(self)['privacy_notes_link'], lang)
+
+        about_msg += Lang.lang(self, 'about_devs', "Costamiri, Fluggs, Gobo77")
+        if Config.get(self)['profile_pic_creator']:
+            about_msg += Lang.lang(self, 'about_pfp', Config.get(self)['profile_pic_creator'])
+
+        about_msg += Lang.lang(self, 'about_thanks')
+
+        await ctx.send(about_msg)
+
+    """
+    Plugin control
+    """
 
     # @commands.command(name="reload", help="Reloads the configuration.", usage="[plugin_name]",
     #                   description="Reloads the configuration from the given plugin."
@@ -69,9 +96,12 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
     #         await ctx.send(send_msg)
     #     await utils.write_debug_channel(self.bot, send_msg)
 
-    @commands.command(name="plugins")
+    @commands.group(name="plugin", invoke_without_command=True)
     async def plugins(self, ctx):
-        """Returns registered plugins"""
+        await ctx.invoke(self.bot.get_command("plugins list"))
+
+    @plugins.command(name="list")
+    async def plugins_list(self, ctx):
         coreplugins = [c.name for c in self.bot.plugins if c.type == ConfigurableType.COREPLUGIN]
         plugins = [c.name for c in self.bot.plugins if c.type == ConfigurableType.PLUGIN]
         subsys = []
@@ -88,32 +118,64 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
                             prefix=Lang.lang(self, 'plugins_loaded_ss', len(subsys)), delimiter=", "):
             await ctx.send(msg)
 
-    @commands.command(name="about", aliases=["git", "github"])
-    async def about(self, ctx):
-        about_msg = Lang.lang(self, 'about_version', Config.VERSION, self.bot.guild.name,
-                              platform.system(), platform.release(), platform.version())
+    @plugins.command(name="unload")
+    @commands.has_any_role(*Config().FULL_ACCESS_ROLES)
+    async def plugins_unload(self, ctx, name):
+        instance = get_plugin_by_name(self.bot, name)
+        if instance is None:
+            await utils.add_reaction(ctx.message, Lang.CMDERROR)
+            await ctx.send(Lang.lang(self, "no_plugin_loaded", name))
+            return
 
-        if Config.get(self)['bot_info_link']:
-            about_msg += Lang.lang(self, 'about_general_info', Config.get(self)['bot_info_link'])
-        about_msg += Lang.lang(self, 'about_repo', Config.get(self).get('repo_link',
-                                                                        Lang.lang(self, 'about_no_repo_link')))
-        if Config.get(self)['privacy_notes_link']:
-            lang = ""
-            if Config.get(self)['privacy_notes_lang']:
-                lang = " ({})".format(Config.get(self)['privacy_notes_lang'])
-            about_msg += Lang.lang(self, 'about_privacy', Config.get(self)['privacy_notes_link'], lang)
+        if instance.get_configurable_type() != ConfigurableType.PLUGIN:
+            await utils.add_reaction(ctx.message, Lang.CMDERROR)
+            await ctx.send(Lang.lang(self, "coreplugins_cant_unloaded"))
+            return
 
-        about_msg += Lang.lang(self, 'about_devs', "Costamiri, Fluggs, Gobo77")
-        if Config.get(self)['profile_pic_creator']:
-            about_msg += Lang.lang(self, 'about_pfp', Config.get(self)['profile_pic_creator'])
+        if self.bot.unload_plugin(name):
+            await utils.add_reaction(ctx.message, Lang.CMDSUCCESS)
+        else:
+            await utils.add_reaction(ctx.message, Lang.CMDERROR)
+            await ctx.send(Lang.lang(self, "plugin_not_unloadable", name))
 
-        about_msg += Lang.lang(self, 'about_thanks')
+    @plugins.command(name="load")
+    @commands.has_any_role(*Config().FULL_ACCESS_ROLES)
+    async def plugins_load(self, ctx, name):
+        instance = get_plugin_by_name(self.bot, name)
+        if instance is not None:
+            await utils.add_reaction(ctx.message, Lang.CMDERROR)
+            await ctx.send(Lang.lang(self, "plugin_already_loaded", name))
+            return
 
-        await ctx.send(about_msg)
+        if self.bot.load_plugin(Config().PLUGIN_DIR, name):
+            await utils.add_reaction(ctx.message, Lang.CMDSUCCESS)
+        else:
+            await utils.add_reaction(ctx.message, Lang.CMDERROR)
+            await ctx.send(Lang.lang(self, "plugin_not_loadable", name))
 
-    ######
-    # Presence subsystem
-    ######
+    @plugins.command(name="reload")
+    @commands.has_any_role(*Config().FULL_ACCESS_ROLES)
+    async def plugins_reload(self, ctx, name):
+        instance = get_plugin_by_name(self.bot, name)
+        if instance is None:
+            await utils.add_reaction(ctx.message, Lang.CMDERROR)
+            await ctx.send(Lang.lang(self, "no_plugin_loaded", name))
+            return
+
+        if instance.get_configurable_type() != ConfigurableType.PLUGIN:
+            await utils.add_reaction(ctx.message, Lang.CMDERROR)
+            await ctx.send(Lang.lang(self, "coreplugins_cant_reloaded"))
+            return
+
+        if self.bot.unload_plugin(name, False) and self.bot.load_plugin(Config().PLUGIN_DIR, name):
+            await utils.add_reaction(ctx.message, Lang.CMDSUCCESS)
+        else:
+            await utils.add_reaction(ctx.message, Lang.CMDERROR)
+            await ctx.send(Lang.lang(self, "errors_on_reload", name))
+
+    """
+    Presence subsystem
+    """
 
     @commands.group(name="presence", invoke_without_command=True)
     async def presence(self, ctx):
@@ -147,7 +209,7 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
     @commands.has_any_role(*Config().FULL_ACCESS_ROLES)
     async def presence_del(self, ctx, entry_id: int):
         entry_id -= 1
-        presence_message = "❓❔❓"
+        presence_message = "PANIC"
         if entry_id in self.bot.presence.messages:
             presence_message = self.bot.presence.messages[entry_id].message
 
@@ -158,9 +220,9 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
             await utils.add_reaction(ctx.message, Lang.CMDERROR)
             await ctx.send(Lang.lang(self, "presence_not_exists", entry_id))
 
-    ######
-    # Ignoring subsystem
-    ######
+    """
+    Ignoring subsystem
+    """
 
     @commands.group(name="disable", invoke_without_command=True, aliases=["ignore", "block"],
                     usage="<full command name>")
@@ -182,7 +244,7 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
     async def disable_mod(self, ctx, *args):
         user, command, until = await self._parse_mod_args(ctx.message, *args)
 
-        final_msg = "❓❔❓"
+        final_msg = "PANIC"
         reaction = Lang.CMDERROR
         until_str = ""
 
@@ -262,7 +324,7 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
     @commands.group(name="enable", invoke_without_command=True, aliases=["unignore", "unblock"],
                     usage="[full command name]")
     async def enable(self, ctx, command=None):
-        final_msg = "❓❔❓"
+        final_msg = "PANIC"
         reaction = Lang.CMDERROR
 
         # remove all commands if no command given
@@ -296,7 +358,7 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
     async def enable_mod(self, ctx, *args):
         user, command, until = await self._parse_mod_args(ctx.message, *args)
 
-        final_msg = "❓❔❓"
+        final_msg = "PANIC"
         reaction = Lang.CMDERROR
 
         # enable command in current channel

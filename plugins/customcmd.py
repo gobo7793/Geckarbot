@@ -197,13 +197,13 @@ class Plugin(BasePlugin, name="Custom CMDs"):
 
         self.load()
 
-        @bot.listen()
-        async def on_message(msg):
-            if (msg.content.startswith(self.prefix)
-                    and msg.author.id != self.bot.user.id
-                    and not self.bot.ignoring.check_user(msg.author)
-                    and permchecks.whitelist_check(msg.author)):
-                await self.on_message(msg)
+    @commands.Cog.listener()
+    async def on_message(self, msg):
+        if (msg.content.startswith(self.prefix)
+                and msg.author.id != self.bot.user.id
+                and not self.bot.ignoring.check_user(msg.author)
+                and permchecks.whitelist_check(msg.author)):
+            await self.process_message(msg)
 
     def default_config(self):
         return {
@@ -319,7 +319,7 @@ class Plugin(BasePlugin, name="Custom CMDs"):
         Storage.save(self)
         logging.info("Converting finished.")
 
-    async def on_message(self, msg):
+    async def process_message(self, msg):
         """Will be called from on_message listener to react for custom cmds"""
 
         # get cmd parts/args

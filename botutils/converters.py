@@ -95,9 +95,9 @@ def get_plugin_by_name(bot, name):
     :param name: Name of the plugin that is to be returned.
     :return: Configurable object of the plugin with name `name`. Returns None if no such plugin is found.
     """
-    for pluginslot in bot.plugins:
-        if pluginslot.name == name:
-            return pluginslot.instance
+    for plugin_cnt in bot.plugins:
+        if plugin_cnt.name == name:
+            return plugin_cnt.instance
     return None
 
 
@@ -105,10 +105,22 @@ def get_plugin_container(bot, plugin):
     """
     :param bot: Geckarbot instance
     :param plugin: BasePlugin instance
-    :return: PluginContainer whose instance is `plugin`
+    :return: PluginContainer whose instance is `plugin`.  Returns None if no such plugin is found.
     """
     for plugin_cnt in bot.plugins:
         if plugin_cnt.instance == plugin:
+            return plugin_cnt
+    return None
+
+
+def get_plugin_container_by_name(bot, name):
+    """
+    :param bot: Geckarbot instance
+    :param name: Name of the plugin
+    :return: PluginContainer whose plugin name is `name`.  Returns None if no such plugin is found.
+    """
+    for plugin_cnt in bot.plugins:
+        if plugin_cnt.name == name:
             return plugin_cnt
     return None
 

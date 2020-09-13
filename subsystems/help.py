@@ -2,7 +2,7 @@ from enum import Enum
 
 from discord.ext import commands
 
-from base import BaseSubsystem, NotFound, BasePlugin
+from base import BaseSubsystem, NotFound, BasePlugin, ConfigurableType
 from conf import Lang
 from botutils.stringutils import paginate
 
@@ -35,6 +35,9 @@ class HelpCog(BasePlugin):
         self.category = HelpCategory(Lang.lang(self, "self_category_name"))
         self.category.add_plugin(self)
 
+    def get_configurable_type(self):
+        return ConfigurableType.COREPLUGIN
+
     @commands.command(name="help", description="Zu Hülfe!", usage="[command | category]")
     async def helpcmd(self, ctx, *args):
         await self.bot.helpsys.helpcmd(ctx, *args)
@@ -55,6 +58,9 @@ class HelpCategory:
         self.plugins = []
         self.order = order
         self.bot = bot
+
+    def __str__(self):
+        return "<help.HelpCategory; name: {}, order: {}>".format(self.name, self.order)
 
     @property
     def name(self):
@@ -80,6 +86,13 @@ class HelpCategory:
         :param plugin: BasePlugin instance to be added to the category
         """
         self.plugins.append(plugin)
+
+    def remove_plugin(self, plugin):
+        """
+        Removes a plugin from this HelpCategory.
+        :param plugin: BasePlugin instance to be added to the category
+        """
+        self.plugins.remove(plugin)
 
     def single_line(self):
         """
@@ -177,7 +190,6 @@ class GeckiHelp(BaseSubsystem):
         :param category: HelpCategory instance or DefaultCategory instance
         :return: The registered HelpCategory
         """
-        print("registering category {}".format(category.name))
         # Catch default category
         if isinstance(category, DefaultCategories):
             return self.default_category(category)
@@ -189,6 +201,26 @@ class GeckiHelp(BaseSubsystem):
         category.bot = self.bot
         self._categories.append(category)
         return category
+
+    def deregister_category_by_name(self, name):
+        cat = self.category(name)
+        if cat is not None:
+            self.deregister_category(cat)
+
+    def deregister_category(self, category):
+        """
+        Deregisters a help category. If a DefaultCategory is parsed, nothing is deregistered.
+
+        :param category: HelpCategory instance or DefaultCategory instance
+        """
+        if isinstance(category, DefaultCategories):
+            return
+
+        exists = self.category(category.name)
+        if not exists:
+            raise CategoryNotFound(category.name)
+
+        self._categories.remove(category)
 
     """
     Parsing methods
