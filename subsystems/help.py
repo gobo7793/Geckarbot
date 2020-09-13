@@ -81,6 +81,10 @@ class HelpCategory:
         """
         self.plugins.append(plugin)
 
+    def remove_plugin(self, plugin):
+        if plugin in self.plugins:
+            self.plugins.remove(plugin)
+
     def single_line(self):
         """
         :return: One-line string that represents this HelpCategory.
@@ -160,6 +164,16 @@ class GeckiHelp(BaseSubsystem):
         """
         for cat in self._categories:
             if cat.match_name(name):
+                return cat
+        return None
+
+    def category_by_plugin(self, plugin):
+        """
+        :param plugin: Plugin
+        :return: HelpCategory that contains `plugin`
+        """
+        for cat in self._categories:
+            if plugin in cat.plugins:
                 return cat
         return None
 

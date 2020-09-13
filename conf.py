@@ -109,11 +109,12 @@ class IODirectory(metaclass=_Singleton):
     # Save/Load/Get plugin config
     ######
     @classmethod
-    def get(cls, plugin):
+    def get(cls, plugin, container=None):
         """
         Returns the config of the given plugin.
         If given plugin is not registered, None will be returned.
         :param plugin: Plugin object
+        :container: Container name
         """
         for plugin_cnt in cls().bot.plugins:
             if plugin_cnt.instance is plugin:
@@ -123,7 +124,7 @@ class IODirectory(metaclass=_Singleton):
         return None
 
     @classmethod
-    def set(cls, plugin, structure):
+    def set(cls, plugin, structure, container=None):
         """
         Sets the structure of the given plugin.
         """
@@ -133,7 +134,7 @@ class IODirectory(metaclass=_Singleton):
                 plugin_cnt.iodirs[cls()] = structure
 
     @classmethod
-    def save(cls, plugin):
+    def save(cls, plugin, container=None):
         """
         Saves the config of the given plugin.
         If given plugin is not registered, None will be returned,
