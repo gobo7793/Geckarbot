@@ -94,6 +94,9 @@ class PointsQuizController(BaseQuizController):
         self.registered_participants = {}
         self.answers_order = []
 
+    def register_participant(self, user):
+        self.registered_participants[user] = []
+
     """
     Transitions
     """
@@ -137,12 +140,13 @@ class PointsQuizController(BaseQuizController):
                     # User already registered via !kwiss register
                     continue
 
-                self.registered_participants[user] = []
+                self.register_participant(user)
             if self.gecki:
-                self.registered_participants[self.plugin.bot.user] = []
+                self.register_participant(self.plugin.bot.user)
 
         players = len(self.registered_participants)
         if players == 0 or (self.ranked and players < self.config["ranked_min_players"] and not self.debug):
+            await self.channel.send(Lang.lang(self.plugin, "quiz_no_players"))
             self.state = Phases.ABORT
         else:
             self.state = Phases.ABOUTTOSTART
@@ -329,7 +333,17 @@ class PointsQuizController(BaseQuizController):
         if self.state != Phases.QUESTION or self.current_question != event.data:
             return
         if event.member not in self.registered_participants:
-            return
+            print("Unregistered user {}".format(event.member))
+            print("Valid emoji: {}".format(self.quizapi.current_question().is_valid_emoji(event.emoji)))
+            # register user if not ranked and answer is valid
+            if not self.ranked and self.quizapi.current_question().is_valid_emoji(event.emoji.name):
+                self.register_participant(event.member)
+                await self.channel.send(Lang.lang(self.plugin,
+                                                  "registration_late",
+                                                  get_best_username(Storage().get(self.plugin), event.member)))
+            else:
+                print("returning")
+                return
 
         # Reaction removed
         if isinstance(event, ReactionRemovedEvent):
@@ -383,7 +397,7 @@ class PointsQuizController(BaseQuizController):
         panic = not self.havent_answered_hr()
         await self.channel.send(msg)
         if panic:
-            await self.channel.send("I know this should not happen. Please leave a !complain, thank you very much.")
+            await self.channel.send("I know this should not happen. Please leave a `!complain`, thank you very much.")
 
     async def timeout(self, question):
         """

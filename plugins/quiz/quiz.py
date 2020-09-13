@@ -240,8 +240,8 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
                                                gecki=args["gecki"])
             self.controllers[channel] = quiz_controller
             self.logger.debug("Registered quiz controller {} in channel {}".format(quiz_controller, ctx.channel))
-        await quiz_controller.status(ctx.message)
-        await quiz_controller.start(ctx.message)
+            await quiz_controller.status(ctx.message)
+            await quiz_controller.start(ctx.message)
 
     @kwiss.command(name="status")
     async def cmd_status(self, ctx):
