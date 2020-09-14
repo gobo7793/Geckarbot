@@ -12,7 +12,11 @@
         "trusted_prefix": "Trusted:",
         "manager_only": "Sorry, only the manager can perform this action.",
         "user_not_bridged": "You are currently not connected with a user.",
-        "user_not_found": "User not found."
+        "user_not_found": "User not found.",
+        "team_not_found": "Sorry, I can't find {} in my dictionary",
+        "title_main_thread": "Season Thread",
+        "title_predictions_thread": "Matchday Thread",
+        "title_spreadsheet": "Spreadsheet"
     },
     "de": {
         "goal_scored": "{} hat getroffen!",
@@ -24,6 +28,9 @@
         "no_observed_users": "Ich beobachte noch keine Teilnehmer.",
         "observe_prefix": "Ich beobachte:",
         "manager_only": "Sorry, only the manager can perform this action.",
-        "user_not_bridged": "Es scheint als wüsste ich noch nicht, wer du bist."
+        "user_not_bridged": "Es scheint als wüsste ich noch nicht, wer du bist.",
+        "title_main_thread": "Auswertungen",
+        "title_predictions_thread": "Tippabgabe",
+        "title_spreadsheet": "Spreadsheet"
     }
 }

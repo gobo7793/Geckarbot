@@ -67,6 +67,8 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
     def default_storage(self):
         return {
             'matchday': 0,
+            'main_thread': "",
+            'predictions_thread': "",
             'discord_user_bridge': {},
             'observed_users': [],
             'participants': {
@@ -84,24 +86,24 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                           "TN 67", "TN 68", "TN 69", "TN 70", "TN 71", "TN 72"],
             },
             'teamnames': {
-                "FC Bayern München":      {'short_name': "FCB", 'other': ["FC Bayern", "Bayern", "München"]},
-                "Borussia Dortmund":      {'short_name': "BVB", 'other': ["Dortmund"]},
+                "FC Bayern München": {'short_name': "FCB", 'other': ["FC Bayern", "Bayern", "München"]},
+                "Borussia Dortmund": {'short_name': "BVB", 'other': ["Dortmund"]},
                 "Rasenballsport Leipzig": {'short_name': "LPZ", 'other': ["Leipzig", "RB Leipzig", "RBL", "LEI"]},
-                "Bor. Mönchengladbach":   {'short_name': "BMG", 'other': ["Gladbach", "Borussia Mönchengladbach"]},
-                "Bayer 04 Leverkusen":    {'short_name': "LEV", 'other': ["Leverkusen", "Bayer Leverkusen", "B04"]},
-                "TSG Hoffenheim":         {'short_name': "HOF", 'other': ["Hoffenheim", "TSG 1899 Hoffenheim", "TSG"]},
-                "VfL Wolfsburg":          {'short_name': "WOB", 'other': ["Wolfsburg", "VFL"]},
-                "SC Freiburg":            {'short_name': "SCF", 'other': ["Freiburg"]},
-                "Eintracht Frankfurt":    {'short_name': "SGE", 'other': ["Frankfurt", "Eintracht", "FRA"]},
-                "Hertha BSC":             {'short_name': "BSC", 'other': ["Hertha"]},
-                "1. FC Union Berlin":     {'short_name': "FCU", 'other': ["Union", "Berlin"]},
-                "FC Schalke 04":          {'short_name': "S04", 'other': ["Schalke"]},
-                "1. FSV Mainz 05":        {'short_name': "M05", 'other': ["Mainz", "FSV"]},
-                "1. FC Köln":             {'short_name': "KOE", 'other': ["Köln", "FCK"]},
-                "FC Augsburg":            {'short_name': "FCA", 'other': ["Augsburg"]},
-                "SV Werder Bremen":       {'short_name': "SVW", 'other': ["Bremen", "Werder", "Werder Bremen", "BRE"]},
-                "Arminia Bielefeld":      {'short_name': "DSC", 'other': ["Bielefeld", "Arminia", "BIE"]},
-                "VfB Stuttgart":          {'short_name': "VFB", 'other': ["Stuttgart", "STU"]}
+                "Bor. Mönchengladbach": {'short_name': "BMG", 'other': ["Gladbach", "Borussia Mönchengladbach"]},
+                "Bayer 04 Leverkusen": {'short_name': "LEV", 'other': ["Leverkusen", "Bayer Leverkusen", "B04"]},
+                "TSG Hoffenheim": {'short_name': "HOF", 'other': ["Hoffenheim", "TSG 1899 Hoffenheim", "TSG"]},
+                "VfL Wolfsburg": {'short_name': "WOB", 'other': ["Wolfsburg", "VFL"]},
+                "SC Freiburg": {'short_name': "SCF", 'other': ["Freiburg"]},
+                "Eintracht Frankfurt": {'short_name': "SGE", 'other': ["Frankfurt", "Eintracht", "FRA"]},
+                "Hertha BSC": {'short_name': "BSC", 'other': ["Hertha"]},
+                "1. FC Union Berlin": {'short_name': "FCU", 'other': ["Union", "Berlin"]},
+                "FC Schalke 04": {'short_name': "S04", 'other': ["Schalke"]},
+                "1. FSV Mainz 05": {'short_name': "M05", 'other': ["Mainz", "FSV"]},
+                "1. FC Köln": {'short_name': "KOE", 'other': ["Köln", "FCK"]},
+                "FC Augsburg": {'short_name': "FCA", 'other': ["Augsburg"]},
+                "SV Werder Bremen": {'short_name': "SVW", 'other': ["Bremen", "Werder", "Werder Bremen", "BRE"]},
+                "Arminia Bielefeld": {'short_name': "DSC", 'other': ["Bielefeld", "Arminia", "BIE"]},
+                "VfB Stuttgart": {'short_name': "VFB", 'other': ["Stuttgart", "STU"]}
             }
         }
 
@@ -321,7 +323,9 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
     @commands.command(name="goal", help="Scores a goal for a team (Spätzle-command)")
     async def goal(self, ctx, team, goals: int = None):
         abbr = self.get_teamname_abbr(team)
-        if abbr is not None:
+        if abbr is None:
+            await ctx.send(Lang.lang(self, 'team_not_found', team))
+        else:
             async with ctx.typing():
                 c = self.get_api_client()
                 match = self.matches_by_team[abbr]
@@ -336,7 +340,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                     msg = "{0} [{1}:**{3}**] {2}"
                 msg = msg.format(match['team_home'], match[self.get_teamname_abbr(match['team_home'])]['goals'],
                                  match['team_away'], match[self.get_teamname_abbr(match['team_away'])]['goals'])
-                await ctx.send("{}\n{}".format(Lang.lang(self, "goal_scored", team), msg))
+                await ctx.send(msg)
 
                 data = [x[:] for x in [[None] * 10] * 10]
                 cell_x, cell_y = match[abbr]['cell']
@@ -349,11 +353,17 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                     help="commands for managing the 'Spätzles-Tippspiel'")
     async def spaetzle(self, ctx):
         if ctx.invoked_subcommand is None:
-            await ctx.send("Keine Spätzles. Nur Fußball :c")
+            await ctx.invoke(self.bot.get_command('spaetzle info'))
 
     @spaetzle.command(name="info", help="Get info about the Spaetzles-Tippspiel")
     async def spaetzle_info(self, ctx):
-        await ctx.send(Lang.lang(self, 'info'))
+        embed = discord.Embed(title="Spätzle(s)-Tippspiel", description=Lang.lang(self, 'info'))
+        embed.add_field(name=Lang.lang(self, 'title_spreadsheet'), value="<https://docs.google.com/spreadsheets/d/{}>"
+                        .format(Config().get(self)['spaetzledoc_id']), inline=False)
+        embed.add_field(name=Lang.lang(self, 'title_main_thread'), value=Storage().get(self)['main_thread'])
+        embed.add_field(name=Lang.lang(self, 'title_predictions_thread'),
+                        value=Storage().get(self)['predictions_thread'])
+        await ctx.send(embed=embed)
 
     @spaetzle.command(name="link", help="Get the link to the spreadsheet")
     async def spaetzle_doc_link(self, ctx):
@@ -506,6 +516,20 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             else:
                 c.update(Config().get(self)['duel_ranges'].get(league), data.get(league))
         await add_reaction(message, Lang.CMDSUCCESS)
+
+    @spaetzle_set.command(name="thread", help="Sets the URL of the \"Tippabgabe-Thread\".")
+    async def set_thread(self, ctx, url: str):
+        if self.trusted_check(ctx):
+            Storage().get(self)['predictions_thread'] = url
+            Storage().save(self)
+            await add_reaction(ctx.message, Lang.CMDSUCCESS)
+
+    @spaetzle_set.command(name="mainthread", help="Sets the URL of the main thread.")
+    async def set_mainthread(self, ctx, url: str):
+        if self.trusted_check(ctx):
+            Storage().get(self)['main_thread'] = url
+            Storage().save(self)
+            await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
     def get_matches_from_sheets(self):
         """
@@ -688,7 +712,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             result = c.get(data_range)
 
             for duel in result:
-                duel.extend([""]*(8-len(duel)))
+                duel.extend([""] * (8 - len(duel)))
                 msg += "{0} [{4}:{5}] {7}\n".format(*duel)
         await ctx.send(embed=discord.Embed(title="Duelle Liga {}".format(league), description=msg))
 
@@ -702,7 +726,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             for i in range(len(results)):
                 msg = ""
                 for duel in results[i]:
-                    duel.extend([""]*(8-len(duel)))
+                    duel.extend([""] * (8 - len(duel)))
                     msg += "{0} [{4}:{5}] {7}\n".format(*duel)
                 embed.add_field(name="Liga {}".format(i + 1), value=msg)
         await ctx.send(embed=embed)
@@ -747,7 +771,6 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                 except UserNotFound:
                     ctx.send(Lang.lang(self, 'user_not_found'))
                     return
-
 
             data_range = "Aktuell!{}".format(Config().get(self)['table_ranges'].get(league))
             if data_range is None:
