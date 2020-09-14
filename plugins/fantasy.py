@@ -36,19 +36,23 @@ class FantasyState(IntEnum):
 class FantasyLeague:
     """Fatasy Football League dataset"""
 
-    def __init__(self, plugin, espn_id: int, commish: discord.User, init=False):
+    def __init__(self, plugin, espn_id: int, commish: discord.User, div0_name: str, div1_name: str, init=False):
         """
         Creates a new FantasyLeague dataset instance
 
         :param plugin: The fantasy plugin instance
         :param espn_id: The ESPN league ID
         :param commish: The commissioner
+        :param div0_name: Name of division with ID 0
+        :param div1_name: Name of division with ID 1
         :param init: True if league is loading from Storage
         """
         self.plugin = plugin
         self.espn_id = espn_id
         self.commish = commish
         self.espn = None  # type: Optional[League]
+        self.div0_name = div0_name  # workaround due to API package limitations
+        self.div1_name = div1_name
 
         if init:
             connect_thread = Thread(target=self._connect_espn)
@@ -99,6 +103,8 @@ class FantasyLeague:
         return {
             'espn_id': self.espn_id,
             'commish': self.commish.id,
+            'div0': self.div0_name,
+            'div1': self.div1_name
         }
 
     @classmethod
@@ -110,7 +116,7 @@ class FantasyLeague:
         :param d: dict made by serialize()
         :return: FantasyLeague object
         """
-        return FantasyLeague(plugin, d['espn_id'], get_best_user(plugin.bot, d['commish']))
+        return FantasyLeague(plugin, d['espn_id'], get_best_user(plugin.bot, d['commish']), d['div0'], d['div1'])
 
 
 class Plugin(BasePlugin, name="NFL Fantasyliga"):
@@ -126,7 +132,7 @@ class Plugin(BasePlugin, name="NFL Fantasyliga"):
         self.status = ""
         self.datalink = None
         self.start_date = datetime.now()
-        self.end_date = datetime.now() + timedelta(days=16*7)
+        self.end_date = datetime.now() + timedelta(days=16 * 7)
         self.leagues = {}  # type: Dict[int, FantasyLeague]
         self._score_timer_jobs = []  # type: List[timers.Job]
 
@@ -151,7 +157,7 @@ class Plugin(BasePlugin, name="NFL Fantasyliga"):
             "status": "",
             "datalink": None,
             "start": datetime.now(),
-            "end": datetime.now() + timedelta(days=16*7),
+            "end": datetime.now() + timedelta(days=16 * 7),
             "leagues": [],
             "api": {
                 "swid": "",
@@ -235,15 +241,15 @@ class Plugin(BasePlugin, name="NFL Fantasyliga"):
     @fantasy.command(name="scores", help="Gets the matchup scores")
     async def scores(self, ctx, week: int = 0):
         async with ctx.typing():
-            await self._send_scores(ctx.channel, week)
+            await self._write_scores(ctx.channel, week)
 
     async def _score_send_callback(self, job):
         """Callback method for the timer to auto-send current scores to fantasy channel"""
         channel = self.bot.get_channel(Config.get(self)['channel_id'])
         if channel is not None:
-            await self._send_scores(channel)
+            await self._write_scores(channel)
 
-    async def _send_scores(self, channel: discord.TextChannel, week: int = 0, show_errors=True):
+    async def _write_scores(self, channel: discord.TextChannel, week: int = 0, show_errors=True):
         """Send the current scores of given week to given channel"""
         if not self.leagues:
             if show_errors:
@@ -257,12 +263,15 @@ class Plugin(BasePlugin, name="NFL Fantasyliga"):
 
             match_no = 0
             bye_team = None
+            bye_pts = 0
             for match in league.espn.box_scores(week):
                 if match.home_team is None or match.home_team == 0:
                     bye_team = match.away_team.team_name
+                    bye_pts = match.away_score
                     continue
                 elif match.away_team is None or match.away_team == 0:
                     bye_team = match.home_team.team_name
+                    bye_pts = match.home_score
                     continue
                 match_no += 1
                 name_str = Lang.lang(self, "matchup_name", match_no)
@@ -271,16 +280,53 @@ class Plugin(BasePlugin, name="NFL Fantasyliga"):
                 embed.add_field(name=name_str, value=value_str)
 
             if bye_team is not None:
-                embed.add_field(name=Lang.lang(self, "on_bye"), value=bye_team)
+                embed.add_field(name=Lang.lang(self, "on_bye"), value="{} ({:6.2f})".format(bye_team, bye_pts))
 
             await channel.send(embed=embed)
 
     @fantasy.command(name="standings", help="Gets the full current standings")
     async def standings(self, ctx):
-        # TODO after week 1
+        if not self.leagues:
+            await ctx.send(Lang.lang(self, "no_leagues"))
+            return
+
+        # TODO check after week 1
         for league in self.leagues.values():
             embed = discord.Embed(title=league.name)
             embed.url = league.scoreboard_url
+
+            divisions = {0: [], 1: []}  # workaround because ESPN API package doesn't get division names
+            for team in league.espn.standings():
+                # if team.division_id not in divisions:
+                #     divisions[team.division_id] = []
+                # divisions[team.division_id].append(team)
+                divisions[int(team.division_id)].append(team)
+
+            # TODO wait for API package update to get division names directly from ESPN API
+            # for division in divisions:
+            #     div = divisions[division]
+            #     div.sort(key=lambda x: x.standing)
+            #     standing_str = "\n".join([
+            #         Lang.lang(self, "standings_data", t, div[t].team_name, div[t].wins, div[t].losses)
+            #         for t in div])
+            #     embed.add_field(name=div, value=standing_str)
+
+            # workaround for ESPN API package limitations
+            div0 = divisions[0]
+            div0.sort(key=lambda x: x.standing)
+            standing0_str = "\n".join([
+                Lang.lang(self, "standings_data", t + 1, div0[t].team_name, div0[t].wins, div0[t].losses)
+                for t in range(len(div0))])
+            embed.add_field(name=league.div0_name, value=standing0_str)
+
+            div1 = divisions[1]
+            div1.sort(key=lambda x: x.standing)
+            standing1_str = "\n".join([
+                Lang.lang(self, "standings_data", t + 1, div1[t].team_name, div1[t].wins, div1[t].losses)
+                for t in range(len(div1))])
+            embed.add_field(name=league.div1_name, value=standing1_str)
+
+            await ctx.send(embed=embed)
 
     @fantasy.command(name="info", help="Get information about the NFL Fantasy Game")
     async def info(self, ctx):
@@ -499,16 +545,19 @@ class Plugin(BasePlugin, name="NFL Fantasyliga"):
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
     @fantasy_set.command(name="add", help="Adds a new fantasy league",
+                         usage="<ESPN League ID> <Commissioner Discord user> <Division 0 Name> <Division 1 Name>",
                          description="Adds a new fantasy league with the given "
-                                     "ESPN league ID and the User as commissioner.")
-    async def set_add(self, ctx, espn_id: int, commish: Union[discord.Member, discord.User]):
+                                     "ESPN league ID and the User as commissioner.\n"
+                                     "Due to technical limitations, the division names for division with ESPN ID 0 and"
+                                     "ID 1 must be set during league adding.")
+    async def set_add(self, ctx, espn_id: int, commish: Union[discord.Member, discord.User], div0_name, div1_name):
         if not Storage.get(self)["api"]["espn_s2"] and not Storage.get(self)["api"]["swid"]:
             await add_reaction(ctx.message, Lang.CMDERROR)
             await ctx.send(Lang.lang(self, "credentials_first", espn_id))
             return
 
         async with ctx.typing():
-            league = FantasyLeague(self, espn_id, commish)
+            league = FantasyLeague(self, espn_id, commish, div0_name, div1_name)
             if league.espn is None:
                 await add_reaction(ctx.message, Lang.CMDERROR)
                 await ctx.send(Lang.lang(self, "league_add_fail", espn_id))
