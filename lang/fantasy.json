@@ -35,7 +35,9 @@
         "matchup_name": "Match #{}",
         "matchup_data": "{0:25} vs. {1:25} {2:6.2f} - {3:6.2f}\n",
         "no_leagues": "Sorry, but I have no leagues to show something.",
-        "standings_data": "{}. {} ({}-{})"
+        "standings_data": "{}. {} ({}-{})",
+        "overall": "Overall",
+        "division": "Division"
     },
     "de": {
         "channel_id": "Die Channel-ID für das !dsc set-Kommando muss eine gültige ID auf diesem Server sein.",
@@ -73,6 +75,8 @@
         "matchup_name": "Spiel #{}",
         "matchup_data": "{0}\n{2}\n{1:6.2f} - {3:6.2f}",
         "no_leagues": "Sorry, aber ich hab keine Ligen, von denen ich irgendwas anzeigen könnte.",
-        "standings_data": "{}. {} ({}-{})"
+        "standings_data": "{}. {} ({}-{})",
+        "overall": "Overall",
+        "division": "Division"
     }
 }

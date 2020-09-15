@@ -217,14 +217,17 @@ class Plugin(BasePlugin, name="NFL Fantasyliga"):
 
         year_range = list(range(self.start_date.year, self.end_date.year + 1))
         month_range = list(range(self.start_date.month, self.end_date.month + 1))
-        timedict_12h = timers.timedict(year=year_range, month=month_range, weekday=[1, 2, 5], hour=12, minute=0)
+        timedict_12h = timers.timedict(year=year_range, month=month_range, weekday=[1, 5], hour=12, minute=0)
         timedict_sun = timers.timedict(year=year_range, month=month_range, weekday=7, hour=[18, 22], minute=45)
         timedict_mon = timers.timedict(year=year_range, month=month_range, weekday=1, hour=1, minute=45)
+        # timedict_tue = timers.timedict(year=year_range, month=month_range, weekday=[2], hour=12, minute=0)
         self._score_timer_jobs = [
             self.bot.timers.schedule(self._score_send_callback, timedict_12h, repeat=True),
             self.bot.timers.schedule(self._score_send_callback, timedict_sun, repeat=True),
-            self.bot.timers.schedule(self._score_send_callback, timedict_mon, repeat=True)
+            self.bot.timers.schedule(self._score_send_callback, timedict_mon, repeat=True),
+            # self.bot.timers.schedule(self._score_send_callback, timedict_tue, repeat=True)
         ]
+        # TODO Tuesday timer must return previous week
 
     @commands.group(name="fantasy", help="Get and manage information about the NFL Fantasy Game",
                     description="Get the information about the Fantasy Game or manage it. "
@@ -290,7 +293,6 @@ class Plugin(BasePlugin, name="NFL Fantasyliga"):
             await ctx.send(Lang.lang(self, "no_leagues"))
             return
 
-        # TODO check after week 1
         for league in self.leagues.values():
             embed = discord.Embed(title=league.name)
             embed.url = league.scoreboard_url
@@ -362,8 +364,22 @@ class Plugin(BasePlugin, name="NFL Fantasyliga"):
                 standings = league.espn.standings()
 
                 embed.add_field(name=Lang.lang(self, "curr_season"), value=season_str)
-                # TODO better standings, East, West, Overall
-                embed.add_field(name=Lang.lang(self, "current_leader"), value=standings[0].team_name)
+                # TODO get divisions after API package update
+                overall_leader = standings[0]
+                div0_leader = next(x for x in standings if int(x.division_id) == 0)
+                div1_leader = next(x for x in standings if int(x.division_id) == 1)
+                overall_str = Lang.lang(self, "overall")
+                division_str = Lang.lang(self, "division")
+                standings_str = "{} ({})\n{} ({})\n{} ({})".format(div0_leader.team_name, league.div0_name[0:1],
+                                                                   div1_leader.team_name, league.div1_name[0:1],
+                                                                   overall_leader.team_name,
+                                                                   overall_str[0:1])
+                embed.add_field(name=Lang.lang(self, "current_leader"), value=standings_str)
+                footer_text = "{}: {} {} | {}: {} {} | {}: {}".format(league.div0_name[0:1], league.div0_name,
+                                                                      division_str, league.div1_name[0:1],
+                                                                      league.div1_name, division_str, overall_str[0:1],
+                                                                      overall_str)
+                embed.set_footer(text=footer_text)
 
                 trade_deadline_int = league.espn.settings.trade_deadline
                 if trade_deadline_int > 0:
