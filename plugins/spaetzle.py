@@ -1,10 +1,14 @@
 import calendar
 import logging
+import re
 from datetime import datetime, timedelta
 from enum import Enum
 from typing import Tuple
+from urllib.parse import urljoin, urlparse
 
 import discord
+import requests
+from bs4 import BeautifulSoup
 from discord.ext import commands
 
 from Geckarbot import BasePlugin
@@ -61,7 +65,9 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                 3: "AH14:AR31",
                 4: "AT14:BD31"
             },
-            'predictions_range': "BH2:CQ49"
+            'predictions_range': "BH2:CQ49",
+            'user_agent': "{'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_6) AppleWebKit/537.36 (KHTML, "
+                          "like Gecko) Chrome/56.0.2924.87 Safari/537.36',} "
         }
 
     def default_storage(self):
@@ -104,7 +110,8 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                 "SV Werder Bremen": {'short_name': "SVW", 'other': ["Bremen", "Werder", "Werder Bremen", "BRE"]},
                 "Arminia Bielefeld": {'short_name': "DSC", 'other': ["Bielefeld", "Arminia", "BIE"]},
                 "VfB Stuttgart": {'short_name': "VFB", 'other': ["Stuttgart", "STU"]}
-            }
+            },
+            'predictions': []
         }
 
     def get_api_client(self):
@@ -516,6 +523,50 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             else:
                 c.update(Config().get(self)['duel_ranges'].get(league), data.get(league))
         await add_reaction(message, Lang.CMDSUCCESS)
+
+    @spaetzle_set.command(name="scrape", help="Scrapes the predictions thread for forum posts")
+    async def set_scrape(self, ctx):
+        if not await self.trusted_check(ctx):
+            return
+
+        data = []
+        url = Storage().get(self)['predictions_thread']
+
+        if urlparse(url).netloc not in "www.transfermarkt.de":
+            await ctx.send(Lang.lang(self, 'scrape_incorrect_url', url))
+
+        botmessage = await ctx.send(Lang.lang(self, 'scrape_start', url))
+        async with ctx.typing():
+            while True:
+                response = requests.get(url, headers=Config().get(self)['user_agent'])
+                soup = BeautifulSoup(response.text, "html.parser")
+
+                posts = soup.find_all('div', 'box')
+                for p in posts:
+                    p_time = p.find_all('div', 'post-header-datum')
+                    p_user = p.find_all('a', 'forum-user')
+                    p_data = p.find_all('div', 'forum-post-data')
+                    if p_user:
+                        print(p_user[0].text + '  -  ' + p_time[0].text.strip())
+                        data.append({
+                            'user': p_user[0].text,
+                            'time': p_time[0].text.strip(),
+                            'content': re.sub(r'(?:(?!\n)\s){2,}', ' ',
+                                              p_data[0].text.replace('\u2013', '-').replace('\u00fc', 'ue')).split("\n")
+                        })
+
+                await botmessage.edit(content="{}\n{}".format(botmessage.content,
+                                                               Lang.lang(self, 'scrape_intermediate', len(data))))
+                next_page = soup.find_all('li', 'naechste-seite')
+                if next_page and next_page[0].a:
+                    url = urljoin(Storage().get(self)['predictions_thread'], next_page[0].a['href'])
+                else:
+                    await ctx.send(Lang.lang(self, 'scrape_end'))
+                    break
+
+            Storage().get(self)['predictions'] = data
+            Storage().save(self)
+        await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
     @spaetzle_set.command(name="thread", help="Sets the URL of the \"Tippabgabe-Thread\".")
     async def set_thread(self, ctx, url: str):

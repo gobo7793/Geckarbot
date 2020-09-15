@@ -16,7 +16,11 @@
         "team_not_found": "Sorry, I can't find {} in my dictionary",
         "title_main_thread": "Season Thread",
         "title_predictions_thread": "Matchday Thread",
-        "title_spreadsheet": "Spreadsheet"
+        "title_spreadsheet": "Spreadsheet",
+        "scrape_incorrect_url": "Sorry, I refuse to scrape <{}>!",
+        "scrape_start": "Started scraping. Url: <{}>",
+        "scrape_intermediate": "Found {} results. Searching for more...",
+        "scrape_end": "There is no next page. Continue with `!spaetzle set extract`"
     },
     "de": {
         "goal_scored": "{} hat getroffen!",
@@ -31,6 +35,10 @@
         "user_not_bridged": "Es scheint als wüsste ich noch nicht, wer du bist.",
         "title_main_thread": "Auswertungen",
         "title_predictions_thread": "Tippabgabe",
-        "title_spreadsheet": "Spreadsheet"
+        "title_spreadsheet": "Spreadsheet",
+        "scrape_incorrect_url": "Ich weigere mich <{}> zu lesen!",
+        "scrape_start": "Scraping begonnen. Url: <{}>",
+        "scrape_intermediate": "Ich habe {} Posts gefunden und werde weitere suchen...",
+        "scrape_end": "Ich bin am Ziel angekommen. Setze fort mit: `!spaetzle set extract`"
     }
 }
