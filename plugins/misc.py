@@ -60,10 +60,11 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
     @commands.command(name="kicker", help="Returns frequently used links to kicker.de")
     async def kicker_table(self, ctx):
         embed = discord.Embed(title=Lang.lang(self, 'kicker_title'))
-        embed.add_field(name=Lang.lang(self, 'kicker_1BL'), value=Lang.lang(self, 'kicker_1BL_link'))
-        embed.add_field(name=Lang.lang(self, 'kicker_2BL'), value=Lang.lang(self, 'kicker_2BL_link'))
-        embed.add_field(name=Lang.lang(self, 'kicker_3FL'), value=Lang.lang(self, 'kicker_3FL_link'))
-        embed.add_field(name=Lang.lang(self, 'kicker_ATBL'), value=Lang.lang(self, 'kicker_ATBL_link'))
+        embed.add_field(name=Lang.lang(self, 'kicker_1BL'), value=Lang.lang(self, 'kicker_1BL_link'), inline=False)
+        embed.add_field(name=Lang.lang(self, 'kicker_2BL'), value=Lang.lang(self, 'kicker_2BL_link'), inline=False)
+        embed.add_field(name=Lang.lang(self, 'kicker_3FL'), value=Lang.lang(self, 'kicker_3FL_link'), inline=False)
+        embed.add_field(name=Lang.lang(self, 'kicker_ATBL'), value=Lang.lang(self, 'kicker_ATBL_link'), inline=False)
+        embed.add_field(name=Lang.lang(self, 'kicker_DFBP'), value=Lang.lang(self, 'kicker_DFBP_link'), inline=False)
         await ctx.send(embed=embed)
 
     @commands.command(name="choose", help="Picks on of the options. Separate options with '|'",

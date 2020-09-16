@@ -226,8 +226,8 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
 
     @commands.group(name="disable", invoke_without_command=True, aliases=["ignore", "block"],
                     usage="<full command name>")
-    async def disable(self, ctx, *command):
-        cmd = " ".join(command)
+    async def disable(self, ctx, *, command):
+        cmd = self.bot.get_command(command).qualified_name
         if not await self._pre_cmd_checks(ctx.message, cmd):
             return
 
@@ -244,7 +244,7 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
     async def disable_mod(self, ctx, *args):
         user, command, until = await self._parse_mod_args(ctx.message, *args)
 
-        final_msg = "PANIC"
+        final_msg = None
         reaction = Lang.CMDERROR
         until_str = ""
 
@@ -299,7 +299,8 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
 
         await utils.log_to_admin_channel(ctx)
         await ctx.message.add_reaction(reaction)
-        await ctx.send(final_msg)
+        if final_msg is not None:
+            await ctx.send(final_msg)
 
     @disable.command(name="list")
     async def disable_list(self, ctx):
@@ -323,8 +324,8 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
 
     @commands.group(name="enable", invoke_without_command=True, aliases=["unignore", "unblock"],
                     usage="[full command name]")
-    async def enable(self, ctx, command=None):
-        final_msg = "PANIC"
+    async def enable(self, ctx, *, command=None):
+        final_msg = None
         reaction = Lang.CMDERROR
 
         # remove all commands if no command given
@@ -338,27 +339,29 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
                 self.bot.ignoring.remove(entry)
 
             reaction = Lang.CMDSUCCESS
-            final_msg = Lang.lang(self, 'all_passives_unblocked', command)
+            final_msg = Lang.lang(self, 'all_passives_unblocked')
 
         # remove given command
         else:
-            result = self.bot.ignoring.remove_passive(ctx.author, command)
+            cmd = self.bot.get_command(command).qualified_name
+            result = self.bot.ignoring.remove_passive(ctx.author, cmd)
             if result == IgnoreEditResult.Success:
                 reaction = Lang.CMDSUCCESS
             elif result == IgnoreEditResult.Not_in_list:
                 reaction = Lang.CMDERROR
-                final_msg = Lang.lang(self, 'passive_not_blocked', command)
+                final_msg = Lang.lang(self, 'passive_not_blocked', cmd)
 
         await utils.log_to_admin_channel(ctx)
         await ctx.message.add_reaction(reaction)
-        await ctx.send(final_msg)
+        if final_msg is not None:
+            await ctx.send(final_msg)
 
     @enable.command(name="mod", usage="[user|command]")
     @commands.has_any_role(*Config().FULL_ACCESS_ROLES)
     async def enable_mod(self, ctx, *args):
         user, command, until = await self._parse_mod_args(ctx.message, *args)
 
-        final_msg = "PANIC"
+        final_msg = None
         reaction = Lang.CMDERROR
 
         # enable command in current channel
@@ -398,7 +401,8 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
 
         await utils.log_to_admin_channel(ctx)
         await ctx.message.add_reaction(reaction)
-        await ctx.send(final_msg)
+        if final_msg is not None:
+            await ctx.send(final_msg)
 
     async def _is_valid_command(self, command):
         """
@@ -407,10 +411,10 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
         :param command: The command
         :return: True if the command is valid and exists
         """
-        all_commands = self.bot.all_commands
+        native = self.bot.get_command(command)
         customcmds = self.bot.ignoring.get_additional_commands()
 
-        if command in all_commands or command in customcmds:
+        if native is not None or command in customcmds:
             return True
         return False
 
@@ -456,7 +460,7 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
 
             if command is None and await self._is_valid_command(arg):
                 if await self._pre_cmd_checks(message, arg):
-                    command = arg
+                    command = self.bot.get_command(arg).qualified_name
                     continue
 
             if until is None:

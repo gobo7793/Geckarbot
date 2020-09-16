@@ -1,3 +1,4 @@
+from collections import OrderedDict
 from enum import IntEnum
 from threading import Thread
 from typing import Dict, Optional, Union, List
@@ -98,7 +99,7 @@ class FantasyLeague:
         """
         return {
             'espn_id': self.espn_id,
-            'commish': self.commish.id,
+            'commish': self.commish.id
         }
 
     @classmethod
@@ -111,6 +112,17 @@ class FantasyLeague:
         :return: FantasyLeague object
         """
         return FantasyLeague(plugin, d['espn_id'], get_best_user(plugin.bot, d['commish']))
+
+
+def _get_division_standings(league: FantasyLeague):
+    """Returns a dict with key division_name and value a sorted list with the current division standing"""
+    divisions = {}
+    for team in league.espn.standings():
+        if team.division_name not in divisions:
+            divisions[team.division_name] = []
+        divisions[team.division_name].append(team)
+
+    return OrderedDict(sorted(divisions.items()))
 
 
 class Plugin(BasePlugin, name="NFL Fantasyliga"):
@@ -126,7 +138,8 @@ class Plugin(BasePlugin, name="NFL Fantasyliga"):
         self.status = ""
         self.datalink = None
         self.start_date = datetime.now()
-        self.end_date = datetime.now() + timedelta(days=16*7)
+        self.end_date = datetime.now() + timedelta(days=16 * 7)
+        self.use_timers = False
         self.leagues = {}  # type: Dict[int, FantasyLeague]
         self._score_timer_jobs = []  # type: List[timers.Job]
 
@@ -151,7 +164,8 @@ class Plugin(BasePlugin, name="NFL Fantasyliga"):
             "status": "",
             "datalink": None,
             "start": datetime.now(),
-            "end": datetime.now() + timedelta(days=16*7),
+            "end": datetime.now() + timedelta(days=16 * 7),
+            "timers": False,
             "leagues": [],
             "api": {
                 "swid": "",
@@ -172,6 +186,7 @@ class Plugin(BasePlugin, name="NFL Fantasyliga"):
         self.datalink = Storage.get(self)["datalink"]
         self.start_date = Storage.get(self)["start"]
         self.end_date = Storage.get(self)["end"]
+        self.use_timers = Storage.get(self)["timers"]
         for d in Storage.get(self)["leagues"]:
             self.leagues[d["espn_id"]] = FantasyLeague.deserialize(self, d)
 
@@ -185,6 +200,7 @@ class Plugin(BasePlugin, name="NFL Fantasyliga"):
             "datalink": self.datalink,
             "start": self.start_date,
             "end": self.end_date,
+            "timers": self.use_timers,
             "leagues": [el.serialize() for el in self.leagues.values()],
             "api": {
                 "swid": Storage.get(self)["api"]["swid"],
@@ -201,24 +217,35 @@ class Plugin(BasePlugin, name="NFL Fantasyliga"):
         If timer is already started, timer will be cancelled and removed before restart.
         Timer will be started only if Config().DEBUG_MODE is False.
         """
+        if not self.use_timers:
+            return
         if Config().DEBUG_MODE:
             logging.getLogger("fantasy").warning("DEBUG MODE is on, fantasy timers will not be started!")
             return
 
-        for timer in self._score_timer_jobs:
-            if not timer.cancelled:
-                timer.cancel()
+        self._stop_score_timer()
 
         year_range = list(range(self.start_date.year, self.end_date.year + 1))
         month_range = list(range(self.start_date.month, self.end_date.month + 1))
-        timedict_12h = timers.timedict(year=year_range, month=month_range, weekday=[1, 2, 5], hour=12, minute=0)
+        timedict_12h = timers.timedict(year=year_range, month=month_range, weekday=[1, 5], hour=12, minute=0)
         timedict_sun = timers.timedict(year=year_range, month=month_range, weekday=7, hour=[18, 22], minute=45)
         timedict_mon = timers.timedict(year=year_range, month=month_range, weekday=1, hour=1, minute=45)
+        timedict_tue = timers.timedict(year=year_range, month=month_range, weekday=2, hour=12, minute=0)
         self._score_timer_jobs = [
             self.bot.timers.schedule(self._score_send_callback, timedict_12h, repeat=True),
             self.bot.timers.schedule(self._score_send_callback, timedict_sun, repeat=True),
-            self.bot.timers.schedule(self._score_send_callback, timedict_mon, repeat=True)
+            self.bot.timers.schedule(self._score_send_callback, timedict_mon, repeat=True),
+            self.bot.timers.schedule(self._score_send_callback, timedict_tue, repeat=True)
         ]
+        self._score_timer_jobs[0].data = False  # True = previous week, False = current week
+        self._score_timer_jobs[1].data = False
+        self._score_timer_jobs[2].data = False
+        self._score_timer_jobs[3].data = True
+
+    def _stop_score_timer(self):
+        """Cancels all timers for auto-send scores to channel"""
+        for job in self._score_timer_jobs:
+            job.cancel()
 
     @commands.group(name="fantasy", help="Get and manage information about the NFL Fantasy Game",
                     description="Get the information about the Fantasy Game or manage it. "
@@ -235,15 +262,15 @@ class Plugin(BasePlugin, name="NFL Fantasyliga"):
     @fantasy.command(name="scores", help="Gets the matchup scores")
     async def scores(self, ctx, week: int = 0):
         async with ctx.typing():
-            await self._send_scores(ctx.channel, week)
+            await self._write_scores(ctx.channel, week)
 
     async def _score_send_callback(self, job):
         """Callback method for the timer to auto-send current scores to fantasy channel"""
         channel = self.bot.get_channel(Config.get(self)['channel_id'])
         if channel is not None:
-            await self._send_scores(channel)
+            await self._write_scores(channel, False, job.data)
 
-    async def _send_scores(self, channel: discord.TextChannel, week: int = 0, show_errors=True):
+    async def _write_scores(self, channel: discord.TextChannel, week: int = 0, show_errors=True, previous_week=False):
         """Send the current scores of given week to given channel"""
         if not self.leagues:
             if show_errors:
@@ -251,18 +278,28 @@ class Plugin(BasePlugin, name="NFL Fantasyliga"):
             return
 
         for league in self.leagues.values():
-            week = week if 0 < week <= league.espn.current_week else league.espn.current_week
+            if week == 0:
+                week = league.espn.current_week
+            if previous_week:
+                week -= 1
+            if week < 1:
+                week = 1
+            elif week > league.espn.current_week:
+                week = league.espn.current_week
             prefix = Lang.lang(self, "scores_prefix", league.name, week)
             embed = discord.Embed(title=prefix, url=league.scoreboard_url)
 
             match_no = 0
             bye_team = None
+            bye_pts = 0
             for match in league.espn.box_scores(week):
                 if match.home_team is None or match.home_team == 0:
                     bye_team = match.away_team.team_name
+                    bye_pts = match.away_score
                     continue
                 elif match.away_team is None or match.away_team == 0:
                     bye_team = match.home_team.team_name
+                    bye_pts = match.home_score
                     continue
                 match_no += 1
                 name_str = Lang.lang(self, "matchup_name", match_no)
@@ -271,16 +308,29 @@ class Plugin(BasePlugin, name="NFL Fantasyliga"):
                 embed.add_field(name=name_str, value=value_str)
 
             if bye_team is not None:
-                embed.add_field(name=Lang.lang(self, "on_bye"), value=bye_team)
+                embed.add_field(name=Lang.lang(self, "on_bye"), value="{} ({:6.2f})".format(bye_team, bye_pts))
 
             await channel.send(embed=embed)
 
     @fantasy.command(name="standings", help="Gets the full current standings")
     async def standings(self, ctx):
-        # TODO after week 1
+        if not self.leagues:
+            await ctx.send(Lang.lang(self, "no_leagues"))
+            return
+
         for league in self.leagues.values():
             embed = discord.Embed(title=league.name)
             embed.url = league.scoreboard_url
+
+            divisions = _get_division_standings(league)
+            for division in divisions:
+                div = divisions[division]
+                standing_str = "\n".join([
+                    Lang.lang(self, "standings_data", t + 1, div[t].team_name, div[t].wins, div[t].losses)
+                    for t in range(len(div))])
+                embed.add_field(name=division, value=standing_str)
+
+            await ctx.send(embed=embed)
 
     @fantasy.command(name="info", help="Get information about the NFL Fantasy Game")
     async def info(self, ctx):
@@ -313,11 +363,24 @@ class Plugin(BasePlugin, name="NFL Fantasyliga"):
             elif self.state == FantasyState.Regular:
                 phase_lang = "regular_phase_info"
                 season_str = Lang.lang(self, "curr_week", league.espn.nfl_week, self.year, league.espn.current_week)
-                standings = league.espn.standings()
 
                 embed.add_field(name=Lang.lang(self, "curr_season"), value=season_str)
-                # TODO better standings, East, West, Overall
-                embed.add_field(name=Lang.lang(self, "current_leader"), value=standings[0].team_name)
+
+                overall_str = Lang.lang(self, "overall")
+                division_str = Lang.lang(self, "division")
+                standings = league.espn.standings()
+                divisions = _get_division_standings(league)
+
+                standings_str = ""
+                footer_str = ""
+                for div in divisions:
+                    standings_str += "{} ({})\n".format(divisions[div][0].team_name, div[0:1])
+                    footer_str += "{}: {} {} | ".format(div[0:1], div, division_str)
+                standings_str += "{} ({})".format(standings[0].team_name, overall_str[0:1])
+                footer_str += "{}: {}".format(overall_str[0:1], overall_str)
+
+                embed.add_field(name=Lang.lang(self, "current_leader"), value=standings_str)
+                embed.set_footer(text=footer_str)
 
                 trade_deadline_int = league.espn.settings.trade_deadline
                 if trade_deadline_int > 0:
@@ -391,6 +454,18 @@ class Plugin(BasePlugin, name="NFL Fantasyliga"):
         self.supercommish = organisator
         self.save()
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
+
+    # @fantasy_set.command(name="timers", help="Enables or disables the timers to auto-send scores to fantasy channels",
+    #                      usage="<on|enable|off|disable>")
+    # async def set_timers(self, ctx, arg):
+    #     if arg == "on" or arg == "enable":
+    #         self.use_timers = True
+    #         self._start_score_timer()
+    #     elif arg == "off" or arg == "disable":
+    #         self.use_timers = False
+    #         self._stop_score_timer()
+    #     self.save()
+    #     await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
     async def _save_state(self, ctx, new_state: FantasyState):
         self.state = new_state
@@ -499,6 +574,7 @@ class Plugin(BasePlugin, name="NFL Fantasyliga"):
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
     @fantasy_set.command(name="add", help="Adds a new fantasy league",
+                         usage="<ESPN League ID> <Commissioner Discord user>",
                          description="Adds a new fantasy league with the given "
                                      "ESPN league ID and the User as commissioner.")
     async def set_add(self, ctx, espn_id: int, commish: Union[discord.Member, discord.User]):

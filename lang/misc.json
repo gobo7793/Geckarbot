@@ -11,10 +11,10 @@
         "kicker_3FL_link": "https://www.kicker.de/3-liga/spieltag",
         "kicker_ATBL": "AT-Bundesliga",
         "kicker_ATBL_link": "https://www.kicker.de/tipp3-bundesliga/spieltag\nhttps://www.kicker.de/meistergruppe-oesterreich-fb-1/spieltag/\nhttps://www.kicker.de/qualifikationsgruppe-oesterreich-fb-1/spieltag/",
+        "kicker_DFBP": "DFB-Pokal",
+        "kicker_DFBP_link": "https://www.kicker.de/dfb-pokal/spieltag",
         "tippspiel_output": "Hier ist der Link für die Stände (bitte auf den Spieltag achten!) sowie das Tippspiel-Archiv: https://docs.google.com/spreadsheets/d/1mSDrTqdcOSOuvR9Y9hMzuEx1X9puaUVuqs7yp6Ju6_M/ ",
         "geck_out": "arbor!",
-        "choose_msg": "I pick: ",
-        "choose_noarg": "I need an option!",
 
         "#1": "real en strings",
         "mud_out": "kip!",
@@ -31,7 +31,9 @@
         "remind_list_none": "I don't know for what I should remind you.",
         "remind_past": "Sorry, I don't have a time machine.",
         "bully_msg": "{} is bulling us :frowning:",
-        "bully_msg_self": "I bully you :slight_smile:"
+        "bully_msg_self": "I bully you :slight_smile:",
+        "choose_msg": "I pick: ",
+        "choose_noarg": "I need an option!"
     },
     "de": {
         "choose_sabaton": "NOCH EIN BIER! NOCH EIN BIER! Also Sabaton geht ja immer, aber...",
