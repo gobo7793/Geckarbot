@@ -408,6 +408,28 @@ class Plugin(BasePlugin, name="Custom CMDs"):
         for msg in cmds:
             await ctx.send(msg)
 
+    async def cmd_raw_single_page(self, ctx, cmd_name, index):
+        """
+        Assumptions:
+        * cmd_name in self.commands
+        * cmd_name is lowercase
+        * index exists
+        """
+        texts = self.commands[cmd_name].get_raw_texts(index=index)
+        msg = ""
+        i = 0
+        delimiter = "\n"
+        threshold = 1900
+        for el in texts:
+            i += 1
+            suffix = Lang.lang(self, "raw_suffix", index + 1, i + index - 1, cmd_name, index + i)
+            if len(msg) + len(delimiter) + len(el) + len(suffix) > threshold:
+                msg += suffix
+                break
+
+            msg += delimiter + el
+        await ctx.send(msg)
+
     @cmd.command(name="info",
                  help="Gets full info about a command",
                  usage="<command> [# | #+ | #++]")
@@ -415,13 +437,13 @@ class Plugin(BasePlugin, name="Custom CMDs"):
         cmd_name = cmd_name.lower()
 
         # Parse index
-        single_page = False  # index == "17+"
+        single_page = True   # index != "17++"
         single_text = False  # index == "17"
         if index is not None:
             if index.endswith("++"):
+                single_page = False
                 index = index[:-2]
             elif index.endswith("+"):
-                single_page = True
                 index = index[:-1]
             else:
                 single_text = True
@@ -433,10 +455,17 @@ class Plugin(BasePlugin, name="Custom CMDs"):
         else:
             index = 0
 
-        if cmd_name in self.commands:
-            if index < 0 or index >= len(self.commands[cmd_name].texts):
-                await ctx.send(Lang.lang(self, "text_id_not_found"))
-                return
+        # Error handling
+        if cmd_name not in self.commands:
+            await ctx.send(Lang.lang(self, "raw_doesnt_exist", cmd_name))
+        elif index < 0 or index >= len(self.commands[cmd_name].texts):
+            await ctx.send(Lang.lang(self, "text_id_not_found"))
+            return
+
+        if single_page and not single_text:
+            await self.cmd_raw_single_page(ctx, cmd_name, index)
+
+        else:
             creator_member = self.bot.guild.get_member(self.commands[cmd_name].creator_id)
             creator = creator_member\
                 if creator_member is not None\
@@ -447,18 +476,14 @@ class Plugin(BasePlugin, name="Custom CMDs"):
             else:
                 raw_texts = self.commands[cmd_name].get_raw_texts(index=index)
             for msg in paginate(raw_texts,
-                                delimiter="\n",
-                                prefix=Lang.lang(self,
-                                                 'raw_prefix',
-                                                 self.prefix,
-                                                 cmd_name,
-                                                 converters.get_best_username(creator),
-                                                 len(raw_texts))):
+                                        delimiter="\n",
+                                        prefix=Lang.lang(self,
+                                                         'raw_prefix',
+                                                         self.prefix,
+                                                         cmd_name,
+                                                         converters.get_best_username(creator),
+                                                         len(raw_texts))):
                 await ctx.send(msg)
-                if single_page:
-                    break
-        else:
-            await ctx.send(Lang.lang(self, "raw_doesnt_exist", cmd_name))
 
     @cmd.command(name="search")
     async def cmd_search(self, ctx, cmd_name, *args):
@@ -490,7 +515,6 @@ class Plugin(BasePlugin, name="Custom CMDs"):
 
     @cmd.command(name="guidelines", help="Returns the link to the general command guidelines")
     async def cmd_guidelines(self, ctx):
-        # await ctx.send("MAKE BETTER; <https://github.com/gobo7793/Geckarbot/wiki/Command-Guidelines>")
         await ctx.send("<{}>".format(Config.get(self)['guidelines']))
 
     @cmd.command(name="add", help="Adds a custom command or text", usage="<cmd name> <text...>",
@@ -544,23 +568,23 @@ class Plugin(BasePlugin, name="Custom CMDs"):
                                                                 self.commands[cmd_name].get_raw_texts()))
 
     # @cmd.command(name="edit")
-    # async def cmd_edit(self, ctx, cmd_name, *args):
-    #     if not "".join(args):
-    #         raise commands.MissingRequiredArgument(inspect.signature(self.cmd_add).parameters['args'])
-    #
-    #     text_id = None
-    #     try:
-    #         text_id = int(args[0])
-    #     except ValueError:
-    #         pass
-    #
-    #     arg_text = " ".join(args)
-    #     if text_id is None:
-    #         await ctx.invoke(self.bot.get_command(f"cmd del"), cmd_name)
-    #         await ctx.invoke(self.bot.get_command(f"cmd add"), cmd_name, arg_text)
-    #     else:
-    #         await ctx.invoke(self.bot.get_command(f"cmd del"), cmd_name, text_id)
-    #         await ctx.invoke(self.bot.get_command(f"cmd add"), cmd_name, arg_text)
+    async def cmd_edit(self, ctx, cmd_name, *args):
+        if not "".join(args):
+            raise commands.MissingRequiredArgument(inspect.signature(self.cmd_add).parameters['args'])
+
+        text_id = None
+        try:
+            text_id = int(args[0])
+        except ValueError:
+            pass
+
+        arg_text = " ".join(args)
+        if text_id is None:
+            await ctx.invoke(self.bot.get_command(f"cmd del"), cmd_name)
+            await ctx.invoke(self.bot.get_command(f"cmd add"), cmd_name, arg_text)
+        else:
+            await ctx.invoke(self.bot.get_command(f"cmd del"), cmd_name, text_id)
+            await ctx.invoke(self.bot.get_command(f"cmd add"), cmd_name, arg_text)
 
     @cmd.command(name="del", help="Deletes a custom command or output text",
                  description="Deletes a custom command or one of its output texts. If the last output text was "
