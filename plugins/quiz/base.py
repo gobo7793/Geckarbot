@@ -151,6 +151,11 @@ class Score:
         return r
 
     def embed(self, end=False, sort_by_points=False):
+        """
+        :param end: Set to true if this is the end score rather than an intermediate score
+        :param sort_by_points: Set to true if the participants are to be sorted by score rather than questions
+        :return: Sendable Embed that represents this Score
+        """
         embed = discord.Embed(title=Lang.lang(self.plugin, "results_title"))
 
         ladder = self.ladder(sort_by_points=sort_by_points)
@@ -223,7 +228,7 @@ class Question:
 
         self.all_answers = incorrect_answers.copy()
         self.all_answers.append(correct_answer)
-        random.shuffle(self.all_answers)
+        self.shuffle_answers()
 
         self._cached_emoji = None
         self.message = None
@@ -238,6 +243,23 @@ class Question:
                 self.correct_answer_emoji = "{} {}".format(e, self.correct_answer)
                 self.correct_answer_letter = "**{}:** {}".format(letter, self.correct_answer)
                 break
+
+    def shuffle_answers(self):
+        # Try int sort
+        isint = True
+        answers = []
+        for el in self.all_answers:
+            try:
+                answers.append(int(el))
+            except (ValueError, TypeError):
+                isint = False
+                break
+        if isint:
+            self.all_answers = sorted(self.all_answers, key=lambda x: int(x))
+            return
+
+        # Regular shuffling
+        random.shuffle(self.all_answers)
 
     def letter_mapping(self, index, emoji=False, reverse=False):
         if not reverse:
@@ -324,6 +346,7 @@ class Question:
 
     def is_valid_emoji(self, emoji):
         for el in self.emoji_map:
+            # print("true with .name: {}".format(el == emoji.name))
             if el == emoji:
                 return True
         return False
