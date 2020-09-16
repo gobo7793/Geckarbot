@@ -547,12 +547,11 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                     p_user = p.find_all('a', 'forum-user')
                     p_data = p.find_all('div', 'forum-post-data')
                     if p_user:
-                        print(p_user[0].text + '  -  ' + p_time[0].text.strip())
                         data.append({
                             'user': p_user[0].text,
                             'time': p_time[0].text.strip(),
                             'content': re.sub(r'(?:(?!\n)\s){2,}', ' ',
-                                              p_data[0].text.replace('\u2013', '-').replace('\u00fc', 'ue')).split("\n")
+                                              p_data[0].text.replace('\u2013', '-')).split("\n")
                         })
 
                 await botmessage.edit(content="{}\n{}".format(botmessage.content,
@@ -567,6 +566,62 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             Storage().get(self)['predictions'] = data
             Storage().save(self)
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
+
+    @spaetzle_set.command(name="extract", help="Extracts the predictions from the scraped result")
+    async def set_extract(self, ctx):
+        c = self.get_api_client()
+        matches = []
+        predictions_by_user = {}
+        data = Storage().get(self)['predictions']
+        first_post = data[0]
+
+        # Reading matches
+        for line in first_post['content']:
+            if line == "\u2022 \u2022 \u2022\r":
+                break
+            if line == "":
+                continue
+            if re.search(r"Uhr \|.+-", line):
+                matches.append(line)
+        matchesre = "|".join([re.escape(x) for x in matches])  # for regex below
+
+        # Reading posts
+        for post in data[1:]:
+            if post == first_post:
+                continue
+
+            predictions = {}
+            for line in post['content']:
+                if line == "\u2022 \u2022 \u2022\r":
+                    break
+                if line == "":
+                    continue
+                result = re.search("(?P<match>{})\\D*(?P<goals_home>\\d+)\\s*\\D\\s*(?P<goals_away>\\d+)"
+                                   .format(matchesre), line)
+                if result is not None:
+                    groupdict = result.groupdict()
+                    predictions[groupdict['match']] = (groupdict['goals_home'], groupdict['goals_away'])
+
+            if predictions:
+                if post['user'] in predictions_by_user:
+                    predictions_by_user[post['user']].update(predictions)
+                else:
+                    predictions_by_user[post['user']] = predictions
+
+        # Transforming for spreadsheet input
+        data = []
+        for i in range(1, 5):
+            participants = Storage().get(self)['participants'].get('liga{}'.format(i), [])
+            data.append([num for elem in [[user, None] for user in participants] for num in elem])
+            for match in matches:
+                row = []
+                for user in participants:
+                    row.extend(predictions_by_user.get(user, {}).get(match, [None, None]))
+                data.append(row)
+            data.extend([[None],[None]])
+
+        # Updating cells
+        c.update("Aktuell!{}".format(Config().get(self)['predictions_range']), data)
 
     @spaetzle_set.command(name="thread", help="Sets the URL of the \"Tippabgabe-Thread\".")
     async def set_thread(self, ctx, url: str):
