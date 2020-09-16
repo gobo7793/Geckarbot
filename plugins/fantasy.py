@@ -574,7 +574,7 @@ class Plugin(BasePlugin, name="NFL Fantasyliga"):
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
     @fantasy_set.command(name="add", help="Adds a new fantasy league",
-                         usage="<ESPN League ID> <Commissioner Discord user> <Division 0 Name> <Division 1 Name>",
+                         usage="<ESPN League ID> <Commissioner Discord user>",
                          description="Adds a new fantasy league with the given "
                                      "ESPN league ID and the User as commissioner.")
     async def set_add(self, ctx, espn_id: int, commish: Union[discord.Member, discord.User]):
