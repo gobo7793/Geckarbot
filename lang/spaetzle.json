@@ -1,5 +1,6 @@
 {
     "en": {
+        "league": "League {}",
         "goal_scored": "{} scored a goal!",
         "match_not_running": "This match is not running!",
         "info": "The Spaetzle(s)-Tippspiel is a prediction game where you compete in duels",
@@ -20,9 +21,13 @@
         "scrape_incorrect_url": "Sorry, I refuse to scrape <{}>!",
         "scrape_start": "Started scraping. Url: <{}>",
         "scrape_intermediate": "Found {} results. Searching for more...",
-        "scrape_end": "There is no next page. Continue with `!spaetzle set extract`"
+        "scrape_end": "There is no next page. Continue with `!spaetzle set extract`",
+        "extract_user_without_preds": "User without predictions",
+        "extract_not_without_preds": "All participants have voted!",
+        "extract_user_no_preds": "These users have posted in the thread, but I found no predictions!\n{}"
     },
     "de": {
+        "league": "Liga {}",
         "goal_scored": "{} hat getroffen!",
         "match_not_running": "Dieses Spiel läuft gerade nicht!",
         "info": "Das Spätzle(s)-Tippspiel ist ein Tippspiel aus dem Stuttgarter TM-Forum in dem die Teilnehmer nicht nur Bundesligaspiele tippen, sondern damit in Duellen gegeneinander antreten.",
@@ -39,6 +44,9 @@
         "scrape_incorrect_url": "Ich weigere mich <{}> zu lesen!",
         "scrape_start": "Scraping begonnen. Url: <{}>",
         "scrape_intermediate": "Ich habe {} Posts gefunden und werde weitere suchen...",
-        "scrape_end": "Ich bin am Ziel angekommen. Setze fort mit: `!spaetzle set extract`"
+        "scrape_end": "Ich bin am Ziel angekommen. Setze fort mit: `!spaetzle set extract`",
+        "extract_user_without_preds": "Nichttipper",
+        "extract_not_without_preds": "Jede:r hat Tipps abgegeben!",
+        "extract_user_no_preds": "Diese Teilnehmer:innen haben im Thread gepostet, aber ich konnte keine Tipps finden!\n{}"
     }
 }

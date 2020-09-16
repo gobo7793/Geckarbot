@@ -569,59 +569,82 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
 
     @spaetzle_set.command(name="extract", help="Extracts the predictions from the scraped result")
     async def set_extract(self, ctx):
-        c = self.get_api_client()
-        matches = []
-        predictions_by_user = {}
-        data = Storage().get(self)['predictions']
-        first_post = data[0]
+        if not await self.trusted_check(ctx):
+            return
+        async with ctx.typing():
+            c = self.get_api_client()
+            matches = []
+            predictions_by_user = {}
+            data = Storage().get(self)['predictions']
+            first_post = data[0]
 
-        # Reading matches
-        for line in first_post['content']:
-            if line == "\u2022 \u2022 \u2022\r":
-                break
-            if line == "":
-                continue
-            if re.search(r"Uhr \|.+-", line):
-                matches.append(line)
-        matchesre = "|".join([re.escape(x) for x in matches])  # for regex below
-
-        # Reading posts
-        for post in data[1:]:
-            if post == first_post:
-                continue
-
-            predictions = {}
-            for line in post['content']:
+            # Reading matches
+            for line in first_post['content']:
                 if line == "\u2022 \u2022 \u2022\r":
                     break
                 if line == "":
                     continue
-                result = re.search("(?P<match>{})\\D*(?P<goals_home>\\d+)\\s*\\D\\s*(?P<goals_away>\\d+)"
-                                   .format(matchesre), line)
-                if result is not None:
-                    groupdict = result.groupdict()
-                    predictions[groupdict['match']] = (groupdict['goals_home'], groupdict['goals_away'])
+                if re.search(r"Uhr \|.+-", line):
+                    matches.append(line)
+            matchesre = "|".join([re.escape(x) for x in matches])  # for regex below
 
-            if predictions:
-                if post['user'] in predictions_by_user:
-                    predictions_by_user[post['user']].update(predictions)
-                else:
-                    predictions_by_user[post['user']] = predictions
+            # Reading posts
+            for post in data[1:]:
+                if post == first_post:
+                    continue
 
-        # Transforming for spreadsheet input
-        data = []
-        for i in range(1, 5):
-            participants = Storage().get(self)['participants'].get('liga{}'.format(i), [])
-            data.append([num for elem in [[user, None] for user in participants] for num in elem])
-            for match in matches:
-                row = []
+                predictions = {}
+                for line in post['content']:
+                    if line == "\u2022 \u2022 \u2022\r":
+                        break
+                    if line == "":
+                        continue
+                    result = re.search("(?P<match>{})\\D*(?P<goals_home>\\d+)\\s*\\D\\s*(?P<goals_away>\\d+)"
+                                       .format(matchesre), line)
+                    if result is not None:
+                        groupdict = result.groupdict()
+                        predictions[groupdict['match']] = (groupdict['goals_home'], groupdict['goals_away'])
+
+                if predictions:
+                    if post['user'] in predictions_by_user:
+                        predictions_by_user[post['user']].update(predictions)
+                    else:
+                        predictions_by_user[post['user']] = predictions
+
+            # Participants without predictions
+            embed = discord.Embed(title=Lang.lang(self, 'extract_user_without_preds'))
+            no_preds = []
+            for i in range(1, 5):
+                user_list = []
+                participants = Storage().get(self)['participants'].get('liga{}'.format(i), [])
                 for user in participants:
-                    row.extend(predictions_by_user.get(user, {}).get(match, [None, None]))
-                data.append(row)
-            data.extend([[None],[None]])
+                    if user not in predictions_by_user:
+                        user_list.append(user)
+                    elif predictions_by_user[user] == {}:
+                        no_preds.append(user)
+                if user_list:
+                    embed.add_field(name=Lang.lang(self, 'league', i), value=", ".join(user_list), inline=False)
+            if no_preds:
+                embed.description = Lang.lang(self, 'extract_user_no_preds', ", ".join(no_preds))
+            if not embed.fields:
+                embed.description = Lang.lang(self, 'extract_not_without_preds')
+            await ctx.send(embed=embed)
 
-        # Updating cells
-        c.update("Aktuell!{}".format(Config().get(self)['predictions_range']), data)
+            # Transforming for spreadsheet input
+            data = []
+            for i in range(1, 5):
+                participants = Storage().get(self)['participants'].get('liga{}'.format(i), [])
+                data.append([num for elem in [[user, None] for user in participants] for num in elem])
+                for match in matches:
+                    row = []
+                    for user in participants:
+                        row.extend(predictions_by_user.get(user, {}).get(match, [None, None]))
+                    data.append(row)
+                data.extend([[None], [None]])
+
+            # Updating cells
+            c.update("Aktuell!{}".format(Config().get(self)['predictions_range']), data)
+        await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
     @spaetzle_set.command(name="thread", help="Sets the URL of the \"Tippabgabe-Thread\".")
     async def set_thread(self, ctx, url: str):
