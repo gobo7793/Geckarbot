@@ -44,6 +44,7 @@
         "list_suffix": "\nNutze `!cmd info <command>` um alle Ausgabetexte eines Kommandos anzusehen.",
         "raw_text": "#{}: {} (hinzugefügt von {})",
         "raw_prefix": "{}{} (erstellt von {}, Ausgabetexte: {})\n",
+        "raw_suffix": "\n\n*Dies sind die Ausgabetexte {} bis {}. Für mehr, nutze `!cmd info {} {}+[+]`.*",
         "search_prefix": "Suchergebnisse:\n",
         "search_empty": "Nichts gefunden!",
         "unknown_user": "einem unbekannten User",
