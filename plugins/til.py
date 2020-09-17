@@ -71,8 +71,8 @@ class Plugin(BasePlugin, name="TIL"):
     @til.command(name="info")
     async def info(self, ctx):
         facts = []
-        if await self._manager_check(ctx, False):
-            for i in range(0, len(Storage.get(self))):
+        if await self._manager_check(ctx, show_errors=False) and isinstance(ctx.channel, discord.DMChannel):
+            for i in range(len(Storage.get(self))):
                 facts.append("#{}: {}".format(i + 1, Storage.get(self)[i]))
 
         manager = self.bot.guild.get_member(Config.get(self)['manager'])

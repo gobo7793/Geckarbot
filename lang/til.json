@@ -9,7 +9,7 @@
         "help_til": "Learn an interesting fact",
         "help_add": "Add a new fact",
         "help_del": "Removes a fact",
-        "help_info": "Show how many facts I have",
+        "help_info": "Show how many facts I have\nI tell you all in a DM, if you're TIL manager, admin or botmaster",
         "help_manager": "Set the fact manager"
     },
     "de": {
@@ -22,7 +22,7 @@
         "help_til": "Lerne einen neuen Fakt",
         "help_add": "Füge einen neuen Fakt hinzu",
         "help_del": "Löscht einen Fakt",
-        "help_info": "Zeigt an wie viele Fakten ich habe",
+        "help_info": "Zeigt an wie viele Fakten ich habe\nAlle Fakten zeige ich dem TIL-Manager und den Mods nur in einer privaten Nachricht!",
         "help_manager": "Setzt einen Faktenmanager"
     }
 }
