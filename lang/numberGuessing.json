@@ -1,0 +1,30 @@
+{
+    "en": {
+        "channelgame_not_possible": "No channel game possible. Continuing with single game.",
+        "error_msg": "Something went wrong. No actions performed.",
+        "no_active_games": "currently no active games",
+        "game_statistics": "{} (Tries: **{}**, Minimum: **{}**, Maximum: **{}**, Range: **{}** possibilities)",
+        "invalid_number": "Please enter a number starting from 1!",
+        "guess_started": "You can now start guessing between **{}** and **{}**",
+        "guess_already_started": "Game is already started!",
+        "guess_stopped": "Stopped the game. The number was: **{}**. Your tries so far: **{}**",
+        "guess_cannot_stop": "Cannot stop game. Start game first!",
+        "guess_won": "Great job! You guessed the number **{}** in only **{}** tries!",
+        "guess_too_big": "**{}** is too big",
+        "guess_too_low": "**{}** is too low"
+    },
+    "de": {
+        "channelgame_not_possible": "Kein Channel-Spiel möglich; Setze mit Einzelspiel fort.",
+        "error_msg": "Etwas lief schief. Nix passiert.",
+        "no_active_games": "Aktuell keine laufenden Spiele",
+        "game_statistics": "{} (Versuche: **{}**, Minimum: **{}**, Maximum: **{}**, Bereich: **{}** Möglichkeiten)",
+        "invalid_number": "Bitte nenne eine Zahl größer gleich 1!",
+        "guess_started": "Du kannst nun eine Zahl zwischen **{}** und **{}** erraten!",
+        "guess_already_started": "Spiel wurde schon gestartet!",
+        "guess_stopped": "Spiel gestoppt. Die Nummer war: **{}**. Deine Versuche bisher: **{}**",
+        "guess_cannot_stop": "Ich kann das Spiel nicht beenden. Starte es zuerst!",
+        "guess_won": "Großartig! Du hast die zahl **{}** mit nur **{}** Versuchen erraten!",
+        "guess_too_big": "**{}** ist zu groß",
+        "guess_too_low": "**{}** ist zu klein"
+    }
+}
