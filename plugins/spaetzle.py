@@ -52,7 +52,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             'manager': 0,
             'trusted': [],
             'spaetzledoc_id': "1ZzEGP_J9WxJGeAm1Ri3er89L1IR1riq7PH2iKVDmfP8",
-            'matches_range': "B3:H11",
+            'matches_range': "B1:H11",
             'duel_ranges': {
                 1: "J3:T11",
                 2: "V3:AF11",
@@ -349,7 +349,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                                  match['team_away'], match[self.get_teamname_abbr(match['team_away'])]['goals'])
                 await ctx.send(msg)
 
-                data = [x[:] for x in [[None] * 10] * 10]
+                data = [x[:] for x in [[None] * 7] * 11]
                 cell_x, cell_y = match[abbr]['cell']
                 data[cell_y] = data[cell_y].copy()
                 data[cell_y][cell_x] = match[abbr]['goals']
@@ -438,11 +438,11 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                     'team_home': self.get_teamname_long(home),
                     'team_away': self.get_teamname_long(away),
                     home: {
-                        'cell': (4, i),
+                        'cell': (4, i+2),
                         'goals': 0
                     },
                     away: {
-                        'cell': (5, i),
+                        'cell': (5, i+2),
                         'goals': 0
                     },
                 }
@@ -452,7 +452,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
 
             # Put matches into spreadsheet
             c = self.get_api_client()
-            values = []
+            values = [[matchday], [None]]
             for match in self.matches:
                 date_time = match.get('match_date_time')
                 date_formula = '=IF(DATE({};{};{}) + TIME({};{};0) < F12;0;"–")'.format(*list(date_time.timetuple()))
@@ -466,20 +466,19 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             Storage().save(self)
 
             msg = ""
-            for row in values:
+            for row in values[2:]:
                 msg += "{0} {1} {2} Uhr | {3} - {6}\n".format(*row)
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
         await ctx.send(embed=discord.Embed(title="Spieltag {}".format(matchday), description=msg))
-        # TODO confirm before setting
 
     @spaetzle_set.command(name="duels", aliases=["duelle"])
     async def set_duels(self, ctx, matchday: int, league: int = None):
         if not await self.trusted_check(ctx):
             return
-        if matchday < 1 or matchday > 17:
+        if matchday not in range(1, 18):
             await add_reaction(ctx.message, Lang.CMDERROR)
             await ctx.send(Lang.lang(self, 'matchday_out_of_range'))
-        if league is not None and (league < 1 or league > 4):
+        if league is not None and league not in range(1, 5):
             await add_reaction(ctx.message, Lang.CMDERROR)
             await ctx.send(Lang.lang(self, 'invalid_league'))
 
@@ -646,6 +645,22 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             c.update("Aktuell!{}".format(Config().get(self)['predictions_range']), data)
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
+    @spaetzle_set.command(name="archive", help="Archives the current matchday and clears the frontpage")
+    async def set_archive(self, ctx):
+        from googleapiclient.errors import HttpError
+        if not self.trusted_check(ctx):
+            return
+
+        async with ctx.typing():
+            c = self.get_api_client()
+            data = c.get(range="Aktuell!A1:CQ51", formatted=False)
+            matchday = data[0][1]
+            try:
+                c.update(range="ST {}!A1:CQ51".format(matchday), values=data, raw=False)
+            except HttpError:
+                await ctx.send(Lang.lang(self, 'archive_page_missing', matchday))
+        await add_reaction(ctx.message, Lang.CMDSUCCESS)
+
     @spaetzle_set.command(name="thread", help="Sets the URL of the \"Tippabgabe-Thread\".")
     async def set_thread(self, ctx, url: str):
         if self.trusted_check(ctx):
@@ -669,7 +684,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
 
         # Extract matches
         self.matches.clear()
-        for i in range(len(matches)):
+        for i in range(2, len(matches)):
             match = matches[i]
             home = self.get_teamname_abbr(match[3])
             away = self.get_teamname_abbr(match[6])
@@ -729,6 +744,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                                                                                    c.cellname(col2 + 1, row2 + 9))],
                                                            formatted=False)
             # Fixing stuff
+            matches = matches[2:]
             if len(matches) == 0:
                 await ctx.send(Lang.lang(self, 'no_matches'))
                 return
@@ -864,7 +880,9 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
     async def show_matches(self, ctx):
         async with ctx.typing():
             c = self.get_api_client()
-            matches = c.get("Aktuell!{}".format(Config().get(self)['matches_range']), formatted=False)
+            data = c.get("Aktuell!{}".format(Config().get(self)['matches_range']), formatted=False)
+            matchday = data[0][0]
+            matches = data[2:]
 
             if len(matches) == 0:
                 await ctx.send(Lang.lang(self, 'no_matches'))
@@ -876,7 +894,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                 emoji = self.match_status(date_time).value
                 msg += "{0} {3} {1} {2} Uhr | {6} - {9} | {7}:{8}\n".format(emoji, date_time.strftime("%d.%m."),
                                                                             date_time.strftime("%H:%M"), *match)
-        await ctx.send(embed=discord.Embed(title="Spiele", description=msg))
+        await ctx.send(embed=discord.Embed(title=Lang.lang(self, 'title_matches', matchday), description=msg))
 
     @spaetzle.command(name="table", aliases=["tabelle", "league", "liga"],
                       help="Displays the table of a specific league")

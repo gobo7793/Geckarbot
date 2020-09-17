@@ -24,7 +24,9 @@
         "scrape_end": "There is no next page. Continue with `!spaetzle set extract`",
         "extract_user_without_preds": "User without predictions",
         "extract_not_without_preds": "All participants have voted!",
-        "extract_user_no_preds": "These users have posted in the thread, but I found no predictions!\n{}"
+        "extract_user_no_preds": "These users have posted in the thread, but I found no predictions!\n{}",
+        "archive_page_missing": "Page \"ST {}\" not found!",
+        "title_matches": "Matches - Matchday {}"
     },
     "de": {
         "league": "Liga {}",
@@ -47,6 +49,8 @@
         "scrape_end": "Ich bin am Ziel angekommen. Setze fort mit: `!spaetzle set extract`",
         "extract_user_without_preds": "Nichttipper",
         "extract_not_without_preds": "Jede:r hat Tipps abgegeben!",
-        "extract_user_no_preds": "Diese Teilnehmer:innen haben im Thread gepostet, aber ich konnte keine Tipps finden!\n{}"
+        "extract_user_no_preds": "Diese Teilnehmer:innen haben im Thread gepostet, aber ich konnte keine Tipps finden!\n{}",
+        "archive_page_missing": "Archiv-Seite \"ST {}\" nicht gefunden!",
+        "title_matches": "Spiele - Spieltag {}"
     }
 }
