@@ -15,6 +15,7 @@ from Geckarbot import BasePlugin
 from botutils import sheetsclient, restclient
 from botutils.converters import get_best_username
 from botutils.permchecks import check_full_access
+from botutils.stringutils import paginate
 from botutils.utils import add_reaction
 from conf import Config, Storage, Lang
 
@@ -514,7 +515,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
 
             # FIXME replace with update_multiple once its working fine
             if league is None:
-                combined_data = [[], [], [], [], [], [], [], [], []]
+                combined_data = [x[:] for x in [[]]*9]
                 for values in data.values():
                     for i in range(len(values)):
                         combined_data[i].extend(values[i] + [None] * 4)
@@ -589,7 +590,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
 
             # Reading posts
             for post in data[1:]:
-                if post == first_post:
+                if post['content'] == first_post['content']:
                     continue
 
                 predictions = {}
@@ -648,7 +649,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
     @spaetzle_set.command(name="archive", help="Archives the current matchday and clears the frontpage")
     async def set_archive(self, ctx):
         from googleapiclient.errors import HttpError
-        if not self.trusted_check(ctx):
+        if not await self.trusted_check(ctx):
             return
 
         async with ctx.typing():
@@ -663,14 +664,14 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
 
     @spaetzle_set.command(name="thread", help="Sets the URL of the \"Tippabgabe-Thread\".")
     async def set_thread(self, ctx, url: str):
-        if self.trusted_check(ctx):
+        if await self.trusted_check(ctx):
             Storage().get(self)['predictions_thread'] = url
             Storage().save(self)
             await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
     @spaetzle_set.command(name="mainthread", help="Sets the URL of the main thread.")
     async def set_mainthread(self, ctx, url: str):
-        if self.trusted_check(ctx):
+        if await self.trusted_check(ctx):
             Storage().get(self)['main_thread'] = url
             Storage().save(self)
             await add_reaction(ctx.message, Lang.CMDSUCCESS)
@@ -953,6 +954,27 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             msg += "{} | {}\n".format(i, self.get_schedule_opponent(user, i))
 
         await ctx.send(embed=discord.Embed(title="Gegner von {}".format(user), description=msg))
+
+    @spaetzle.command(name="rawpost", help="Lists all forum posts by a specified user")
+    async def show_raw_posts(self, ctx, participant: str):
+        if not await self.trusted_check(ctx):
+            return
+        
+        forum_posts = Storage().get(self)['predictions']
+        first_post = forum_posts[0]
+        posts_count = 0
+        content = []
+        for post in forum_posts:
+            if post['content'] == first_post['content']:
+                continue
+            if post['user'].lower() == participant.lower():
+                posts_count += 1
+                content.extend(["\n" + post['time']] + [x.strip() for x in post['content'] if x.strip()])
+
+        msgs = paginate(content, prefix=Lang.lang(self, 'raw_posts_prefix', posts_count))
+        for msg in msgs:
+            await ctx.send(msg)
+        await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
     @spaetzle.group(name="trusted", help="Configures which users are allowed to edit")
     async def trusted(self, ctx):
