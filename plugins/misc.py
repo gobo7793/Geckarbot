@@ -59,11 +59,21 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
 
     @commands.command(name="kicker", help="Returns frequently used links to kicker.de")
     async def kicker_table(self, ctx):
+        at_values = ""
+        now = datetime.now()
+        if now.month == 3 or now.month == 7:
+            at_values = "{}\n{}".format(Lang.lang(self, 'kicker_ATBL_link_regular'),
+                                        Lang.lang(self, 'kicker_ATBL_link_playoffs'))
+        elif now.month < 3 or now.month > 7:
+            at_values = Lang.lang(self, 'kicker_ATBL_link_regular')
+        elif 3 < now.month < 7:
+            at_values = Lang.lang(self, 'kicker_ATBL_link_playoffs')
+
         embed = discord.Embed(title=Lang.lang(self, 'kicker_title'))
         embed.add_field(name=Lang.lang(self, 'kicker_1BL'), value=Lang.lang(self, 'kicker_1BL_link'), inline=False)
         embed.add_field(name=Lang.lang(self, 'kicker_2BL'), value=Lang.lang(self, 'kicker_2BL_link'), inline=False)
         embed.add_field(name=Lang.lang(self, 'kicker_3FL'), value=Lang.lang(self, 'kicker_3FL_link'), inline=False)
-        embed.add_field(name=Lang.lang(self, 'kicker_ATBL'), value=Lang.lang(self, 'kicker_ATBL_link'), inline=False)
+        embed.add_field(name=Lang.lang(self, 'kicker_ATBL'), value=at_values, inline=False)
         embed.add_field(name=Lang.lang(self, 'kicker_DFBP'), value=Lang.lang(self, 'kicker_DFBP_link'), inline=False)
         await ctx.send(embed=embed)
 
