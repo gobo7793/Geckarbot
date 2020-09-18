@@ -1,3 +1,5 @@
+from typing import Union
+
 import discord
 import datetime
 import random
@@ -5,9 +7,9 @@ from discord.ext.commands.bot import Bot
 
 from botutils.converters import get_embed_str
 from botutils.timeutils import to_local_time
+from botutils.stringutils import paginate
 from conf import Config
 import logging
-
 
 chan_logger = logging.getLogger("channel")
 
@@ -26,7 +28,8 @@ async def add_reaction(message: discord.Message, reaction):
         await message.channel.send(reaction)
 
 
-async def _write_to_channel(bot: Bot, channel_id: int = 0, message=None, channel_type: str = ""):
+async def _write_to_channel(bot: Bot, channel_id: int = 0, message: Union[str, discord.Embed] = None,
+                            channel_type: str = ""):
     """
     Writes a message to a channel and logs the message
 
@@ -41,7 +44,9 @@ async def _write_to_channel(bot: Bot, channel_id: int = 0, message=None, channel
         if isinstance(message, discord.Embed):
             await channel.send(embed=message)
         else:
-            await channel.send(message)
+            messages = message.split("\n")
+            for msg in paginate(messages, delimiter="\n"):
+                await channel.send(msg)
 
     log_msg = get_embed_str(message)
     chan_logger.info(f"{channel_type} : {log_msg}")
