@@ -103,11 +103,9 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
 
     @plugins.command(name="list")
     async def plugins_list(self, ctx):
-        coreplugins = [c.name for c in self.bot.plugins if c.type == ConfigurableType.COREPLUGIN]
-        plugins = [c.name for c in self.bot.plugins if c.type == ConfigurableType.PLUGIN]
-        subsys = []
-        for modname in pkgutil.iter_modules(subsystems.__path__):
-            subsys.append(modname.name)
+        coreplugins = self.bot.get_coreplugins()
+        plugins = self.bot.get_normalplugins()
+        subsys = self.bot.get_subsystem_list()
 
         msgs = [
             "{}\n{}".format(Lang.lang(self, 'plugins_loaded_ss', len(subsys)), ", ".join(subsys)),

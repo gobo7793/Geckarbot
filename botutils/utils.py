@@ -46,6 +46,8 @@ async def _write_to_channel(bot: Bot, channel_id: int = 0, message: Union[str, d
         else:
             messages = message.split("\n")
             for msg in paginate(messages, delimiter="\n"):
+                if len(msg) > 1995:
+                    msg = f"{msg[0:1995]} ..."
                 await channel.send(msg)
 
     log_msg = get_embed_str(message)
