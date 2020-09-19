@@ -74,8 +74,8 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
     def default_storage(self):
         return {
             'matchday': 0,
-            'main_thread': "",
-            'predictions_thread': "",
+            'main_thread': None,
+            'predictions_thread': None,
             'discord_user_bridge': {},
             'observed_users': [],
             'participants': {
