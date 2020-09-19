@@ -696,6 +696,14 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             await ctx.send(Lang.lang(self, 'participants_added', len(participants), league))
             await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
+    @spaetzle_set.command(name="matchday", help="Sets the matchday manually, but it's normally already done by "
+                                                "set_matches.")
+    async def set_matchday(self, ctx, matchday: int):
+        if await self.trusted_check(ctx):
+            Storage().get(self)['matchday'] = matchday
+            Storage().save(self)
+            await add_reaction(ctx.message, Lang.CMDSUCCESS)
+
     def get_matches_from_sheets(self):
         """
         Reads the matches from the sheet
