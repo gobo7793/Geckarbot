@@ -347,8 +347,8 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             async with ctx.typing():
                 c = self.get_api_client()
                 match = self.matches_by_team[abbr]
-                if self.match_status(match['match_date_time']) != MatchStatus.RUNNING:
-                    await ctx.send(Lang.lang(self, 'match_not_running'))
+                if self.match_status(match['match_date_time']) == MatchStatus.UPCOMING:
+                    await ctx.send(Lang.lang(self, 'match_is_in_future'))
                     return
                 match[abbr]['goals'] = goals if goals is not None else match[abbr]['goals'] + 1
 
@@ -466,7 +466,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             values = [[matchday], [None]]
             for match in self.matches:
                 date_time = match.get('match_date_time')
-                date_formula = '=IF(DATE({};{};{}) + TIME({};{};0) < F12;0;"–")'.format(*list(date_time.timetuple()))
+                date_formula = '=IF(DATE({};{};{}) + TIME({};{};0) < F12;0;"")'.format(*list(date_time.timetuple()))
                 values.append([calendar.day_abbr[date_time.weekday()],
                                date_time.strftime("%d.%m.%Y"), date_time.strftime("%H:%M"),
                                match.get('team_home'), date_formula, date_formula, match.get('team_away')])
@@ -542,8 +542,9 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
         data = []
         url = Storage().get(self)['predictions_thread']
 
-        if urlparse(url).netloc not in "www.transfermarkt.de":
+        if not url or urlparse(url).netloc not in "www.transfermarkt.de":
             await ctx.send(Lang.lang(self, 'scrape_incorrect_url', url))
+            return
 
         botmessage = await ctx.send(Lang.lang(self, 'scrape_start', url))
         async with ctx.typing():
@@ -653,7 +654,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                 data.extend([[None], [None]])
 
             # Updating cells
-            c.update("Aktuell!{}".format(Config().get(self)['predictions_range']), data)
+            c.update("Aktuell!{}".format(Config().get(self)['predictions_range']), data, raw=False)
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
     @spaetzle_set.command(name="archive", help="Archives the current matchday and clears the frontpage")
@@ -986,9 +987,10 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
         for post in forum_posts:
             if post['content'] == first_post['content']:
                 continue
-            if post['user'].lower() == participant.lower():
+            if participant.lower() in post['user'].lower():
                 posts_count += 1
-                content.extend(["\n" + post['time']] + [x.strip() for x in post['content'] if x.strip()])
+                content.append("\n———————————————\n" + post['time'])
+                content.extend([x.strip() for x in post['content'] if x.strip()][:20])
 
         msgs = paginate(content, prefix=Lang.lang(self, 'raw_posts_prefix', posts_count))
         for msg in msgs:

@@ -2,7 +2,7 @@
     "en": {
         "league": "League {}",
         "goal_scored": "{} scored a goal!",
-        "match_not_running": "This match is not running!",
+        "match_is_in_future": "This match has not began yet!",
         "info": "The Spaetzle(s)-Tippspiel is a prediction game where you compete in duels",
         "invalid_league": "Invalid league. Valid leagues: 1, 2, 3, 4",
         "matchday_out_of_range": "Invalid matchday. Valid matchdays: 1 to 17",
@@ -33,7 +33,7 @@
     "de": {
         "league": "Liga {}",
         "goal_scored": "{} hat getroffen!",
-        "match_not_running": "Dieses Spiel läuft gerade nicht!",
+        "match_is_in_future": "Dieses Spiel wurde noch nicht angepfiffen!",
         "info": "Das Spätzle(s)-Tippspiel ist ein Tippspiel aus dem Stuttgarter TM-Forum in dem die Teilnehmer nicht nur Bundesligaspiele tippen, sondern damit in Duellen gegeneinander antreten.",
         "invalid_league": "Existierende Ligen: 1, 2, 3, 4",
         "matchday_out_of_range": "Spieltage außerhalb 1 bis 17 sind nicht gültig.",
