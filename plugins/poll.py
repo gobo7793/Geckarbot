@@ -1,39 +1,41 @@
 from datetime import datetime
 
+from discord.ext import commands
+
 from base import BasePlugin
+from botutils.questionnaire import Question, Questionnaire, QuestionType
 
 
-class Question:
-    def __init__(self):
-        self.question = None
-        self.answers = {}
-
-    def add_answer(self, short, long):
-        self.answers[short] = long
-
-
-class Vote:
-    def __init__(self):
-        self.creator = None
-        self.date = datetime.now()
-
-
-class Poll:
-    def __init__(self):
-        self.name = None
-        self.creator = None
-        self.votes = []
-
-
-class PollCreator:
-    def __init__(self, user):
-        self.user = user
+protoquestions = [
+    ("Rasierst du dich nass oder trocken?", QuestionType.SINGLECHOICE, ["nass", "trocken", "gar nicht"]),
+    ("Was für einen Rasierer hast du?", QuestionType.TEXT, None),
+    ("Wo rasierst du dich?", QuestionType.MULTIPLECHOICE, ["spiegel", "dusche", "tram"])
+]
 
 
 class Plugin(BasePlugin):
     def __init__(self, bot):
         self.bot = bot
         super().__init__(bot)
+
+        self.answers = []
+
         self.bot.register(self)
 
-        self.polls = {}
+    @commands.command(name="blub")
+    async def poll(self, ctx):
+        questions = [Question(question, qtype, answers=answers) for question, qtype, answers in protoquestions]
+        questionnaire = Questionnaire(self.bot, ctx.message.author, questions)
+
+        try:
+            answers = questionnaire.interrogate()
+        except (KeyError, RuntimeError):
+            await ctx.send("Sorry, DM channel blocked")
+            return
+
+        self.answers.append(answers)
+
+    @commands.command(name="results")
+    async def results(self, ctx):
+        for el in self.answers:
+            await ctx.send(str(el))
