@@ -258,16 +258,17 @@ class Plugin(BasePlugin, name="Feedback"):
 
     @redact.command(name="flatten", hidden=True, help="Flattens the complaint IDs")
     async def cmd_flatten(self, ctx):
-        i = 1
+        i = 0
         new = {}
         for el in sorted(self.complaints.keys()):
+            i += 1
             new[i] = self.complaints[el]
             new[i].id = i
-            i += 1
 
         self.complaints = new
+        self.highest_id = i
         self.write()
-        ctx.message.add_reaction(Lang.CMDSUCCESS)
+        await ctx.message.add_reaction(Lang.CMDSUCCESS)
 
     async def category_move(self, ctx, complaint_ids: list, category):
         """
