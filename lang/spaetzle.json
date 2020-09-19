@@ -27,7 +27,8 @@
         "extract_user_no_preds": "These users have posted in the thread, but I found no predictions!\n{}",
         "archive_page_missing": "Page \"ST {}\" not found!",
         "title_matches": "Matches - Matchday {}",
-        "raw_posts_prefix": "**Found {} post(s):**"
+        "raw_posts_prefix": "**Found {} post(s):**",
+        "participants_added": "Added {} participants to league {}"
     },
     "de": {
         "league": "Liga {}",
@@ -53,6 +54,7 @@
         "extract_user_no_preds": "Diese Teilnehmer:innen haben im Thread gepostet, aber ich konnte keine Tipps finden!\n{}",
         "archive_page_missing": "Archiv-Seite \"ST {}\" nicht gefunden!",
         "title_matches": "Spiele - Spieltag {}",
-        "raw_posts_prefix": "**{} Post(s) gefunden:**"
+        "raw_posts_prefix": "**{} Post(s) gefunden:**",
+        "participants_added": "{} Teilnehmer wurden zur Liga {} hinzugefügt."
     }
 }

@@ -118,12 +118,21 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
     def get_api_client(self):
         return sheetsclient.Client(Config().get(self)['spaetzledoc_id'])
 
+    async def manager_check(self, ctx, show_error=True):
+        if ctx.author.id == Config().get(self)['manager']:
+            return True
+        else:
+            if show_error:
+                await add_reaction(ctx.message, Lang.CMDNOPERMISSIONS)
+                await ctx.send(Lang.lang(self, 'manager_only'))
+            return False
+
     async def trusted_check(self, ctx, show_error=True):
         if ctx.message.author.id in Config.get(self)['trusted'] or ctx.message.author.id == Config.get(self)['manager']:
             return True
         else:
             if show_error:
-                await add_reaction(ctx.message, Lang.CMDERROR)
+                await add_reaction(ctx.message, Lang.CMDNOPERMISSIONS)
                 await ctx.send(Lang.lang(self, 'not_trusted'))
             return False
 
@@ -676,6 +685,15 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             Storage().save(self)
             await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
+    @spaetzle_set.command(name="participants", alias="teilnehmer", help="Sets the participants of a league. "
+                                                                        "Manager only.")
+    async def set_participants(self, ctx, league: int, *participants):
+        if await self.manager_check(ctx):
+            Storage().get(self)['participants']['liga{}'.format(league)] = participants
+            Storage().save(self)
+            await ctx.send(Lang.lang(self, 'participants_added', len(participants), league))
+            await add_reaction(ctx.message, Lang.CMDSUCCESS)
+
     def get_matches_from_sheets(self):
         """
         Reads the matches from the sheet
@@ -996,25 +1014,19 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
 
     @trusted.command(name="add", help="Adds a user to the trusted list.")
     async def trusted_add(self, ctx, user: discord.User):
-        if ctx.message.author.id == Config.get(self)['manager']:
+        if await self.manager_check(ctx):
             if user.id not in Config.get(self)['trusted']:
                 Config.get(self)['trusted'].append(user.id)
                 Config().save(self)
             await add_reaction(ctx.message, Lang.CMDSUCCESS)
-        else:
-            await add_reaction(ctx.message, Lang.CMDNOPERMISSIONS)
-            await ctx.send(Lang.lang(self, 'manager_only'))
 
     @trusted.command(name="del", help="Removes user from the trusted list")
     async def trusted_remove(self, ctx, user: discord.User):
-        if ctx.message.author.id == Config.get(self)['manager']:
+        if await self.manager_check(ctx):
             if user.id in Config.get(self)['trusted']:
                 Config.get(self)['trusted'].remove(user.id)
                 Config().save(self)
             await add_reaction(ctx.message, Lang.CMDSUCCESS)
-        else:
-            await add_reaction(ctx.message, Lang.CMDNOPERMISSIONS)
-            await ctx.send(Lang.lang(self, 'manager_only'))
 
     @trusted.command(name="manager", help="Sets the manager")
     async def trusted_manager(self, ctx, user: discord.User):
