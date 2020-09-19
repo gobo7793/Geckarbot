@@ -305,12 +305,12 @@ class Plugin(BasePlugin, name="Bot updating system"):
         release = None
         for el in self.get_releases():
             if "tag_name" in el:
-                release = el
-                break
+                el = el["tag_name"]
+                if release is None or is_newer(el, release):
+                    release = el
         if release is None:
             return None
 
-        release = release["tag_name"]
         if is_newer(release, Config().VERSION):
             return release
         return None
