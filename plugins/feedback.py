@@ -3,7 +3,7 @@ from copy import deepcopy
 import discord.utils
 from discord.ext import commands
 
-from base import BasePlugin
+from base import BasePlugin, NotFound
 from conf import Storage, Config, Lang
 from botutils import converters
 from botutils.stringutils import paginate
@@ -130,6 +130,24 @@ class Plugin(BasePlugin, name="Feedback"):
             "complaints": {},
             "bugscore": {},
         }
+
+    def command_usage(self, command):
+        if command.name == "complain":
+            return Lang.lang(self, "help_usage_complain")
+        else:
+            raise NotFound()
+
+    def command_help_string(self, command):
+        if command.name == "complain":
+            return Lang.lang(self, "help_complain")
+        else:
+            raise NotFound()
+
+    def command_description(self, command):
+        if command.name == "complain":
+            return Lang.lang(self, "help_desc_complain")
+        else:
+            raise NotFound()
 
     def reset_highest_id(self):
         self.highest_id = 1
@@ -388,11 +406,7 @@ class Plugin(BasePlugin, name="Feedback"):
 
         await self.category_move(ctx, cids, cat)
 
-    @commands.command(name="complain", help="Takes a complaint and stores it", usage="<message>",
-                      description="Delivers a feedback message. "
-                                  "The admins and botmasters can then read the accumulated feedback. "
-                                  "The bot saves the feedback author, "
-                                  "the message and a link to the message for context.")
+    @commands.command(name="complain")
     async def complain(self, ctx, *args):
         msg = ctx.message
         complaint = Complaint.from_message(self, msg)
