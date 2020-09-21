@@ -976,6 +976,9 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             return
         
         forum_posts = Storage().get(self)['predictions']
+        if len(forum_posts) < 1:
+            await ctx.send(Lang.lang(self, 'no_saved_rawposts'))
+            return
         first_post = forum_posts[0]
         posts_count = 0
         content = []
@@ -987,10 +990,12 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                 content.append("\n———————————————\n" + post['time'])
                 content.extend([x.strip() for x in post['content'] if x.strip()][:20])
 
-        msgs = paginate(content, prefix=Lang.lang(self, 'raw_posts_prefix', posts_count))
-        for msg in msgs:
-            await ctx.send(msg)
-        await add_reaction(ctx.message, Lang.CMDSUCCESS)
+        if posts_count == 0:
+            await ctx.send(Lang.lang(self, 'raw_posts_prefix', 0))
+        else:
+            msgs = paginate(content, prefix=Lang.lang(self, 'raw_posts_prefix', posts_count))
+            for msg in msgs:
+                await ctx.send(msg)
 
     @spaetzle.group(name="trusted", help="Configures which users are allowed to edit")
     async def trusted(self, ctx):

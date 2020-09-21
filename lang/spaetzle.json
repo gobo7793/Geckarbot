@@ -28,7 +28,8 @@
         "archive_page_missing": "Page \"ST {}\" not found!",
         "title_matches": "Matches - Matchday {}",
         "raw_posts_prefix": "**Found {} post(s):**",
-        "participants_added": "Added {} participants to league {}"
+        "participants_added": "Added {} participants to league {}",
+        "no_saved_rawposts": "Sorry, I haven't found any posts in my memory. Hint: `!spaetzle set scrape`"
     },
     "de": {
         "league": "Liga {}",
@@ -55,6 +56,7 @@
         "archive_page_missing": "Archiv-Seite \"ST {}\" nicht gefunden!",
         "title_matches": "Spiele - Spieltag {}",
         "raw_posts_prefix": "**{} Post(s) gefunden:**",
-        "participants_added": "{} Teilnehmer wurden zur Liga {} hinzugefügt."
+        "participants_added": "{} Teilnehmer wurden zur Liga {} hinzugefügt.",
+        "no_saved_rawposts": "Mist, ich habe überhaupt keine Posts im Lager. Suche mit `!spaetzle set scrape`"
     }
 }
