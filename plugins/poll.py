@@ -1,4 +1,4 @@
-from datetime import datetime
+import logging
 
 from discord.ext import commands
 
@@ -19,23 +19,25 @@ class Plugin(BasePlugin):
         super().__init__(bot)
 
         self.answers = []
+        self.logger = logging.getLogger(__name__)
 
         self.bot.register(self)
 
     @commands.command(name="blub")
     async def poll(self, ctx):
+        self.logger.debug("Caught poll cmd")
         questions = [Question(question, qtype, answers=answers) for question, qtype, answers in protoquestions]
         questionnaire = Questionnaire(self.bot, ctx.message.author, questions)
 
         try:
-            answers = questionnaire.interrogate()
+            answers = await questionnaire.interrogate()
+            self.answers.append(answers)
         except (KeyError, RuntimeError):
             await ctx.send("Sorry, DM channel blocked")
             return
 
-        self.answers.append(answers)
-
     @commands.command(name="results")
     async def results(self, ctx):
         for el in self.answers:
-            await ctx.send(str(el))
+            msg = [element.answer for element in el]
+            await ctx.send(str(msg))
