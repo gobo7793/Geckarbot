@@ -56,7 +56,7 @@ class Participant:
         self.plugin.logger.debug("Sending init DM to {}".format(self.user))
         await self.send(Lang.lang(self.plugin, "ask_for_entry", converters.get_best_username(self.assigned.user)))
 
-    async def dm_callback(self, cb, message):
+    async def dm_callback(self, reg, message):
         self.plugin.logger.debug("Incoming message from {}: {}".format(self.user, message.content))
         if message.content.strip() == "":
             # you never know
@@ -94,7 +94,7 @@ class Participant:
     def cleanup(self):
         self.plugin.logger.debug("Cleaning up participant {}".format(self.user))
         if self.registration is not None:
-            self.registration.unregister()
+            self.registration.deregister()
             self.registration = None
 
     def __str__(self):
