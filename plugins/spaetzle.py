@@ -29,10 +29,10 @@ class LeagueNotFound(Exception):
 
 
 class MatchStatus(Enum):
-    CLOSED = ":ballot_box_with_check:"
-    RUNNING = ":green_square:"
-    UPCOMING = ":clock330:"
-    UNKNOWN = ":grey_question:"
+    CLOSED = "💤"
+    RUNNING = "🟩"
+    UPCOMING = "🕓"
+    UNKNOWN = "❔"
 
 
 class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
@@ -757,7 +757,6 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                 col2, row2 = self.get_user_cell(opponent)
             except UserNotFound:
                 # Opponent not found
-                oppo_predictions = Lang.lang(self, 'user_not_found')
                 matches, preds_h = c.get_multiple(["Aktuell!{}".format(Config().get(self)['matches_range']),
                                                    "Aktuell!{}:{}".format(c.cellname(col1, row1 + 1),
                                                                           c.cellname(col1 + 1, row1 + 9))],
@@ -765,7 +764,6 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                 preds_a = [["–", "–"]] * 9
             else:
                 # Opponent found
-                oppo_predictions = ""
                 matches, preds_h, preds_a = c.get_multiple(["Aktuell!{}".format(Config().get(self)['matches_range']),
                                                             "Aktuell!{}:{}".format(c.cellname(col1, row1 + 1),
                                                                                    c.cellname(col1 + 1, row1 + 9)),
@@ -798,32 +796,21 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                 diff2 += diff[1]
 
             # Producing the message
-            match_str = ""
-            for match in matches:
+            msg = ""
+            msg += "{} Home - Away\u0020\u0020\u0020{}\u2026\u0020\u0020{}\u2026\n".format("\u2b1b",
+                                                                                           user[:4], opponent[:4])
+            for i in range(len(matches)):
+                match = matches[i]
+                pred_h = preds_h[i]
+                pred_a = preds_a[i]
                 emoji = self.match_status(datetime(1899, 12, 30) + timedelta(days=match[1] + match[2])).value
-                match_str += "{} {} {}:{} {}\n".format(emoji, self.get_teamname_abbr(match[3]), match[4], match[5],
-                                                       self.get_teamname_abbr(match[6]))
-
-            user_predictions = ""
-            for pred in preds_h:
-                if len(pred) < 2:
-                    user_predictions += "-:-\n"
-                else:
-                    user_predictions += "{}:{}\n".format(pred[0], pred[1])
-
-            if oppo_predictions == "":
-                for pred in preds_a:
-                    if len(pred) < 2:
-                        oppo_predictions += "-:-\n"
-                    else:
-                        oppo_predictions += "{}:{}\n".format(pred[0], pred[1])
+                msg += "{} {} {}:{} {}\u0020\u0020\u0020\u0020{}:{}\u0020\u0020\u0020\u0020{}:{}\n"\
+                    .format(emoji, self.get_teamname_abbr(match[3]), match[4], match[5],
+                            self.get_teamname_abbr(match[6]), pred_h[0], pred_h[1], pred_a[0], pred_a[1])
 
             embed = discord.Embed(title=user)
-            embed.description = "{} [{}:{}] {}".format(user, result[0][0], result[1][0], opponent)
+            embed.description = "{} [{}:{}] {}\n```{}```".format(user, result[0][0], result[1][0], opponent, msg)
             embed.set_footer(text="Noch möglich aufzuholen: {} bzw {} Punkte".format(diff1, diff2))
-            embed.add_field(name="Spiele", value=match_str)
-            embed.add_field(name=user, value=user_predictions)
-            embed.add_field(name=opponent, value=oppo_predictions)
 
         await ctx.send(embed=embed)
 
