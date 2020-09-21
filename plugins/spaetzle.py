@@ -35,6 +35,13 @@ class MatchStatus(Enum):
     UNKNOWN = "❔"
 
 
+class MatchResult(Enum):
+    HOME = -1
+    DRAW = 0
+    AWAY = 1
+    NONE = None
+
+
 class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
 
     def __init__(self, bot):
@@ -300,7 +307,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
 
     def pointdiff_possible(self, score, pred1, pred2):
         """
-        Returns the maximal point difference possible
+        Returns the maximal point difference possible at a single match
         """
         if not self.valid_pred(score):
             # No Score
@@ -337,6 +344,33 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                             - (self.points(score, pred2) - self.points(score, pred1))
 
         return diff1, diff2
+
+    def determine_winner(self, points_h: str, points_a: str, diff_h: int, diff_a: int):
+        """
+        Determines the winner of a duel
+        :param points_h: current points of user 1
+        :param points_a: current points of user 2
+        :param diff_h: maximum points user 1 can catch up
+        :param diff_a: maximum points user 2 can catch up
+        :return: MatchResult
+        """
+        try:
+            points_h = int(points_h)
+        except (ValueError, TypeError):
+            points_h = 0
+        try:
+            points_a = int(points_a)
+        except (ValueError, TypeError):
+            points_a = 0
+
+        if points_h > (points_a + diff_a):
+            return MatchResult.HOME
+        elif points_a > (points_h + diff_h):
+            return MatchResult.AWAY
+        elif points_h == points_a and diff_h == 0 and diff_a == 0:
+            return MatchResult.DRAW
+        else:
+            return MatchResult.NONE
 
     @commands.command(name="goal", help="Scores a goal for a team (Spätzle-command)")
     async def goal(self, ctx, team, goals: int = None):
@@ -749,7 +783,8 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             except UserNotFound:
                 await ctx.send(Lang.lang(self, 'user_not_found'))
                 return
-            result = c.get("Aktuell!{}:{}".format(c.cellname(col1, row1 + 10), c.cellname(col1 + 1, row1 + 11)))
+            result = c.get("Aktuell!{}:{}".format(c.cellname(col1, row1 + 10), c.cellname(col1 + 1, row1 + 11)),
+                           formatted=False)
             opponent = result[1][1]
 
             # Getting data / Opponent-dependent parts
@@ -780,6 +815,10 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             if len(preds_a) == 0:
                 preds_a = [["–", "–"]] * 9
             for i in range(len(matches)):
+                if matches[i][4] == "":
+                    matches[i][4] = "–"
+                if matches[i][5] == "":
+                    matches[i][5] = "–"
                 if len(preds_h[i]) < 2:
                     preds_h[i] = ["–", "–"]
                 if len(preds_a[i]) < 2:
@@ -810,7 +849,16 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
 
             embed = discord.Embed(title=user)
             embed.description = "{} [{}:{}] {}\n```{}```".format(user, result[0][0], result[1][0], opponent, msg)
-            embed.set_footer(text="Noch möglich aufzuholen: {} bzw {} Punkte".format(diff1, diff2))
+
+            match_result = self.determine_winner(result[0][0], result[1][0], diff1, diff2)
+            if match_result == MatchResult.HOME:
+                embed.set_footer(text=Lang.lang(self, 'show_duel_footer_winner', user))
+            elif match_result == MatchResult.AWAY:
+                embed.set_footer(text=Lang.lang(self, 'show_duel_footer_winner', opponent))
+            elif match_result == MatchResult.DRAW:
+                embed.set_footer(text=Lang.lang(self, 'show_duel_footer_draw'))
+            else:
+                embed.set_footer(text=Lang.lang(self, 'show_duel_footer_normal', diff1, diff2))
 
         await ctx.send(embed=embed)
 
