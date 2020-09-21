@@ -1,0 +1,8 @@
+dateutils>=0.6.11
+discord.py>=1.4.1
+emoji>=0.6.0
+google-api-python-client>=1.12.1
+google-auth-httplib2>=0.0.4
+espn_api>=0.6.0
+requests>=2.22.0
+beautifulsoup4>=4.8.1
