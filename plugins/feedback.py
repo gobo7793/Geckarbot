@@ -242,7 +242,7 @@ class Plugin(BasePlugin, name="Feedback"):
             found = True
             for searchterm in args:
                 # Search check
-                if searchterm.lower() not in complaint.to_message(include_url=False).lower():
+                if searchterm.lower() not in complaint.to_message(show_cat=False, include_url=False).lower():
                     found = False
                     break
             if not found:
