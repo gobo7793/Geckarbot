@@ -29,9 +29,9 @@ class LeagueNotFound(Exception):
 
 
 class MatchStatus(Enum):
-    CLOSED = "💤"
-    RUNNING = "🟩"
-    UPCOMING = "🕓"
+    CLOSED = ":ballot_box_with_check:"
+    RUNNING = ":green_square:"
+    UPCOMING = ":clock4:"
     UNKNOWN = "❔"
 
 
@@ -836,19 +836,19 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
 
             # Producing the message
             msg = ""
-            msg += "{} Home - Away\u0020\u0020\u0020{}\u2026\u0020\u0020{}\u2026\n".format("\u2b1b",
-                                                                                           user[:4], opponent[:4])
+            msg += ":soccer: `Home - Away\u0020\u0020\u0020" \
+                   "{}\u2026\u0020\u0020{}\u2026`\n".format(user[:4], opponent[:4])
             for i in range(len(matches)):
                 match = matches[i]
                 pred_h = preds_h[i]
                 pred_a = preds_a[i]
                 emoji = self.match_status(datetime(1899, 12, 30) + timedelta(days=match[1] + match[2])).value
-                msg += "{} {} {}:{} {}\u0020\u0020\u0020\u0020{}:{}\u0020\u0020\u0020\u0020{}:{}\n"\
+                msg += "{} `{} {}:{} {}\u0020\u0020\u0020\u0020{}:{}\u0020\u0020\u0020\u0020{}:{} `\n"\
                     .format(emoji, self.get_teamname_abbr(match[3]), match[4], match[5],
                             self.get_teamname_abbr(match[6]), pred_h[0], pred_h[1], pred_a[0], pred_a[1])
 
-            embed = discord.Embed(title=user)
-            embed.description = "{} [{}:{}] {}\n```{}```".format(user, result[0][0], result[1][0], opponent, msg)
+            embed = discord.Embed(title="{} [{}:{}] {}".format(user, result[0][0], result[1][0], opponent))
+            embed.description = msg
 
             match_result = self.determine_winner(result[0][0], result[1][0], diff1, diff2)
             if match_result == MatchResult.HOME:
