@@ -1,0 +1,22 @@
+{
+  "de": {
+    "#0": "Help",
+    "help_lastfm": "Last.fm-Anbindung",
+    "desc_lastfm": "Last.fm-Anbindung.",
+    "help_register": "Registriert dein last.fm-Profil",
+    "desc_register": "Registriert deinen last.fm-Profilnamen für weitere Kommandos.",
+    "usage_register": "<last.fm-Profilname>",
+    "help_deregister": "Entfernt dein last.fm-Profil aus dem Register",
+    "desc_deregister": "Entfernt deinen last.fm-Profilnamen aus dem Register. Andere lastfm-Kommandos können dann nicht mehr genutzt werden.",
+    "help_listening": "Teilt mit, was du gerade hörst",
+    "desc_listening": "Teilt mit, was du gerade hörst.",
+
+    "#1": "Errors",
+    "not_registered": "Ich kenne leider dein last.fm-Profil nicht.",
+    "error": "Sorry, ich kann dir hier nicht helfen.",
+
+    "#2": "Output",
+    "listening": "{} hört gerade **{}** von **{}** aus dem Album **{}**.",
+    "listening_none": "{} hört gerade nichts."
+  }
+}
