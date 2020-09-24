@@ -863,7 +863,8 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
         await ctx.send(embed=embed)
 
     @spaetzle.command(name="duels", aliases=["duelle"],
-                      help="Displays the duels of observed users or the specified league")
+                      help="Displays the duels of observed users or the specified league",
+                      usage="[\u00a0|<league_number>|all]")
     async def show_duels(self, ctx, league: str = None):
         if league is None:
             # Observed users
@@ -928,7 +929,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
     async def show_duels_all(self, ctx):
         async with ctx.typing():
             c = self.get_api_client()
-            data_ranges = ["Aktuell!J3:T11", "Aktuell!V3:AF11", "Aktuell!AH3:AR11", "Aktuell!AT3:BD11"]
+            data_ranges = list(Config().get(self)['duel_ranges'].values())
             results = c.get_multiple(data_ranges)
             embed = discord.Embed(title="Duelle")
 
@@ -936,7 +937,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                 msg = ""
                 for duel in results[i]:
                     duel.extend([""] * (8 - len(duel)))
-                    msg += "{0} [{4}:{5}] {7}\n".format(*duel)
+                    msg += "{0}\u00a0[{4}:{5}]\u00a0{7}\n".format(*duel)
                 embed.add_field(name="Liga {}".format(i + 1), value=msg)
         await ctx.send(embed=embed)
 
