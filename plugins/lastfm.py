@@ -5,6 +5,7 @@ from discord.ext import commands
 
 from base import BasePlugin, NotLoadable, NotFound
 from conf import Config, Lang, Storage
+from botutils import utils
 from botutils.converters import get_best_username as gbu
 from botutils.restclient import Client
 
@@ -90,12 +91,22 @@ class Plugin(BasePlugin, name="LastFM"):
     async def listening(self, ctx, user=None):
         if user is None:
             user = ctx.author
-        user = self.get_lastfm_user(user)
+        else:
+            # find mentioned user
+            try:
+                user = await commands.MemberConverter().convert(ctx, user)
+            except (commands.CommandError, IndexError):
+                await ctx.send(Lang.lang(self, "user_not_found", user))
+                await ctx.message.add_reaction(Lang.CMDERROR)
+                return
+        lfmuser = self.get_lastfm_user(user)
+
         params = {
             "method": "user.getRecentTracks",
-            "user": user,
+            "user": lfmuser,
             "limit": 1,
         }
+
         async with ctx.typing():
             response = self.request(params, "GET")
             song = get_by_path(response, ["recenttracks", "track", 0])
@@ -104,13 +115,15 @@ class Plugin(BasePlugin, name="LastFM"):
             title = get_by_path(song, ["name"])
             album = get_by_path(song, ["album", "#text"], default="unknown")
 
-            if nowplaying is None or artist is None or title is None:
+            if artist is None or title is None or album is None:
                 await ctx.message.add_reaction(Lang.CMDERROR)
                 await ctx.send(Lang.lang(self, "error"))
+                await utils.write_debug_channel(self.bot, "artist, title or album not found in {}".format(response))
                 return
 
-            if nowplaying != "true":
-                await ctx.send(Lang.lang(self, "listening_none", gbu(ctx.message.author)))
-                return
+            if nowplaying == "true":
+                msg = "listening"
+            else:
+                msg = "listening_last"
 
-            await ctx.send(Lang.lang(self, "listening", gbu(ctx.message.author), title, artist, album))
+            await ctx.send(Lang.lang(self, msg, gbu(user), title, artist, album))
