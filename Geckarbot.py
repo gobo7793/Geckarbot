@@ -283,7 +283,10 @@ def main():
         await utils.write_debug_channel(bot, f"Loaded subsystems: {', '.join(bot.get_subsystem_list())}")
         await utils.write_debug_channel(bot, f"Loaded coreplugins: {', '.join(bot.get_coreplugins())}")
         await utils.write_debug_channel(bot, f"Loaded plugins: {', '.join(bot.get_normalplugins())}")
+        if len(failed_plugins) > 0:
+            failed_plugins.append("None, all plugins loaded successfully!")
         await utils.write_debug_channel(bot, f"Failed loading plugins: {', '.join(failed_plugins)}")
+
 
     if not Config().DEBUG_MODE:
         @bot.event
