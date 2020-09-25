@@ -8,7 +8,8 @@
         "redact_search_not_found": "No complaints found.",
         "redact_title": "**Complaints** ({}):\n",
         "redact_title_uncat": "{} uncategorized, {} categorized (not shown)",
-        "redact_title_full": "{}, {} categorized, {} uncategorized",
+        "redact_title_full": "{} total, {} categorized, {} uncategorized",
+        "redact_title_partial": "{} total, {} shown",
         "redact_search_title": "**Search results:**\n",
         "redact_count": "There are {} complaints ({} categorized, {} uncategorized) and {} categories.",
         "redact_cat_appendix": "Category: {}",
@@ -26,7 +27,11 @@
         "bugscore_args": "Too many arguments.",
         "bugscore_user_not_found": "User not found: {}",
         "bugscore_nan": "{} is not a number.",
-        "bugscore_empty": "Nobody has found any bugs yet :("
+        "bugscore_empty": "Nobody has found any bugs yet :(",
+
+        "help_desc_complain": "Delivers a feedback message. The admins and botmasters can then read the accumulated feedback via !redact. The bot saves the feedback author, the message and a link to the message for context.",
+        "help_complain": "Takes a complaint and stores it.",
+        "help_usage_complain": "<complaint>"
     },
 
     "de": {
@@ -34,6 +39,10 @@
         "bugscore_args": "Zu viele Argumente.",
         "bugscore_user_not_found": "User nicht gefunden: {}",
         "bugscore_nan": "{} ist keine Zahl.",
-        "bugscore_empty": "Niemand hat bisher Bugs gefunden :("
+        "bugscore_empty": "Niemand hat bisher Bugs gefunden :(",
+
+        "help_desc_complain": "Überbringt eine Feedback-Nachricht. Die Admins und Botmaster können die angesammelten Feedback-Nachrichten via !redact lesen. Es werden der Autor, die Nachricht selbst und ein Link zur Nachricht (für Kontext) gespeichert.",
+        "help_complain": "Nimmt eine Beschwerde entgegen und speichert sie.",
+        "help_usage_complain": "<Beschwerde>"
     }
 }

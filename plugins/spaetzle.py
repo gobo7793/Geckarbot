@@ -74,8 +74,8 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
     def default_storage(self):
         return {
             'matchday': 0,
-            'main_thread': "",
-            'predictions_thread': "",
+            'main_thread': None,
+            'predictions_thread': None,
             'discord_user_bridge': {},
             'observed_users': [],
             'participants': {
@@ -118,12 +118,21 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
     def get_api_client(self):
         return sheetsclient.Client(Config().get(self)['spaetzledoc_id'])
 
+    async def manager_check(self, ctx, show_error=True):
+        if ctx.author.id == Config().get(self)['manager']:
+            return True
+        else:
+            if show_error:
+                await add_reaction(ctx.message, Lang.CMDNOPERMISSIONS)
+                await ctx.send(Lang.lang(self, 'manager_only'))
+            return False
+
     async def trusted_check(self, ctx, show_error=True):
         if ctx.message.author.id in Config.get(self)['trusted'] or ctx.message.author.id == Config.get(self)['manager']:
             return True
         else:
             if show_error:
-                await add_reaction(ctx.message, Lang.CMDERROR)
+                await add_reaction(ctx.message, Lang.CMDNOPERMISSIONS)
                 await ctx.send(Lang.lang(self, 'not_trusted'))
             return False
 
@@ -164,7 +173,8 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
 
     def get_schedule(self, league: int, matchday: int):
         matchday = [5, 16, 15, 1, 12, 9, 8, 4, 13, 10, 11, 7, 14, 3, 6, 0, 2][matchday - 1]  # "Randomize" input
-        participants = Storage().get(self)['participants'].get('liga{}'.format(league))
+        p = Storage().get(self)['participants'].get('liga{}'.format(league))
+        participants = [p[i] for i in [11, 0, 13, 6, 5, 15, 9, 1, 14, 8, 4, 16, 7, 2, 17, 3, 10, 12]]
         if participants is None:
             raise LeagueNotFound()
         participants = participants[0:1] + participants[matchday - 1:] + participants[1:matchday - 1]
@@ -337,8 +347,8 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             async with ctx.typing():
                 c = self.get_api_client()
                 match = self.matches_by_team[abbr]
-                if self.match_status(match['match_date_time']) != MatchStatus.RUNNING:
-                    await ctx.send(Lang.lang(self, 'match_not_running'))
+                if self.match_status(match['match_date_time']) == MatchStatus.UPCOMING:
+                    await ctx.send(Lang.lang(self, 'match_is_in_future'))
                     return
                 match[abbr]['goals'] = goals if goals is not None else match[abbr]['goals'] + 1
 
@@ -456,7 +466,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             values = [[matchday], [None]]
             for match in self.matches:
                 date_time = match.get('match_date_time')
-                date_formula = '=IF(DATE({};{};{}) + TIME({};{};0) < F12;0;"–")'.format(*list(date_time.timetuple()))
+                date_formula = '=IF(DATE({};{};{}) + TIME({};{};0) < F12;0;"")'.format(*list(date_time.timetuple()))
                 values.append([calendar.day_abbr[date_time.weekday()],
                                date_time.strftime("%d.%m.%Y"), date_time.strftime("%H:%M"),
                                match.get('team_home'), date_formula, date_formula, match.get('team_away')])
@@ -532,8 +542,9 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
         data = []
         url = Storage().get(self)['predictions_thread']
 
-        if urlparse(url).netloc not in "www.transfermarkt.de":
+        if not url or urlparse(url).netloc not in "www.transfermarkt.de":
             await ctx.send(Lang.lang(self, 'scrape_incorrect_url', url))
+            return
 
         botmessage = await ctx.send(Lang.lang(self, 'scrape_start', url))
         async with ctx.typing():
@@ -643,7 +654,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                 data.extend([[None], [None]])
 
             # Updating cells
-            c.update("Aktuell!{}".format(Config().get(self)['predictions_range']), data)
+            c.update("Aktuell!{}".format(Config().get(self)['predictions_range']), data, raw=False)
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
     @spaetzle_set.command(name="archive", help="Archives the current matchday and clears the frontpage")
@@ -673,6 +684,23 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
     async def set_mainthread(self, ctx, url: str):
         if await self.trusted_check(ctx):
             Storage().get(self)['main_thread'] = url
+            Storage().save(self)
+            await add_reaction(ctx.message, Lang.CMDSUCCESS)
+
+    @spaetzle_set.command(name="participants", alias="teilnehmer", help="Sets the participants of a league. "
+                                                                        "Manager only.")
+    async def set_participants(self, ctx, league: int, *participants):
+        if await self.manager_check(ctx):
+            Storage().get(self)['participants']['liga{}'.format(league)] = participants
+            Storage().save(self)
+            await ctx.send(Lang.lang(self, 'participants_added', len(participants), league))
+            await add_reaction(ctx.message, Lang.CMDSUCCESS)
+
+    @spaetzle_set.command(name="matchday", help="Sets the matchday manually, but it's normally already done by "
+                                                "set_matches.")
+    async def set_matchday(self, ctx, matchday: int):
+        if await self.trusted_check(ctx):
+            Storage().get(self)['matchday'] = matchday
             Storage().save(self)
             await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
@@ -967,9 +995,10 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
         for post in forum_posts:
             if post['content'] == first_post['content']:
                 continue
-            if post['user'].lower() == participant.lower():
+            if participant.lower() in post['user'].lower():
                 posts_count += 1
-                content.extend(["\n" + post['time']] + [x.strip() for x in post['content'] if x.strip()])
+                content.append("\n———————————————\n" + post['time'])
+                content.extend([x.strip() for x in post['content'] if x.strip()][:20])
 
         msgs = paginate(content, prefix=Lang.lang(self, 'raw_posts_prefix', posts_count))
         for msg in msgs:
@@ -996,25 +1025,19 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
 
     @trusted.command(name="add", help="Adds a user to the trusted list.")
     async def trusted_add(self, ctx, user: discord.User):
-        if ctx.message.author.id == Config.get(self)['manager']:
+        if await self.manager_check(ctx):
             if user.id not in Config.get(self)['trusted']:
                 Config.get(self)['trusted'].append(user.id)
                 Config().save(self)
             await add_reaction(ctx.message, Lang.CMDSUCCESS)
-        else:
-            await add_reaction(ctx.message, Lang.CMDNOPERMISSIONS)
-            await ctx.send(Lang.lang(self, 'manager_only'))
 
     @trusted.command(name="del", help="Removes user from the trusted list")
     async def trusted_remove(self, ctx, user: discord.User):
-        if ctx.message.author.id == Config.get(self)['manager']:
+        if await self.manager_check(ctx):
             if user.id in Config.get(self)['trusted']:
                 Config.get(self)['trusted'].remove(user.id)
                 Config().save(self)
             await add_reaction(ctx.message, Lang.CMDSUCCESS)
-        else:
-            await add_reaction(ctx.message, Lang.CMDNOPERMISSIONS)
-            await ctx.send(Lang.lang(self, 'manager_only'))
 
     @trusted.command(name="manager", help="Sets the manager")
     async def trusted_manager(self, ctx, user: discord.User):
