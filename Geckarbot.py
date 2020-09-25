@@ -304,7 +304,7 @@ def main():
             is_tb_own_msg = len(ex_tb) > 2000
             if is_tb_own_msg:
                 embed.description = "Exception Traceback see next message."
-                ex_tb = stringutils.paginate(ex_tb, msg_prefix="```python\n", msg_suffix="```")
+                ex_tb = stringutils.paginate(ex_tb.split("\n"), msg_prefix="```python\n", msg_suffix="```")
             else:
                 embed.description = f"```python\n{ex_tb}```"
 
@@ -361,7 +361,7 @@ def main():
                 is_tb_own_msg = len(ex_tb) > 2000
                 if is_tb_own_msg:
                     embed.description = "Exception Traceback see next message."
-                    ex_tb = stringutils.paginate(ex_tb, msg_prefix="```python\n", msg_suffix="```")
+                    ex_tb = stringutils.paginate(ex_tb.split("\n"), msg_prefix="```python\n", msg_suffix="```")
                 else:
                     embed.description = f"```python\n{ex_tb}```"
 
