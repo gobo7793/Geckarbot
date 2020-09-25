@@ -12,6 +12,10 @@ from botutils.restclient import Client
 baseurl = "https://ws.audioscrobbler.com/2.0/"
 
 
+class UnknownResponse(Exception):
+    pass
+
+
 def get_by_path(structure, path, default=None):
     result = structure
     for el in path:
@@ -90,12 +94,22 @@ class Plugin(BasePlugin, name="LastFM"):
     async def listening(self, ctx, user=None):
         if user is None:
             user = ctx.author
+        else:
+            # find mentioned user
+            try:
+                user = await commands.MemberConverter().convert(ctx, user)
+            except (commands.CommandError, IndexError):
+                await ctx.send(Lang.lang(self, "user_not_found", user))
+                await ctx.message.add_reaction(Lang.CMDERROR)
+                return
         user = self.get_lastfm_user(user)
+
         params = {
             "method": "user.getRecentTracks",
             "user": user,
             "limit": 1,
         }
+
         async with ctx.typing():
             response = self.request(params, "GET")
             song = get_by_path(response, ["recenttracks", "track", 0])
@@ -104,13 +118,14 @@ class Plugin(BasePlugin, name="LastFM"):
             title = get_by_path(song, ["name"])
             album = get_by_path(song, ["album", "#text"], default="unknown")
 
-            if nowplaying is None or artist is None or title is None:
+            if artist is None or title is None or album is None:
                 await ctx.message.add_reaction(Lang.CMDERROR)
                 await ctx.send(Lang.lang(self, "error"))
-                return
+                raise UnknownResponse("artist, title or album not found in {}".format(response))
 
-            if nowplaying != "true":
-                await ctx.send(Lang.lang(self, "listening_none", gbu(ctx.message.author)))
-                return
+            if nowplaying == "true":
+                msg = "listening"
+            else:
+                msg = "listening_last"
 
-            await ctx.send(Lang.lang(self, "listening", gbu(ctx.message.author), title, artist, album))
+            await ctx.send(Lang.lang(self, msg, gbu(ctx.message.author), title, artist, album))

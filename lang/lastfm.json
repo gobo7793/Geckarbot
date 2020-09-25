@@ -17,6 +17,6 @@
 
     "#2": "Output",
     "listening": "{} hört gerade **{}** von **{}** aus dem Album **{}**.",
-    "listening_none": "{} hört gerade nichts."
+    "listening_last": "{} hörte zuletzt **{}** von **{}** aus dem Album **{}**."
   }
 }
