@@ -99,11 +99,11 @@ class Plugin(BasePlugin, name="LastFM"):
                 await ctx.send(Lang.lang(self, "user_not_found", user))
                 await ctx.message.add_reaction(Lang.CMDERROR)
                 return
-        user = self.get_lastfm_user(user)
+        lfmuser = self.get_lastfm_user(user)
 
         params = {
             "method": "user.getRecentTracks",
-            "user": user,
+            "user": lfmuser,
             "limit": 1,
         }
 
@@ -126,4 +126,4 @@ class Plugin(BasePlugin, name="LastFM"):
             else:
                 msg = "listening_last"
 
-            await ctx.send(Lang.lang(self, msg, gbu(ctx.message.author), title, artist, album))
+            await ctx.send(Lang.lang(self, msg, gbu(user), title, artist, album))
