@@ -5,15 +5,12 @@ from discord.ext import commands
 
 from base import BasePlugin, NotLoadable, NotFound
 from conf import Config, Lang, Storage
+from botutils import utils
 from botutils.converters import get_best_username as gbu
 from botutils.restclient import Client
 
 
 baseurl = "https://ws.audioscrobbler.com/2.0/"
-
-
-class UnknownResponse(Exception):
-    pass
 
 
 def get_by_path(structure, path, default=None):
@@ -121,7 +118,8 @@ class Plugin(BasePlugin, name="LastFM"):
             if artist is None or title is None or album is None:
                 await ctx.message.add_reaction(Lang.CMDERROR)
                 await ctx.send(Lang.lang(self, "error"))
-                raise UnknownResponse("artist, title or album not found in {}".format(response))
+                await utils.write_debug_channel(self.bot, "artist, title or album not found in {}".format(response))
+                return
 
             if nowplaying == "true":
                 msg = "listening"
