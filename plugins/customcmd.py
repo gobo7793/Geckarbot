@@ -458,6 +458,7 @@ class Plugin(BasePlugin, name="Custom CMDs"):
         # Error handling
         if cmd_name not in self.commands:
             await ctx.send(Lang.lang(self, "raw_doesnt_exist", cmd_name))
+            return
         elif index < 0 or index >= len(self.commands[cmd_name].texts):
             await ctx.send(Lang.lang(self, "text_id_not_found"))
             return
