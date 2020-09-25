@@ -1,25 +1,22 @@
 #!/usr/bin/env python3
-import asyncio
 import datetime
-import inspect
-from asyncio import Task
-from typing import List
-
-import discord
-import pkgutil
 import logging
+import pkgutil
 import sys
 import traceback
 from enum import Enum
 from logging import handlers
 from pathlib import Path
+from typing import List
 
+import discord
 from discord.ext import commands
 
 import injections
-from base import BasePlugin, NotLoadable
+import subsystems
+from base import BasePlugin, NotLoadable, ConfigurableType
+from botutils import utils, permchecks, converters, stringutils
 from conf import Config, ConfigurableContainer, Lang, Storage
-from botutils import utils, permchecks, converters
 from subsystems import timers, reactions, ignoring, dmlisteners, help, presence
 
 
@@ -55,7 +52,23 @@ class Geckarbot(commands.Bot):
 
     @property
     def plugins(self) -> List[ConfigurableContainer]:
+        """All plugins including normal and coreplugins"""
         return self._plugins
+
+    def get_coreplugins(self) -> List[str]:
+        """All coreplugins"""
+        return [c.name for c in self._plugins if c.type == ConfigurableType.COREPLUGIN]
+
+    def get_normalplugins(self) -> List[str]:
+        """All normal plugins"""
+        return [c.name for c in self._plugins if c.type == ConfigurableType.PLUGIN]
+
+    def get_subsystem_list(self) -> List[str]:
+        """All normal plugins"""
+        subsys = []
+        for modname in pkgutil.iter_modules(subsystems.__path__):
+            subsys.append(modname.name)
+        return subsys
 
     def configure(self, plugin):
         Config().load(plugin)
@@ -95,13 +108,16 @@ class Geckarbot(commands.Bot):
 
     def deregister(self, plugin_instance: BasePlugin):
         """Deregisters the given plugin instance"""
-        container = converters.get_plugin_container(self, plugin_instance)
-
-        # remove help data
-        container.category.remove_plugin(plugin_instance)
-
-        # remove cog
         self.remove_cog(plugin_instance.qualified_name)
+
+        container = converters.get_plugin_container(self, plugin_instance)
+        if container is None:
+            logging.debug("Tried deregistering plugin {}, but plugin is not registered".
+                          format(plugin_instance.get_name()))
+            return
+
+        if container.category is not None:
+            container.category.remove_plugin(plugin_instance)
         self.plugins.remove(container)
 
         logging.debug("Deregistered plugin {}".format(plugin_instance.get_name()))
@@ -116,10 +132,13 @@ class Geckarbot(commands.Bot):
             yield el.instance
 
     def load_plugins(self, plugin_dir):
-        """Loads all plugins in plugin_dir"""
-        # import
+        """
+        Loads all plugins in plugin_dir. Returns a list with the plugin names on which loading failed.
+        """
+        failed_list = []
         for el in pkgutil.iter_modules([plugin_dir]):
-            self.load_plugin(plugin_dir, el[1])
+            if not self.load_plugin(plugin_dir, el[1]):
+                failed_list.append(el[1])
             # plugin = el[1]
             # is_pkg = el[2]
             # try:
@@ -135,6 +154,7 @@ class Geckarbot(commands.Bot):
             #     continue
             # else:
             #     logging.info("Loaded plugin {}".format(plugin))
+        return failed_list
 
     def load_plugin(self, plugin_dir, plugin_name):
         """Loads the given plugin_name in plugin_dir, returns True if plugin loaded successfully"""
@@ -147,9 +167,15 @@ class Geckarbot(commands.Bot):
                 pkgutil.importlib.import_module(to_import).Plugin(self)
         except NotLoadable as e:
             logging.warning("Plugin {} could not be loaded: {}".format(plugin_name, e))
+            plugin_instance = converters.get_plugin_by_name(self, plugin_name)
+            if plugin_instance is not None:
+                self.deregister(plugin_instance)
             return False
         except Exception as e:
             logging.error("Unable to load plugin: {}:\n{}".format(plugin_name, traceback.format_exc()))
+            plugin_instance = converters.get_plugin_by_name(self, plugin_name)
+            if plugin_instance is not None:
+                self.deregister(plugin_instance)
             return False
         else:
             logging.info("Loaded plugin {}".format(plugin_name))
@@ -232,7 +258,7 @@ def main():
     bot = Geckarbot(command_prefix='!')
     injections.post_injections(bot)
     logging.info("Loading core plugins")
-    bot.load_plugins(Config().CORE_PLUGIN_DIR)
+    failed_plugins = bot.load_plugins(Config().CORE_PLUGIN_DIR)
 
     @bot.event
     async def on_ready():
@@ -241,7 +267,7 @@ def main():
         bot.guild = guild
 
         logging.info("Loading plugins")
-        bot.load_plugins(Config().PLUGIN_DIR)
+        failed_plugins.extend(bot.load_plugins(Config().PLUGIN_DIR))
 
         if not Config().DEBUG_MODE:
             await bot.presence.start()
@@ -254,6 +280,10 @@ def main():
 
         await utils.write_debug_channel(bot, f"Geckarbot {Config().VERSION} connected on "
                                              f"{guild.name} with {len(guild.members)} users.")
+        await utils.write_debug_channel(bot, f"Loaded subsystems: {', '.join(bot.get_subsystem_list())}")
+        await utils.write_debug_channel(bot, f"Loaded coreplugins: {', '.join(bot.get_coreplugins())}")
+        await utils.write_debug_channel(bot, f"Loaded plugins: {', '.join(bot.get_normalplugins())}")
+        await utils.write_debug_channel(bot, f"Failed loading plugins: {', '.join(failed_plugins)}")
 
     if not Config().DEBUG_MODE:
         @bot.event
@@ -268,10 +298,20 @@ def main():
             embed = discord.Embed(title=':x: Error', colour=0xe74c3c)  # Red
             embed.add_field(name='Error', value=exc_type)
             embed.add_field(name='Event', value=event)
-            embed.description = '```python\n{}\n```'.format(
-                "".join(traceback.format_exception(exc_type, exc_value, exc_traceback)))
             embed.timestamp = datetime.datetime.utcnow()
+
+            ex_tb = "".join(traceback.format_exception(exc_type, exc_value, exc_traceback))
+            is_tb_own_msg = len(ex_tb) > 2000
+            if is_tb_own_msg:
+                embed.description = "Exception Traceback see next message."
+                ex_tb = stringutils.paginate(ex_tb, msg_prefix="```python\n", msg_suffix="```")
+            else:
+                embed.description = f"```python\n{ex_tb}```"
+
             await utils.write_debug_channel(bot, embed)
+            if is_tb_own_msg:
+                for msg in ex_tb:
+                    await utils.write_debug_channel(bot, msg)
 
         @bot.event
         async def on_command_error(ctx, error):
@@ -315,10 +355,20 @@ def main():
                     embed.add_field(name='Channel', value=ctx.channel.recipients)
                 embed.add_field(name='Author', value=ctx.author.display_name)
                 embed.url = ctx.message.jump_url
-                embed.description = '```python\n{}\n```'.format(
-                    "".join(traceback.TracebackException.from_exception(error).format()))
                 embed.timestamp = datetime.datetime.utcnow()
+
+                ex_tb = "".join(traceback.TracebackException.from_exception(error).format())
+                is_tb_own_msg = len(ex_tb) > 2000
+                if is_tb_own_msg:
+                    embed.description = "Exception Traceback see next message."
+                    ex_tb = stringutils.paginate(ex_tb, msg_prefix="```python\n", msg_suffix="```")
+                else:
+                    embed.description = f"```python\n{ex_tb}```"
+
                 await utils.write_debug_channel(bot, embed)
+                if is_tb_own_msg:
+                    for msg in ex_tb:
+                        await utils.write_debug_channel(bot, msg)
                 await utils.add_reaction(ctx.message, Lang.CMDERROR)
                 await ctx.send("Unknown error while executing command.")
 
