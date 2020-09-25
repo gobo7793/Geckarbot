@@ -1,4 +1,5 @@
 import calendar
+import json
 import logging
 import re
 from datetime import datetime, timedelta
@@ -74,8 +75,11 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                 4: "AT14:BD31"
             },
             'predictions_range': "BH2:CQ49",
-            'user_agent': "{'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_6) AppleWebKit/537.36 (KHTML, "
-                          "like Gecko) Chrome/56.0.2924.87 Safari/537.36',} "
+            'all_duels_range': "J3:BD11",
+            'archive_range': "A1:CQ51",
+            'user_agent': {
+                'user-agent': "Geckarbot/{}".format(Config().VERSION)
+            }
         }
 
     def default_storage(self):
@@ -539,7 +543,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                 for values in data.values():
                     for i in range(len(values)):
                         combined_data[i].extend(values[i] + [None] * 4)
-                c.update("Aktuell!J3:BD11", combined_data)
+                c.update("Aktuell!{}".format(Config().get(self)['all_duels_range']), combined_data)
             else:
                 c.update(Config().get(self)['duel_ranges'].get(league), data.get(league))
         await add_reaction(message, Lang.CMDSUCCESS)
@@ -675,10 +679,11 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
 
         async with ctx.typing():
             c = self.get_api_client()
-            data = c.get(range="Aktuell!A1:CQ51", formatted=False)
+            data = c.get(range="Aktuell!{}".format(Config().get(self)['archive_range']), formatted=False)
             matchday = data[0][1]
             try:
-                c.update(range="ST {}!A1:CQ51".format(matchday), values=data, raw=False)
+                c.update(range="ST {}!{}".format(matchday, Config().get(self)['archive_range']),
+                         values=data, raw=False)
             except HttpError:
                 await ctx.send(Lang.lang(self, 'archive_page_missing', matchday))
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
@@ -713,6 +718,50 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             Storage().get(self)['matchday'] = matchday
             Storage().save(self)
             await add_reaction(ctx.message, Lang.CMDSUCCESS)
+
+    @spaetzle_set.command(name="config", help="Gets or sets general config values for the plugin")
+    async def set_config(self, ctx, *args):
+        if not await self.manager_check(ctx):
+            return
+        if len(args) < 1:
+            await ctx.invoke(self.bot.get_command("help"), "spaetzle", "set", "config")
+            return
+        if len(args) == 1:
+            await ctx.send(Lang.lang(self, 'not_enough_args'))
+        else:
+            config = Config().get(self)
+            path = args[:-2]
+            key = args[-2]
+            value = args[-1]
+
+            try:
+                value = json.loads(value)
+            except json.decoder.JSONDecodeError:
+                pass
+
+            try:
+                key = int(key)
+            except ValueError:
+                pass
+
+            for step in path:
+                try:
+                    step = int(step)
+                except ValueError:
+                    pass
+                config = config.get(step)
+                if config is None:
+                    await add_reaction(ctx.message, Lang.CMDERROR)
+                    return
+
+            old_value = config.get(key)
+            embed = discord.Embed(title="'{}'".format("/".join(args[:-1])))
+            embed.add_field(name=Lang.lang(self, 'old_value'), value=str(old_value), inline=False)
+            embed.add_field(name=Lang.lang(self, 'new_value'), value=value, inline=False)
+            config[key] = value
+            Config().save(self)
+            await add_reaction(ctx.message, Lang.CMDSUCCESS)
+            await ctx.send(embed=embed)
 
     def get_matches_from_sheets(self):
         """
