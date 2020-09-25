@@ -1,26 +1,22 @@
 #!/usr/bin/env python3
-import asyncio
 import datetime
-import inspect
-from asyncio import Task
-from typing import List
-
-import discord
-import pkgutil
 import logging
+import pkgutil
 import sys
 import traceback
 from enum import Enum
 from logging import handlers
 from pathlib import Path
+from typing import List
 
+import discord
 from discord.ext import commands
 
 import injections
 import subsystems
 from base import BasePlugin, NotLoadable, ConfigurableType
+from botutils import utils, permchecks, converters, stringutils
 from conf import Config, ConfigurableContainer, Lang, Storage
-from botutils import utils, permchecks, converters
 from subsystems import timers, reactions, ignoring, dmlisteners, help, presence
 
 
@@ -287,7 +283,10 @@ def main():
         await utils.write_debug_channel(bot, f"Loaded subsystems: {', '.join(bot.get_subsystem_list())}")
         await utils.write_debug_channel(bot, f"Loaded coreplugins: {', '.join(bot.get_coreplugins())}")
         await utils.write_debug_channel(bot, f"Loaded plugins: {', '.join(bot.get_normalplugins())}")
+        if len(failed_plugins) > 0:
+            failed_plugins.append("None, all plugins loaded successfully!")
         await utils.write_debug_channel(bot, f"Failed loading plugins: {', '.join(failed_plugins)}")
+
 
     if not Config().DEBUG_MODE:
         @bot.event
@@ -302,10 +301,20 @@ def main():
             embed = discord.Embed(title=':x: Error', colour=0xe74c3c)  # Red
             embed.add_field(name='Error', value=exc_type)
             embed.add_field(name='Event', value=event)
-            embed.description = '```python\n{}\n```'.format(
-                "".join(traceback.format_exception(exc_type, exc_value, exc_traceback)))
             embed.timestamp = datetime.datetime.utcnow()
+
+            ex_tb = "".join(traceback.format_exception(exc_type, exc_value, exc_traceback))
+            is_tb_own_msg = len(ex_tb) > 2000
+            if is_tb_own_msg:
+                embed.description = "Exception Traceback see next message."
+                ex_tb = stringutils.paginate(ex_tb.split("\n"), msg_prefix="```python\n", msg_suffix="```")
+            else:
+                embed.description = f"```python\n{ex_tb}```"
+
             await utils.write_debug_channel(bot, embed)
+            if is_tb_own_msg:
+                for msg in ex_tb:
+                    await utils.write_debug_channel(bot, msg)
 
         @bot.event
         async def on_command_error(ctx, error):
@@ -349,10 +358,20 @@ def main():
                     embed.add_field(name='Channel', value=ctx.channel.recipients)
                 embed.add_field(name='Author', value=ctx.author.display_name)
                 embed.url = ctx.message.jump_url
-                embed.description = '```python\n{}\n```'.format(
-                    "".join(traceback.TracebackException.from_exception(error).format()))
                 embed.timestamp = datetime.datetime.utcnow()
+
+                ex_tb = "".join(traceback.TracebackException.from_exception(error).format())
+                is_tb_own_msg = len(ex_tb) > 2000
+                if is_tb_own_msg:
+                    embed.description = "Exception Traceback see next message."
+                    ex_tb = stringutils.paginate(ex_tb.split("\n"), msg_prefix="```python\n", msg_suffix="```")
+                else:
+                    embed.description = f"```python\n{ex_tb}```"
+
                 await utils.write_debug_channel(bot, embed)
+                if is_tb_own_msg:
+                    for msg in ex_tb:
+                        await utils.write_debug_channel(bot, msg)
                 await utils.add_reaction(ctx.message, Lang.CMDERROR)
                 await ctx.send("Unknown error while executing command.")
 

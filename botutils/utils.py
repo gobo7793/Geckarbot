@@ -28,6 +28,25 @@ async def add_reaction(message: discord.Message, reaction):
         await message.channel.send(reaction)
 
 
+def paginate_embed(embed: discord.Embed):
+    """
+    Paginates/Cuts to long embed contents in title and description of the embed.
+    If the Embeds exceed after that 6000 chars an Exception is thrown.
+    :param embed: The embed to paginate
+    :return: The paginated embed
+    """
+    # Limit overview see https://discordjs.guide/popular-topics/embeds.html#notes
+    if len(embed.title) > 256:
+        embed.title = f"{embed.title[0:254]} …"
+    if len(embed.description) > 2048:
+        if embed.description.endswith("```"):
+            embed.description = f"{embed.description[0:2043]}```\n…"
+        else:
+            embed.description = f"{embed.description[0:2046]} …"
+    if len(embed) > 6000:
+        raise Exception(f"Embed is still to long! Title: {embed.title}")
+
+
 async def _write_to_channel(bot: Bot, channel_id: int = 0, message: Union[str, discord.Embed] = None,
                             channel_type: str = ""):
     """
@@ -38,20 +57,20 @@ async def _write_to_channel(bot: Bot, channel_id: int = 0, message: Union[str, d
     :param message: The message or embed to send
     :param channel_type: The channel type or name for the logging output
     """
+    log_msg = get_embed_str(message)
+    chan_logger.info(f"{channel_type} : {log_msg}")
 
     channel = bot.get_channel(channel_id)
     if not Config().DEBUG_MODE and channel is not None and message is not None and message:
         if isinstance(message, discord.Embed):
+            paginate_embed(message)
             await channel.send(embed=message)
         else:
             messages = message.split("\n")
             for msg in paginate(messages, delimiter="\n"):
-                if len(msg) > 1995:
-                    msg = f"{msg[0:1995]} ..."
+                if len(msg) > 2000:
+                    msg = f"{msg[0:1998]} …"
                 await channel.send(msg)
-
-    log_msg = get_embed_str(message)
-    chan_logger.info(f"{channel_type} : {log_msg}")
 
 
 async def write_debug_channel(bot: Bot, message):

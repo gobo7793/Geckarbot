@@ -173,6 +173,9 @@ class Plugin(BasePlugin, name="NFL Fantasyliga"):
             }
         }
 
+    def shutdown(self):
+        self._stop_score_timer()
+
     @property
     def year(self):
         return self.start_date.year
@@ -284,8 +287,6 @@ class Plugin(BasePlugin, name="NFL Fantasyliga"):
                 week -= 1
             if week < 1:
                 week = 1
-            elif week > league.espn.current_week:
-                week = league.espn.current_week
             prefix = Lang.lang(self, "scores_prefix", league.name, week)
             embed = discord.Embed(title=prefix, url=league.scoreboard_url)
 

@@ -174,7 +174,7 @@ class Config(IODirectory):
     ######
     # Basic bot info
     ######
-    VERSION = "2.2.0"
+    VERSION = "2.3.1"
     CONFIG_DIR = "config"
     PLUGIN_DIR = "plugins"
     CORE_PLUGIN_DIR = "coreplugins"
