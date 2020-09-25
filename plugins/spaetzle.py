@@ -641,7 +641,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             no_preds = []
             for i in range(1, 5):
                 user_list = []
-                participants = Storage().get(self)['participants'].get(str(i), [])
+                participants = Storage().get(self)['participants'].get(i, [])
                 for user in participants:
                     if user not in predictions_by_user:
                         user_list.append(user)
@@ -658,7 +658,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             # Transforming for spreadsheet input
             data = []
             for i in range(1, 5):
-                participants = Storage().get(self)['participants'].get(str(i), [])
+                participants = Storage().get(self)['participants'].get(i, [])
                 data.append([num for elem in [[user, None] for user in participants] for num in elem])
                 for match in matches:
                     row = []
