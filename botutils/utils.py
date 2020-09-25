@@ -57,6 +57,8 @@ async def _write_to_channel(bot: Bot, channel_id: int = 0, message: Union[str, d
     :param message: The message or embed to send
     :param channel_type: The channel type or name for the logging output
     """
+    log_msg = get_embed_str(message)
+    chan_logger.info(f"{channel_type} : {log_msg}")
 
     channel = bot.get_channel(channel_id)
     if not Config().DEBUG_MODE and channel is not None and message is not None and message:
@@ -69,9 +71,6 @@ async def _write_to_channel(bot: Bot, channel_id: int = 0, message: Union[str, d
                 if len(msg) > 2000:
                     msg = f"{msg[0:1998]} …"
                 await channel.send(msg)
-
-    log_msg = get_embed_str(message)
-    chan_logger.info(f"{channel_type} : {log_msg}")
 
 
 async def write_debug_channel(bot: Bot, message):
