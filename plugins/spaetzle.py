@@ -719,12 +719,13 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             Storage().save(self)
             await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
-    @spaetzle_set.command(name="config", help="Gets or sets general config values for the plugin")
+    @spaetzle_set.command(name="config", help="Sets general config values for the plugin.",
+                          usage="<path...> <value>")
     async def set_config(self, ctx, *args):
-        if not await self.manager_check(ctx):
+        if not ctx.author.id == Config.get(self)['manager'] and not check_full_access(ctx.author):
             return
         if len(args) < 1:
-            await ctx.invoke(self.bot.get_command("help"), "spaetzle", "set", "config")
+            await self.bot.helpsys.cmd_help(ctx, self, ctx.command)
             return
         if len(args) == 1:
             await ctx.send(Lang.lang(self, 'not_enough_args'))
