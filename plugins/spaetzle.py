@@ -85,20 +85,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             'predictions_thread': None,
             'discord_user_bridge': {},
             'observed_users': [],
-            'participants': {
-                'liga1': ["TN 1", "TN 2", "TN 3", "TN 4", "TN 5", "TN 6",
-                          "TN 7", "TN 8", "TN 9", "TN 10", "TN 11", "TN 12",
-                          "TN 13", "TN 14", "TN 15", "TN 16", "TN 17", "TN 18"],
-                'liga2': ["TN 19", "TN 20", "TN 21", "TN 22", "TN 23", "TN 24",
-                          "TN 25", "TN 26", "TN 27", "TN 28", "TN 29", "TN 30",
-                          "TN 31", "TN 32", "TN 33", "TN 34", "TN 35", "TN 36"],
-                'liga3': ["TN 37", "TN 38", "TN 39", "TN 40", "TN 41", "TN 42",
-                          "TN 43", "TN 44", "TN 45", "TN 46", "TN 47", "TN 48",
-                          "TN 49", "TN 50", "TN 51", "TN 52", "TN 53", "TN 54"],
-                'liga4': ["TN 55", "TN 56", "TN 57", "TN 58", "TN 59", "TN 60",
-                          "TN 61", "TN 62", "TN 63", "TN 64", "TN 65", "TN 66",
-                          "TN 67", "TN 68", "TN 69", "TN 70", "TN 71", "TN 72"],
-            },
+            'participants': {},
             'teamnames': {
                 "FC Bayern München": {'short_name': "FCB", 'other': ["FC Bayern", "Bayern", "München"]},
                 "Borussia Dortmund": {'short_name': "BVB", 'other': ["Dortmund"]},
@@ -219,22 +206,13 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
 
         :return: (col, row) of the cell
         """
-        participants = Storage().get(self)['participants']
-        if user in participants['liga1']:
-            col = 60 + (2 * participants['liga1'].index(user))
-            row = 2
-        elif user in participants['liga2']:
-            col = 60 + (2 * participants['liga2'].index(user))
-            row = 14
-        elif user in participants['liga3']:
-            col = 60 + (2 * participants['liga3'].index(user))
-            row = 26
-        elif user in participants['liga4']:
-            col = 60 + (2 * participants['liga4'].index(user))
-            row = 38
+        for league, participants in Storage().get(self)['participants'].items():
+            if user in participants:
+                col = 60 + (2 * participants.index(user))
+                row = 12 * (int(league) - 1) + 2
+                return col, row
         else:
             raise UserNotFound
-        return col, row
 
     def get_user_league(self, user):
         """
@@ -242,15 +220,9 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
 
         :return: number of the league
         """
-        participants = Storage().get(self)['participants']
-        if user in participants['liga1']:
-            return 1
-        elif user in participants['liga2']:
-            return 2
-        elif user in participants['liga3']:
-            return 3
-        elif user in participants['liga4']:
-            return 4
+        for league, participants in Storage().get(self)['participants'].items():
+            if user in participants:
+                return league
         else:
             raise UserNotFound
 
@@ -665,7 +637,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             no_preds = []
             for i in range(1, 5):
                 user_list = []
-                participants = Storage().get(self)['participants'].get('liga{}'.format(i), [])
+                participants = Storage().get(self)['participants'].get(str(i), [])
                 for user in participants:
                     if user not in predictions_by_user:
                         user_list.append(user)
@@ -682,7 +654,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             # Transforming for spreadsheet input
             data = []
             for i in range(1, 5):
-                participants = Storage().get(self)['participants'].get('liga{}'.format(i), [])
+                participants = Storage().get(self)['participants'].get(str(i), [])
                 data.append([num for elem in [[user, None] for user in participants] for num in elem])
                 for match in matches:
                     row = []
@@ -729,7 +701,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                                                                         "Manager only.")
     async def set_participants(self, ctx, league: int, *participants):
         if await self.manager_check(ctx):
-            Storage().get(self)['participants']['liga{}'.format(league)] = participants
+            Storage().get(self)['participants'][league] = participants
             Storage().save(self)
             await ctx.send(Lang.lang(self, 'participants_added', len(participants), league))
             await add_reaction(ctx.message, Lang.CMDSUCCESS)
@@ -983,8 +955,8 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             except ValueError:
                 # User
                 try:
-                    league = self.get_user_league(user_or_league)
-                except UserNotFound:
+                    league = int(self.get_user_league(user_or_league))
+                except (ValueError, UserNotFound):
                     ctx.send(Lang.lang(self, 'user_not_found'))
                     return
 
@@ -1018,8 +990,13 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                 return
 
         msg = ""
-        for i in range(1, 18):
-            msg += "{} | {}\n".format(i, self.get_schedule_opponent(user, i))
+        try:
+            for i in range(1, 18):
+                msg += "{} | {}\n".format(i, self.get_schedule_opponent(user, i))
+        except UserNotFound:
+            await add_reaction(ctx.message, Lang.CMDERROR)
+            await ctx.send(Lang.lang(self, 'user_not_found'))
+            return
 
         await ctx.send(embed=discord.Embed(title="Gegner von {}".format(user), description=msg))
 
