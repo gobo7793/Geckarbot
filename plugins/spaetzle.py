@@ -180,11 +180,15 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
 
     def get_schedule(self, league: int, matchday: int):
         matchday = [5, 16, 15, 1, 12, 9, 8, 4, 13, 10, 11, 7, 14, 3, 6, 0, 2][matchday - 1]  # "Randomize" input
-        p = Storage().get(self)['participants'].get('liga{}'.format(league))
-        participants = [p[i] for i in [11, 0, 13, 6, 5, 15, 9, 1, 14, 8, 4, 16, 7, 2, 17, 3, 10, 12]]
-        if participants is None:
+        p = Storage().get(self)['participants'].get(league)
+        if p is None:
             raise LeagueNotFound()
+        participants = [p[i] for i in [11, 0, 13, 6, 5, 15, 9, 1, 14, 8, 4, 16, 7, 2, 17, 3, 10, 12]]
         participants = participants[0:1] + participants[matchday - 1:] + participants[1:matchday - 1]
+        # TODO schedule for league with more than 18 participants
+        # participants_plus = p[18:]
+        # for i in range(len(participants_plus)):
+        #    pp = participants_plus[i]
         schedule = [
             (participants[0], participants[1]),
             (participants[2], participants[17]),
