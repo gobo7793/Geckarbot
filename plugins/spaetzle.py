@@ -141,32 +141,32 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
         teamdict = {}
         teamnames = Storage().get(self)['teamnames']
         for long_name, team in teamnames.items():
-            teamdict[team['short_name']] = long_name
-            teamdict[long_name] = team['short_name']
+            teamdict[team['short_name'].lower()] = long_name
+            teamdict[long_name.lower()] = team['short_name']
         for long_name, team in teamnames.items():
             for name in team['other']:
                 if self.is_teamname_abbr(name):
                     # Abbreviation
-                    result = teamdict.setdefault(name, long_name)
+                    result = teamdict.setdefault(name.lower(), long_name)
                     if result is not long_name:
                         self.logger.debug("{} is already noted with the name {}".format(name, result))
                 else:
                     # Long name
-                    result = teamdict.setdefault(name, team['short_name'])
+                    result = teamdict.setdefault(name.lower(), team['short_name'])
                     if result is not team['short_name']:
                         self.logger.debug("{} is already noted with the abbreviation {}".format(name, result))
         return teamdict
 
     def get_teamname_long(self, team):
-        name = self.teamname_dict.get(team)
+        name = self.teamname_dict.get(team.lower())
         if self.is_teamname_abbr(name):
-            name = self.teamname_dict.get(name)
+            name = self.teamname_dict.get(name.lower())
         return name
 
     def get_teamname_abbr(self, team):
-        name = self.teamname_dict.get(team)
+        name = self.teamname_dict.get(team.lower())
         if not self.is_teamname_abbr(name):
-            name = self.teamname_dict.get(name)
+            name = self.teamname_dict.get(name.lower())
         return name
 
     def get_schedule(self, league: int, matchday: int):
