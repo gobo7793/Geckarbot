@@ -600,6 +600,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             c = self.get_api_client()
             matches = []
             predictions_by_user = {}
+            forumuser_list = set()
             data = Storage().get(self)['predictions']
             first_post = data[0]
 
@@ -619,6 +620,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                     continue
 
                 predictions = {}
+                forumuser_list.add(post['user'])
                 for line in post['content']:
                     if line == "\u2022 \u2022 \u2022\r":
                         break
@@ -636,12 +638,13 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                     else:
                         predictions_by_user[post['user']] = predictions
 
-            # Participants without predictions
+            # Participants without predictions / Unknown user
             embed = discord.Embed(title=Lang.lang(self, 'extract_user_without_preds'))
             no_preds = []
             for i in range(1, 5):
                 user_list = []
                 participants = Storage().get(self)['participants'].get(i, [])
+                forumuser_list.difference_update(participants)
                 for user in participants:
                     if user not in predictions_by_user:
                         user_list.append(user)
@@ -649,6 +652,8 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                         no_preds.append(user)
                 if user_list:
                     embed.add_field(name=Lang.lang(self, 'league', i), value=", ".join(user_list), inline=False)
+            if forumuser_list:
+                embed.add_field(name=Lang.lang(self, 'unknown_users'), value=", ".join(forumuser_list))
             if no_preds:
                 embed.description = Lang.lang(self, 'extract_user_no_preds', ", ".join(no_preds))
             if not embed.fields:
