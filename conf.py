@@ -316,11 +316,12 @@ class Lang(metaclass=_Singleton):
         return lang
 
     @classmethod
-    def lang(cls, configurable, str_name, *args):
+    def lang(cls, configurable, str_name, *args) -> str:
         """
         Returns the given string from configurable's lang file.
         If language sett in Config().LANGUAGE_CODE is not supported, 'en' will be used.
         If str_name or the configured language code cannot be found, str_name will be returned.
+
         :param configurable: The Configurable instance
         :param str_name: The name of the returning string.
             If not available for current language, an empty string will be returned.

@@ -88,7 +88,7 @@ class Cmd:
         return Lang.lang(self.plugin, 'raw_text', text_id + 1, self.texts[text_id], member)
 
     def get_raw_texts(self, index=0):
-        """Returns all raw texts of the cmd as formatted string"""
+        """Returns all raw texts of the cmd as formatted string, beginning with index"""
         return [self.get_raw_text(i) for i in range(index, len(self.texts))]
 
     def get_formatted_text(self, bot, text_id: int, msg: discord.Message, cmd_args: list):
@@ -416,13 +416,15 @@ class Plugin(BasePlugin, name="Custom CMDs"):
         * index exists
         """
         texts = self.commands[cmd_name].get_raw_texts(index=index)
-        msg = ""
         i = 0
         delimiter = "\n"
         threshold = 1900
+        msg = Lang.lang(self, 'raw_prefix', self.prefix, cmd_name,
+                        converters.get_username_from_id(self.bot, self.commands[cmd_name].creator_id),
+                        len(self.commands[cmd_name].get_raw_texts())).strip()
+        suffix = Lang.lang(self, "raw_suffix", index + 1, i + index - 1, cmd_name, index + i)
         for el in texts:
             i += 1
-            suffix = Lang.lang(self, "raw_suffix", index + 1, i + index - 1, cmd_name, index + i)
             if len(msg) + len(delimiter) + len(el) + len(suffix) > threshold:
                 msg += suffix
                 break
@@ -437,7 +439,7 @@ class Plugin(BasePlugin, name="Custom CMDs"):
         cmd_name = cmd_name.lower()
 
         # Parse index
-        single_page = True   # index != "17++"
+        single_page = True  # index != "17++"
         single_text = False  # index == "17"
         if index is not None:
             if index.endswith("++"):
@@ -467,23 +469,20 @@ class Plugin(BasePlugin, name="Custom CMDs"):
             await self.cmd_raw_single_page(ctx, cmd_name, index)
 
         else:
-            creator_member = self.bot.guild.get_member(self.commands[cmd_name].creator_id)
-            creator = creator_member\
-                if creator_member is not None\
-                else self.bot.get_user(self.commands[cmd_name].creator_id)
+            creator = converters.get_best_user(self.bot, self.commands[cmd_name].creator_id)
 
             if single_text:
                 raw_texts = [self.commands[cmd_name].get_raw_text(index)]
             else:
                 raw_texts = self.commands[cmd_name].get_raw_texts(index=index)
             for msg in paginate(raw_texts,
-                                        delimiter="\n",
-                                        prefix=Lang.lang(self,
-                                                         'raw_prefix',
-                                                         self.prefix,
-                                                         cmd_name,
-                                                         converters.get_best_username(creator),
-                                                         len(raw_texts))):
+                                delimiter="\n",
+                                prefix=Lang.lang(self,
+                                                 'raw_prefix',
+                                                 self.prefix,
+                                                 cmd_name,
+                                                 converters.get_best_username(creator),
+                                                 len(raw_texts))):
                 await ctx.send(msg)
 
     @cmd.command(name="search")
