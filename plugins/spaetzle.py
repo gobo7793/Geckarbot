@@ -63,20 +63,20 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             'spaetzledoc_id': "1ZzEGP_J9WxJGeAm1Ri3er89L1IR1riq7PH2iKVDmfP8",
             'matches_range': "B1:H11",
             'duel_ranges': {
-                1: "J3:T11",
-                2: "V3:AF11",
-                3: "AH3:AR11",
-                4: "AT3:BD11"
+                1: "K3:U11",
+                2: "W3:AG11",
+                3: "AI3:AS11",
+                4: "AU3:BE11"
             },
             'table_ranges': {
-                1: "J14:T31",
-                2: "V14:AF31",
-                3: "AH14:AR31",
-                4: "AT14:BD31"
+                1: "K14:U31",
+                2: "W14:AG31",
+                3: "AI14:AS31",
+                4: "AU15:BE33"
             },
-            'predictions_range': "BH2:CQ49",
-            'all_duels_range': "J3:BD11",
-            'archive_range': "A1:CQ51",
+            'predictions_range': "BH2:CU49",
+            'all_duels_range': "K3:BE12",
+            'archive_range': "A1:CU51",
             'user_agent': {
                 'user-agent': "Geckarbot/{}".format(self.bot.VERSION)
             },
@@ -1033,8 +1033,9 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             for line in result:
                 msg += "{0}{1} | {4} | {7}:{9} {10} | {11}{0}\n".format("**" if line[3] == user_or_league else "",
                                                                         *line)
-
-        await ctx.send(embed=discord.Embed(title=Lang.lang(self, 'title_table', league), description=msg))
+            embed = discord.Embed(title=Lang.lang(self, 'title_table', league), description=msg)
+            embed.set_footer(text=Lang.lang(self, 'table_footer'))
+        await ctx.send(embed=embed)
 
     @spaetzle.command(name="fixtures", help="Lists fixtures for a specific participant")
     async def show_fixtures(self, ctx, user=None):
