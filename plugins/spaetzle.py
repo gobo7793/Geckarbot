@@ -841,10 +841,8 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             if len(matches) == 0:
                 await ctx.send(Lang.lang(self, 'no_matches'))
                 return
-            if len(preds_h) == 0:
-                preds_h = [["–", "–"]] * 9
-            if len(preds_a) == 0:
-                preds_a = [["–", "–"]] * 9
+            preds_h.extend([["-", "-"]] * (len(matches) - len(preds_h)))
+            preds_a.extend([["-", "-"]] * (len(matches) - len(preds_a)))
             for i in range(len(matches)):
                 if matches[i][4] == "":
                     matches[i][4] = "–"
