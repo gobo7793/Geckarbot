@@ -32,7 +32,15 @@
         "no_saved_rawposts": "Sorry, I haven't found any posts in my memory. Hint: `!spaetzle set scrape`",
         "show_duel_footer_normal": "Points to improve (LIVE): {} (H) - (A) {} ",
         "show_duel_footer_winner": "\uD83D\uDC51 {} has won this duel!",
-        "show_duel_footer_draw": "\uD83E\uDD1D Draw!"
+        "show_duel_footer_draw": "\uD83E\uDD1D Draw!",
+        "title_table": "Table League {}",
+        "title_opponent": "Opponent of {}",
+        "title_league": "League {}",
+        "title_matchday": "Matchday {}",
+        "title_duels": "Duels",
+        "title_duels_league": "Duels League {}",
+        "title_matchday_duels": "Matchday {} - Duels",
+        "title_matchday_league": "Matchday {} - Duels League {}"
     },
     "de": {
         "league": "Liga {}",
@@ -63,6 +71,14 @@
         "no_saved_rawposts": "Mist, ich habe überhaupt keine Posts im Lager. Suche mit `!spaetzle set scrape`",
         "show_duel_footer_normal": "Noch möglich aufzuholen (LIVE): {} bzw {} Punkte",
         "show_duel_footer_winner": "\uD83D\uDC51 {} hat das Duell gewonnen!",
-        "show_duel_footer_draw": "\uD83E\uDD1D Punkteteilung!"
+        "show_duel_footer_draw": "\uD83E\uDD1D Punkteteilung!",
+        "title_table": "Tabelle Liga {}",
+        "title_opponent": "Gegner von {}",
+        "title_league": "Liga {}",
+        "title_matchday": "Spieltag {}",
+        "title_duels": "Duelle",
+        "title_duels_league": "Duelle Liga {}",
+        "title_matchday_duels": "Spieltag {} - Duelle",
+        "title_matchday_league": "Spieltag {} - Duelle Liga {}"
     }
 }

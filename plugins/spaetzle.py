@@ -494,7 +494,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             for row in values[2:]:
                 msg += "{0} {1} {2} Uhr | {3} - {6}\n".format(*row)
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
-        await ctx.send(embed=discord.Embed(title="Spieltag {}".format(matchday), description=msg))
+        await ctx.send(embed=discord.Embed(title=Lang.lang(self, 'title_matchday', matchday), description=msg))
 
     @spaetzle_set.command(name="duels", aliases=["duelle"])
     async def set_duels(self, ctx, matchday: int, league: int = None):
@@ -517,12 +517,12 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                     3: self.get_schedule(3, matchday),
                     4: self.get_schedule(4, matchday)
                 }
-                embed.title = "Spieltag {} - Duelle".format(matchday)
+                embed.title = Lang.lang(self, 'title_matchday_duels', matchday)
             else:
                 schedules = {
                     league: self.get_schedule(league, matchday)
                 }
-                embed.title = "Spieltag {} - Duelle Liga {}".format(matchday, league)
+                embed.title = Lang.lang(self, 'title_matchday_league', matchday, league)
 
             data = {}
             for leag, duels in schedules.items():
@@ -937,7 +937,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                                                                     opponent)
                     else:
                         msg += "**{}** [{}:{}] {}\n".format(user, data[i + 1][0][0], data[i + 1][1][0], opponent)
-        await ctx.send(embed=discord.Embed(title="Duelle", description=msg))
+        await ctx.send(embed=discord.Embed(title=Lang.lang(self, 'title_duels'), description=msg))
 
     async def show_duels_league(self, ctx, league: int):
         async with ctx.typing():
@@ -953,21 +953,21 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             for duel in result:
                 duel.extend([""] * (8 - len(duel)))
                 msg += "{0} [{4}:{5}] {7}\n".format(*duel)
-        await ctx.send(embed=discord.Embed(title="Duelle Liga {}".format(league), description=msg))
+        await ctx.send(embed=discord.Embed(title=Lang.lang(self, 'title_duels_league', league), description=msg))
 
     async def show_duels_all(self, ctx):
         async with ctx.typing():
             c = self.get_api_client()
             data_ranges = list(Config().get(self)['duel_ranges'].values())
             results = c.get_multiple(data_ranges)
-            embed = discord.Embed(title="Duelle")
+            embed = discord.Embed(title=Lang.lang(self, 'title_duels'))
 
             for i in range(len(results)):
                 msg = ""
                 for duel in results[i]:
                     duel.extend([""] * (8 - len(duel)))
                     msg += "{0}\u00a0[{4}:{5}]\u00a0{7}\n".format(*duel)
-                embed.add_field(name="Liga {}".format(i + 1), value=msg)
+                embed.add_field(name=Lang.lang(self, 'title_league', i + 1), value=msg)
         await ctx.send(embed=embed)
 
     @spaetzle.command(name="matches", aliases=["spiele"], help="Displays the matches to be predicted")
@@ -1032,7 +1032,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                 msg += "{0}{1} | {4} | {7}:{9} {10} | {11}{0}\n".format("**" if line[3] == user_or_league else "",
                                                                         *line)
 
-        await ctx.send(embed=discord.Embed(title="Tabelle Liga {}".format(league), description=msg))
+        await ctx.send(embed=discord.Embed(title=Lang.lang(self, 'title_table', league), description=msg))
 
     @spaetzle.command(name="fixtures", help="Lists fixtures for a specific participant")
     async def show_fixtures(self, ctx, user=None):
@@ -1051,7 +1051,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             await ctx.send(Lang.lang(self, 'user_not_found'))
             return
 
-        await ctx.send(embed=discord.Embed(title="Gegner von {}".format(user), description=msg))
+        await ctx.send(embed=discord.Embed(title=Lang.lang(self, 'title_opponent', user), description=msg))
 
     @spaetzle.command(name="rawpost", help="Lists all forum posts by a specified user")
     async def show_raw_posts(self, ctx, participant: str):
