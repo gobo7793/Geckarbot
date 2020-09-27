@@ -79,6 +79,9 @@
         "title_duels": "Duelle",
         "title_duels_league": "Duelle Liga {}",
         "title_matchday_duels": "Spieltag {} - Duelle",
-        "title_matchday_league": "Spieltag {} - Duelle Liga {}"
+        "title_matchday_league": "Spieltag {} - Duelle Liga {}",
+        "danny_no_id": "Bitte füge Dannys ID zur Config hinzu!",
+        "danny_no_users": "Trage mir Namen in die Config ein oder sagse mir ins Gesicht!",
+        "danny_done": "Danny hat nun die Tipps von {} erhalten!"
     }
 }

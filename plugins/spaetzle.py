@@ -14,7 +14,7 @@ from discord.ext import commands
 
 from Geckarbot import BasePlugin
 from botutils import sheetsclient, restclient
-from botutils.converters import get_best_username
+from botutils.converters import get_best_username, get_best_user
 from botutils.permchecks import check_mod_access
 from botutils.stringutils import paginate
 from botutils.utils import add_reaction
@@ -79,7 +79,9 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             'archive_range': "A1:CQ51",
             'user_agent': {
                 'user-agent': "Geckarbot/{}".format(self.bot.VERSION)
-            }
+            },
+            'danny_id': 0,
+            'danny_users': []
         }
 
     def default_storage(self):
@@ -1079,6 +1081,49 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             msgs = paginate(content, prefix=Lang.lang(self, 'raw_posts_prefix', posts_count))
             for msg in msgs:
                 await ctx.send(msg)
+
+    @spaetzle.command(name="danny", help="Sends Danny the predictions of the participants who also take part in his"
+                                         "Bundesliga prediction game.")
+    async def danny_dm(self, ctx, *users):
+        danny_id = Config().get(self)['danny_id']
+        if not danny_id:
+            await ctx.send(Lang.lang(self, 'danny_no_id'))
+        if await self.manager_check(ctx) or ctx.author.id == danny_id:
+            async with ctx.typing():
+                c = self.get_api_client()
+                danny = get_best_user(self.bot, danny_id)
+                data_ranges = ["Aktuell!{}".format(Config().get(self)['matches_range'])]
+                if len(users) == 0:
+                    users = Config().get(self)['danny_users']
+                    if len(users) == 0:
+                        await ctx.send(Lang.lang(self, 'danny_no_users'))
+                for user in users:
+                    col, row = self.get_user_cell(user)
+                    if col is not None:
+                        data_ranges.append("Aktuell!{}:{}".format(c.cellname(col, row), c.cellname(col + 1, row + 10)))
+                result = c.get_multiple(data_ranges, formatted=False)
+                matchday = result[0][0][0]
+                matches = result[0][2:]
+                preds = result[1:]
+
+                embeds = []
+                for p in preds:
+                    embed = discord.Embed(title="**ST {} - {}**".format(matchday, p[0][0]))
+                    msg = ""
+                    matches_txt = []
+                    for i in range(len(matches)):
+                        if len(p[i+1]) < 2:
+                            p[i+1] = ["-", "-"]
+                        matches_txt.append("{} - {}".format(matches[i][3], matches[i][6]))
+                    maxlength = len(max(matches_txt, key=len))
+                    for i in range(len(matches_txt)):
+                        msg += "{}{} {}:{}\n".format(matches_txt[i], " " * (maxlength - len(matches_txt[i])), *p[i+1])
+                    embed.description = "```{}```".format(msg)
+                    embeds.append(embed)
+
+            for embed in embeds:
+                await danny.send(embed=embed)
+            await ctx.send(Lang.lang(self, 'danny_done', ", ".join(users)))
 
     @spaetzle.group(name="trusted", help="Configures which users are allowed to edit")
     async def trusted(self, ctx):
