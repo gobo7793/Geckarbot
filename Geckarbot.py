@@ -63,6 +63,13 @@ class Geckarbot(commands.Bot):
         """All normal plugins"""
         return [c.name for c in self._plugins if c.type == ConfigurableType.PLUGIN]
 
+    def get_available_plugins(self) -> List[str]:
+        """Get all available normal plugins including loaded plugins"""
+        avail = []
+        for modname in pkgutil.iter_modules([Config().PLUGIN_DIR]):
+            avail.append(modname.name)
+        return avail
+
     def get_subsystem_list(self) -> List[str]:
         """All normal plugins"""
         subsys = []
@@ -137,8 +144,8 @@ class Geckarbot(commands.Bot):
         """
         failed_list = []
         for el in pkgutil.iter_modules([plugin_dir]):
-            if not self.load_plugin(plugin_dir, el[1]):
-                failed_list.append(el[1])
+            if not self.load_plugin(plugin_dir, el.name):
+                failed_list.append(el.name)
             # plugin = el[1]
             # is_pkg = el[2]
             # try:
@@ -283,7 +290,7 @@ def main():
         await utils.write_debug_channel(bot, f"Loaded subsystems: {', '.join(bot.get_subsystem_list())}")
         await utils.write_debug_channel(bot, f"Loaded coreplugins: {', '.join(bot.get_coreplugins())}")
         await utils.write_debug_channel(bot, f"Loaded plugins: {', '.join(bot.get_normalplugins())}")
-        if len(failed_plugins) > 0:
+        if len(failed_plugins) < 1:
             failed_plugins.append("None, all plugins loaded successfully!")
         await utils.write_debug_channel(bot, f"Failed loading plugins: {', '.join(failed_plugins)}")
 

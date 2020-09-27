@@ -116,6 +116,17 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
         for msg in paginate(msgs, delimiter="\n\n"):
             await ctx.send(msg)
 
+    @plugins.command(name="available")
+    async def plugins_avail(self, ctx):
+        avail_all = self.bot.get_available_plugins()
+        loaded = self.bot.get_normalplugins()
+        avail = [x for x in avail_all if x not in loaded]
+
+        if avail:
+            await ctx.send("{}\n{}".format(Lang.lang(self, 'plugins_avail', len(avail)), ", ".join(avail)))
+        else:
+            await ctx.send(Lang.lang(self, 'no_plugin_avail'))
+
     @plugins.command(name="unload")
     @commands.has_any_role(*Config().FULL_ACCESS_ROLES)
     async def plugins_unload(self, ctx, name):
