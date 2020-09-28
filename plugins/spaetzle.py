@@ -1,6 +1,7 @@
 import calendar
 import json
 import logging
+import random
 import re
 from datetime import datetime, timedelta
 from enum import Enum
@@ -178,21 +179,22 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             raise LeagueNotFound()
         participants = [p[i] for i in [11, 0, 13, 6, 5, 15, 9, 1, 14, 8, 4, 16, 7, 2, 17, 3, 10, 12]]
         participants = participants[0:1] + participants[matchday - 1:] + participants[1:matchday - 1]
-        # TODO schedule for league with more than 18 participants
-        # participants_plus = p[18:]
-        # for i in range(len(participants_plus)):
-        #    pp = participants_plus[i]
-        schedule = [
-            (participants[0], participants[1]),
-            (participants[2], participants[17]),
-            (participants[3], participants[16]),
-            (participants[4], participants[15]),
-            (participants[5], participants[14]),
-            (participants[6], participants[13]),
-            (participants[7], participants[12]),
-            (participants[8], participants[11]),
-            (participants[9], participants[10])
-        ]
+        schedule = []
+        # Special case for leagues with 19 participants (IMPROVISED)
+        if len(p) > 18:
+            median_participant, participants[matchday] = participants[matchday], p[18]
+            schedule.append((median_participant, "(Median)"))
+        # Normal duels
+        schedule.extend([(participants[0], participants[1]),
+                         (participants[2], participants[17]),
+                         (participants[3], participants[16]),
+                         (participants[4], participants[15]),
+                         (participants[5], participants[14]),
+                         (participants[6], participants[13]),
+                         (participants[7], participants[12]),
+                         (participants[8], participants[11]),
+                         (participants[9], participants[10])])
+        random.shuffle(schedule)
         return schedule
 
     def get_schedule_opponent(self, participant, matchday: int):
@@ -541,9 +543,11 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
 
             # FIXME replace with update_multiple once its working fine
             if league is None:
-                combined_data = [x[:] for x in [[]]*9]
+                maxduels = len(max(data.values(), key=len))
+                combined_data = [x[:] for x in [[]] * maxduels]
                 for values in data.values():
-                    for i in range(len(values)):
+                    values.extend([[None]*8] * (maxduels - len(values)))
+                    for i in range(maxduels):
                         combined_data[i].extend(values[i] + [None] * 4)
                 c.update("Aktuell!{}".format(Config().get(self)['all_duels_range']), combined_data)
             else:
