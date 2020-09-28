@@ -164,7 +164,7 @@ class Presence(BaseSubsystem):
         if len(message_list) < 1:
             return 0
         if len(message_list) == 1:
-            return message_list[0]
+            return message_list[0].presence_id
 
         while True:
             select = random.choice(message_list)
