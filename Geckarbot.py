@@ -426,7 +426,10 @@ def main():
                     for msg in ex_tb:
                         await utils.write_debug_channel(bot, msg)
                 await utils.add_reaction(ctx.message, Lang.CMDERROR)
-                await ctx.send("Unknown error while executing command.")
+                msg = "Unknown error while executing command."
+                if hasattr(error, "user_message"):
+                    msg = error.user_message
+                await ctx.send(msg)
 
     @bot.event
     async def on_message(message):

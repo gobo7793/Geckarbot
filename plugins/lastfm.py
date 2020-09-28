@@ -13,6 +13,12 @@ from botutils.restclient import Client
 baseurl = "https://ws.audioscrobbler.com/2.0/"
 
 
+class UnknownResponse(Exception):
+    def __init__(self, msg, usermsg):
+        self.user_message = usermsg
+        super().__init__(msg)
+
+
 def get_by_path(structure, path, default=None):
     result = structure
     for el in path:
@@ -115,11 +121,10 @@ class Plugin(BasePlugin, name="LastFM"):
             title = get_by_path(song, ["name"])
             album = get_by_path(song, ["album", "#text"], default="unknown")
 
-            if artist is None or title is None or album is None:
+            if True or artist is None or title is None or album is None:
                 await ctx.message.add_reaction(Lang.CMDERROR)
-                await ctx.send(Lang.lang(self, "error"))
-                await utils.write_debug_channel(self.bot, "artist, title or album not found in {}".format(response))
-                return
+                raise UnknownResponse("artist, title or album not found in {}".format(response),
+                                      Lang.lang(self, "error"))
 
             if nowplaying == "true":
                 msg = "listening"
