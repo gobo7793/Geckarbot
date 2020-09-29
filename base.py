@@ -1,6 +1,8 @@
 from enum import Enum
 from discord.ext.commands import Cog
 
+from conf import Config
+
 
 class NotLoadable(Exception):
     """
@@ -28,6 +30,7 @@ class Configurable:
 
     def __init__(self, bot):
         super().__init__()
+        self.iodirs = {}
         self.bot = bot
         self.can_reload = False
 
@@ -79,6 +82,11 @@ class BasePlugin(Cog, Configurable):
     def __init__(self, bot):
         Cog.__init__(self)
         Configurable.__init__(self, bot)
+        self.resource_dir = None
+
+        ptype = self.get_configurable_type()
+        if ptype == ConfigurableType.PLUGIN or ptype == ConfigurableType.COREPLUGIN:
+            self.resource_dir = "{}/{}".format(Config().RESOURCE_DIR, self.get_name())
 
     def get_configurable_type(self):
         """
