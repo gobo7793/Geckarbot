@@ -393,12 +393,23 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
 
     @spaetzle.command(name="info", help="Get info about the Spaetzles-Tippspiel")
     async def spaetzle_info(self, ctx):
+        pred_urlpath = pred_thread = Storage().get(self)['predictions_thread']
+        if pred_thread:
+            pred_urlpath = urlparse(pred_thread).path.split("/")
+            pred_urlpath = pred_urlpath[1] if len(pred_urlpath) > 0 else None
+        main_urlpath = main_thread = Storage().get(self)['main_thread']
+        if main_thread:
+            main_urlpath = urlparse(main_thread).path.split("/")
+            main_urlpath = main_urlpath[1] if len(main_urlpath) > 0 else None
+        spreadsheet = "https://docs.google.com/spreadsheets/d/{}".format(Config().get(self)['spaetzledoc_id'])
+
         embed = discord.Embed(title="Spätzle(s)-Tippspiel", description=Lang.lang(self, 'info'))
-        embed.add_field(name=Lang.lang(self, 'title_spreadsheet'), value="<https://docs.google.com/spreadsheets/d/{}>"
-                        .format(Config().get(self)['spaetzledoc_id']), inline=False)
-        embed.add_field(name=Lang.lang(self, 'title_main_thread'), value=Storage().get(self)['main_thread'])
+        embed.add_field(name=Lang.lang(self, 'title_spreadsheet'),
+                        value="[{}\u2026]({})".format(spreadsheet[:50], spreadsheet), inline=False)
+        embed.add_field(name=Lang.lang(self, 'title_main_thread'),
+                        value="[{}]({})".format(main_urlpath, main_thread))
         embed.add_field(name=Lang.lang(self, 'title_predictions_thread'),
-                        value=Storage().get(self)['predictions_thread'])
+                        value="[{}]({})".format(pred_urlpath, pred_thread))
         await ctx.send(embed=embed)
 
     @spaetzle.command(name="link", help="Get the link to the spreadsheet")
