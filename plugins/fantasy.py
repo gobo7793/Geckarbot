@@ -411,7 +411,7 @@ class Plugin(BasePlugin, name="NFL Fantasyliga"):
 
         for league in self.leagues.values():
             embed = discord.Embed(title=league.name)
-            embed.url = league.scoreboard_url
+            embed.url = league.standings_url
 
             divisions = _get_division_standings(league)
             for division in divisions:
