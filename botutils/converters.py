@@ -95,9 +95,9 @@ def get_plugin_by_name(bot, name):
     :param name: Name of the plugin that is to be returned.
     :return: Configurable object of the plugin with name `name`. Returns None if no such plugin is found.
     """
-    for plugin_cnt in bot.plugins:
-        if plugin_cnt.name == name:
-            return plugin_cnt.instance
+    for el in bot.plugins:
+        if el.get_name() == name:
+            return el
     return None
 
 

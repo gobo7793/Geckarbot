@@ -7,13 +7,15 @@ from botutils import restclient
 from base import NotLoadable
 
 
-class NoApiKey(Exception):
+class NoApiKey(NotLoadable):
     """Raisen if no Google API Key is defined"""
     pass
 
-class NoCredentials(Exception):
+
+class NoCredentials(NotLoadable):
     """Raisen if credentials for the service account are not valid"""
     pass
+
 
 class Client(restclient.Client):
     """

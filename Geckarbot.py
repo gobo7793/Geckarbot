@@ -16,7 +16,7 @@ import injections
 import subsystems
 from base import BasePlugin, NotLoadable, ConfigurableType
 from botutils import utils, permchecks, converters, stringutils
-from conf import Config, ConfigurableContainer, Lang, Storage
+from conf import Config, Lang, Storage
 from subsystems import timers, reactions, ignoring, dmlisteners, help, presence
 
 
@@ -51,17 +51,19 @@ class Geckarbot(commands.Bot):
         self.presence = presence.Presence(self)
 
     @property
-    def plugins(self) -> List[ConfigurableContainer]:
+    def plugins(self) -> List[BasePlugin]:
         """All plugins including normal and coreplugins"""
         return self._plugins
 
     def get_coreplugins(self) -> List[str]:
         """All coreplugins"""
-        return [c.name for c in self._plugins if c.type == ConfigurableType.COREPLUGIN]
+        return [c.get_name()
+                for c in self._plugins if c.get_configurable_type() == ConfigurableType.COREPLUGIN]
 
     def get_normalplugins(self) -> List[str]:
         """All normal plugins"""
-        return [c.name for c in self._plugins if c.type == ConfigurableType.PLUGIN]
+        return [c.get_name()
+                for c in self._plugins if c.get_configurable_type() == ConfigurableType.PLUGIN]
 
     def get_subsystem_list(self) -> List[str]:
         """All normal plugins"""
@@ -85,8 +87,7 @@ class Geckarbot(commands.Bot):
         self.add_cog(plugin_object)
         # self.geck_cogs.append(plugin_object)
 
-        container = ConfigurableContainer(plugin_object)
-        self.plugins.append(container)
+        self.plugins.append(plugin_object)
 
         # Load IO
         self.configure(plugin_object)
@@ -102,58 +103,41 @@ class Geckarbot(commands.Bot):
         else:
             cat = self.helpsys.register_category(category)
             cat.add_plugin(plugin_object)
-        container.set_category(cat)
 
         logging.debug("Registered plugin {}".format(plugin_object.get_name()))
 
-    def deregister(self, plugin_instance: BasePlugin):
+    def deregister(self, plugin: BasePlugin):
         """Deregisters the given plugin instance"""
-        self.remove_cog(plugin_instance.qualified_name)
+        self.remove_cog(plugin.qualified_name)
 
-        container = converters.get_plugin_container(self, plugin_instance)
-        if container is None:
+        if plugin not in self.plugins:
             logging.debug("Tried deregistering plugin {}, but plugin is not registered".
-                          format(plugin_instance.get_name()))
+                          format(plugin.get_name()))
             return
 
-        if container.category is not None:
-            container.category.remove_plugin(plugin_instance)
-        self.plugins.remove(container)
+        self.helpsys.category_by_plugin(plugin).remove_plugin(plugin)
+        self.plugins.remove(plugin)
 
-        logging.debug("Deregistered plugin {}".format(plugin_instance.get_name()))
+        logging.debug("Deregistered plugin {}".format(plugin.get_name()))
 
     def plugin_objects(self, plugins_only=False):
         """
         Generator for all registered plugin objects without anything config-related
         """
         for el in self.plugins:
-            if plugins_only and not isinstance(el.instance, BasePlugin):
+            if plugins_only and not isinstance(el, BasePlugin):
                 continue
-            yield el.instance
+            yield el
 
     def load_plugins(self, plugin_dir):
         """
-        Loads all plugins in plugin_dir. Returns a list with the plugin names on which loading failed.
+        Loads all plugins in plugin_dir.
+        :return: Returns a list with the plugin names on which loading failed.
         """
         failed_list = []
         for el in pkgutil.iter_modules([plugin_dir]):
             if not self.load_plugin(plugin_dir, el[1]):
                 failed_list.append(el[1])
-            # plugin = el[1]
-            # is_pkg = el[2]
-            # try:
-            #     to_import = "{}.{}".format(plugin_dir, plugin)
-            #     if is_pkg:
-            #         to_import = "{}.{}.{}".format(plugin_dir, plugin, plugin)
-            #
-            #     pkgutil.importlib.import_module(to_import).Plugin(self)
-            # except NotLoadable as e:
-            #     logging.warning("Plugin {} could not be loaded: {}".format(plugin, e))
-            # except Exception as e:
-            #     logging.error("Unable to load plugin: {}:\n{}".format(plugin, traceback.format_exc()))
-            #     continue
-            # else:
-            #     logging.info("Loaded plugin {}".format(plugin))
         return failed_list
 
     def load_plugin(self, plugin_dir, plugin_name):

@@ -7,7 +7,7 @@ from typing import Optional, List, Dict
 import discord
 
 from base import BaseSubsystem
-from conf import ConfigurableContainer, Config, Storage
+from conf import Config, Storage
 from subsystems.timers import Job, timedict
 
 """
@@ -93,7 +93,7 @@ class Presence(BaseSubsystem):
         self._timer_job = None  # type: Optional[Job]
 
         self.log.info("Initializing presence subsystem")
-        bot.plugins.append(ConfigurableContainer(self))
+        bot.plugins.append(self)
         self._load()
 
         @bot.listen()

@@ -3,7 +3,6 @@ import json
 import logging
 from enum import Enum
 from botutils import jsonutils, converters
-from base import Configurable, ConfigurableType
 
 
 class Const(Enum):
@@ -17,26 +16,6 @@ class _Singleton(type):
         if cls not in cls._instances:
             cls._instances[cls] = super(_Singleton, cls).__call__(*args, **kwargs)
         return cls._instances[cls]
-
-
-class ConfigurableContainer:
-    """
-    Contains basic data for Configurables
-    """
-    def __init__(self, instance: Configurable):
-        self.instance = instance
-        self.name = instance.get_name()
-        self.iodirs = {}
-        self.type = instance.get_configurable_type()
-        self.category = None
-        self.resource_dir = None
-
-        if self.type == ConfigurableType.PLUGIN or self.type == ConfigurableType.COREPLUGIN:
-            self.resource_dir = "{}/{}".format(Config().RESOURCE_DIR, self.name)
-
-    def set_category(self, category=None):
-        if category is not None:
-            self.category = category
 
 
 class IODirectory(metaclass=_Singleton):
@@ -62,8 +41,8 @@ class IODirectory(metaclass=_Singleton):
         raise NotImplementedError
 
     @classmethod
-    def set_default(cls, plugin_cnt):
-        plugin_cnt.storage = plugin_cnt.instance.default_storage()
+    def set_default(cls, plugin):
+        plugin.storage = plugin.default_storage()
 
     @classmethod
     def has_structure(cls, plugin):
@@ -121,11 +100,11 @@ class IODirectory(metaclass=_Singleton):
         :param plugin: Plugin object
         :container: Container name
         """
-        for plugin_cnt in cls().bot.plugins:
-            if plugin_cnt.instance is plugin:
-                if cls() not in plugin_cnt.iodirs:
-                    plugin_cnt.iodirs[cls()] = cls().get_default(plugin_cnt.instance)
-                return plugin_cnt.iodirs[cls()]
+        for el in cls().bot.plugins:
+            if el is plugin:
+                if cls() not in el.iodirs:
+                    el.iodirs[cls()] = cls().get_default(el)
+                return el.iodirs[cls()]
         return None
 
     @classmethod
@@ -134,9 +113,9 @@ class IODirectory(metaclass=_Singleton):
         Sets the structure of the given plugin.
         """
         self = cls()
-        for plugin_cnt in self.bot.plugins:
-            if plugin_cnt.instance is plugin:
-                plugin_cnt.iodirs[cls()] = structure
+        for el in self.bot.plugins:
+            if el is plugin:
+                el.iodirs[cls()] = structure
 
     @classmethod
     def save(cls, plugin, container=None):
@@ -145,9 +124,9 @@ class IODirectory(metaclass=_Singleton):
         If given plugin is not registered, None will be returned,
         else if saving is succesfully.
         """
-        for plugin_slot in cls().bot.plugins:
-            if plugin_slot.instance is plugin:
-                return cls()._write_file(plugin_slot.name, cls.get(plugin))
+        for el in cls().bot.plugins:
+            if el is plugin:
+                return cls()._write_file(el.get_name(), cls.get(plugin))
         return None
 
     @classmethod
@@ -158,13 +137,13 @@ class IODirectory(metaclass=_Singleton):
         occured during loading False and it's default config will be used
         as its config, otherwise True.
         """
-        for plugin_cnt in cls().bot.plugins:
-            if plugin_cnt.instance is plugin:
-                loaded = cls()._read_file(plugin_cnt.name)
+        for el in cls().bot.plugins:
+            if el is plugin:
+                loaded = cls()._read_file(el.get_name())
                 if loaded is None:
-                    cls.set_default(plugin_cnt)
+                    cls.set_default(el)
                     return False
-                plugin_cnt.iodirs[cls()] = loaded
+                el.iodirs[cls()] = loaded
                 return True
         return None
 
@@ -218,9 +197,9 @@ class Config(IODirectory):
     @classmethod
     def resource_dir(cls, plugin):
         """Returns the resource directory for the given plugin instance."""
-        for plugin_slot in cls().bot.plugins:
-            if plugin_slot.instance is plugin:
-                return plugin_slot.resource_dir
+        for el in cls().bot.plugins:
+            if el is plugin:
+                return el.resource_dir
         return None
     
     @classmethod
@@ -347,6 +326,6 @@ def reconfigure(bot):
     Loads the config of all registered plugins. If config of a
     plugin can't be loaded, its default config will be used as config.
     """
-    for plugin_slot in bot.plugins:
-        if plugin_slot.instance.can_reload:
-            bot.configure(plugin_slot.instance)
+    for el in bot.plugins:
+        if el.can_reload:
+            bot.configure(el)
