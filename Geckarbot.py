@@ -85,7 +85,6 @@ class Geckarbot(commands.Bot):
         else:
             plugin_object = plugin_class(self)
         self.add_cog(plugin_object)
-        # self.geck_cogs.append(plugin_object)
 
         self.plugins.append(plugin_object)
 

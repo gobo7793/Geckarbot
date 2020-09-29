@@ -101,30 +101,6 @@ def get_plugin_by_name(bot, name):
     return None
 
 
-def get_plugin_container(bot, plugin):
-    """
-    :param bot: Geckarbot instance
-    :param plugin: BasePlugin instance
-    :return: PluginContainer whose instance is `plugin`.  Returns None if no such plugin is found.
-    """
-    for plugin_cnt in bot.plugins:
-        if plugin_cnt.instance == plugin:
-            return plugin_cnt
-    return None
-
-
-def get_plugin_container_by_name(bot, name):
-    """
-    :param bot: Geckarbot instance
-    :param name: Name of the plugin
-    :return: PluginContainer whose plugin name is `name`.  Returns None if no such plugin is found.
-    """
-    for plugin_cnt in bot.plugins:
-        if plugin_cnt.name == name:
-            return plugin_cnt
-    return None
-
-
 def get_embed_str(embed):
     """
     Returns the given embed contents as loggable string.

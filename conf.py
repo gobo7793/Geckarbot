@@ -46,10 +46,7 @@ class IODirectory(metaclass=_Singleton):
 
     @classmethod
     def has_structure(cls, plugin):
-        cnt = converters.get_plugin_container(cls().bot, plugin)
-        if cnt is None:
-            raise RuntimeError("PANIC: {} ({}) is not a registered plugin".format(plugin, plugin.get_name()))
-        if cls() not in cnt.iodirs or cnt.iodirs[cls()] is None:
+        if cls() not in plugin.iodirs or plugin.iodirs[cls()] is None:
             return False
         else:
             return True
