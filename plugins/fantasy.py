@@ -502,6 +502,13 @@ class Plugin(BasePlugin, name="NFL Fantasyliga"):
 
             await ctx.send(embed=embed)
 
+    @fantasy.command(name="reload", help="Reloads the league data from ESPN")
+    async def fantasy_reload(self, ctx):
+        async with ctx.typing():
+            for league in self.leagues.values():
+                league.espn._fetch_league()  # workaround until package provides public reload method
+        await add_reaction(ctx.message, Lang.CMDSUCCESS)
+
     @fantasy.group(name="set", help="Set data about the fantasy game.")
     async def fantasy_set(self, ctx):
         is_mod = Config.get(self)['mod_role_id'] != 0 \
