@@ -33,29 +33,31 @@ def check_full_access(user: discord.User):
     return False
 
 
-def whitelist_check_id(user_id: int):
+def whitelist_check_id(bot, user_id: int):
     """
     Checks if the given user can use the bot based on the debug whitelist.
     Note: The debug whitelist is active only if the list is not empty and debug mode is enabled.
 
+    :param bot: Geckarbot reference
     :param user_id: The user id to check
     :returns: If debug mode is disabled: True.
               If debug mode is enabled: False if user is not permitted to use the bot, otherwise True.
     """
-    if (Config().DEBUG_MODE
-            and len(Config().DEBUG_WHITELIST) > 0
-            and user_id not in Config().DEBUG_WHITELIST):
+    if (bot.DEBUG_MODE
+            and len(bot.DEBUG_WHITELIST) > 0
+            and user_id not in bot.DEBUG_WHITELIST):
         return False
     return True
 
 
-def whitelist_check(user: discord.User):
+def whitelist_check(bot, user: discord.User):
     """
     Checks if the given user can use the bot based on the debug whitelist.
     Note: The debug whitelist is active only if debug mode is enabled.
 
+    :param bot: Geckarbot reference
     :param user: The user to check
     :returns: If debug mode is disabled: True.
               If debug mode is enabled: True only if User is on debug whitelist, else False.
     """
-    return whitelist_check_id(user.id)
+    return whitelist_check_id(bot, user.id)

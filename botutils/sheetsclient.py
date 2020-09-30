@@ -23,16 +23,18 @@ class Client(restclient.Client):
     Further infos: https://developers.google.com/sheets/api
     """
 
-    def __init__(self, spreadsheet_id):
+    def __init__(self, bot, spreadsheet_id):
         """
         Creates a new REST Client for Google Sheets API using the API Key given in Geckarbot.json.
         If no API Key is given, the Client can't set up.
 
+        :param bot: Geckarbot reference
         :param spreadsheet_id: The ID of the spreadsheet
         """
 
         super(Client, self).__init__("https://sheets.googleapis.com/v4/spreadsheets/")
 
+        self.bot = bot
         self.spreadsheet_id = spreadsheet_id
 
         self.logger = logging.getLogger(__name__)
@@ -58,11 +60,11 @@ class Client(restclient.Client):
         """
         Adds the API key to the params dictionary
         """
-        if not Config().GOOGLE_API_KEY:
+        if not self.bot.GOOGLE_API_KEY:
             raise NoApiKey()
         if params is None:
             params = []
-        params.append(('key', Config().GOOGLE_API_KEY))
+        params.append(('key', self.GOOGLE_API_KEY))
         return params
 
     def _make_request(self, route, params=None):
@@ -99,7 +101,7 @@ class Client(restclient.Client):
         Reads a single range
         """
         value_render_option = "FORMATTED_VALUE" if formatted else "UNFORMATTED_VALUE"
-        if Config().GOOGLE_API_KEY:
+        if self.bot.GOOGLE_API_KEY:
             route = "{}/values/{}".format(self.spreadsheet_id, range)
             response = self._make_request(route, params=[('valueRenderOption', value_render_option)])
         else:
@@ -115,7 +117,7 @@ class Client(restclient.Client):
         Reads multiple ranges
         """
         value_render_option = "FORMATTED_VALUE" if formatted else "UNFORMATTED_VALUE"
-        if Config().GOOGLE_API_KEY:
+        if self.bot.GOOGLE_API_KEY:
             route = "{}/values:batchGet".format(self.spreadsheet_id)
             params = [('valueRenderOption', value_render_option)]
             for range in ranges:

@@ -219,7 +219,7 @@ class Plugin(BasePlugin, name="NFL Fantasyliga"):
         """
         if not self.use_timers:
             return
-        if Config().DEBUG_MODE:
+        if self.bot.DEBUG_MODE:
             logging.getLogger("fantasy").warning("DEBUG MODE is on, fantasy timers will not be started!")
             return
 

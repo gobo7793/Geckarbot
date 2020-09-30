@@ -16,7 +16,7 @@ import injections
 import subsystems
 from base import BasePlugin, NotLoadable, ConfigurableType
 from botutils import utils, permchecks, converters, stringutils
-from conf import Config, Lang, Storage
+from conf import Config, Lang, Storage, ConfigurableData
 from subsystems import timers, reactions, ignoring, dmlisteners, help, presence
 
 
@@ -32,6 +32,36 @@ class Exitcodes(Enum):
 
 
 class Geckarbot(commands.Bot):
+    """
+    Basic bot info
+    """
+    NAME = "Geckarbot"
+    VERSION = "2.3.1"
+    PLUGIN_DIR = "plugins"
+    CORE_PLUGIN_DIR = "coreplugins"
+    CONFIG_DIR = "config"
+    STORAGE_DIR = "storage"
+    LANG_DIR = "lang"
+    DEFAULT_LANG = "en"
+    RESOURCE_DIR = "resource"
+
+    """
+    Config
+    """
+    TOKEN = None
+    SERVER_ID = None
+    CHAN_IDS = None
+    ROLE_IDS = None
+    ADMIN_CHAN_ID = None
+    DEBUG_CHAN_ID = None
+    ADMIN_ROLE_ID = None
+    BOTMASTER_ROLE_ID = None
+    DEBUG_MODE = None
+    DEBUG_WHITELIST = None
+    GOOGLE_API_KEY = None
+    FULL_ACCESS_ROLES = None
+    LANGUAGE_CODE = None
+
     def __init__(self, *args, **kwargs):
         # self.geck_cogs = []
         self.guild = None
@@ -42,6 +72,7 @@ class Geckarbot(commands.Bot):
         Lang().bot = self
         Config().bot = self
         Storage().bot = self
+        self.load_config()
 
         self.reaction_listener = reactions.ReactionListener(self)
         self.dm_listener = dmlisteners.DMListener(self)
@@ -49,6 +80,31 @@ class Geckarbot(commands.Bot):
         self.ignoring = ignoring.Ignoring(self)
         self.helpsys = help.GeckiHelp(self)
         self.presence = presence.Presence(self)
+
+    def load_config(self):
+        """
+        Loads the bot config file and sets all config variables.
+        """
+        dummy = ConfigurableData(Config, self)
+        cfg = dummy.get()
+        self.set_debug_mode(cfg.get('DEBUG_MODE', False))
+        self.TOKEN = cfg.get('DISCORD_TOKEN', 0)
+        self.SERVER_ID = cfg.get('SERVER_ID', 0)
+        self.CHAN_IDS = cfg.get('CHAN_IDS', {})
+        self.ROLE_IDS = cfg.get('ROLE_IDS', {})
+        self.ADMIN_CHAN_ID = self.CHAN_IDS.get('admin', 0)
+        self.DEBUG_CHAN_ID = self.CHAN_IDS.get('debug', self.CHAN_IDS.get('bot-interna', 0))
+        self.ADMIN_ROLE_ID = self.ROLE_IDS.get('admin', 0)
+        self.BOTMASTER_ROLE_ID = self.ROLE_IDS.get('botmaster', 0)
+        self.DEBUG_WHITELIST = cfg.get('DEBUG_WHITELIST', [])
+        self.GOOGLE_API_KEY = cfg.get('GOOGLE_API_KEY', "")
+        self.FULL_ACCESS_ROLES = [self.ADMIN_ROLE_ID, self.BOTMASTER_ROLE_ID]
+        self.LANGUAGE_CODE = cfg.get('LANG', self.DEFAULT_LANG)
+
+        Config().set_roles(botmaster=self.BOTMASTER_ROLE_ID, admin=self.ADMIN_ROLE_ID)
+
+    def get_default(self, container=None):
+        raise RuntimeError("Config file missing")
 
     @property
     def plugins(self) -> List[BasePlugin]:
@@ -71,6 +127,9 @@ class Geckarbot(commands.Bot):
         for modname in pkgutil.iter_modules(subsystems.__path__):
             subsys.append(modname.name)
         return subsys
+
+    def get_name(self):
+        return self.NAME.lower()
 
     def configure(self, plugin):
         Config().load(plugin)
@@ -183,16 +242,15 @@ class Geckarbot(commands.Bot):
             logging.info("Unloaded plugin {}".format(plugin_name))
             return True
 
-    @staticmethod
-    def set_debug_mode(mode):
-        if mode == Config().DEBUG_MODE:
+    def set_debug_mode(self, mode):
+        if mode == self.DEBUG_MODE:
             return
 
         if mode:
-            Config().DEBUG_MODE = True
+            self.DEBUG_MODE = True
         else:
-            Config().DEBUG_MODE = False
-        logging_setup()
+            self.DEBUG_MODE = False
+        logging_setup(debug=mode)
 
     async def shutdown(self, status):
         try:
@@ -205,12 +263,12 @@ class Geckarbot(commands.Bot):
         sys.exit(status)
 
 
-def logging_setup():
+def logging_setup(debug=False):
     """
     Put all debug loggers on info and everything else on info/debug, depending on config
     """
     level = logging.INFO
-    if Config().DEBUG_MODE:
+    if debug:
         level = logging.DEBUG
 
     Path("logs/").mkdir(parents=True, exist_ok=True)
@@ -234,25 +292,24 @@ def logging_setup():
 
 
 def main():
-    Config().load_bot_config()
     injections.pre_injections()
     logging_setup()
     logging.getLogger(__name__).debug("Debug mode: on")
     bot = Geckarbot(command_prefix='!')
     injections.post_injections(bot)
     logging.info("Loading core plugins")
-    failed_plugins = bot.load_plugins(Config().CORE_PLUGIN_DIR)
+    failed_plugins = bot.load_plugins(bot.CORE_PLUGIN_DIR)
 
     @bot.event
     async def on_ready():
         """Loads plugins and prints on server that bot is ready"""
-        guild = discord.utils.get(bot.guilds, id=Config().SERVER_ID)
+        guild = discord.utils.get(bot.guilds, id=bot.SERVER_ID)
         bot.guild = guild
 
         logging.info("Loading plugins")
-        failed_plugins.extend(bot.load_plugins(Config().PLUGIN_DIR))
+        failed_plugins.extend(bot.load_plugins(bot.PLUGIN_DIR))
 
-        if not Config().DEBUG_MODE:
+        if not bot.DEBUG_MODE:
             await bot.presence.start()
 
         logging.info(f"{bot.user} is connected to the following server: "
@@ -261,14 +318,14 @@ def main():
         members = "\n - ".join([member.name for member in guild.members])
         logging.info(f"Server Members:\n - {members}")
 
-        await utils.write_debug_channel(bot, f"Geckarbot {Config().VERSION} connected on "
+        await utils.write_debug_channel(bot, f"Geckarbot {bot.VERSION} connected on "
                                              f"{guild.name} with {len(guild.members)} users.")
         await utils.write_debug_channel(bot, f"Loaded subsystems: {', '.join(bot.get_subsystem_list())}")
         await utils.write_debug_channel(bot, f"Loaded coreplugins: {', '.join(bot.get_coreplugins())}")
         await utils.write_debug_channel(bot, f"Loaded plugins: {', '.join(bot.get_normalplugins())}")
         await utils.write_debug_channel(bot, f"Failed loading plugins: {', '.join(failed_plugins)}")
 
-    if not Config().DEBUG_MODE:
+    if not bot.DEBUG_MODE:
         @bot.event
         async def on_error(event, *args, **kwargs):
             """On bot errors print error state in debug channel"""
@@ -369,7 +426,7 @@ def main():
             return
 
         # debug mode whitelist
-        if not permchecks.whitelist_check(message.author):
+        if not permchecks.whitelist_check(bot, message.author):
             return
 
         await bot.process_commands(message)
@@ -388,7 +445,7 @@ def main():
             raise commands.DisabledCommand()
         return True
 
-    bot.run(Config().TOKEN)
+    bot.run(bot.TOKEN)
 
 
 if __name__ == "__main__":

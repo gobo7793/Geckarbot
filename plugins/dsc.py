@@ -58,8 +58,7 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
 
     def get_api_client(self):
         """Returns a client to access Google Sheets API for the dsc contestdoc sheet"""
-        return sheetsclient.Client(Config.get(self)['contestdoc_id'])
-        pass
+        return sheetsclient.Client(self.bot, Config.get(self)['contestdoc_id'])
 
     def _get_doc_link(self):
         return "https://docs.google.com/spreadsheets/d/{}".format(Config.get(self)['contestdoc_id'])

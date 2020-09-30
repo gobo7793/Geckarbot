@@ -49,18 +49,18 @@ class TestUtils(unittest.TestCase):
         Config().DEBUG_MODE = False
         Config().DEBUG_WHITELIST = [1, 2, 3]
 
-        self.assertEqual(permchecks.whitelist_check_id(1), True)
-        self.assertEqual(permchecks.whitelist_check_id(4), True)
+        self.assertEqual(permchecks.whitelist_check_id(Config(), 1), True)
+        self.assertEqual(permchecks.whitelist_check_id(Config(), 4), True)
 
         Config().DEBUG_MODE = True
 
-        self.assertEqual(permchecks.whitelist_check_id(1), True)
-        self.assertEqual(permchecks.whitelist_check_id(4), False)
+        self.assertEqual(permchecks.whitelist_check_id(Config(), 1), True)
+        self.assertEqual(permchecks.whitelist_check_id(Config(), 4), False)
 
         Config().DEBUG_WHITELIST = []
 
-        self.assertEqual(permchecks.whitelist_check_id(1), True)
-        self.assertEqual(permchecks.whitelist_check_id(4), True)
+        self.assertEqual(permchecks.whitelist_check_id(Config(), 1), True)
+        self.assertEqual(permchecks.whitelist_check_id(Config(), 4), True)
 
 
 if __name__ == '__main__':
