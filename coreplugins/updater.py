@@ -296,7 +296,7 @@ class Plugin(BasePlugin, name="Bot updating system"):
         if release is None:
             return None
 
-        if version is not None or is_newer(release, Config().VERSION):
+        if version is not None or is_newer(release, self.bot.VERSION):
             return release
         return None
 
@@ -307,12 +307,12 @@ class Plugin(BasePlugin, name="Bot updating system"):
         :param version: Release version that the news should be about.
         """
         if version is None:
-            version = Config().VERSION
+            version = self.bot.VERSION
         ver = None
         body = None
         for el in self.get_releases():
             ver = sanitize_version_s(el["tag_name"])
-            logging.getLogger(__name__).debug("Comparing versions: {} and {}".format(Config().VERSION, ver))
+            logging.getLogger(__name__).debug("Comparing versions: {} and {}".format(self.bot.VERSION, ver))
             if is_equal(sanitize_version_s(version), ver):
                 body = el["body"]
                 break
@@ -384,7 +384,7 @@ class Plugin(BasePlugin, name="Bot updating system"):
     @commands.command(name="version", help="Returns the running bot version.")
     async def version(self, ctx):
         """Returns the version"""
-        await ctx.send(Lang.lang(self, "version", Config().VERSION))
+        await ctx.send(Lang.lang(self, "version", self.bot.VERSION))
 
     @commands.command(name="restart", help="Restarts the bot.")
     @commands.has_any_role(Config().BOTMASTER_ROLE_ID)

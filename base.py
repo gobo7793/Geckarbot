@@ -86,7 +86,7 @@ class BasePlugin(Cog, Configurable):
 
         ptype = self.get_configurable_type()
         if ptype == ConfigurableType.PLUGIN or ptype == ConfigurableType.COREPLUGIN:
-            self.resource_dir = "{}/{}".format(Config().RESOURCE_DIR, self.get_name())
+            self.resource_dir = "{}/{}".format(self.bot.RESOURCE_DIR, self.get_name())
 
     def get_configurable_type(self):
         """

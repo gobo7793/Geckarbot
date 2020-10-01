@@ -48,7 +48,7 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
 
     @commands.command(name="about", aliases=["git", "github"])
     async def about(self, ctx):
-        about_msg = Lang.lang(self, 'about_version', Config.VERSION, self.bot.guild.name,
+        about_msg = Lang.lang(self, 'about_version', self.bot.VERSION, self.bot.guild.name,
                               platform.system(), platform.release(), platform.version())
 
         if Config.get(self)['bot_info_link']:
@@ -145,7 +145,7 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
             await ctx.send(Lang.lang(self, "plugin_already_loaded", name))
             return
 
-        if self.bot.load_plugin(Config().PLUGIN_DIR, name):
+        if self.bot.load_plugin(self.bot.PLUGIN_DIR, name):
             await utils.add_reaction(ctx.message, Lang.CMDSUCCESS)
         else:
             await utils.add_reaction(ctx.message, Lang.CMDERROR)
@@ -165,7 +165,7 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
             await ctx.send(Lang.lang(self, "coreplugins_cant_reloaded"))
             return
 
-        if self.bot.unload_plugin(name, False) and self.bot.load_plugin(Config().PLUGIN_DIR, name):
+        if self.bot.unload_plugin(name, False) and self.bot.load_plugin(self.bot.PLUGIN_DIR, name):
             await utils.add_reaction(ctx.message, Lang.CMDSUCCESS)
         else:
             await utils.add_reaction(ctx.message, Lang.CMDERROR)

@@ -78,7 +78,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             'all_duels_range': "J3:BD11",
             'archive_range': "A1:CQ51",
             'user_agent': {
-                'user-agent': "Geckarbot/{}".format(Config().VERSION)
+                'user-agent': "Geckarbot/{}".format(self.bot.VERSION)
             }
         }
 
