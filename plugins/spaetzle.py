@@ -49,7 +49,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
         super().__init__(bot)
         self.can_reload = True
         bot.register(self)
-        
+
         self.logger = logging.getLogger(__name__)
         self.matches = []
         self.matches_by_team = {}
