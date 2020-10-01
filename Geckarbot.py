@@ -67,7 +67,6 @@ class Geckarbot(commands.Bot):
     MOD_ROLES = None
 
     def __init__(self, *args, **kwargs):
-        # self.geck_cogs = []
         self.guild = None
         self._plugins = []
 
@@ -133,7 +132,7 @@ class Geckarbot(commands.Bot):
     def get_available_plugins(self) -> List[str]:
         """Get all available normal plugins including loaded plugins"""
         avail = []
-        for modname in pkgutil.iter_modules([Config().PLUGIN_DIR]):
+        for modname in pkgutil.iter_modules([self.PLUGIN_DIR]):
             avail.append(modname.name)
         return avail
 
