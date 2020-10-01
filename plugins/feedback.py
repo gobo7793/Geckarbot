@@ -1,4 +1,4 @@
-from copy import deepcopy
+import logging
 
 import discord.utils
 from discord.ext import commands
@@ -106,30 +106,45 @@ class Plugin(BasePlugin, name="Feedback"):
         super().__init__(bot)
         bot.register(self)
 
+        self.logger = logging.getLogger(__name__)
         self.storage = Storage.get(self)
+        self.bugscore = Storage.get(self, container="bugscore")["bugscore"]
         self.complaints = {}
         self.highest_id = None
 
-        # Load complaints from storage
-        if self.storage is None:
-            self.storage = deepcopy(self.default_storage())
-        else:
-            str_keys_to_int(self.storage["complaints"])
-        for cid in self.storage["complaints"]:
-            self.complaints[cid] = Complaint.deserialize(self, cid, self.storage["complaints"][cid])
-
-        # Migration 1.7 -> 1.8
-        if "bugscore" not in self.storage:
-            self.storage["bugscore"] = {}
+        if "version" not in self.storage:
+            self.storage["version"] = 1
             Storage.save(self)
+        self.complaints_version = self.storage["version"]
+
+        for cid in self.storage["complaints"]:
+            cid_i = int(cid)
+            self.complaints[cid_i] = Complaint.deserialize(self, cid_i, self.storage["complaints"][cid])
+
+        # Migration 2.3 -> 2.4
+        if "bugscore" in self.storage:
+            self.logger.info("Migrating 2.3 -> 2.4")
+            struct = self.default_storage(container="bugscore")
+            struct["bugscore"] = self.storage["bugscore"]
+            Storage.set(self, struct, container="bugscore")
+            del self.storage["bugscore"]
+            Storage.save(self)
+            Storage.save(self, container="bugscore")
+            self.bugscore = Storage.get(self, container="bugscore")["bugscore"]
 
         self.reset_highest_id()
 
-    def default_storage(self):
-        return {
-            "complaints": {},
-            "bugscore": {},
-        }
+    def default_storage(self, container=None):
+        if container is None:
+            return {
+                "complaints": {},
+                "version": 1,
+            }
+        elif container == "bugscore":
+            return {
+                "bugscore": {},
+                "version": 1,
+            }
 
     def command_usage(self, command):
         if command.name == "complain":
@@ -441,7 +456,7 @@ class Plugin(BasePlugin, name="Feedback"):
         users = sorted(
             sorted(
                 [(converters.get_best_username(discord.utils.get(self.bot.guild.members, id=user)), n) for (user, n) in
-                 self.storage["bugscore"].items()],
+                 self.bugscore.items()],
                 key=lambda x: x[0].lower()),
             key=lambda x: x[1],
             reverse=True
@@ -471,8 +486,8 @@ class Plugin(BasePlugin, name="Feedback"):
             await ctx.message.add_reaction(Lang.CMDERROR)
             return
 
-        if user.id in self.storage["bugscore"]:
-            del self.storage["bugscore"][user.id]
+        if user.id in self.bugscore:
+            del self.bugscore[user.id]
             Storage.save(self)
             await ctx.message.add_reaction(Lang.CMDSUCCESS)
         else:
@@ -499,13 +514,13 @@ class Plugin(BasePlugin, name="Feedback"):
             await ctx.message.add_reaction(Lang.CMDERROR)
             return
 
-        if user.id in self.storage["bugscore"]:
-            self.storage["bugscore"][user.id] += increment
+        if user.id in self.bugscore:
+            self.bugscore[user.id] += increment
         else:
-            self.storage["bugscore"][user.id] = increment
-        if self.storage["bugscore"][user.id] <= 0:
-            del self.storage["bugscore"][user.id]
-        Storage.save(self)
+            self.bugscore[user.id] = increment
+        if self.bugscore[user.id] <= 0:
+            del self.bugscore[user.id]
+        Storage.save(self, container="bugscore")
         await ctx.message.add_reaction(Lang.CMDSUCCESS)
 
     @commands.command(name="bugscore", help="High score for users who found bugs",

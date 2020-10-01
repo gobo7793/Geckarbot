@@ -99,10 +99,10 @@ class ConfigurableData:
         if container in self._structures:
             return self._structures[container]
         else:
-            print("trying to read {}".format(self._filepath()))
             r = self._read_file(container=container)
             if r is None:
                 r = self.iodir.get_default(self.configurable, container=container)
+            self.set(r, container=container)
             return r
 
     def set(self, data, container=None):
@@ -139,7 +139,7 @@ class IODirectory(metaclass=_Singleton):
 
     @classmethod
     def set_default(cls, configurable):
-        configurable.storage = configurable.default_storage()
+        configurable.complaints = configurable.default_storage()
 
     @classmethod
     def has_structure(cls, plugin):
@@ -255,7 +255,10 @@ class Storage(IODirectory):
 
     @classmethod
     def get_default(cls, plugin, container=None):
-        return plugin.default_storage()
+        try:
+            return plugin.default_storage(container=container)
+        except TypeError:
+            return plugin.default_storage()
 
 
 class Lang(metaclass=_Singleton):
