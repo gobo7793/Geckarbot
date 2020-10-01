@@ -1,4 +1,5 @@
 import calendar
+import json
 import logging
 import re
 from datetime import datetime, timedelta
@@ -31,8 +32,15 @@ class LeagueNotFound(Exception):
 class MatchStatus(Enum):
     CLOSED = ":ballot_box_with_check:"
     RUNNING = ":green_square:"
-    UPCOMING = ":clock330:"
-    UNKNOWN = ":grey_question:"
+    UPCOMING = ":clock4:"
+    UNKNOWN = "❔"
+
+
+class MatchResult(Enum):
+    HOME = -1
+    DRAW = 0
+    AWAY = 1
+    NONE = None
 
 
 class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
@@ -67,31 +75,21 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                 4: "AT14:BD31"
             },
             'predictions_range': "BH2:CQ49",
-            'user_agent': "{'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_6) AppleWebKit/537.36 (KHTML, "
-                          "like Gecko) Chrome/56.0.2924.87 Safari/537.36',} "
+            'all_duels_range': "J3:BD11",
+            'archive_range': "A1:CQ51",
+            'user_agent': {
+                'user-agent': "Geckarbot/{}".format(Config().VERSION)
+            }
         }
 
     def default_storage(self):
         return {
             'matchday': 0,
-            'main_thread': "",
-            'predictions_thread': "",
+            'main_thread': None,
+            'predictions_thread': None,
             'discord_user_bridge': {},
             'observed_users': [],
-            'participants': {
-                'liga1': ["TN 1", "TN 2", "TN 3", "TN 4", "TN 5", "TN 6",
-                          "TN 7", "TN 8", "TN 9", "TN 10", "TN 11", "TN 12",
-                          "TN 13", "TN 14", "TN 15", "TN 16", "TN 17", "TN 18"],
-                'liga2': ["TN 19", "TN 20", "TN 21", "TN 22", "TN 23", "TN 24",
-                          "TN 25", "TN 26", "TN 27", "TN 28", "TN 29", "TN 30",
-                          "TN 31", "TN 32", "TN 33", "TN 34", "TN 35", "TN 36"],
-                'liga3': ["TN 37", "TN 38", "TN 39", "TN 40", "TN 41", "TN 42",
-                          "TN 43", "TN 44", "TN 45", "TN 46", "TN 47", "TN 48",
-                          "TN 49", "TN 50", "TN 51", "TN 52", "TN 53", "TN 54"],
-                'liga4': ["TN 55", "TN 56", "TN 57", "TN 58", "TN 59", "TN 60",
-                          "TN 61", "TN 62", "TN 63", "TN 64", "TN 65", "TN 66",
-                          "TN 67", "TN 68", "TN 69", "TN 70", "TN 71", "TN 72"],
-            },
+            'participants': {},
             'teamnames': {
                 "FC Bayern München": {'short_name': "FCB", 'other': ["FC Bayern", "Bayern", "München"]},
                 "Borussia Dortmund": {'short_name': "BVB", 'other': ["Dortmund"]},
@@ -173,11 +171,15 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
 
     def get_schedule(self, league: int, matchday: int):
         matchday = [5, 16, 15, 1, 12, 9, 8, 4, 13, 10, 11, 7, 14, 3, 6, 0, 2][matchday - 1]  # "Randomize" input
-        p = Storage().get(self)['participants'].get('liga{}'.format(league))
-        participants = [p[i] for i in [11, 0, 13, 6, 5, 15, 9, 1, 14, 8, 4, 16, 7, 2, 17, 3, 10, 12]]
-        if participants is None:
+        p = Storage().get(self)['participants'].get(league)
+        if p is None:
             raise LeagueNotFound()
+        participants = [p[i] for i in [11, 0, 13, 6, 5, 15, 9, 1, 14, 8, 4, 16, 7, 2, 17, 3, 10, 12]]
         participants = participants[0:1] + participants[matchday - 1:] + participants[1:matchday - 1]
+        # TODO schedule for league with more than 18 participants
+        # participants_plus = p[18:]
+        # for i in range(len(participants_plus)):
+        #    pp = participants_plus[i]
         schedule = [
             (participants[0], participants[1]),
             (participants[2], participants[17]),
@@ -208,22 +210,13 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
 
         :return: (col, row) of the cell
         """
-        participants = Storage().get(self)['participants']
-        if user in participants['liga1']:
-            col = 60 + (2 * participants['liga1'].index(user))
-            row = 2
-        elif user in participants['liga2']:
-            col = 60 + (2 * participants['liga2'].index(user))
-            row = 14
-        elif user in participants['liga3']:
-            col = 60 + (2 * participants['liga3'].index(user))
-            row = 26
-        elif user in participants['liga4']:
-            col = 60 + (2 * participants['liga4'].index(user))
-            row = 38
+        for league, participants in Storage().get(self)['participants'].items():
+            if user in participants:
+                col = 60 + (2 * participants.index(user))
+                row = 12 * (int(league) - 1) + 2
+                return col, row
         else:
             raise UserNotFound
-        return col, row
 
     def get_user_league(self, user):
         """
@@ -231,15 +224,9 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
 
         :return: number of the league
         """
-        participants = Storage().get(self)['participants']
-        if user in participants['liga1']:
-            return 1
-        elif user in participants['liga2']:
-            return 2
-        elif user in participants['liga3']:
-            return 3
-        elif user in participants['liga4']:
-            return 4
+        for league, participants in Storage().get(self)['participants'].items():
+            if user in participants:
+                return league
         else:
             raise UserNotFound
 
@@ -300,7 +287,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
 
     def pointdiff_possible(self, score, pred1, pred2):
         """
-        Returns the maximal point difference possible
+        Returns the maximal point difference possible at a single match
         """
         if not self.valid_pred(score):
             # No Score
@@ -337,6 +324,33 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                             - (self.points(score, pred2) - self.points(score, pred1))
 
         return diff1, diff2
+
+    def determine_winner(self, points_h: str, points_a: str, diff_h: int, diff_a: int):
+        """
+        Determines the winner of a duel
+        :param points_h: current points of user 1
+        :param points_a: current points of user 2
+        :param diff_h: maximum points user 1 can catch up
+        :param diff_a: maximum points user 2 can catch up
+        :return: MatchResult
+        """
+        try:
+            points_h = int(points_h)
+        except (ValueError, TypeError):
+            points_h = 0
+        try:
+            points_a = int(points_a)
+        except (ValueError, TypeError):
+            points_a = 0
+
+        if points_h > (points_a + diff_a):
+            return MatchResult.HOME
+        elif points_a > (points_h + diff_h):
+            return MatchResult.AWAY
+        elif points_h == points_a and diff_h == 0 and diff_a == 0:
+            return MatchResult.DRAW
+        else:
+            return MatchResult.NONE
 
     @commands.command(name="goal", help="Scores a goal for a team (Spätzle-command)")
     async def goal(self, ctx, team, goals: int = None):
@@ -529,7 +543,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                 for values in data.values():
                     for i in range(len(values)):
                         combined_data[i].extend(values[i] + [None] * 4)
-                c.update("Aktuell!J3:BD11", combined_data)
+                c.update("Aktuell!{}".format(Config().get(self)['all_duels_range']), combined_data)
             else:
                 c.update(Config().get(self)['duel_ranges'].get(league), data.get(league))
         await add_reaction(message, Lang.CMDSUCCESS)
@@ -627,7 +641,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             no_preds = []
             for i in range(1, 5):
                 user_list = []
-                participants = Storage().get(self)['participants'].get('liga{}'.format(i), [])
+                participants = Storage().get(self)['participants'].get(str(i), [])
                 for user in participants:
                     if user not in predictions_by_user:
                         user_list.append(user)
@@ -644,7 +658,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             # Transforming for spreadsheet input
             data = []
             for i in range(1, 5):
-                participants = Storage().get(self)['participants'].get('liga{}'.format(i), [])
+                participants = Storage().get(self)['participants'].get(str(i), [])
                 data.append([num for elem in [[user, None] for user in participants] for num in elem])
                 for match in matches:
                     row = []
@@ -665,10 +679,11 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
 
         async with ctx.typing():
             c = self.get_api_client()
-            data = c.get(range="Aktuell!A1:CQ51", formatted=False)
+            data = c.get(range="Aktuell!{}".format(Config().get(self)['archive_range']), formatted=False)
             matchday = data[0][1]
             try:
-                c.update(range="ST {}!A1:CQ51".format(matchday), values=data, raw=False)
+                c.update(range="ST {}!{}".format(matchday, Config().get(self)['archive_range']),
+                         values=data, raw=False)
             except HttpError:
                 await ctx.send(Lang.lang(self, 'archive_page_missing', matchday))
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
@@ -691,7 +706,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                                                                         "Manager only.")
     async def set_participants(self, ctx, league: int, *participants):
         if await self.manager_check(ctx):
-            Storage().get(self)['participants']['liga{}'.format(league)] = participants
+            Storage().get(self)['participants'][league] = participants
             Storage().save(self)
             await ctx.send(Lang.lang(self, 'participants_added', len(participants), league))
             await add_reaction(ctx.message, Lang.CMDSUCCESS)
@@ -703,6 +718,51 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             Storage().get(self)['matchday'] = matchday
             Storage().save(self)
             await add_reaction(ctx.message, Lang.CMDSUCCESS)
+
+    @spaetzle_set.command(name="config", help="Sets general config values for the plugin.",
+                          usage="<path...> <value>")
+    async def set_config(self, ctx, *args):
+        if not ctx.author.id == Config.get(self)['manager'] and not check_full_access(ctx.author):
+            return
+        if len(args) < 1:
+            await self.bot.helpsys.cmd_help(ctx, self, ctx.command)
+            return
+        if len(args) == 1:
+            await ctx.send(Lang.lang(self, 'not_enough_args'))
+        else:
+            config = Config().get(self)
+            path = args[:-2]
+            key = args[-2]
+            value = args[-1]
+
+            try:
+                value = json.loads(value)
+            except json.decoder.JSONDecodeError:
+                pass
+
+            try:
+                key = int(key)
+            except ValueError:
+                pass
+
+            for step in path:
+                try:
+                    step = int(step)
+                except ValueError:
+                    pass
+                config = config.get(step)
+                if config is None:
+                    await add_reaction(ctx.message, Lang.CMDERROR)
+                    return
+
+            old_value = config.get(key)
+            embed = discord.Embed(title="'{}'".format("/".join(args[:-1])))
+            embed.add_field(name=Lang.lang(self, 'old_value'), value=str(old_value), inline=False)
+            embed.add_field(name=Lang.lang(self, 'new_value'), value=value, inline=False)
+            config[key] = value
+            Config().save(self)
+            await add_reaction(ctx.message, Lang.CMDSUCCESS)
+            await ctx.send(embed=embed)
 
     def get_matches_from_sheets(self):
         """
@@ -749,7 +809,8 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             except UserNotFound:
                 await ctx.send(Lang.lang(self, 'user_not_found'))
                 return
-            result = c.get("Aktuell!{}:{}".format(c.cellname(col1, row1 + 10), c.cellname(col1 + 1, row1 + 11)))
+            result = c.get("Aktuell!{}:{}".format(c.cellname(col1, row1 + 10), c.cellname(col1 + 1, row1 + 11)),
+                           formatted=False)
             opponent = result[1][1]
 
             # Getting data / Opponent-dependent parts
@@ -757,7 +818,6 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                 col2, row2 = self.get_user_cell(opponent)
             except UserNotFound:
                 # Opponent not found
-                oppo_predictions = Lang.lang(self, 'user_not_found')
                 matches, preds_h = c.get_multiple(["Aktuell!{}".format(Config().get(self)['matches_range']),
                                                    "Aktuell!{}:{}".format(c.cellname(col1, row1 + 1),
                                                                           c.cellname(col1 + 1, row1 + 9))],
@@ -765,7 +825,6 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                 preds_a = [["–", "–"]] * 9
             else:
                 # Opponent found
-                oppo_predictions = ""
                 matches, preds_h, preds_a = c.get_multiple(["Aktuell!{}".format(Config().get(self)['matches_range']),
                                                             "Aktuell!{}:{}".format(c.cellname(col1, row1 + 1),
                                                                                    c.cellname(col1 + 1, row1 + 9)),
@@ -782,6 +841,10 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             if len(preds_a) == 0:
                 preds_a = [["–", "–"]] * 9
             for i in range(len(matches)):
+                if matches[i][4] == "":
+                    matches[i][4] = "–"
+                if matches[i][5] == "":
+                    matches[i][5] = "–"
                 if len(preds_h[i]) < 2:
                     preds_h[i] = ["–", "–"]
                 if len(preds_a[i]) < 2:
@@ -798,37 +861,36 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                 diff2 += diff[1]
 
             # Producing the message
-            match_str = ""
-            for match in matches:
+            msg = ""
+            msg += ":soccer: `Home - Away\u0020\u0020\u0020" \
+                   "{}\u2026\u0020\u0020{}\u2026`\n".format(user[:4], opponent[:4])
+            for i in range(len(matches)):
+                match = matches[i]
+                pred_h = preds_h[i]
+                pred_a = preds_a[i]
                 emoji = self.match_status(datetime(1899, 12, 30) + timedelta(days=match[1] + match[2])).value
-                match_str += "{} {} {}:{} {}\n".format(emoji, self.get_teamname_abbr(match[3]), match[4], match[5],
-                                                       self.get_teamname_abbr(match[6]))
+                msg += "{} `{} {}:{} {}\u0020\u0020\u0020\u0020{}:{}\u0020\u0020\u0020\u0020{}:{} `\n"\
+                    .format(emoji, self.get_teamname_abbr(match[3]), match[4], match[5],
+                            self.get_teamname_abbr(match[6]), pred_h[0], pred_h[1], pred_a[0], pred_a[1])
 
-            user_predictions = ""
-            for pred in preds_h:
-                if len(pred) < 2:
-                    user_predictions += "-:-\n"
-                else:
-                    user_predictions += "{}:{}\n".format(pred[0], pred[1])
+            embed = discord.Embed(title="{} [{}:{}] {}".format(user, result[0][0], result[1][0], opponent))
+            embed.description = msg
 
-            if oppo_predictions == "":
-                for pred in preds_a:
-                    if len(pred) < 2:
-                        oppo_predictions += "-:-\n"
-                    else:
-                        oppo_predictions += "{}:{}\n".format(pred[0], pred[1])
-
-            embed = discord.Embed(title=user)
-            embed.description = "{} [{}:{}] {}".format(user, result[0][0], result[1][0], opponent)
-            embed.set_footer(text="Noch möglich aufzuholen: {} bzw {} Punkte".format(diff1, diff2))
-            embed.add_field(name="Spiele", value=match_str)
-            embed.add_field(name=user, value=user_predictions)
-            embed.add_field(name=opponent, value=oppo_predictions)
+            match_result = self.determine_winner(result[0][0], result[1][0], diff1, diff2)
+            if match_result == MatchResult.HOME:
+                embed.set_footer(text=Lang.lang(self, 'show_duel_footer_winner', user))
+            elif match_result == MatchResult.AWAY:
+                embed.set_footer(text=Lang.lang(self, 'show_duel_footer_winner', opponent))
+            elif match_result == MatchResult.DRAW:
+                embed.set_footer(text=Lang.lang(self, 'show_duel_footer_draw'))
+            else:
+                embed.set_footer(text=Lang.lang(self, 'show_duel_footer_normal', diff1, diff2))
 
         await ctx.send(embed=embed)
 
     @spaetzle.command(name="duels", aliases=["duelle"],
-                      help="Displays the duels of observed users or the specified league")
+                      help="Displays the duels of observed users or the specified league",
+                      usage="[\u00a0|<league_number>|all]")
     async def show_duels(self, ctx, league: str = None):
         if league is None:
             # Observed users
@@ -893,7 +955,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
     async def show_duels_all(self, ctx):
         async with ctx.typing():
             c = self.get_api_client()
-            data_ranges = ["Aktuell!J3:T11", "Aktuell!V3:AF11", "Aktuell!AH3:AR11", "Aktuell!AT3:BD11"]
+            data_ranges = list(Config().get(self)['duel_ranges'].values())
             results = c.get_multiple(data_ranges)
             embed = discord.Embed(title="Duelle")
 
@@ -901,7 +963,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                 msg = ""
                 for duel in results[i]:
                     duel.extend([""] * (8 - len(duel)))
-                    msg += "{0} [{4}:{5}] {7}\n".format(*duel)
+                    msg += "{0}\u00a0[{4}:{5}]\u00a0{7}\n".format(*duel)
                 embed.add_field(name="Liga {}".format(i + 1), value=msg)
         await ctx.send(embed=embed)
 
@@ -943,8 +1005,8 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             except ValueError:
                 # User
                 try:
-                    league = self.get_user_league(user_or_league)
-                except UserNotFound:
+                    league = int(self.get_user_league(user_or_league))
+                except (ValueError, UserNotFound):
                     ctx.send(Lang.lang(self, 'user_not_found'))
                     return
 
@@ -978,8 +1040,13 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                 return
 
         msg = ""
-        for i in range(1, 18):
-            msg += "{} | {}\n".format(i, self.get_schedule_opponent(user, i))
+        try:
+            for i in range(1, 18):
+                msg += "{} | {}\n".format(i, self.get_schedule_opponent(user, i))
+        except UserNotFound:
+            await add_reaction(ctx.message, Lang.CMDERROR)
+            await ctx.send(Lang.lang(self, 'user_not_found'))
+            return
 
         await ctx.send(embed=discord.Embed(title="Gegner von {}".format(user), description=msg))
 
@@ -989,6 +1056,9 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             return
         
         forum_posts = Storage().get(self)['predictions']
+        if len(forum_posts) < 1:
+            await ctx.send(Lang.lang(self, 'no_saved_rawposts'))
+            return
         first_post = forum_posts[0]
         posts_count = 0
         content = []
@@ -1000,10 +1070,12 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                 content.append("\n———————————————\n" + post['time'])
                 content.extend([x.strip() for x in post['content'] if x.strip()][:20])
 
-        msgs = paginate(content, prefix=Lang.lang(self, 'raw_posts_prefix', posts_count))
-        for msg in msgs:
-            await ctx.send(msg)
-        await add_reaction(ctx.message, Lang.CMDSUCCESS)
+        if posts_count == 0:
+            await ctx.send(Lang.lang(self, 'raw_posts_prefix', 0))
+        else:
+            msgs = paginate(content, prefix=Lang.lang(self, 'raw_posts_prefix', posts_count))
+            for msg in msgs:
+                await ctx.send(msg)
 
     @spaetzle.group(name="trusted", help="Configures which users are allowed to edit")
     async def trusted(self, ctx):

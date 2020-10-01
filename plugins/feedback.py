@@ -3,7 +3,7 @@ from copy import deepcopy
 import discord.utils
 from discord.ext import commands
 
-from base import BasePlugin
+from base import BasePlugin, NotFound
 from conf import Storage, Config, Lang
 from botutils import converters
 from botutils.stringutils import paginate
@@ -131,6 +131,24 @@ class Plugin(BasePlugin, name="Feedback"):
             "bugscore": {},
         }
 
+    def command_usage(self, command):
+        if command.name == "complain":
+            return Lang.lang(self, "help_usage_complain")
+        else:
+            raise NotFound()
+
+    def command_help_string(self, command):
+        if command.name == "complain":
+            return Lang.lang(self, "help_complain")
+        else:
+            raise NotFound()
+
+    def command_description(self, command):
+        if command.name == "complain":
+            return Lang.lang(self, "help_desc_complain")
+        else:
+            raise NotFound()
+
     def reset_highest_id(self):
         self.highest_id = 1
         for el in self.complaints:
@@ -154,6 +172,29 @@ class Plugin(BasePlugin, name="Feedback"):
         Storage.get(self)["complaints"] = r
         Storage.save(self)
 
+    def parse_args(self, args, ignore=None):
+        ignore = ignore if ignore else []
+        ids = []
+        cats = []
+        for arg in args:
+            if arg in ignore:
+                continue
+            if arg == "last":
+                ids.append(len(self.complaints) - 1)
+                continue
+
+            isint = False
+            try:
+                ids.append(int(arg))
+                isint = True
+            except (ValueError, TypeError):
+                pass
+
+            if not isint:
+                cats.append(arg.lower())
+
+        return ids, cats
+
     @commands.group(name="redact",
                     invoke_without_command=True,
                     help="Redacts the list of complaints (i.e. read and delete)",
@@ -165,27 +206,37 @@ class Plugin(BasePlugin, name="Feedback"):
         aliases = ["all", "full"]
         full = True if len(args) > 0 and args[0] in aliases else False
 
-        # Build msg list and calculate sums
+        # Build complaints list and calculate sums
+        ids, cats = self.parse_args(args, ignore=aliases)
+        partial = not(len(ids) == 0 and len(cats) == 0)
+        complaints = {}
         categorized = 0
         uncategorized = 0
-        msgs = []
-        for el in self.complaints:
-            complaint = self.complaints[el]
-            if full or complaint.category is None:
-                msgs.append(complaint.to_message())
+        for index in self.complaints:
+            complaint = self.complaints[index]
+            partial_match = index in ids or complaint.category in cats
+            full_match = not partial and (full or complaint.category is None)
+            if partial_match or full_match:
+                complaints[index] = complaint
 
             # Sums
             if complaint.category is None:
                 uncategorized += 1
             else:
                 categorized += 1
-
         csum = categorized + uncategorized
-        if len(msgs) == 0:
-            await ctx.send(Lang.lang(self, "redact_no_complaints"))
-            return
+        if len(complaints) == 0:
+            if partial:
+                complaints = self.complaints
+            else:
+                await ctx.send(Lang.lang(self, "redact_no_complaints"))
+                return
 
-        if full:
+        msgs = [complaints[el].to_message() for el in complaints]
+
+        if partial:
+            sumstr = Lang.lang(self, "redact_title_partial", csum, len(msgs))
+        elif full:
             sumstr = Lang.lang(self, "redact_title_full", csum, categorized, uncategorized)
         else:
             sumstr = Lang.lang(self, "redact_title_uncat", uncategorized, categorized)
@@ -224,7 +275,7 @@ class Plugin(BasePlugin, name="Feedback"):
             found = True
             for searchterm in args:
                 # Search check
-                if searchterm.lower() not in complaint.to_message(include_url=False).lower():
+                if searchterm.lower() not in complaint.to_message(show_cat=False, include_url=False).lower():
                     found = False
                     break
             if not found:
@@ -275,7 +326,7 @@ class Plugin(BasePlugin, name="Feedback"):
         Moves a complaint to a category.
         :param ctx: Context
         :param complaint_ids: List of IDs of (existing!) complaints to be moved
-        :param category: New category
+        :param category: New category; category will be removed from complaints if this is None
         """
         assert complaint_ids
         msgs = []
@@ -343,56 +394,39 @@ class Plugin(BasePlugin, name="Feedback"):
                     description=h_cat_desc,
                     usage=h_cat_usage)
     async def category(self, ctx, *args):
-        # List
-        if len(args) == 0:
-            await self.category_list(ctx)
+        ids, cats = self.parse_args(args)
+
+        # Errors / arg validation
+        error = None
+        if len(cats) > 1:
+            error = Lang.lang(self, "too_many_args")
+        else:
+            for cid in ids:
+                if cid not in self.complaints:
+                    error = Lang.lang(self, "redact_cat_complaint_not_found")
+                    break
+        if error is not None:
+            await ctx.send(error)
             return
 
-        # Show
-        try:
-            cid = int(args[0])
-        except (ValueError, TypeError):
-            # Not an int, therefore interpreted as a category name
-            if len(args) != 1:
-                await ctx.message.add_reaction(Lang.CMDERROR)
-                await ctx.send(Lang.lang(self, "too_many_args"))
-            else:
-                await self.category_show(ctx, args[0])
-            return
-
-        # Move (first arg is an int)
-        cids = []
-        cat = None
-        for i in range(len(args)):
-            error = None
-            cid = None
-            try:
-                cid = int(args[i])
-            except (ValueError, TypeError):
-                if cat is None:
-                    cat = args[i]
-                else:
-                    cid = cat
-                    error = "redact_cat_invalid_id"
-
-            if error is None and cid is not None and cid not in self.complaints:
-                error = "redact_cat_complaint_not_found"
-
-            if error is not None:
-                await ctx.message.add_reaction(Lang.CMDERROR)
-                await ctx.send(Lang.lang(self, error, cid))
+        # Determine what to do
+        if len(ids) == 0:
+            # List
+            if len(cats) == 0:
+                await self.category_list(ctx)
                 return
             else:
-                if cid is not None:
-                    cids.append(cid)
+                await self.category_show(ctx, cats[0])
+                return
 
-        await self.category_move(ctx, cids, cat)
+        # Move
+        else:
+            cat = None
+            if len(cats) > 0:
+                cat = cats[0]
+            await self.category_move(ctx, ids, cat)
 
-    @commands.command(name="complain", help="Takes a complaint and stores it", usage="<message>",
-                      description="Delivers a feedback message. "
-                                  "The admins and botmasters can then read the accumulated feedback. "
-                                  "The bot saves the feedback author, "
-                                  "the message and a link to the message for context.")
+    @commands.command(name="complain")
     async def complain(self, ctx, *args):
         msg = ctx.message
         complaint = Complaint.from_message(self, msg)

@@ -32,23 +32,6 @@ ENDPOINT = "repos/{}/{}/releases".format(OWNER, REPO)
 TAGFILE = ".update"
 ERRORCODE = "FAILURE"
 
-lang = {
-    "version": "I am Geckarbot {}.",
-    "no_new_version": "There is no new version. I seem to be up to date!",
-    "new_version": "There is a new version that I could update to: {}! Am I going to be dispensed of now?",
-    "new_version_update": "A new version is available: {}! Please don't !replace me :cry:",
-    "wont_update": "There is no new version to update to.",
-    "killing_plugins": "I will now ask every plugin nicely to shut down without any protest.",
-    "doing_update": "These are my last words. I will update to {} now. Please don't forget me!",
-    "update_timeout": "Update request cancelled. Phew, that was close!",
-
-    "err_within_timeout": "Dude, you already requested an update.",
-    "err_different_channel": "Sorry, there is already an update request running in a different channel.",
-    "err_already_updating": "There is already an update in progress. Be patient.",
-    "err_different_user": "Sorry, someone else already requested an update.",
-    "err_no_news_for_version": "Sorry, I couldn't find any news for version {}.",
-}
-
 
 def sanitize_version_s(s):
     """
@@ -275,7 +258,7 @@ class Plugin(BasePlugin, name="Bot updating system"):
 
     async def do_update(self, channel, tag):
         self.state = State.UPDATING
-        await channel.send(lang["doing_update"].format(tag))
+        await channel.send(Lang.lang(self, "doing_update", tag))
         for plugin in self.bot.plugin_objects(plugins_only=True):
             try:
                 await utils.write_debug_channel(self.bot, "Shutting down plugin {}".format(plugin.get_name()))
@@ -295,23 +278,25 @@ class Plugin(BasePlugin, name="Bot updating system"):
         r = self.client.make_request(ENDPOINT)
         return r
 
-    def check_release(self):
+    def check_release(self, version=None):
         """
         Checks GitHub if there is a new release. Assumes that the GitHub releases are ordered by release date.
         :return: Tag of the newest release that is newer than the current version, None if there is none.
         """
-        # return "1.3"  # TESTING
         # find newest release with tag (all the others are worthless anyway)
         release = None
         for el in self.get_releases():
             if "tag_name" in el:
                 el = el["tag_name"]
-                if release is None or is_newer(el, release):
+                if version is None and (release is None or is_newer(el, release)):
                     release = el
+                elif version is not None and el == version:
+                    release = el
+                    break
         if release is None:
             return None
 
-        if is_newer(release, Config().VERSION):
+        if version is not None or is_newer(release, Config().VERSION):
             return release
         return None
 
@@ -333,7 +318,7 @@ class Plugin(BasePlugin, name="Bot updating system"):
                 break
 
         if body is None:
-            await channel.send(lang["err_no_news_for_version"].format(version))
+            await channel.send(Lang.lang(self, "err_no_news_for_version", version))
             return
 
         # Make headlines great again!
@@ -399,7 +384,7 @@ class Plugin(BasePlugin, name="Bot updating system"):
     @commands.command(name="version", help="Returns the running bot version.")
     async def version(self, ctx):
         """Returns the version"""
-        await ctx.send(lang["version"].format(Config().VERSION))
+        await ctx.send(Lang.lang(self, "version", Config().VERSION))
 
     @commands.command(name="restart", help="Restarts the bot.")
     @commands.has_any_role(Config().BOTMASTER_ROLE_ID)
@@ -433,38 +418,42 @@ class Plugin(BasePlugin, name="Bot updating system"):
     @commands.command(name="update", help="Updates the bot if an update is available",
                       description="Updates the Bot to the newest version (if available)."
                                   " This includes a shutdown, so be careful.")
-    async def update(self, ctx, check=None):
+    async def update(self, ctx, version=None):
         # Argument parsing
-        if not permchecks.check_full_access(ctx.author) or check == "check":
-            release = self.check_release()
+        if not permchecks.check_full_access(ctx.author):
+            release = self.check_release(version=version)
             await ctx.message.add_reaction(Lang.CMDSUCCESS)
             if release is None:
-                await ctx.message.channel.send(lang["no_new_version"])
+                await ctx.message.channel.send(Lang.lang(self, "no_new_version"))
             else:
-                await ctx.message.channel.send(lang["new_version"].format(release))
+                await ctx.message.channel.send(Lang.lang(self, "new_version", release))
             return
 
         # Check state and send error messages if necessary
         if self.state == State.CHECKING or self.state == State.CONFIRMED or self.state == State.UPDATING:
-            await ctx.message.channel.send(lang["err_already_updating"])
+            await ctx.message.channel.send(Lang.lang(self, "err_already_updating"))
             return
         if self.state == State.WAITINGFORCONFIRM:
             if not self.waiting_for_confirm.channel == ctx.message.channel:
-                await ctx.message.channel.send(lang["err_different_channel"])
+                await ctx.message.channel.send(Lang.lang(self, "err_different_channel"))
             elif not self.waiting_for_confirm.author == ctx.message.author:
-                await ctx.message.channel.send(lang["err_different_user"])
+                await ctx.message.channel.send(Lang.lang(self, "err_different_user"))
             return
         assert self.state == State.IDLE
 
         # Check for new version
         self.state = State.CHECKING
-        release = self.check_release()
+        release = self.check_release(version=version)
         if release is None:
-            await ctx.message.channel.send(lang["wont_update"])
+            if version is not None:
+                msg = Lang.lang(self, "version_not_found", version)
+            else:
+                msg = Lang.lang(self, "wont_update")
+            await ctx.message.channel.send(msg)
             self.state = State.IDLE
             return
         await ctx.message.add_reaction(Lang.CMDSUCCESS)
-        await ctx.message.channel.send(lang["new_version_update"].format(release))
+        await ctx.message.channel.send(Lang.lang(self, "new_version_update", release))
 
         # Ask for confirmation
         self.state = State.WAITINGFORCONFIRM
@@ -475,7 +464,7 @@ class Plugin(BasePlugin, name="Bot updating system"):
         # No confirmation, cancel
         if self.state == State.WAITINGFORCONFIRM:
             self.state = State.IDLE
-            await ctx.message.channel.send(lang["update_timeout"])
+            await ctx.message.channel.send(Lang.lang(self, "update_timeout"))
             return
 
         # Confirmation came in
