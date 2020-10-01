@@ -26,9 +26,9 @@ class Plugin(BasePlugin, name="Testing and debug things"):
         return {}
 
     def cog_check(self, ctx):
-        role = discord.utils.get(ctx.author.roles, id=Config().BOTMASTER_ROLE_ID)
+        role = discord.utils.get(ctx.author.roles, id=Config().BOT_ADMIN_ROLE_ID)
         if role is None:
-            raise commands.MissingRole(Config().BOTMASTER_ROLE_ID)
+            raise commands.MissingRole(Config().BOT_ADMIN_ROLE_ID)
         return True
 
     # Maybe really useful debugging commands
@@ -156,6 +156,7 @@ class Plugin(BasePlugin, name="Testing and debug things"):
     @commands.command(name="writelogs")
     async def write_logs(self, ctx):
         await utils.log_to_admin_channel(ctx)
+        await utils.log_to_mod_channel(ctx)
         await utils.write_debug_channel(self.bot, "writelogs used")
 
     @commands.command(name="mentionuser", help="Mentions a user, supports user cmd disabling.")

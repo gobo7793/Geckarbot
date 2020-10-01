@@ -265,7 +265,7 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
         controller = self.get_controller(ctx.channel)
         if controller is None:
             await ctx.message.add_reaction(Lang.CMDERROR)
-        elif permchecks.check_full_access(ctx.message.author) or controller.requester == ctx.message.author:
+        elif permchecks.check_mod_access(ctx.message.author) or controller.requester == ctx.message.author:
             await self.abort_quiz(ctx.channel, ctx.message)
         else:
             await ctx.message.add_reaction(Lang.CMDNOPERMISSIONS)
@@ -344,7 +344,7 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
         if len(args) != 1:
             await ctx.message.add_reaction(Lang.CMDERROR)
             return
-        if not permchecks.check_full_access(ctx.message.author):
+        if not permchecks.check_mod_access(ctx.message.author):
             await ctx.message.add_reaction(Lang.CMDERROR)
             return
 

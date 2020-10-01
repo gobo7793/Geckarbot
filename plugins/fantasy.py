@@ -1,6 +1,5 @@
 import logging
 from collections import OrderedDict
-from copy import deepcopy, copy
 from datetime import datetime, timedelta
 from enum import IntEnum
 from threading import Thread

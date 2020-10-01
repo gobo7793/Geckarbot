@@ -5,7 +5,7 @@ from discord.ext import commands
 
 from base import BasePlugin
 from conf import Config, Storage, Lang
-from botutils.permchecks import check_full_access
+from botutils.permchecks import check_mod_access
 from botutils.utils import add_reaction
 from botutils.converters import get_best_username
 from botutils.stringutils import paginate
@@ -33,7 +33,7 @@ class Plugin(BasePlugin, name="TIL"):
 
     async def _manager_check(self, ctx, show_errors=True):
         """Checks if author is manager and returns False if not"""
-        if ctx.author.id == Config.get(self)['manager'] or check_full_access(ctx.author):
+        if ctx.author.id == Config.get(self)['manager'] or check_mod_access(ctx.author):
             return True
 
         if show_errors:

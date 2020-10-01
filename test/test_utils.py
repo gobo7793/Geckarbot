@@ -47,20 +47,20 @@ class TestUtils(unittest.TestCase):
 
     def test_whitelist_check(self):
         Config().DEBUG_MODE = False
-        Config().DEBUG_WHITELIST = [1, 2, 3]
+        Config().DEBUG_USERS = [1, 2, 3]
 
-        self.assertEqual(permchecks.whitelist_check_id(Config(), 1), True)
-        self.assertEqual(permchecks.whitelist_check_id(Config(), 4), True)
+        self.assertEqual(permchecks.debug_user_check_id(Config(), 1), True)
+        self.assertEqual(permchecks.debug_user_check_id(Config(), 4), True)
 
         Config().DEBUG_MODE = True
 
-        self.assertEqual(permchecks.whitelist_check_id(Config(), 1), True)
-        self.assertEqual(permchecks.whitelist_check_id(Config(), 4), False)
+        self.assertEqual(permchecks.debug_user_check_id(Config(), 1), True)
+        self.assertEqual(permchecks.debug_user_check_id(Config(), 4), False)
 
-        Config().DEBUG_WHITELIST = []
+        Config().DEBUG_USERS = []
 
-        self.assertEqual(permchecks.whitelist_check_id(Config(), 1), True)
-        self.assertEqual(permchecks.whitelist_check_id(Config(), 4), True)
+        self.assertEqual(permchecks.debug_user_check_id(Config(), 1), True)
+        self.assertEqual(permchecks.debug_user_check_id(Config(), 4), True)
 
 
 if __name__ == '__main__':

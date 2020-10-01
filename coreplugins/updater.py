@@ -387,13 +387,13 @@ class Plugin(BasePlugin, name="Bot updating system"):
         await ctx.send(Lang.lang(self, "version", self.bot.VERSION))
 
     @commands.command(name="restart", help="Restarts the bot.")
-    @commands.has_any_role(Config().BOTMASTER_ROLE_ID)
+    @commands.has_any_role(Config().BOT_ADMIN_ROLE_ID)
     async def restart(self, ctx):
         await ctx.message.add_reaction(Lang.CMDSUCCESS)
         await self.bot.shutdown(Geckarbot.Exitcodes.RESTART)  # This signals the runscript
 
     @commands.command(name="shutdown", help="Stops the bot.")
-    @commands.has_any_role(Config().BOTMASTER_ROLE_ID)
+    @commands.has_any_role(Config().BOT_ADMIN_ROLE_ID)
     async def shutdowncmd(self, ctx):
         await ctx.message.add_reaction(Lang.CMDSUCCESS)
         await self.bot.shutdown(Geckarbot.Exitcodes.SUCCESS)  # This signals the runscript
@@ -420,7 +420,7 @@ class Plugin(BasePlugin, name="Bot updating system"):
                                   " This includes a shutdown, so be careful.")
     async def update(self, ctx, version=None):
         # Argument parsing
-        if not permchecks.check_full_access(ctx.author):
+        if not permchecks.check_admin_access(ctx.author):
             release = self.check_release(version=version)
             await ctx.message.add_reaction(Lang.CMDSUCCESS)
             if release is None:

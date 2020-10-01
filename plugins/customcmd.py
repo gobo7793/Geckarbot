@@ -202,7 +202,7 @@ class Plugin(BasePlugin, name="Custom CMDs"):
         if (msg.content.startswith(self.prefix)
                 and msg.author.id != self.bot.user.id
                 and not self.bot.ignoring.check_user(msg.author)
-                and permchecks.whitelist_check(self.bot, msg.author)):
+                and permchecks.debug_user_check(self.bot, msg.author)):
             await self.process_message(msg)
 
     def default_config(self):
@@ -365,9 +365,9 @@ class Plugin(BasePlugin, name="Custom CMDs"):
             return
 
         # set new prefix
-        if not permchecks.check_full_access(ctx.author):
+        if not permchecks.check_mod_access(ctx.author):
             await utils.add_reaction(ctx.message, Lang.CMDERROR)
-            raise commands.BotMissingAnyRole(Config().FULL_ACCESS_ROLES)
+            raise commands.BotMissingAnyRole(Config().ADMIN_ROLES)
 
         if new_prefix == ctx.prefix:
             await utils.add_reaction(ctx.message, Lang.CMDERROR)
@@ -556,7 +556,7 @@ class Plugin(BasePlugin, name="Custom CMDs"):
             self.commands[cmd_name].author_ids.extend(text_authors)
             self.save()
             await utils.add_reaction(ctx.message, Lang.CMDSUCCESS)
-            await utils.write_debug_channel(self.bot, Lang.lang(self, 'cmd_text_added', cmd_name, cmd_texts))
+            await utils.write_mod_channel(self.bot, Lang.lang(self, 'cmd_text_added', cmd_name, cmd_texts))
             await ctx.send(Lang.lang(self, "add_exists", cmd_name))
         else:
             self.commands[cmd_name] = Cmd(self, cmd_name, ctx.author.id, cmd_texts)
@@ -564,8 +564,8 @@ class Plugin(BasePlugin, name="Custom CMDs"):
             self.save()
             # await utils.log_to_admin_channel(ctx)
             await utils.add_reaction(ctx.message, Lang.CMDSUCCESS)
-            await utils.write_debug_channel(self.bot, Lang.lang(self, 'cmd_added', cmd_name,
-                                                                self.commands[cmd_name].get_raw_texts()))
+            await utils.write_mod_channel(self.bot, Lang.lang(self, 'cmd_added', cmd_name,
+                                                              self.commands[cmd_name].get_raw_texts()))
 
     # @cmd.command(name="edit")
     async def cmd_edit(self, ctx, cmd_name, *args):
@@ -616,7 +616,7 @@ class Plugin(BasePlugin, name="Custom CMDs"):
 
         if text_id is None or (text_id is not None and ctx.author.id != cmd.author_ids[text_id]):
             if ctx.author.id != cmd.creator_id:
-                if not permchecks.check_full_access(ctx.author):
+                if not permchecks.check_mod_access(ctx.author):
                     await ctx.send(Lang.lang(self, 'del_perm_missing'))
                     return
 
@@ -628,14 +628,14 @@ class Plugin(BasePlugin, name="Custom CMDs"):
             cmd_raw = cmd.get_raw_texts()
             del (self.commands[cmd_name])
             for msg in paginate(cmd_raw, prefix=Lang.lang(self, 'cmd_removed', cmd_name)):
-                await utils.write_debug_channel(self.bot, msg)
+                await utils.write_mod_channel(self.bot, msg)
 
         else:
             # remove text
             cmd_raw = cmd.get_raw_text(text_id)
             del (cmd.author_ids[text_id])
             del (cmd.texts[text_id])
-            await utils.write_debug_channel(self.bot, Lang.lang(self, 'cmd_text_removed', cmd_name, cmd_raw))
+            await utils.write_mod_channel(self.bot, Lang.lang(self, 'cmd_text_removed', cmd_name, cmd_raw))
 
         self.save()
         # await utils.log_to_admin_channel(ctx)

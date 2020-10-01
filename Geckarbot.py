@@ -52,15 +52,19 @@ class Geckarbot(commands.Bot):
     SERVER_ID = None
     CHAN_IDS = None
     ROLE_IDS = None
+    DEBUG_MODE = None
+    DEBUG_USERS = None
+    GOOGLE_API_KEY = None
+    LANGUAGE_CODE = None
+
     ADMIN_CHAN_ID = None
     DEBUG_CHAN_ID = None
-    ADMIN_ROLE_ID = None
-    BOTMASTER_ROLE_ID = None
-    DEBUG_MODE = None
-    DEBUG_WHITELIST = None
-    GOOGLE_API_KEY = None
-    FULL_ACCESS_ROLES = None
-    LANGUAGE_CODE = None
+    MOD_CHAN_ID = None
+    SERVER_ADMIN_ROLE_ID = None
+    BOT_ADMIN_ROLE_ID = None
+    MOD_ROLE_ID = None
+    ADMIN_ROLES = None
+    MOD_ROLES = None
 
     def __init__(self, *args, **kwargs):
         # self.geck_cogs = []
@@ -92,16 +96,21 @@ class Geckarbot(commands.Bot):
         self.SERVER_ID = cfg.get('SERVER_ID', 0)
         self.CHAN_IDS = cfg.get('CHAN_IDS', {})
         self.ROLE_IDS = cfg.get('ROLE_IDS', {})
-        self.ADMIN_CHAN_ID = self.CHAN_IDS.get('admin', 0)
-        self.DEBUG_CHAN_ID = self.CHAN_IDS.get('debug', self.CHAN_IDS.get('bot-interna', 0))
-        self.ADMIN_ROLE_ID = self.ROLE_IDS.get('admin', 0)
-        self.BOTMASTER_ROLE_ID = self.ROLE_IDS.get('botmaster', 0)
-        self.DEBUG_WHITELIST = cfg.get('DEBUG_WHITELIST', [])
+        self.DEBUG_USERS = cfg.get('DEBUG_USERS', cfg.get('DEBUG_WHITELIST', []))
         self.GOOGLE_API_KEY = cfg.get('GOOGLE_API_KEY', "")
-        self.FULL_ACCESS_ROLES = [self.ADMIN_ROLE_ID, self.BOTMASTER_ROLE_ID]
         self.LANGUAGE_CODE = cfg.get('LANG', self.DEFAULT_LANG)
 
-        Config().set_roles(botmaster=self.BOTMASTER_ROLE_ID, admin=self.ADMIN_ROLE_ID)
+        self.ADMIN_CHAN_ID = self.CHAN_IDS.get('admin', 0)
+        self.DEBUG_CHAN_ID = self.CHAN_IDS.get('debug', self.CHAN_IDS.get('bot-interna', 0))
+        self.MOD_CHAN_ID = self.CHAN_IDS.get('mod', 0)
+        self.SERVER_ADMIN_ROLE_ID = self.ROLE_IDS.get('server_admin', self.ROLE_IDS.get('admin', 0))
+        self.BOT_ADMIN_ROLE_ID = self.ROLE_IDS.get('bot_admin', self.ROLE_IDS.get('botmaster', 0))
+        self.MOD_ROLE_ID = self.ROLE_IDS.get('mod', 0)
+        self.ADMIN_ROLES = [self.BOT_ADMIN_ROLE_ID, self.SERVER_ADMIN_ROLE_ID]
+        self.MOD_ROLES = [self.BOT_ADMIN_ROLE_ID, self.SERVER_ADMIN_ROLE_ID, self.MOD_ROLE_ID]
+
+        Config().set_roles(botadmin=self.BOT_ADMIN_ROLE_ID,
+                           serveradmin=self.SERVER_ADMIN_ROLE_ID, mod=self.MOD_ROLE_ID)
 
     def get_default(self, container=None):
         raise RuntimeError("Config file missing")
@@ -288,8 +297,7 @@ def logging_setup(debug=False):
     console_handler.setFormatter(logging.Formatter('%(asctime)s : %(levelname)s : %(name)s : %(message)s'))
     logger = logging.getLogger('')
     logger.setLevel(level)
-    logger.addHandler(file_handler)
-    logger.addHandler(console_handler)
+    logger.handlers = [file_handler, console_handler]
 
     for el in logging.root.manager.loggerDict:
         logger = logging.root.manager.loggerDict[el]
@@ -435,7 +443,7 @@ def main():
             return
 
         # debug mode whitelist
-        if not permchecks.whitelist_check(bot, message.author):
+        if not permchecks.debug_user_check(bot, message.author):
             return
 
         await bot.process_commands(message)

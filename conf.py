@@ -201,9 +201,12 @@ class Config(IODirectory):
         self._bot = None
         self._directory = None
 
-        self.BOTMASTER_ROLE_ID = None
-        self.ADMIN_ROLE_ID = None
-        self.FULL_ACCESS_ROLES = None
+        self.BOT_ADMIN_ROLE_ID = None
+        self.SERVER_ADMIN_ROLE_ID = None
+        self.MOD_ROLE_ID = None
+        self.MOD_ROLE_ID = None
+        self.ADMIN_ROLES = None
+        self.MOD_ROLES = None
 
     @property
     def bot(self):
@@ -214,10 +217,12 @@ class Config(IODirectory):
         self._bot = bot
         self._directory = bot.CONFIG_DIR
 
-    def set_roles(self, botmaster=None, admin=None):
-        self.BOTMASTER_ROLE_ID = botmaster
-        self.ADMIN_ROLE_ID = admin
-        self.FULL_ACCESS_ROLES = [botmaster, admin]
+    def set_roles(self, botadmin=None, serveradmin=None, mod=None):
+        self.BOT_ADMIN_ROLE_ID = botadmin
+        self.SERVER_ADMIN_ROLE_ID = serveradmin
+        self.MOD_ROLE_ID = mod
+        self.ADMIN_ROLES = [botadmin, serveradmin]
+        self.MOD_ROLES = [botadmin, serveradmin, mod]
 
     @property
     def directory(self):
