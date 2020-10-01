@@ -422,9 +422,9 @@ class Plugin(BasePlugin, name="Custom CMDs"):
         msg = Lang.lang(self, 'raw_prefix', self.prefix, cmd_name,
                         converters.get_username_from_id(self.bot, self.commands[cmd_name].creator_id),
                         len(self.commands[cmd_name].get_raw_texts())).strip()
-        suffix = Lang.lang(self, "raw_suffix", index + 1, i + index - 1, cmd_name, index + i)
         for el in texts:
             i += 1
+            suffix = Lang.lang(self, "raw_suffix", index + 1, i + index - 1, cmd_name, index + i)
             if len(msg) + len(delimiter) + len(el) + len(suffix) > threshold:
                 msg += suffix
                 break
