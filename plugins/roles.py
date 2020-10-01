@@ -120,13 +120,13 @@ class Plugin(BasePlugin, name="Role Management"):
                 modrole_msg = Lang.lang(self, 'init_modrole', modrole.name)
 
             if emote_msg and modrole_msg:
-                msg = "\n{} - {}; {}".format(emote_msg, role.name, modrole_msg)
+                msg += "\n{} - {}; {}".format(emote_msg, role.name, modrole_msg)
             elif emote_msg:
-                msg = "\n{} - {}".format(emote_msg, role.name)
+                msg += "\n{} - {}".format(emote_msg, role.name)
             elif modrole_msg:
-                msg = "\n{}; {}".format(role.name, modrole_msg)
+                msg += "\n{}; {}".format(role.name, modrole_msg)
             else:
-                msg = "\n{}; {}".format(role.name, Lang.lang(self, 'init_admin'))
+                msg += "\n{}; {}".format(role.name, Lang.lang(self, 'init_admin'))
 
         return msg
 
@@ -142,7 +142,7 @@ class Plugin(BasePlugin, name="Role Management"):
         if channel is None:
             await ctx.message.add_reaction(Lang.CMDERROR)
             await utils.write_debug_channel(self.bot, Lang.lang(self, 'must_set_channel_id'))
-            await ctx.send(self.bot, Lang.lang(self, 'must_set_channel_id'))
+            await ctx.send(Lang.lang(self, 'must_set_channel_id'))
             return
 
         # Remove old roles
