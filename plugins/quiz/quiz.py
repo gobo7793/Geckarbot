@@ -471,7 +471,7 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
                 return "ranked_constraints"
             if args["questions"] < self.config["ranked_min_questions"]:
                 return "ranked_questioncount"
-            if not Config().DEBUG_MODE and args["gecki"]:
+            if not self.bot.DEBUG_MODE and args["gecki"]:
                 return "ranked_gecki"
         return None
 

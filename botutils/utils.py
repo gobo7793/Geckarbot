@@ -3,12 +3,10 @@ from typing import Union
 import discord
 import datetime
 import random
-from discord.ext.commands.bot import Bot
 
 from botutils.converters import get_embed_str
 from botutils.timeutils import to_local_time
 from botutils.stringutils import paginate
-from conf import Config
 import logging
 
 chan_logger = logging.getLogger("channel")
@@ -47,12 +45,12 @@ def paginate_embed(embed: discord.Embed):
         raise Exception(f"Embed is still to long! Title: {embed.title}")
 
 
-async def _write_to_channel(bot: Bot, channel_id: int = 0, message: Union[str, discord.Embed] = None,
+async def _write_to_channel(bot, channel_id: int = 0, message: Union[str, discord.Embed] = None,
                             channel_type: str = ""):
     """
     Writes a message to a channel and logs the message
 
-    :param bot: The bot
+    :param bot: Geckarbot reference
     :param channel_id: The channel ID of the channel to send a message to
     :param message: The message or embed to send
     :param channel_type: The channel type or name for the logging output
@@ -61,7 +59,7 @@ async def _write_to_channel(bot: Bot, channel_id: int = 0, message: Union[str, d
     chan_logger.info(f"{channel_type} : {log_msg}")
 
     channel = bot.get_channel(channel_id)
-    if not Config().DEBUG_MODE and channel is not None and message is not None and message:
+    if not bot.DEBUG_MODE and channel is not None and message is not None and message:
         if isinstance(message, discord.Embed):
             paginate_embed(message)
             await channel.send(embed=message)
@@ -73,14 +71,14 @@ async def _write_to_channel(bot: Bot, channel_id: int = 0, message: Union[str, d
                 await channel.send(msg)
 
 
-async def write_debug_channel(bot: Bot, message):
+async def write_debug_channel(bot, message):
     """Writes the given message or embed to the debug channel"""
-    await _write_to_channel(bot, Config().DEBUG_CHAN_ID, message, "debug")
+    await _write_to_channel(bot, bot.DEBUG_CHAN_ID, message, "debug")
 
 
-async def write_admin_channel(bot: Bot, message):
+async def write_admin_channel(bot, message):
     """Writes the given message or embed to the admin channel"""
-    await _write_to_channel(bot, Config().ADMIN_CHAN_ID, message, "admin")
+    await _write_to_channel(bot, bot.ADMIN_CHAN_ID, message, "admin")
 
 
 async def log_to_admin_channel_without_ctx(bot, **kwargs):

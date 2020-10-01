@@ -61,7 +61,7 @@ class Plugin(BasePlugin, name="LastFM"):
         params["api_key"] = self.conf["apikey"]
         headers = {
             "Content-Type": "application/json",
-            "User-Agent": "Geckarbot/{}".format(Config().VERSION)
+            "User-Agent": "Geckarbot/{}".format(self.bot.VERSION)
         }
         return self.client.make_request("", params=params, headers=headers, method=method)
 

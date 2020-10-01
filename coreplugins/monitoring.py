@@ -102,14 +102,14 @@ class Plugin(BasePlugin, name="Bot status commands for monitoring and debug purp
         if arg is not None:
             arg = arg.lower()
         if arg == "toggle":
-            toggle = not Config().DEBUG_MODE
+            toggle = not self.bot.DEBUG_MODE
         elif arg == "on" or arg == "true" or arg == "set":
             toggle = True
         elif arg == "off" or arg == "false":
             toggle = False
 
         if toggle is None:
-            if Config().DEBUG_MODE:
+            if self.bot.DEBUG_MODE:
                 await ctx.send("I am in debug mode.")
             else:
                 await ctx.send("I am not in debug mode.")

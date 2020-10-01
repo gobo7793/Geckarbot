@@ -49,7 +49,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
         super().__init__(bot)
         self.can_reload = True
         bot.register(self)
-        Storage().save(self)
+
         self.logger = logging.getLogger(__name__)
         self.matches = []
         self.matches_by_team = {}
@@ -78,7 +78,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             'all_duels_range': "J3:BD11",
             'archive_range': "A1:CQ51",
             'user_agent': {
-                'user-agent': "Geckarbot/{}".format(Config().VERSION)
+                'user-agent': "Geckarbot/{}".format(self.bot.VERSION)
             }
         }
 
@@ -114,7 +114,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
         }
 
     def get_api_client(self):
-        return sheetsclient.Client(Config().get(self)['spaetzledoc_id'])
+        return sheetsclient.Client(self.bot, Config().get(self)['spaetzledoc_id'])
 
     async def manager_check(self, ctx, show_error=True):
         if ctx.author.id == Config().get(self)['manager']:

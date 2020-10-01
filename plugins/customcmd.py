@@ -202,7 +202,7 @@ class Plugin(BasePlugin, name="Custom CMDs"):
         if (msg.content.startswith(self.prefix)
                 and msg.author.id != self.bot.user.id
                 and not self.bot.ignoring.check_user(msg.author)
-                and permchecks.whitelist_check(msg.author)):
+                and permchecks.whitelist_check(self.bot, msg.author)):
             await self.process_message(msg)
 
     def default_config(self):

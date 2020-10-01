@@ -242,7 +242,7 @@ class Plugin(BasePlugin, name="NFL Fantasyliga"):
         """
         if not self.use_timers:
             return
-        if Config().DEBUG_MODE:
+        if self.bot.DEBUG_MODE:
             log.warning("DEBUG MODE is on, fantasy timers will not be started!")
             return
 
@@ -514,7 +514,7 @@ class Plugin(BasePlugin, name="NFL Fantasyliga"):
         is_mod = Config.get(self)['mod_role_id'] != 0 \
                  and Config.get(self)['mod_role_id'] in [role.id for role in ctx.author.roles]
         is_supercomm = self.supercommish is not None and ctx.author.id == self.supercommish.id
-        if not permchecks.check_full_access(ctx.author) and not is_mod and not is_supercomm:
+        if not permchecks.check_mod_access(ctx.author) and not is_mod and not is_supercomm:
             await add_reaction(ctx.message, Lang.CMDNOPERMISSIONS)
             await ctx.send(Lang.lang(self, "no_set_access"))
             return
