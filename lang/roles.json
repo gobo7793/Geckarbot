@@ -12,7 +12,7 @@
         "role_user_removed": "My trainer was too lazy to train me how to validate, but role {} should be removed from {}.",
         "role_user_bad_arg": "I don't know that move, I only know add or del for argument action.",
         "role_add_updated": "I was too lazy to create a new role with the name {}, so I updated the existing.",
-        "role_add_config": "I was too lazy to create a new role with the name {} on the server, so I just added it to my own role list.",
+        "role_add_config": "I was too lazy to create a new role with the name {} on the server, so I just added the existing one to my own role list.",
         "role_add_created": "My trainer was too lazy to train me how to validate, but the role {} with color {} should be created now.",
         "role_del": "My trainer was too lazy to train me how to validate, but the role {} should be deleted now.",
         "role_untrack": "I removed role {} from my role management, so it isn't my problem anymore.",
@@ -22,7 +22,8 @@
         "must_set_channel_id": "For updating role management, the channel for the init message bust be set before via `!role update channel=<channel name>`.",
         "channel_cant_changed": "A init message is already set, so the channel can't changed.",
         "invalid_channel": "The channel must be an existing channel on this server.",
-        "channel_updated": "The channel is updated."
+        "channel_updated": "The channel is updated.",
+        "not_init_message": "I would love to give you the jump url to the init message, but I can't find any init message."
     },
     "de": {
         "init_reaction": "{}",
@@ -37,16 +38,17 @@
         "role_user_removed": "Mein Trainer war zu faul mir beizubringen wie ich das validieren kann, aber {1} sollte nun nicht mehr die Rolle {0} haben.",
         "role_user_bad_arg": "Ich weiß nicht was du meinst, ich kenn nur add und del für das action-Argument.",
         "role_add_updated": "Ich war zu faul eine neue Rolle {} zu erstellen, also hab ich die bereits existierende aktualisiert.",
-        "role_add_config": "Ich war zu faul auf dem Server eine neue Rolle {} zu erstellen, also hab ich die einfach zu meiner eigenen Rollenliste hinzugefügt",
+        "role_add_config": "Ich war zu faul auf dem Server eine neue Rolle {} zu erstellen, also hab ich die bestehende einfach zu meiner eigenen Rollenliste hinzugefügt",
         "role_add_created": "Mein Trainer war zu faul mir beizubringen wie ich das validieren kann, aber die Rolle {} sollte nun mit der Farbe {} erstellt worden sein.",
         "role_del": "Mein Trainer war zu faul mir beizubringen wie ich das validieren kann, aber die Rolle {} sollte nun gelöscht sein.",
-        "role_untrack": "Ich habe die Rolle {} von meinem Rollenmanagement gelöscht, also ist sie nun nicht mehr mein Problem.",
+        "role_untrack": "Ich habe die Rolle {} von meinem Rollenmanagement gelöscht, sie ist also nun nicht mehr mein Problem.",
         "role_request_no_modrole": "Sorry, aber ich kann keine Modrolle für {} finden :frowning:",
         "role_request_ping": "Hey {}, da fragt {} ob man ihm/ihr/whatever die Rolle {} geben kann!",
         "role_update": "Ich bin ein faules Geckarbor, aber extra für dich hab ich mein Rollenmanagement ausnahmsweise doch aktualisiert.",
         "must_set_channel_id": "Bevor das Rollenmanagement aktualisiert werden kann, muss zuvor ein Channel mithilfe von `!role update channel=<channel name>` festgelegt werden.",
         "channel_cant_changed": "Eine Init-Nachricht ist bereits gesetzt, der Channel kann daher nicht mehr geändert werden.",
         "invalid_channel": "Der Channel muss ein existierender Channel auf diesem Server sein.",
-        "channel_updated": "Channel aktualisiert."
+        "channel_updated": "Channel aktualisiert.",
+        "not_init_message": "Ich würde dir gerne den Sprunglink zur Init-Nachricht geben, allerdings kann ich keine Init-Nachricht finden."
     }
 }

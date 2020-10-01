@@ -15,7 +15,7 @@ from discord.ext import commands
 from Geckarbot import BasePlugin
 from botutils import sheetsclient, restclient
 from botutils.converters import get_best_username
-from botutils.permchecks import check_full_access
+from botutils.permchecks import check_mod_access
 from botutils.stringutils import paginate
 from botutils.utils import add_reaction
 from conf import Config, Storage, Lang
@@ -722,7 +722,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
     @spaetzle_set.command(name="config", help="Sets general config values for the plugin.",
                           usage="<path...> <value>")
     async def set_config(self, ctx, *args):
-        if not ctx.author.id == Config.get(self)['manager'] and not check_full_access(ctx.author):
+        if not ctx.author.id == Config.get(self)['manager'] and not check_mod_access(ctx.author):
             return
         if len(args) < 1:
             await self.bot.helpsys.cmd_help(ctx, self, ctx.command)
@@ -1113,7 +1113,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
 
     @trusted.command(name="manager", help="Sets the manager")
     async def trusted_manager(self, ctx, user: discord.User):
-        if ctx.author.id == Config.get(self)['manager'] or check_full_access(ctx.author):
+        if ctx.author.id == Config.get(self)['manager'] or check_mod_access(ctx.author):
             Config.get(self)['manager'] = user.id
             Config().save(self)
             await add_reaction(ctx.message, Lang.CMDSUCCESS)

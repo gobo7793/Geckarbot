@@ -18,46 +18,58 @@ def in_channel(channel_id):
     return commands.check(predicate)
 
 
-def check_full_access(user: discord.User):
-    """
-    Checks if the user has full access to bot commands. If you can, use
-    @commands.has_any_role(*Config().FULL_ACCESS_ROLES) instead.
-    """
+def _check_access(user: discord.User, roles):
+    """Performs the access check if a user has any of the given roles"""
     if not isinstance(user, discord.Member):
         user = discord.utils.get(Config().bot.guild.members, id=user.id)
     if user is None:
         return False
     for role in user.roles:
-        if role.id in Config().FULL_ACCESS_ROLES:
+        if role.id in roles:
             return True
     return False
 
 
-def whitelist_check_id(bot, user_id: int):
+def check_admin_access(user: discord.User):
     """
-    Checks if the given user can use the bot based on the debug whitelist.
-    Note: The debug whitelist is active only if the list is not empty and debug mode is enabled.
+    Checks if the user has admin access to bot commands. If you can, use
+    @commands.has_any_role(*Config().ADMIN_ROLES) instead.
+    """
+    return _check_access(user, Config().ADMIN_ROLES)
+
+
+def check_mod_access(user: discord.User):
+    """
+    Checks if the user has mod access to bot commands. If you can, use
+    @commands.has_any_role(*Config().MOD_ROLES) instead.
+    """
+    return _check_access(user, Config().MOD_ROLES)
+
+
+def debug_user_check_id(bot, user_id: int):
+    """
+    Checks if the given user can use the bot based on the debug users list.
+    Note: The debug users list is active only if the list is not empty and debug mode is enabled.
 
     :param bot: Geckarbot reference
     :param user_id: The user id to check
     :returns: If debug mode is disabled: True.
               If debug mode is enabled: False if user is not permitted to use the bot, otherwise True.
     """
-    if (bot.DEBUG_MODE
-            and len(bot.DEBUG_WHITELIST) > 0
-            and user_id not in bot.DEBUG_WHITELIST):
+    if (bot.DEBUG_MODE and bot.DEBUG_USERS
+            and user_id not in bot.DEBUG_USERS):
         return False
     return True
 
 
-def whitelist_check(bot, user: discord.User):
+def debug_user_check(bot, user: discord.User):
     """
-    Checks if the given user can use the bot based on the debug whitelist.
-    Note: The debug whitelist is active only if debug mode is enabled.
+    Checks if the given user can use the bot based on the debug users list.
+    Note: The debug users list is active only if debug mode is enabled.
 
     :param bot: Geckarbot reference
     :param user: The user to check
     :returns: If debug mode is disabled: True.
               If debug mode is enabled: True only if User is on debug whitelist, else False.
     """
-    return whitelist_check_id(bot, user.id)
+    return debug_user_check_id(bot, user.id)

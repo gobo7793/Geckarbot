@@ -88,7 +88,7 @@ class Cmd:
         return Lang.lang(self.plugin, 'raw_text', text_id + 1, self.texts[text_id], member)
 
     def get_raw_texts(self, index=0):
-        """Returns all raw texts of the cmd as formatted string"""
+        """Returns all raw texts of the cmd as formatted string, beginning with index"""
         return [self.get_raw_text(i) for i in range(index, len(self.texts))]
 
     def get_formatted_text(self, bot, text_id: int, msg: discord.Message, cmd_args: list):
@@ -202,7 +202,7 @@ class Plugin(BasePlugin, name="Custom CMDs"):
         if (msg.content.startswith(self.prefix)
                 and msg.author.id != self.bot.user.id
                 and not self.bot.ignoring.check_user(msg.author)
-                and permchecks.whitelist_check(self.bot, msg.author)):
+                and permchecks.debug_user_check(self.bot, msg.author)):
             await self.process_message(msg)
 
     def default_config(self):
@@ -365,9 +365,9 @@ class Plugin(BasePlugin, name="Custom CMDs"):
             return
 
         # set new prefix
-        if not permchecks.check_full_access(ctx.author):
+        if not permchecks.check_mod_access(ctx.author):
             await utils.add_reaction(ctx.message, Lang.CMDERROR)
-            raise commands.BotMissingAnyRole(Config().FULL_ACCESS_ROLES)
+            raise commands.BotMissingAnyRole(Config().ADMIN_ROLES)
 
         if new_prefix == ctx.prefix:
             await utils.add_reaction(ctx.message, Lang.CMDERROR)
@@ -416,10 +416,12 @@ class Plugin(BasePlugin, name="Custom CMDs"):
         * index exists
         """
         texts = self.commands[cmd_name].get_raw_texts(index=index)
-        msg = ""
         i = 0
         delimiter = "\n"
         threshold = 1900
+        msg = Lang.lang(self, 'raw_prefix', self.prefix, cmd_name,
+                        converters.get_username_from_id(self.bot, self.commands[cmd_name].creator_id),
+                        len(self.commands[cmd_name].get_raw_texts())).strip()
         for el in texts:
             i += 1
             suffix = Lang.lang(self, "raw_suffix", index + 1, i + index - 1, cmd_name, index + i)
@@ -437,7 +439,7 @@ class Plugin(BasePlugin, name="Custom CMDs"):
         cmd_name = cmd_name.lower()
 
         # Parse index
-        single_page = True   # index != "17++"
+        single_page = True  # index != "17++"
         single_text = False  # index == "17"
         if index is not None:
             if index.endswith("++"):
@@ -458,6 +460,7 @@ class Plugin(BasePlugin, name="Custom CMDs"):
         # Error handling
         if cmd_name not in self.commands:
             await ctx.send(Lang.lang(self, "raw_doesnt_exist", cmd_name))
+            return
         elif index < 0 or index >= len(self.commands[cmd_name].texts):
             await ctx.send(Lang.lang(self, "text_id_not_found"))
             return
@@ -466,23 +469,20 @@ class Plugin(BasePlugin, name="Custom CMDs"):
             await self.cmd_raw_single_page(ctx, cmd_name, index)
 
         else:
-            creator_member = self.bot.guild.get_member(self.commands[cmd_name].creator_id)
-            creator = creator_member\
-                if creator_member is not None\
-                else self.bot.get_user(self.commands[cmd_name].creator_id)
+            creator = converters.get_best_user(self.bot, self.commands[cmd_name].creator_id)
 
             if single_text:
                 raw_texts = [self.commands[cmd_name].get_raw_text(index)]
             else:
                 raw_texts = self.commands[cmd_name].get_raw_texts(index=index)
             for msg in paginate(raw_texts,
-                                        delimiter="\n",
-                                        prefix=Lang.lang(self,
-                                                         'raw_prefix',
-                                                         self.prefix,
-                                                         cmd_name,
-                                                         converters.get_best_username(creator),
-                                                         len(raw_texts))):
+                                delimiter="\n",
+                                prefix=Lang.lang(self,
+                                                 'raw_prefix',
+                                                 self.prefix,
+                                                 cmd_name,
+                                                 converters.get_best_username(creator),
+                                                 len(raw_texts))):
                 await ctx.send(msg)
 
     @cmd.command(name="search")
@@ -556,7 +556,7 @@ class Plugin(BasePlugin, name="Custom CMDs"):
             self.commands[cmd_name].author_ids.extend(text_authors)
             self.save()
             await utils.add_reaction(ctx.message, Lang.CMDSUCCESS)
-            await utils.write_debug_channel(self.bot, Lang.lang(self, 'cmd_text_added', cmd_name, cmd_texts))
+            await utils.write_mod_channel(self.bot, Lang.lang(self, 'cmd_text_added', cmd_name, cmd_texts))
             await ctx.send(Lang.lang(self, "add_exists", cmd_name))
         else:
             self.commands[cmd_name] = Cmd(self, cmd_name, ctx.author.id, cmd_texts)
@@ -564,8 +564,8 @@ class Plugin(BasePlugin, name="Custom CMDs"):
             self.save()
             # await utils.log_to_admin_channel(ctx)
             await utils.add_reaction(ctx.message, Lang.CMDSUCCESS)
-            await utils.write_debug_channel(self.bot, Lang.lang(self, 'cmd_added', cmd_name,
-                                                                self.commands[cmd_name].get_raw_texts()))
+            await utils.write_mod_channel(self.bot, Lang.lang(self, 'cmd_added', cmd_name,
+                                                              self.commands[cmd_name].get_raw_texts()))
 
     # @cmd.command(name="edit")
     async def cmd_edit(self, ctx, cmd_name, *args):
@@ -616,7 +616,7 @@ class Plugin(BasePlugin, name="Custom CMDs"):
 
         if text_id is None or (text_id is not None and ctx.author.id != cmd.author_ids[text_id]):
             if ctx.author.id != cmd.creator_id:
-                if not permchecks.check_full_access(ctx.author):
+                if not permchecks.check_mod_access(ctx.author):
                     await ctx.send(Lang.lang(self, 'del_perm_missing'))
                     return
 
@@ -628,14 +628,14 @@ class Plugin(BasePlugin, name="Custom CMDs"):
             cmd_raw = cmd.get_raw_texts()
             del (self.commands[cmd_name])
             for msg in paginate(cmd_raw, prefix=Lang.lang(self, 'cmd_removed', cmd_name)):
-                await utils.write_debug_channel(self.bot, msg)
+                await utils.write_mod_channel(self.bot, msg)
 
         else:
             # remove text
             cmd_raw = cmd.get_raw_text(text_id)
             del (cmd.author_ids[text_id])
             del (cmd.texts[text_id])
-            await utils.write_debug_channel(self.bot, Lang.lang(self, 'cmd_text_removed', cmd_name, cmd_raw))
+            await utils.write_mod_channel(self.bot, Lang.lang(self, 'cmd_text_removed', cmd_name, cmd_raw))
 
         self.save()
         # await utils.log_to_admin_channel(ctx)

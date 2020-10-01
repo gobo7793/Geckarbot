@@ -201,7 +201,7 @@ class Plugin(BasePlugin, name="Feedback"):
                     usage=h_usage,
                     description="Returns the accumulated feedback. Use [del x] to delete feedback #x"
                                 "and [full] to include categorized complaints.")
-    @commands.has_any_role(Config().ADMIN_ROLE_ID, Config().BOTMASTER_ROLE_ID)
+    @commands.has_any_role(*Config().ADMIN_ROLES)
     async def redact(self, ctx, *args):
         aliases = ["all", "full"]
         full = True if len(args) > 0 and args[0] in aliases else False
@@ -461,7 +461,7 @@ class Plugin(BasePlugin, name="Feedback"):
             await ctx.send(msg)
 
     async def bugscore_del(self, ctx, user):
-        if discord.utils.get(ctx.author.roles, id=Config().BOTMASTER_ROLE_ID) is None:
+        if discord.utils.get(ctx.author.roles, id=Config().BOT_ADMIN_ROLE_ID) is None:
             await ctx.message.add_reaction(Lang.CMDNOPERMISSIONS)
             return
         try:
@@ -478,9 +478,9 @@ class Plugin(BasePlugin, name="Feedback"):
         else:
             await ctx.message.add_reaction(Lang.CMDNOCHANGE)
 
-    @commands.has_any_role(Config().BOTMASTER_ROLE_ID)
+    @commands.has_any_role(Config().BOT_ADMIN_ROLE_ID)
     async def bugscore_increment(self, ctx, user, increment):
-        if discord.utils.get(ctx.author.roles, id=Config().BOTMASTER_ROLE_ID) is None:
+        if discord.utils.get(ctx.author.roles, id=Config().BOT_ADMIN_ROLE_ID) is None:
             await ctx.message.add_reaction(Lang.CMDNOPERMISSIONS)
             return
 

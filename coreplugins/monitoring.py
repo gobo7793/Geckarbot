@@ -21,7 +21,7 @@ class Plugin(BasePlugin, name="Bot status commands for monitoring and debug purp
         return ConfigurableType.COREPLUGIN
 
     @commands.command(name="subsys", help="Shows registrations on subsystems")
-    @commands.has_any_role(Config().BOTMASTER_ROLE_ID)
+    @commands.has_any_role(Config().BOT_ADMIN_ROLE_ID)
     async def subsys(self, ctx):
         for msg in paginate(self.bot.reaction_listener.callbacks,
                             prefix="**Reactions registrations:**\n",
@@ -54,7 +54,7 @@ class Plugin(BasePlugin, name="Bot status commands for monitoring and debug purp
             await ctx.send(msg)
 
     @commands.command(name="storagedump", help="Dumps plugin storage", usage="<plugin name>")
-    @commands.has_any_role(Config().BOTMASTER_ROLE_ID)
+    @commands.has_any_role(Config().BOT_ADMIN_ROLE_ID)
     async def storagedump(self, ctx, name):
         plugin = converters.get_plugin_by_name(self.bot, name)
         if plugin is None:
@@ -72,7 +72,7 @@ class Plugin(BasePlugin, name="Bot status commands for monitoring and debug purp
             await ctx.send(el)
 
     @commands.command(name="configdump", help="Dumps plugin config", usage="<plugin name>")
-    @commands.has_any_role(Config().BOTMASTER_ROLE_ID)
+    @commands.has_any_role(Config().BOT_ADMIN_ROLE_ID)
     # NOTE: Is called by "!dsc set config" and "!fantasy set config"
     async def configdump(self, ctx, name):
         plugin = converters.get_plugin_by_name(self.bot, name)
@@ -96,7 +96,7 @@ class Plugin(BasePlugin, name="Bot status commands for monitoring and debug purp
         await ctx.send(now.strftime('%d.%m.%Y %H:%M:%S.%f'))
 
     @commands.command(name="debug", help="Print or change debug mode at runtime", usage="[true|on|off|false|toggle]")
-    @commands.has_any_role(Config().BOTMASTER_ROLE_ID)
+    @commands.has_any_role(Config().BOT_ADMIN_ROLE_ID)
     async def debug(self, ctx, arg=None):
         toggle = None
         if arg is not None:
