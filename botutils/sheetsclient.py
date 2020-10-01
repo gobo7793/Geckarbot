@@ -2,7 +2,6 @@ import logging
 import os
 import urllib.parse
 
-from conf import Config
 from botutils import restclient
 from base import NotLoadable
 
@@ -64,7 +63,7 @@ class Client(restclient.Client):
             raise NoApiKey()
         if params is None:
             params = []
-        params.append(('key', self.GOOGLE_API_KEY))
+        params.append(('key', self.bot.GOOGLE_API_KEY))
         return params
 
     def _make_request(self, route, params=None):
