@@ -148,9 +148,9 @@ class IODirectory(metaclass=_Singleton):
         else:
             return True
 
-    ######
-    # Save/Load/Get plugin config
-    ######
+    """
+    Save/Load/Get configurable data
+    """
     @classmethod
     def data(cls, plugin):
         if plugin not in cls()._configurabledata:
@@ -228,10 +228,16 @@ class Config(IODirectory):
             if el is plugin:
                 return el.resource_dir
         return None
-    
+
     @classmethod
     def get_default(cls, plugin, container=None):
-        return plugin.default_config()
+        try:
+            return plugin.default_config(container=container)
+        except TypeError:
+            if container is None:
+                return plugin.default_config()
+            else:
+                raise
 
 
 class Storage(IODirectory):
@@ -258,7 +264,10 @@ class Storage(IODirectory):
         try:
             return plugin.default_storage(container=container)
         except TypeError:
-            return plugin.default_storage()
+            if container is None:
+                return plugin.default_storage()
+            else:
+                raise
 
 
 class Lang(metaclass=_Singleton):
