@@ -83,7 +83,10 @@ class ConfigurableData:
     def load(self):
         # Load default
         if os.path.exists(self._filepath()):
+            print("loading {}".format(self._filepath()))
             self._structures[None] = self._read_file()
+        else:
+            self.get()
 
         # Load containers
         if os.path.exists(self._filebase()) and os.path.isdir(self._filebase()):
