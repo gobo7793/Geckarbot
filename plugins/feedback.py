@@ -20,21 +20,6 @@ h_cat_desc = "Manages complaint categories. Usage:\n" \
              "  !redact category <# ...>            - removes the categories from complaints.\n."
 
 
-def str_keys_to_int(d):
-    """
-    Converts {"22": "foo", "44": "bar"} to {22: "foo", 44: "bar"}
-    """
-    todel = []
-    toadd = {}
-    for el in d:
-        toadd[int(el)] = d[el]
-        todel.append(el)
-    for el in todel:
-        del d[el]
-    for el in toadd:
-        d[el] = toadd[el]
-
-
 class Complaint:
     def __init__(self, plugin, complaint_id, author, msg_link, content, category):
         """
@@ -165,7 +150,7 @@ class Plugin(BasePlugin, name="Feedback"):
             raise NotFound()
 
     def reset_highest_id(self):
-        self.highest_id = 1
+        self.highest_id = 0
         for el in self.complaints:
             assert el > 0
             if el > self.highest_id:
