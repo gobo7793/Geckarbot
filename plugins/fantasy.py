@@ -10,7 +10,7 @@ from discord.ext import commands
 from espn_api.football import League, Team
 
 import botutils.timeutils
-from Geckarbot import BasePlugin
+from base import BasePlugin
 from botutils import stringutils, permchecks
 from botutils.converters import get_best_username, get_best_user
 from botutils.timeutils import from_epoch_ms
