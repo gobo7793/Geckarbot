@@ -359,7 +359,7 @@ class Plugin(BasePlugin, name="LastFM"):
 
     async def most_interesting(self, ctx, user):
         pagelen = 10
-        factor = 0.45
+        factor = 0.65
         lfmuser = self.get_lastfm_user(user)
         params = {
             "method": "user.getRecentTracks",
