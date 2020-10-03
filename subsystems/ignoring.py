@@ -472,7 +472,7 @@ class Ignoring(BaseSubsystem):
         """
         remove_result = self.remove(job.data)
         msg = "Attempt auto-removing {}, Result: {}".format(job.data, str(remove_result))
-        await utils.write_mod_channel(self.bot, msg)
+        await utils.write_mod_channel(msg)
 
     def remove_user(self, user: discord.User):
         """

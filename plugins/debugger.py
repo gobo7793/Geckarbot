@@ -41,7 +41,7 @@ class Plugin(BasePlugin, name="Testing and debug things"):
 
     @commands.command(name="defaultstorage")
     async def defaultstorage(self, ctx, pluginname):
-        plugin = converters.get_plugin_by_name(self.bot, pluginname)
+        plugin = converters.get_plugin_by_name(pluginname)
         if plugin is None:
             await ctx.message.add_reaction(Lang.CMDERROR)
             await ctx.send("Plugin {} not found.".format(pluginname))
@@ -157,7 +157,7 @@ class Plugin(BasePlugin, name="Testing and debug things"):
     async def write_logs(self, ctx):
         await utils.log_to_admin_channel(ctx)
         await utils.log_to_mod_channel(ctx)
-        await utils.write_debug_channel(self.bot, "writelogs used")
+        await utils.write_debug_channel("writelogs used")
 
     @commands.command(name="mentionuser", help="Mentions a user, supports user cmd disabling.")
     async def mentionuser(self, ctx, user: discord.Member):

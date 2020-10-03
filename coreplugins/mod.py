@@ -130,7 +130,7 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
     @plugins.command(name="unload")
     @commands.has_any_role(*Config().ADMIN_ROLES)
     async def plugins_unload(self, ctx, name):
-        instance = get_plugin_by_name(self.bot, name)
+        instance = get_plugin_by_name(name)
         if instance is None:
             await utils.add_reaction(ctx.message, Lang.CMDERROR)
             await ctx.send(Lang.lang(self, "no_plugin_loaded", name))
@@ -150,7 +150,7 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
     @plugins.command(name="load")
     @commands.has_any_role(*Config().ADMIN_ROLES)
     async def plugins_load(self, ctx, name):
-        instance = get_plugin_by_name(self.bot, name)
+        instance = get_plugin_by_name(name)
         if instance is not None:
             await utils.add_reaction(ctx.message, Lang.CMDERROR)
             await ctx.send(Lang.lang(self, "plugin_already_loaded", name))
@@ -165,7 +165,7 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
     @plugins.command(name="reload")
     @commands.has_any_role(*Config().ADMIN_ROLES)
     async def plugins_reload(self, ctx, name):
-        instance = get_plugin_by_name(self.bot, name)
+        instance = get_plugin_by_name(name)
         if instance is None:
             await utils.add_reaction(ctx.message, Lang.CMDERROR)
             await ctx.send(Lang.lang(self, "no_plugin_loaded", name))
@@ -209,7 +209,7 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
     async def presence_add(self, ctx, *, message):
         if self.bot.presence.register(message, PresencePriority.LOW) is not None:
             await utils.add_reaction(ctx.message, Lang.CMDSUCCESS)
-            await utils.write_mod_channel(self.bot, Lang.lang(self, "presence_added_debug", message))
+            await utils.write_mod_channel(Lang.lang(self, "presence_added_debug", message))
         else:
             await utils.add_reaction(ctx.message, Lang.CMDERROR)
             await ctx.send(Lang.lang(self, "presence_unknown_error"))
@@ -224,7 +224,7 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
 
         if self.bot.presence.deregister_id(entry_id):
             await utils.add_reaction(ctx.message, Lang.CMDSUCCESS)
-            await utils.write_mod_channel(self.bot, Lang.lang(self, "presence_removed_debug", presence_message))
+            await utils.write_mod_channel(Lang.lang(self, "presence_removed_debug", presence_message))
         else:
             await utils.add_reaction(ctx.message, Lang.CMDERROR)
             await ctx.send(Lang.lang(self, "presence_not_exists", entry_id))
@@ -462,7 +462,7 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
 
             if user is None:
                 try:
-                    user = convert_member(self.bot, arg)
+                    user = convert_member(arg)
                     continue
                 except commands.CommandError:
                     pass

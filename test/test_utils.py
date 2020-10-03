@@ -48,18 +48,18 @@ class TestUtils(unittest.TestCase):
         bot.DEBUG_MODE = False
         bot.DEBUG_USERS = [1, 2, 3]
 
-        self.assertEqual(permchecks.debug_user_check_id(bot, 1), True)
-        self.assertEqual(permchecks.debug_user_check_id(bot, 4), True)
+        self.assertEqual(permchecks.debug_user_check_id(1), True)
+        self.assertEqual(permchecks.debug_user_check_id(4), True)
 
         bot.DEBUG_MODE = True
 
-        self.assertEqual(permchecks.debug_user_check_id(bot, 1), True)
-        self.assertEqual(permchecks.debug_user_check_id(bot, 4), False)
+        self.assertEqual(permchecks.debug_user_check_id(1), True)
+        self.assertEqual(permchecks.debug_user_check_id(4), False)
 
         bot.DEBUG_USERS = []
 
-        self.assertEqual(permchecks.debug_user_check_id(bot, 1), True)
-        self.assertEqual(permchecks.debug_user_check_id(bot, 4), True)
+        self.assertEqual(permchecks.debug_user_check_id(1), True)
+        self.assertEqual(permchecks.debug_user_check_id(4), True)
 
 
 if __name__ == '__main__':

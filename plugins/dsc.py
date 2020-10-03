@@ -138,7 +138,7 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
             await ctx.send(Lang.lang(self, 'must_set_host'))
             return
 
-        host_nick = get_best_user(self.bot, Storage.get(self)['host_id'])
+        host_nick = get_best_user(Storage.get(self)['host_id'])
 
         embed = discord.Embed()
         embed.add_field(name=Lang.lang(self, 'current_host'), value=host_nick.mention)
