@@ -113,7 +113,7 @@ class FantasyLeague:
         :param d: dict made by serialize()
         :return: FantasyLeague object
         """
-        return FantasyLeague(plugin, d['espn_id'], get_best_user(plugin.bot, d['commish']))
+        return FantasyLeague(plugin, d['espn_id'], get_best_user(d['commish']))
 
 
 def _get_division_standings(league: FantasyLeague):
@@ -192,7 +192,7 @@ class Plugin(BasePlugin, name="NFL Fantasyliga"):
         if Config.get(self)["version"] == 2:
             self._update_config_from_2_to_3()
 
-        self.supercommish = get_best_user(self.bot, Storage.get(self)["supercommish"])
+        self.supercommish = get_best_user(Storage.get(self)["supercommish"])
         self.state = Storage.get(self)["state"]
         self.date = Storage.get(self)["date"]
         self.status = Storage.get(self)["status"]

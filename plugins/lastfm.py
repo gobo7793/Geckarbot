@@ -252,8 +252,7 @@ class Plugin(BasePlugin, name="LastFM"):
                 song["nowplaying"] = True
             else:
                 if song["nowplaying"] != "false":
-                    write_debug_channel(self.bot,
-                                        "WARNING: lastfm: unexpected \"nowplaying\": {}".format(song["nowplaying"]))
+                    write_debug_channel("WARNING: lastfm: unexpected \"nowplaying\": {}".format(song["nowplaying"]))
                 song["nowplaying"] = False
             r.append(song)
         return r

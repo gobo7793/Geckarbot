@@ -261,13 +261,13 @@ class Plugin(BasePlugin, name="Bot updating system"):
         await channel.send(Lang.lang(self, "doing_update", tag))
         for plugin in self.bot.plugin_objects(plugins_only=True):
             try:
-                await utils.write_debug_channel(self.bot, "Shutting down plugin {}".format(plugin.get_name()))
+                await utils.write_debug_channel("Shutting down plugin {}".format(plugin.get_name()))
                 await plugin.shutdown()
             except Exception as e:
                 msg = "{} while trying to shutdown plugin {}:\n{}".format(
                     str(e), plugin.get_name(), traceback.format_exc()
                 )
-                await utils.write_debug_channel(self.bot, msg)
+                await utils.write_debug_channel(msg)
 
         await self.bot.close()
         with open(TAGFILE, "w") as f:
@@ -358,13 +358,13 @@ class Plugin(BasePlugin, name="Bot updating system"):
             return False
 
         if lines[0].strip() == ERRORCODE:
-            await utils.write_debug_channel(self.bot, "The update failed. I have no idea why. Sorry, master!")
+            await utils.write_debug_channel("The update failed. I have no idea why. Sorry, master!")
             os.remove(TAGFILE)
             return False
         else:
             logging.getLogger(__name__).debug("I was !update'd! Yay!.")
             await utils.write_debug_channel(
-                self.bot, "I updated successfully! One step closer towards world dominance!")
+                "I updated successfully! One step closer towards world dominance!")
             os.remove(TAGFILE)
             return True
 

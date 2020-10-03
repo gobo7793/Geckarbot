@@ -141,7 +141,7 @@ class Plugin(BasePlugin, name="Role Management"):
         channel = self.bot.get_channel(Storage.get(self)['message']['channel_id'])
         if channel is None:
             await ctx.message.add_reaction(Lang.CMDERROR)
-            await utils.write_mod_channel(self.bot, Lang.lang(self, 'must_set_channel_id'))
+            await utils.write_mod_channel(Lang.lang(self, 'must_set_channel_id'))
             await ctx.send(Lang.lang(self, 'must_set_channel_id'))
             return
 
@@ -173,7 +173,7 @@ class Plugin(BasePlugin, name="Role Management"):
         if message is not None:
             await message.edit(content=message_text)
         else:
-            await utils.write_mod_channel(self.bot, Lang.lang(self, 'creating_init_msg'))
+            await utils.write_mod_channel(Lang.lang(self, 'creating_init_msg'))
             message = await channel.send(message_text)
             Storage.get(self)['message']['message_id'] = message.id
             self.bot.reaction_listener.register(message, self.update_reaction_based_user_role)
@@ -224,8 +224,7 @@ class Plugin(BasePlugin, name="Role Management"):
                     has_role_update = True
 
         if has_role_update:
-            await utils.log_to_mod_channel_without_ctx(self.bot,
-                                                       **{'Type': "Self-assign role",
+            await utils.log_to_mod_channel_without_ctx(**{'Type': "Self-assign role",
                                                           'Action': update_type,
                                                           'User': event.member.mention,
                                                           'Reaction': event.emoji,

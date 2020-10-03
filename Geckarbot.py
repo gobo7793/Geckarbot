@@ -108,9 +108,6 @@ class Geckarbot(commands.Bot):
         self.ADMIN_ROLES = [self.BOT_ADMIN_ROLE_ID, self.SERVER_ADMIN_ROLE_ID]
         self.MOD_ROLES = [self.BOT_ADMIN_ROLE_ID, self.SERVER_ADMIN_ROLE_ID, self.MOD_ROLE_ID]
 
-        Config().set_roles(botadmin=self.BOT_ADMIN_ROLE_ID,
-                           serveradmin=self.SERVER_ADMIN_ROLE_ID, mod=self.MOD_ROLE_ID)
-
     def get_default(self, container=None):
         raise RuntimeError("Config file missing")
 
@@ -224,13 +221,13 @@ class Geckarbot(commands.Bot):
                 pkgutil.importlib.import_module(to_import).Plugin(self)
         except NotLoadable as e:
             logging.warning("Plugin {} could not be loaded: {}".format(plugin_name, e))
-            plugin_instance = converters.get_plugin_by_name(self, plugin_name)
+            plugin_instance = converters.get_plugin_by_name(plugin_name)
             if plugin_instance is not None:
                 self.deregister(plugin_instance)
             return False
         except Exception as e:
             logging.error("Unable to load plugin: {}:\n{}".format(plugin_name, traceback.format_exc()))
-            plugin_instance = converters.get_plugin_by_name(self, plugin_name)
+            plugin_instance = converters.get_plugin_by_name(plugin_name)
             if plugin_instance is not None:
                 self.deregister(plugin_instance)
             return False
@@ -241,7 +238,7 @@ class Geckarbot(commands.Bot):
     def unload_plugin(self, plugin_name, save_config=True):
         """Unloads the plugin with the given plugin_name, returns True if plugin unloaded successfully"""
         try:
-            plugin = converters.get_plugin_by_name(self, plugin_name)
+            plugin = converters.get_plugin_by_name(plugin_name)
             if plugin is None:
                 return
             self.loop.create_task(plugin.shutdown())
@@ -332,14 +329,14 @@ def main():
         members = "\n - ".join([member.name for member in guild.members])
         logging.info(f"Server Members:\n - {members}")
 
-        await utils.write_debug_channel(bot, f"Geckarbot {bot.VERSION} connected on "
+        await utils.write_debug_channel(f"Geckarbot {bot.VERSION} connected on "
                                              f"{guild.name} with {len(guild.members)} users.")
-        await utils.write_debug_channel(bot, f"Loaded subsystems: {', '.join(bot.get_subsystem_list())}")
-        await utils.write_debug_channel(bot, f"Loaded coreplugins: {', '.join(bot.get_coreplugins())}")
-        await utils.write_debug_channel(bot, f"Loaded plugins: {', '.join(bot.get_normalplugins())}")
+        await utils.write_debug_channel(f"Loaded subsystems: {', '.join(bot.get_subsystem_list())}")
+        await utils.write_debug_channel(f"Loaded coreplugins: {', '.join(bot.get_coreplugins())}")
+        await utils.write_debug_channel(f"Loaded plugins: {', '.join(bot.get_normalplugins())}")
         if len(failed_plugins) < 1:
             failed_plugins.append("None, all plugins loaded successfully!")
-        await utils.write_debug_channel(bot, f"Failed loading plugins: {', '.join(failed_plugins)}")
+        await utils.write_debug_channel(f"Failed loading plugins: {', '.join(failed_plugins)}")
 
     if not bot.DEBUG_MODE:
         @bot.event
@@ -364,10 +361,10 @@ def main():
             else:
                 embed.description = f"```python\n{ex_tb}```"
 
-            await utils.write_debug_channel(bot, embed)
+            await utils.write_debug_channel(embed)
             if is_tb_own_msg:
                 for msg in ex_tb:
-                    await utils.write_debug_channel(bot, msg)
+                    await utils.write_debug_channel(msg)
 
         @bot.event
         async def on_command_error(ctx, error):
@@ -421,10 +418,10 @@ def main():
                 else:
                     embed.description = f"```python\n{ex_tb}```"
 
-                await utils.write_debug_channel(bot, embed)
+                await utils.write_debug_channel(embed)
                 if is_tb_own_msg:
                     for msg in ex_tb:
-                        await utils.write_debug_channel(bot, msg)
+                        await utils.write_debug_channel(msg)
                 await utils.add_reaction(ctx.message, Lang.CMDERROR)
                 msg = "Unknown error while executing command."
                 if hasattr(error, "user_message"):
@@ -445,7 +442,7 @@ def main():
             return
 
         # debug mode whitelist
-        if not permchecks.debug_user_check(bot, message.author):
+        if not permchecks.debug_user_check(message.author):
             return
 
         await bot.process_commands(message)

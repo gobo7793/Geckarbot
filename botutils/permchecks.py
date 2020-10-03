@@ -46,30 +46,28 @@ def check_mod_access(user: discord.User):
     return _check_access(user, Config().MOD_ROLES)
 
 
-def debug_user_check_id(bot, user_id: int):
+def debug_user_check_id(user_id: int):
     """
     Checks if the given user can use the bot based on the debug users list.
     Note: The debug users list is active only if the list is not empty and debug mode is enabled.
 
-    :param bot: Geckarbot reference
     :param user_id: The user id to check
     :returns: If debug mode is disabled: True.
               If debug mode is enabled: False if user is not permitted to use the bot, otherwise True.
     """
-    if (bot.DEBUG_MODE and bot.DEBUG_USERS
-            and user_id not in bot.DEBUG_USERS):
+    if (Config().bot.DEBUG_MODE and Config().bot.DEBUG_USERS
+            and user_id not in Config().bot.DEBUG_USERS):
         return False
     return True
 
 
-def debug_user_check(bot, user: discord.User):
+def debug_user_check(user: discord.User):
     """
     Checks if the given user can use the bot based on the debug users list.
     Note: The debug users list is active only if debug mode is enabled.
 
-    :param bot: Geckarbot reference
     :param user: The user to check
     :returns: If debug mode is disabled: True.
               If debug mode is enabled: True only if User is on debug whitelist, else False.
     """
-    return debug_user_check_id(bot, user.id)
+    return debug_user_check_id(user.id)

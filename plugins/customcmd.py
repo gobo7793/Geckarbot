@@ -82,7 +82,7 @@ class Cmd:
 
     def get_raw_text(self, text_id):
         """Returns the raw text with the given ID as formatted string or raise IndexError if ID not exists"""
-        member = converters.get_username_from_id(self.plugin.bot, self.author_ids[text_id])
+        member = converters.get_username_from_id(self.author_ids[text_id])
         if member is None:
             member = Lang.lang(self.plugin, "unknown_user")
         return Lang.lang(self.plugin, 'raw_text', text_id + 1, self.texts[text_id], member)
@@ -134,7 +134,7 @@ class Cmd:
 
             # Ignoring, passive user command blocking
             try:
-                member = converters.convert_member(bot, arg)
+                member = converters.convert_member(arg)
             except commands.BadArgument:
                 member = None
 
@@ -202,7 +202,7 @@ class Plugin(BasePlugin, name="Custom CMDs"):
         if (msg.content.startswith(self.prefix)
                 and msg.author.id != self.bot.user.id
                 and not self.bot.ignoring.check_user(msg.author)
-                and permchecks.debug_user_check(self.bot, msg.author)):
+                and permchecks.debug_user_check(msg.author)):
             await self.process_message(msg)
 
     def default_config(self):
@@ -420,7 +420,7 @@ class Plugin(BasePlugin, name="Custom CMDs"):
         delimiter = "\n"
         threshold = 1900
         msg = Lang.lang(self, 'raw_prefix', self.prefix, cmd_name,
-                        converters.get_username_from_id(self.bot, self.commands[cmd_name].creator_id),
+                        converters.get_username_from_id(self.commands[cmd_name].creator_id),
                         len(self.commands[cmd_name].get_raw_texts())).strip()
         for el in texts:
             i += 1
@@ -469,7 +469,7 @@ class Plugin(BasePlugin, name="Custom CMDs"):
             await self.cmd_raw_single_page(ctx, cmd_name, index)
 
         else:
-            creator = converters.get_best_user(self.bot, self.commands[cmd_name].creator_id)
+            creator = converters.get_best_user(self.commands[cmd_name].creator_id)
 
             if single_text:
                 raw_texts = [self.commands[cmd_name].get_raw_text(index)]
@@ -556,7 +556,7 @@ class Plugin(BasePlugin, name="Custom CMDs"):
             self.commands[cmd_name].author_ids.extend(text_authors)
             self.save()
             await utils.add_reaction(ctx.message, Lang.CMDSUCCESS)
-            await utils.write_mod_channel(self.bot, Lang.lang(self, 'cmd_text_added', cmd_name, cmd_texts))
+            await utils.write_mod_channel(Lang.lang(self, 'cmd_text_added', cmd_name, cmd_texts))
             await ctx.send(Lang.lang(self, "add_exists", cmd_name))
         else:
             self.commands[cmd_name] = Cmd(self, cmd_name, ctx.author.id, cmd_texts)
@@ -564,8 +564,8 @@ class Plugin(BasePlugin, name="Custom CMDs"):
             self.save()
             # await utils.log_to_admin_channel(ctx)
             await utils.add_reaction(ctx.message, Lang.CMDSUCCESS)
-            await utils.write_mod_channel(self.bot, Lang.lang(self, 'cmd_added', cmd_name,
-                                                              self.commands[cmd_name].get_raw_texts()))
+            await utils.write_mod_channel(Lang.lang(self, 'cmd_added', cmd_name,
+                                                    self.commands[cmd_name].get_raw_texts()))
 
     # @cmd.command(name="edit")
     async def cmd_edit(self, ctx, cmd_name, *args):
@@ -628,14 +628,14 @@ class Plugin(BasePlugin, name="Custom CMDs"):
             cmd_raw = cmd.get_raw_texts()
             del (self.commands[cmd_name])
             for msg in paginate(cmd_raw, prefix=Lang.lang(self, 'cmd_removed', cmd_name)):
-                await utils.write_mod_channel(self.bot, msg)
+                await utils.write_mod_channel(msg)
 
         else:
             # remove text
             cmd_raw = cmd.get_raw_text(text_id)
             del (cmd.author_ids[text_id])
             del (cmd.texts[text_id])
-            await utils.write_mod_channel(self.bot, Lang.lang(self, 'cmd_text_removed', cmd_name, cmd_raw))
+            await utils.write_mod_channel(Lang.lang(self, 'cmd_text_removed', cmd_name, cmd_raw))
 
         self.save()
         # await utils.log_to_admin_channel(ctx)
