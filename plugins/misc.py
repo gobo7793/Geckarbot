@@ -53,28 +53,31 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
         ]
         results = ', '.join(dice)
         if len(results) > 2000:
-            pos_last_comma = results[:1995].rfind(',')
-            results = f"{results[:pos_last_comma + 1]} ..."
+            pos_last_comma = results[:1998].rfind(',')
+            results = f"{results[:pos_last_comma + 1]}\u2026"
         await ctx.send(results)
 
     @commands.command(name="kicker", help="Returns frequently used links to kicker.de")
     async def kicker_table(self, ctx):
-        at_values = ""
         now = datetime.now()
-        if now.month == 3 or now.month == 7:
-            at_values = "{}\n{}".format(Lang.lang(self, 'kicker_ATBL_link_regular'),
-                                        Lang.lang(self, 'kicker_ATBL_link_playoffs'))
-        elif now.month < 3 or now.month > 7:
-            at_values = Lang.lang(self, 'kicker_ATBL_link_regular')
-        elif 3 < now.month < 7:
-            at_values = Lang.lang(self, 'kicker_ATBL_link_playoffs')
+        if now.month < 3 or now.month > 7:
+            at_values = "[{}]({})".format(Lang.lang(self, 'kicker_ATBL'), Lang.lang(self, 'kicker_ATBL_link'))
+        else:
+            at_values = "[{}]({})\n[{}]({})\n[{}]({})" \
+                .format(Lang.lang(self, 'kicker_ATBL'), Lang.lang(self, 'kicker_ATBL_link'),
+                        Lang.lang(self, 'kicker_ATBLM'), Lang.lang(self, 'kicker_ATBLM_link'),
+                        Lang.lang(self, 'kicker_ATBLQ'), Lang.lang(self, 'kicker_ATBLQ_link'))
 
         embed = discord.Embed(title=Lang.lang(self, 'kicker_title'))
-        embed.add_field(name=Lang.lang(self, 'kicker_1BL'), value=Lang.lang(self, 'kicker_1BL_link'), inline=False)
-        embed.add_field(name=Lang.lang(self, 'kicker_2BL'), value=Lang.lang(self, 'kicker_2BL_link'), inline=False)
-        embed.add_field(name=Lang.lang(self, 'kicker_3FL'), value=Lang.lang(self, 'kicker_3FL_link'), inline=False)
-        embed.add_field(name=Lang.lang(self, 'kicker_ATBL'), value=at_values, inline=False)
-        embed.add_field(name=Lang.lang(self, 'kicker_DFBP'), value=Lang.lang(self, 'kicker_DFBP_link'), inline=False)
+        embed.add_field(name=":flag_de: Deutschland",
+                        value="[{}]({})\n[{}]({})\n"
+                              "[{}]({})\n[{}]({})"
+                        .format(Lang.lang(self, 'kicker_1BL'), Lang.lang(self, 'kicker_1BL_link'),
+                                Lang.lang(self, 'kicker_2BL'), Lang.lang(self, 'kicker_2BL_link'),
+                                Lang.lang(self, 'kicker_3FL'), Lang.lang(self, 'kicker_3FL_link'),
+                                Lang.lang(self, 'kicker_DFBP'), Lang.lang(self, 'kicker_DFBP_link')))
+        embed.add_field(name=":flag_at: Österreich",
+                        value=at_values)
         await ctx.send(embed=embed)
 
     @commands.command(name="choose", help="Picks on of the options. Separate options with '|'",
