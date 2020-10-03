@@ -4,6 +4,7 @@ import discord
 import datetime
 import random
 
+from conf import Config
 from botutils.converters import get_embed_str
 from botutils.timeutils import to_local_time
 from botutils.stringutils import paginate
@@ -45,13 +46,12 @@ def paginate_embed(embed: discord.Embed):
         raise Exception(f"Embed is still to long! Title: {embed.title}")
 
 
-async def _write_to_channel(bot, channel_id: int = 0, message: Union[str, discord.Embed] = None,
+async def _write_to_channel(channel_id: int = 0, message: Union[str, discord.Embed] = None,
                             channel_type: str = ""):
     """
     Writes a message to a channel and logs the message..
     Doesn't write if DEBUG_MODE is True.
 
-    :param bot: Geckarbot reference
     :param channel_id: The channel ID of the channel to send a message to
     :param message: The message or embed to send
     :param channel_type: The channel type or name for the logging output
@@ -59,8 +59,8 @@ async def _write_to_channel(bot, channel_id: int = 0, message: Union[str, discor
     log_msg = get_embed_str(message)
     chan_logger.info(f"{channel_type} : {log_msg}")
 
-    channel = bot.get_channel(channel_id)
-    if not bot.DEBUG_MODE and channel is not None and message is not None and message:
+    channel = Config().bot.get_channel(channel_id)
+    if not Config().bot.DEBUG_MODE and channel is not None and message is not None and message:
         if isinstance(message, discord.Embed):
             paginate_embed(message)
             await channel.send(embed=message)
@@ -80,7 +80,7 @@ async def write_debug_channel(bot, message: Union[str, discord.Embed]):
     :param bot: The Geckarbot instance
     :param message: The message or embed to write
     """
-    await _write_to_channel(bot, bot.DEBUG_CHAN_ID, message, "debug")
+    await _write_to_channel(bot.DEBUG_CHAN_ID, message, "debug")
 
 
 async def write_admin_channel(bot, message: Union[str, discord.Embed]):
@@ -91,7 +91,7 @@ async def write_admin_channel(bot, message: Union[str, discord.Embed]):
     :param bot: The Geckarbot instance
     :param message: The message or embed to write
     """
-    await _write_to_channel(bot, bot.ADMIN_CHAN_ID, message, "admin")
+    await _write_to_channel(bot.ADMIN_CHAN_ID, message, "admin")
 
 
 async def write_mod_channel(bot, message: Union[str, discord.Embed]):
@@ -102,7 +102,7 @@ async def write_mod_channel(bot, message: Union[str, discord.Embed]):
     :param bot: The Geckarbot instance
     :param message: The message or embed to write
     """
-    await _write_to_channel(bot, bot.MOD_CHAN_ID, message, "mod")
+    await _write_to_channel(bot.MOD_CHAN_ID, message, "mod")
 
 
 async def _log_without_ctx_to_channel(bot, func, **kwargs):

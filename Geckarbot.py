@@ -108,9 +108,6 @@ class Geckarbot(commands.Bot):
         self.ADMIN_ROLES = [self.BOT_ADMIN_ROLE_ID, self.SERVER_ADMIN_ROLE_ID]
         self.MOD_ROLES = [self.BOT_ADMIN_ROLE_ID, self.SERVER_ADMIN_ROLE_ID, self.MOD_ROLE_ID]
 
-        Config().set_roles(botadmin=self.BOT_ADMIN_ROLE_ID,
-                           serveradmin=self.SERVER_ADMIN_ROLE_ID, mod=self.MOD_ROLE_ID)
-
     def get_default(self, container=None):
         raise RuntimeError("Config file missing")
 

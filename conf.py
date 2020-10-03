@@ -201,13 +201,6 @@ class Config(IODirectory):
         self._bot = None
         self._directory = None
 
-        self.BOT_ADMIN_ROLE_ID = None
-        self.SERVER_ADMIN_ROLE_ID = None
-        self.MOD_ROLE_ID = None
-        self.MOD_ROLE_ID = None
-        self.ADMIN_ROLES = None
-        self.MOD_ROLES = None
-
     @property
     def bot(self):
         return self._bot
@@ -217,12 +210,37 @@ class Config(IODirectory):
         self._bot = bot
         self._directory = bot.CONFIG_DIR
 
-    def set_roles(self, botadmin=None, serveradmin=None, mod=None):
-        self.BOT_ADMIN_ROLE_ID = botadmin
-        self.SERVER_ADMIN_ROLE_ID = serveradmin
-        self.MOD_ROLE_ID = mod
-        self.ADMIN_ROLES = [botadmin, serveradmin]
-        self.MOD_ROLES = [botadmin, serveradmin, mod]
+    @property
+    def ADMIN_CHAN_ID(self):
+        return self.bot.ADMIN_CHAN_ID
+
+    @property
+    def DEBUG_CHAN_ID(self):
+        return self.bot.DEBUG_CHAN_ID
+
+    @property
+    def MOD_CHAN_ID(self):
+        return self.bot.MOD_CHAN_ID
+
+    @property
+    def BOT_ADMIN_ROLE_ID(self):
+        return self.bot.BOT_ADMIN_ROLE_ID
+
+    @property
+    def SERVER_ADMIN_ROLE_ID(self):
+        return self.bot.SERVER_ADMIN_ROLE_ID
+
+    @property
+    def MOD_ROLE_ID(self):
+        return self.bot.MOD_ROLE_ID
+
+    @property
+    def ADMIN_ROLES(self):
+        return self.bot.ADMIN_ROLES
+
+    @property
+    def MOD_ROLES(self):
+        return self.bot.MOD_ROLES
 
     @property
     def directory(self):
