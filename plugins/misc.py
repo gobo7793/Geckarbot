@@ -69,15 +69,18 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
                         Lang.lang(self, 'kicker_ATBLQ'), Lang.lang(self, 'kicker_ATBLQ_link'))
 
         embed = discord.Embed(title=Lang.lang(self, 'kicker_title'))
-        embed.add_field(name=":flag_de: Deutschland",
+        embed.add_field(name=Lang.lang(self, 'kicker_DE'),
                         value="[{}]({})\n[{}]({})\n"
                               "[{}]({})\n[{}]({})"
                         .format(Lang.lang(self, 'kicker_1BL'), Lang.lang(self, 'kicker_1BL_link'),
                                 Lang.lang(self, 'kicker_2BL'), Lang.lang(self, 'kicker_2BL_link'),
                                 Lang.lang(self, 'kicker_3FL'), Lang.lang(self, 'kicker_3FL_link'),
                                 Lang.lang(self, 'kicker_DFBP'), Lang.lang(self, 'kicker_DFBP_link')))
-        embed.add_field(name=":flag_at: Österreich",
-                        value=at_values)
+        embed.add_field(name=Lang.lang(self, 'kicker_AT'), value=at_values)
+        embed.add_field(name=Lang.lang(self, 'kicker_EU'),
+                        value="[{}]({})\n[{}]({})".format(
+                            Lang.lang(self, 'kicker_CL'), Lang.lang(self, 'kicker_CL_link'),
+                            Lang.lang(self, 'kicker_EL'), Lang.lang(self, 'kicker_EL_link')))
         await ctx.send(embed=embed)
 
     @commands.command(name="choose", help="Picks on of the options. Separate options with '|'",
