@@ -281,7 +281,10 @@ class Plugin(BasePlugin, name="NFL Fantasyliga"):
         if ctx.invoked_subcommand is None:
             await ctx.invoke(self.bot.get_command('fantasy info'))
 
-    @fantasy.command(name="scores", help="Gets the matchup scores", usage="[week] [team]")
+    @fantasy.command(name="scores", help="Gets the matchup scores", usage="[week] [team]",
+                     description="Gets the current machtup scores or the scores from the given week. "
+                                 "If a team name or abbreviation is given, the boxscores for the team for "
+                                 "the current or given week is returned.")
     async def scores(self, ctx, *args):
         week = 0
         team_name = None
