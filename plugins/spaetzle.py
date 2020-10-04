@@ -177,14 +177,10 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
         p = Storage().get(self)['participants'].get(league)
         if p is None:
             raise LeagueNotFound()
+        p.extend([None] * max(0, 18 - len(p)))  # Extend if not enough participants
         participants = [p[i] for i in [11, 0, 13, 6, 5, 15, 9, 1, 14, 8, 4, 16, 7, 2, 17, 3, 10, 12]]
         participants = participants[0:1] + participants[matchday - 1:] + participants[1:matchday - 1]
         schedule = []
-        # Special case for leagues with 19 participants (IMPROVISED)
-        if len(p) > 18:
-            median_participant, participants[matchday] = participants[matchday], p[18]
-            schedule.append((median_participant, "(Median)"))
-        # Normal duels
         schedule.extend([(participants[0], participants[1]),
                          (participants[2], participants[17]),
                          (participants[3], participants[16]),
