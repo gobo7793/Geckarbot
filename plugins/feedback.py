@@ -156,12 +156,13 @@ class Plugin(BasePlugin, name="Feedback"):
             if el > self.highest_id:
                 self.highest_id = el
 
-    def get_new_id(self):
+    def get_new_id(self, increment=True):
         """
         Acquires a new complaint id
         :return: free unique id that can be used for a new complaint
         """
-        self.highest_id += 1
+        if increment:
+            self.highest_id += 1
         return self.highest_id
 
     def write(self):
@@ -179,8 +180,8 @@ class Plugin(BasePlugin, name="Feedback"):
         for arg in args:
             if arg in ignore:
                 continue
-            if arg == "last":
-                ids.append(len(self.complaints) - 1)
+            if arg == "last" or arg == "-1":
+                ids.append(self.get_new_id(increment=False))
                 continue
 
             isint = False
