@@ -14,6 +14,7 @@
     "#1": "Errors",
     "not_registered": "Ich kenne leider dein last.fm-Profil nicht.",
     "error": "Sorry, ich kann dir hier nicht helfen.",
+    "user_not_found": "Diesen Last.fm-User gibt es nicht.",
 
     "#2": "Output",
     "all": "alle",

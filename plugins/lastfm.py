@@ -1,5 +1,6 @@
 from enum import Enum
 import time
+from urllib.error import HTTPError
 
 import discord
 from discord.ext import commands
@@ -120,6 +121,16 @@ class Plugin(BasePlugin, name="LastFM"):
 
     @lastfm.command(name="register")
     async def register(self, ctx, lfmuser: str):
+        info = self.get_user_info(lfmuser)
+        if info is None:
+            await ctx.message.add_reaction(Lang.CMDERROR)
+            await ctx.send(Lang.lang(self, "user_not_found"))
+            return
+        if "user" not in info:
+            await ctx.message.add_reaction(Lang.CMDERROR)
+            await ctx.send(self, "error")
+            await write_debug_channel("Error: \"user\" not in {}".format(info))
+            return
         Storage.get(self)["users"][ctx.author.id] = lfmuser
         Storage.save(self)
         await ctx.message.add_reaction(Lang.CMDSUCCESS)
@@ -215,6 +226,16 @@ class Plugin(BasePlugin, name="LastFM"):
         else:
             msg = Lang.lang(self, "listening_base_past", gbu(user), msg)
         return msg
+
+    def get_user_info(self, lfmuser):
+        params = {
+            "method": "user.getInfo",
+            "user": lfmuser
+        }
+        try:
+            return self.request(params)
+        except HTTPError:
+            return None
 
     @staticmethod
     def sanitize_album(album):
