@@ -31,6 +31,27 @@
     "err_different_channel": "In einem anderen Channel läuft bereits ein Updateprozess.",
     "err_already_updating": "Ich bin bereits im Updateprozess, ein wenig Geduld bitte.",
     "err_different_user": "Jemand anderes hat bereits nach einem Update gefragt.",
-    "err_no_news_for_version": "Es gibt keine Update-News für Version {}."
+    "err_no_news_for_version": "Es gibt keine Update-News für Version {}.",
+
+    "help_news": "Zeigt die Release Notes einer Version",
+    "help_version": "Zeigt die Version",
+    "help_restart": "Startet den Bot neu",
+    "help_shutdown": "Fährt den Bot herunter",
+    "help_confirm": "Bestätigt ein !update",
+    "help_update": "Update-Check und Update",
+
+    "description_news": "Zeigt die Release Notes zu einer ggf. übergebenen Version. Falls keine Version übergeben wurde, wird die momentane Version des Bots angenommen. Unterstützt \"latest\" als Versionsangabe für die aktuellste Version.",
+    "description_version": "Zeigt die aktuelle Version des Bots.",
+    "description_restart": "Startet den Bot neu. Nur für Botmaster.",
+    "description_shutdown": "Fährt den Bot herunter. Nur für Botmaster.",
+    "description_confirm": "Bestätigt ein Update-Kommando.",
+    "description_update": "Überprüft, ob auf GitHub eine neue Geckarbot-Version vorliegt. Falls das Kommando von einem Botmaster ausgeführt wurde, wird ein Update durchgeführt. Ohne Argumente wird auf die neueste Version upgedatet, mit Angabe der Version auf ebendiese. Erfordert eine nachfolgende Bestätigung via !replace.",
+
+    "usage_news": "[<Version>]",
+    "usage_version": "",
+    "usage_restart": "",
+    "usage_shutdown": "",
+    "usage_confirm": "",
+    "usage_update": "[<Version>]"
   }
 }

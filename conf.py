@@ -4,6 +4,8 @@ import logging
 from enum import Enum
 from botutils import jsonutils
 
+from base import NotFound
+
 
 class Const(Enum):
     BASEFILE = 0
@@ -365,7 +367,10 @@ class Lang(metaclass=_Singleton):
             return cls()._cache[configurable]
 
         # Read from file or configurable
-        lang = configurable.get_lang()
+        try:
+            lang = configurable.get_lang()
+        except NotFound:
+            lang = None
         if lang is None:
             try:
                 with open(f"{cls().directory}/{configurable.get_name()}.json", encoding="utf-8") as f:
@@ -382,6 +387,34 @@ class Lang(metaclass=_Singleton):
         return lang
 
     @classmethod
+    def lang_no_failsafe(cls, configurable, str_name, *args):
+        """
+        Returns the given string from configurable's lang file.
+        If language sett in Config().LANGUAGE_CODE is not supported, 'en' will be used.
+        If nothing is found, returns None.
+
+        :param configurable: The Configurable instance
+        :param str_name: The name of the returning string.
+        :param args: The strings to insert into the returning string via format()
+        :return The most applicable lang string for the given configurable and str_name. None if nothing is found.
+        """
+        lang = cls().read_from_cache(configurable)
+        lang_code = None
+        try:
+            lang_code = configurable.get_lang_code()
+        except NotFound:
+            pass
+        if lang_code is None:
+            lang_code = cls().bot.LANGUAGE_CODE
+        if lang_code not in lang or str_name not in lang[lang_code]:
+            lang_code = cls().bot.DEFAULT_LANG
+
+        langstr = lang.get(lang_code, {}).get(str_name, None)
+        if langstr is not None:
+            langstr = langstr.format(*args)
+        return langstr
+
+    @classmethod
     def lang(cls, configurable, str_name, *args) -> str:
         """
         Returns the given string from configurable's lang file.
@@ -392,16 +425,15 @@ class Lang(metaclass=_Singleton):
         :param str_name: The name of the returning string.
             If not available for current language, an empty string will be returned.
         :param args: The strings to insert into the returning string via format()
+        :return The most applicable lang string for the given configurable and str_name. None if nothing is found.
         """
         if len(args) == 0:
             args = [""]  # ugly lol
 
-        lang = cls().read_from_cache(configurable)
-        lang_code = cls().bot.LANGUAGE_CODE
-        if lang_code not in lang or str_name not in lang[lang_code]:
-            lang_code = cls().bot.DEFAULT_LANG
-
-        return lang.get(lang_code, {}).get(str_name, str_name).format(*args)
+        langstr = cls.lang_no_failsafe(configurable, str_name, *args)
+        if langstr is None:
+            langstr = str_name
+        return langstr
 
     @classmethod
     def get_default(cls, plugin):

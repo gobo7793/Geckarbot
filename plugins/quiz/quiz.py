@@ -10,6 +10,7 @@ from base import BasePlugin
 from conf import Storage, Lang, Config
 from subsystems import help
 from botutils import permchecks
+from botutils.utils import sort_commands_helper
 
 from plugins.quiz.controllers import RushQuizController, PointsQuizController
 from plugins.quiz.quizapis import quizapis, opentdb
@@ -152,7 +153,11 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
     def command_description(self, command):
         return Lang.lang(self, "desc_{}".format(command.name))
 
-    def sort_subcommands(self, ctx, cmd, subcommands):
+    def sort_commands(self, ctx, cmd, subcommands):
+        # category help
+        if cmd is None:
+            return subcommands
+        
         order = [
             "status",
             "score",
@@ -163,21 +168,7 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
             "del",
             "question",
         ]
-        todel = []
-        for i in range(len(order) - 1, -1, -1):
-            found = False
-            for cmd in subcommands:
-                if cmd.name == order[i]:
-                    order[i] = cmd
-                    found = True
-                    break
-            if not found:
-                todel.append(i)
-
-        for i in todel:
-            del order[i]
-
-        return order
+        return sort_commands_helper(subcommands, order)
 
     """
     Commands

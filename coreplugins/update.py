@@ -9,9 +9,10 @@ from enum import Enum
 from discord.ext import commands
 
 import Geckarbot
-from base import BasePlugin, ConfigurableType
+from base import BasePlugin, ConfigurableType, NotFound
 from botutils import restclient, utils, permchecks
 from botutils.stringutils import paginate
+from botutils.utils import sort_commands_helper
 from conf import Config, Lang
 from subsystems import help
 
@@ -253,6 +254,29 @@ class Plugin(BasePlugin, name="Bot updating system"):
         self.waiting_for_confirm = None
         bot.register(self, category=help.DefaultCategories.ADMIN)
 
+    def command_help_string(self, command):
+        return Lang.lang(self, "help_{}".format(command.name))
+
+    def command_description(self, command):
+        return Lang.lang(self, "description_{}".format(command.name))
+
+    def command_usage(self, command):
+        r = Lang.lang_no_failsafe(self, "usage_{}".format(command.name))
+        if r:
+            return r
+        else:
+            raise NotFound()
+
+    def sort_commands(self, ctx, command, subcommands):
+        order = [
+            "version",
+            "news",
+            "update",
+            "restart",
+            "shutdown"
+        ]
+        return sort_commands_helper(subcommands, order)
+
     def get_configurable_type(self):
         return ConfigurableType.COREPLUGIN
 
@@ -306,6 +330,8 @@ class Plugin(BasePlugin, name="Bot updating system"):
         :param channel: Channel to send the release notes to.
         :param version: Release version that the news should be about.
         """
+        if version == "latest":
+            version = self.check_release()
         if version is None:
             version = self.bot.VERSION
         ver = None
@@ -369,7 +395,7 @@ class Plugin(BasePlugin, name="Bot updating system"):
             return True
 
     @commands.command(name="news", help="Presents the latest update notes.")
-    async def news(self, ctx, *args):
+    async def cmd_news(self, ctx, *args):
         version = None
         if len(args) == 0:
             pass
@@ -382,24 +408,24 @@ class Plugin(BasePlugin, name="Bot updating system"):
         await self.update_news(ctx.message.channel, version=version)
 
     @commands.command(name="version", help="Returns the running bot version.")
-    async def version(self, ctx):
+    async def cmd_version(self, ctx):
         """Returns the version"""
         await ctx.send(Lang.lang(self, "version", self.bot.VERSION))
 
     @commands.command(name="restart", help="Restarts the bot.")
     @commands.has_any_role(Config().BOT_ADMIN_ROLE_ID)
-    async def restart(self, ctx):
+    async def cmd_restart(self, ctx):
         await ctx.message.add_reaction(Lang.CMDSUCCESS)
         await self.bot.shutdown(Geckarbot.Exitcodes.RESTART)  # This signals the runscript
 
     @commands.command(name="shutdown", help="Stops the bot.")
     @commands.has_any_role(Config().BOT_ADMIN_ROLE_ID)
-    async def shutdowncmd(self, ctx):
+    async def cmd_shutdowncmd(self, ctx):
         await ctx.message.add_reaction(Lang.CMDSUCCESS)
         await self.bot.shutdown(Geckarbot.Exitcodes.SUCCESS)  # This signals the runscript
 
     @commands.command(name="replace", help="Confirms an !update command.")
-    async def confirm(self, ctx):
+    async def cmd_confirm(self, ctx):
         # Check if there is an update request running
         if self.waiting_for_confirm is None:
             return
@@ -418,7 +444,7 @@ class Plugin(BasePlugin, name="Bot updating system"):
     @commands.command(name="update", help="Updates the bot if an update is available",
                       description="Updates the Bot to the newest version (if available)."
                                   " This includes a shutdown, so be careful.")
-    async def update(self, ctx, version=None):
+    async def cmd_update(self, ctx, version=None):
         # Argument parsing
         if not permchecks.check_admin_access(ctx.author):
             release = self.check_release(version=version)

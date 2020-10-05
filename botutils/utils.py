@@ -197,6 +197,23 @@ async def log_to_mod_channel(context):
     await _log_to_channel(context, write_mod_channel)
 
 
+def sort_commands_helper(commands, order):
+    """
+    Sorts a list of commands in place according to a list of command names. If a command has no corresponding
+    command name in `order`, it is removed from the list.
+    :param commands: List of commands that is to be ordered
+    :param order: Ordered list of command names
+    :return: Sorted command list
+    """
+    r = []
+    for el in order:
+        for cmd in commands:
+            if cmd.name == el:
+                r.append(cmd)
+                break
+    return r
+
+
 def trueshuffle(p):
     """
     Shuffles a list in place so that no element is at the index where it was before. Fails on lists of length < 2.

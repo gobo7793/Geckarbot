@@ -108,13 +108,17 @@ class HelpCategory:
         else:
             return self.name
 
-    def format_commands(self):
+    def format_commands(self, ctx):
         """
         :return: Message list with all commands that this category contains to be consumed by paginate().
         """
+        print("doing cat cmds")
         r = []
         for plugin in self.plugins:
-            for command in plugin.get_commands():
+            print("doing plugin {}".format(plugin.get_name()))
+            cmds = plugin.get_commands()
+            cmds = plugin.sort_commands(ctx, None, cmds)
+            for command in cmds:
                 r.append("  {}".format(self.bot.helpsys.format_command_help_line(plugin, command)))
         return r
 
@@ -123,7 +127,7 @@ class HelpCategory:
         Sends a help message for this category.
         :param ctx: Context that the help message is to be sent to.
         """
-        msg = self.format_commands()
+        msg = self.format_commands(ctx)
         for msg in paginate(msg,
                             prefix=Lang.lang(self.bot.helpsys, "help_category_prefix", self.name) + "\n",
                             msg_prefix="```",
@@ -345,7 +349,7 @@ class GeckiHelp(BaseSubsystem):
     def format_subcmds(self, ctx, plugin, command):
         r = []
         if isinstance(command, commands.Group):
-            for cmd in plugin.sort_subcommands(ctx, command, command.commands):
+            for cmd in plugin.sort_commands(ctx, command, command.commands):
                 if cmd.hidden:
                     continue
                 r.append("  {}".format(self.format_command_help_line(plugin, cmd)))
