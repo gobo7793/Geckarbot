@@ -24,9 +24,9 @@
     "listening_song_album": "{} aus dem Album **{}**",
     "most_interesting_base_present": "{} hört gerade {}",
     "most_interesting_base_past": "{} hörte zuletzt {}",
-    "most_interesting_song": "{} - ({} der letzten {} Scrobbles).",
+    "most_interesting_song": "{} rauf und runter - {} der letzten {} Scrobbles.",
     "most_interesting_album": "das Album **{}** von **{}** ({} der letzten {} Scrobbles).",
-    "most_interesting_artist": "**{}** rauf und runter - {} der letzten {} Scrobbles!",
+    "most_interesting_artist": "**{}** - {} der letzten {} Scrobbles!",
     "performance": "Im letzten `lastfm`-Kommando habe ich {} von {} Sekunden damit verbracht, auf Last.fm zu warten. Das sind {}%. Dabei habe ich {} Request(s) an Last.fm abgesetzt.\nDie restliche Zeit entfällt auf das Warten auf Discord, eventuelle andere Jobs und Kommandos und Berechnungen für das eigentliche Kommando."
   }
 }
