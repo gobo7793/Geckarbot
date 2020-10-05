@@ -359,7 +359,7 @@ class Plugin(BasePlugin, name="LastFM"):
         :return:
         """
         s = sorted(scores.keys(), key=lambda x: scores[x], reverse=True)
-        first = [el for el in s if scores[el] == scores[0]]
+        first = [el for el in s if scores[el] == scores[s[0]]]
         found = False
         for song in songs:
             fact = None
@@ -379,7 +379,7 @@ class Plugin(BasePlugin, name="LastFM"):
 
     def calc_scores(self, songs):
         """
-        Counts the occurences of artists, songs and albums in a list of song dicts.
+        Counts the occurences of artists, songs and albums in a list of song dicts and assigns scores
         :param songs: list of songs
         :return: nested dict that contains scores for every artist, song and album
         """
@@ -440,15 +440,15 @@ class Plugin(BasePlugin, name="LastFM"):
         mi = None
         mi_score = 0
         mi_fact = None
-        if best_artist_count > pagelen * factor_artist:
+        if best_artist_count >= pagelen * factor_artist:
             mi = MostInterestingType.ARTIST
             mi_score = best_artist_count
             mi_fact = best_artist
-        if best_album_count > pagelen * factor_album:
+        if best_album_count >= pagelen * factor_album:
             mi = MostInterestingType.ALBUM
             mi_score = best_album_count
             mi_fact = best_album_artist, best_album
-        if best_title_count > pagelen * factor_title:
+        if best_title_count >= pagelen * factor_title:
             mi = MostInterestingType.TITLE
             mi_score = best_title_count
             mi_fact = best_title_artist, best_title

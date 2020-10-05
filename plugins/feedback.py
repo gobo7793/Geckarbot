@@ -106,17 +106,6 @@ class Plugin(BasePlugin, name="Feedback"):
             cid_i = int(cid)
             self.complaints[cid_i] = Complaint.deserialize(self, cid_i, self.storage["complaints"][cid])
 
-        # Migration 2.3 -> 2.4
-        if "bugscore" in self.storage:
-            self.logger.info("Migrating 2.3 -> 2.4")
-            struct = self.default_storage(container="bugscore")
-            struct["bugscore"] = self.storage["bugscore"]
-            Storage.set(self, struct, container="bugscore")
-            del self.storage["bugscore"]
-            Storage.save(self)
-            Storage.save(self, container="bugscore")
-            self.bugscore = Storage.get(self, container="bugscore")["bugscore"]
-
         self.reset_highest_id()
 
     def default_storage(self, container=None):
