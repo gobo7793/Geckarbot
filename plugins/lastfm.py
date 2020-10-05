@@ -349,9 +349,37 @@ class Plugin(BasePlugin, name="LastFM"):
         return top_matches, top_song_index
 
     @staticmethod
-    def calc_scores(songs):
+    def tiebreaker(scores, songs, mitype):
         """
-        Counts the occurences of artists, songs and albums in a list of song dicts.
+        If multiple entries share the first place, decrease the score of all entries that are not the first
+        to appear in the list of songs.
+        :param scores: Scores entry dict as calculated by calc_scores
+        :param songs: List of songs that the scores were calculated for
+        :param mitype: MostInterestingType object that represents the layer that is to be tie-broken
+        :return:
+        """
+        s = sorted(scores.keys(), key=lambda x: scores[x], reverse=True)
+        first = [el for el in s if scores[el] == scores[s[0]]]
+        found = False
+        for song in songs:
+            fact = None
+            if mitype == MostInterestingType.ARTIST:
+                fact = song["artist"]
+            elif mitype == MostInterestingType.ALBUM:
+                fact = song["artist"], song["album"]
+            elif mitype == MostInterestingType.TITLE:
+                fact = song["artist"], song["title"]
+            if fact in first:
+                first.remove(fact)
+                found = True
+                break
+        assert found
+        for el in first:
+            scores[el] -= 1
+
+    def calc_scores(self, songs):
+        """
+        Counts the occurences of artists, songs and albums in a list of song dicts and assigns scores
         :param songs: list of songs
         :return: nested dict that contains scores for every artist, song and album
         """
@@ -375,11 +403,19 @@ class Plugin(BasePlugin, name="LastFM"):
                 r["titles"][song["artist"], song["title"]] += 1
             else:
                 r["titles"][song["artist"], song["title"]] = 1
+
+        # Tie-breakers
+        self.tiebreaker(r["artists"], songs, MostInterestingType.ARTIST)
+        self.tiebreaker(r["albums"], songs, MostInterestingType.ALBUM)
+        self.tiebreaker(r["titles"], songs, MostInterestingType.TITLE)
+
         return r
 
     async def most_interesting(self, ctx, user):
         pagelen = 10
-        factor = 0.65
+        factor_album = 0.4
+        factor_title = 0.5
+        factor_artist = 0.5
         lfmuser = self.get_lastfm_user(user)
         params = {
             "method": "user.getRecentTracks",
@@ -390,7 +426,7 @@ class Plugin(BasePlugin, name="LastFM"):
         songs = self.build_songs(response)
 
         # Calc counts
-        scores = self.calc_scores(songs)
+        scores = self.calc_scores(songs[:pagelen])
         best_artist = sorted(scores["artists"].keys(), key=lambda x: scores["artists"][x], reverse=True)[0]
         best_artist_count = scores["artists"][best_artist]
         best_album = sorted(scores["albums"].keys(), key=lambda x: scores["albums"][x], reverse=True)[0]
@@ -404,16 +440,15 @@ class Plugin(BasePlugin, name="LastFM"):
         mi = None
         mi_score = 0
         mi_fact = None
-        tobreak = len(songs) * factor
-        if best_artist_count > tobreak:
+        if best_artist_count >= pagelen * factor_artist:
             mi = MostInterestingType.ARTIST
             mi_score = best_artist_count
             mi_fact = best_artist
-        if best_album_count > tobreak:
+        if best_album_count >= pagelen * factor_album:
             mi = MostInterestingType.ALBUM
             mi_score = best_album_count
             mi_fact = best_album_artist, best_album
-        if best_title_count > tobreak:
+        if best_title_count >= pagelen * factor_title:
             mi = MostInterestingType.TITLE
             mi_score = best_title_count
             mi_fact = best_title_artist, best_title
