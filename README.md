@@ -1,6 +1,8 @@
 # Geckarbot
 A simple discord bot for the Communityserver
 
+Note that the releases are accessible using the Tags, Github Releases or the Release branch.
+
 ### Requirements from server administration
 - Blacklist and unsubscribing from bot games participation
 - No (execution of) special rights which aren't wanted by administration or users
