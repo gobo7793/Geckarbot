@@ -6,7 +6,7 @@ from discord.ext import commands
 from base import BasePlugin, NotFound
 from conf import Storage, Config, Lang
 from botutils import converters
-from botutils.stringutils import paginate
+from botutils.stringutils import paginate, format_andlist
 
 
 h_usage = "[full]"
@@ -239,15 +239,25 @@ class Plugin(BasePlugin, name="Feedback"):
             await ctx.send(el)
 
     @redact.command(name="del", help="Deletes a complaint", usage=h_del_usage)
-    async def cmd_delete(self, ctx, complaint: int):
+    async def cmd_delete(self, ctx, *args):
+        cids, _ = self.parse_args(args)
+        cids = set(cids)
+        not_found = []
         # Delete
-        try:
-            del self.complaints[complaint]
-        except KeyError:
+        for cid in cids:
+            if cid not in self.complaints:
+                not_found.append("**#{}**".format(cid))
+        if not_found:
             await ctx.message.add_reaction(Lang.CMDERROR)
-            await ctx.send(Lang.lang(self, "redact_del_not_found", complaint))
+            await ctx.send(Lang.lang(self, "redact_del_not_found", format_andlist(not_found)))
             return
-        # await ctx.send(lang['complaint_removed'].format(i))
+        for cid in cids:
+            try:
+                del self.complaints[cid]
+            except KeyError:
+                await ctx.message.add_reaction(Lang.CMDERROR)
+                await ctx.send("PANIC")
+                return
         self.write()
         self.reset_highest_id()
         await ctx.message.add_reaction(Lang.CMDSUCCESS)
