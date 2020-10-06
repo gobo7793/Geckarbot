@@ -6,7 +6,7 @@ from discord.ext import commands
 from datetime import datetime
 
 from base import BaseSubsystem
-from conf import Storage, ConfigurableContainer, Lang
+from conf import Storage, Lang
 from botutils import utils
 from botutils.converters import get_best_username
 from subsystems import timers
@@ -233,7 +233,7 @@ class Ignoring(BaseSubsystem):
 
     def __init__(self, bot):
         super().__init__(bot)
-        bot.plugins.append(ConfigurableContainer(self))
+        bot.plugins.append(self)
         self.log = logging.getLogger("ignoring")
 
         self.additional_cmds = []
@@ -472,7 +472,7 @@ class Ignoring(BaseSubsystem):
         """
         remove_result = self.remove(job.data)
         msg = "Attempt auto-removing {}, Result: {}".format(job.data, str(remove_result))
-        await utils.write_admin_channel(self.bot, msg)
+        await utils.write_mod_channel(msg)
 
     def remove_user(self, user: discord.User):
         """

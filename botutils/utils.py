@@ -3,12 +3,11 @@ from typing import Union
 import discord
 import datetime
 import random
-from discord.ext.commands.bot import Bot
 
+from conf import Config
 from botutils.converters import get_embed_str
 from botutils.timeutils import to_local_time
 from botutils.stringutils import paginate
-from conf import Config
 import logging
 
 chan_logger = logging.getLogger("channel")
@@ -47,12 +46,12 @@ def paginate_embed(embed: discord.Embed):
         raise Exception(f"Embed is still to long! Title: {embed.title}")
 
 
-async def _write_to_channel(bot: Bot, channel_id: int = 0, message: Union[str, discord.Embed] = None,
+async def _write_to_channel(channel_id: int = 0, message: Union[str, discord.Embed] = None,
                             channel_type: str = ""):
     """
-    Writes a message to a channel and logs the message
+    Writes a message to a channel and logs the message..
+    Doesn't write if DEBUG_MODE is True.
 
-    :param bot: The bot
     :param channel_id: The channel ID of the channel to send a message to
     :param message: The message or embed to send
     :param channel_type: The channel type or name for the logging output
@@ -60,8 +59,8 @@ async def _write_to_channel(bot: Bot, channel_id: int = 0, message: Union[str, d
     log_msg = get_embed_str(message)
     chan_logger.info(f"{channel_type} : {log_msg}")
 
-    channel = bot.get_channel(channel_id)
-    if not Config().DEBUG_MODE and channel is not None and message is not None and message:
+    channel = Config().bot.get_channel(channel_id)
+    if not Config().bot.DEBUG_MODE and channel is not None and message is not None and message:
         if isinstance(message, discord.Embed):
             paginate_embed(message)
             await channel.send(embed=message)
@@ -73,39 +72,85 @@ async def _write_to_channel(bot: Bot, channel_id: int = 0, message: Union[str, d
                 await channel.send(msg)
 
 
-async def write_debug_channel(bot: Bot, message):
-    """Writes the given message or embed to the debug channel"""
-    await _write_to_channel(bot, Config().DEBUG_CHAN_ID, message, "debug")
-
-
-async def write_admin_channel(bot: Bot, message):
-    """Writes the given message or embed to the admin channel"""
-    await _write_to_channel(bot, Config().ADMIN_CHAN_ID, message, "admin")
-
-
-async def log_to_admin_channel_without_ctx(bot, **kwargs):
+async def write_debug_channel(message: Union[str, discord.Embed]):
     """
-    Logs the kwargs as embed fileds to the admin channel
-    Doesn't log if Config().DEBUG_MODE is True.
-    :param bot: the bot instance
-    :param kwargs: the key-value-list for the fields
+    Writes the given message or embed to the debug channel.
+    Doesn't write if DEBUG_MODE is True.
+
+    :param message: The message or embed to write
+    """
+    await _write_to_channel(Config().bot.DEBUG_CHAN_ID, message, "debug")
+
+
+async def write_admin_channel(message: Union[str, discord.Embed]):
+    """
+    Writes the given message or embed to the admin channel.
+    Doesn't write if DEBUG_MODE is True.
+
+    :param message: The message or embed to write
+    """
+    await _write_to_channel(Config().bot.ADMIN_CHAN_ID, message, "admin")
+
+
+async def write_mod_channel(message: Union[str, discord.Embed]):
+    """
+    Writes the given message or embed to the mod channel.
+    Doesn't write if DEBUG_MODE is True.
+
+    :param message: The message or embed to write
+    """
+    await _write_to_channel(Config().bot.MOD_CHAN_ID, message, "mod")
+
+
+async def _log_without_ctx_to_channel(func, **kwargs):
+    """
+    Performs the log_to_..._channel_without_ctx and writes to channel using func.
+    func must be the signature async def func(message/embed).
     """
     timestamp = to_local_time(datetime.datetime.now()).strftime('%d.%m.%Y, %H:%M')
 
-    embed = discord.Embed(title="Admin log event")
+    embed = discord.Embed(title="Log event")
     embed.add_field(name="Timestamp", value=timestamp)
     for key, value in kwargs.items():
         embed.add_field(name=str(key), value=str(value))
 
-    await write_admin_channel(bot, embed)
+    await func(embed)
 
 
-async def log_to_admin_channel(context):
+async def log_to_debug_channel_without_ctx(**kwargs):
     """
-    Logs the context to admin channel with following content:
-    Author name, Timestamp, Channel name, Message.
-    Doesn't log if Config().DEBUG_MODE is True.
-    :param context: The context to log to the admin channel
+    Logs the kwargs as embed fields to the debug channel.
+    Doesn't log if DEBUG_MODE is True.
+
+    :param kwargs: the key-value-list for the fields
+    """
+    await _log_without_ctx_to_channel(write_debug_channel, **kwargs)
+
+
+async def log_to_admin_channel_without_ctx(**kwargs):
+    """
+    Logs the kwargs as embed fields to the admin channel.
+    Doesn't log if DEBUG_MODE is True.
+
+    :param kwargs: the key-value-list for the fields
+    """
+    await _log_without_ctx_to_channel(write_admin_channel, **kwargs)
+
+
+async def log_to_mod_channel_without_ctx(**kwargs):
+    """
+    Logs the kwargs as embed fields to the mod channel.
+    Doesn't log if DEBUG_MODE is True.
+
+    :param kwargs: the key-value-list for the fields
+    """
+    await _log_without_ctx_to_channel(write_mod_channel, **kwargs)
+
+
+async def _log_to_channel(context, func):
+    """
+    Writes the given context using func.
+    func must be the signature async def func(message/embed).
     """
     timestamp = to_local_time(context.message.created_at).strftime('%d.%m.%Y, %H:%M')
 
@@ -116,7 +161,40 @@ async def log_to_admin_channel(context):
     embed.add_field(name="Timestamp", value=timestamp)
     embed.add_field(name="URL", value=context.message.jump_url)
 
-    await write_admin_channel(context.bot, embed)
+    await func(embed)
+
+
+async def log_to_debug_channel(context):
+    """
+    Logs the context to debug channel with following content:
+    Author name, Timestamp, Channel name, Message.
+    Doesn't log if DEBUG_MODE is True.
+
+    :param context: The context to log
+    """
+    await _log_to_channel(context, write_debug_channel)
+
+
+async def log_to_admin_channel(context):
+    """
+    Logs the context to admin channel with following content:
+    Author name, Timestamp, Channel name, Message.
+    Doesn't log if DEBUG_MODE is True.
+
+    :param context: The context to log
+    """
+    await _log_to_channel(context, write_admin_channel)
+
+
+async def log_to_mod_channel(context):
+    """
+    Logs the context to mod channel with following content:
+    Author name, Timestamp, Channel name, Message.
+    Doesn't log if DEBUG_MODE is True.
+
+    :param context: The context to log
+    """
+    await _log_to_channel(context, write_mod_channel)
 
 
 def trueshuffle(p):

@@ -33,11 +33,16 @@
         "scores_prefix": "Scores for league {} in Week {}",
         "on_bye": "Bye",
         "matchup_name": "Match #{}",
-        "matchup_data": "{0:25} vs. {1:25} {2:6.2f} - {3:6.2f}\n",
+        "matchup_data": "{0}\n{2}\n{1:6.2f} - {3:6.2f}",
         "no_leagues": "Sorry, but I have no leagues to show something.",
         "standings_data": "{}. {} ({}-{})",
         "overall": "Overall",
-        "division": "Division"
+        "division": "Division",
+        "team_not_found": "I can't find a team called {}.",
+        "box_prefix": "{} (in {}, Week {})",
+        "box_data": "{} {} ({}) [Proj. {} | **Pts. {}**]",
+        "box_suffix": "**Total: {} Pts.**",
+        "box_footer": "Opponent: {}, {} Pts."
     },
     "de": {
         "channel_id": "Die Channel-ID für das !dsc set-Kommando muss eine gültige ID auf diesem Server sein.",
@@ -77,6 +82,11 @@
         "no_leagues": "Sorry, aber ich hab keine Ligen, von denen ich irgendwas anzeigen könnte.",
         "standings_data": "{}. {} ({}-{})",
         "overall": "Overall",
-        "division": "Division"
+        "division": "Division",
+        "team_not_found": "Ich kann kein Team mit dem Namen {} finden.",
+        "box_prefix": "{} (in {}, Week {})",
+        "box_data": "{} {} ({}) [Proj. {} | **Pts. {}**]",
+        "box_suffix": "**Gesamt: {} Pts.**",
+        "box_footer": "Gegner: {}, {} Pts."
     }
 }

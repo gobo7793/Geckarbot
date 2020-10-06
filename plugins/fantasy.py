@@ -1,26 +1,28 @@
+import logging
 from collections import OrderedDict
+from datetime import datetime, timedelta
 from enum import IntEnum
 from threading import Thread
 from typing import Dict, Optional, Union, List
-import logging
 
 import discord
-from espn_api.football import League
-
-from datetime import datetime, timedelta
 from discord.ext import commands
+from espn_api.football import League, Team
 
 import botutils.timeutils
-from conf import Config, Storage, Lang
+from base import BasePlugin
 from botutils import stringutils, permchecks
+from botutils.converters import get_best_username, get_best_user
 from botutils.timeutils import from_epoch_ms
 from botutils.utils import add_reaction
-from botutils.converters import get_best_username, get_best_user
-from Geckarbot import BasePlugin
+from conf import Config, Storage, Lang
 from subsystems import timers
 
-
 # Repo link for pip package for ESPN API https://github.com/cwendt94/espn-api
+
+
+log = logging.getLogger("fantasy")
+pos_alphabet = {"Q": 0, "R": 1, "W": 2, "T": 3, "F": 4, "D": 5, "K": 6, "B": 7}
 
 
 class FantasyState(IntEnum):
@@ -61,7 +63,7 @@ class FantasyLeague:
         self.espn = League(year=self.plugin.year, league_id=self.espn_id,
                            espn_s2=Storage.get(self.plugin)["api"]["espn_s2"],
                            swid=Storage.get(self.plugin)["api"]["swid"])
-        logging.getLogger("fantasy").info("League {}, ID {} connected".format(self.name, self.espn_id))
+        log.info("League {}, ID {} connected".format(self.name, self.espn_id))
 
     def __str__(self):
         return "<fantasy.FantasyLeague; espn_id: {}, commish: {}, espn: {}>".format(
@@ -111,7 +113,7 @@ class FantasyLeague:
         :param d: dict made by serialize()
         :return: FantasyLeague object
         """
-        return FantasyLeague(plugin, d['espn_id'], get_best_user(plugin.bot, d['commish']))
+        return FantasyLeague(plugin, d['espn_id'], get_best_user(d['commish']))
 
 
 def _get_division_standings(league: FantasyLeague):
@@ -148,12 +150,14 @@ class Plugin(BasePlugin, name="NFL Fantasyliga"):
 
     def default_config(self):
         return {
-            "version": 2,
+            "version": 3,
             "channel_id": 0,
             "mod_role_id": 0,
             "url_base_league": "https://fantasy.espn.com/football/league?leagueId=",
             "url_base_scoreboard": "https://fantasy.espn.com/football/league/scoreboard?leagueId=",
-            "url_base_standings": "https://fantasy.espn.com/football/league/standings?leagueId="
+            "url_base_standings": "https://fantasy.espn.com/football/league/standings?leagueId=",
+            "url_base_boxscore":
+                "https://fantasy.espn.com/football/boxscore?leagueId={}&matchupPeriodId={}&seasonId={}&teamId={}"
         }
 
     def default_storage(self):
@@ -173,13 +177,22 @@ class Plugin(BasePlugin, name="NFL Fantasyliga"):
             }
         }
 
+    def shutdown(self):
+        self._stop_score_timer()
+
     @property
     def year(self):
         return self.start_date.year
 
+    def get_boxscore_link(self, league: FantasyLeague, week, teamid):
+        return Config.get(self)["url_base_boxscore"].format(league.espn_id, week, league.year, teamid)
+
     def _load(self):
         """Loads the league settings from Storage"""
-        self.supercommish = get_best_user(self.bot, Storage.get(self)["supercommish"])
+        if Config.get(self)["version"] == 2:
+            self._update_config_from_2_to_3()
+
+        self.supercommish = get_best_user(Storage.get(self)["supercommish"])
         self.state = Storage.get(self)["state"]
         self.date = Storage.get(self)["date"]
         self.status = Storage.get(self)["status"]
@@ -211,6 +224,15 @@ class Plugin(BasePlugin, name="NFL Fantasyliga"):
         Storage.save(self)
         Config.save(self)
 
+    def _update_config_from_2_to_3(self):
+        log.info("Updating config from version 2 to version 3")
+
+        Config.get(self)["url_base_boxscore"] = self.default_config()["url_base_boxscore"]
+        Config.get(self)["version"] = 3
+        Config.save(self)
+
+        log.info("Update finished")
+
     def _start_score_timer(self):
         """
         Starts the timer for auto-send scores to channel.
@@ -219,8 +241,8 @@ class Plugin(BasePlugin, name="NFL Fantasyliga"):
         """
         if not self.use_timers:
             return
-        if Config().DEBUG_MODE:
-            logging.getLogger("fantasy").warning("DEBUG MODE is on, fantasy timers will not be started!")
+        if self.bot.DEBUG_MODE:
+            log.warning("DEBUG MODE is on, fantasy timers will not be started!")
             return
 
         self._stop_score_timer()
@@ -259,58 +281,129 @@ class Plugin(BasePlugin, name="NFL Fantasyliga"):
         if ctx.invoked_subcommand is None:
             await ctx.invoke(self.bot.get_command('fantasy info'))
 
-    @fantasy.command(name="scores", help="Gets the matchup scores")
-    async def scores(self, ctx, week: int = 0):
+    @fantasy.command(name="scores", help="Gets the matchup scores", usage="[week] [team]",
+                     description="Gets the current machtup scores or the scores from the given week. "
+                                 "If a team name or abbreviation is given, the boxscores for the team for "
+                                 "the current or given week is returned.")
+    async def scores(self, ctx, *args):
+        week = 0
+        team_name = None
+        try:
+            week = int(args[0])
+            if len(args) > 1:
+                team_name = " ".join(args[1:])
+        except (IndexError, ValueError):
+            if len(args) > 0:
+                team_name = " ".join(args)
+
         async with ctx.typing():
-            await self._write_scores(ctx.channel, week)
+            await self._write_scores(channel=ctx.channel, week=week, team_name=team_name)
 
     async def _score_send_callback(self, job):
         """Callback method for the timer to auto-send current scores to fantasy channel"""
         channel = self.bot.get_channel(Config.get(self)['channel_id'])
         if channel is not None:
-            await self._write_scores(channel, False, job.data)
+            await self._write_scores(channel=channel, show_errors=False, previous_week=job.data)
 
-    async def _write_scores(self, channel: discord.TextChannel, week: int = 0, show_errors=True, previous_week=False):
+    async def _write_scores(self, *, channel: discord.TextChannel, week: int = 0, team_name: str = None,
+                            show_errors=True, previous_week=False):
         """Send the current scores of given week to given channel"""
         if not self.leagues:
             if show_errors:
                 await channel.send(Lang.lang(self, "no_leagues"))
             return
 
+        is_team_in_any_league = False
         for league in self.leagues.values():
+            lweek = week
             if week == 0:
-                week = league.espn.current_week
+                lweek = league.espn.current_week
             if previous_week:
-                week -= 1
-            if week < 1:
-                week = 1
-            elif week > league.espn.current_week:
-                week = league.espn.current_week
-            prefix = Lang.lang(self, "scores_prefix", league.name, week)
-            embed = discord.Embed(title=prefix, url=league.scoreboard_url)
+                lweek -= 1
+            if lweek < 1:
+                lweek = 1
 
-            match_no = 0
-            bye_team = None
-            bye_pts = 0
-            for match in league.espn.box_scores(week):
-                if match.home_team is None or match.home_team == 0:
-                    bye_team = match.away_team.team_name
-                    bye_pts = match.away_score
+            if team_name is None:
+                embed = self._get_league_score_embed(league, lweek)
+            else:
+                team = next((t for t in league.espn.teams
+                             if team_name.lower() in t.team_name.lower()
+                             or t.team_abbrev.lower() == team_name.lower()), None)
+                if team is None:
                     continue
-                elif match.away_team is None or match.away_team == 0:
-                    bye_team = match.home_team.team_name
-                    bye_pts = match.home_score
-                    continue
-                match_no += 1
-                name_str = Lang.lang(self, "matchup_name", match_no)
-                value_str = Lang.lang(self, "matchup_data", match.away_team.team_name, match.away_score,
-                                      match.home_team.team_name, match.home_score)
-                embed.add_field(name=name_str, value=value_str)
+                embed = self._get_boxscore_embed(league, team, lweek)
+                is_team_in_any_league = True
 
-            if bye_team is not None:
-                embed.add_field(name=Lang.lang(self, "on_bye"), value="{} ({:6.2f})".format(bye_team, bye_pts))
+            if embed is not None:
+                await channel.send(embed=embed)
 
-            await channel.send(embed=embed)
+        if team_name is not None and not is_team_in_any_league:
+            await channel.send(Lang.lang(self, "team_not_found", team_name))
+
+    def _get_league_score_embed(self, league: FantasyLeague, week: int):
+        """Builds the discord.Embed for scoring overview in league with all matches"""
+        prefix = Lang.lang(self, "scores_prefix", league.name,
+                           week if week <= league.espn.current_week else league.espn.current_week)
+        embed = discord.Embed(title=prefix, url=league.scoreboard_url)
+
+        match_no = 0
+        bye_team = None
+        bye_pts = 0
+        for match in league.espn.box_scores(week):
+            if match.home_team is None or match.home_team == 0 or not match.home_team:
+                bye_team = match.away_team.team_name
+                bye_pts = match.away_score
+                continue
+            elif match.away_team is None or match.away_team == 0 or not match.away_team:
+                bye_team = match.home_team.team_name
+                bye_pts = match.home_score
+                continue
+            match_no += 1
+            name_str = Lang.lang(self, "matchup_name", match_no)
+            value_str = Lang.lang(self, "matchup_data", match.away_team.team_name, match.away_score,
+                                  match.home_team.team_name, match.home_score)
+            embed.add_field(name=name_str, value=value_str)
+
+        if bye_team is not None:
+            embed.add_field(name=Lang.lang(self, "on_bye"), value="{} ({:6.2f})".format(bye_team, bye_pts))
+
+        return embed
+
+    def _get_boxscore_embed(self, league: FantasyLeague, team: Team, week: int):
+        """Builds the discord.Embed for the boxscore for given team in given week"""
+        match = next((b for b in league.espn.box_scores(week) if b.home_team == team or b.away_team == team), None)
+        if match is None:
+            return
+
+        if match.home_team == team:
+            score = match.home_score
+            lineup = match.home_lineup
+            opp_name = match.away_team.team_name
+            opp_score = match.away_score
+        else:
+            score = match.away_score
+            lineup = match.away_lineup
+            opp_name = match.home_team.team_name
+            opp_score = match.home_score
+
+        for pl in lineup:
+            if "RB/WR".lower() in pl.slot_position.lower():
+                pl.slot_position = "FLEX"
+        lineup = sorted(lineup, key=lambda word: [pos_alphabet.get(c, ord(c)) for c in word.slot_position])
+
+        prefix = Lang.lang(self, "box_prefix", team.team_name, league.name, week)
+        embed = discord.Embed(title=prefix, url=self.get_boxscore_link(league, week, team.team_id))
+
+        msg = ""
+        for pl in lineup:
+            if pl.slot_position.lower() != "BE".lower():
+                msg = "{}{}\n".format(msg, Lang.lang(self, "box_data", pl.slot_position, pl.name,
+                                                     pl.proTeam, pl.projected_points, pl.points))
+        msg = "{}\n{}".format(msg, Lang.lang(self, "box_suffix", score))
+
+        embed.description = msg
+        embed.set_footer(text=Lang.lang(self, "box_footer", opp_name, opp_score))
+        return embed
 
     @fantasy.command(name="standings", help="Gets the full current standings")
     async def standings(self, ctx):
@@ -320,7 +413,7 @@ class Plugin(BasePlugin, name="NFL Fantasyliga"):
 
         for league in self.leagues.values():
             embed = discord.Embed(title=league.name)
-            embed.url = league.scoreboard_url
+            embed.url = league.standings_url
 
             divisions = _get_division_standings(league)
             for division in divisions:
@@ -411,12 +504,19 @@ class Plugin(BasePlugin, name="NFL Fantasyliga"):
 
             await ctx.send(embed=embed)
 
+    @fantasy.command(name="reload", help="Reloads the league data from ESPN")
+    async def fantasy_reload(self, ctx):
+        async with ctx.typing():
+            for league in self.leagues.values():
+                league.espn._fetch_league()  # workaround until package provides public reload method
+        await add_reaction(ctx.message, Lang.CMDSUCCESS)
+
     @fantasy.group(name="set", help="Set data about the fantasy game.")
     async def fantasy_set(self, ctx):
         is_mod = Config.get(self)['mod_role_id'] != 0 \
                  and Config.get(self)['mod_role_id'] in [role.id for role in ctx.author.roles]
         is_supercomm = self.supercommish is not None and ctx.author.id == self.supercommish.id
-        if not permchecks.check_full_access(ctx.author) and not is_mod and not is_supercomm:
+        if not permchecks.check_mod_access(ctx.author) and not is_mod and not is_supercomm:
             await add_reaction(ctx.message, Lang.CMDNOPERMISSIONS)
             await ctx.send(Lang.lang(self, "no_set_access"))
             return

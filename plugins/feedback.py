@@ -1,4 +1,4 @@
-from copy import deepcopy
+import logging
 
 import discord.utils
 from discord.ext import commands
@@ -18,21 +18,6 @@ h_cat_desc = "Manages complaint categories. Usage:\n" \
              "  !redact category <category>         - lists all complaints in a category.\n" \
              "  !redact category <# ...> <category> - adds complaints to a category.\n" \
              "  !redact category <# ...>            - removes the categories from complaints.\n."
-
-
-def str_keys_to_int(d):
-    """
-    Converts {"22": "foo", "44": "bar"} to {22: "foo", 44: "bar"}
-    """
-    todel = []
-    toadd = {}
-    for el in d:
-        toadd[int(el)] = d[el]
-        todel.append(el)
-    for el in todel:
-        del d[el]
-    for el in toadd:
-        d[el] = toadd[el]
 
 
 class Complaint:
@@ -106,30 +91,45 @@ class Plugin(BasePlugin, name="Feedback"):
         super().__init__(bot)
         bot.register(self)
 
+        self.logger = logging.getLogger(__name__)
         self.storage = Storage.get(self)
+        self.bugscore = Storage.get(self, container="bugscore")["bugscore"]
         self.complaints = {}
         self.highest_id = None
 
-        # Load complaints from storage
-        if self.storage is None:
-            self.storage = deepcopy(self.default_storage())
-        else:
-            str_keys_to_int(self.storage["complaints"])
-        for cid in self.storage["complaints"]:
-            self.complaints[cid] = Complaint.deserialize(self, cid, self.storage["complaints"][cid])
-
-        # Migration 1.7 -> 1.8
-        if "bugscore" not in self.storage:
-            self.storage["bugscore"] = {}
+        if "version" not in self.storage:
+            self.storage["version"] = 1
             Storage.save(self)
+        self.complaints_version = self.storage["version"]
+
+        for cid in self.storage["complaints"]:
+            cid_i = int(cid)
+            self.complaints[cid_i] = Complaint.deserialize(self, cid_i, self.storage["complaints"][cid])
+
+        # Migration 2.3 -> 2.4
+        if "bugscore" in self.storage:
+            self.logger.info("Migrating 2.3 -> 2.4")
+            struct = self.default_storage(container="bugscore")
+            struct["bugscore"] = self.storage["bugscore"]
+            Storage.set(self, struct, container="bugscore")
+            del self.storage["bugscore"]
+            Storage.save(self)
+            Storage.save(self, container="bugscore")
+            self.bugscore = Storage.get(self, container="bugscore")["bugscore"]
 
         self.reset_highest_id()
 
-    def default_storage(self):
-        return {
-            "complaints": {},
-            "bugscore": {},
-        }
+    def default_storage(self, container=None):
+        if container is None:
+            return {
+                "complaints": {},
+                "version": 1,
+            }
+        elif container == "bugscore":
+            return {
+                "bugscore": {},
+                "version": 1,
+            }
 
     def command_usage(self, command):
         if command.name == "complain":
@@ -150,18 +150,19 @@ class Plugin(BasePlugin, name="Feedback"):
             raise NotFound()
 
     def reset_highest_id(self):
-        self.highest_id = 1
+        self.highest_id = 0
         for el in self.complaints:
             assert el > 0
             if el > self.highest_id:
                 self.highest_id = el
 
-    def get_new_id(self):
+    def get_new_id(self, increment=True):
         """
         Acquires a new complaint id
         :return: free unique id that can be used for a new complaint
         """
-        self.highest_id += 1
+        if increment:
+            self.highest_id += 1
         return self.highest_id
 
     def write(self):
@@ -179,8 +180,8 @@ class Plugin(BasePlugin, name="Feedback"):
         for arg in args:
             if arg in ignore:
                 continue
-            if arg == "last":
-                ids.append(len(self.complaints) - 1)
+            if arg == "last" or arg == "-1":
+                ids.append(self.get_new_id(increment=False))
                 continue
 
             isint = False
@@ -201,7 +202,7 @@ class Plugin(BasePlugin, name="Feedback"):
                     usage=h_usage,
                     description="Returns the accumulated feedback. Use [del x] to delete feedback #x"
                                 "and [full] to include categorized complaints.")
-    @commands.has_any_role(Config().ADMIN_ROLE_ID, Config().BOTMASTER_ROLE_ID)
+    @commands.has_any_role(*Config().ADMIN_ROLES)
     async def redact(self, ctx, *args):
         aliases = ["all", "full"]
         full = True if len(args) > 0 and args[0] in aliases else False
@@ -441,7 +442,7 @@ class Plugin(BasePlugin, name="Feedback"):
         users = sorted(
             sorted(
                 [(converters.get_best_username(discord.utils.get(self.bot.guild.members, id=user)), n) for (user, n) in
-                 self.storage["bugscore"].items()],
+                 self.bugscore.items()],
                 key=lambda x: x[0].lower()),
             key=lambda x: x[1],
             reverse=True
@@ -461,7 +462,7 @@ class Plugin(BasePlugin, name="Feedback"):
             await ctx.send(msg)
 
     async def bugscore_del(self, ctx, user):
-        if discord.utils.get(ctx.author.roles, id=Config().BOTMASTER_ROLE_ID) is None:
+        if discord.utils.get(ctx.author.roles, id=Config().BOT_ADMIN_ROLE_ID) is None:
             await ctx.message.add_reaction(Lang.CMDNOPERMISSIONS)
             return
         try:
@@ -471,16 +472,16 @@ class Plugin(BasePlugin, name="Feedback"):
             await ctx.message.add_reaction(Lang.CMDERROR)
             return
 
-        if user.id in self.storage["bugscore"]:
-            del self.storage["bugscore"][user.id]
+        if user.id in self.bugscore:
+            del self.bugscore[user.id]
             Storage.save(self)
             await ctx.message.add_reaction(Lang.CMDSUCCESS)
         else:
             await ctx.message.add_reaction(Lang.CMDNOCHANGE)
 
-    @commands.has_any_role(Config().BOTMASTER_ROLE_ID)
+    @commands.has_any_role(Config().BOT_ADMIN_ROLE_ID)
     async def bugscore_increment(self, ctx, user, increment):
-        if discord.utils.get(ctx.author.roles, id=Config().BOTMASTER_ROLE_ID) is None:
+        if discord.utils.get(ctx.author.roles, id=Config().BOT_ADMIN_ROLE_ID) is None:
             await ctx.message.add_reaction(Lang.CMDNOPERMISSIONS)
             return
 
@@ -499,13 +500,13 @@ class Plugin(BasePlugin, name="Feedback"):
             await ctx.message.add_reaction(Lang.CMDERROR)
             return
 
-        if user.id in self.storage["bugscore"]:
-            self.storage["bugscore"][user.id] += increment
+        if user.id in self.bugscore:
+            self.bugscore[user.id] += increment
         else:
-            self.storage["bugscore"][user.id] = increment
-        if self.storage["bugscore"][user.id] <= 0:
-            del self.storage["bugscore"][user.id]
-        Storage.save(self)
+            self.bugscore[user.id] = increment
+        if self.bugscore[user.id] <= 0:
+            del self.bugscore[user.id]
+        Storage.save(self, container="bugscore")
         await ctx.message.add_reaction(Lang.CMDSUCCESS)
 
     @commands.command(name="bugscore", help="High score for users who found bugs",

@@ -58,8 +58,7 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
 
     def get_api_client(self):
         """Returns a client to access Google Sheets API for the dsc contestdoc sheet"""
-        return sheetsclient.Client(Config.get(self)['contestdoc_id'])
-        pass
+        return sheetsclient.Client(self.bot, Config.get(self)['contestdoc_id'])
 
     def _get_doc_link(self):
         return "https://docs.google.com/spreadsheets/d/{}".format(Config.get(self)['contestdoc_id'])
@@ -139,7 +138,7 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
             await ctx.send(Lang.lang(self, 'must_set_host'))
             return
 
-        host_nick = get_best_user(self.bot, Storage.get(self)['host_id'])
+        host_nick = get_best_user(Storage.get(self)['host_id'])
 
         embed = discord.Embed()
         embed.add_field(name=Lang.lang(self, 'current_host'), value=host_nick.mention)
@@ -169,10 +168,10 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
 
     @dsc.group(name="set", help="Set data about current/next DSC.")
     async def dsc_set(self, ctx):
-        if (not permchecks.check_full_access(ctx.author)
+        if (not permchecks.check_mod_access(ctx.author)
                 and Config.get(self)['mod_role_id'] != 0
                 and Config.get(self)['mod_role_id'] not in [role.id for role in ctx.author.roles]):
-            raise commands.BotMissingAnyRole([*Config().FULL_ACCESS_ROLES, Config.get(self)['mod_role_id']])
+            raise commands.BotMissingAnyRole([*Config().ADMIN_ROLES, Config.get(self)['mod_role_id']])
         if Config.get(self)['channel_id'] != 0 and Config.get(self)['channel_id'] != ctx.channel.id:
             raise commands.CheckFailure()
 

@@ -7,7 +7,7 @@ from typing import Optional, List, Dict
 import discord
 
 from base import BaseSubsystem
-from conf import ConfigurableContainer, Config, Storage
+from conf import Config, Storage
 from subsystems.timers import Job, timedict
 
 """
@@ -93,13 +93,13 @@ class Presence(BaseSubsystem):
         self._timer_job = None  # type: Optional[Job]
 
         self.log.info("Initializing presence subsystem")
-        bot.plugins.append(ConfigurableContainer(self))
+        bot.plugins.append(self)
         self._load()
 
         @bot.listen()
         async def on_connect():
-            if Config().DEBUG_MODE:
-                init_msg = "in Debug-Mode"
+            if bot.DEBUG_MODE:
+                init_msg = "in debug mode"
             else:
                 init_msg = Config.get(self)["loading_msg"]
             await self._set_presence(init_msg)
@@ -164,7 +164,7 @@ class Presence(BaseSubsystem):
         if len(message_list) < 1:
             return 0
         if len(message_list) == 1:
-            return message_list[0]
+            return message_list[0].presence_id
 
         while True:
             select = random.choice(message_list)
@@ -183,7 +183,7 @@ class Presence(BaseSubsystem):
         self.messages = {}
         self.highest_id = None
 
-        self.messages[0] = PresenceMessage(self.bot, 0, "Version {}".format(Config().VERSION))
+        self.messages[0] = PresenceMessage(self.bot, 0, "Version {}".format(self.bot.VERSION))
         for el in Storage.get(self):
             presence_msg = PresenceMessage.deserialize(self.bot, el)
             self.messages[presence_msg.presence_id] = presence_msg

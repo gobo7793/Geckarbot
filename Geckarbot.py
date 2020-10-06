@@ -16,7 +16,7 @@ import injections
 import subsystems
 from base import BasePlugin, NotLoadable, ConfigurableType
 from botutils import utils, permchecks, converters, stringutils
-from conf import Config, ConfigurableContainer, Lang, Storage
+from conf import Config, Lang, Storage, ConfigurableData
 from subsystems import timers, reactions, ignoring, dmlisteners, help, presence
 
 
@@ -32,8 +32,41 @@ class Exitcodes(Enum):
 
 
 class Geckarbot(commands.Bot):
+    """
+    Basic bot info
+    """
+    NAME = "Geckarbot"
+    VERSION = "2.4.0"
+    PLUGIN_DIR = "plugins"
+    CORE_PLUGIN_DIR = "coreplugins"
+    CONFIG_DIR = "config"
+    STORAGE_DIR = "storage"
+    LANG_DIR = "lang"
+    DEFAULT_LANG = "en"
+    RESOURCE_DIR = "resource"
+
+    """
+    Config
+    """
+    TOKEN = None
+    SERVER_ID = None
+    CHAN_IDS = None
+    ROLE_IDS = None
+    DEBUG_MODE = None
+    DEBUG_USERS = None
+    GOOGLE_API_KEY = None
+    LANGUAGE_CODE = None
+
+    ADMIN_CHAN_ID = None
+    DEBUG_CHAN_ID = None
+    MOD_CHAN_ID = None
+    SERVER_ADMIN_ROLE_ID = None
+    BOT_ADMIN_ROLE_ID = None
+    MOD_ROLE_ID = None
+    ADMIN_ROLES = None
+    MOD_ROLES = None
+
     def __init__(self, *args, **kwargs):
-        # self.geck_cogs = []
         self.guild = None
         self._plugins = []
 
@@ -42,6 +75,7 @@ class Geckarbot(commands.Bot):
         Lang().bot = self
         Config().bot = self
         Storage().bot = self
+        self.load_config()
 
         self.reaction_listener = reactions.ReactionListener(self)
         self.dm_listener = dmlisteners.DMListener(self)
@@ -50,18 +84,54 @@ class Geckarbot(commands.Bot):
         self.helpsys = help.GeckiHelp(self)
         self.presence = presence.Presence(self)
 
+    def load_config(self):
+        """
+        Loads the bot config file and sets all config variables.
+        """
+        dummy = ConfigurableData(Config, self)
+        cfg = dummy.get()
+        self.set_debug_mode(cfg.get('DEBUG_MODE', False))
+        self.TOKEN = cfg.get('DISCORD_TOKEN', 0)
+        self.SERVER_ID = cfg.get('SERVER_ID', 0)
+        self.CHAN_IDS = cfg.get('CHAN_IDS', {})
+        self.ROLE_IDS = cfg.get('ROLE_IDS', {})
+        self.DEBUG_USERS = cfg.get('DEBUG_USERS', cfg.get('DEBUG_WHITELIST', []))
+        self.GOOGLE_API_KEY = cfg.get('GOOGLE_API_KEY', "")
+        self.LANGUAGE_CODE = cfg.get('LANG', self.DEFAULT_LANG)
+
+        self.ADMIN_CHAN_ID = self.CHAN_IDS.get('admin', 0)
+        self.DEBUG_CHAN_ID = self.CHAN_IDS.get('debug', self.CHAN_IDS.get('bot-interna', 0))
+        self.MOD_CHAN_ID = self.CHAN_IDS.get('mod', 0)
+        self.SERVER_ADMIN_ROLE_ID = self.ROLE_IDS.get('server_admin', self.ROLE_IDS.get('admin', 0))
+        self.BOT_ADMIN_ROLE_ID = self.ROLE_IDS.get('bot_admin', self.ROLE_IDS.get('botmaster', 0))
+        self.MOD_ROLE_ID = self.ROLE_IDS.get('mod', 0)
+        self.ADMIN_ROLES = [self.BOT_ADMIN_ROLE_ID, self.SERVER_ADMIN_ROLE_ID]
+        self.MOD_ROLES = [self.BOT_ADMIN_ROLE_ID, self.SERVER_ADMIN_ROLE_ID, self.MOD_ROLE_ID]
+
+    def get_default(self, container=None):
+        raise RuntimeError("Config file missing")
+
     @property
-    def plugins(self) -> List[ConfigurableContainer]:
+    def plugins(self) -> List[BasePlugin]:
         """All plugins including normal and coreplugins"""
         return self._plugins
 
     def get_coreplugins(self) -> List[str]:
         """All coreplugins"""
-        return [c.name for c in self._plugins if c.type == ConfigurableType.COREPLUGIN]
+        return [c.get_name()
+                for c in self._plugins if c.get_configurable_type() == ConfigurableType.COREPLUGIN]
 
     def get_normalplugins(self) -> List[str]:
         """All normal plugins"""
-        return [c.name for c in self._plugins if c.type == ConfigurableType.PLUGIN]
+        return [c.get_name()
+                for c in self._plugins if c.get_configurable_type() == ConfigurableType.PLUGIN]
+
+    def get_available_plugins(self) -> List[str]:
+        """Get all available normal plugins including loaded plugins"""
+        avail = []
+        for modname in pkgutil.iter_modules([self.PLUGIN_DIR]):
+            avail.append(modname.name)
+        return avail
 
     def get_subsystem_list(self) -> List[str]:
         """All normal plugins"""
@@ -69,6 +139,9 @@ class Geckarbot(commands.Bot):
         for modname in pkgutil.iter_modules(subsystems.__path__):
             subsys.append(modname.name)
         return subsys
+
+    def get_name(self):
+        return self.NAME.lower()
 
     def configure(self, plugin):
         Config().load(plugin)
@@ -83,10 +156,8 @@ class Geckarbot(commands.Bot):
         else:
             plugin_object = plugin_class(self)
         self.add_cog(plugin_object)
-        # self.geck_cogs.append(plugin_object)
 
-        container = ConfigurableContainer(plugin_object)
-        self.plugins.append(container)
+        self.plugins.append(plugin_object)
 
         # Load IO
         self.configure(plugin_object)
@@ -102,58 +173,41 @@ class Geckarbot(commands.Bot):
         else:
             cat = self.helpsys.register_category(category)
             cat.add_plugin(plugin_object)
-        container.set_category(cat)
 
         logging.debug("Registered plugin {}".format(plugin_object.get_name()))
 
-    def deregister(self, plugin_instance: BasePlugin):
+    def deregister(self, plugin: BasePlugin):
         """Deregisters the given plugin instance"""
-        self.remove_cog(plugin_instance.qualified_name)
+        self.remove_cog(plugin.qualified_name)
 
-        container = converters.get_plugin_container(self, plugin_instance)
-        if container is None:
+        if plugin not in self.plugins:
             logging.debug("Tried deregistering plugin {}, but plugin is not registered".
-                          format(plugin_instance.get_name()))
+                          format(plugin.get_name()))
             return
 
-        if container.category is not None:
-            container.category.remove_plugin(plugin_instance)
-        self.plugins.remove(container)
+        self.helpsys.category_by_plugin(plugin).remove_plugin(plugin)
+        self.plugins.remove(plugin)
 
-        logging.debug("Deregistered plugin {}".format(plugin_instance.get_name()))
+        logging.debug("Deregistered plugin {}".format(plugin.get_name()))
 
     def plugin_objects(self, plugins_only=False):
         """
         Generator for all registered plugin objects without anything config-related
         """
         for el in self.plugins:
-            if plugins_only and not isinstance(el.instance, BasePlugin):
+            if plugins_only and not isinstance(el, BasePlugin):
                 continue
-            yield el.instance
+            yield el
 
     def load_plugins(self, plugin_dir):
         """
-        Loads all plugins in plugin_dir. Returns a list with the plugin names on which loading failed.
+        Loads all plugins in plugin_dir.
+        :return: Returns a list with the plugin names on which loading failed.
         """
         failed_list = []
         for el in pkgutil.iter_modules([plugin_dir]):
             if not self.load_plugin(plugin_dir, el[1]):
                 failed_list.append(el[1])
-            # plugin = el[1]
-            # is_pkg = el[2]
-            # try:
-            #     to_import = "{}.{}".format(plugin_dir, plugin)
-            #     if is_pkg:
-            #         to_import = "{}.{}.{}".format(plugin_dir, plugin, plugin)
-            #
-            #     pkgutil.importlib.import_module(to_import).Plugin(self)
-            # except NotLoadable as e:
-            #     logging.warning("Plugin {} could not be loaded: {}".format(plugin, e))
-            # except Exception as e:
-            #     logging.error("Unable to load plugin: {}:\n{}".format(plugin, traceback.format_exc()))
-            #     continue
-            # else:
-            #     logging.info("Loaded plugin {}".format(plugin))
         return failed_list
 
     def load_plugin(self, plugin_dir, plugin_name):
@@ -167,13 +221,13 @@ class Geckarbot(commands.Bot):
                 pkgutil.importlib.import_module(to_import).Plugin(self)
         except NotLoadable as e:
             logging.warning("Plugin {} could not be loaded: {}".format(plugin_name, e))
-            plugin_instance = converters.get_plugin_by_name(self, plugin_name)
+            plugin_instance = converters.get_plugin_by_name(plugin_name)
             if plugin_instance is not None:
                 self.deregister(plugin_instance)
             return False
         except Exception as e:
             logging.error("Unable to load plugin: {}:\n{}".format(plugin_name, traceback.format_exc()))
-            plugin_instance = converters.get_plugin_by_name(self, plugin_name)
+            plugin_instance = converters.get_plugin_by_name(plugin_name)
             if plugin_instance is not None:
                 self.deregister(plugin_instance)
             return False
@@ -184,7 +238,7 @@ class Geckarbot(commands.Bot):
     def unload_plugin(self, plugin_name, save_config=True):
         """Unloads the plugin with the given plugin_name, returns True if plugin unloaded successfully"""
         try:
-            plugin = converters.get_plugin_by_name(self, plugin_name)
+            plugin = converters.get_plugin_by_name(plugin_name)
             if plugin is None:
                 return
             self.loop.create_task(plugin.shutdown())
@@ -200,16 +254,15 @@ class Geckarbot(commands.Bot):
             logging.info("Unloaded plugin {}".format(plugin_name))
             return True
 
-    @staticmethod
-    def set_debug_mode(mode):
-        if mode == Config().DEBUG_MODE:
+    def set_debug_mode(self, mode):
+        if mode == self.DEBUG_MODE:
             return
 
         if mode:
-            Config().DEBUG_MODE = True
+            self.DEBUG_MODE = True
         else:
-            Config().DEBUG_MODE = False
-        logging_setup()
+            self.DEBUG_MODE = False
+        logging_setup(debug=mode)
 
     async def shutdown(self, status):
         try:
@@ -222,12 +275,12 @@ class Geckarbot(commands.Bot):
         sys.exit(status)
 
 
-def logging_setup():
+def logging_setup(debug=False):
     """
     Put all debug loggers on info and everything else on info/debug, depending on config
     """
     level = logging.INFO
-    if Config().DEBUG_MODE:
+    if debug:
         level = logging.DEBUG
 
     Path("logs/").mkdir(parents=True, exist_ok=True)
@@ -240,8 +293,7 @@ def logging_setup():
     console_handler.setFormatter(logging.Formatter('%(asctime)s : %(levelname)s : %(name)s : %(message)s'))
     logger = logging.getLogger('')
     logger.setLevel(level)
-    logger.addHandler(file_handler)
-    logger.addHandler(console_handler)
+    logger.handlers = [file_handler, console_handler]
 
     for el in logging.root.manager.loggerDict:
         logger = logging.root.manager.loggerDict[el]
@@ -251,25 +303,24 @@ def logging_setup():
 
 
 def main():
-    Config().load_bot_config()
     injections.pre_injections()
     logging_setup()
     logging.getLogger(__name__).debug("Debug mode: on")
     bot = Geckarbot(command_prefix='!')
     injections.post_injections(bot)
     logging.info("Loading core plugins")
-    failed_plugins = bot.load_plugins(Config().CORE_PLUGIN_DIR)
+    failed_plugins = bot.load_plugins(bot.CORE_PLUGIN_DIR)
 
     @bot.event
     async def on_ready():
         """Loads plugins and prints on server that bot is ready"""
-        guild = discord.utils.get(bot.guilds, id=Config().SERVER_ID)
+        guild = discord.utils.get(bot.guilds, id=bot.SERVER_ID)
         bot.guild = guild
 
         logging.info("Loading plugins")
-        failed_plugins.extend(bot.load_plugins(Config().PLUGIN_DIR))
+        failed_plugins.extend(bot.load_plugins(bot.PLUGIN_DIR))
 
-        if not Config().DEBUG_MODE:
+        if not bot.DEBUG_MODE:
             await bot.presence.start()
 
         logging.info(f"{bot.user} is connected to the following server: "
@@ -278,14 +329,16 @@ def main():
         members = "\n - ".join([member.name for member in guild.members])
         logging.info(f"Server Members:\n - {members}")
 
-        await utils.write_debug_channel(bot, f"Geckarbot {Config().VERSION} connected on "
+        await utils.write_debug_channel(f"Geckarbot {bot.VERSION} connected on "
                                              f"{guild.name} with {len(guild.members)} users.")
-        await utils.write_debug_channel(bot, f"Loaded subsystems: {', '.join(bot.get_subsystem_list())}")
-        await utils.write_debug_channel(bot, f"Loaded coreplugins: {', '.join(bot.get_coreplugins())}")
-        await utils.write_debug_channel(bot, f"Loaded plugins: {', '.join(bot.get_normalplugins())}")
-        await utils.write_debug_channel(bot, f"Failed loading plugins: {', '.join(failed_plugins)}")
+        await utils.write_debug_channel(f"Loaded subsystems: {', '.join(bot.get_subsystem_list())}")
+        await utils.write_debug_channel(f"Loaded coreplugins: {', '.join(bot.get_coreplugins())}")
+        await utils.write_debug_channel(f"Loaded plugins: {', '.join(bot.get_normalplugins())}")
+        if len(failed_plugins) < 1:
+            failed_plugins.append("None, all plugins loaded successfully!")
+        await utils.write_debug_channel(f"Failed loading plugins: {', '.join(failed_plugins)}")
 
-    if not Config().DEBUG_MODE:
+    if not bot.DEBUG_MODE:
         @bot.event
         async def on_error(event, *args, **kwargs):
             """On bot errors print error state in debug channel"""
@@ -308,10 +361,10 @@ def main():
             else:
                 embed.description = f"```python\n{ex_tb}```"
 
-            await utils.write_debug_channel(bot, embed)
+            await utils.write_debug_channel(embed)
             if is_tb_own_msg:
                 for msg in ex_tb:
-                    await utils.write_debug_channel(bot, msg)
+                    await utils.write_debug_channel(msg)
 
         @bot.event
         async def on_command_error(ctx, error):
@@ -365,12 +418,15 @@ def main():
                 else:
                     embed.description = f"```python\n{ex_tb}```"
 
-                await utils.write_debug_channel(bot, embed)
+                await utils.write_debug_channel(embed)
                 if is_tb_own_msg:
                     for msg in ex_tb:
-                        await utils.write_debug_channel(bot, msg)
+                        await utils.write_debug_channel(msg)
                 await utils.add_reaction(ctx.message, Lang.CMDERROR)
-                await ctx.send("Unknown error while executing command.")
+                msg = "Unknown error while executing command."
+                if hasattr(error, "user_message"):
+                    msg = error.user_message
+                await ctx.send(msg)
 
     @bot.event
     async def on_message(message):
@@ -386,7 +442,7 @@ def main():
             return
 
         # debug mode whitelist
-        if not permchecks.whitelist_check(message.author):
+        if not permchecks.debug_user_check(message.author):
             return
 
         await bot.process_commands(message)
@@ -405,7 +461,7 @@ def main():
             raise commands.DisabledCommand()
         return True
 
-    bot.run(Config().TOKEN)
+    bot.run(bot.TOKEN)
 
 
 if __name__ == "__main__":

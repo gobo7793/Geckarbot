@@ -4,6 +4,7 @@ from typing import Optional, Union
 import discord
 from discord.ext import commands
 
+from conf import Config
 
 _id_regex = re.compile(r'([0-9]{15,21})$')
 
@@ -32,52 +33,49 @@ def get_best_username(user):
     return str(user)
 
 
-def get_best_user(bot, uid) -> Union[discord.Member, discord.User, None]:
+def get_best_user(uid) -> Union[discord.Member, discord.User, None]:
     """
     Gets the member object of the given user id, or if member not found, the user object, or None of nothing found.
 
-    :param bot: The bot
     :param uid: The user id from which the member/user object has to be returned
     :return: The member or user object or None if no user found
     """
-    result = bot.guild.get_member(uid)
+    result = Config().bot.guild.get_member(uid)
     if result is None:
-        result = bot.get_user(uid)
+        result = Config().bot.get_user(uid)
     return result
 
 
-def get_username_from_id(bot, uid) -> Optional[str]:
+def get_username_from_id(uid) -> Optional[str]:
     """
     Gets the best username from the given user id, or None if user id not found.
     Short: Calls get_best_user() and then get_best_username()
 
-    :param bot: The bot
     :param uid: The user id from which the user name should be given
     :return: The best user name or None if user id not found
     """
-    user = get_best_user(bot, uid)
+    user = get_best_user(uid)
     if user is None:
         return None
     return get_best_username(user)
 
 
-def convert_member(bot, argument) -> Optional[discord.Member]:
+def convert_member(argument) -> Optional[discord.Member]:
     """
     Tries to convert the given argument to a discord Member object like the Member converter, but w/o context.
 
-    :param bot: The bot
     :param argument: The argument to convert
     :return: The Member or None
     """
     match = argument if isinstance(argument, int) else _get_id_match(argument) or re.match(r'<@!?([0-9]+)>$', argument)
-    guild = bot.guild
+    guild = Config().bot.guild
     result = None
     if match is None:
         # not a mention...
         if guild:
             result = guild.get_member_named(argument)
         else:
-            result = _get_from_guilds(bot, 'get_member_named', argument)
+            result = _get_from_guilds(Config().bot, 'get_member_named', argument)
     else:
         user_id = match if isinstance(match, int) else int(match.group(1))
         if guild:
@@ -89,39 +87,14 @@ def convert_member(bot, argument) -> Optional[discord.Member]:
     return result
 
 
-def get_plugin_by_name(bot, name):
+def get_plugin_by_name(name):
     """
-    :param bot: Geckarbot reference
     :param name: Name of the plugin that is to be returned.
     :return: Configurable object of the plugin with name `name`. Returns None if no such plugin is found.
     """
-    for plugin_cnt in bot.plugins:
-        if plugin_cnt.name == name:
-            return plugin_cnt.instance
-    return None
-
-
-def get_plugin_container(bot, plugin):
-    """
-    :param bot: Geckarbot instance
-    :param plugin: BasePlugin instance
-    :return: PluginContainer whose instance is `plugin`.  Returns None if no such plugin is found.
-    """
-    for plugin_cnt in bot.plugins:
-        if plugin_cnt.instance == plugin:
-            return plugin_cnt
-    return None
-
-
-def get_plugin_container_by_name(bot, name):
-    """
-    :param bot: Geckarbot instance
-    :param name: Name of the plugin
-    :return: PluginContainer whose plugin name is `name`.  Returns None if no such plugin is found.
-    """
-    for plugin_cnt in bot.plugins:
-        if plugin_cnt.name == name:
-            return plugin_cnt
+    for el in Config().bot.plugins:
+        if el.get_name() == name:
+            return el
     return None
 
 

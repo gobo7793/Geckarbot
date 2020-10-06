@@ -21,7 +21,7 @@ class Plugin(BasePlugin, name="Bot status commands for monitoring and debug purp
         return ConfigurableType.COREPLUGIN
 
     @commands.command(name="subsys", help="Shows registrations on subsystems")
-    @commands.has_any_role(Config().BOTMASTER_ROLE_ID)
+    @commands.has_any_role(Config().BOT_ADMIN_ROLE_ID)
     async def subsys(self, ctx):
         for msg in paginate(self.bot.reaction_listener.callbacks,
                             prefix="**Reactions registrations:**\n",
@@ -54,9 +54,9 @@ class Plugin(BasePlugin, name="Bot status commands for monitoring and debug purp
             await ctx.send(msg)
 
     @commands.command(name="storagedump", help="Dumps plugin storage", usage="<plugin name>")
-    @commands.has_any_role(Config().BOTMASTER_ROLE_ID)
+    @commands.has_any_role(Config().BOT_ADMIN_ROLE_ID)
     async def storagedump(self, ctx, name):
-        plugin = converters.get_plugin_by_name(self.bot, name)
+        plugin = converters.get_plugin_by_name(name)
         if plugin is None:
             await ctx.message.add_reaction(Lang.CMDERROR)
             await ctx.send("Plugin {} not found.".format(name))
@@ -72,10 +72,10 @@ class Plugin(BasePlugin, name="Bot status commands for monitoring and debug purp
             await ctx.send(el)
 
     @commands.command(name="configdump", help="Dumps plugin config", usage="<plugin name>")
-    @commands.has_any_role(Config().BOTMASTER_ROLE_ID)
+    @commands.has_any_role(Config().BOT_ADMIN_ROLE_ID)
     # NOTE: Is called by "!dsc set config" and "!fantasy set config"
     async def configdump(self, ctx, name):
-        plugin = converters.get_plugin_by_name(self.bot, name)
+        plugin = converters.get_plugin_by_name(name)
         if plugin is None:
             await ctx.message.add_reaction(Lang.CMDERROR)
             await ctx.send("Plugin {} not found.".format(name))
@@ -96,20 +96,20 @@ class Plugin(BasePlugin, name="Bot status commands for monitoring and debug purp
         await ctx.send(now.strftime('%d.%m.%Y %H:%M:%S.%f'))
 
     @commands.command(name="debug", help="Print or change debug mode at runtime", usage="[true|on|off|false|toggle]")
-    @commands.has_any_role(Config().BOTMASTER_ROLE_ID)
+    @commands.has_any_role(Config().BOT_ADMIN_ROLE_ID)
     async def debug(self, ctx, arg=None):
         toggle = None
         if arg is not None:
             arg = arg.lower()
         if arg == "toggle":
-            toggle = not Config().DEBUG_MODE
+            toggle = not self.bot.DEBUG_MODE
         elif arg == "on" or arg == "true" or arg == "set":
             toggle = True
         elif arg == "off" or arg == "false":
             toggle = False
 
         if toggle is None:
-            if Config().DEBUG_MODE:
+            if self.bot.DEBUG_MODE:
                 await ctx.send("I am in debug mode.")
             else:
                 await ctx.send("I am not in debug mode.")
