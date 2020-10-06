@@ -1103,7 +1103,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
         if await self.manager_check(ctx) or ctx.author.id == danny_id:
             async with ctx.typing():
                 c = self.get_api_client()
-                danny = get_best_user(self.bot, danny_id)
+                danny = get_best_user(danny_id)
                 data_ranges = ["Aktuell!{}".format(Config().get(self)['matches_range'])]
                 if len(users) == 0:
                     users = Config().get(self)['danny_users']
