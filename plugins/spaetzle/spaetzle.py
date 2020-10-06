@@ -20,6 +20,7 @@ from botutils.permchecks import check_mod_access
 from botutils.stringutils import paginate
 from botutils.utils import add_reaction
 from conf import Config, Storage, Lang
+from plugins.spaetzle.utils import TeamnameDict
 
 
 class UserNotFound(Exception):
@@ -54,7 +55,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
         self.logger = logging.getLogger(__name__)
         self.matches = []
         self.matches_by_team = {}
-        self.teamname_dict = self.build_teamname_dict()
+        self.teamname_dict = TeamnameDict(self)
         self.get_matches_from_sheets()
 
     def default_config(self):
@@ -136,41 +137,6 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                 await add_reaction(ctx.message, Lang.CMDNOPERMISSIONS)
                 await ctx.send(Lang.lang(self, 'not_trusted'))
             return False
-
-    def is_teamname_abbr(self, team):
-        return team is not None and len(team) <= 3
-
-    def build_teamname_dict(self):
-        teamdict = {}
-        teamnames = Storage().get(self)['teamnames']
-        for long_name, team in teamnames.items():
-            teamdict[team['short_name'].lower()] = long_name
-            teamdict[long_name.lower()] = team['short_name']
-        for long_name, team in teamnames.items():
-            for name in team['other']:
-                if self.is_teamname_abbr(name):
-                    # Abbreviation
-                    result = teamdict.setdefault(name.lower(), long_name)
-                    if result is not long_name:
-                        self.logger.debug("{} is already noted with the name {}".format(name, result))
-                else:
-                    # Long name
-                    result = teamdict.setdefault(name.lower(), team['short_name'])
-                    if result is not team['short_name']:
-                        self.logger.debug("{} is already noted with the abbreviation {}".format(name, result))
-        return teamdict
-
-    def get_teamname_long(self, team):
-        name = self.teamname_dict.get(team.lower())
-        if self.is_teamname_abbr(name):
-            name = self.teamname_dict.get(name.lower())
-        return name
-
-    def get_teamname_abbr(self, team):
-        name = self.teamname_dict.get(team.lower())
-        if not self.is_teamname_abbr(name):
-            name = self.teamname_dict.get(name.lower())
-        return name
 
     def get_schedule(self, league: int, matchday: int):
         matchday = [5, 16, 15, 1, 12, 9, 8, 4, 13, 10, 11, 7, 14, 3, 6, 0, 2][matchday - 1]  # "Randomize" input
@@ -354,7 +320,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
 
     @commands.command(name="goal", help="Scores a goal for a team (Spätzle-command)")
     async def goal(self, ctx, team, goals: int = None):
-        abbr = self.get_teamname_abbr(team)
+        abbr = self.teamname_dict.get_abbr(team)
         if abbr is None:
             await ctx.send(Lang.lang(self, 'team_not_found', team))
         else:
@@ -366,12 +332,12 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                     return
                 match[abbr]['goals'] = goals if goals is not None else match[abbr]['goals'] + 1
 
-                if abbr == self.get_teamname_abbr(match['team_home']):
+                if abbr == self.teamname_dict.get_abbr(match['team_home']):
                     msg = "{0} [**{1}**:{3}] {2}"
                 else:
                     msg = "{0} [{1}:**{3}**] {2}"
-                msg = msg.format(match['team_home'], match[self.get_teamname_abbr(match['team_home'])]['goals'],
-                                 match['team_away'], match[self.get_teamname_abbr(match['team_away'])]['goals'])
+                msg = msg.format(match['team_home'], match[self.teamname_dict.get_abbr(match['team_home'])]['goals'],
+                                 match['team_away'], match[self.teamname_dict.get_abbr(match['team_away'])]['goals'])
                 await ctx.send(msg)
 
                 data = [x[:] for x in [[None] * 7] * 11]
@@ -466,13 +432,13 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             self.matches.clear()
             for i in range(len(match_list)):
                 match = match_list[i]
-                home = self.get_teamname_abbr(match.get('Team1', {}).get('TeamName', 'n.a.'))
-                away = self.get_teamname_abbr(match.get('Team2', {}).get('TeamName', 'n.a.'))
+                home = self.teamname_dict.get_abbr(match.get('Team1', {}).get('TeamName', 'n.a.'))
+                away = self.teamname_dict.get_abbr(match.get('Team2', {}).get('TeamName', 'n.a.'))
                 match_dict = {
                     'match_date_time': datetime.strptime(match.get('MatchDateTime', '0001-01-01T01:01:01'),
                                                          "%Y-%m-%dT%H:%M:%S"),
-                    'team_home': self.get_teamname_long(home),
-                    'team_away': self.get_teamname_long(away),
+                    'team_home': self.teamname_dict.get_long(home),
+                    'team_away': self.teamname_dict.get_long(away),
                     home: {
                         'cell': (4, i+2),
                         'goals': 0
@@ -793,12 +759,12 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
         self.matches.clear()
         for i in range(2, len(matches)):
             match = matches[i]
-            home = self.get_teamname_abbr(match[3])
-            away = self.get_teamname_abbr(match[6])
+            home = self.teamname_dict.get_abbr(match[3])
+            away = self.teamname_dict.get_abbr(match[6])
             match_dict = {
                 'match_date_time': datetime(1899, 12, 30) + timedelta(days=match[1] + match[2]),
-                'team_home': self.get_teamname_long(home),
-                'team_away': self.get_teamname_long(away),
+                'team_home': self.teamname_dict.get_long(home),
+                'team_away': self.teamname_dict.get_long(away),
                 home: {
                     'cell': (4, i),
                     'goals': match[4] if isinstance(match[4], int) else 0
@@ -886,8 +852,8 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                 pred_a = preds_a[i]
                 emoji = self.match_status(datetime(1899, 12, 30) + timedelta(days=match[1] + match[2])).value
                 msg += "{} `{} {}:{} {}\u0020\u0020\u0020\u0020{}:{}\u0020\u0020\u0020\u0020{}:{} `\n"\
-                    .format(emoji, self.get_teamname_abbr(match[3]), match[4], match[5],
-                            self.get_teamname_abbr(match[6]), pred_h[0], pred_h[1], pred_a[0], pred_a[1])
+                    .format(emoji, self.teamname_dict.get_abbr(match[3]), match[4], match[5],
+                            self.teamname_dict.get_abbr(match[6]), pred_h[0], pred_h[1], pred_a[0], pred_a[1])
 
             embed = discord.Embed(title="{} [{}:{}] {}".format(user, result[0][0], result[1][0], opponent))
             embed.description = msg
@@ -1229,6 +1195,6 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             msg += "{} {} {} Uhr | {} - {} | {}:{}\n".format(calendar.day_abbr[date_time.weekday()],
                                                              date_time.strftime("%d.%m."), date_time.strftime("%H:%M"),
                                                              home, away,
-                                                             match.get(self.get_teamname_abbr(home)).get('goals'),
-                                                             match.get(self.get_teamname_abbr(away)).get('goals'))
+                                                             match.get(self.teamname_dict.get_abbr(home)).get('goals'),
+                                                             match.get(self.teamname_dict.get_abbr(away)).get('goals'))
         await ctx.send(embed=discord.Embed(title="self.matches", description=msg))
