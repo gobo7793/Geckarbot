@@ -4,8 +4,6 @@ import logging
 import random
 import re
 from datetime import datetime, timedelta
-from enum import Enum
-from typing import Tuple
 from urllib.parse import urljoin, urlparse
 
 import discord
@@ -20,7 +18,8 @@ from botutils.permchecks import check_mod_access
 from botutils.stringutils import paginate
 from botutils.utils import add_reaction
 from conf import Config, Storage, Lang
-from plugins.spaetzle.utils import TeamnameDict
+from plugins.spaetzle.utils import TeamnameDict, pointdiff_possible, determine_winner, MatchResult, match_status, \
+    MatchStatus
 
 
 class UserNotFound(Exception):
@@ -29,20 +28,6 @@ class UserNotFound(Exception):
 
 class LeagueNotFound(Exception):
     pass
-
-
-class MatchStatus(Enum):
-    CLOSED = ":ballot_box_with_check:"
-    RUNNING = ":green_square:"
-    UPCOMING = ":clock4:"
-    UNKNOWN = "❔"
-
-
-class MatchResult(Enum):
-    HOME = -1
-    DRAW = 0
-    AWAY = 1
-    NONE = None
 
 
 class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
@@ -205,119 +190,6 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
         else:
             return None
 
-    def match_status(self, match_datetime: datetime):
-        """
-        Checks the status of a match (Solely time-based)
-
-        :param match_datetime: datetime of kick-off
-        :return: CLOSED for finished matches, RUNNING for currently active matches (2 hours after kickoff) and UPCOMING
-        for matches not started. UNKNOWN if unable to read the date or time
-        """
-        now = datetime.now()
-        try:
-            timediff = (now - match_datetime).total_seconds()
-            if timediff < 0:
-                return MatchStatus.UPCOMING
-            elif timediff < 7200:
-                return MatchStatus.RUNNING
-            else:
-                return MatchStatus.CLOSED
-        except ValueError:
-            return MatchStatus.UNKNOWN
-
-    def valid_pred(self, pred: tuple):
-        try:
-            int(pred[0]), int(pred[1])
-        except ValueError:
-            return False
-        else:
-            return True
-
-    def pred_reachable(self, score: Tuple[int, int], pred: Tuple[int, int]):
-        return score[0] <= pred[0] and score[1] <= pred[1]
-
-    def points(self, score, pred):
-        """
-        Returns the points resulting from this score and prediction
-        """
-        score, pred = (int(score[0]), int(score[1])), (int(pred[0]), int(pred[1]))
-        if score == pred:
-            return 4
-        elif (score[0] - score[1]) == (pred[0] - pred[1]):
-            return 3
-        elif ((score[0] - score[1]) > 0) - ((score[0] - score[1]) < 0) \
-                == ((pred[0] - pred[1]) > 0) - ((pred[0] - pred[1]) < 0):
-            return 2
-        else:
-            return 0
-
-    def pointdiff_possible(self, score, pred1, pred2):
-        """
-        Returns the maximal point difference possible at a single match
-        """
-        if not self.valid_pred(score):
-            # No Score
-            if self.valid_pred(pred1) and self.valid_pred(pred2):
-                p = 4 - self.points(pred1, pred2)
-                diff1, diff2 = p, p
-            elif not self.valid_pred(pred1) and not self.valid_pred(pred2):
-                diff1, diff2 = 0, 0
-            elif not self.valid_pred(pred1):
-                diff1, diff2 = 0, 4
-            else:
-                diff1, diff2 = 4, 0
-        else:
-            # Running Game
-            if not self.valid_pred(pred1) and not self.valid_pred(pred2):
-                # Both not existent
-                diff1, diff2 = 0, 0
-            elif self.valid_pred(pred1) and not self.valid_pred(pred2):
-                # No Away
-                diff1 = (3 + self.pred_reachable(score, pred1)) - self.points(score, pred1)
-                diff2 = self.points(score, pred1)
-            elif self.valid_pred(pred2) and not self.valid_pred(pred1):
-                # No Home
-                diff1 = self.points(score, pred2)
-                diff2 = (3 + self.pred_reachable(score, pred2)) - self.points(score, pred2)
-            else:
-                # Both existent
-                if pred1 == pred2:
-                    diff1, diff2 = 0, 0
-                else:
-                    diff1 = (3 + self.pred_reachable(score, pred1) - self.points(pred1, pred2)) \
-                            - (self.points(score, pred1) - self.points(score, pred2))
-                    diff2 = (3 + self.pred_reachable(score, pred2) - self.points(pred1, pred2)) \
-                            - (self.points(score, pred2) - self.points(score, pred1))
-
-        return diff1, diff2
-
-    def determine_winner(self, points_h: str, points_a: str, diff_h: int, diff_a: int):
-        """
-        Determines the winner of a duel
-        :param points_h: current points of user 1
-        :param points_a: current points of user 2
-        :param diff_h: maximum points user 1 can catch up
-        :param diff_a: maximum points user 2 can catch up
-        :return: MatchResult
-        """
-        try:
-            points_h = int(points_h)
-        except (ValueError, TypeError):
-            points_h = 0
-        try:
-            points_a = int(points_a)
-        except (ValueError, TypeError):
-            points_a = 0
-
-        if points_h > (points_a + diff_a):
-            return MatchResult.HOME
-        elif points_a > (points_h + diff_h):
-            return MatchResult.AWAY
-        elif points_h == points_a and diff_h == 0 and diff_a == 0:
-            return MatchResult.DRAW
-        else:
-            return MatchResult.NONE
-
     @commands.command(name="goal", help="Scores a goal for a team (Spätzle-command)")
     async def goal(self, ctx, team, goals: int = None):
         abbr = self.teamname_dict.get_abbr(team)
@@ -327,7 +199,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             async with ctx.typing():
                 c = self.get_api_client()
                 match = self.matches_by_team[abbr]
-                if self.match_status(match['match_date_time']) == MatchStatus.UPCOMING:
+                if match_status(match['match_date_time']) == MatchStatus.UPCOMING:
                     await ctx.send(Lang.lang(self, 'match_is_in_future'))
                     return
                 match[abbr]['goals'] = goals if goals is not None else match[abbr]['goals'] + 1
@@ -835,10 +707,10 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             # Calculating possible point difference
             diff1, diff2 = 0, 0
             for i in range(len(matches)):
-                if self.match_status(datetime(1899, 12, 30)
-                                     + timedelta(days=matches[i][1] + matches[i][2])) == MatchStatus.CLOSED:
+                if match_status(datetime(1899, 12, 30)
+                                + timedelta(days=matches[i][1] + matches[i][2])) == MatchStatus.CLOSED:
                     continue
-                diff = self.pointdiff_possible(matches[i][4:6], preds_h[i], preds_a[i])
+                diff = pointdiff_possible(matches[i][4:6], preds_h[i], preds_a[i])
                 diff1 += diff[0]
                 diff2 += diff[1]
 
@@ -850,7 +722,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                 match = matches[i]
                 pred_h = preds_h[i]
                 pred_a = preds_a[i]
-                emoji = self.match_status(datetime(1899, 12, 30) + timedelta(days=match[1] + match[2])).value
+                emoji = match_status(datetime(1899, 12, 30) + timedelta(days=match[1] + match[2])).value
                 msg += "{} `{} {}:{} {}\u0020\u0020\u0020\u0020{}:{}\u0020\u0020\u0020\u0020{}:{} `\n"\
                     .format(emoji, self.teamname_dict.get_abbr(match[3]), match[4], match[5],
                             self.teamname_dict.get_abbr(match[6]), pred_h[0], pred_h[1], pred_a[0], pred_a[1])
@@ -858,7 +730,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             embed = discord.Embed(title="{} [{}:{}] {}".format(user, result[0][0], result[1][0], opponent))
             embed.description = msg
 
-            match_result = self.determine_winner(result[0][0], result[1][0], diff1, diff2)
+            match_result = determine_winner(result[0][0], result[1][0], diff1, diff2)
             if match_result == MatchResult.HOME:
                 embed.set_footer(text=Lang.lang(self, 'show_duel_footer_winner', user))
             elif match_result == MatchResult.AWAY:
@@ -964,7 +836,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             msg = ""
             for match in matches:
                 date_time = datetime(1899, 12, 30) + timedelta(days=match[1] + match[2])
-                emoji = self.match_status(date_time).value
+                emoji = match_status(date_time).value
                 msg += "{0} {3} {1} {2} Uhr | {6} - {9} | {7}:{8}\n".format(emoji, date_time.strftime("%d.%m."),
                                                                             date_time.strftime("%H:%M"), *match)
         await ctx.send(embed=discord.Embed(title=Lang.lang(self, 'title_matches', matchday), description=msg))

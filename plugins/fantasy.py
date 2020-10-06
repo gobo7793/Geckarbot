@@ -16,6 +16,7 @@ from botutils.converters import get_best_username, get_best_user
 from botutils.timeutils import from_epoch_ms
 from botutils.utils import add_reaction
 from conf import Config, Storage, Lang
+from plugins.spaetzle.utils import points
 from subsystems import timers
 
 # Repo link for pip package for ESPN API https://github.com/cwendt94/espn-api
@@ -398,7 +399,7 @@ class Plugin(BasePlugin, name="NFL Fantasyliga"):
         for pl in lineup:
             if pl.slot_position.lower() != "BE".lower():
                 msg = "{}{}\n".format(msg, Lang.lang(self, "box_data", pl.slot_position, pl.name,
-                                                     pl.proTeam, pl.projected_points, pl.points))
+                                                     pl.proTeam, pl.projected_points, points))
         msg = "{}\n{}".format(msg, Lang.lang(self, "box_suffix", score))
 
         embed.description = msg
