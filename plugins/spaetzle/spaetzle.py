@@ -17,6 +17,7 @@ from botutils.permchecks import check_mod_access
 from botutils.stringutils import paginate
 from botutils.utils import add_reaction
 from conf import Config, Storage, Lang
+from plugins.spaetzle.subsystems import UserBridge
 from plugins.spaetzle.utils import TeamnameDict, pointdiff_possible, determine_winner, MatchResult, match_status, \
     MatchStatus, get_user_league, get_user_cell, get_schedule, get_schedule_opponent
 
@@ -36,6 +37,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
         self.matches = []
         self.matches_by_team = {}
         self.teamname_dict = TeamnameDict(self)
+        self.userbridge = UserBridge(self)
         self.get_matches_from_sheets()
 
     def default_config(self):
@@ -118,15 +120,6 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                 await ctx.send(Lang.lang(self, 'not_trusted'))
             return False
 
-    def get_bridged_user(self, user_id):
-        """
-        Bridge between a Discord user and a Spätzle participant
-        """
-        if user_id in Storage().get(self)['discord_user_bridge']:
-            return Storage().get(self)['discord_user_bridge'][user_id]
-        else:
-            return None
-
     @commands.command(name="goal", help="Scores a goal for a team (Spätzle-command)")
     async def goal(self, ctx, team, goals: int = None):
         abbr = self.teamname_dict.get_abbr(team)
@@ -188,25 +181,16 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
         await ctx.send("<https://docs.google.com/spreadsheets/d/{}>".format(Config().get(self)['spaetzledoc_id']))
 
     @spaetzle.command(name="user", help="Connects your discord user with a specific spaetzle user")
-    async def user_bridge(self, ctx, user=None):
-        discord_user = ctx.message.author.id
-        # User-Verbindung entfernen
+    async def bridge_user(self, ctx, user=None):
         if user is None:
-            if discord_user in Storage().get(self)["discord_user_bridge"]:
-                del Storage().get(self)["discord_user_bridge"][discord_user]
-                Storage().save(self)
-                await add_reaction(ctx.message, Lang.CMDSUCCESS)
-            else:
-                await ctx.send(Lang.lang(self, 'user_not_bridged'))
-            return
-        # User-Verbindung hinzufügen
-        try:
-            get_user_cell(self, user)
-            Storage().get(self)["discord_user_bridge"][ctx.message.author.id] = user
-            Storage().save(self)
+            success = self.userbridge.cut_bridge(ctx)
+        else:
+            success = self.userbridge.add_bridge(ctx, user)
+
+        if success:
             await add_reaction(ctx.message, Lang.CMDSUCCESS)
-        except UserNotFound:
-            await ctx.send(Lang.lang(self, 'user_not_found'))
+        else:
+            await ctx.send(Lang.lang(self, 'user_not_bridged'))
 
     @spaetzle.group(name="set", help="Set data about next matchday etc")
     async def spaetzle_set(self, ctx):
@@ -591,7 +575,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
     async def show_duel_single(self, ctx, user=None):
         async with ctx.typing():
             if user is None:
-                user = self.get_bridged_user(ctx.message.author.id)
+                user = self.userbridge.get_user(ctx)
                 if user is None:
                     await ctx.send(Lang.lang(self, 'user_not_bridged'))
                     return
@@ -785,7 +769,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             c = self.get_api_client()
 
             if user_or_league is None:
-                user_or_league = self.get_bridged_user(ctx.message.author.id)
+                user_or_league = self.userbridge.get_user(ctx)
                 if user_or_league is None:
                     await ctx.send(Lang.lang(self, 'user_not_bridged'))
                     return
@@ -826,7 +810,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
     @spaetzle.command(name="fixtures", help="Lists fixtures for a specific participant")
     async def show_fixtures(self, ctx, user=None):
         if user is None:
-            user = self.get_bridged_user(ctx.message.author.id)
+            user = self.userbridge.get_user(ctx)
             if user is None:
                 await ctx.send(Lang.lang(self, 'user_not_bridged'))
                 return
