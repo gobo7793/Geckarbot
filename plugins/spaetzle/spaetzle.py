@@ -1,7 +1,6 @@
 import calendar
 import json
 import logging
-import random
 import re
 from datetime import datetime, timedelta
 from urllib.parse import urljoin, urlparse
@@ -19,14 +18,10 @@ from botutils.stringutils import paginate
 from botutils.utils import add_reaction
 from conf import Config, Storage, Lang
 from plugins.spaetzle.utils import TeamnameDict, pointdiff_possible, determine_winner, MatchResult, match_status, \
-    MatchStatus
+    MatchStatus, get_user_league, get_user_cell, get_schedule, get_schedule_opponent
 
 
 class UserNotFound(Exception):
-    pass
-
-
-class LeagueNotFound(Exception):
     pass
 
 
@@ -123,64 +118,6 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                 await ctx.send(Lang.lang(self, 'not_trusted'))
             return False
 
-    def get_schedule(self, league: int, matchday: int):
-        matchday = [5, 16, 15, 1, 12, 9, 8, 4, 13, 10, 11, 7, 14, 3, 6, 0, 2][matchday - 1]  # "Randomize" input
-        p = Storage().get(self)['participants'].get(league)
-        if p is None:
-            raise LeagueNotFound()
-        p.extend([None] * max(0, 18 - len(p)))  # Extend if not enough participants
-        participants = [p[i] for i in [11, 0, 13, 6, 5, 15, 9, 1, 14, 8, 4, 16, 7, 2, 17, 3, 10, 12]]
-        participants = participants[0:1] + participants[matchday - 1:] + participants[1:matchday - 1]
-        schedule = []
-        schedule.extend([(participants[0], participants[1]),
-                         (participants[2], participants[17]),
-                         (participants[3], participants[16]),
-                         (participants[4], participants[15]),
-                         (participants[5], participants[14]),
-                         (participants[6], participants[13]),
-                         (participants[7], participants[12]),
-                         (participants[8], participants[11]),
-                         (participants[9], participants[10])])
-        random.shuffle(schedule)
-        return schedule
-
-    def get_schedule_opponent(self, participant, matchday: int):
-        league = self.get_user_league(participant)
-        schedule = self.get_schedule(league, matchday)
-        for home, away in schedule:
-            if home == participant:
-                return away
-            if away == participant:
-                return home
-        else:
-            return None
-
-    def get_user_cell(self, user):
-        """
-        Returns the position of the user's title cell in the 'Tipps' section
-
-        :return: (col, row) of the cell
-        """
-        for league, participants in Storage().get(self)['participants'].items():
-            if user in participants:
-                col = 60 + (2 * participants.index(user))
-                row = 12 * (int(league) - 1) + 2
-                return col, row
-        else:
-            raise UserNotFound
-
-    def get_user_league(self, user):
-        """
-        Returns the league of the user
-
-        :return: number of the league
-        """
-        for league, participants in Storage().get(self)['participants'].items():
-            if user in participants:
-                return league
-        else:
-            raise UserNotFound
-
     def get_bridged_user(self, user_id):
         """
         Bridge between a Discord user and a Spätzle participant
@@ -264,7 +201,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             return
         # User-Verbindung hinzufügen
         try:
-            self.get_user_cell(user)
+            get_user_cell(self, user)
             Storage().get(self)["discord_user_bridge"][ctx.message.author.id] = user
             Storage().save(self)
             await add_reaction(ctx.message, Lang.CMDSUCCESS)
@@ -361,15 +298,15 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             embed = discord.Embed()
             if league is None:
                 schedules = {
-                    1: self.get_schedule(1, matchday),
-                    2: self.get_schedule(2, matchday),
-                    3: self.get_schedule(3, matchday),
-                    4: self.get_schedule(4, matchday)
+                    1: get_schedule(self, 1, matchday),
+                    2: get_schedule(self, 2, matchday),
+                    3: get_schedule(self, 3, matchday),
+                    4: get_schedule(self, 4, matchday)
                 }
                 embed.title = Lang.lang(self, 'title_matchday_duels', matchday)
             else:
                 schedules = {
-                    league: self.get_schedule(league, matchday)
+                    league: get_schedule(self, league, matchday)
                 }
                 embed.title = Lang.lang(self, 'title_matchday_league', matchday, league)
 
@@ -661,7 +598,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             c = self.get_api_client()
 
             try:
-                col1, row1 = self.get_user_cell(user)
+                col1, row1 = get_user_cell(self, user)
             except UserNotFound:
                 await ctx.send(Lang.lang(self, 'user_not_found'))
                 return
@@ -671,7 +608,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
 
             # Getting data / Opponent-dependent parts
             try:
-                col2, row2 = self.get_user_cell(opponent)
+                col2, row2 = get_user_cell(self, opponent)
             except UserNotFound:
                 # Opponent not found
                 matches, preds_h = c.get_multiple(["Aktuell!{}".format(Config().get(self)['matches_range']),
@@ -772,7 +709,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             else:
                 for user in observed_users:
                     try:
-                        col, row = self.get_user_cell(user)
+                        col, row = get_user_cell(self, user)
                         data_ranges.append("Aktuell!{}".format(c.cellname(col, row)))
                         data_ranges.append(
                             "Aktuell!{}:{}".format(c.cellname(col, row + 10), c.cellname(col + 1, row + 11)))
@@ -859,7 +796,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             except ValueError:
                 # User
                 try:
-                    league = int(self.get_user_league(user_or_league))
+                    league = int(get_user_league(self, user_or_league))
                 except (ValueError, UserNotFound):
                     ctx.send(Lang.lang(self, 'user_not_found'))
                     return
@@ -897,7 +834,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
         msg = ""
         try:
             for i in range(1, 18):
-                msg += "{} | {}\n".format(i, self.get_schedule_opponent(user, i))
+                msg += "{} | {}\n".format(i, get_schedule_opponent(self, user, i))
         except UserNotFound:
             await add_reaction(ctx.message, Lang.CMDERROR)
             await ctx.send(Lang.lang(self, 'user_not_found'))
@@ -948,7 +885,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                     if len(users) == 0:
                         await ctx.send(Lang.lang(self, 'danny_no_users'))
                 for user in users:
-                    col, row = self.get_user_cell(user)
+                    col, row = get_user_cell(self, user)
                     if col is not None:
                         data_ranges.append("Aktuell!{}:{}".format(c.cellname(col, row), c.cellname(col + 1, row + 10)))
                 result = c.get_multiple(data_ranges, formatted=False)
@@ -1034,7 +971,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
     @observe.command(name="add", help="Adds a user to be observed")
     async def observe_add(self, ctx, user):
         try:
-            self.get_user_league(user)
+            get_user_league(self, user)
         except UserNotFound:
             await ctx.send(Lang.lang(self, 'user_not_found'))
             return

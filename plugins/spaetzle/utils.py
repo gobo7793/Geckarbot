@@ -1,8 +1,14 @@
+import random
 from datetime import datetime
 from enum import Enum
 from typing import Tuple
 
 from conf import Storage
+from plugins.spaetzle.spaetzle import UserNotFound
+
+
+class LeagueNotFound(Exception):
+    pass
 
 
 class MatchResult(Enum):
@@ -24,6 +30,9 @@ def is_teamname_abbr(team):
 
 
 class TeamnameDict:
+    """
+    Class to convert teamnames into a standardized abbrevation and long form
+    """
     def __init__(self, plugin):
         self.teamdict = {}
         teamnames = Storage().get(plugin)['teamnames']
@@ -53,6 +62,9 @@ class TeamnameDict:
 
 
 def valid_pred(pred: tuple):
+    """
+    Returns True if prediction is a valid representation of two integers
+    """
     try:
         int(pred[0]), int(pred[1])
     except ValueError:
@@ -62,6 +74,9 @@ def valid_pred(pred: tuple):
 
 
 def pred_reachable(score: Tuple[int, int], pred: Tuple[int, int]):
+    """
+    Returns True if the prediction can still be matched given the current score
+    """
     return score[0] <= pred[0] and score[1] <= pred[1]
 
 
@@ -169,3 +184,65 @@ def match_status(match_datetime: datetime):
             return MatchStatus.CLOSED
     except ValueError:
         return MatchStatus.UNKNOWN
+
+
+def get_user_league(plugin, user):
+    """
+    Returns the league of the user
+
+    :return: number of the league
+    """
+    for league, participants in Storage().get(plugin)['participants'].items():
+        if user in participants:
+            return league
+    else:
+        raise UserNotFound
+
+
+def get_user_cell(plugin, user):
+    """
+    Returns the position of the user's title cell in the 'Tipps' section
+
+    :return: (col, row) of the cell
+    """
+    for league, participants in Storage().get(plugin)['participants'].items():
+        if user in participants:
+            col = 60 + (2 * participants.index(user))
+            row = 12 * (int(league) - 1) + 2
+            return col, row
+    else:
+        raise UserNotFound
+
+
+def get_schedule(plugin, league, matchday: int):
+    matchday = [5, 16, 15, 1, 12, 9, 8, 4, 13, 10, 11, 7, 14, 3, 6, 0, 2][matchday - 1]  # "Randomize" input
+    participants = Storage().get(plugin)['participants'].get(league)
+    if participants is None:
+        raise LeagueNotFound()
+    participants.extend([None] * max(0, 18 - len(participants)))  # Extend if not enough participants
+    p = [participants[i] for i in [11, 0, 13, 6, 5, 15, 9, 1, 14, 8, 4, 16, 7, 2, 17, 3, 10, 12]]
+    p = p[0:1] + p[matchday - 1:] + p[1:matchday - 1]
+    schedule = []
+    schedule.extend([(p[0], p[1]),
+                     (p[2], p[17]),
+                     (p[3], p[16]),
+                     (p[4], p[15]),
+                     (p[5], p[14]),
+                     (p[6], p[13]),
+                     (p[7], p[12]),
+                     (p[8], p[11]),
+                     (p[9], p[10])])
+    random.shuffle(schedule)
+    return schedule
+
+
+def get_schedule_opponent(plugin, participant, matchday: int):
+    league = get_user_league(plugin, participant)
+    schedule = get_schedule(plugin, league, matchday)
+    for home, away in schedule:
+        if home == participant:
+            return away
+        if away == participant:
+            return home
+    else:
+        return None
