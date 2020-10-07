@@ -1,4 +1,5 @@
 import calendar
+import inspect
 import json
 import logging
 import re
@@ -9,6 +10,7 @@ import discord
 import requests
 from bs4 import BeautifulSoup
 from discord.ext import commands
+from discord.ext.commands import MissingRequiredArgument
 
 from Geckarbot import BasePlugin
 from botutils import sheetsclient, restclient
@@ -19,11 +21,7 @@ from botutils.utils import add_reaction
 from conf import Config, Storage, Lang
 from plugins.spaetzle.subsystems import UserBridge, ObservedUsers
 from plugins.spaetzle.utils import TeamnameDict, pointdiff_possible, determine_winner, MatchResult, match_status, \
-    MatchStatus, get_user_league, get_user_cell, get_schedule, get_schedule_opponent
-
-
-class UserNotFound(Exception):
-    pass
+    MatchStatus, get_user_league, get_user_cell, get_schedule, get_schedule_opponent, UserNotFound
 
 
 class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
@@ -584,7 +582,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             try:
                 col1, row1 = get_user_cell(self, user)
             except UserNotFound:
-                await ctx.send(Lang.lang(self, 'user_not_found'))
+                await ctx.send(Lang.lang(self, 'user_not_found', user))
                 return
             result = c.get("Aktuell!{}:{}".format(c.cellname(col1, row1 + 10), c.cellname(col1 + 1, row1 + 11)),
                            formatted=False)
@@ -686,7 +684,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             msg = ""
 
             data_ranges = []
-            observed_users = ObservedUsers(self).get_users()
+            observed_users = ObservedUsers(self).get_all()
 
             if len(observed_users) == 0:
                 msg = Lang.lang(self, 'no_observed_users')
@@ -782,7 +780,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                 try:
                     league = int(get_user_league(self, user_or_league))
                 except (ValueError, UserNotFound):
-                    ctx.send(Lang.lang(self, 'user_not_found'))
+                    ctx.send(Lang.lang(self, 'user_not_found', user_or_league))
                     return
 
             data_range = "Aktuell!{}".format(Config().get(self)['table_ranges'].get(league))
@@ -821,7 +819,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                 msg += "{} | {}\n".format(i, get_schedule_opponent(self, user, i))
         except UserNotFound:
             await add_reaction(ctx.message, Lang.CMDERROR)
-            await ctx.send(Lang.lang(self, 'user_not_found'))
+            await ctx.send(Lang.lang(self, 'user_not_found', user))
             return
 
         await ctx.send(embed=discord.Embed(title=Lang.lang(self, 'title_opponent', user), description=msg))
@@ -940,31 +938,42 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             await add_reaction(ctx.message, Lang.CMDNOPERMISSIONS)
 
     @spaetzle.group(name="observe", help="Configure which users should be observed.")
-    async def observe(self, ctx):
+    async def observe(self, ctx, *args):
         if ctx.invoked_subcommand is None:
-            await ctx.invoke(self.bot.get_command('spaetzle observe list'))
+            if len(args) > 0:
+                if args[0] in ("add", "del"):
+                    if len(args) > 1:
+                        await ctx.invoke(self.bot.get_command('spaetzle observe {}'.format(args[0])), *args[1:])
+                    else:
+                        raise MissingRequiredArgument(inspect.Parameter("user", inspect.Parameter.POSITIONAL_ONLY))
+                else:
+                    await self.observe_add(ctx, *args)
+            else:
+                await ctx.invoke(self.bot.get_command('spaetzle observe list'))
 
     @observe.command(name="list", help="Lists the observed users")
     async def observe_list(self, ctx):
-        if len(ObservedUsers(self).get_users()) == 0:
+        if len(ObservedUsers(self).get_all()) == 0:
             msg = Lang.lang(self, 'no_observed_users')
         else:
-            msg = "{} {}".format(Lang.lang(self, 'observe_prefix'), ", ".join(ObservedUsers(self).get_users()))
+            msg = "{} {}".format(Lang.lang(self, 'observe_prefix'), ", ".join(ObservedUsers(self).get_all()))
         await ctx.send(msg)
 
-    @observe.command(name="add", help="Adds a user to be observed")
-    async def observe_add(self, ctx, user):
-        if ObservedUsers(self).add_user(user):
-            await add_reaction(ctx.message, Lang.CMDSUCCESS)
+    @observe.command(name="add", help="Adds one or more users to be observed")
+    async def observe_add(self, ctx, user, *other):
+        for user in (user,) + other:
+            if not ObservedUsers(self).append(user):
+                await ctx.send(Lang.lang(self, 'user_not_found', user))
         else:
-            await ctx.send(Lang.lang(self, 'user_not_found'))
+            await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
-    @observe.command(name="del", help="Removes a user from the observation")
-    async def observe_remove(self, ctx, user):
-        if ObservedUsers(self).del_user(user):
-            await add_reaction(ctx.message, Lang.CMDSUCCESS)
+    @observe.command(name="del", help="Removes one or more from the observation")
+    async def observe_remove(self, ctx, user, *other):
+        for user in (user,) + other:
+            if not ObservedUsers(self).remove(user):
+                await ctx.send(Lang.lang(self, 'user_not_found', user))
         else:
-            await ctx.send(Lang.lang(self, 'user_not_found'))
+            await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
     @spaetzle.command(name="selfmatches")
     async def monitoring_matches(self, ctx):

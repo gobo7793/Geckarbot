@@ -13,7 +13,7 @@
         "trusted_prefix": "Trusted:",
         "manager_only": "Sorry, only the manager can perform this action.",
         "user_not_bridged": "You are currently not connected with a user.",
-        "user_not_found": "User not found.",
+        "user_not_found": "User not found: {}",
         "team_not_found": "Sorry, I can't find {} in my dictionary",
         "title_main_thread": "Season Thread",
         "title_predictions_thread": "Matchday Thread",

@@ -1,6 +1,5 @@
 from conf import Storage
-from plugins.spaetzle.spaetzle import UserNotFound
-from plugins.spaetzle.utils import get_user_cell, get_user_league
+from plugins.spaetzle.utils import get_user_cell, get_user_league, UserNotFound
 
 
 class UserBridge:
@@ -36,26 +35,28 @@ class UserBridge:
 class ObservedUsers:
 
     def __init__(self, plugin):
+        super().__init__()
         self.plugin = plugin
+        self.users = Storage().get(plugin)['observed_users']
 
-    def add_user(self, user):
+    def append(self, user):
         try:
-            get_user_league(self, user)
+            get_user_league(self.plugin, user)
         except UserNotFound:
             return False
 
-        if user not in Storage().get(self)['observed_users']:
-            Storage().get(self)['observed_users'].append(user)
-            Storage().save(self)
+        if user not in self.users:
+            self.users.append(user)
+            Storage().save(self.plugin)
         return True
 
-    def del_user(self, user):
-        if user in Storage().get(self)['observed_users']:
-            Storage().get(self)['observed_users'].remove(user)
-            Storage().save(self)
+    def remove(self, user):
+        if user in self.users:
+            self.users.remove(user)
+            Storage().save(self.plugin)
             return True
         else:
             return False
 
-    def get_users(self):
-        return Storage().get(self)['observed_users']
+    def get_all(self):
+        return Storage().get(self.plugin)['observed_users']

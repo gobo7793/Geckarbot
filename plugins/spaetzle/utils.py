@@ -4,7 +4,6 @@ from enum import Enum
 from typing import Tuple
 
 from conf import Storage
-from plugins.spaetzle.spaetzle import UserNotFound
 
 
 class LeagueNotFound(Exception):
@@ -246,3 +245,7 @@ def get_schedule_opponent(plugin, participant, matchday: int):
             return home
     else:
         return None
+
+
+class UserNotFound(Exception):
+    pass

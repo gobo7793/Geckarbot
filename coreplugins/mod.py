@@ -277,7 +277,7 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
 
         # disable user completely
         elif user is not None and command is None:
-            result = self.bot.ignoring.add_user(user, until)
+            result = self.bot.ignoring.append(user, until)
             if result == IgnoreEditResult.Success:
                 reaction = Lang.CMDSUCCESS
                 final_msg = Lang.lang(self, 'user_blocked', get_best_username(user), until_str)
