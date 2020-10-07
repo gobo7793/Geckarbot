@@ -17,7 +17,7 @@ from botutils.permchecks import check_mod_access
 from botutils.stringutils import paginate
 from botutils.utils import add_reaction
 from conf import Config, Storage, Lang
-from plugins.spaetzle.subsystems import UserBridge
+from plugins.spaetzle.subsystems import UserBridge, ObservedUsers
 from plugins.spaetzle.utils import TeamnameDict, pointdiff_possible, determine_winner, MatchResult, match_status, \
     MatchStatus, get_user_league, get_user_cell, get_schedule, get_schedule_opponent
 
@@ -686,7 +686,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             msg = ""
 
             data_ranges = []
-            observed_users = Storage().get(self)['observed_users']
+            observed_users = ObservedUsers(self).get_users()
 
             if len(observed_users) == 0:
                 msg = Lang.lang(self, 'no_observed_users')
@@ -946,30 +946,22 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
 
     @observe.command(name="list", help="Lists the observed users")
     async def observe_list(self, ctx):
-        if len(Storage().get(self)['observed_users']) == 0:
+        if len(ObservedUsers(self).get_users()) == 0:
             msg = Lang.lang(self, 'no_observed_users')
         else:
-            msg = "{} {}".format(Lang.lang(self, 'observe_prefix'), ", ".join(Storage().get(self)['observed_users']))
+            msg = "{} {}".format(Lang.lang(self, 'observe_prefix'), ", ".join(ObservedUsers(self).get_users()))
         await ctx.send(msg)
 
     @observe.command(name="add", help="Adds a user to be observed")
     async def observe_add(self, ctx, user):
-        try:
-            get_user_league(self, user)
-        except UserNotFound:
+        if ObservedUsers(self).add_user(user):
+            await add_reaction(ctx.message, Lang.CMDSUCCESS)
+        else:
             await ctx.send(Lang.lang(self, 'user_not_found'))
-            return
-
-        if user not in Storage().get(self)['observed_users']:
-            Storage().get(self)['observed_users'].append(user)
-            Storage().save(self)
-        await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
     @observe.command(name="del", help="Removes a user from the observation")
     async def observe_remove(self, ctx, user):
-        if user in Storage().get(self)['observed_users']:
-            Storage().get(self)['observed_users'].remove(user)
-            Storage().save(self)
+        if ObservedUsers(self).del_user(user):
             await add_reaction(ctx.message, Lang.CMDSUCCESS)
         else:
             await ctx.send(Lang.lang(self, 'user_not_found'))
