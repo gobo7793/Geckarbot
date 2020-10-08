@@ -14,12 +14,12 @@ from discord.ext.commands import MissingRequiredArgument
 
 from Geckarbot import BasePlugin
 from botutils import sheetsclient, restclient
-from botutils.converters import get_best_username, get_best_user
+from botutils.converters import get_best_user
 from botutils.permchecks import check_mod_access
 from botutils.stringutils import paginate
 from botutils.utils import add_reaction
 from conf import Config, Storage, Lang
-from plugins.spaetzle.subsystems import UserBridge, ObservedUsers
+from plugins.spaetzle.subsystems import UserBridge, Observed, Trusted
 from plugins.spaetzle.utils import TeamnameDict, pointdiff_possible, determine_winner, MatchResult, match_status, \
     MatchStatus, get_user_league, get_user_cell, get_schedule, get_schedule_opponent, UserNotFound
 
@@ -40,7 +40,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
 
     def default_config(self):
         return {
-            'manager': 0,
+            'manager': [],
             'trusted': [],
             'spaetzledoc_id': "1ZzEGP_J9WxJGeAm1Ri3er89L1IR1riq7PH2iKVDmfP8",
             'matches_range': "B1:H11",
@@ -99,24 +99,6 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
 
     def get_api_client(self):
         return sheetsclient.Client(self.bot, Config().get(self)['spaetzledoc_id'])
-
-    async def manager_check(self, ctx, show_error=True):
-        if ctx.author.id == Config().get(self)['manager']:
-            return True
-        else:
-            if show_error:
-                await add_reaction(ctx.message, Lang.CMDNOPERMISSIONS)
-                await ctx.send(Lang.lang(self, 'manager_only'))
-            return False
-
-    async def trusted_check(self, ctx, show_error=True):
-        if ctx.message.author.id in Config.get(self)['trusted'] or ctx.message.author.id == Config.get(self)['manager']:
-            return True
-        else:
-            if show_error:
-                await add_reaction(ctx.message, Lang.CMDNOPERMISSIONS)
-                await ctx.send(Lang.lang(self, 'not_trusted'))
-            return False
 
     @commands.command(name="goal", help="Scores a goal for a team (Spätzle-command)")
     async def goal(self, ctx, team, goals: int = None):
@@ -197,7 +179,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
 
     @spaetzle_set.command(name="matches", aliases=["spiele"])
     async def set_matches(self, ctx, matchday: int = None):
-        if not await self.trusted_check(ctx):
+        if not await Trusted(self).is_trusted(ctx):
             return
         async with ctx.typing():
             # Request data
@@ -266,7 +248,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
 
     @spaetzle_set.command(name="duels", aliases=["duelle"])
     async def set_duels(self, ctx, matchday: int, league: int = None):
-        if not await self.trusted_check(ctx):
+        if not await Trusted(self).is_trusted(ctx):
             return
         if matchday not in range(1, 18):
             await add_reaction(ctx.message, Lang.CMDERROR)
@@ -320,7 +302,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
 
     @spaetzle_set.command(name="scrape", help="Scrapes the predictions thread for forum posts")
     async def set_scrape(self, ctx):
-        if not await self.trusted_check(ctx):
+        if not await Trusted(self).is_trusted(ctx):
             return
 
         data = []
@@ -364,7 +346,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
 
     @spaetzle_set.command(name="extract", help="Extracts the predictions from the scraped result")
     async def set_extract(self, ctx):
-        if not await self.trusted_check(ctx):
+        if not await Trusted(self).is_trusted(ctx):
             return
         async with ctx.typing():
             c = self.get_api_client()
@@ -449,7 +431,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
     @spaetzle_set.command(name="archive", help="Archives the current matchday and clears the frontpage")
     async def set_archive(self, ctx):
         from googleapiclient.errors import HttpError
-        if not await self.trusted_check(ctx):
+        if not await Trusted(self).is_trusted(ctx):
             return
 
         async with ctx.typing():
@@ -465,14 +447,14 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
 
     @spaetzle_set.command(name="thread", help="Sets the URL of the \"Tippabgabe-Thread\".")
     async def set_thread(self, ctx, url: str):
-        if await self.trusted_check(ctx):
+        if await Trusted(self).is_trusted(ctx):
             Storage().get(self)['predictions_thread'] = url
             Storage().save(self)
             await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
     @spaetzle_set.command(name="mainthread", help="Sets the URL of the main thread.")
     async def set_mainthread(self, ctx, url: str):
-        if await self.trusted_check(ctx):
+        if await Trusted(self).is_trusted(ctx):
             Storage().get(self)['main_thread'] = url
             Storage().save(self)
             await add_reaction(ctx.message, Lang.CMDSUCCESS)
@@ -480,7 +462,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
     @spaetzle_set.command(name="participants", alias="teilnehmer", help="Sets the participants of a league. "
                                                                         "Manager only.")
     async def set_participants(self, ctx, league: int, *participants):
-        if await self.manager_check(ctx):
+        if await Trusted(self).is_manager(ctx):
             Storage().get(self)['participants'][league] = participants
             Storage().save(self)
             await ctx.send(Lang.lang(self, 'participants_added', len(participants), league))
@@ -489,7 +471,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
     @spaetzle_set.command(name="matchday", help="Sets the matchday manually, but it's normally already done by "
                                                 "set_matches.")
     async def set_matchday(self, ctx, matchday: int):
-        if await self.trusted_check(ctx):
+        if await Trusted(self).is_trusted(ctx):
             Storage().get(self)['matchday'] = matchday
             Storage().save(self)
             await add_reaction(ctx.message, Lang.CMDSUCCESS)
@@ -684,7 +666,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             msg = ""
 
             data_ranges = []
-            observed_users = ObservedUsers(self).get_all()
+            observed_users = Observed(self).get_all()
 
             if len(observed_users) == 0:
                 msg = Lang.lang(self, 'no_observed_users')
@@ -826,9 +808,9 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
 
     @spaetzle.command(name="rawpost", help="Lists all forum posts by a specified user")
     async def show_raw_posts(self, ctx, participant: str):
-        if not await self.trusted_check(ctx):
+        if not await Trusted(self).is_trusted(ctx):
             return
-        
+
         forum_posts = Storage().get(self)['predictions']
         if len(forum_posts) < 1:
             await ctx.send(Lang.lang(self, 'no_saved_rawposts'))
@@ -857,7 +839,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
         danny_id = Config().get(self)['danny_id']
         if not danny_id:
             await ctx.send(Lang.lang(self, 'danny_no_id'))
-        if await self.manager_check(ctx) or ctx.author.id == danny_id:
+        if await Trusted(self).is_manager(ctx, show_error=False) or ctx.author.id == danny_id:
             async with ctx.typing():
                 c = self.get_api_client()
                 danny = get_best_user(danny_id)
@@ -894,48 +876,38 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                 await danny.send(embed=embed)
             await ctx.send(Lang.lang(self, 'danny_done', ", ".join(users)))
 
-    @spaetzle.group(name="trusted", help="Configures which users are allowed to edit")
+    @spaetzle.group(name="trusted", help="Configures which users are trusted for help")
     async def trusted(self, ctx):
         if ctx.invoked_subcommand is None:
             await ctx.invoke(self.bot.get_command('spaetzle trusted list'))
 
     @trusted.command(name="list", help="Lists all trusted users")
     async def trusted_list(self, ctx):
-        raw = [Config.get(self)['manager']] + Config.get(self)['trusted']
-        trusted_users = []
-        for user_id in raw:
-            user = self.bot.guild.get_member(user_id)
-            if user is None:
-                user = self.bot.get_user(user_id)
-            trusted_users.append(get_best_username(user))
-        msg = "{} {}\n{} {}".format(Lang.lang(self, 'manager_prefix'), trusted_users[0],
-                                    Lang.lang(self, 'trusted_prefix'), ", ".join(trusted_users[1:]))
+        msg = "{} {}\n{} {}".format(
+            Lang.lang(self, 'manager_prefix'), ", ".join(Trusted(self).get_manager_names(self.bot)),
+            Lang.lang(self, 'trusted_prefix'), ", ".join(Trusted(self).get_trusted_names(self.bot)))
         await ctx.send(msg)
 
     @trusted.command(name="add", help="Adds a user to the trusted list.")
     async def trusted_add(self, ctx, user: discord.User):
-        if await self.manager_check(ctx):
-            if user.id not in Config.get(self)['trusted']:
-                Config.get(self)['trusted'].append(user.id)
-                Config().save(self)
-            await add_reaction(ctx.message, Lang.CMDSUCCESS)
+        await Trusted(self).add_trusted(ctx, user)
 
     @trusted.command(name="del", help="Removes user from the trusted list")
     async def trusted_remove(self, ctx, user: discord.User):
-        if await self.manager_check(ctx):
-            if user.id in Config.get(self)['trusted']:
-                Config.get(self)['trusted'].remove(user.id)
-                Config().save(self)
-            await add_reaction(ctx.message, Lang.CMDSUCCESS)
+        await Trusted(self).remove_trusted(ctx, user)
 
-    @trusted.command(name="manager", help="Sets the manager")
-    async def trusted_manager(self, ctx, user: discord.User):
-        if ctx.author.id == Config.get(self)['manager'] or check_mod_access(ctx.author):
-            Config.get(self)['manager'] = user.id
-            Config().save(self)
-            await add_reaction(ctx.message, Lang.CMDSUCCESS)
-        else:
-            await add_reaction(ctx.message, Lang.CMDNOPERMISSIONS)
+    @spaetzle.group(name="manager", help="Configures which users are allowed to use all functions")
+    async def manager(self, ctx):
+        if ctx.invoked_subcommand is None:
+            await ctx.invoke(self.bot.get_command('spaetzle trusted list'))
+
+    @manager.command(name="add", help="Adds a manager.")
+    async def manager_add(self, ctx, user: discord.User):
+        await Trusted(self).add_manager(ctx, user)
+
+    @manager.command(name="del", help="Removes manager.")
+    async def manager_remove(self, ctx, user: discord.User):
+        await Trusted(self).remove_manager(ctx, user)
 
     @spaetzle.group(name="observe", help="Configure which users should be observed.")
     async def observe(self, ctx, *args):
@@ -953,16 +925,16 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
 
     @observe.command(name="list", help="Lists the observed users")
     async def observe_list(self, ctx):
-        if len(ObservedUsers(self).get_all()) == 0:
+        if len(Observed(self).get_all()) == 0:
             msg = Lang.lang(self, 'no_observed_users')
         else:
-            msg = "{} {}".format(Lang.lang(self, 'observe_prefix'), ", ".join(ObservedUsers(self).get_all()))
+            msg = "{} {}".format(Lang.lang(self, 'observe_prefix'), ", ".join(Observed(self).get_all()))
         await ctx.send(msg)
 
     @observe.command(name="add", help="Adds one or more users to be observed")
     async def observe_add(self, ctx, user, *other):
         for user in (user,) + other:
-            if not ObservedUsers(self).append(user):
+            if not Observed(self).append(user):
                 await ctx.send(Lang.lang(self, 'user_not_found', user))
         else:
             await add_reaction(ctx.message, Lang.CMDSUCCESS)
@@ -970,7 +942,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
     @observe.command(name="del", help="Removes one or more from the observation")
     async def observe_remove(self, ctx, user, *other):
         for user in (user,) + other:
-            if not ObservedUsers(self).remove(user):
+            if not Observed(self).remove(user):
                 await ctx.send(Lang.lang(self, 'user_not_found', user))
         else:
             await add_reaction(ctx.message, Lang.CMDSUCCESS)
