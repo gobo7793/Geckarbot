@@ -1,13 +1,18 @@
 {
     "en": {
         "help_buli": "Current standings of the Bundesliga matches",
+        "help_fußball": "Current standings of the matches (any league)",
 
-        "buli_title": "Bundesliga - Live"
+        "buli_title": "Bundesliga - Live",
+        "match_finished": "Finished",
+        "match_upcoming": "Upcoming"
     },
 
     "de": {
         "help_buli": "Aktuelle Livestände der Bundesliga",
         "description_buli": "Zeigt die aktuellen Stände der derzeit laufenden Bundesliga-Spiele.\nMit dem Zusatz 'all' werden auch anstehende und beendete Spiele angezeigt.",
+        "help_fußball": "Aktuelle Livestände einer Liga",
+        "description_fußball": "Zeigt die aktuellen Stände der derzeit laufenden Spieler einer Liga an. Die Liga wird über den entsprechenden Liga-Shortcut der OpenLigaDB angegeben.\nMit dem Zusatz 'all' werden auch anstehende und beendete Spiele angezeigt.",
 
         "buli_title": "Bundesliga - Live",
         "match_finished": "Beendet",

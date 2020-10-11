@@ -33,9 +33,9 @@ class Plugin(BasePlugin, name="Sport"):
         result = Lang.lang(self, lang_name)
         return result if result != lang_name else Lang.lang(self, "help_{}".format(name))
 
-    @commands.command(name="buli")
-    async def buli_livestaende(self, ctx, allmatches=None):
-        matches = restclient.Client("https://www.openligadb.de/api").make_request("/getmatchdata/bl3")
+    @commands.command(name="fußball")
+    async def soccer_livescores(self, ctx, league, allmatches=None):
+        matches = restclient.Client("https://www.openligadb.de/api").make_request("/getmatchdata/{}".format(league))
         finished, running, upcoming = [], [], []
         for match in matches:
             if match.get('MatchIsFinished', False):
@@ -71,3 +71,7 @@ class Plugin(BasePlugin, name="Sport"):
             if upcoming_msg:
                 embed.add_field(name=Lang.lang(self, 'match_upcoming'), value=upcoming_msg, inline=False)
         await ctx.send(embed=embed)
+
+    @commands.command(name="buli")
+    async def buli_livescores(self, ctx, allmatches=None):
+        await ctx.invoke(self.bot.get_command('fußball'), 'bl1', allmatches)
