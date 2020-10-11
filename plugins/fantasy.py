@@ -54,12 +54,12 @@ class FantasyLeague:
         self.espn = None  # type: Optional[League]
 
         if init:
-            connect_thread = Thread(target=self._connect_espn)
+            connect_thread = Thread(target=self.load_espn_data)
             connect_thread.start()
         else:
-            self._connect_espn()
+            self.load_espn_data()
 
-    def _connect_espn(self):
+    def load_espn_data(self):
         self.espn = League(year=self.plugin.year, league_id=self.espn_id,
                            espn_s2=Storage.get(self.plugin)["api"]["espn_s2"],
                            swid=Storage.get(self.plugin)["api"]["swid"])
@@ -177,7 +177,7 @@ class Plugin(BasePlugin, name="NFL Fantasyliga"):
             }
         }
 
-    def shutdown(self):
+    async def shutdown(self):
         self._stop_score_timer()
 
     @property
@@ -375,16 +375,21 @@ class Plugin(BasePlugin, name="NFL Fantasyliga"):
         if match is None:
             return
 
+        opp_name = None
+        opp_score = None
         if match.home_team == team:
             score = match.home_score
             lineup = match.home_lineup
-            opp_name = match.away_team.team_name
-            opp_score = match.away_score
+            opp_name = None
+            if match.away_team != 0:
+                opp_name = match.away_team.team_name
+                opp_score = match.away_score
         else:
             score = match.away_score
             lineup = match.away_lineup
-            opp_name = match.home_team.team_name
-            opp_score = match.home_score
+            if match.home_team != 0:
+                opp_name = match.home_team.team_name
+                opp_score = match.home_score
 
         for pl in lineup:
             if "RB/WR".lower() in pl.slot_position.lower():
@@ -402,7 +407,10 @@ class Plugin(BasePlugin, name="NFL Fantasyliga"):
         msg = "{}\n{}".format(msg, Lang.lang(self, "box_suffix", score))
 
         embed.description = msg
-        embed.set_footer(text=Lang.lang(self, "box_footer", opp_name, opp_score))
+        if opp_name is None:
+            embed.set_footer(text=Lang.lang(self, "box_footer_bye"))
+        else:
+            embed.set_footer(text=Lang.lang(self, "box_footer", opp_name, opp_score))
         return embed
 
     @fantasy.command(name="standings", help="Gets the full current standings")
@@ -508,7 +516,7 @@ class Plugin(BasePlugin, name="NFL Fantasyliga"):
     async def fantasy_reload(self, ctx):
         async with ctx.typing():
             for league in self.leagues.values():
-                league.espn._fetch_league()  # workaround until package provides public reload method
+                league.load_espn_data()
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
     @fantasy.group(name="set", help="Set data about the fantasy game.")

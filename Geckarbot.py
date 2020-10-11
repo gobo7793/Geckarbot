@@ -397,16 +397,17 @@ def main():
             else:
                 # error handling
                 embed = discord.Embed(title=':x: Command Error', colour=0xe74c3c)  # Red
+                embed.add_field(name='Plugin', value=ctx.cog.get_name())
                 embed.add_field(name='Error', value=error)
+                embed.add_field(name='Author', value=ctx.author.display_name)
                 embed.add_field(name='Command', value=ctx.command)
-                embed.add_field(name='Message', value=ctx.message.clean_content)
                 if isinstance(ctx.channel, discord.TextChannel):
                     embed.add_field(name='Channel', value=ctx.channel.name)
                 if isinstance(ctx.channel, discord.DMChannel):
                     embed.add_field(name='Channel', value=ctx.channel.recipient)
                 if isinstance(ctx.channel, discord.GroupChannel):
                     embed.add_field(name='Channel', value=ctx.channel.recipients)
-                embed.add_field(name='Author', value=ctx.author.display_name)
+                embed.add_field(name='Message', value=ctx.message.clean_content)
                 embed.url = ctx.message.jump_url
                 embed.timestamp = datetime.datetime.utcnow()
 
