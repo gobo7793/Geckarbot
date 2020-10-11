@@ -1,0 +1,16 @@
+{
+    "en": {
+        "help_buli": "Current standings of the Bundesliga matches",
+
+        "buli_title": "Bundesliga - Live"
+    },
+
+    "de": {
+        "help_buli": "Aktuelle Livestände der Bundesliga",
+        "description_buli": "Zeigt die aktuellen Stände der derzeit laufenden Bundesliga-Spiele.\nMit dem Zusatz 'all' werden auch anstehende und beendete Spiele angezeigt.",
+
+        "buli_title": "Bundesliga - Live",
+        "match_finished": "Beendet",
+        "match_upcoming": "Bevorstehend"
+    }
+}
