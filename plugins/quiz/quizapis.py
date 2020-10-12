@@ -1,7 +1,9 @@
 import logging
 from urllib.parse import unquote
 import random
+import json
 
+import aiohttp
 import discord
 
 from botutils import restclient
@@ -87,7 +89,6 @@ class OpenTDBQuizAPI(BaseQuizAPI):
         }
         if self.category is None:
             self.category = self.category_key(self.category)
-        print("CATEGORY: {}".format(self.category))
         catkey, _ = self.category.get(OpenTDBQuizAPI)
         if catkey > 0:
             params["category"] = catkey
@@ -107,6 +108,9 @@ class OpenTDBQuizAPI(BaseQuizAPI):
             }
             incorrect_answers = [discord.utils.escape_markdown(unquote(ia)) for ia in el["incorrect_answers"]]
             self.questions.append(Question(question, correct_answer, incorrect_answers, index=i, info=info))
+
+    async def fetch(self):
+        pass
 
     def current_question_index(self):
         return self.current_question_i
@@ -167,7 +171,7 @@ class OpenTDBQuizAPI(BaseQuizAPI):
     @staticmethod
     def category_key(catarg):
         """
-        :param catarg: Argument that was passed that identifies a
+        :param catarg: Argument that was passed that identifies a category
         :return: Opaque category identifier that can be used in initialization and for category_name.
         Returns None if catarg is an unknown category.
         """
@@ -212,6 +216,78 @@ class OpenTDBQuizAPI(BaseQuizAPI):
         self.is_running = False
 
 
+class Pastebin(BaseQuizAPI):
+    URL = "https://pastebin.com/raw/QRGzxxEy"
+    CATEGORIES = ["any", "default", "none", "general"]
+    CATKEY = 0
+
+    def __init__(self, config, channel, category=None, question_count=None, difficulty=None, debug=False):
+        self.questions = None
+        self.current_question_i = -1
+        self.question_count = question_count if question_count is not None else config["questions_default"]
+        self.channel = channel
+
+        if category != self.CATKEY:
+            raise RuntimeError("Unknown category: {}".format(category))
+
+    async def fetch(self):
+        async with aiohttp.ClientSession() as session:
+            async with session.get(self.URL) as response:
+                response = await response.text()
+        response = json.loads(response)
+        self.questions = random.choices(range(len(response)), k=self.question_count)
+        for i in range(len(self.questions)):
+            el = response[self.questions[i]]
+            question = el["question"]
+            correct = el["answer"]
+            answers = []
+            found = False
+            for letter in ["A", "B", "C", "D"]:
+                if letter == correct:
+                    correct = el[letter]
+                    found = True
+                else:
+                    answers.append(el[letter])
+            assert found
+            self.questions[i] = Question(question, correct, answers, index=i)
+
+    def current_question_index(self):
+        return self.current_question_i
+
+    def current_question(self):
+        return self.questions[self.current_question_i]
+
+    def next_question(self):
+        self.current_question_i += 1
+        if self.current_question_i > len(self.questions) - 1:
+            raise QuizEnded
+
+        return self.questions[self.current_question_i]
+
+    @staticmethod
+    def category_name(catkey):
+        if catkey == 0:
+            return "Any"
+        else:
+            return "Unknown"
+
+    @staticmethod
+    def category_key(catarg):
+        if catarg is None or catarg.lower() in Pastebin.CATEGORIES:
+            return Pastebin.CATKEY
+        else:
+            return None
+
+    def size(self, **kwargs):
+        pass
+
+    def info(self, **kwargs):
+        pass
+
+    def __del__(self):
+        pass
+
+
 class MetaQuizAPI(BaseQuizAPI):
     """
     Quiz API that combines all existing ones.
@@ -248,6 +324,7 @@ class MetaQuizAPI(BaseQuizAPI):
         # Meta stuff
         self.spacesize = 0
 
+    async def fetch(self):
         # Determine question space sizes, weights and question sequence
         sizes = {}
         apiclasses = []
@@ -267,6 +344,8 @@ class MetaQuizAPI(BaseQuizAPI):
 
         apis = {el: el(self.config, self.channel, category=self.category, question_count=question_counts[el],
                        difficulty=self.difficulty, debug=self.debug) for el in apiclasses}
+        for el in apis:
+            await apis[el].fetch()
 
         # Build questions list
         for i in range(self.question_count):
@@ -357,4 +436,5 @@ class MetaQuizAPI(BaseQuizAPI):
 quizapis = {
     "opentdb": OpenTDBQuizAPI,
     "meta": MetaQuizAPI,
+    "pastebin": Pastebin,
 }

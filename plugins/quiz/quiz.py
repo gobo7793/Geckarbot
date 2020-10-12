@@ -157,7 +157,8 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
         # category help
         if cmd is None:
             return subcommands
-        
+
+        # Subcommands for kwiss
         order = [
             "status",
             "score",
