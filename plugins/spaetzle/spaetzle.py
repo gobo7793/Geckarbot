@@ -242,9 +242,11 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
         await ctx.send(embed=discord.Embed(title=Lang.lang(self, 'title_matchday', matchday), description=msg))
 
     @spaetzle_set.command(name="duels", aliases=["duelle"])
-    async def set_duels(self, ctx, matchday: int, league: int = None):
+    async def set_duels(self, ctx, matchday: int = None, league: int = None):
         if not await Trusted(self).is_trusted(ctx):
             return
+        if matchday is None:
+            matchday = Storage().get(self)['matchday']
         if matchday not in range(1, 18):
             await add_reaction(ctx.message, Lang.CMDERROR)
             await ctx.send(Lang.lang(self, 'matchday_out_of_range'))
