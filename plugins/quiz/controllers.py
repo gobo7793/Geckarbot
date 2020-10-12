@@ -100,6 +100,7 @@ class PointsQuizController(BaseQuizController):
     """
     Transitions
     """
+
     async def registering_phase(self):
         """
         REGISTERING -> ABOUTTOSTART; REGISTERING -> ABORT
@@ -431,6 +432,7 @@ class PointsQuizController(BaseQuizController):
                                     difficulty=self.difficulty,
                                     debug=self.debug)
         self.state = Phases.REGISTERING
+        await self.quizapi.fetch()
 
     async def register_command(self, msg, *args):
         """

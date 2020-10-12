@@ -216,6 +216,13 @@ class Score:
 
 class Question:
     def __init__(self, question, correct_answer, incorrect_answers, index=None, info=None):
+        """
+        :param question: Question string (Usually ends with a "?" ;))
+        :param correct_answer: Correct answer
+        :param incorrect_answers: All the other answers
+        :param index: no idea
+        :param info: Not sure, seems to be used as embed fields in the question info cmd
+        """
         logging.debug("Question({}, {}, {})".format(question, correct_answer, incorrect_answers))
         self.index = index
         self.info = info
