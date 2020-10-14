@@ -47,6 +47,7 @@
         "choose_noarg": "I need an option!"
     },
     "de": {
+        "#1": "Stuff",
         "choose_sabaton": "NOCH EIN BIER! NOCH EIN BIER! Also Sabaton geht ja immer, aber...",
         "choose_msg": "Ich wähle: ",
         "choose_noarg": "Ich brauche mindestens eine Möglichkeit!",
@@ -61,6 +62,27 @@
         "remind_list_none": "Ich wüsste nicht, an was ich dich erinnern müsste.",
         "remind_past": "Sorry, aber ich habe keine Zeitmaschine.",
         "bully_msg": "{} mobbt uns :frowning:",
-        "bully_msg_self": "Ich mobbe euch :slight_smile:"
+        "bully_msg_self": "Ich mobbe euch :slight_smile:",
+
+        "#2": "Help",
+        "help_dice": "Wirft einen Würfel",
+        "help_desc_dice": "Alea iacta est! Simuliert den Wurf einer oder mehrerer Würfel.",
+        "help_usage_dice": "<Anzahl Seiten> <Anzahl Würfel>",
+        "help_kicker": "Wichtige Links zu kicker.de",
+        "help_choose": "Zieht zufällig aus gegebenen Optionen.",
+        "help_desc_choose": "Zieht zufällig aus anzugebenden Optionen. Optionen sind mit | zu trennen.",
+        "help_usage_choose": "option1 | option2 | ...",
+        "help_mud": "Pingt den Bot",
+        "help_mudkip": "Mudkip!",
+        "help_desc_mudkip": "Erklärt die Herkunft von !mud.",
+        "help_mimimi": "Für besondere Mimimi-Momente",
+        "help_desc_mimimi": "Postet eine mp3-Datei, die \"Mimimi\" enthält.",
+        "help_desc_geck": "Geckarbor!",
+        "help_desc_keysmash": "Schont die Tastatur.",
+        "help_werwars": "Zeigt anklagend auf einen User",
+        "help_desc_werwars": "Sucht einen User, der in den letzten 30 Minuten aktiv war und zeigt anklagend auf diesen. Unterstützt die Ignore-Funktion.",
+        "help_remindme": "Erinnerungsfunktion",
+        "help_usage_remindme": "<#|#m|#h|#d|DD.MM.YYYY|HH:MM|DD.MM.YYYY HH:MM|DD.MM. HH:MM|cancel|list> [Nachricht|Cancel-ID]",
+        "help_desc_remindme": "Erinnert den Author in x Minuten, Stunden oder Tagen oder an einem festen Datum/Uhrzeit.\nDie Zeitspanne zur Erinnering lässt sich mit einem m für Minuten, h für Stunden oder d für Tage angeben (z.B. \"4h\"). Die Standardeinheit ist Minuten.\nMit cancel <id> wird eine Erinnerung abgebrochen, mit cancel (ohne ID) werden alle Erinnerungen des Users abgebrochen."
     }
 }
