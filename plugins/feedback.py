@@ -169,7 +169,7 @@ class Plugin(BasePlugin, name="Feedback"):
         for arg in args:
             if arg in ignore:
                 continue
-            if arg == "last" or arg == "-1":
+            if arg in ["last", "latest", "-1"]:
                 ids.append(self.get_new_id(increment=False))
                 continue
 
