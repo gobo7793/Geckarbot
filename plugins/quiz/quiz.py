@@ -6,8 +6,8 @@ import discord
 from discord.ext import commands
 from discord.errors import HTTPException
 
-from base import BasePlugin
-from conf import Storage, Lang, Config
+from base import BasePlugin, NotFound
+from conf import Storage, Lang
 from subsystems import help
 from botutils import permchecks
 from botutils.utils import sort_commands_helper
@@ -148,10 +148,18 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
     Help
     """
     def command_help_string(self, command):
-        return Lang.lang(self, "help_{}".format(command.name))
+        langstr = Lang.lang_no_failsafe(self, "help_{}".format(command.name))
+        if langstr is not None:
+            return langstr
+        else:
+            raise NotFound()
 
     def command_description(self, command):
-        return Lang.lang(self, "desc_{}".format(command.name))
+        langstr = Lang.lang_no_failsafe(self, "desc_{}".format(command.name))
+        if langstr is not None:
+            return langstr
+        else:
+            raise NotFound()
 
     def sort_commands(self, ctx, cmd, subcommands):
         # category help

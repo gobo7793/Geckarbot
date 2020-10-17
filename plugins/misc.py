@@ -8,7 +8,7 @@ from discord.ext import commands
 import botutils.timeutils
 from conf import Storage, Lang, Config
 
-from base import BasePlugin
+from base import BasePlugin, NotFound
 from subsystems import timers, help
 from botutils.converters import get_best_username
 
@@ -31,6 +31,27 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
 
     def default_storage(self):
         return {'reminders': {}}
+
+    def command_help_string(self, command):
+        langstr = Lang.lang_no_failsafe(self, "help_{}".format(command.name))
+        if langstr is not None:
+            return langstr
+        else:
+            raise NotFound()
+
+    def command_description(self, command):
+        langstr = Lang.lang_no_failsafe(self, "help_desc_{}".format(command.name))
+        if langstr is not None:
+            return langstr
+        else:
+            raise NotFound()
+
+    def command_usage(self, command):
+        langstr = Lang.lang_no_failsafe(self, "help_usage_{}".format(command.name))
+        if langstr is not None:
+            return langstr
+        else:
+            raise NotFound()
 
     def get_new_reminder_id(self):
         """
