@@ -48,12 +48,16 @@ class TeamnameDict:
                     self.teamdict.setdefault(name.lower(), team['short_name'])
 
     def get_long(self, team):
+        if team is None:
+            return None
         name = self.teamdict.get(team.lower())
         if is_teamname_abbr(name):
             name = self.teamdict.get(name.lower())
         return name
 
     def get_abbr(self, team):
+        if team is None:
+            return None
         name = self.teamdict.get(team.lower())
         if not is_teamname_abbr(name):
             name = self.teamdict.get(name.lower())
