@@ -214,13 +214,13 @@ def get_user_cell(plugin, user):
 
 
 def get_schedule(plugin, league, matchday: int):
-    matchday = [5, 16, 15, 1, 12, 9, 8, 4, 13, 10, 11, 7, 14, 3, 6, 0, 2][matchday - 1]  # "Randomize" input
+    matchday = [3, 14, 13, 16, 12, 9, 8, 4, 15, 10, 11, 7, 1, 5, 6, 0, 2][matchday - 1]  # "Randomize" input
     participants = Storage().get(plugin)['participants'].get(league)
     if participants is None:
         raise LeagueNotFound()
     participants.extend([None] * max(0, 18 - len(participants)))  # Extend if not enough participants
     p = [participants[i] for i in [11, 0, 13, 6, 5, 15, 9, 1, 14, 8, 4, 16, 7, 2, 17, 3, 10, 12]]
-    p = p[0:1] + p[matchday - 1:] + p[1:matchday - 1]
+    p = p[0:1] + p[1:][matchday:] + p[1:][:matchday]
     schedule = []
     schedule.extend([(p[0], p[1]),
                      (p[2], p[17]),
