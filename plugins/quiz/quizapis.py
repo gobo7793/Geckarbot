@@ -123,8 +123,6 @@ class OpenTDBQuizAPI(BaseQuizAPI):
         """
         difficulty = kwargs["difficulty"] if "difficulty" in kwargs else Difficulty.ANY
         cat = kwargs["category"] if "category" in kwargs else None
-        print("CAT: {}".format(cat))
-
         if cat.key(cls) == -1:
             cats = [el["id"] for el in opentdb["cat_mapping"] if el["id"] != -1]
         else:
@@ -136,8 +134,6 @@ class OpenTDBQuizAPI(BaseQuizAPI):
                 "category": cat,
                 "encode": "url3986",
             }
-            print("Route: {}".format(opentdb["api_count_route"]))
-            print("Params: {}".format(params))
             counts = client.make_request(opentdb["api_count_route"], params=params)["category_question_count"]
             if difficulty == Difficulty.ANY:
                 key = "total_question_count"
@@ -234,7 +230,6 @@ class Pastebin(BaseQuizAPI):
             async with session.get(self.URL) as response:
                 response = await response.text()
         response = json.loads(response)
-        print("{} Fragen".format((len(response))))
         self.questions = random.choices(range(len(response)), k=self.question_count)
         for i in range(len(self.questions)):
             el = response[self.questions[i]]
@@ -398,7 +393,6 @@ class MetaQuizAPI(BaseQuizAPI):
             args = kwargs.copy()
             if "category" in args:
                 args["category"] = args["category"][api]
-            print("Calling size with args {}".format(args))
 
             size = await api.size(**args)
             if size is not None:
