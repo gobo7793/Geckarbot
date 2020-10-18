@@ -107,7 +107,7 @@ class OpenTDBQuizAPI(BaseQuizAPI):
                 "category": el["category"],
             }
             incorrect_answers = [discord.utils.escape_markdown(unquote(ia)) for ia in el["incorrect_answers"]]
-            self.questions.append(Question(question, correct_answer, incorrect_answers, index=i, info=info))
+            self.questions.append(Question(self, question, correct_answer, incorrect_answers, index=i, info=info))
 
     async def fetch(self):
         pass
@@ -116,29 +116,28 @@ class OpenTDBQuizAPI(BaseQuizAPI):
         return self.current_question_i
 
     @classmethod
-    def size(cls, **kwargs):
+    async def size(cls, **kwargs):
         """
         :return: Returns how many questions there are in the database under the given constraints. Returns None
         if the constraints are not supported (e.g. unknown category).
         """
-        difficulty = Difficulty.ANY
-        if "difficulty" in kwargs:
-            difficulty = kwargs["difficulty"]
-        cat = "any"
-        if "category" in kwargs and kwargs["category"] is not None:
-            cat = kwargs["category"]
+        difficulty = kwargs["difficulty"] if "difficulty" in kwargs else Difficulty.ANY
+        cat = kwargs["category"] if "category" in kwargs else None
+        print("CAT: {}".format(cat))
 
-        if cat == -1:
+        if cat.key(cls) == -1:
             cats = [el["id"] for el in opentdb["cat_mapping"] if el["id"] != -1]
         else:
-            cats = [cat]
+            cats = [cat.key(cls)]
         r = 0
         client = restclient.Client(opentdb["base_url"])
         for cat in cats:
             params = {
-                "category": str(cat),
+                "category": cat,
                 "encode": "url3986",
             }
+            print("Route: {}".format(opentdb["api_count_route"]))
+            print("Params: {}".format(params))
             counts = client.make_request(opentdb["api_count_route"], params=params)["category_question_count"]
             if difficulty == Difficulty.ANY:
                 key = "total_question_count"
@@ -155,7 +154,7 @@ class OpenTDBQuizAPI(BaseQuizAPI):
         return r
 
     @classmethod
-    def info(cls, **kwargs):
+    async def info(cls, **kwargs):
         return "Question count: {}".format(cls.size(**kwargs))
 
     @staticmethod
@@ -235,6 +234,7 @@ class Pastebin(BaseQuizAPI):
             async with session.get(self.URL) as response:
                 response = await response.text()
         response = json.loads(response)
+        print("{} Fragen".format((len(response))))
         self.questions = random.choices(range(len(response)), k=self.question_count)
         for i in range(len(self.questions)):
             el = response[self.questions[i]]
@@ -249,7 +249,7 @@ class Pastebin(BaseQuizAPI):
                 else:
                     answers.append(el[letter])
             assert found
-            self.questions[i] = Question(question, correct, answers, index=i)
+            self.questions[i] = Question(self, question, correct, answers, index=i)
 
     def current_question_index(self):
         return self.current_question_i
@@ -278,11 +278,12 @@ class Pastebin(BaseQuizAPI):
         else:
             return None
 
-    def size(self, **kwargs):
-        pass
+    @classmethod
+    async def size(cls, **kwargs):
+        return 547
 
-    def info(self, **kwargs):
-        pass
+    async def info(self, **kwargs):
+        return "Not impl yet"
 
     def __del__(self):
         pass
@@ -292,7 +293,7 @@ class MetaQuizAPI(BaseQuizAPI):
     """
     Quiz API that combines all existing ones.
     """
-    apis = [OpenTDBQuizAPI]
+    apis = [OpenTDBQuizAPI, Pastebin]
 
     def __init__(self, config, channel,
                  category=None, question_count=None, difficulty=Difficulty.EASY,
@@ -330,7 +331,9 @@ class MetaQuizAPI(BaseQuizAPI):
         apiclasses = []
         weights = []
         for el in self.apis:
-            size = el.size(category=self.category, difficulty=self.difficulty)
+            if self.category[el] is None:
+                continue
+            size = await el.size(category=self.category[el], difficulty=self.difficulty)
             if size is not None:
                 apiclasses.append(el)
                 weights.append(size)
@@ -342,9 +345,10 @@ class MetaQuizAPI(BaseQuizAPI):
         for el in question_seq:
             question_counts[el] += 1
 
-        apis = {el: el(self.config, self.channel, category=self.category, question_count=question_counts[el],
-                       difficulty=self.difficulty, debug=self.debug) for el in apiclasses}
-        for el in apis:
+        apis = {}
+        for el in apiclasses:
+            apis[el] = el(self.config, self.channel, category=self.category[el], question_count=question_counts[el],
+                          difficulty=self.difficulty, debug=self.debug)
             await apis[el].fetch()
 
         # Build questions list
@@ -361,10 +365,8 @@ class MetaQuizAPI(BaseQuizAPI):
         """
         if cat is not None:
             self.category = cat
-
         elif self.channel.id in self.config["channel_mapping"]:
             self.category = self.config["channel_mapping"][self.channel.id]
-
         else:
             self.category = self.config["default_category"]
 
@@ -373,10 +375,8 @@ class MetaQuizAPI(BaseQuizAPI):
         """
         :return: Human-readable representation of the quiz category
         """
-        for el in opentdb["cat_mapping"]:
-            if el["id"] == catkey:
-                return el["names"][0]
-        return catkey
+        for api in catkey:
+            return api.category_name(catkey[api])
 
     @staticmethod
     def category_key(catarg):
@@ -385,22 +385,29 @@ class MetaQuizAPI(BaseQuizAPI):
         :return: Opaque category identifier that can be used in initialization and for category_name.
         Returns None if catarg is an unknown category.
         """
+        r = {}
         for api in MetaQuizAPI.apis:
-            r = api.category_key(catarg)
-        return None
+            r[api] = api.category_key(catarg)
+        return r
 
     @classmethod
-    def size(cls, **kwargs):
+    async def size(cls, **kwargs):
         r = 0
         for api in cls.apis:
-            size = api.size(**kwargs)
+            # Build QuizAPI-specific kwargs
+            args = kwargs.copy()
+            if "category" in args:
+                args["category"] = args["category"][api]
+            print("Calling size with args {}".format(args))
+
+            size = await api.size(**args)
             if size is not None:
                 r += size
         return r
 
     @classmethod
-    def info(cls, **kwargs):
-        return "Question count: {}".format(cls.size(**kwargs))
+    async def info(cls, **kwargs):
+        return "Question count: {}".format(await cls.size(**kwargs))
 
     def cat_count(self, cat):
         found = None

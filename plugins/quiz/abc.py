@@ -27,7 +27,7 @@ class BaseQuizAPI(ABC):
         pass
 
     @abstractmethod
-    def size(self, **kwargs):
+    async def size(self, **kwargs):
         """
         Calculates the question space size for the given constraints (such as category and difficulty).
         :return: int

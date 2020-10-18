@@ -104,7 +104,7 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
 
         self.default_controller = PointsQuizController
         self.defaults = {
-            "quizapi": quizapis["opentdb"],
+            "quizapi": quizapis["meta"],
             "questions": self.config["questions_default"],
             "method": Methods.START,
             "category": None,
@@ -364,13 +364,15 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
 
     @kwiss.command(name="question")
     async def cmd_question(self, ctx, *args):
-        if len(args) != 1:
+        if len(args) != 0:
             await ctx.message.add_reaction(Lang.CMDERROR)
+            await ctx.send("Too many arguments")
             return
 
         controller = self.get_controller(ctx.channel)
         if controller is None:
             await ctx.message.add_reaction(Lang.CMDERROR)
+            await ctx.send("No kwiss running")
             return
 
         embed = controller.quizapi.current_question().embed(emoji=True, info=True)

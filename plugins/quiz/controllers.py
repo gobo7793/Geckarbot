@@ -1,12 +1,13 @@
 import asyncio
 import random
 from enum import Enum
+from datetime import datetime
 
 import discord
 
 from subsystems.reactions import ReactionRemovedEvent
 from subsystems import timers
-from botutils import utils, statemachine
+from botutils import statemachine
 from botutils.stringutils import format_andlist
 from conf import Storage, Lang
 
@@ -100,7 +101,6 @@ class PointsQuizController(BaseQuizController):
     """
     Transitions
     """
-
     async def registering_phase(self):
         """
         REGISTERING -> ABOUTTOSTART; REGISTERING -> ABORT
@@ -112,7 +112,10 @@ class PointsQuizController(BaseQuizController):
                                                        self.config["points_quiz_register_timeout"] // 60))
         await signup_msg.add_reaction(Lang.lang(self.plugin, "reaction_signup"))
 
-        await asyncio.sleep(self.config["points_quiz_register_timeout"])
+        before = datetime.now()
+        await self.quizapi.fetch()
+        tosleep = before - datetime.now()
+        await asyncio.sleep(self.config["points_quiz_register_timeout"] - tosleep.seconds)
 
         # Kwiss was cancelled
         if self.state != Phases.REGISTERING:
@@ -432,7 +435,6 @@ class PointsQuizController(BaseQuizController):
                                     difficulty=self.difficulty,
                                     debug=self.debug)
         self.state = Phases.REGISTERING
-        await self.quizapi.fetch()
 
     async def register_command(self, msg, *args):
         """
