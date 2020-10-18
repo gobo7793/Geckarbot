@@ -1,3 +1,4 @@
+import logging
 from enum import Enum
 import time
 from urllib.error import HTTPError
@@ -37,6 +38,7 @@ class Plugin(BasePlugin, name="LastFM"):
         super().__init__(bot)
         bot.register(self)
 
+        self.logger = logging.getLogger(__name__)
         self.client = Client(baseurl)
         self.conf = Config.get(self)
         if not self.conf.get("apikey", ""):
@@ -306,6 +308,7 @@ class Plugin(BasePlugin, name="LastFM"):
         :param fact: fact
         :return: `(count, out_of)` with count being the amount of matches for criterion it found
         """
+        self.logger.debug("Expanding")
         limit = 5
         page_len = len(so_far)
         page_index = 1
@@ -326,12 +329,16 @@ class Plugin(BasePlugin, name="LastFM"):
                 if self.interest_match(song, criterion, fact):
                     current_matches += 1
                     # This match improves our overall situation
-                    if current_matches / current_song_index > (top_matches - 1) / top_song_index:
+                    logging.debug("Comparison: {} > {} on song {}".format(current_matches / current_song_index,
+                                                                          (top_matches - 2) / top_song_index,
+                                                                          current_song_index))
+                    if current_matches / current_song_index > (top_matches - 2) / top_song_index:
                         improved = True
                         top_song_index = current_song_index
                         top_matches = current_matches
 
             if not improved and page_index > 1:
+                self.logger.debug("Expand: Done")
                 break
 
             # Done, prepare next loop
@@ -340,6 +347,7 @@ class Plugin(BasePlugin, name="LastFM"):
                 break
             params["limit"] = page_len
             params["page"] = page_index
+            self.logger.debug("Expand: Fetching page {}".format(page_index))
             current_page = self.build_songs(self.request(params, "GET"))
             if len(current_page) > page_len:
                 if len(current_page) != page_len + 1:
@@ -377,10 +385,13 @@ class Plugin(BasePlugin, name="LastFM"):
         for el in first:
             scores[el] -= 1
 
-    def calc_scores(self, songs):
+    def calc_scores(self, songs, min_artist, min_album, min_title):
         """
         Counts the occurences of artists, songs and albums in a list of song dicts and assigns scores
         :param songs: list of songs
+        :param min_artist: Amount of songs that have to have the same artist
+        :param min_album: Amount of songs that have to have the same artist and album
+        :param min_title: Amount of songs that have to have the same artist and album
         :return: nested dict that contains scores for every artist, song and album
         """
         r = {
@@ -388,21 +399,23 @@ class Plugin(BasePlugin, name="LastFM"):
             "albums": {},
             "titles": {},
         }
+        i = 0
         for song in songs:
             if song["artist"] in r["artists"]:
-                r["artists"][song["artist"]] += 1
-            else:
-                r["artists"][song["artist"]] = 1
+                r["artists"][song["artist"]][0] += 1
+            elif i < min_artist:
+                r["artists"][song["artist"]] = [1, i]
 
             if (song["artist"], song["album"]) in r["albums"]:
-                r["albums"][song["artist"], song["album"]] += 1
-            else:
-                r["albums"][song["artist"], song["album"]] = 1
+                r["albums"][song["artist"], song["album"]][0] += 1
+            elif i < min_album:
+                r["albums"][song["artist"], song["album"]] = [1, i]
 
             if (song["artist"], song["title"]) in r["titles"]:
-                r["titles"][song["artist"], song["title"]] += 1
-            else:
-                r["titles"][song["artist"], song["title"]] = 1
+                r["titles"][song["artist"], song["title"]][0] += 1
+            elif i < min_title:
+                r["titles"][song["artist"], song["title"]] = [1, i]
+            i += 1
 
         # Tie-breakers
         self.tiebreaker(r["artists"], songs, MostInterestingType.ARTIST)
@@ -413,9 +426,9 @@ class Plugin(BasePlugin, name="LastFM"):
 
     async def most_interesting(self, ctx, user):
         pagelen = 10
-        factor_album = 0.4
-        factor_title = 0.5
-        factor_artist = 0.5
+        min_album = 0.4 * pagelen
+        min_title = 0.5 * pagelen
+        min_artist = 0.5 * pagelen
         lfmuser = self.get_lastfm_user(user)
         params = {
             "method": "user.getRecentTracks",
@@ -426,29 +439,29 @@ class Plugin(BasePlugin, name="LastFM"):
         songs = self.build_songs(response)
 
         # Calc counts
-        scores = self.calc_scores(songs[:pagelen])
-        best_artist = sorted(scores["artists"].keys(), key=lambda x: scores["artists"][x], reverse=True)[0]
-        best_artist_count = scores["artists"][best_artist]
-        best_album = sorted(scores["albums"].keys(), key=lambda x: scores["albums"][x], reverse=True)[0]
-        best_album_count = scores["albums"][best_album]
+        scores = self.calc_scores(songs[:pagelen], min_artist, min_album, min_title)
+        best_artist = sorted(scores["artists"].keys(), key=lambda x: scores["artists"][x][0], reverse=True)[0]
+        best_artist_count = scores["artists"][best_artist][0]
+        best_album = sorted(scores["albums"].keys(), key=lambda x: scores["albums"][x][0], reverse=True)[0]
+        best_album_count = scores["albums"][best_album][0]
         best_album_artist, best_album = best_album
-        best_title = sorted(scores["titles"].keys(), key=lambda x: scores["titles"][x], reverse=True)[0]
-        best_title_count = scores["titles"][best_title]
+        best_title = sorted(scores["titles"].keys(), key=lambda x: scores["titles"][x][0], reverse=True)[0]
+        best_title_count = scores["titles"][best_title][0]
         best_title_artist, best_title = best_title
 
         # Decide what is of the most interest
         mi = None
         mi_score = 0
         mi_fact = None
-        if best_artist_count >= pagelen * factor_artist:
+        if best_artist_count >= min_artist:
             mi = MostInterestingType.ARTIST
             mi_score = best_artist_count
             mi_fact = best_artist
-        if best_album_count >= pagelen * factor_album:
+        if best_album_count >= min_album:
             mi = MostInterestingType.ALBUM
             mi_score = best_album_count
             mi_fact = best_album_artist, best_album
-        if best_title_count >= pagelen * factor_title:
+        if best_title_count >= min_title:
             mi = MostInterestingType.TITLE
             mi_score = best_title_count
             mi_fact = best_title_artist, best_title
