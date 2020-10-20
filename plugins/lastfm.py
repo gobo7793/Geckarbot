@@ -269,11 +269,19 @@ class Plugin(BasePlugin, name="LastFM"):
         r = [] if append_to is None else append_to
         for el in tracks:
             song = {
-                "artist": self.get_by_path(el, ["artist", "name"], strict=True),
                 "title": self.get_by_path(el, ["name"], strict=True),
                 "album": self.sanitize_album(self.get_by_path(el, ["album", "#text"], default="unknown")),
                 "nowplaying": self.get_by_path(el, ["@attr", "nowplaying"], default="false"),
             }
+            # Artist
+            artist = el["artist"]
+            if "name" in artist:
+                artist = artist["name"]
+            elif "#text" in artist:
+                artist = artist["#text"]
+            else:
+                raise UnknownResponse("Artist not found in response", Lang.lang(self, "error"))
+            song["artist"] = artist
 
             # Now playing
             if song["nowplaying"] == "true":
@@ -364,7 +372,7 @@ class Plugin(BasePlugin, name="LastFM"):
             params["limit"] = page_len
             params["page"] = page_index
             self.logger.debug("Expand: Fetching page {}".format(page_index))
-            current_page = self.build_songs(self.request(params, "GET"))
+            current_page = self.build_songs(self.request(params))
             if len(current_page) > page_len:
                 if len(current_page) != page_len + 1:
                     raise RuntimeError("PANIC")
