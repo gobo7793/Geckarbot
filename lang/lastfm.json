@@ -18,6 +18,7 @@
 
     "#2": "Output",
     "all": "alle",
+    "loved": "❤️",
     "listening_base_present": "{} hört gerade {}.",
     "listening_base_past": "{} hörte zuletzt {}.",
     "listening_song_base": "**{}** von **{}**",

@@ -203,10 +203,11 @@ class Plugin(BasePlugin, name="LastFM"):
             "method": "user.getRecentTracks",
             "user": lfmuser,
             "limit": 1,
+            "extended": 1,
         }
 
         async with ctx.typing():
-            response = self.request(params, "GET")
+            response = self.request(params)
             song = self.build_songs(response)[0]
 
         await ctx.send(self.listening_msg(user, song))
@@ -221,6 +222,8 @@ class Plugin(BasePlugin, name="LastFM"):
         :return: Message string that is ready to be sent
         """
         msg = Lang.lang(self, "listening_song_base", song["title"], song["artist"])
+        if song["loved"]:
+            msg = "{} {}".format(Lang.lang(self, "loved"), msg)
         if song["album"]:
             msg = Lang.lang(self, "listening_song_album", msg, song["album"])
         if song["nowplaying"]:
@@ -266,17 +269,30 @@ class Plugin(BasePlugin, name="LastFM"):
         r = [] if append_to is None else append_to
         for el in tracks:
             song = {
-                "artist": self.get_by_path(el, ["artist", "#text"], strict=True),
+                "artist": self.get_by_path(el, ["artist", "name"], strict=True),
                 "title": self.get_by_path(el, ["name"], strict=True),
                 "album": self.sanitize_album(self.get_by_path(el, ["album", "#text"], default="unknown")),
                 "nowplaying": self.get_by_path(el, ["@attr", "nowplaying"], default="false"),
             }
+
+            # Now playing
             if song["nowplaying"] == "true":
                 song["nowplaying"] = True
             else:
                 if song["nowplaying"] != "false":
                     write_debug_channel("WARNING: lastfm: unexpected \"nowplaying\": {}".format(song["nowplaying"]))
                 song["nowplaying"] = False
+
+            # Loved
+            loved = el.get("loved", "0")
+            if loved == "1":
+                loved = True
+            else:
+                if loved != "0":
+                    write_debug_channel("Lastfm: Unknown \"loved\" value: {}".format(loved))
+                loved = False
+            song["loved"] = loved
+
             r.append(song)
         return r
 
@@ -414,7 +430,7 @@ class Plugin(BasePlugin, name="LastFM"):
             if (song["artist"], song["title"]) in r["titles"]:
                 r["titles"][song["artist"], song["title"]][0] += 1
             elif i < min_title:
-                r["titles"][song["artist"], song["title"]] = [1, i]
+                r["titles"][song["artist"], song["title"]] = [1, i, song["loved"]]
             i += 1
 
         # Tie-breakers
@@ -434,6 +450,7 @@ class Plugin(BasePlugin, name="LastFM"):
             "method": "user.getRecentTracks",
             "user": lfmuser,
             "limit": pagelen,
+            "extended": 1,
         }
         response = self.request(params, "GET")
         songs = self.build_songs(response)
@@ -447,6 +464,7 @@ class Plugin(BasePlugin, name="LastFM"):
         best_album_artist, best_album = best_album
         best_title = sorted(scores["titles"].keys(), key=lambda x: scores["titles"][x][0], reverse=True)[0]
         best_title_count = scores["titles"][best_title][0]
+        loved = scores["titles"][best_title][2]
         best_title_artist, best_title = best_title
 
         # Decide what is of the most interest
@@ -486,6 +504,8 @@ class Plugin(BasePlugin, name="LastFM"):
             msg = Lang.lang(self, base, gbu(user), content)
         elif mi == MostInterestingType.TITLE:
             song = Lang.lang(self, "listening_song_base", mi_fact[1], mi_fact[0])
+            if loved:
+                song = "{} {}".format(Lang.lang(self, "loved"), song)
             content = Lang.lang(self, "most_interesting_song", song, matches, total)
             msg = Lang.lang(self, base, gbu(user), content)
         else:
