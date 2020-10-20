@@ -127,7 +127,7 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
         self.register_subcommand(None, "info", self.cmd_info)
 
         super().__init__(bot)
-        bot.register(self, help.DefaultCategories.GAMES)
+        bot.register(self, category=help.DefaultCategories.GAMES)
 
         # Migrate data if necessary
         migration(self, self.logger)
