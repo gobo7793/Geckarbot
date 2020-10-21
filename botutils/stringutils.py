@@ -45,7 +45,6 @@ def paginate(items, prefix="", suffix="", msg_prefix="", msg_suffix="", delimite
                 _prefix = msg_prefix + prefix
             else:
                 _prefix = prefix + msg_prefix
-        first = False
 
         _suffix = msg_suffix
         if i == len(items) - 1:
@@ -57,6 +56,7 @@ def paginate(items, prefix="", suffix="", msg_prefix="", msg_suffix="", delimite
             li = len(item) + len(_prefix) + len(_suffix)
             item = item[:li]
             remaining = item[li:]
+            first = False
 
             # Handle message that was accumulated so far
             if current_msg:
@@ -68,6 +68,7 @@ def paginate(items, prefix="", suffix="", msg_prefix="", msg_suffix="", delimite
 
         so_far = delimiter.join(current_msg)
         if len(_prefix + so_far + delimiter + item + _suffix) > threshold:
+            first = False
             yield _prefix + so_far + _suffix
             current_msg = []
 
@@ -75,6 +76,8 @@ def paginate(items, prefix="", suffix="", msg_prefix="", msg_suffix="", delimite
 
         # Last
         if i == len(items) - 1:
+            if not first:
+                _prefix = msg_prefix
             yield _prefix + delimiter.join(current_msg) + _suffix
         i += 1
 

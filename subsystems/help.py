@@ -112,10 +112,8 @@ class HelpCategory:
         """
         :return: Message list with all commands that this category contains to be consumed by paginate().
         """
-        print("doing cat cmds")
         r = []
         for plugin in self.plugins:
-            print("doing plugin {}".format(plugin.get_name()))
             cmds = plugin.get_commands()
             cmds = plugin.sort_commands(ctx, None, cmds)
             for command in cmds:
@@ -142,8 +140,8 @@ class GeckiHelp(BaseSubsystem):
 
         self._categories = [
             HelpCategory(Lang.lang(self, "default_category_misc"), order=CategoryOrder.LAST, bot=bot, defaultcat=True),
-            HelpCategory(Lang.lang(self, "default_category_admin"), bot=bot, defaultcat=True),
-            HelpCategory(Lang.lang(self, "default_category_mod"), bot=bot, defaultcat=True),
+            HelpCategory(Lang.lang(self, "default_category_admin"), order=CategoryOrder.LAST, bot=bot, defaultcat=True),
+            HelpCategory(Lang.lang(self, "default_category_mod"), order=CategoryOrder.LAST, bot=bot, defaultcat=True),
             HelpCategory(Lang.lang(self, "default_category_games"), bot=bot, defaultcat=True),
         ]
 
