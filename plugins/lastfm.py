@@ -1,3 +1,4 @@
+import logging
 from enum import Enum
 import time
 from urllib.error import HTTPError
@@ -37,6 +38,7 @@ class Plugin(BasePlugin, name="LastFM"):
         super().__init__(bot)
         bot.register(self)
 
+        self.logger = logging.getLogger(__name__)
         self.client = Client(baseurl)
         self.conf = Config.get(self)
         if not self.conf.get("apikey", ""):
@@ -201,10 +203,11 @@ class Plugin(BasePlugin, name="LastFM"):
             "method": "user.getRecentTracks",
             "user": lfmuser,
             "limit": 1,
+            "extended": 1,
         }
 
         async with ctx.typing():
-            response = self.request(params, "GET")
+            response = self.request(params)
             song = self.build_songs(response)[0]
 
         await ctx.send(self.listening_msg(user, song))
@@ -219,6 +222,8 @@ class Plugin(BasePlugin, name="LastFM"):
         :return: Message string that is ready to be sent
         """
         msg = Lang.lang(self, "listening_song_base", song["title"], song["artist"])
+        if song["loved"]:
+            msg = "{} {}".format(Lang.lang(self, "loved"), msg)
         if song["album"]:
             msg = Lang.lang(self, "listening_song_album", msg, song["album"])
         if song["nowplaying"]:
@@ -264,17 +269,38 @@ class Plugin(BasePlugin, name="LastFM"):
         r = [] if append_to is None else append_to
         for el in tracks:
             song = {
-                "artist": self.get_by_path(el, ["artist", "#text"], strict=True),
                 "title": self.get_by_path(el, ["name"], strict=True),
                 "album": self.sanitize_album(self.get_by_path(el, ["album", "#text"], default="unknown")),
                 "nowplaying": self.get_by_path(el, ["@attr", "nowplaying"], default="false"),
             }
+            # Artist
+            artist = el["artist"]
+            if "name" in artist:
+                artist = artist["name"]
+            elif "#text" in artist:
+                artist = artist["#text"]
+            else:
+                raise UnknownResponse("Artist not found in response", Lang.lang(self, "error"))
+            song["artist"] = artist
+
+            # Now playing
             if song["nowplaying"] == "true":
                 song["nowplaying"] = True
             else:
                 if song["nowplaying"] != "false":
                     write_debug_channel("WARNING: lastfm: unexpected \"nowplaying\": {}".format(song["nowplaying"]))
                 song["nowplaying"] = False
+
+            # Loved
+            loved = el.get("loved", "0")
+            if loved == "1":
+                loved = True
+            else:
+                if loved != "0":
+                    write_debug_channel("Lastfm: Unknown \"loved\" value: {}".format(loved))
+                loved = False
+            song["loved"] = loved
+
             r.append(song)
         return r
 
@@ -306,6 +332,7 @@ class Plugin(BasePlugin, name="LastFM"):
         :param fact: fact
         :return: `(count, out_of)` with count being the amount of matches for criterion it found
         """
+        self.logger.debug("Expanding")
         limit = 5
         page_len = len(so_far)
         page_index = 1
@@ -326,12 +353,16 @@ class Plugin(BasePlugin, name="LastFM"):
                 if self.interest_match(song, criterion, fact):
                     current_matches += 1
                     # This match improves our overall situation
-                    if current_matches / current_song_index > (top_matches - 1) / top_song_index:
+                    logging.debug("Comparison: {} > {} on song {}".format(current_matches / current_song_index,
+                                                                          (top_matches - 2) / top_song_index,
+                                                                          current_song_index))
+                    if current_matches / current_song_index > (top_matches - 2) / top_song_index:
                         improved = True
                         top_song_index = current_song_index
                         top_matches = current_matches
 
             if not improved and page_index > 1:
+                self.logger.debug("Expand: Done")
                 break
 
             # Done, prepare next loop
@@ -340,7 +371,8 @@ class Plugin(BasePlugin, name="LastFM"):
                 break
             params["limit"] = page_len
             params["page"] = page_index
-            current_page = self.build_songs(self.request(params, "GET"))
+            self.logger.debug("Expand: Fetching page {}".format(page_index))
+            current_page = self.build_songs(self.request(params))
             if len(current_page) > page_len:
                 if len(current_page) != page_len + 1:
                     raise RuntimeError("PANIC")
@@ -349,10 +381,41 @@ class Plugin(BasePlugin, name="LastFM"):
         return top_matches, top_song_index
 
     @staticmethod
-    def calc_scores(songs):
+    def tiebreaker(scores, songs, mitype):
         """
-        Counts the occurences of artists, songs and albums in a list of song dicts.
+        If multiple entries share the first place, decrease the score of all entries that are not the first
+        to appear in the list of songs.
+        :param scores: Scores entry dict as calculated by calc_scores
+        :param songs: List of songs that the scores were calculated for
+        :param mitype: MostInterestingType object that represents the layer that is to be tie-broken
+        :return:
+        """
+        s = sorted(scores.keys(), key=lambda x: scores[x], reverse=True)
+        first = [el for el in s if scores[el] == scores[s[0]]]
+        found = False
+        for song in songs:
+            fact = None
+            if mitype == MostInterestingType.ARTIST:
+                fact = song["artist"]
+            elif mitype == MostInterestingType.ALBUM:
+                fact = song["artist"], song["album"]
+            elif mitype == MostInterestingType.TITLE:
+                fact = song["artist"], song["title"]
+            if fact in first:
+                first.remove(fact)
+                found = True
+                break
+        assert found
+        for el in first:
+            scores[el] -= 1
+
+    def calc_scores(self, songs, min_artist, min_album, min_title):
+        """
+        Counts the occurences of artists, songs and albums in a list of song dicts and assigns scores
         :param songs: list of songs
+        :param min_artist: Amount of songs that have to have the same artist
+        :param min_album: Amount of songs that have to have the same artist and album
+        :param min_title: Amount of songs that have to have the same artist and album
         :return: nested dict that contains scores for every artist, song and album
         """
         r = {
@@ -360,60 +423,71 @@ class Plugin(BasePlugin, name="LastFM"):
             "albums": {},
             "titles": {},
         }
+        i = 0
         for song in songs:
             if song["artist"] in r["artists"]:
-                r["artists"][song["artist"]] += 1
-            else:
-                r["artists"][song["artist"]] = 1
+                r["artists"][song["artist"]][0] += 1
+            elif i < min_artist:
+                r["artists"][song["artist"]] = [1, i]
 
             if (song["artist"], song["album"]) in r["albums"]:
-                r["albums"][song["artist"], song["album"]] += 1
-            else:
-                r["albums"][song["artist"], song["album"]] = 1
+                r["albums"][song["artist"], song["album"]][0] += 1
+            elif i < min_album:
+                r["albums"][song["artist"], song["album"]] = [1, i]
 
             if (song["artist"], song["title"]) in r["titles"]:
-                r["titles"][song["artist"], song["title"]] += 1
-            else:
-                r["titles"][song["artist"], song["title"]] = 1
+                r["titles"][song["artist"], song["title"]][0] += 1
+            elif i < min_title:
+                r["titles"][song["artist"], song["title"]] = [1, i, song["loved"]]
+            i += 1
+
+        # Tie-breakers
+        self.tiebreaker(r["artists"], songs, MostInterestingType.ARTIST)
+        self.tiebreaker(r["albums"], songs, MostInterestingType.ALBUM)
+        self.tiebreaker(r["titles"], songs, MostInterestingType.TITLE)
+
         return r
 
     async def most_interesting(self, ctx, user):
         pagelen = 10
-        factor = 0.65
+        min_album = 0.4 * pagelen
+        min_title = 0.5 * pagelen
+        min_artist = 0.5 * pagelen
         lfmuser = self.get_lastfm_user(user)
         params = {
             "method": "user.getRecentTracks",
             "user": lfmuser,
             "limit": pagelen,
+            "extended": 1,
         }
         response = self.request(params, "GET")
         songs = self.build_songs(response)
 
         # Calc counts
-        scores = self.calc_scores(songs)
-        best_artist = sorted(scores["artists"].keys(), key=lambda x: scores["artists"][x], reverse=True)[0]
-        best_artist_count = scores["artists"][best_artist]
-        best_album = sorted(scores["albums"].keys(), key=lambda x: scores["albums"][x], reverse=True)[0]
-        best_album_count = scores["albums"][best_album]
+        scores = self.calc_scores(songs[:pagelen], min_artist, min_album, min_title)
+        best_artist = sorted(scores["artists"].keys(), key=lambda x: scores["artists"][x][0], reverse=True)[0]
+        best_artist_count = scores["artists"][best_artist][0]
+        best_album = sorted(scores["albums"].keys(), key=lambda x: scores["albums"][x][0], reverse=True)[0]
+        best_album_count = scores["albums"][best_album][0]
         best_album_artist, best_album = best_album
-        best_title = sorted(scores["titles"].keys(), key=lambda x: scores["titles"][x], reverse=True)[0]
-        best_title_count = scores["titles"][best_title]
+        best_title = sorted(scores["titles"].keys(), key=lambda x: scores["titles"][x][0], reverse=True)[0]
+        best_title_count = scores["titles"][best_title][0]
+        loved = scores["titles"][best_title][2]
         best_title_artist, best_title = best_title
 
         # Decide what is of the most interest
         mi = None
         mi_score = 0
         mi_fact = None
-        tobreak = len(songs) * factor
-        if best_artist_count > tobreak:
+        if best_artist_count >= min_artist:
             mi = MostInterestingType.ARTIST
             mi_score = best_artist_count
             mi_fact = best_artist
-        if best_album_count > tobreak:
+        if best_album_count >= min_album:
             mi = MostInterestingType.ALBUM
             mi_score = best_album_count
             mi_fact = best_album_artist, best_album
-        if best_title_count > tobreak:
+        if best_title_count >= min_title:
             mi = MostInterestingType.TITLE
             mi_score = best_title_count
             mi_fact = best_title_artist, best_title
@@ -438,6 +512,8 @@ class Plugin(BasePlugin, name="LastFM"):
             msg = Lang.lang(self, base, gbu(user), content)
         elif mi == MostInterestingType.TITLE:
             song = Lang.lang(self, "listening_song_base", mi_fact[1], mi_fact[0])
+            if loved:
+                song = "{} {}".format(Lang.lang(self, "loved"), song)
             content = Lang.lang(self, "most_interesting_song", song, matches, total)
             msg = Lang.lang(self, base, gbu(user), content)
         else:

@@ -20,6 +20,8 @@ def paginate(items, prefix="", suffix="", msg_prefix="", msg_suffix="", delimite
     on this.
     :return:
     """
+    if isinstance(items, str):
+        raise RuntimeError("Pagination does not work on strings")
     threshold = 1900
     current_msg = []
     remaining = None
@@ -43,6 +45,7 @@ def paginate(items, prefix="", suffix="", msg_prefix="", msg_suffix="", delimite
                 _prefix = msg_prefix + prefix
             else:
                 _prefix = prefix + msg_prefix
+
         _suffix = msg_suffix
         if i == len(items) - 1:
             _suffix = msg_suffix + suffix
@@ -53,6 +56,7 @@ def paginate(items, prefix="", suffix="", msg_prefix="", msg_suffix="", delimite
             li = len(item) + len(_prefix) + len(_suffix)
             item = item[:li]
             remaining = item[li:]
+            first = False
 
             # Handle message that was accumulated so far
             if current_msg:
@@ -60,19 +64,20 @@ def paginate(items, prefix="", suffix="", msg_prefix="", msg_suffix="", delimite
 
             # Handle the split message
             yield _prefix + item + _suffix
-            first = False
             continue
 
         so_far = delimiter.join(current_msg)
         if len(_prefix + so_far + delimiter + item + _suffix) > threshold:
-            yield _prefix + so_far + _suffix
             first = False
+            yield _prefix + so_far + _suffix
             current_msg = []
 
         current_msg.append(item)
 
         # Last
         if i == len(items) - 1:
+            if not first:
+                _prefix = msg_prefix
             yield _prefix + delimiter.join(current_msg) + _suffix
         i += 1
 

@@ -1,47 +1,28 @@
 import calendar
+import inspect
 import json
 import logging
-import random
 import re
 from datetime import datetime, timedelta
-from enum import Enum
-from typing import Tuple
 from urllib.parse import urljoin, urlparse
 
 import discord
 import requests
 from bs4 import BeautifulSoup
 from discord.ext import commands
+from discord.ext.commands import MissingRequiredArgument
 
 from Geckarbot import BasePlugin
 from botutils import sheetsclient, restclient
-from botutils.converters import get_best_username, get_best_user
+from botutils.converters import get_best_user
 from botutils.permchecks import check_mod_access
 from botutils.stringutils import paginate
 from botutils.utils import add_reaction
 from conf import Config, Storage, Lang
-
-
-class UserNotFound(Exception):
-    pass
-
-
-class LeagueNotFound(Exception):
-    pass
-
-
-class MatchStatus(Enum):
-    CLOSED = ":ballot_box_with_check:"
-    RUNNING = ":green_square:"
-    UPCOMING = ":clock4:"
-    UNKNOWN = "❔"
-
-
-class MatchResult(Enum):
-    HOME = -1
-    DRAW = 0
-    AWAY = 1
-    NONE = None
+from plugins.spaetzle.subsystems import UserBridge, Observed, Trusted
+from plugins.spaetzle.utils import TeamnameDict, pointdiff_possible, determine_winner, MatchResult, match_status, \
+    MatchStatus, get_user_league, get_user_cell, get_schedule, get_schedule_opponent, UserNotFound
+from subsystems.help import HelpCategory
 
 
 class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
@@ -49,17 +30,15 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
     def __init__(self, bot):
         super().__init__(bot)
         self.can_reload = True
-        bot.register(self)
+        bot.register(self, category=HelpCategory("Spaetzle", description="Plugin for the 'Spaetzle-Tippspiel'"))
 
         self.logger = logging.getLogger(__name__)
-        self.matches = []
-        self.matches_by_team = {}
-        self.teamname_dict = self.build_teamname_dict()
-        self.get_matches_from_sheets()
+        self.teamname_dict = TeamnameDict(self)
+        self.userbridge = UserBridge(self)
 
     def default_config(self):
         return {
-            'manager': 0,
+            'manager': [],
             'trusted': [],
             'spaetzledoc_id': "1ZzEGP_J9WxJGeAm1Ri3er89L1IR1riq7PH2iKVDmfP8",
             'matches_range': "B1:H11",
@@ -116,269 +95,43 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             'predictions': []
         }
 
+    def command_help_string(self, command):
+        return Lang.lang(self, "help_{}".format("_".join(command.qualified_name.split())))
+
+    def command_description(self, command):
+        name = "_".join(command.qualified_name.split())
+        lang_name = "description_{}".format(name)
+        result = Lang.lang(self, lang_name)
+        return result if result != lang_name else Lang.lang(self, "help_{}".format(name))
+
     def get_api_client(self):
         return sheetsclient.Client(self.bot, Config().get(self)['spaetzledoc_id'])
 
-    async def manager_check(self, ctx, show_error=True):
-        if ctx.author.id == Config().get(self)['manager']:
-            return True
-        else:
-            if show_error:
-                await add_reaction(ctx.message, Lang.CMDNOPERMISSIONS)
-                await ctx.send(Lang.lang(self, 'manager_only'))
-            return False
-
-    async def trusted_check(self, ctx, show_error=True):
-        if ctx.message.author.id in Config.get(self)['trusted'] or ctx.message.author.id == Config.get(self)['manager']:
-            return True
-        else:
-            if show_error:
-                await add_reaction(ctx.message, Lang.CMDNOPERMISSIONS)
-                await ctx.send(Lang.lang(self, 'not_trusted'))
-            return False
-
-    def is_teamname_abbr(self, team):
-        return team is not None and len(team) <= 3
-
-    def build_teamname_dict(self):
-        teamdict = {}
-        teamnames = Storage().get(self)['teamnames']
-        for long_name, team in teamnames.items():
-            teamdict[team['short_name'].lower()] = long_name
-            teamdict[long_name.lower()] = team['short_name']
-        for long_name, team in teamnames.items():
-            for name in team['other']:
-                if self.is_teamname_abbr(name):
-                    # Abbreviation
-                    result = teamdict.setdefault(name.lower(), long_name)
-                    if result is not long_name:
-                        self.logger.debug("{} is already noted with the name {}".format(name, result))
-                else:
-                    # Long name
-                    result = teamdict.setdefault(name.lower(), team['short_name'])
-                    if result is not team['short_name']:
-                        self.logger.debug("{} is already noted with the abbreviation {}".format(name, result))
-        return teamdict
-
-    def get_teamname_long(self, team):
-        name = self.teamname_dict.get(team.lower())
-        if self.is_teamname_abbr(name):
-            name = self.teamname_dict.get(name.lower())
-        return name
-
-    def get_teamname_abbr(self, team):
-        name = self.teamname_dict.get(team.lower())
-        if not self.is_teamname_abbr(name):
-            name = self.teamname_dict.get(name.lower())
-        return name
-
-    def get_schedule(self, league: int, matchday: int):
-        matchday = [5, 16, 15, 1, 12, 9, 8, 4, 13, 10, 11, 7, 14, 3, 6, 0, 2][matchday - 1]  # "Randomize" input
-        p = Storage().get(self)['participants'].get(league)
-        if p is None:
-            raise LeagueNotFound()
-        p.extend([None] * max(0, 18 - len(p)))  # Extend if not enough participants
-        participants = [p[i] for i in [11, 0, 13, 6, 5, 15, 9, 1, 14, 8, 4, 16, 7, 2, 17, 3, 10, 12]]
-        participants = participants[0:1] + participants[matchday - 1:] + participants[1:matchday - 1]
-        schedule = []
-        schedule.extend([(participants[0], participants[1]),
-                         (participants[2], participants[17]),
-                         (participants[3], participants[16]),
-                         (participants[4], participants[15]),
-                         (participants[5], participants[14]),
-                         (participants[6], participants[13]),
-                         (participants[7], participants[12]),
-                         (participants[8], participants[11]),
-                         (participants[9], participants[10])])
-        random.shuffle(schedule)
-        return schedule
-
-    def get_schedule_opponent(self, participant, matchday: int):
-        league = self.get_user_league(participant)
-        schedule = self.get_schedule(league, matchday)
-        for home, away in schedule:
-            if home == participant:
-                return away
-            if away == participant:
-                return home
-        else:
-            return None
-
-    def get_user_cell(self, user):
-        """
-        Returns the position of the user's title cell in the 'Tipps' section
-
-        :return: (col, row) of the cell
-        """
-        for league, participants in Storage().get(self)['participants'].items():
-            if user in participants:
-                col = 60 + (2 * participants.index(user))
-                row = 12 * (int(league) - 1) + 2
-                return col, row
-        else:
-            raise UserNotFound
-
-    def get_user_league(self, user):
-        """
-        Returns the league of the user
-
-        :return: number of the league
-        """
-        for league, participants in Storage().get(self)['participants'].items():
-            if user in participants:
-                return league
-        else:
-            raise UserNotFound
-
-    def get_bridged_user(self, user_id):
-        """
-        Bridge between a Discord user and a Spätzle participant
-        """
-        if user_id in Storage().get(self)['discord_user_bridge']:
-            return Storage().get(self)['discord_user_bridge'][user_id]
-        else:
-            return None
-
-    def match_status(self, match_datetime: datetime):
-        """
-        Checks the status of a match (Solely time-based)
-
-        :param match_datetime: datetime of kick-off
-        :return: CLOSED for finished matches, RUNNING for currently active matches (2 hours after kickoff) and UPCOMING
-        for matches not started. UNKNOWN if unable to read the date or time
-        """
-        now = datetime.now()
-        try:
-            timediff = (now - match_datetime).total_seconds()
-            if timediff < 0:
-                return MatchStatus.UPCOMING
-            elif timediff < 7200:
-                return MatchStatus.RUNNING
-            else:
-                return MatchStatus.CLOSED
-        except ValueError:
-            return MatchStatus.UNKNOWN
-
-    def valid_pred(self, pred: tuple):
-        try:
-            int(pred[0]), int(pred[1])
-        except ValueError:
-            return False
-        else:
-            return True
-
-    def pred_reachable(self, score: Tuple[int, int], pred: Tuple[int, int]):
-        return score[0] <= pred[0] and score[1] <= pred[1]
-
-    def points(self, score, pred):
-        """
-        Returns the points resulting from this score and prediction
-        """
-        score, pred = (int(score[0]), int(score[1])), (int(pred[0]), int(pred[1]))
-        if score == pred:
-            return 4
-        elif (score[0] - score[1]) == (pred[0] - pred[1]):
-            return 3
-        elif ((score[0] - score[1]) > 0) - ((score[0] - score[1]) < 0) \
-                == ((pred[0] - pred[1]) > 0) - ((pred[0] - pred[1]) < 0):
-            return 2
-        else:
-            return 0
-
-    def pointdiff_possible(self, score, pred1, pred2):
-        """
-        Returns the maximal point difference possible at a single match
-        """
-        if not self.valid_pred(score):
-            # No Score
-            if self.valid_pred(pred1) and self.valid_pred(pred2):
-                p = 4 - self.points(pred1, pred2)
-                diff1, diff2 = p, p
-            elif not self.valid_pred(pred1) and not self.valid_pred(pred2):
-                diff1, diff2 = 0, 0
-            elif not self.valid_pred(pred1):
-                diff1, diff2 = 0, 4
-            else:
-                diff1, diff2 = 4, 0
-        else:
-            # Running Game
-            if not self.valid_pred(pred1) and not self.valid_pred(pred2):
-                # Both not existent
-                diff1, diff2 = 0, 0
-            elif self.valid_pred(pred1) and not self.valid_pred(pred2):
-                # No Away
-                diff1 = (3 + self.pred_reachable(score, pred1)) - self.points(score, pred1)
-                diff2 = self.points(score, pred1)
-            elif self.valid_pred(pred2) and not self.valid_pred(pred1):
-                # No Home
-                diff1 = self.points(score, pred2)
-                diff2 = (3 + self.pred_reachable(score, pred2)) - self.points(score, pred2)
-            else:
-                # Both existent
-                if pred1 == pred2:
-                    diff1, diff2 = 0, 0
-                else:
-                    diff1 = (3 + self.pred_reachable(score, pred1) - self.points(pred1, pred2)) \
-                            - (self.points(score, pred1) - self.points(score, pred2))
-                    diff2 = (3 + self.pred_reachable(score, pred2) - self.points(pred1, pred2)) \
-                            - (self.points(score, pred2) - self.points(score, pred1))
-
-        return diff1, diff2
-
-    def determine_winner(self, points_h: str, points_a: str, diff_h: int, diff_a: int):
-        """
-        Determines the winner of a duel
-        :param points_h: current points of user 1
-        :param points_a: current points of user 2
-        :param diff_h: maximum points user 1 can catch up
-        :param diff_a: maximum points user 2 can catch up
-        :return: MatchResult
-        """
-        try:
-            points_h = int(points_h)
-        except (ValueError, TypeError):
-            points_h = 0
-        try:
-            points_a = int(points_a)
-        except (ValueError, TypeError):
-            points_a = 0
-
-        if points_h > (points_a + diff_a):
-            return MatchResult.HOME
-        elif points_a > (points_h + diff_h):
-            return MatchResult.AWAY
-        elif points_h == points_a and diff_h == 0 and diff_a == 0:
-            return MatchResult.DRAW
-        else:
-            return MatchResult.NONE
-
     @commands.command(name="goal", help="Scores a goal for a team (Spätzle-command)")
     async def goal(self, ctx, team, goals: int = None):
-        abbr = self.get_teamname_abbr(team)
-        if abbr is None:
+        name = self.teamname_dict.get_long(team)
+        if name is None:
             await ctx.send(Lang.lang(self, 'team_not_found', team))
         else:
             async with ctx.typing():
                 c = self.get_api_client()
-                match = self.matches_by_team[abbr]
-                if self.match_status(match['match_date_time']) == MatchStatus.UPCOMING:
-                    await ctx.send(Lang.lang(self, 'match_is_in_future'))
-                    return
-                match[abbr]['goals'] = goals if goals is not None else match[abbr]['goals'] + 1
-
-                if abbr == self.get_teamname_abbr(match['team_home']):
-                    msg = "{0} [**{1}**:{3}] {2}"
+                data = c.get(Config().get(self)['matches_range'])
+                for row in data[2:]:
+                    if len(row) >= 7:
+                        if row[3] == name:
+                            row[4] = (row[4] + 1) if goals is None else goals
+                            await ctx.send("{3} [**{4}**:{5}] {6}".format(*row))
+                            break
+                        elif row[6] == name:
+                            row[5] = (row[5] + 1) if goals is None else goals
+                            await ctx.send("{3} [{4}:**{5}**] {6}".format(*row))
+                            break
                 else:
-                    msg = "{0} [{1}:**{3}**] {2}"
-                msg = msg.format(match['team_home'], match[self.get_teamname_abbr(match['team_home'])]['goals'],
-                                 match['team_away'], match[self.get_teamname_abbr(match['team_away'])]['goals'])
-                await ctx.send(msg)
+                    await ctx.send(Lang.lang(self, 'team_not_found', team))
+                    return
 
-                data = [x[:] for x in [[None] * 7] * 11]
-                cell_x, cell_y = match[abbr]['cell']
-                data[cell_y] = data[cell_y].copy()
-                data[cell_y][cell_x] = match[abbr]['goals']
-                c.update(Config().get(self)['matches_range'], data)
+                c.update(range=Config().get(self)['matches_range'], values=data)
+
             await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
     @commands.group(name="spaetzle", aliases=["spätzle", "spätzles"],
@@ -413,25 +166,16 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
         await ctx.send("<https://docs.google.com/spreadsheets/d/{}>".format(Config().get(self)['spaetzledoc_id']))
 
     @spaetzle.command(name="user", help="Connects your discord user with a specific spaetzle user")
-    async def user_bridge(self, ctx, user=None):
-        discord_user = ctx.message.author.id
-        # User-Verbindung entfernen
+    async def bridge_user(self, ctx, user=None):
         if user is None:
-            if discord_user in Storage().get(self)["discord_user_bridge"]:
-                del Storage().get(self)["discord_user_bridge"][discord_user]
-                Storage().save(self)
-                await add_reaction(ctx.message, Lang.CMDSUCCESS)
-            else:
-                await ctx.send(Lang.lang(self, 'user_not_bridged'))
-            return
-        # User-Verbindung hinzufügen
-        try:
-            self.get_user_cell(user)
-            Storage().get(self)["discord_user_bridge"][ctx.message.author.id] = user
-            Storage().save(self)
+            success = self.userbridge.cut_bridge(ctx)
+        else:
+            success = self.userbridge.add_bridge(ctx, user)
+
+        if success:
             await add_reaction(ctx.message, Lang.CMDSUCCESS)
-        except UserNotFound:
-            await ctx.send(Lang.lang(self, 'user_not_found'))
+        else:
+            await ctx.send(Lang.lang(self, 'user_not_bridged'))
 
     @spaetzle.group(name="set", help="Set data about next matchday etc")
     async def spaetzle_set(self, ctx):
@@ -440,7 +184,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
 
     @spaetzle_set.command(name="matches", aliases=["spiele"])
     async def set_matches(self, ctx, matchday: int = None):
-        if not await self.trusted_check(ctx):
+        if not await Trusted(self).is_trusted(ctx):
             return
         async with ctx.typing():
             # Request data
@@ -463,33 +207,23 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                     "/getmatchdata/bl1/2020/{}".format(str(matchday)))
 
             # Extract matches
-            self.matches.clear()
+            matches = []
             for i in range(len(match_list)):
                 match = match_list[i]
-                home = self.get_teamname_abbr(match.get('Team1', {}).get('TeamName', 'n.a.'))
-                away = self.get_teamname_abbr(match.get('Team2', {}).get('TeamName', 'n.a.'))
+                home = self.teamname_dict.get_abbr(match.get('Team1', {}).get('TeamName', 'n.a.'))
+                away = self.teamname_dict.get_abbr(match.get('Team2', {}).get('TeamName', 'n.a.'))
                 match_dict = {
                     'match_date_time': datetime.strptime(match.get('MatchDateTime', '0001-01-01T01:01:01'),
                                                          "%Y-%m-%dT%H:%M:%S"),
-                    'team_home': self.get_teamname_long(home),
-                    'team_away': self.get_teamname_long(away),
-                    home: {
-                        'cell': (4, i+2),
-                        'goals': 0
-                    },
-                    away: {
-                        'cell': (5, i+2),
-                        'goals': 0
-                    },
+                    'team_home': self.teamname_dict.get_long(home),
+                    'team_away': self.teamname_dict.get_long(away)
                 }
-                self.matches.append(match_dict)
-                self.matches_by_team[home] = match_dict
-                self.matches_by_team[away] = match_dict
+                matches.append(match_dict)
 
             # Put matches into spreadsheet
             c = self.get_api_client()
             values = [[matchday], [None]]
-            for match in self.matches:
+            for match in matches:
                 date_time = match.get('match_date_time')
                 date_formula = '=IF(DATE({};{};{}) + TIME({};{};0) < F12;0;"")'.format(*list(date_time.timetuple()))
                 values.append([calendar.day_abbr[date_time.weekday()],
@@ -508,9 +242,11 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
         await ctx.send(embed=discord.Embed(title=Lang.lang(self, 'title_matchday', matchday), description=msg))
 
     @spaetzle_set.command(name="duels", aliases=["duelle"])
-    async def set_duels(self, ctx, matchday: int, league: int = None):
-        if not await self.trusted_check(ctx):
+    async def set_duels(self, ctx, matchday: int = None, league: int = None):
+        if not await Trusted(self).is_trusted(ctx):
             return
+        if matchday is None:
+            matchday = Storage().get(self)['matchday']
         if matchday not in range(1, 18):
             await add_reaction(ctx.message, Lang.CMDERROR)
             await ctx.send(Lang.lang(self, 'matchday_out_of_range'))
@@ -523,15 +259,15 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             embed = discord.Embed()
             if league is None:
                 schedules = {
-                    1: self.get_schedule(1, matchday),
-                    2: self.get_schedule(2, matchday),
-                    3: self.get_schedule(3, matchday),
-                    4: self.get_schedule(4, matchday)
+                    1: get_schedule(self, 1, matchday),
+                    2: get_schedule(self, 2, matchday),
+                    3: get_schedule(self, 3, matchday),
+                    4: get_schedule(self, 4, matchday)
                 }
                 embed.title = Lang.lang(self, 'title_matchday_duels', matchday)
             else:
                 schedules = {
-                    league: self.get_schedule(league, matchday)
+                    league: get_schedule(self, league, matchday)
                 }
                 embed.title = Lang.lang(self, 'title_matchday_league', matchday, league)
 
@@ -563,7 +299,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
 
     @spaetzle_set.command(name="scrape", help="Scrapes the predictions thread for forum posts")
     async def set_scrape(self, ctx):
-        if not await self.trusted_check(ctx):
+        if not await Trusted(self).is_trusted(ctx):
             return
 
         data = []
@@ -607,7 +343,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
 
     @spaetzle_set.command(name="extract", help="Extracts the predictions from the scraped result")
     async def set_extract(self, ctx):
-        if not await self.trusted_check(ctx):
+        if not await Trusted(self).is_trusted(ctx):
             return
         async with ctx.typing():
             c = self.get_api_client()
@@ -692,7 +428,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
     @spaetzle_set.command(name="archive", help="Archives the current matchday and clears the frontpage")
     async def set_archive(self, ctx):
         from googleapiclient.errors import HttpError
-        if not await self.trusted_check(ctx):
+        if not await Trusted(self).is_trusted(ctx):
             return
 
         async with ctx.typing():
@@ -708,14 +444,14 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
 
     @spaetzle_set.command(name="thread", help="Sets the URL of the \"Tippabgabe-Thread\".")
     async def set_thread(self, ctx, url: str):
-        if await self.trusted_check(ctx):
+        if await Trusted(self).is_trusted(ctx):
             Storage().get(self)['predictions_thread'] = url
             Storage().save(self)
             await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
     @spaetzle_set.command(name="mainthread", help="Sets the URL of the main thread.")
     async def set_mainthread(self, ctx, url: str):
-        if await self.trusted_check(ctx):
+        if await Trusted(self).is_trusted(ctx):
             Storage().get(self)['main_thread'] = url
             Storage().save(self)
             await add_reaction(ctx.message, Lang.CMDSUCCESS)
@@ -723,7 +459,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
     @spaetzle_set.command(name="participants", alias="teilnehmer", help="Sets the participants of a league. "
                                                                         "Manager only.")
     async def set_participants(self, ctx, league: int, *participants):
-        if await self.manager_check(ctx):
+        if await Trusted(self).is_manager(ctx):
             Storage().get(self)['participants'][league] = participants
             Storage().save(self)
             await ctx.send(Lang.lang(self, 'participants_added', len(participants), league))
@@ -732,7 +468,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
     @spaetzle_set.command(name="matchday", help="Sets the matchday manually, but it's normally already done by "
                                                 "set_matches.")
     async def set_matchday(self, ctx, matchday: int):
-        if await self.trusted_check(ctx):
+        if await Trusted(self).is_trusted(ctx):
             Storage().get(self)['matchday'] = matchday
             Storage().save(self)
             await add_reaction(ctx.message, Lang.CMDSUCCESS)
@@ -782,50 +518,20 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             await add_reaction(ctx.message, Lang.CMDSUCCESS)
             await ctx.send(embed=embed)
 
-    def get_matches_from_sheets(self):
-        """
-        Reads the matches from the sheet
-        """
-        c = self.get_api_client()
-        matches = c.get("Aktuell!{}".format(Config().get(self)['matches_range']), formatted=False)
-
-        # Extract matches
-        self.matches.clear()
-        for i in range(2, len(matches)):
-            match = matches[i]
-            home = self.get_teamname_abbr(match[3])
-            away = self.get_teamname_abbr(match[6])
-            match_dict = {
-                'match_date_time': datetime(1899, 12, 30) + timedelta(days=match[1] + match[2]),
-                'team_home': self.get_teamname_long(home),
-                'team_away': self.get_teamname_long(away),
-                home: {
-                    'cell': (4, i),
-                    'goals': match[4] if isinstance(match[4], int) else 0
-                },
-                away: {
-                    'cell': (5, i),
-                    'goals': match[5] if isinstance(match[5], int) else 0
-                },
-            }
-            self.matches.append(match_dict)
-            self.matches_by_team[home] = match_dict
-            self.matches_by_team[away] = match_dict
-
     @spaetzle.command(name="duel", aliases=["duell"], help="Displays the duel of a specific user")
     async def show_duel_single(self, ctx, user=None):
         async with ctx.typing():
             if user is None:
-                user = self.get_bridged_user(ctx.message.author.id)
+                user = self.userbridge.get_user(ctx)
                 if user is None:
                     await ctx.send(Lang.lang(self, 'user_not_bridged'))
                     return
             c = self.get_api_client()
 
             try:
-                col1, row1 = self.get_user_cell(user)
+                col1, row1 = get_user_cell(self, user)
             except UserNotFound:
-                await ctx.send(Lang.lang(self, 'user_not_found'))
+                await ctx.send(Lang.lang(self, 'user_not_found', user))
                 return
             result = c.get("Aktuell!{}:{}".format(c.cellname(col1, row1 + 10), c.cellname(col1 + 1, row1 + 11)),
                            formatted=False)
@@ -833,7 +539,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
 
             # Getting data / Opponent-dependent parts
             try:
-                col2, row2 = self.get_user_cell(opponent)
+                col2, row2 = get_user_cell(self, opponent)
             except UserNotFound:
                 # Opponent not found
                 matches, preds_h = c.get_multiple(["Aktuell!{}".format(Config().get(self)['matches_range']),
@@ -869,10 +575,10 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             # Calculating possible point difference
             diff1, diff2 = 0, 0
             for i in range(len(matches)):
-                if self.match_status(datetime(1899, 12, 30)
-                                     + timedelta(days=matches[i][1] + matches[i][2])) == MatchStatus.CLOSED:
+                if match_status(datetime(1899, 12, 30)
+                                + timedelta(days=matches[i][1] + matches[i][2])) == MatchStatus.CLOSED:
                     continue
-                diff = self.pointdiff_possible(matches[i][4:6], preds_h[i], preds_a[i])
+                diff = pointdiff_possible(matches[i][4:6], preds_h[i], preds_a[i])
                 diff1 += diff[0]
                 diff2 += diff[1]
 
@@ -884,15 +590,15 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                 match = matches[i]
                 pred_h = preds_h[i]
                 pred_a = preds_a[i]
-                emoji = self.match_status(datetime(1899, 12, 30) + timedelta(days=match[1] + match[2])).value
+                emoji = match_status(datetime(1899, 12, 30) + timedelta(days=match[1] + match[2])).value
                 msg += "{} `{} {}:{} {}\u0020\u0020\u0020\u0020{}:{}\u0020\u0020\u0020\u0020{}:{} `\n"\
-                    .format(emoji, self.get_teamname_abbr(match[3]), match[4], match[5],
-                            self.get_teamname_abbr(match[6]), pred_h[0], pred_h[1], pred_a[0], pred_a[1])
+                    .format(emoji, self.teamname_dict.get_abbr(match[3]), match[4], match[5],
+                            self.teamname_dict.get_abbr(match[6]), pred_h[0], pred_h[1], pred_a[0], pred_a[1])
 
             embed = discord.Embed(title="{} [{}:{}] {}".format(user, result[0][0], result[1][0], opponent))
             embed.description = msg
 
-            match_result = self.determine_winner(result[0][0], result[1][0], diff1, diff2)
+            match_result = determine_winner(result[0][0], result[1][0], diff1, diff2)
             if match_result == MatchResult.HOME:
                 embed.set_footer(text=Lang.lang(self, 'show_duel_footer_winner', user))
             elif match_result == MatchResult.AWAY:
@@ -927,14 +633,14 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             msg = ""
 
             data_ranges = []
-            observed_users = Storage().get(self)['observed_users']
+            observed_users = Observed(self).get_all()
 
             if len(observed_users) == 0:
                 msg = Lang.lang(self, 'no_observed_users')
             else:
                 for user in observed_users:
                     try:
-                        col, row = self.get_user_cell(user)
+                        col, row = get_user_cell(self, user)
                         data_ranges.append("Aktuell!{}".format(c.cellname(col, row)))
                         data_ranges.append(
                             "Aktuell!{}:{}".format(c.cellname(col, row + 10), c.cellname(col + 1, row + 11)))
@@ -983,7 +689,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                 embed.add_field(name=Lang.lang(self, 'title_league', i + 1), value=msg)
         await ctx.send(embed=embed)
 
-    @spaetzle.command(name="matches", aliases=["spiele"], help="Displays the matches to be predicted")
+    @spaetzle.command(name="matches", aliases=["spiele"])
     async def show_matches(self, ctx):
         async with ctx.typing():
             c = self.get_api_client()
@@ -998,7 +704,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             msg = ""
             for match in matches:
                 date_time = datetime(1899, 12, 30) + timedelta(days=match[1] + match[2])
-                emoji = self.match_status(date_time).value
+                emoji = match_status(date_time).value
                 msg += "{0} {3} {1} {2} Uhr | {6} - {9} | {7}:{8}\n".format(emoji, date_time.strftime("%d.%m."),
                                                                             date_time.strftime("%H:%M"), *match)
         await ctx.send(embed=discord.Embed(title=Lang.lang(self, 'title_matches', matchday), description=msg))
@@ -1010,7 +716,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             c = self.get_api_client()
 
             if user_or_league is None:
-                user_or_league = self.get_bridged_user(ctx.message.author.id)
+                user_or_league = self.userbridge.get_user(ctx)
                 if user_or_league is None:
                     await ctx.send(Lang.lang(self, 'user_not_bridged'))
                     return
@@ -1021,9 +727,9 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             except ValueError:
                 # User
                 try:
-                    league = int(self.get_user_league(user_or_league))
+                    league = int(get_user_league(self, user_or_league))
                 except (ValueError, UserNotFound):
-                    ctx.send(Lang.lang(self, 'user_not_found'))
+                    ctx.send(Lang.lang(self, 'user_not_found', user_or_league))
                     return
 
             data_range = "Aktuell!{}".format(Config().get(self)['table_ranges'].get(league))
@@ -1051,7 +757,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
     @spaetzle.command(name="fixtures", help="Lists fixtures for a specific participant")
     async def show_fixtures(self, ctx, user=None):
         if user is None:
-            user = self.get_bridged_user(ctx.message.author.id)
+            user = self.userbridge.get_user(ctx)
             if user is None:
                 await ctx.send(Lang.lang(self, 'user_not_bridged'))
                 return
@@ -1059,19 +765,19 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
         msg = ""
         try:
             for i in range(1, 18):
-                msg += "{} | {}\n".format(i, self.get_schedule_opponent(user, i))
+                msg += "{} | {}\n".format(i, get_schedule_opponent(self, user, i))
         except UserNotFound:
             await add_reaction(ctx.message, Lang.CMDERROR)
-            await ctx.send(Lang.lang(self, 'user_not_found'))
+            await ctx.send(Lang.lang(self, 'user_not_found', user))
             return
 
         await ctx.send(embed=discord.Embed(title=Lang.lang(self, 'title_opponent', user), description=msg))
 
     @spaetzle.command(name="rawpost", help="Lists all forum posts by a specified user")
     async def show_raw_posts(self, ctx, participant: str):
-        if not await self.trusted_check(ctx):
+        if not await Trusted(self).is_trusted(ctx):
             return
-        
+
         forum_posts = Storage().get(self)['predictions']
         if len(forum_posts) < 1:
             await ctx.send(Lang.lang(self, 'no_saved_rawposts'))
@@ -1100,17 +806,17 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
         danny_id = Config().get(self)['danny_id']
         if not danny_id:
             await ctx.send(Lang.lang(self, 'danny_no_id'))
-        if await self.manager_check(ctx) or ctx.author.id == danny_id:
+        if await Trusted(self).is_manager(ctx, show_error=False) or ctx.author.id == danny_id:
             async with ctx.typing():
                 c = self.get_api_client()
-                danny = get_best_user(self.bot, danny_id)
+                danny = get_best_user(danny_id)
                 data_ranges = ["Aktuell!{}".format(Config().get(self)['matches_range'])]
                 if len(users) == 0:
                     users = Config().get(self)['danny_users']
                     if len(users) == 0:
                         await ctx.send(Lang.lang(self, 'danny_no_users'))
                 for user in users:
-                    col, row = self.get_user_cell(user)
+                    col, row = get_user_cell(self, user)
                     if col is not None:
                         data_ranges.append("Aktuell!{}:{}".format(c.cellname(col, row), c.cellname(col + 1, row + 10)))
                 result = c.get_multiple(data_ranges, formatted=False)
@@ -1137,98 +843,73 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                 await danny.send(embed=embed)
             await ctx.send(Lang.lang(self, 'danny_done', ", ".join(users)))
 
-    @spaetzle.group(name="trusted", help="Configures which users are allowed to edit")
+    @spaetzle.group(name="trusted", help="Configures which users are trusted for help")
     async def trusted(self, ctx):
         if ctx.invoked_subcommand is None:
             await ctx.invoke(self.bot.get_command('spaetzle trusted list'))
 
     @trusted.command(name="list", help="Lists all trusted users")
     async def trusted_list(self, ctx):
-        raw = [Config.get(self)['manager']] + Config.get(self)['trusted']
-        trusted_users = []
-        for user_id in raw:
-            user = self.bot.guild.get_member(user_id)
-            if user is None:
-                user = self.bot.get_user(user_id)
-            trusted_users.append(get_best_username(user))
-        msg = "{} {}\n{} {}".format(Lang.lang(self, 'manager_prefix'), trusted_users[0],
-                                    Lang.lang(self, 'trusted_prefix'), ", ".join(trusted_users[1:]))
+        msg = "{} {}\n{} {}".format(
+            Lang.lang(self, 'manager_prefix'), ", ".join(Trusted(self).get_manager_names(self.bot)),
+            Lang.lang(self, 'trusted_prefix'), ", ".join(Trusted(self).get_trusted_names(self.bot)))
         await ctx.send(msg)
 
     @trusted.command(name="add", help="Adds a user to the trusted list.")
     async def trusted_add(self, ctx, user: discord.User):
-        if await self.manager_check(ctx):
-            if user.id not in Config.get(self)['trusted']:
-                Config.get(self)['trusted'].append(user.id)
-                Config().save(self)
-            await add_reaction(ctx.message, Lang.CMDSUCCESS)
+        await Trusted(self).add_trusted(ctx, user)
 
     @trusted.command(name="del", help="Removes user from the trusted list")
     async def trusted_remove(self, ctx, user: discord.User):
-        if await self.manager_check(ctx):
-            if user.id in Config.get(self)['trusted']:
-                Config.get(self)['trusted'].remove(user.id)
-                Config().save(self)
-            await add_reaction(ctx.message, Lang.CMDSUCCESS)
+        await Trusted(self).remove_trusted(ctx, user)
 
-    @trusted.command(name="manager", help="Sets the manager")
-    async def trusted_manager(self, ctx, user: discord.User):
-        if ctx.author.id == Config.get(self)['manager'] or check_mod_access(ctx.author):
-            Config.get(self)['manager'] = user.id
-            Config().save(self)
-            await add_reaction(ctx.message, Lang.CMDSUCCESS)
-        else:
-            await add_reaction(ctx.message, Lang.CMDNOPERMISSIONS)
+    @spaetzle.group(name="manager", help="Configures which users are allowed to use all functions")
+    async def manager(self, ctx):
+        if ctx.invoked_subcommand is None:
+            await ctx.invoke(self.bot.get_command('spaetzle trusted list'))
+
+    @manager.command(name="add", help="Adds a manager.")
+    async def manager_add(self, ctx, user: discord.User):
+        await Trusted(self).add_manager(ctx, user)
+
+    @manager.command(name="del", help="Removes manager.")
+    async def manager_remove(self, ctx, user: discord.User):
+        await Trusted(self).remove_manager(ctx, user)
 
     @spaetzle.group(name="observe", help="Configure which users should be observed.")
-    async def observe(self, ctx):
+    async def observe(self, ctx, *args):
         if ctx.invoked_subcommand is None:
-            await ctx.invoke(self.bot.get_command('spaetzle observe list'))
+            if len(args) > 0:
+                if args[0] in ("add", "del"):
+                    if len(args) > 1:
+                        await ctx.invoke(self.bot.get_command('spaetzle observe {}'.format(args[0])), *args[1:])
+                    else:
+                        raise MissingRequiredArgument(inspect.Parameter("user", inspect.Parameter.POSITIONAL_ONLY))
+                else:
+                    await self.observe_add(ctx, *args)
+            else:
+                await ctx.invoke(self.bot.get_command('spaetzle observe list'))
 
     @observe.command(name="list", help="Lists the observed users")
     async def observe_list(self, ctx):
-        if len(Storage().get(self)['observed_users']) == 0:
+        if len(Observed(self).get_all()) == 0:
             msg = Lang.lang(self, 'no_observed_users')
         else:
-            msg = "{} {}".format(Lang.lang(self, 'observe_prefix'), ", ".join(Storage().get(self)['observed_users']))
+            msg = "{} {}".format(Lang.lang(self, 'observe_prefix'), ", ".join(Observed(self).get_all()))
         await ctx.send(msg)
 
-    @observe.command(name="add", help="Adds a user to be observed")
-    async def observe_add(self, ctx, user):
-        try:
-            self.get_user_league(user)
-        except UserNotFound:
-            await ctx.send(Lang.lang(self, 'user_not_found'))
-            return
-
-        if user not in Storage().get(self)['observed_users']:
-            Storage().get(self)['observed_users'].append(user)
-            Storage().save(self)
-        await add_reaction(ctx.message, Lang.CMDSUCCESS)
-
-    @observe.command(name="del", help="Removes a user from the observation")
-    async def observe_remove(self, ctx, user):
-        if user in Storage().get(self)['observed_users']:
-            Storage().get(self)['observed_users'].remove(user)
-            Storage().save(self)
-            await add_reaction(ctx.message, Lang.CMDSUCCESS)
+    @observe.command(name="add", help="Adds one or more users to be observed")
+    async def observe_add(self, ctx, user, *other):
+        for user in (user,) + other:
+            if not Observed(self).append(user):
+                await ctx.send(Lang.lang(self, 'user_not_found', user))
         else:
-            await ctx.send(Lang.lang(self, 'user_not_found'))
+            await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
-    @spaetzle.command(name="selfmatches")
-    async def monitoring_matches(self, ctx):
-        if len(self.matches) == 0:
-            await ctx.send(Lang.lang(self, 'no_matches'))
-            return
-
-        msg = ""
-        for match in self.matches:
-            date_time = match.get('match_date_time')
-            home = match.get('team_home')
-            away = match.get('team_away')
-            msg += "{} {} {} Uhr | {} - {} | {}:{}\n".format(calendar.day_abbr[date_time.weekday()],
-                                                             date_time.strftime("%d.%m."), date_time.strftime("%H:%M"),
-                                                             home, away,
-                                                             match.get(self.get_teamname_abbr(home)).get('goals'),
-                                                             match.get(self.get_teamname_abbr(away)).get('goals'))
-        await ctx.send(embed=discord.Embed(title="self.matches", description=msg))
+    @observe.command(name="del", help="Removes one or more from the observation")
+    async def observe_remove(self, ctx, user, *other):
+        for user in (user,) + other:
+            if not Observed(self).remove(user):
+                await ctx.send(Lang.lang(self, 'user_not_found', user))
+        else:
+            await add_reaction(ctx.message, Lang.CMDSUCCESS)

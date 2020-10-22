@@ -1,8 +1,6 @@
 from enum import Enum
 from discord.ext.commands import Cog
 
-from conf import Config
-
 
 class NotLoadable(Exception):
     """
@@ -46,11 +44,19 @@ class Configurable:
         """
         return {}
 
+    def get_lang_code(self):
+        """
+        Override this to return the plugin's lang code. Raise NotFound, return None or return bot.LANGUAGE_CODE
+        to use the same language as the rest of the bot.
+        :return:
+        """
+        raise NotFound()
+
     def get_lang(self):
         """
         Gets the lang dictionary for Config API.
         """
-        return None
+        raise NotFound()
 
     def get_name(self):
         """
@@ -133,7 +139,7 @@ class BasePlugin(Cog, Configurable):
         """
         raise NotFound()
 
-    def sort_subcommands(self, ctx, command, subcommands):
+    def sort_commands(self, ctx, command, subcommands):
         """
         Override to sort the subcommands of `command` yourself.
         :param ctx: Context

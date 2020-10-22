@@ -215,9 +215,18 @@ class Score:
 
 
 class Question:
-    def __init__(self, question, correct_answer, incorrect_answers, index=None, info=None):
+    def __init__(self, quizapi, question, correct_answer, incorrect_answers, index=None, info=None):
+        """
+        :param quizapi: QuizAPI object
+        :param question: Question string (Usually ends with a "?" ;))
+        :param correct_answer: Correct answer
+        :param incorrect_answers: All the other answers
+        :param index: no idea
+        :param info: Not sure, seems to be used as embed fields in the question info cmd
+        """
         logging.debug("Question({}, {}, {})".format(question, correct_answer, incorrect_answers))
         self.index = index
+        self.source = quizapi
         self.info = info
         if info is None:
             self.info = {}
@@ -303,6 +312,7 @@ class Question:
         embed.add_field(name="Possible answers:", value=value)
 
         if info:
+            embed.add_field(name="Source", value=str(self.source))
             for key in self.info:
                 embed.add_field(name=key, value=str(self.info[key]))
         return embed

@@ -6,10 +6,11 @@ import discord
 from discord.ext import commands
 from discord.errors import HTTPException
 
-from base import BasePlugin
-from conf import Storage, Lang, Config
+from base import BasePlugin, NotFound
+from conf import Storage, Lang
 from subsystems import help
 from botutils import permchecks
+from botutils.utils import sort_commands_helper
 
 from plugins.quiz.controllers import RushQuizController, PointsQuizController
 from plugins.quiz.quizapis import quizapis, opentdb
@@ -103,7 +104,7 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
 
         self.default_controller = PointsQuizController
         self.defaults = {
-            "quizapi": quizapis["opentdb"],
+            "quizapi": quizapis["meta"],
             "questions": self.config["questions_default"],
             "method": Methods.START,
             "category": None,
@@ -126,7 +127,7 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
         self.register_subcommand(None, "info", self.cmd_info)
 
         super().__init__(bot)
-        bot.register(self, help.DefaultCategories.GAMES)
+        bot.register(self, category=help.DefaultCategories.GAMES)
 
         # Migrate data if necessary
         migration(self, self.logger)
@@ -147,12 +148,25 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
     Help
     """
     def command_help_string(self, command):
-        return Lang.lang(self, "help_{}".format(command.name))
+        langstr = Lang.lang_no_failsafe(self, "help_{}".format(command.name))
+        if langstr is not None:
+            return langstr
+        else:
+            raise NotFound()
 
     def command_description(self, command):
-        return Lang.lang(self, "desc_{}".format(command.name))
+        langstr = Lang.lang_no_failsafe(self, "desc_{}".format(command.name))
+        if langstr is not None:
+            return langstr
+        else:
+            raise NotFound()
 
-    def sort_subcommands(self, ctx, cmd, subcommands):
+    def sort_commands(self, ctx, cmd, subcommands):
+        # category help
+        if cmd is None:
+            return subcommands
+
+        # Subcommands for kwiss
         order = [
             "status",
             "score",
@@ -163,21 +177,7 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
             "del",
             "question",
         ]
-        todel = []
-        for i in range(len(order) - 1, -1, -1):
-            found = False
-            for cmd in subcommands:
-                if cmd.name == order[i]:
-                    order[i] = cmd
-                    found = True
-                    break
-            if not found:
-                todel.append(i)
-
-        for i in todel:
-            del order[i]
-
-        return order
+        return sort_commands_helper(subcommands, order)
 
     """
     Commands
@@ -364,13 +364,15 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
 
     @kwiss.command(name="question")
     async def cmd_question(self, ctx, *args):
-        if len(args) != 1:
+        if len(args) != 0:
             await ctx.message.add_reaction(Lang.CMDERROR)
+            await ctx.send("Too many arguments")
             return
 
         controller = self.get_controller(ctx.channel)
         if controller is None:
             await ctx.message.add_reaction(Lang.CMDERROR)
+            await ctx.send("No kwiss running")
             return
 
         embed = controller.quizapi.current_question().embed(emoji=True, info=True)

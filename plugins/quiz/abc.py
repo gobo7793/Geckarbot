@@ -3,6 +3,13 @@ from abc import ABC, abstractmethod
 
 class BaseQuizAPI(ABC):
     @abstractmethod
+    async def fetch(self):
+        """
+        Called before accessing questions. Used to e.g. asynchronously fetch questions.
+        """
+        pass
+
+    @abstractmethod
     def current_question(self):
         """
         Retrieves the current question.
@@ -14,12 +21,13 @@ class BaseQuizAPI(ABC):
     def next_question(self):
         """
         Retrieves a new question.
+        :raise: controllers.QuizEnded when there is no next question
         :return: Question object
         """
         pass
 
     @abstractmethod
-    def size(self, **kwargs):
+    async def size(self, **kwargs):
         """
         Calculates the question space size for the given constraints (such as category and difficulty).
         :return: int
@@ -31,6 +39,24 @@ class BaseQuizAPI(ABC):
         """
         :param kwargs:
         :return: Returns an info string under the given constraints.
+        """
+        pass
+
+    @staticmethod
+    @abstractmethod
+    def category_name(catkey):
+        """
+        :return: Human-readable representation of the quiz category
+        """
+        pass
+
+    @staticmethod
+    @abstractmethod
+    def category_key(catarg):
+        """
+        :param catarg: Argument that was passed that identifies a category
+        :return: Opaque category identifier that can be used in initialization and for category_name.
+        Returns None if catarg is an unknown category.
         """
         pass
 
@@ -57,6 +83,7 @@ class BaseQuizController(ABC):
     async def start(self, msg):
         """
         Called when the start command is invoked.
+        This is usually expected to call fetch() on the QuizAPI object (if used).
         """
         raise NotImplementedError
 

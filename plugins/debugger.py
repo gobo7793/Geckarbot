@@ -2,14 +2,12 @@ import sys
 
 import discord
 from discord.ext import commands
-from discord.ext.commands import view
 
 from base import BasePlugin
 from botutils import utils, converters
 from conf import Config, Lang
 from subsystems import help
 from subsystems.presence import PresencePriority
-from subsystems.reactions import ReactionAddedEvent, ReactionRemovedEvent
 
 
 class Plugin(BasePlugin, name="Testing and debug things"):
@@ -103,102 +101,34 @@ class Plugin(BasePlugin, name="Testing and debug things"):
     async def write(self, ctx, *, args):
         await ctx.send(args)
 
-    # Testing debugging commands
+    # Testing commands
 
-    def wake_up_sync(self):
-        self.bot.loop.create_task(self.wake_up())
-
-    async def wake_up(self):
-        await self.channel.send("I have been woken up!")
-
-    @commands.command(name="sleep")
+    @commands.command(name="sleep", hidden=True)
     async def sleep(self, ctx):
         self.channel = ctx.channel
         self.sleeper = self.bot.loop.call_later(sys.maxsize, print, "blub")
         await ctx.message.channel.send("Falling asleep.")
-        # await self.sleeper
-        # await ctx.message.channel.send("I was woken up!")
 
     @commands.command(name="awake")
     async def awake(self, ctx):
         self.sleeper.cancel()
         await ctx.message.channel.send("I'm waking myself up.")
 
-    @commands.command(name="identify", help="calls utils.get_best_username")
+    @commands.command(name="identify", help="calls converters.get_best_username", hidden=True)
     async def identify(self, ctx, *args):
         await ctx.channel.send("I will call you {}.".format(converters.get_best_username(ctx.message.author)))
 
-    @commands.command(name="react")
+    @commands.command(name="react", hidden=True)
     async def react(self, ctx, reaction):
         print(reaction)
         await utils.add_reaction(ctx.message, reaction)
 
-    @staticmethod
-    async def waitforreact_callback(event):
-        msg = "PANIC!"
-        if isinstance(event, ReactionAddedEvent):
-            msg = "{}: You reacted on '{}' with {}!".format(converters.get_best_username(event.user),
-                                                            event.message.content, event.emoji)
-        if isinstance(event, ReactionRemovedEvent):
-            msg = "{}: You took back your {} reaction on '{}'!".format(converters.get_best_username(event.user),
-                                                                       event.message.content, event.emoji)
-        await event.channel.send(msg)
-
-    @commands.command(name="waitforreact")
-    async def waitforreact(self, ctx):
-        msg = await ctx.channel.send("React here pls")
-        self.bot.reaction_listener.register(msg, self.waitforreact_callback)
-
-    @commands.command(name="doerror")
+    @commands.command(name="doerror", hidden=True)
     async def do_error(self, ctx):
         raise commands.CommandError("Testerror")
 
-    @commands.command(name="writelogs")
+    @commands.command(name="writelogs", hidden=True)
     async def write_logs(self, ctx):
         await utils.log_to_admin_channel(ctx)
         await utils.log_to_mod_channel(ctx)
         await utils.write_debug_channel("writelogs used")
-
-    @commands.command(name="mentionuser", help="Mentions a user, supports user cmd disabling.")
-    async def mentionuser(self, ctx, user: discord.Member):
-        if self.bot.ignoring.check_passive_usage(user, ctx.command.qualified_name):
-            await ctx.send("Command blocked for user!")
-        else:
-            await ctx.send(user.mention)
-
-    @commands.command(name="dmme")
-    async def dmme(self, ctx):
-        await ctx.author.send("Here I aaaaam, this is meeee!")
-
-    @staticmethod
-    async def dmonreaction_callback(event):
-        msg = "PANIC!"
-        if isinstance(event, ReactionAddedEvent):
-            msg = "You reacted on '{}' with {}!".format(event.message.content, event.emoji)
-        if isinstance(event, ReactionRemovedEvent):
-            msg = "You took back your {} reaction on '{}'!".format(event.message.content, event.emoji)
-        await event.user.send(msg)
-
-    @commands.command(name="dmonreaction")
-    async def dmonreaction(self, ctx):
-        msg = await ctx.channel.send("React here pls")
-        self.bot.reaction_listener.register(msg, self.dmonreaction_callback)
-
-    @commands.command(name="libmod")
-    async def libmod(self, ctx):
-        await ctx.send(str(view._quotes))
-        await ctx.send(str(view._all_quotes))
-
-    # @commands.command(name="plunload")
-    # async def plunload(self, ctx, plugin):
-    #     await ctx.invoke(self.bot.get_command("plugins"))
-    #     instance = converters.get_plugin_by_name(self.bot, plugin)
-    #     print(instance.get_listeners())
-    #     self.bot.unload_plugin(plugin)
-    #     await ctx.invoke(self.bot.get_command("plugins"))
-    #
-    # @commands.command(name="plload")
-    # async def plload(self, ctx, plugin):
-    #     await ctx.invoke(self.bot.get_command("plugins"))
-    #     self.bot.load_plugin(Config.PLUGIN_DIR, plugin)
-    #     await ctx.invoke(self.bot.get_command("plugins"))

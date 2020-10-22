@@ -72,31 +72,6 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
     """
     Plugin control
     """
-
-    # @commands.command(name="reload", help="Reloads the configuration.", usage="[plugin_name]",
-    #                   description="Reloads the configuration from the given plugin."
-    #                               "If no plugin given, all plugin configs will be reloaded.")
-    # @commands.has_any_role(Config().ADMIN_ROLE_ID, Config().BOTMASTER_ROLE_ID)
-    # async def reload(self, ctx, plugin_name=None):
-    #     """Reloads the config of the given plugin or all if none is given"""
-    #     await utils.log_to_admin_channel(ctx)
-    #     if plugin_name is None:
-    #         reconfigure(self.bot)
-    #         send_msg = "Configuration of all plugins reloaded."
-    #     else:
-    #         send_msg = f"No plugin {plugin_name} found."
-    #         for plugin in self.bot.plugins:
-    #             if plugin.name == plugin_name:
-    #                 if plugin.instance.can_reload:
-    #                     self.bot.configure(plugin.instance)
-    #                     send_msg = f"Configuration of plugin {plugin_name} reloaded."
-    #                 else:
-    #                     send_msg = f"Plugin {plugin_name} can't reloaded."
-    #
-    #     if ctx.channel.id != Config().DEBUG_CHAN_ID:
-    #         await ctx.send(send_msg)
-    #     await utils.write_debug_channel(self.bot, send_msg)
-
     @commands.group(name="plugin", aliases=["plugins"], invoke_without_command=True)
     async def plugins(self, ctx):
         await ctx.invoke(self.bot.get_command("plugin list"))
@@ -185,7 +160,6 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
     """
     Presence subsystem
     """
-
     @commands.group(name="presence", invoke_without_command=True)
     async def presence(self, ctx):
         await ctx.invoke(self.bot.get_command("presence list"))
@@ -205,7 +179,7 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
                 await ctx.send(msg)
 
     @presence.command(name="add")
-    @commands.has_any_role(*Config().ADMIN_ROLES)
+    # @commands.has_any_role(*Config().ADMIN_ROLES)
     async def presence_add(self, ctx, *, message):
         if self.bot.presence.register(message, PresencePriority.LOW) is not None:
             await utils.add_reaction(ctx.message, Lang.CMDSUCCESS)
@@ -215,7 +189,7 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
             await ctx.send(Lang.lang(self, "presence_unknown_error"))
 
     @presence.command(name="del", usage="<id>")
-    @commands.has_any_role(*Config().ADMIN_ROLES)
+    # @commands.has_any_role(*Config().ADMIN_ROLES)
     async def presence_del(self, ctx, entry_id: int):
         entry_id -= 1
         presence_message = "PANIC"
@@ -232,7 +206,6 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
     """
     Ignoring subsystem
     """
-
     @commands.group(name="disable", invoke_without_command=True, aliases=["ignore", "block"],
                     usage="<full command name>")
     async def disable(self, ctx, *, command):
