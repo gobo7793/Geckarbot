@@ -67,6 +67,9 @@ class Plugin(BasePlugin, name="Sport"):
 
     @commands.command(name="fußball")
     async def soccer_livescores(self, ctx, league, allmatches=None):
+        if league not in Config().get(self)['leagues']:
+            await ctx.send(Lang.lang(self, 'league_not_found', ", ".join(Config().get(self)['leagues'])))
+            return
         matches = restclient.Client("https://www.openligadb.de/api").make_request("/getmatchdata/{}".format(league))
         finished, running, upcoming = [], [], []
         for match in matches:
@@ -91,7 +94,7 @@ class Plugin(BasePlugin, name="Sport"):
             goals_a = max(0, *(x.get('ScoreTeam2', 0) for x in goals)) if len(goals) else ("–" if m in upcoming else 0)
             return "{} [{}:{}] {}".format(team_h, goals_h, goals_a, team_a)
 
-        embed = discord.Embed(title=Lang.lang(self, 'buli_title'))
+        embed = discord.Embed(title=Lang.lang(self, 'soccer_title', league))
         running_msg = "\n".join(match_msg(m) for m in running)
         if running_msg:
             embed.description = "\n".join(match_msg(m) for m in running)

@@ -8,10 +8,11 @@
         "help_matches": "Displays matches starting in the next 24 hours.",
 
         "#1": "",
-        "buli_title": "Bundesliga - Live",
+        "soccer_title": "Soccer - {} - Live",
         "no_matches_24h": "No matches in the next 24 hours.",
         "match_finished": "Finished",
         "match_upcoming": "Upcoming",
+        "league_not_found": "League must be one of the following: {}",
 
         "#2": "actually de strings",
         "kicker_title": "Kicker.de - Links - Spieltage",
@@ -49,9 +50,10 @@
         "description_fußball": "Zeigt die aktuellen Stände der derzeit laufenden Spieler einer Liga an. Die Liga wird über den entsprechenden Liga-Shortcut der OpenLigaDB angegeben.\nMit dem Zusatz 'all' werden auch anstehende und beendete Spiele angezeigt.",
         "help_matches": "Listet alle Spiele die in den nächsten 24 Stunden beginnen.",
 
-        "buli_title": "Bundesliga - Live",
+        "soccer_title": "Fußball - {} - Live",
         "no_matches_24h": "In den nächsten 24 Stunden stehen keine Spiele an.",
         "match_finished": "Beendet",
-        "match_upcoming": "Bevorstehend"
+        "match_upcoming": "Bevorstehend",
+        "league_not_found": "Liga muss eine der folgenden sein: {}"
     }
 }
