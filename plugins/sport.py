@@ -1,11 +1,12 @@
-from datetime import datetime
+import calendar
+from datetime import datetime, timedelta
 
 import discord
 from discord.ext import commands
 
 from base import BasePlugin
 from botutils import restclient
-from conf import Lang
+from conf import Lang, Config
 
 
 class Plugin(BasePlugin, name="Sport"):
@@ -75,3 +76,31 @@ class Plugin(BasePlugin, name="Sport"):
     @commands.command(name="buli")
     async def buli_livescores(self, ctx, allmatches=None):
         await ctx.invoke(self.bot.get_command('fußball'), 'bl1', allmatches)
+
+    @commands.command(name="matches")
+    async def matches_24h(self, ctx):
+        async with ctx.typing():
+            msg = ""
+            for league in Config().get(self)['leagues']:
+                matches = restclient.Client("https://www.openligadb.de/api").make_request(
+                    "/getmatchdata/{}".format(league))
+                league_msg = ""
+                for match in matches:
+                    try:
+                        time = datetime.strptime(match.get('MatchDateTime'), "%Y-%m-%dT%H:%M:%S")
+                    except (ValueError, TypeError):
+                        continue
+                    else:
+                        now = datetime.now()
+                        if not match.get('MatchIsFinished', True) \
+                                and now + timedelta(hours=-2) < time < now + timedelta(days=1):
+                            league_msg += "{} {} | {} - {}\n".format(
+                                calendar.day_abbr[time.weekday()],
+                                time.strftime("%H:%M Uhr"),
+                                match.get('Team1', {}).get('TeamName'),
+                                match.get('Team2', {}).get('TeamName'))
+                if league_msg:
+                    msg += "{}\n{}\n".format(matches[0].get('LeagueName', league), league_msg)
+            if not msg:
+                msg = Lang.lang(self, 'no_matches_24h')
+        await ctx.send(msg)

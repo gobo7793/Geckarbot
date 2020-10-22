@@ -4,6 +4,7 @@
         "help_fußball": "Current standings of the matches (any league)",
 
         "buli_title": "Bundesliga - Live",
+        "no_matches_24h": "No matches in the next 24 hours.",
         "match_finished": "Finished",
         "match_upcoming": "Upcoming"
     },
@@ -15,6 +16,7 @@
         "description_fußball": "Zeigt die aktuellen Stände der derzeit laufenden Spieler einer Liga an. Die Liga wird über den entsprechenden Liga-Shortcut der OpenLigaDB angegeben.\nMit dem Zusatz 'all' werden auch anstehende und beendete Spiele angezeigt.",
 
         "buli_title": "Bundesliga - Live",
+        "no_matches_24h": "In den nächsten 24 Stunden stehen keine Spiele an.",
         "match_finished": "Beendet",
         "match_upcoming": "Bevorstehend"
     }
