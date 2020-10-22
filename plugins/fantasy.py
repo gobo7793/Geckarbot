@@ -516,7 +516,7 @@ class Plugin(BasePlugin, name="NFL Fantasyliga"):
     async def fantasy_reload(self, ctx):
         async with ctx.typing():
             for league in self.leagues.values():
-                league.load_espn_data()
+                league.espn.refresh()
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
     @fantasy.group(name="set", help="Set data about the fantasy game.")
