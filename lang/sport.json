@@ -48,7 +48,7 @@
         "description_buli": "Zeigt die aktuellen Stände der derzeit laufenden Bundesliga-Spiele.\nMit dem Zusatz 'all' werden auch anstehende und beendete Spiele angezeigt.",
         "help_fußball": "Aktuelle Livestände einer Liga",
         "description_fußball": "Zeigt die aktuellen Stände der derzeit laufenden Spieler einer Liga an. Die Liga wird über den entsprechenden Liga-Shortcut der OpenLigaDB angegeben.\nMit dem Zusatz 'all' werden auch anstehende und beendete Spiele angezeigt.",
-        "help_matches": "Listet alle Spiele die in den nächsten 24 Stunden beginnen.",
+        "help_matches": "Listet alle Spiele, die in den nächsten 24 Stunden beginnen.",
 
         "soccer_title": "Fußball - {} - Live",
         "no_matches_24h": "In den nächsten 24 Stunden stehen keine Spiele an.",
