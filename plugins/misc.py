@@ -57,32 +57,6 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
             results = f"{results[:pos_last_comma + 1]}\u2026"
         await ctx.send(results)
 
-    @commands.command(name="kicker", help="Returns frequently used links to kicker.de")
-    async def kicker_table(self, ctx):
-        now = datetime.now()
-        if now.month < 3 or now.month > 7:
-            at_values = "[{}]({})".format(Lang.lang(self, 'kicker_ATBL'), Lang.lang(self, 'kicker_ATBL_link'))
-        else:
-            at_values = "[{}]({})\n[{}]({})\n[{}]({})" \
-                .format(Lang.lang(self, 'kicker_ATBL'), Lang.lang(self, 'kicker_ATBL_link'),
-                        Lang.lang(self, 'kicker_ATBLM'), Lang.lang(self, 'kicker_ATBLM_link'),
-                        Lang.lang(self, 'kicker_ATBLQ'), Lang.lang(self, 'kicker_ATBLQ_link'))
-
-        embed = discord.Embed(title=Lang.lang(self, 'kicker_title'))
-        embed.add_field(name=Lang.lang(self, 'kicker_DE'),
-                        value="[{}]({})\n[{}]({})\n"
-                              "[{}]({})\n[{}]({})"
-                        .format(Lang.lang(self, 'kicker_1BL'), Lang.lang(self, 'kicker_1BL_link'),
-                                Lang.lang(self, 'kicker_2BL'), Lang.lang(self, 'kicker_2BL_link'),
-                                Lang.lang(self, 'kicker_3FL'), Lang.lang(self, 'kicker_3FL_link'),
-                                Lang.lang(self, 'kicker_DFBP'), Lang.lang(self, 'kicker_DFBP_link')))
-        embed.add_field(name=Lang.lang(self, 'kicker_AT'), value=at_values)
-        embed.add_field(name=Lang.lang(self, 'kicker_EU'),
-                        value="[{}]({})\n[{}]({})".format(
-                            Lang.lang(self, 'kicker_CL'), Lang.lang(self, 'kicker_CL_link'),
-                            Lang.lang(self, 'kicker_EL'), Lang.lang(self, 'kicker_EL_link')))
-        await ctx.send(embed=embed)
-
     @commands.command(name="choose", help="Picks on of the options. Separate options with '|'",
                       usage="option1 | option2 | ...")
     async def choose(self, ctx, *args):
@@ -125,11 +99,6 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
     async def keysmash(self, ctx):
         msg = "".join(random.choices(string.ascii_letters + string.digits, k=random.randint(25, 50)))
         await ctx.send(msg)
-
-    # todo: read directly from sheets
-    @commands.command(name="tippspiel", help="Gives the link to the Tippspiel-Sheet")
-    async def tippspiel(self, ctx):
-        await ctx.send(Lang.lang(self, 'tippspiel_output'))
 
     @commands.command(name="werwars", alsiases=["wermobbtgerade"], help="Shows which user is bullying other users",
                       description="Shows who is bullying other users in the last 30 minutes in the current channel. "

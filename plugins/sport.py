@@ -34,6 +34,37 @@ class Plugin(BasePlugin, name="Sport"):
         result = Lang.lang(self, lang_name)
         return result if result != lang_name else Lang.lang(self, "help_{}".format(name))
 
+    @commands.command(name="kicker")
+    async def kicker_table(self, ctx):
+        now = datetime.now()
+        if now.month < 3 or now.month > 7:
+            at_values = "[{}]({})".format(Lang.lang(self, 'kicker_ATBL'), Lang.lang(self, 'kicker_ATBL_link'))
+        else:
+            at_values = "[{}]({})\n[{}]({})\n[{}]({})" \
+                .format(Lang.lang(self, 'kicker_ATBL'), Lang.lang(self, 'kicker_ATBL_link'),
+                        Lang.lang(self, 'kicker_ATBLM'), Lang.lang(self, 'kicker_ATBLM_link'),
+                        Lang.lang(self, 'kicker_ATBLQ'), Lang.lang(self, 'kicker_ATBLQ_link'))
+
+        embed = discord.Embed(title=Lang.lang(self, 'kicker_title'))
+        embed.add_field(name=Lang.lang(self, 'kicker_DE'),
+                        value="[{}]({})\n[{}]({})\n"
+                              "[{}]({})\n[{}]({})"
+                        .format(Lang.lang(self, 'kicker_1BL'), Lang.lang(self, 'kicker_1BL_link'),
+                                Lang.lang(self, 'kicker_2BL'), Lang.lang(self, 'kicker_2BL_link'),
+                                Lang.lang(self, 'kicker_3FL'), Lang.lang(self, 'kicker_3FL_link'),
+                                Lang.lang(self, 'kicker_DFBP'), Lang.lang(self, 'kicker_DFBP_link')))
+        embed.add_field(name=Lang.lang(self, 'kicker_AT'), value=at_values)
+        embed.add_field(name=Lang.lang(self, 'kicker_EU'),
+                        value="[{}]({})\n[{}]({})".format(
+                            Lang.lang(self, 'kicker_CL'), Lang.lang(self, 'kicker_CL_link'),
+                            Lang.lang(self, 'kicker_EL'), Lang.lang(self, 'kicker_EL_link')))
+        await ctx.send(embed=embed)
+
+    # todo: read directly from sheets
+    @commands.command(name="tippspiel")
+    async def tippspiel(self, ctx):
+        await ctx.send(Lang.lang(self, 'tippspiel_output'))
+
     @commands.command(name="fußball")
     async def soccer_livescores(self, ctx, league, allmatches=None):
         matches = restclient.Client("https://www.openligadb.de/api").make_request("/getmatchdata/{}".format(league))
