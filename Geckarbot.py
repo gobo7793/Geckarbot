@@ -274,6 +274,11 @@ class Geckarbot(commands.Bot):
         logging.debug("Exit code: {}".format(status))
         sys.exit(status)
 
+def intent_setup():
+    intents = discord.Intents.default()
+    intents.members = True
+    return intents
+
 
 def logging_setup(debug=False):
     """
@@ -285,7 +290,8 @@ def logging_setup(debug=False):
 
     Path("logs/").mkdir(parents=True, exist_ok=True)
 
-    file_handler = logging.handlers.TimedRotatingFileHandler(filename="logs/geckarbot.log", when="midnight", interval=1)
+    file_handler = logging.handlers.TimedRotatingFileHandler(filename="logs/geckarbot.log",
+                                                             when="midnight", interval=1, encoding="utf-8")
     file_handler.setLevel(level)
     file_handler.setFormatter(logging.Formatter('%(asctime)s : %(levelname)s : %(name)s : %(message)s'))
     console_handler = logging.StreamHandler()
@@ -306,7 +312,8 @@ def main():
     injections.pre_injections()
     logging_setup()
     logging.getLogger(__name__).debug("Debug mode: on")
-    bot = Geckarbot(command_prefix='!')
+    intents = intent_setup()
+    bot = Geckarbot(command_prefix='!', intents=intents)
     injections.post_injections(bot)
     logging.info("Loading core plugins")
     failed_plugins = bot.load_plugins(bot.CORE_PLUGIN_DIR)
