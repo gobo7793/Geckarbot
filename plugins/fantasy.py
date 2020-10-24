@@ -179,6 +179,7 @@ class Plugin(BasePlugin, name="NFL Fantasyliga"):
 
     async def shutdown(self):
         self._stop_score_timer()
+        self.leagues.clear()
 
     @property
     def year(self):
