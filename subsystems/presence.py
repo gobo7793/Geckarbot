@@ -88,7 +88,7 @@ class Presence(BaseSubsystem):
     def __init__(self, bot):
         super().__init__(bot)
         self.log = logging.getLogger("presence")
-        self.messages = {}  # type: Dict[int]
+        self.messages = {}  # type: Dict[int, PresenceMessage]
         self.highest_id = None  # type: Optional[int]
         self._timer_job = None  # type: Optional[Job]
 
@@ -282,6 +282,7 @@ class Presence(BaseSubsystem):
     async def _set_presence(self, message):
         """Sets the presence message, based on discord.Game activity"""
         self.log.debug("Change displayed message to: {}".format(message))
+        message = message.replace("\\\\", "\\")
         await self.bot.change_presence(activity=discord.Game(name=message))
 
     def _execute_removing_change(self, removed_id: int):
@@ -311,6 +312,7 @@ class Presence(BaseSubsystem):
 
         if next_id == last_id:
             return  # do nothing if the same message should be displayed again
+
 
         job.data["id_before_high"] = last_id
         new_msg = self.messages[next_id]

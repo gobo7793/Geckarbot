@@ -37,9 +37,10 @@ All pip packages can be installed using `pip3 install -r requirements.txt`.
 To start the bot, you need an own Discord server and Discord application with a bot user. Discord applications can created at [Discord's Developer Portal](https://discord.com/developers/applications):
 1. Create Application
 2. Create a Bot for the app
-3. Get the Bot token and put it into `DISCORD_TOKEN` in `config/geckarbot.json` file
-4. Get the OAuth2-URL for the Bot
-5. Open the URL and add the Bot to a Server (you need Manage Server permissions for this)
+3. Enable the Privileged Gateway Intent `Server Members Intent`
+4. Get the Bot token and put it into `DISCORD_TOKEN` in `config/geckarbot.json` file
+5. Get the OAuth2-URL for the Bot
+6. Open the URL and add the Bot to a Server (you need Manage Server permissions for this)
 
 To start the bot:
 - Easy and full start: `./runscript.sh`

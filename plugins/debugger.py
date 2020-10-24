@@ -97,6 +97,14 @@ class Plugin(BasePlugin, name="Testing and debug things"):
         else:
             await ctx.send("Timer not started")
 
+    @commands.command(name="presencenext", help="Sets the next presence message")
+    async def stop_presence(self, ctx):
+        if self.bot.presence.is_timer_up:
+            self.bot.presence._execute_change()
+            await utils.add_reaction(ctx.message, Lang.CMDSUCCESS)
+        else:
+            await ctx.send("Timer not started")
+
     @commands.command(name="write")
     async def write(self, ctx, *, args):
         await ctx.send(args)
