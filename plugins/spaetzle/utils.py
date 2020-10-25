@@ -214,30 +214,31 @@ def match_status(day, time=None):
         return MatchStatus.UNKNOWN
 
 
-def get_user_league(plugin, user):
+def get_user_league(plugin, user: str):
     """
     Returns the league of the user
 
     :return: number of the league
     """
     for league, participants in Storage().get(plugin)['participants'].items():
-        if user in participants:
+        if user.lower() in (x.lower() for x in participants):
             return league
     else:
         raise UserNotFound
 
 
-def get_user_cell(plugin, user):
+def get_user_cell(plugin, user: str):
     """
     Returns the position of the user's title cell in the 'Tipps' section
 
     :return: (col, row) of the cell
     """
     for league, participants in Storage().get(plugin)['participants'].items():
-        if user in participants:
-            col = 60 + (2 * participants.index(user))
-            row = 12 * (int(league) - 1) + 2
-            return col, row
+        for i in range(len(participants)):
+            if user.lower() == participants[i].lower():
+                col = 60 + (2 * i)
+                row = 12 * (int(league) - 1) + 2
+                return col, row
     else:
         raise UserNotFound
 

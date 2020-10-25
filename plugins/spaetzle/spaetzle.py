@@ -743,14 +743,14 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                 # Restrict the view to users area
                 pos = None
                 for i in range(len(result)):
-                    pos = i if result[i][3] == user_or_league else pos
+                    pos = i if result[i][3].lower() == user_or_league.lower() else pos
                 if pos is not None:
                     result = result[max(0, pos - 3):pos + 4]
 
             msg = ""
             for line in result:
-                msg += "{0}{1} | {4} | {7}:{9} {10} | {11}{0}\n".format("**" if line[3] == user_or_league else "",
-                                                                        *line)
+                msg += "{0}{1} | {4} | {7}:{9} {10} | {11}{0}\n".format("**" if line[3].lower() ==
+                                                                                user_or_league.lower() else "", *line)
             embed = discord.Embed(title=Lang.lang(self, 'title_table', league), description=msg)
             embed.set_footer(text=Lang.lang(self, 'table_footer'))
         await ctx.send(embed=embed)
