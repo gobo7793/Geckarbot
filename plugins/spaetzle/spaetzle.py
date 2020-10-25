@@ -115,22 +115,24 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
         else:
             async with ctx.typing():
                 c = self.get_api_client()
-                data = c.get(Config().get(self)['matches_range'])
-                for row in data[2:]:
+                data = c.get(Config().get(self)['matches_range'], formatted=False)
+                values = [x[:] for x in [[None] * 7] * len(data)]
+                for i in range(2, len(data)):
+                    row = data[i]
                     if len(row) >= 7:
                         if row[3] == name:
-                            row[4] = (row[4] + 1) if goals is None else goals
+                            values[i][4] = row[4] = (row[4] + 1) if goals is None else goals
                             await ctx.send("{3} [**{4}**:{5}] {6}".format(*row))
                             break
                         elif row[6] == name:
-                            row[5] = (row[5] + 1) if goals is None else goals
+                            values[i][5] = row[5] = (row[5] + 1) if goals is None else goals
                             await ctx.send("{3} [{4}:**{5}**] {6}".format(*row))
                             break
                 else:
                     await ctx.send(Lang.lang(self, 'team_not_found', team))
                     return
 
-                c.update(range=Config().get(self)['matches_range'], values=data)
+                c.update(range=Config().get(self)['matches_range'], values=values, raw=False)
 
             await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
