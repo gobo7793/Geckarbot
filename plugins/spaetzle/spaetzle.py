@@ -577,8 +577,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             # Calculating possible point difference
             diff1, diff2 = 0, 0
             for i in range(len(matches)):
-                if match_status(datetime(1899, 12, 30)
-                                + timedelta(days=matches[i][1] + matches[i][2])) == MatchStatus.CLOSED:
+                if match_status(matches[i][1], matches[i][2]) == MatchStatus.CLOSED:
                     continue
                 diff = pointdiff_possible(matches[i][4:6], preds_h[i], preds_a[i])
                 diff1 += diff[0]
@@ -592,7 +591,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                 match = matches[i]
                 pred_h = preds_h[i]
                 pred_a = preds_a[i]
-                emoji = match_status(datetime(1899, 12, 30) + timedelta(days=match[1] + match[2])).value
+                emoji = match_status(match[1], match[2]).value
                 msg += "{} `{} {}:{} {}\u0020\u0020\u0020\u0020{}:{}\u0020\u0020\u0020\u0020{}:{} `\n"\
                     .format(emoji, self.teamname_dict.get_abbr(match[3]), match[4], match[5],
                             self.teamname_dict.get_abbr(match[6]), pred_h[0], pred_h[1], pred_a[0], pred_a[1])

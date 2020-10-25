@@ -1,5 +1,5 @@
 import random
-from datetime import datetime
+from datetime import datetime, timedelta
 from enum import Enum
 from typing import Tuple
 
@@ -167,15 +167,40 @@ def determine_winner(points_h: str, points_a: str, diff_h: int, diff_a: int):
     else:
         return MatchResult.NONE
 
+def convert_to_datetime(day, time):
+    if type(day) == int:
+        day_ = datetime(1899, 12, 30) + timedelta(days=day)
+    else:
+        try:
+            date = [int(x) for x in day.split(".") if x != ""]
+            if len(date) < 3:
+                date.append(datetime.today().year)
+            day_ = datetime(*date[::-1])
+        except (TypeError, ValueError):
+            day_ = datetime.today()
+    if type(time) == int:
+        time_ = datetime(1, 1, 1) + timedelta(days=time)
+    else:
+        try:
+            time_ = datetime.strptime(time, "%H:%M")
+        except (TypeError, ValueError):
+            time_ = datetime.now()
+    return datetime.combine(day_.date(), time_.time())
 
-def match_status(match_datetime: datetime):
+def match_status(day, time=None):
     """
     Checks the status of a match (Solely time-based)
 
-    :param match_datetime: datetime of kick-off
+    :param day: datetime or day of kick-off
+    :param time: time of kick-off
     :return: CLOSED for finished matches, RUNNING for currently active matches (2 hours after kickoff) and UPCOMING
     for matches not started. UNKNOWN if unable to read the date or time
     """
+    if type(day) == datetime:
+        match_datetime = day
+    else:
+        match_datetime = convert_to_datetime(day, time)
+
     now = datetime.now()
     try:
         timediff = (now - match_datetime).total_seconds()
