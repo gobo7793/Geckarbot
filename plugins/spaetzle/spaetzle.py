@@ -3,7 +3,7 @@ import inspect
 import json
 import logging
 import re
-from datetime import datetime, timedelta
+from datetime import datetime
 from urllib.parse import urljoin, urlparse
 
 import discord
@@ -21,7 +21,7 @@ from botutils.utils import add_reaction
 from conf import Config, Storage, Lang
 from plugins.spaetzle.subsystems import UserBridge, Observed, Trusted
 from plugins.spaetzle.utils import TeamnameDict, pointdiff_possible, determine_winner, MatchResult, match_status, \
-    MatchStatus, get_user_league, get_user_cell, get_schedule, get_schedule_opponent, UserNotFound
+    MatchStatus, get_user_league, get_user_cell, get_schedule, get_schedule_opponent, UserNotFound, convert_to_datetime
 from subsystems.help import HelpCategory
 
 
@@ -704,7 +704,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
 
             msg = ""
             for match in matches:
-                date_time = datetime(1899, 12, 30) + timedelta(days=match[1] + match[2])
+                date_time = convert_to_datetime(match[1], match[2])
                 emoji = match_status(date_time).value
                 msg += "{0} {3} {1} {2} Uhr | {6} - {9} | {7}:{8}\n".format(emoji, date_time.strftime("%d.%m."),
                                                                             date_time.strftime("%H:%M"), *match)
