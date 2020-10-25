@@ -3,7 +3,7 @@ import inspect
 import json
 import logging
 import re
-from datetime import datetime, timedelta
+from datetime import datetime
 from urllib.parse import urljoin, urlparse
 
 import discord
@@ -21,7 +21,7 @@ from botutils.utils import add_reaction
 from conf import Config, Storage, Lang
 from plugins.spaetzle.subsystems import UserBridge, Observed, Trusted
 from plugins.spaetzle.utils import TeamnameDict, pointdiff_possible, determine_winner, MatchResult, match_status, \
-    MatchStatus, get_user_league, get_user_cell, get_schedule, get_schedule_opponent, UserNotFound
+    MatchStatus, get_user_league, get_user_cell, get_schedule, get_schedule_opponent, UserNotFound, convert_to_datetime
 from subsystems.help import HelpCategory
 
 
@@ -115,22 +115,24 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
         else:
             async with ctx.typing():
                 c = self.get_api_client()
-                data = c.get(Config().get(self)['matches_range'])
-                for row in data[2:]:
+                data = c.get(Config().get(self)['matches_range'], formatted=False)
+                values = [x[:] for x in [[None] * 7] * len(data)]
+                for i in range(2, len(data)):
+                    row = data[i]
                     if len(row) >= 7:
                         if row[3] == name:
-                            row[4] = (row[4] + 1) if goals is None else goals
+                            values[i][4] = row[4] = (row[4] + 1) if goals is None else goals
                             await ctx.send("{3} [**{4}**:{5}] {6}".format(*row))
                             break
                         elif row[6] == name:
-                            row[5] = (row[5] + 1) if goals is None else goals
+                            values[i][5] = row[5] = (row[5] + 1) if goals is None else goals
                             await ctx.send("{3} [{4}:**{5}**] {6}".format(*row))
                             break
                 else:
                     await ctx.send(Lang.lang(self, 'team_not_found', team))
                     return
 
-                c.update(range=Config().get(self)['matches_range'], values=data)
+                c.update(range=Config().get(self)['matches_range'], values=values, raw=False)
 
             await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
@@ -575,8 +577,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             # Calculating possible point difference
             diff1, diff2 = 0, 0
             for i in range(len(matches)):
-                if match_status(datetime(1899, 12, 30)
-                                + timedelta(days=matches[i][1] + matches[i][2])) == MatchStatus.CLOSED:
+                if match_status(matches[i][1], matches[i][2]) == MatchStatus.CLOSED:
                     continue
                 diff = pointdiff_possible(matches[i][4:6], preds_h[i], preds_a[i])
                 diff1 += diff[0]
@@ -590,7 +591,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                 match = matches[i]
                 pred_h = preds_h[i]
                 pred_a = preds_a[i]
-                emoji = match_status(datetime(1899, 12, 30) + timedelta(days=match[1] + match[2])).value
+                emoji = match_status(match[1], match[2]).value
                 msg += "{} `{} {}:{} {}\u0020\u0020\u0020\u0020{}:{}\u0020\u0020\u0020\u0020{}:{} `\n"\
                     .format(emoji, self.teamname_dict.get_abbr(match[3]), match[4], match[5],
                             self.teamname_dict.get_abbr(match[6]), pred_h[0], pred_h[1], pred_a[0], pred_a[1])
@@ -703,7 +704,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
 
             msg = ""
             for match in matches:
-                date_time = datetime(1899, 12, 30) + timedelta(days=match[1] + match[2])
+                date_time = convert_to_datetime(match[1], match[2])
                 emoji = match_status(date_time).value
                 msg += "{0} {3} {1} {2} Uhr | {6} - {9} | {7}:{8}\n".format(emoji, date_time.strftime("%d.%m."),
                                                                             date_time.strftime("%H:%M"), *match)
@@ -742,14 +743,14 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                 # Restrict the view to users area
                 pos = None
                 for i in range(len(result)):
-                    pos = i if result[i][3] == user_or_league else pos
+                    pos = i if result[i][3].lower() == user_or_league.lower() else pos
                 if pos is not None:
                     result = result[max(0, pos - 3):pos + 4]
 
             msg = ""
             for line in result:
-                msg += "{0}{1} | {4} | {7}:{9} {10} | {11}{0}\n".format("**" if line[3] == user_or_league else "",
-                                                                        *line)
+                msg += "{0}{1} | {4} | {7}:{9} {10} | {11}{0}\n".format("**" if line[3].lower() ==
+                                                                                user_or_league.lower() else "", *line)
             embed = discord.Embed(title=Lang.lang(self, 'title_table', league), description=msg)
             embed.set_footer(text=Lang.lang(self, 'table_footer'))
         await ctx.send(embed=embed)
