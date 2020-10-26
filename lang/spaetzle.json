@@ -77,8 +77,8 @@
         "title_matchday_league": "Matchday {} - Duels League {}",
         "danny_no_id": "Danny's ID is missing!",
         "danny_no_users": "Tell me usernames, pls!",
-        "danny_done": "Danny now got the predictions of {}!",
-        "danny_done_notfound": "Danny now got the predictions of {}!\nThese users I cant remember: {}",
+        "danny_done": "{} now got the predictions of {}!",
+        "danny_done_notfound": "{} now got the predictions of {}!\nThese users I cant remember: {}",
         "table_footer": "Yes this is live, gobo7793!"
     },
     "de": {
@@ -160,8 +160,8 @@
         "title_matchday_league": "Spieltag {} - Duelle Liga {}",
         "danny_no_id": "Bitte füge Dannys ID zur Config hinzu!",
         "danny_no_users": "Trage mir Namen in die Config ein oder sagse mir ins Gesicht!",
-        "danny_done": "Danny hat nun die Tipps von {} erhalten!",
-        "danny_done_notfound": "Danny hat nun die Tipps von {} erhalten!\n{} kenne ich aber gar nicht.",
+        "danny_done": "{} hat nun die Tipps von {} erhalten!",
+        "danny_done_notfound": "{} hat nun die Tipps von {} erhalten!\n{} kenne ich aber gar nicht.",
         "table_footer": "@gobo: möglicherweise live-stände"
     }
 }

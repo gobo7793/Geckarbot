@@ -14,7 +14,7 @@ from discord.ext.commands import MissingRequiredArgument
 
 from Geckarbot import BasePlugin
 from botutils import sheetsclient, restclient
-from botutils.converters import get_best_user
+from botutils.converters import get_best_user, get_best_username
 from botutils.permchecks import check_mod_access
 from botutils.stringutils import paginate
 from botutils.utils import add_reaction
@@ -850,9 +850,9 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             for embed in embeds:
                 await danny.send(embed=embed)
             if not_found_users:
-                await ctx.send(Lang.lang(self, 'danny_done_notfound', ", ".join(users), ", ".join(not_found_users)))
+                await ctx.send(Lang.lang(self, 'danny_done_notfound', get_best_username(danny), ", ".join(users), ", ".join(not_found_users)))
             else:
-                await ctx.send(Lang.lang(self, 'danny_done', ", ".join(users)))
+                await ctx.send(Lang.lang(self, 'danny_done', get_best_username(danny), ", ".join(users)))
 
     @spaetzle.group(name="trusted", help="Configures which users are trusted for help")
     async def trusted(self, ctx):
