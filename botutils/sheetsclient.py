@@ -138,7 +138,7 @@ class Client(restclient.Client):
         Updates the content of a range
 
         :param range: range to update
-        :param values: values as a matrix of cells
+        :param values: values as a matrix of cells [[cells...], rows...]
         :param raw: whether valueInputOption should be 'raw'
         :return: UpdateValuesResponse
         """
@@ -153,14 +153,13 @@ class Client(restclient.Client):
 
     def update_multiple(self, data_dict: dict):
         """
-        NOT IMPLEMENTED
         Updates the content of multiple ranges
 
-        :param data_dict: dictionary with the range as key and range values as values
+        :param data_dict: dictionary with the range as key and range values as matrixes of values
+                          (as following: [[cells..], rows..])
         :return: response with information about the updates
         """
 
-        """
         data = []
         for range in data_dict:
             data.append({
@@ -171,11 +170,10 @@ class Client(restclient.Client):
             'valueInputOption': 'RAW',
             'data': data
         }
-        response = self.get_service().spreadsheets().values().batchUpdate(spreadsheetId=self.spreadsheet_id, body=body)
+        response = self.get_service().spreadsheets().values().batchUpdate(spreadsheetId=self.spreadsheet_id, body=body)\
+            .execute()
         self.logger.debug("Response: {}".format(response))
         return response
-        """
-        raise NotImplemented
 
     def append(self, range, values, raw: bool = True) -> dict:
         """
