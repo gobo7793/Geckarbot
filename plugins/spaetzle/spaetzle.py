@@ -64,36 +64,38 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             'danny_users': []
         }
 
-    def default_storage(self):
-        return {
-            'matchday': 0,
-            'main_thread': None,
-            'predictions_thread': None,
-            'discord_user_bridge': {},
-            'observed_users': [],
-            'participants': {},
-            'teamnames': {
-                "FC Bayern München": {'short_name': "FCB", 'other': ["FC Bayern", "Bayern", "München"]},
-                "Borussia Dortmund": {'short_name': "BVB", 'other': ["Dortmund"]},
-                "Rasenballsport Leipzig": {'short_name': "LPZ", 'other': ["Leipzig", "RB Leipzig", "RBL", "LEI"]},
-                "Bor. Mönchengladbach": {'short_name': "BMG", 'other': ["Gladbach", "Borussia Mönchengladbach"]},
-                "Bayer 04 Leverkusen": {'short_name': "LEV", 'other': ["Leverkusen", "Bayer Leverkusen", "B04"]},
-                "TSG Hoffenheim": {'short_name': "HOF", 'other': ["Hoffenheim", "TSG 1899 Hoffenheim", "TSG"]},
-                "VfL Wolfsburg": {'short_name': "WOB", 'other': ["Wolfsburg", "VFL"]},
-                "SC Freiburg": {'short_name': "SCF", 'other': ["Freiburg"]},
-                "Eintracht Frankfurt": {'short_name': "SGE", 'other': ["Frankfurt", "Eintracht", "FRA"]},
-                "Hertha BSC": {'short_name': "BSC", 'other': ["Hertha"]},
-                "1. FC Union Berlin": {'short_name': "FCU", 'other': ["Union", "Berlin"]},
-                "FC Schalke 04": {'short_name': "S04", 'other': ["Schalke"]},
-                "1. FSV Mainz 05": {'short_name': "M05", 'other': ["Mainz", "FSV"]},
-                "1. FC Köln": {'short_name': "KOE", 'other': ["Köln", "FCK"]},
-                "FC Augsburg": {'short_name': "FCA", 'other': ["Augsburg"]},
-                "SV Werder Bremen": {'short_name': "SVW", 'other': ["Bremen", "Werder", "Werder Bremen", "BRE"]},
-                "Arminia Bielefeld": {'short_name': "DSC", 'other': ["Bielefeld", "Arminia", "BIE"]},
-                "VfB Stuttgart": {'short_name': "VFB", 'other': ["Stuttgart", "STU"]}
-            },
-            'predictions': []
-        }
+    def default_storage(self, container=None):
+        if container is None:
+            return {
+                'matchday': 0,
+                'main_thread': None,
+                'predictions_thread': None,
+                'discord_user_bridge': {},
+                'observed_users': [],
+                'participants': {},
+                'teamnames': {
+                    "FC Bayern München": {'short_name': "FCB", 'other': ["FC Bayern", "Bayern", "München"]},
+                    "Borussia Dortmund": {'short_name': "BVB", 'other': ["Dortmund"]},
+                    "Rasenballsport Leipzig": {'short_name': "LPZ", 'other': ["Leipzig", "RB Leipzig", "RBL", "LEI"]},
+                    "Bor. Mönchengladbach": {'short_name': "BMG", 'other': ["Gladbach", "Borussia Mönchengladbach"]},
+                    "Bayer 04 Leverkusen": {'short_name': "LEV", 'other': ["Leverkusen", "Bayer Leverkusen", "B04"]},
+                    "TSG Hoffenheim": {'short_name': "HOF", 'other': ["Hoffenheim", "TSG 1899 Hoffenheim", "TSG"]},
+                    "VfL Wolfsburg": {'short_name': "WOB", 'other': ["Wolfsburg", "VFL"]},
+                    "SC Freiburg": {'short_name': "SCF", 'other': ["Freiburg"]},
+                    "Eintracht Frankfurt": {'short_name': "SGE", 'other': ["Frankfurt", "Eintracht", "FRA"]},
+                    "Hertha BSC": {'short_name': "BSC", 'other': ["Hertha"]},
+                    "1. FC Union Berlin": {'short_name': "FCU", 'other': ["Union", "Berlin"]},
+                    "FC Schalke 04": {'short_name': "S04", 'other': ["Schalke"]},
+                    "1. FSV Mainz 05": {'short_name': "M05", 'other': ["Mainz", "FSV"]},
+                    "1. FC Köln": {'short_name': "KOE", 'other': ["Köln", "FCK"]},
+                    "FC Augsburg": {'short_name': "FCA", 'other': ["Augsburg"]},
+                    "SV Werder Bremen": {'short_name': "SVW", 'other': ["Bremen", "Werder", "Werder Bremen", "BRE"]},
+                    "Arminia Bielefeld": {'short_name': "DSC", 'other': ["Bielefeld", "Arminia", "BIE"]},
+                    "VfB Stuttgart": {'short_name': "VFB", 'other': ["Stuttgart", "STU"]}
+                }
+            }
+        elif container == 'forumposts':
+            return []
 
     def command_help_string(self, command):
         return Lang.lang(self, "help_{}".format("_".join(command.qualified_name.split())))
@@ -291,7 +293,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                 maxduels = len(max(data.values(), key=len))
                 combined_data = [x[:] for x in [[]] * maxduels]
                 for values in data.values():
-                    values.extend([[None]*8] * (maxduels - len(values)))
+                    values.extend([[None] * 8] * (maxduels - len(values)))
                     for i in range(maxduels):
                         combined_data[i].extend(values[i] + [None] * 4)
                 c.update("Aktuell!{}".format(Config().get(self)['all_duels_range']), combined_data)
@@ -331,7 +333,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                         })
 
                 await botmessage.edit(content="{}\n{}".format(botmessage.content,
-                                                               Lang.lang(self, 'scrape_intermediate', len(data))))
+                                                              Lang.lang(self, 'scrape_intermediate', len(data))))
                 next_page = soup.find_all('li', 'naechste-seite')
                 if next_page and next_page[0].a:
                     url = urljoin(Storage().get(self)['predictions_thread'], next_page[0].a['href'])
@@ -339,8 +341,8 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                     await ctx.send(Lang.lang(self, 'scrape_end'))
                     break
 
-            Storage().get(self)['predictions'] = data
-            Storage().save(self)
+            Storage().get(self, container='forumposts')[:] = data
+            Storage().save(self, container='forumposts')
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
     @spaetzle_set.command(name="extract", help="Extracts the predictions from the scraped result")
@@ -352,7 +354,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             matches = []
             predictions_by_user = {}
             forumuser_list = set()
-            data = Storage().get(self)['predictions']
+            data = Storage().get(self, container='forumposts')
             first_post = data[0]
 
             # Reading matches
@@ -592,7 +594,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                 pred_h = preds_h[i]
                 pred_a = preds_a[i]
                 emoji = match_status(match[1], match[2]).value
-                msg += "{} `{} {}:{} {}\u0020\u0020\u0020\u0020{}:{}\u0020\u0020\u0020\u0020{}:{} `\n"\
+                msg += "{} `{} {}:{} {}\u0020\u0020\u0020\u0020{}:{}\u0020\u0020\u0020\u0020{}:{} `\n" \
                     .format(emoji, self.teamname_dict.get_abbr(match[3]), match[4], match[5],
                             self.teamname_dict.get_abbr(match[6]), pred_h[0], pred_h[1], pred_a[0], pred_a[1])
 
@@ -779,7 +781,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
         if not await Trusted(self).is_trusted(ctx):
             return
 
-        forum_posts = Storage().get(self)['predictions']
+        forum_posts = Storage().get(self, container='forumposts')
         if len(forum_posts) < 1:
             await ctx.send(Lang.lang(self, 'no_saved_rawposts'))
             return
@@ -838,19 +840,20 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                     msg = ""
                     matches_txt = []
                     for i in range(len(matches)):
-                        if len(p[i+1]) < 2:
-                            p[i+1] = ["-", "-"]
+                        if len(p[i + 1]) < 2:
+                            p[i + 1] = ["-", "-"]
                         matches_txt.append("{} - {}".format(matches[i][3], matches[i][6]))
                     maxlength = len(max(matches_txt, key=len))
                     for i in range(len(matches_txt)):
-                        msg += "{}{} {}:{}\n".format(matches_txt[i], " " * (maxlength - len(matches_txt[i])), *p[i+1])
+                        msg += "{}{} {}:{}\n".format(matches_txt[i], " " * (maxlength - len(matches_txt[i])), *p[i + 1])
                     embed.description = "```{}```".format(msg)
                     embeds.append(embed)
 
             for embed in embeds:
                 await danny.send(embed=embed)
             if not_found_users:
-                await ctx.send(Lang.lang(self, 'danny_done_notfound', get_best_username(danny), ", ".join(users), ", ".join(not_found_users)))
+                await ctx.send(Lang.lang(self, 'danny_done_notfound', get_best_username(danny), ", ".join(users),
+                                         ", ".join(not_found_users)))
             else:
                 await ctx.send(Lang.lang(self, 'danny_done', get_best_username(danny), ", ".join(users)))
 
