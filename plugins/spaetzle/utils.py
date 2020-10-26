@@ -224,7 +224,7 @@ def get_user_league(plugin, user: str):
         if user.lower() in (x.lower() for x in participants):
             return league
     else:
-        raise UserNotFound
+        raise UserNotFound(user)
 
 
 def get_user_cell(plugin, user: str):
@@ -240,7 +240,7 @@ def get_user_cell(plugin, user: str):
                 row = 12 * (int(league) - 1) + 2
                 return col, row
     else:
-        raise UserNotFound
+        raise UserNotFound(user)
 
 
 def get_schedule(plugin, league, matchday: int):
@@ -278,4 +278,5 @@ def get_schedule_opponent(plugin, participant, matchday: int):
 
 
 class UserNotFound(Exception):
-    pass
+    def __init__(self, user):
+        self.user = user

@@ -805,6 +805,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                                          "Bundesliga prediction game.")
     async def danny_dm(self, ctx, *users):
         danny_id = Config().get(self)['danny_id']
+        not_found_users = []
         if not danny_id:
             await ctx.send(Lang.lang(self, 'danny_no_id'))
         if await Trusted(self).is_manager(ctx, show_error=False) or ctx.author.id == danny_id:
@@ -816,9 +817,15 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                     users = Config().get(self)['danny_users']
                     if len(users) == 0:
                         await ctx.send(Lang.lang(self, 'danny_no_users'))
-                for user in users:
-                    col, row = get_user_cell(self, user)
-                    if col is not None:
+                else:
+                    users = list(users)
+                for user in users[:]:
+                    try:
+                        col, row = get_user_cell(self, user)
+                    except UserNotFound:
+                        users.remove(user)
+                        not_found_users.append(user)
+                    else:
                         data_ranges.append("Aktuell!{}:{}".format(c.cellname(col, row), c.cellname(col + 1, row + 10)))
                 result = c.get_multiple(data_ranges, formatted=False)
                 matchday = result[0][0][0]
@@ -842,7 +849,10 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
 
             for embed in embeds:
                 await danny.send(embed=embed)
-            await ctx.send(Lang.lang(self, 'danny_done', ", ".join(users)))
+            if not_found_users:
+                await ctx.send(Lang.lang(self, 'danny_done_notfound', ", ".join(users), ", ".join(not_found_users)))
+            else:
+                await ctx.send(Lang.lang(self, 'danny_done', ", ".join(users)))
 
     @spaetzle.group(name="trusted", help="Configures which users are trusted for help")
     async def trusted(self, ctx):
