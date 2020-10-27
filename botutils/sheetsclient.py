@@ -106,7 +106,10 @@ class Client(restclient.Client):
         """
         Returns the name of the cell
         """
-        return self.number_to_column(col) + str(row)
+        if col and row:
+            return self.number_to_column(col) + str(row)
+        else:
+            return None
 
     def get(self, range, formatted: bool = True) -> list:
         """
@@ -302,16 +305,30 @@ class Client(restclient.Client):
         body = {
             "requests": [{
                 "duplicateSheet": request
-            }],
-            "includeSpreadsheetInResponse": True
+            }]
         }
         try:
             from googleapiclient.errors import HttpError
             try:
-                response = self.get_service().spreadsheets().batchUpdate(spreadsheetId=self.spreadsheet_id,
-                                                                         body=body).execute()
+                response = self.get_service().spreadsheets().batchUpdate(
+                    spreadsheetId=self.spreadsheet_id, body=body).execute()
                 return response
             except HttpError:
                 return None
         except ImportError:
             raise NotLoadable("Google API modules not installed.")
+
+    def duplicate_and_archive_sheet(self, sheet, new_title: str = None, index: int = None, new_id: int = None):
+        # Duplicate
+        duplicate = self.duplicate_sheet(sheet=sheet, new_title=new_title, index=index, new_id=new_id)
+        if duplicate is None:
+            return None
+        # Get content
+        properties = duplicate.get('replies', [{}])[0].get('duplicateSheet', {}).get('properties', {})
+        range = "{}!A1:{}".format(properties.get('title'),
+                                  self.cellname(properties.get('gridProperties', {}).get('rowCount'),
+                                                properties.get('gridProperties', {}).get('columnCount')))
+        values = self.get(range, formatted=True)
+        # Insert raw again
+        response = self.update(range, values, raw=True)
+        return duplicate, response
