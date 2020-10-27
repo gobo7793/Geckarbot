@@ -1,10 +1,8 @@
-import pkgutil
 import platform
 from datetime import datetime
 
 from discord.ext import commands
 
-import subsystems
 from base import BasePlugin, ConfigurableType
 from botutils import utils
 from botutils.converters import get_best_username, convert_member, get_plugin_by_name

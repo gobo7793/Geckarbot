@@ -36,6 +36,10 @@ def get_lang(lang_dict, key):
     return lang_dict.get(key, baselang[key])
 
 
+class Cancelled(Exception):
+    pass
+
+
 class QuestionType(Enum):
     TEXT = 0
     SINGLECHOICE = 1
@@ -43,11 +47,11 @@ class QuestionType(Enum):
 
 
 class Result(Enum):
-    DONE = 0
-    ACCEPTED = 1
-    REJECTED = 2
-    EMPTY = 3
-    CANCELLED = 4
+    DONE = 0  # question is done (accepted final answer)
+    ACCEPTED = 1  # accepted answer, but not done yet (used in multiple choice)
+    REJECTED = 2  # invalid answer
+    EMPTY = 3  # done but no real answers submitted
+    CANCELLED = 4  # questionnaire was cancelled
 
 
 class State(Enum):
@@ -69,13 +73,24 @@ class Question:
         :param qtype: Question type
         :param answers: Possible answers
         :param callback: Callback function that is called after this question was answered. Signature
-        is expected to be callback(question, question_queue) with `question` being this Question object
+        is expected to be `callback(question, question_queue)` with `question` being this Question object
         and `question_queue` being the list of questions that are planned to be posed after this.
-        The answer(s) that was given will be stored in this object's `answer` attribute.
+        The answer(s) that were given will be stored in this object's `answer` attribute.
         The callback function is expected to return a new question queue.
         :param data: Opaque object that is set as this object's `data` object. Useful for callback.
-        :param lang: Lang dict
+        :param lang: Custom lang dict with the following keys:
+        "and": "and" string that is used when formatting multiple choice answers.
+        "or": "or" string that is used when formatting single choice answers.
+        "answer_cancel": Answer that can be used at any point in the questionnaire to cancel it.
+        "answer_mc_done": Answer that is used to finish multiple choice answers. Usually something like "done".
+        "answer_unknown": Questionnaire response when the submitted answer is invalid. Used in choice questions.
+        Currently not used in favor of "result_rejected" (not sure why).
+        "answer_list_mc": 1-spot format string that takes the list of possible answers in multiple choice questions.
+        Used to explain how to answer a multiple choice question.
+        "answer_list_sc": 1-spot format string that takes the list of possible answers in single choice questions.
+        Used to explain how to answer a single choice question.
         """
+        self.logger = logging.getLogger(__name__)
         self.question = question
         self.type = qtype
         self.answers = answers
@@ -110,6 +125,7 @@ class Question:
         :param answer: submitted answer
         :return: The resulting new State
         """
+        self.logger.debug("Handling answer {} on {}".format(answer, self))
         if answer.lower() == self.lang.get("answer_cancel", baselang["answer_cancel"]):
             return Result.CANCELLED
 
@@ -141,9 +157,28 @@ class Question:
             else:
                 return Result.REJECTED
 
+    def __str__(self):
+        return "<questionnaire.Question object; question: {}>".format(self.question)
+
+    def __repr__(self):
+        return str(self)
+
 
 class Questionnaire:
     def __init__(self, bot, target_user: User, questions: List[Question], lang: dict = None):
+        """
+        :param bot: bot reference
+        :param target_user: user that is to be DM'ed
+        :param questions: list of Question objects that are to be posed
+        :param lang: Custom lang dict with the following keys:
+        "intro": String that is sent as an introductory message before any question is posed. Use this to explain
+        what is going to happen in the questionnaire and how it is used.
+        "intro_howto_cancel": Second message that is sent. Usually used to explain how the questionnaire is cancelled.
+        "no_answers": Used in multiple choice questions to indicate that the "done" message cannot be the first.
+        "result_rejected": Questionnaire response when the submitted answer is invalid.
+        "state_cancelled": Response that is used when the questionnaire is cancelled.
+        "state_done": Reponse that is used when the questionnaire is done.
+        """
         self.bot = bot
         self.user = target_user
         self.question_queue = questions
@@ -183,7 +218,6 @@ class Questionnaire:
 
         elif result == Result.DONE:
             self.question_answered_event.set()
-            await self.user.send(get_lang(self.lang, "state_done"))
 
         elif result == Result.ACCEPTED:
             await msg.add_reaction(Lang.CMDSUCCESS)
@@ -213,13 +247,17 @@ class Questionnaire:
             self.lang.get("intro_howto_cancel", baselang["intro_howto_cancel"])
         ]
         for msg in paginate(msg):
-            await self.user.send(msg)
+            if msg.strip():
+                await self.user.send(msg)
+            else:
+                self.logger.warning("Questionnaire here; please fix empty returns in paginate thx")
 
         # Pose questions
         question = None
         while True:
             self.state = State.QUESTION
-            self.current_question = self.get_next_question(question)
+            self.current_question = self.get_next_question(self.current_question)
+            self.logger.debug("Next question: {}".format(self.current_question))
             if self.current_question is None:
                 self.state = State.DONE
                 break
@@ -233,10 +271,11 @@ class Questionnaire:
             await self.question_answered_event.wait()
 
             if self.state == State.DONE:
-                # We were cancelled; assuming self.teardown() was already cancelled
-                return
+                # We were cancelled; assuming self.teardown() was already called
+                raise Cancelled()
 
         # Done
+        await self.user.send(get_lang(self.lang, "state_done"))
         self.teardown()
         return self.question_history
 
