@@ -254,51 +254,37 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
         if matchday not in range(1, 18):
             await add_reaction(ctx.message, Lang.CMDERROR)
             await ctx.send(Lang.lang(self, 'matchday_out_of_range'))
+            return
         if league is not None and league not in range(1, 5):
             await add_reaction(ctx.message, Lang.CMDERROR)
             await ctx.send(Lang.lang(self, 'invalid_league'))
+            return
 
         async with ctx.typing():
             c = self.get_api_client()
             embed = discord.Embed()
+            duel_ranges = Config().get(self)['duel_ranges']
             if league is None:
-                schedules = {
-                    1: get_schedule(self, 1, matchday),
-                    2: get_schedule(self, 2, matchday),
-                    3: get_schedule(self, 3, matchday),
-                    4: get_schedule(self, 4, matchday)
-                }
+                league_list = duel_ranges.keys()
                 embed.title = Lang.lang(self, 'title_matchday_duels', matchday)
             else:
-                schedules = {
-                    league: get_schedule(self, league, matchday)
-                }
+                league_list = [league]
                 embed.title = Lang.lang(self, 'title_matchday_league', matchday, league)
 
             data = {}
-            for leag, duels in schedules.items():
+            for leag in league_list:
                 msg = ""
-                data[leag] = []
-                for duel in duels:
+                data[duel_ranges[leag]] = []
+                for duel in get_schedule(self, leag, matchday):
                     msg += "{} - {}\n".format(*duel)
-                    data[leag].append([duel[0], None, None, None, None, None, None, duel[1]])
-                if len(schedules) > 1:
+                    data[duel_ranges[leag]].append([duel[0], None, None, None, None, None, None, duel[1]])
+                if len(league_list) > 1:
                     embed.add_field(name="Liga {}".format(leag), value=msg)
                 else:
                     embed.description = msg
             message = await ctx.send(embed=embed)
 
-            # FIXME replace with update_multiple once its working fine
-            if league is None:
-                maxduels = len(max(data.values(), key=len))
-                combined_data = [x[:] for x in [[]] * maxduels]
-                for values in data.values():
-                    values.extend([[None] * 8] * (maxduels - len(values)))
-                    for i in range(maxduels):
-                        combined_data[i].extend(values[i] + [None] * 4)
-                c.update("Aktuell!{}".format(Config().get(self)['all_duels_range']), combined_data)
-            else:
-                c.update(Config().get(self)['duel_ranges'].get(league), data.get(league))
+            c.update_multiple(data)
         await add_reaction(message, Lang.CMDSUCCESS)
 
     @spaetzle_set.command(name="scrape", help="Scrapes the predictions thread for forum posts")
