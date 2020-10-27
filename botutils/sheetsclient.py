@@ -319,6 +319,16 @@ class Client(restclient.Client):
             raise NotLoadable("Google API modules not installed.")
 
     def duplicate_and_archive_sheet(self, sheet, new_title: str = None, index: int = None, new_id: int = None):
+        """
+        Duplicates a sheet and transforms the duplicate to raw input
+
+        :param new_id: id of the resulting duplicate
+        :param index: The zero-based index where the new sheet should be inserted. The index of all sheets after this
+                      are incremented.
+        :param sheet: name or id of the sheet
+        :param new_title: title of the resulting duplicate
+        :return: DuplicateSheetResponse and UpdateValuesResponse if successful, None instead
+        """
         # Duplicate
         duplicate = self.duplicate_sheet(sheet=sheet, new_title=new_title, index=index, new_id=new_id)
         if duplicate is None:
@@ -326,8 +336,8 @@ class Client(restclient.Client):
         # Get content
         properties = duplicate.get('replies', [{}])[0].get('duplicateSheet', {}).get('properties', {})
         range = "{}!A1:{}".format(properties.get('title'),
-                                  self.cellname(properties.get('gridProperties', {}).get('rowCount'),
-                                                properties.get('gridProperties', {}).get('columnCount')))
+                                  self.cellname(properties.get('gridProperties', {}).get('columnCount'),
+                                                properties.get('gridProperties', {}).get('rowCount')))
         values = self.get(range, formatted=True)
         # Insert raw again
         response = self.update(range, values, raw=True)
