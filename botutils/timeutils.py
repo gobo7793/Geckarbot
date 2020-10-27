@@ -82,3 +82,43 @@ def parse_time_input(*args, end_of_day=False):
 
     # No valid time input
     return datetime.max
+
+
+def hr_roughly(timestamp: datetime, now: datetime = None,
+               fstring="{} {} ago", yesterday="yesterday", seconds="seconds", minutes="minutes",
+               hours="hours", days="days", weeks="weeks", months="months", years="years"):
+    """
+    Builds a human-readable version of a rough approximation of a timedelta into the past, such as "2 minutes ago".
+    :param timestamp: end timestamp of the measured distance
+    :param now: start timestamp of the measured distance
+    :param fstring: format string with two places for amount and time units
+    :param yesterday: If the timedelta is roughly one day, this string is returned.
+    :param seconds: Localized variant of "seconds"
+    :param minutes: Localized variant of "minutes"
+    :param hours: Localized variant of "hours"
+    :param days: Localized variant of "days"
+    :param weeks: Localized variant of "weeks"
+    :param months: Localized variant of "months"
+    :param years: Localized variant of "years"
+    :return: human-readable approximation of the time distance between timestamp and now
+    """
+    if now is None:
+        now = datetime.now()
+    delta = now - timestamp
+    if delta.seconds < 0:
+        raise RuntimeError("Timestamp is not in the past")
+    if delta.days >= 365 and years is not None:
+        return fstring.format(delta.days // 365, years)
+    if delta.days >= 31 and months is not None:
+        return fstring.format(delta.days // 31, months)  # todo better month calc
+    if delta.days >= 7 and weeks is not None:
+        return fstring.format(delta.days // 7, weeks)
+    if delta.days == 1 and yesterday is not None:
+        return yesterday
+    if delta.days >= 1 and days is not None:
+        return fstring.format(delta.days, days)
+    if delta.seconds >= 60*60 and hours is not None:
+        return fstring.format(delta.seconds // (60*60), hours)
+    if delta.seconds >= 60 and minutes is not None:
+        return fstring.format(delta.seconds // 60, minutes)
+    return fstring.format(delta.seconds, seconds)
