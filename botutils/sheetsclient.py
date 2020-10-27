@@ -77,6 +77,19 @@ class Client(restclient.Client):
         # self.logger.debug("Response: {}".format(response))
         return response
 
+    def get_sheet_properties(self, sheet):
+        """
+        Converts the title of a sheet into the coresponding sheet id
+
+        :param sheet: name or id of the sheet
+        :return: sheetId if found, None instead
+        """
+        info = self.get_service().spreadsheets().get(spreadsheetId=self.spreadsheet_id).execute()
+        for sh in info.get('sheets', []):
+            properties = sh.get('properties', {})
+            if sheet == properties.get('title') or sheet == properties.get('sheetId'):
+                return properties
+
     def number_to_column(self, num):
         """
         Converts a number to the name of the corresponding column
@@ -158,7 +171,7 @@ class Client(restclient.Client):
         self.logger.debug("Response: {}".format(response))
         return response
 
-    def update_multiple(self, data_dict: dict, raw: bool = True):
+    def update_multiple(self, data_dict: dict, raw: bool = True) -> dict:
         """
         Updates the content of multiple ranges
 
@@ -202,7 +215,7 @@ class Client(restclient.Client):
         self.logger.debug("Response: {}".format(response))
         return response.get('updates', {})
 
-    def clear(self, range):
+    def clear(self, range) -> dict:
         """
         Clears a range
         :param range: range to be cleared
@@ -211,3 +224,94 @@ class Client(restclient.Client):
         response = self.get_service().spreadsheets().values().clear(
             spreadsheetId=self.spreadsheet_id, range=range).execute()
         return response
+
+    def clear_multiple(self, ranges: list) -> dict:
+        """
+        Clears multiple ranges
+        :param ranges: list of ranges
+        :return: response
+        """
+        body = {
+            'ranges': ranges
+        }
+        response = self.get_service().spreadsheets().values().batchClear(
+            spreadsheetId=self.spreadsheet_id, body=body).execute()
+        return response
+
+    def add_sheet(self, title: str, rows: int = 1000, columns: int = 26):
+        """
+        Adds a new sheet
+        :param title: name of the new sheet
+        :param rows: number of rows
+        :param columns: number of columns
+        :return: AddSheetResponse if successful, None instead
+        """
+        body = {
+            "requests": [
+                {
+                    "addSheet": {
+                        "properties": {
+                            "title": title,
+                            "gridProperties": {
+                                "rowCount": rows,
+                                "columnCount": columns,
+                            }
+                        }
+                    }
+                }
+            ]
+        }
+        try:
+            from googleapiclient.errors import HttpError
+            try:
+                response = self.get_service().spreadsheets().batchUpdate(spreadsheetId=self.spreadsheet_id,
+                                                                         body=body).execute()
+                return response
+            except HttpError:
+                return None
+        except ImportError:
+            raise NotLoadable("Google API modules not installed.")
+
+    def duplicate_sheet(self, sheet, new_title: str = None, index: int = None, new_id: int = None):
+        """
+        Duplicates a sheet
+
+        :param new_id: id of the resulting duplicate
+        :param index: The zero-based index where the new sheet should be inserted. The index of all sheets after this
+                      are incremented.
+        :param sheet: name or id of the sheet
+        :param new_title: title of the resulting duplicate
+        :return: DuplicateSheetResponse if successful, None instead
+        """
+        properties = self.get_sheet_properties(sheet)
+        if properties is None:
+            return None
+        if type(sheet) == int:
+            sheet_id = sheet
+        else:
+            sheet_id = properties.get('sheetId')
+
+        request = {
+            "sourceSheetId": sheet_id,
+            "insertSheetIndex": index if index is not None else properties.get('index') + 1
+        }
+        if new_title:
+            request['newSheetName'] = new_title
+        if new_id:
+            request['newSheetId'] = new_id
+        body = {
+            "requests": [{
+                "duplicateSheet": request
+            }],
+            "includeSpreadsheetInResponse": True
+        }
+        try:
+            from googleapiclient.errors import HttpError
+            try:
+                response = self.get_service().spreadsheets().batchUpdate(spreadsheetId=self.spreadsheet_id,
+                                                                         body=body).execute()
+                return response
+            except HttpError:
+                return None
+        except ImportError:
+            raise NotLoadable("Google API modules not installed.")
