@@ -54,7 +54,12 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                 3: "AI14:AS31",
                 4: "AU15:BE33"
             },
-            'predictions_range': "BH2:CU49",
+            'predictions_ranges': {
+                1: "BH2:CQ11",
+                2: "BH14:CQ23",
+                3: "BH26:CQ35",
+                4: "BH38:CQ47"
+            },
             'all_duels_range': "K3:BE12",
             'archive_range': "A1:CU51",
             'user_agent': {
@@ -400,16 +405,15 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             await ctx.send(embed=embed)
 
             # Transforming for spreadsheet input
-            data = []
-            for i in range(1, 5):
-                participants = Storage().get(self)['participants'].get(i, [])
-                data.append([num for elem in [[user, None] for user in participants] for num in elem])
+            data = {}
+            participants = Storage().get(self)['participants']
+            for leag, p in participants.items():
+                data[leag] = [[num for elem in [[user, None] for user in p] for num in elem]]
                 for match in matches:
                     row = []
-                    for user in participants:
+                    for user in p:
                         row.extend(predictions_by_user.get(user, {}).get(match, [None, None]))
-                    data.append(row)
-                data.extend([[None], [None]])
+                    data[leag].append(row)
 
             # Updating cells
             c.update("Aktuell!{}".format(Config().get(self)['predictions_range']), data, raw=False)

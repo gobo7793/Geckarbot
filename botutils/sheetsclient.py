@@ -98,6 +98,9 @@ class Client(restclient.Client):
     def get(self, range, formatted: bool = True) -> list:
         """
         Reads a single range
+        :param range:
+        :param formatted:
+        :return:
         """
         value_render_option = "FORMATTED_VALUE" if formatted else "UNFORMATTED_VALUE"
         if self.bot.GOOGLE_API_KEY:
@@ -111,9 +114,13 @@ class Client(restclient.Client):
         values = response.get('values', [])
         return values
 
-    def get_multiple(self, ranges, formatted: bool = True) -> list:
+    def get_multiple(self, ranges: list, formatted: bool = True) -> list:
         """
         Reads multiple ranges
+
+        :param ranges: list of ranges
+        :param formatted: whether the cell values should be read formatted (True) or unformatted (False)
+        :return: values list
         """
         value_render_option = "FORMATTED_VALUE" if formatted else "UNFORMATTED_VALUE"
         if self.bot.GOOGLE_API_KEY:
@@ -139,7 +146,7 @@ class Client(restclient.Client):
 
         :param range: range to update
         :param values: values as a matrix of cells [[cells...], rows...]
-        :param raw: whether valueInputOption should be 'raw'
+        :param raw: if True, values are put in 'raw', if False as 'user_entered'
         :return: UpdateValuesResponse
         """
         data = {
@@ -151,10 +158,11 @@ class Client(restclient.Client):
         self.logger.debug("Response: {}".format(response))
         return response
 
-    def update_multiple(self, data_dict: dict):
+    def update_multiple(self, data_dict: dict, raw: bool = True):
         """
         Updates the content of multiple ranges
 
+        :param raw: if True, values are put in 'raw', if False as 'user_entered'
         :param data_dict: dictionary with the range as key and range values as matrixes of values
                           (as following: [[cells..], rows..])
         :return: response with information about the updates
@@ -170,8 +178,9 @@ class Client(restclient.Client):
             'valueInputOption': 'RAW',
             'data': data
         }
-        response = self.get_service().spreadsheets().values().batchUpdate(spreadsheetId=self.spreadsheet_id, body=body)\
-            .execute()
+        value_input_option = 'RAW' if raw else 'USER_ENTERED'
+        response = self.get_service().spreadsheets().values().batchUpdate(
+            spreadsheetId=self.spreadsheet_id, body=body, valueInputOption=value_input_option).execute()
         self.logger.debug("Response: {}".format(response))
         return response
 
@@ -192,3 +201,13 @@ class Client(restclient.Client):
             spreadsheetId=self.spreadsheet_id, range=range, valueInputOption=value_input_option, body=data).execute()
         self.logger.debug("Response: {}".format(response))
         return response.get('updates', {})
+
+    def clear(self, range):
+        """
+        Clears a range
+        :param range: range to be cleared
+        :return: response
+        """
+        response = self.get_service().spreadsheets().values().clear(
+            spreadsheetId=self.spreadsheet_id, range=range).execute()
+        return response
