@@ -421,19 +421,19 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
 
     @spaetzle_set.command(name="archive", help="Archives the current matchday and clears the frontpage")
     async def set_archive(self, ctx):
-        from googleapiclient.errors import HttpError
         if not await Trusted(self).is_trusted(ctx):
             return
 
         async with ctx.typing():
             c = self.get_api_client()
-            data = c.get(range="Aktuell!{}".format(Config().get(self)['archive_range']), formatted=False)
-            matchday = data[0][1]
-            try:
-                c.update(range="ST {}!{}".format(matchday, Config().get(self)['archive_range']),
-                         values=data, raw=False)
-            except HttpError:
-                await ctx.send(Lang.lang(self, 'archive_page_missing', matchday))
+            duplicate = c.duplicate_and_archive_sheet("Aktuell", "ST {}".format(Storage().get(self)['matchday']))
+            if duplicate:
+                ranges = ["Aktuell!{}".format(Config().get(self)['matches_range'])]
+                for r in Config().get(self)['duel_ranges'].values():
+                    ranges.append("Aktuell!{}".format(r))
+                for r in Config().get(self)['predictions_ranges'].values():
+                    ranges.append("Aktuell!{}".format(r))
+                c.clear_multiple(ranges)
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
     @spaetzle_set.command(name="thread", help="Sets the URL of the \"Tippabgabe-Thread\".")
