@@ -16,6 +16,63 @@ class NoCredentials(NotLoadable):
     pass
 
 
+class Cell:
+    def __init__(self, column: int, row: int):
+        self.column = column
+        self.row = row
+
+    def cellname(self) -> str:
+        chars = []
+        num = self.column
+        while num > 0:
+            num, d = divmod(num, 26)
+            if d == 0:
+                num, d = num - 1, 26
+            chars.append(chr(64 + d))
+        return ''.join(reversed(chars)) + str(self.row)
+
+    def translate(self, columns: int, rows: int):
+        self.column += columns
+        self.row += rows
+        return self
+
+
+class CellRange:
+    def __init__(self, start_cell: Cell, width: int, height: int):
+        """
+        Range of cells
+
+        :param start_cell: top-left Cell
+        :param width: number of columns
+        :param height: number of rows
+        """
+        self.column = start_cell.column
+        self.row = start_cell.row
+        self.width = width
+        self.height = height
+
+    def rangename(self):
+        return "{}:{}".format(Cell(self.column, self.row).cellname(),
+                              Cell(self.column + self.width - 1, self.row + self.height - 1).cellname())
+
+
+def get_service():
+    try:
+        from google.oauth2 import service_account
+        from googleapiclient import discovery
+        scopes = ["https://www.googleapis.com/auth/drive", "https://www.googleapis.com/auth/drive.file",
+                  "https://www.googleapis.com/auth/spreadsheets"]
+        secret_file = os.path.join(os.getcwd(), "config/google_service_account.json")
+        credentials = service_account.Credentials.from_service_account_file(secret_file, scopes=scopes)
+        service = discovery.build('sheets', 'v4', credentials=credentials)
+    except ImportError:
+        raise NotLoadable("Google API modules not installed.")
+    except Exception:
+        raise NoCredentials()
+    else:
+        return service
+
+
 class Client(restclient.Client):
     """
     REST Client for Google Sheets API.
@@ -38,22 +95,6 @@ class Client(restclient.Client):
 
         self.logger = logging.getLogger(__name__)
         self.logger.debug("Building Sheets API Client for spreadsheet {}".format(self.spreadsheet_id))
-
-    def get_service(self):
-        try:
-            from google.oauth2 import service_account
-            from googleapiclient import discovery
-            scopes = ["https://www.googleapis.com/auth/drive", "https://www.googleapis.com/auth/drive.file",
-                      "https://www.googleapis.com/auth/spreadsheets"]
-            secret_file = os.path.join(os.getcwd(), "config/google_service_account.json")
-            credentials = service_account.Credentials.from_service_account_file(secret_file, scopes=scopes)
-            service = discovery.build('sheets', 'v4', credentials=credentials)
-        except ImportError:
-            raise NotLoadable("Google API modules not installed.")
-        except Exception:
-            raise NoCredentials()
-        else:
-            return service
 
     def _params_add_api_key(self, params=None):
         """
@@ -84,7 +125,7 @@ class Client(restclient.Client):
         :param sheet: name or id of the sheet
         :return: sheetId if found, None instead
         """
-        info = self.get_service().spreadsheets().get(spreadsheetId=self.spreadsheet_id).execute()
+        info = get_service().spreadsheets().get(spreadsheetId=self.spreadsheet_id).execute()
         for sh in info.get('sheets', []):
             properties = sh.get('properties', {})
             if sheet == properties.get('title') or sheet == properties.get('sheetId'):
@@ -95,27 +136,6 @@ class Client(restclient.Client):
             return sheet
         else:
             return self.get_sheet_properties(sheet).get('sheetId')
-
-    def number_to_column(self, num):
-        """
-        Converts a number to the name of the corresponding column
-        """
-        chars = []
-        while num > 0:
-            num, d = divmod(num, 26)
-            if d == 0:
-                num, d = num - 1, 26
-            chars.append(chr(64 + d))
-        return ''.join(reversed(chars))
-
-    def cellname(self, col, row):
-        """
-        Returns the name of the cell
-        """
-        if col and row:
-            return self.number_to_column(col) + str(row)
-        else:
-            return None
 
     def get(self, range, formatted: bool = True) -> list:
         """
@@ -129,7 +149,7 @@ class Client(restclient.Client):
             route = "{}/values/{}".format(self.spreadsheet_id, range)
             response = self._make_request(route, params=[('valueRenderOption', value_render_option)])
         else:
-            response = self.get_service().spreadsheets().values().get(
+            response = get_service().spreadsheets().values().get(
                 spreadsheetId=self.spreadsheet_id, range=range, valueRenderOption=value_render_option).execute()
             self.logger.debug("Response: {}".format(response))
 
@@ -152,7 +172,7 @@ class Client(restclient.Client):
                 params.append(("ranges", range))
             response = self._make_request(route, params=params)
         else:
-            response = self.get_service().spreadsheets().values().batchGet(
+            response = get_service().spreadsheets().values().batchGet(
                 spreadsheetId=self.spreadsheet_id, ranges=ranges, valueRenderOption=value_render_option).execute()
             self.logger.debug("Response: {}".format(response))
 
@@ -175,7 +195,7 @@ class Client(restclient.Client):
             'values': values
         }
         value_input_option = 'RAW' if raw else 'USER_ENTERED'
-        response = self.get_service().spreadsheets().values().update(
+        response = get_service().spreadsheets().values().update(
             spreadsheetId=self.spreadsheet_id, range=range, valueInputOption=value_input_option, body=data).execute()
         self.logger.debug("Response: {}".format(response))
         return response
@@ -201,7 +221,7 @@ class Client(restclient.Client):
             'data': data
         }
         value_input_option = 'RAW' if raw else 'USER_ENTERED'
-        response = self.get_service().spreadsheets().values().batchUpdate(
+        response = get_service().spreadsheets().values().batchUpdate(
             spreadsheetId=self.spreadsheet_id, body=body, valueInputOption=value_input_option).execute()
         self.logger.debug("Response: {}".format(response))
         return response
@@ -219,7 +239,7 @@ class Client(restclient.Client):
             'values': values
         }
         value_input_option = 'RAW' if raw else 'USER_ENTERED'
-        response = self.get_service().spreadsheets().values().append(
+        response = get_service().spreadsheets().values().append(
             spreadsheetId=self.spreadsheet_id, range=range, valueInputOption=value_input_option, body=data).execute()
         self.logger.debug("Response: {}".format(response))
         return response.get('updates', {})
@@ -230,7 +250,7 @@ class Client(restclient.Client):
         :param range: range to be cleared
         :return: response
         """
-        response = self.get_service().spreadsheets().values().clear(
+        response = get_service().spreadsheets().values().clear(
             spreadsheetId=self.spreadsheet_id, range=range).execute()
         return response
 
@@ -243,7 +263,7 @@ class Client(restclient.Client):
         body = {
             'ranges': ranges
         }
-        response = self.get_service().spreadsheets().values().batchClear(
+        response = get_service().spreadsheets().values().batchClear(
             spreadsheetId=self.spreadsheet_id, body=body).execute()
         return response
 
@@ -273,7 +293,7 @@ class Client(restclient.Client):
         try:
             from googleapiclient.errors import HttpError
             try:
-                response = self.get_service().spreadsheets().batchUpdate(spreadsheetId=self.spreadsheet_id,
+                response = get_service().spreadsheets().batchUpdate(spreadsheetId=self.spreadsheet_id,
                                                                          body=body).execute()
                 return response
             except HttpError:
@@ -316,7 +336,7 @@ class Client(restclient.Client):
         try:
             from googleapiclient.errors import HttpError
             try:
-                response = self.get_service().spreadsheets().batchUpdate(
+                response = get_service().spreadsheets().batchUpdate(
                     spreadsheetId=self.spreadsheet_id, body=body).execute()
                 return response
             except HttpError:
@@ -342,8 +362,8 @@ class Client(restclient.Client):
         # Get content
         properties = duplicate.get('replies', [{}])[0].get('duplicateSheet', {}).get('properties', {})
         range = "{}!A1:{}".format(properties.get('title'),
-                                  self.cellname(properties.get('gridProperties', {}).get('columnCount'),
-                                                properties.get('gridProperties', {}).get('rowCount')))
+                                  Cell(properties.get('gridProperties', {}).get('columnCount'),
+                                       properties.get('gridProperties', {}).get('rowCount')).cellname())
         values = self.get(range, formatted=True)
         # Insert raw again
         response = self.update(range, values, raw=True)
@@ -406,7 +426,7 @@ class Client(restclient.Client):
         try:
             from googleapiclient.errors import HttpError
             try:
-                response = self.get_service().spreadsheets().batchUpdate(
+                response = get_service().spreadsheets().batchUpdate(
                     spreadsheetId=self.spreadsheet_id, body=body).execute()
                 return response
             except HttpError as e:

@@ -16,6 +16,7 @@ from Geckarbot import BasePlugin
 from botutils import sheetsclient, restclient
 from botutils.converters import get_best_user, get_best_username
 from botutils.permchecks import check_mod_access
+from botutils.sheetsclient import CellRange
 from botutils.stringutils import paginate
 from botutils.utils import add_reaction
 from conf import Config, Storage, Lang
@@ -530,32 +531,29 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             c = self.get_api_client()
 
             try:
-                col1, row1 = get_user_cell(self, user)
+                cell1 = get_user_cell(self, user)
             except UserNotFound:
                 await ctx.send(Lang.lang(self, 'user_not_found', user))
                 return
-            result = c.get("Aktuell!{}:{}".format(c.cellname(col1, row1 + 10), c.cellname(col1 + 1, row1 + 11)),
+            result = c.get("Aktuell!{}".format(CellRange(cell1.translate(0, 10), 2, 2).rangename()),
                            formatted=False)
             opponent = result[1][1]
 
             # Getting data / Opponent-dependent parts
             try:
-                col2, row2 = get_user_cell(self, opponent)
+                cell2 = get_user_cell(self, opponent)
             except UserNotFound:
                 # Opponent not found
-                matches, preds_h = c.get_multiple(["Aktuell!{}".format(Config().get(self)['matches_range']),
-                                                   "Aktuell!{}:{}".format(c.cellname(col1, row1 + 1),
-                                                                          c.cellname(col1 + 1, row1 + 9))],
-                                                  formatted=False)
+                matches, preds_h = c.get_multiple(
+                    ["Aktuell!{}".format(Config().get(self)['matches_range']),
+                     "Aktuell!{}".format(CellRange(cell1.translate(0, 1), 2, 9).rangename())], formatted=False)
                 preds_a = [["–", "–"]] * 9
             else:
                 # Opponent found
-                matches, preds_h, preds_a = c.get_multiple(["Aktuell!{}".format(Config().get(self)['matches_range']),
-                                                            "Aktuell!{}:{}".format(c.cellname(col1, row1 + 1),
-                                                                                   c.cellname(col1 + 1, row1 + 9)),
-                                                            "Aktuell!{}:{}".format(c.cellname(col2, row2 + 1),
-                                                                                   c.cellname(col2 + 1, row2 + 9))],
-                                                           formatted=False)
+                matches, preds_h, preds_a = c.get_multiple(
+                    ["Aktuell!{}".format(Config().get(self)['matches_range']),
+                     "Aktuell!{}".format(CellRange(cell1.translate(0, 1), 2, 9).rangename()),
+                     "Aktuell!{}".format(CellRange(cell2.translate(0, 1), 2, 9).rangename())], formatted=False)
             # Fixing stuff
             matches = matches[2:]
             if len(matches) == 0:
@@ -640,10 +638,10 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             else:
                 for user in observed_users:
                     try:
-                        col, row = get_user_cell(self, user)
-                        data_ranges.append("Aktuell!{}".format(c.cellname(col, row)))
+                        cell = get_user_cell(self, user)
+                        data_ranges.append("Aktuell!{}".format(cell.cellname()))
                         data_ranges.append(
-                            "Aktuell!{}:{}".format(c.cellname(col, row + 10), c.cellname(col + 1, row + 11)))
+                            "Aktuell!{}".format(CellRange(cell.translate(0, 10), 2, 2).rangename()))
                     except UserNotFound:
                         pass
                 data = c.get_multiple(data_ranges)
@@ -820,12 +818,12 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                     users = list(users)
                 for user in users[:]:
                     try:
-                        col, row = get_user_cell(self, user)
+                        cell = get_user_cell(self, user)
                     except UserNotFound:
                         users.remove(user)
                         not_found_users.append(user)
                     else:
-                        data_ranges.append("Aktuell!{}:{}".format(c.cellname(col, row), c.cellname(col + 1, row + 10)))
+                        data_ranges.append("Aktuell!{}".format(CellRange(cell, 2, 11).rangename()))
                 result = c.get_multiple(data_ranges, formatted=False)
                 matchday = result[0][0][0]
                 matches = result[0][2:]

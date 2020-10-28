@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 from enum import Enum
 from typing import Tuple
 
+from botutils.sheetsclient import Cell
 from conf import Storage
 
 
@@ -236,9 +237,7 @@ def get_user_cell(plugin, user: str):
     for league, participants in Storage().get(plugin)['participants'].items():
         for i in range(len(participants)):
             if user.lower() == participants[i].lower():
-                col = 60 + (2 * i)
-                row = 12 * (int(league) - 1) + 2
-                return col, row
+                return Cell(column=60 + (2 * i), row=12 * (int(league) - 1) + 2)
     else:
         raise UserNotFound(user)
 
