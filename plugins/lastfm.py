@@ -171,6 +171,12 @@ class Plugin(BasePlugin, name="LastFM"):
             "state_cancelled": Lang.lang(self, "quote_cancelled"),
             "state_done": Lang.lang(self, "quote_done")
         }
+        self.cmd_order = [
+            "now",
+            "register",
+            "deregister",
+            "profile"
+        ]
 
     def get_config(self, key):
         return Config.get(self).get(key, self.base_config[key][1])
@@ -205,6 +211,16 @@ class Plugin(BasePlugin, name="LastFM"):
             return Lang.lang(self, "usage_{}".format(command.name))
         else:
             raise NotFound()
+
+    def sort_commands(self, ctx, command, subcommands):
+        if command.name != "lastfm":
+            return super().sort_commands(ctx, command, subcommands)
+        r = []
+        for el in self.cmd_order:
+            for cmd in subcommands:
+                if cmd.name == el:
+                    r.append(cmd)
+        return r
 
     def request(self, params, method="GET"):
         params["format"] = "json"
@@ -313,6 +329,15 @@ class Plugin(BasePlugin, name="LastFM"):
             await ctx.message.add_reaction(Lang.CMDSUCCESS)
         else:
             await ctx.message.add_reaction(Lang.CMDNOCHANGE)
+
+    @lastfm.command(name="profile", usage="<User>")
+    async def cmd_profile(self, ctx, user: discord.User):
+        try:
+            user = self.get_lastfm_user(user)
+        except NotRegistered as e:
+            await e.default(ctx)
+            return
+        await ctx.send("http://last.fm/user/{}".format(user))
 
     @lastfm.command(name="performance", hidden=True)
     async def perf(self, ctx):
@@ -608,17 +633,15 @@ class Plugin(BasePlugin, name="LastFM"):
         # Downgrade if necessary
         top_index = counters[criterion]["top_index"]
         top_matches = counters[criterion]["top_matches"]
-        prev = MostInterestingType.TITLE
         for el in [MostInterestingType.ALBUM, MostInterestingType.ARTIST]:
             downgrade_value = counters[el]["top_matches"] / self.get_config("mi_downgrade")
             self.logger.debug("Checking downgrade from {} to {}".format(criterion, el))
             self.logger.debug("Downgrade values: {}, {}".format(top_matches, downgrade_value))
-            if criterion == prev and top_matches <= downgrade_value:
+            if top_matches <= downgrade_value:
                 self.logger.debug("mi downgrade from {} to {}".format(criterion, el))
                 criterion = el
                 top_index = counters[el]["top_index"]
                 top_matches = counters[el]["top_matches"]
-            prev = el
 
         return top_matches, top_index, criterion
 
