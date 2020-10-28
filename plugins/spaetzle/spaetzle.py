@@ -60,8 +60,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                 3: "BH26:CQ35",
                 4: "BH38:CQ47"
             },
-            'all_duels_range': "K3:BE12",
-            'archive_range': "A1:CU51",
+            'findreplace_matchday_range': "K34:BE51",
             'user_agent': {
                 'user-agent': "Geckarbot/{}".format(self.bot.VERSION)
             },
@@ -433,8 +432,16 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                     ranges.append("Aktuell!{}".format(r))
                 for r in Config().get(self)['predictions_ranges'].values():
                     ranges.append("Aktuell!{}".format(r))
-                c.clear_multiple(ranges)
-        await add_reaction(ctx.message, Lang.CMDSUCCESS)
+                clear = c.clear_multiple(ranges)
+                if clear:
+                    replace = c.find_and_replace(find="ST {}".format(int(Storage().get(self)['matchday']) - 1),
+                                                 replace="ST {}".format(Storage().get(self)['matchday']),
+                                                 include_formulas=True, sheet="Aktuell",
+                                                 range=Config().get(self)['findreplace_matchday_range'])
+        if duplicate and clear and replace:
+            await add_reaction(ctx.message, Lang.CMDSUCCESS)
+        else:
+            await add_reaction(ctx.message, Lang.CMDERROR)
 
     @spaetzle_set.command(name="thread", help="Sets the URL of the \"Tippabgabe-Thread\".")
     async def set_thread(self, ctx, url: str):
