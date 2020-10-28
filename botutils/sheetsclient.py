@@ -1,5 +1,6 @@
 import logging
 import os
+import re
 import urllib.parse
 
 from botutils import restclient
@@ -17,21 +18,56 @@ class NoCredentials(NotLoadable):
 
 
 class Cell:
-    def __init__(self, column: int, row: int):
+    def __init__(self, column: int, row: int, grid=None):
+        """
+        Representation of a single cell. Note: rows and columns in a grid begin at 1!
+
+        :param column: column coordinate
+        :param row: row coordinate
+        :param grid: CellRange the cell coordinates are dependent on
+        :type grid: CellRange
+        """
+
         self.column = column
         self.row = row
+        self.grid = grid
+
+    @classmethod
+    def from_a1(cls, a1_notation):
+        """
+        Building the cell from the A1-notation.
+
+        :param a1_notation: A1-notation of the cell e.g. "A4" or "BE34"
+        """
+        extract = re.search("(?P<col>[A-Z]+)(?P<row>\\d+)", a1_notation)
+        if extract:
+            groupdict = extract.groupdict()
+            # Converts the column title into the corresponding column number
+            column = sum((x*y for x, y in zip([26**i for i in range(len(groupdict['col']))][::-1],
+                                              (ord(b) - 64 for b in groupdict['col']))))
+            return cls(column, int(groupdict['row']))
+        else:
+            raise ValueError
 
     def cellname(self) -> str:
+        """Returns cell in A1-notation"""
         chars = []
-        num = self.column
+        num = self.grid.column + self.column - 1
         while num > 0:
             num, d = divmod(num, 26)
             if d == 0:
                 num, d = num - 1, 26
             chars.append(chr(64 + d))
-        return ''.join(reversed(chars)) + str(self.row)
+        return ''.join(reversed(chars)) + str(self.grid.row + self.row - 1)
 
     def translate(self, columns: int, rows: int):
+        """
+        Translates the cell by the given number of columns and rows
+
+        :param columns: number of columns the cell should be moved
+        :param rows: number of rows the rows the cell should be moved
+        :return: resulting cell
+        """
         self.column += columns
         self.row += rows
         return self
@@ -40,7 +76,7 @@ class Cell:
 class CellRange:
     def __init__(self, start_cell: Cell, width: int, height: int):
         """
-        Range of cells
+        Representation of a range of cells. Note: rows and columns in a grid begin at 1!
 
         :param start_cell: top-left Cell
         :param width: number of columns
@@ -51,9 +87,37 @@ class CellRange:
         self.width = width
         self.height = height
 
+    @classmethod
+    def from_a1(cls, a1_notation: str):
+        extract = re.search("(?P<cell1>[A-Z]+\\d+):(?P<cell2>[A-Z]+\\d+)", a1_notation)
+        if extract:
+            groupdict = extract.groupdict()
+            return cls.from_cells(Cell.from_a1(groupdict['cell1']), Cell.from_a1(groupdict['cell2']))
+        else:
+            raise ValueError
+
+    @classmethod
+    def from_cells(cls, start_cell: Cell, end_cell: Cell):
+        width = end_cell.column - start_cell.column + 1
+        height = end_cell.row - start_cell.row + 1
+        return cls(start_cell, width, height)
+
     def rangename(self):
+        """Returns cell range in A1-notation"""
         return "{}:{}".format(Cell(self.column, self.row).cellname(),
                               Cell(self.column + self.width - 1, self.row + self.height - 1).cellname())
+
+    def translate(self, columns, rows):
+        """
+        Translates the cell range by the given number of columns and rows
+
+        :param columns: number of columns the range should be moved
+        :param rows: number of rows the rows the range should be moved
+        :return: resulting cell range
+        """
+        self.column += columns
+        self.row += rows
+        return self
 
 
 def get_service():
@@ -216,13 +280,13 @@ class Client(restclient.Client):
                 'range': range,
                 'values': data_dict[range]
             })
+        value_input_option = 'RAW' if raw else 'USER_ENTERED'
         body = {
-            'valueInputOption': 'RAW',
+            'valueInputOption': value_input_option,
             'data': data
         }
-        value_input_option = 'RAW' if raw else 'USER_ENTERED'
         response = get_service().spreadsheets().values().batchUpdate(
-            spreadsheetId=self.spreadsheet_id, body=body, valueInputOption=value_input_option).execute()
+            spreadsheetId=self.spreadsheet_id, body=body).execute()
         self.logger.debug("Response: {}".format(response))
         return response
 

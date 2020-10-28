@@ -16,7 +16,7 @@ from Geckarbot import BasePlugin
 from botutils import sheetsclient, restclient
 from botutils.converters import get_best_user, get_best_username
 from botutils.permchecks import check_mod_access
-from botutils.sheetsclient import CellRange
+from botutils.sheetsclient import CellRange, Cell
 from botutils.stringutils import paginate
 from botutils.utils import add_reaction
 from conf import Config, Storage, Lang
@@ -260,7 +260,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             await add_reaction(ctx.message, Lang.CMDERROR)
             await ctx.send(Lang.lang(self, 'matchday_out_of_range'))
             return
-        if league is not None and league not in range(1, 5):
+        if league is not None and league not in Config().get(self)['duel_ranges'].keys():
             await add_reaction(ctx.message, Lang.CMDERROR)
             await ctx.send(Lang.lang(self, 'invalid_league'))
             return
@@ -280,16 +280,22 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             for leag in league_list:
                 msg = ""
                 data[duel_ranges[leag]] = []
-                for duel in get_schedule(self, leag, matchday):
+                schedule = get_schedule(self, leag, matchday)
+                for duel in schedule:
                     msg += "{} - {}\n".format(*duel)
-                    data[duel_ranges[leag]].append([duel[0], None, None, None, None, None, None, duel[1]])
+                    p = Storage().get(self)['participants'][leag]
+                    home_fx = "={}".format(Cell(p.index(duel[0]) * 2 + 1, 11, CellRange.from_a1(
+                        Config().get(self)['predictions_ranges'][leag])).cellname())
+                    away_fx = "={}".format(Cell(p.index(duel[1]) * 2 + 1, 11, CellRange.from_a1(
+                        Config().get(self)['predictions_ranges'][leag])).cellname())
+                    data[duel_ranges[leag]].append([duel[0], None, None, None, home_fx, away_fx, None, duel[1]])
                 if len(league_list) > 1:
                     embed.add_field(name="Liga {}".format(leag), value=msg)
                 else:
                     embed.description = msg
             message = await ctx.send(embed=embed)
 
-            c.update_multiple(data)
+            c.update_multiple(data, raw=False)
         await add_reaction(message, Lang.CMDSUCCESS)
 
     @spaetzle_set.command(name="scrape", help="Scrapes the predictions thread for forum posts")
