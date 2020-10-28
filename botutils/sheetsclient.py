@@ -90,6 +90,12 @@ class Client(restclient.Client):
             if sheet == properties.get('title') or sheet == properties.get('sheetId'):
                 return properties
 
+    def get_sheet_id(self, sheet):
+        if type(sheet) == int:
+            return sheet
+        else:
+            return self.get_sheet_properties(sheet).get('sheetId')
+
     def number_to_column(self, num):
         """
         Converts a number to the name of the corresponding column
@@ -342,3 +348,68 @@ class Client(restclient.Client):
         # Insert raw again
         response = self.update(range, values, raw=True)
         return duplicate, response
+
+    def find_and_replace(self, find, replace, match_case: bool = True, match_entire_cell: bool = False,
+                         search_by_regex: bool = False, include_formulas: bool = False, range=None, sheet=None,
+                         all_sheets: bool = False):
+        """
+        Find a string and replace by another. Scope to find/replace over can be set in 3 different ways:
+        all_sheets / sheet / range + sheet
+
+        :param find: the value to search
+        :param replace: the value to use as the replacement
+        :param match_case: True if the search is case sensitive
+        :param match_entire_cell: True if the find value should match the entire cell
+        :param search_by_regex: True if the find value is a regex
+        :param include_formulas: True if the search should include cells with formulas. False to skip cells with
+                                 formulas
+        :param range: The range to find/replace over. Use sheet for the sheet id/name.
+        :param sheet: The sheet to find/replace over.
+        :param all_sheets: True to find/replace over all sheets. Overwrites range and sheet
+        :return: FindReplaceResponse
+        """
+        request = {
+            "find": find,
+            "replacement": replace,
+            "matchCase": match_case,
+            "matchEntireCell": match_entire_cell,
+            "searchByRegex": search_by_regex,
+            "includeFormulas": include_formulas
+        }
+        if all_sheets:
+            request['allSheets'] = True
+        elif sheet and range:
+            sheet_id = self.get_sheet_id(sheet)
+            if sheet_id:
+                request['range'] = {
+                    "sheetId": sheet_id,
+                    "startRowIndex": 0,
+                    "endRowIndex": 5,
+                    "startColumnIndex": 0,
+                    "endColumnIndex": 3
+                }
+            else:
+                return None
+        elif sheet:
+            sheet_id = self.get_sheet_id(sheet)
+            if sheet_id:
+                request['sheetId'] = sheet_id
+            else:
+                return None
+        else:
+            return None
+        body = {
+            "requests": [{
+                "findReplace": request
+            }]
+        }
+        try:
+            from googleapiclient.errors import HttpError
+            try:
+                response = self.get_service().spreadsheets().batchUpdate(
+                    spreadsheetId=self.spreadsheet_id, body=body).execute()
+                return response
+            except HttpError as e:
+                return e
+        except ImportError:
+            raise NotLoadable("Google API modules not installed.")
