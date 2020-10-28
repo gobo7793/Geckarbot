@@ -8,8 +8,10 @@
     "usage_register": "<last.fm-Profilname>",
     "help_deregister": "Entfernt dein last.fm-Profil aus dem Register",
     "desc_deregister": "Entfernt deinen last.fm-Profilnamen aus dem Register. Andere lastfm-Kommandos können dann nicht mehr genutzt werden.",
-    "help_listening": "Teilt mit, was du gerade hörst",
-    "desc_listening": "Teilt mit, was du gerade hörst.",
+    "help_profile": "Gibt das Last.fm-Profil eines Users aus",
+    "desc_profile": "Gibt einen Link zum Last.fm-Profil eines Users aus, sofern dieser sich registriert hat.",
+    "help_now": "Teilt mit, was du gerade hörst",
+    "desc_now": "Teilt mit, was du gerade hörst.",
 
     "#1": "Errors",
     "not_registered": "Ich kenne leider dein last.fm-Profil nicht.",
