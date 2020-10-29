@@ -6,6 +6,8 @@ import urllib.error
 from urllib.parse import urlencode
 import base64
 import logging
+import aiohttp
+import asyncio
 
 # Config #######
 verbose = False
@@ -72,6 +74,8 @@ class Client:
 
         self.logger = logging.getLogger(__name__)
 
+        self.aiosession = aiohttp.ClientSession()
+
     @staticmethod
     def _normalize_url_part(part):
         """
@@ -128,7 +132,10 @@ class Client:
         :param params: URL params as a dict
         :return: built URL
         """
-        if not appendix:
+        endpoint = Client._normalize_url_part(endpoint)
+        if appendix:
+            appendix = Client._normalize_url_part(appendix)
+        else:
             appendix = self.url_appendix
         url = self.base_url + appendix + endpoint
         if url.endswith("/"):
@@ -156,6 +163,68 @@ class Client:
     def build_session_cookie(session):
         return {"cookie": session["name"] + "=" + session["value"]}
 
+    def build_headers(self, headers):
+        if not headers:
+            headers = {}
+        headers_to_add = {}
+
+        if self.cookie is not None:
+            headers_to_add.update(self.cookie)
+
+        # basic auth
+        if self.auth == "basic":
+            auth = self.credentials["username"] + ":" + self.credentials["password"]
+            auth = base64.encodebytes(auth.encode("utf-8"))
+            auth = "Basic ".encode("utf-8") + auth
+            auth = auth.decode("utf-8").replace("\n", "")
+            auth = {"Authorization": auth}
+            headers_to_add.update(auth)
+
+        # Build headers
+        headers = headers.copy()
+        headers.update(headers_to_add)
+        return headers
+
+    async def request(self, endpoint, appendix=None, params=None, data=None,
+                      headers=None, method="GET", parse_json=True):
+        """
+        does the http and json part
+        :param endpoint: REST resource / end point
+        :param appendix: URL appendix for this request. Overrides the one set with set_appendix().
+        :param params: URL parameters as a dict
+        :param data: dict that is being sent as json
+        :param headers: http headers dict
+        :param method: http method ("GET", "POST" etc)
+        :param parse_json: Treat response as json and parse it
+        :return: parsed response
+        """
+        headers = self.build_headers(headers)
+        url = self.url(endpoint=endpoint, appendix=appendix, params=params)
+        data = self.parse_request_data(data)
+
+        if method == "GET":
+            f = self.aiosession.get
+        elif method == "POST":
+            f = self.aiosession.post
+        elif method == "PUT":
+            f = self.aiosession.put
+        elif method == "DELETE":
+            f = self.aiosession.delete
+        elif method == "HEAD":
+            f = self.aiosession.head
+        elif method == "OPTIONS":
+            f = self.aiosession.options
+        elif method == "PATCH":
+            f = self.aiosession.patch
+        else:
+            raise RuntimeError("Unknown HTTP method: {}".format(method))
+
+        async with f(url, headers=headers, data=data) as response:
+            response = await response.text()
+        if parse_json:
+            response = json.loads(response)
+        return response
+
     def make_request(self, endpoint, appendix=None, params=None, data=None,
                      headers=None, method="GET", parse_json=True):
         """
@@ -169,14 +238,6 @@ class Client:
         :param parse_json: Treat response as json and parse it
         :return: parsed response
         """
-        if not headers:
-            headers = {}
-
-        if appendix:
-            appendix = Client._normalize_url_part(appendix)
-        headers_to_add = {}
-        endpoint = Client._normalize_url_part(endpoint)
-
         if data is not None:
             data = self.parse_request_data(data)
             data = data.encode("utf-8")
@@ -184,23 +245,7 @@ class Client:
         else:
             self.logger.debug("data: ")
 
-        if self.cookie is not None:
-            headers_to_add.update(self.cookie)
-
-        # base64 auth (initial use case: jira)
-        if self.auth == "basic":
-            auth = self.credentials["username"] + ":" + self.credentials["password"]
-            auth = base64.encodebytes(auth.encode("utf-8"))
-            auth = "Basic ".encode("utf-8") + auth
-            auth = auth.decode("utf-8").replace("\n", "")
-            auth = {"Authorization": auth}
-            headers_to_add.update(auth)
-
-        # Build headers
-        headers = headers.copy()
-        headers.update(headers_to_add)
-
-        maskprint(headers, prefix="headers: ")
+        headers = self.build_headers(headers)
         url = self.url(endpoint=endpoint, appendix=appendix, params=params)
         request = urllib.request.Request(url,
                                          data=data, headers=headers, method=method)
@@ -213,3 +258,6 @@ class Client:
         if parse_json:
             response = self.parse_response(response)
         return response
+
+    def __del__(self):
+        asyncio.create_task(self.aiosession.close())
