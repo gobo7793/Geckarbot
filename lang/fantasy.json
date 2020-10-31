@@ -27,7 +27,7 @@
         "league_add_fail": "A league with ESPN ID {} can't be found or accessed.",
         "league_id_not_found": "We have no league with the ESPN ID {}.",
         "league_removed": "Commissioner {} killed the league {}!",
-        "credentials_first": "You must set the ESPN credentials first.",
+        "credentials_first": "If you want to add an ESPN league, you have to set the ESPN credentials first.",
         "last_activity": "Recent activity",
         "last_activity_content": "Date: {}\nTeam: {}\nAction: {}\nPlayer: {}",
         "scores_prefix": "Scores for league {} in Week {}",
@@ -73,7 +73,7 @@
         "league_add_fail": "Eine Liga mit der ESPN-ID {} kann nicht gefunden oder abgerufen werden.",
         "league_id_not_found": "Wir haben keine Liga mit der ESPN ID {}.",
         "league_removed": "Commissioner {} hat die Liga {} getötet!",
-        "credentials_first": "Du musst zuerst die ESPN-Anmeldedaten festlegen.",
+        "credentials_first": "Wenn Du eine ESPN-Liga hinzufügen willst, müssen zuerst die ESPN-Anmeldedaten festgelegt werden.",
         "last_activity": "Neueste Aktivität",
         "last_activity_content": "Datum: {}\nTeam: {}\nAktion: {}\nSpieler: {}",
         "scores_prefix": "Scores der Liga {} für Week {}",
@@ -89,6 +89,6 @@
         "box_data": "{} {} ({}) [Proj. {} | **Pts. {}**]",
         "box_suffix": "**Gesamt: {} Pts.**",
         "box_footer": "Gegner: {}, {} Pts.",
-        "box_footer_bye": "Team hat Bye."
+        "box_footer_bye": "Team in Bye-Week."
     }
 }
