@@ -437,8 +437,9 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                 ranges = ["Aktuell!{}".format(Config().get(self)['matches_range'])]
                 for r in Config().get(self)['duel_ranges'].values():
                     ranges.append("Aktuell!{}".format(r))
-                for r in Config().get(self)['predictions_ranges'].values():
-                    ranges.append("Aktuell!{}".format(r))
+                for r_a1 in Config().get(self)['predictions_ranges'].values():
+                    r = CellRange.from_a1(r_a1).expand(top=-1)
+                    ranges.append("Aktuell!{}".format(r.rangename()))
                 clear = c.clear_multiple(ranges)
                 if clear:
                     replace = c.find_and_replace(find="ST {}".format(int(Storage().get(self)['matchday']) - 1),

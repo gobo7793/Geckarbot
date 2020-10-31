@@ -52,13 +52,18 @@ class Cell:
     def cellname(self) -> str:
         """Returns cell in A1-notation"""
         chars = []
-        num = self.grid.column + self.column - 1
+        num = self.column
+        if self.grid:
+            num += self.grid.column - 1
         while num > 0:
             num, d = divmod(num, 26)
             if d == 0:
                 num, d = num - 1, 26
             chars.append(chr(64 + d))
-        return ''.join(reversed(chars)) + str(self.grid.row + self.row - 1)
+        row_num = self.row
+        if self.grid:
+            row_num += self.grid.row - 1
+        return ''.join(reversed(chars)) + str(row_num)
 
     def translate(self, columns: int, rows: int):
         """
@@ -118,6 +123,16 @@ class CellRange:
         self.column += columns
         self.row += rows
         return self
+
+    def expand(self, top=0, bottom=0, left=0, right=0):
+        if self.column <= left or self.row <= top or left + right <= -self.width or top + bottom <= -self.height:
+            raise ValueError
+        else:
+            self.column -= left
+            self.row -= top
+            self.width += left + right
+            self.height += top + bottom
+            return self
 
 
 def get_service():
