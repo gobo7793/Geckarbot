@@ -43,7 +43,8 @@
         "box_data": "{} {} ({}) [Proj. {} | **Pts. {}**]",
         "box_suffix": "**Total: {} Pts.**",
         "box_footer": "Opponent: {}, {} Pts.",
-        "box_footer_bye": "Team on bye."
+        "box_footer_bye": "Team on bye.",
+        "platform_not_supported": "Sorry, but I don't know the hosting platforn {}."
     },
     "de": {
         "channel_id": "Die Channel-ID für das !dsc set-Kommando muss eine gültige ID auf diesem Server sein.",
@@ -89,6 +90,7 @@
         "box_data": "{} {} ({}) [Proj. {} | **Pts. {}**]",
         "box_suffix": "**Gesamt: {} Pts.**",
         "box_footer": "Gegner: {}, {} Pts.",
-        "box_footer_bye": "Team in Bye-Week."
+        "box_footer_bye": "Team in Bye-Week.",
+        "platform_not_supported": "Sorry, aber ich kenne die Hosting-Plattform {} nicht."
     }
 }
