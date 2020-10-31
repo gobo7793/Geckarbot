@@ -779,7 +779,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
         await ctx.send(embed=discord.Embed(title=Lang.lang(self, 'title_opponent', user), description=msg))
 
     @spaetzle.command(name="rawpost", help="Lists all forum posts by a specified user")
-    async def show_raw_posts(self, ctx, participant: str):
+    async def show_rawpost(self, ctx, participant: str):
         if not await Trusted(self).is_trusted(ctx):
             return
 
@@ -795,7 +795,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                 continue
             if participant.lower() in post['user'].lower():
                 posts_count += 1
-                content.append("\n———————————————\n" + post['time'])
+                content.append("\n———————————————\n***{}** - {}*".format(post['user'], post['time']))
                 content.extend([x.strip() for x in post['content'] if x.strip()][:20])
 
         if posts_count == 0:
