@@ -179,7 +179,7 @@ def convert_to_datetime(day, time):
             day_ = datetime(*date[::-1])
         except (TypeError, ValueError):
             day_ = datetime.today()
-    if type(time) == int:
+    if type(time) == float:
         time_ = datetime(1, 1, 1) + timedelta(days=time)
     else:
         try:
