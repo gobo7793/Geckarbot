@@ -85,7 +85,7 @@ class FantasyLeague:
         elif self.platform == Platform.Sleeper:
             self._slc = Client("https://api.sleeper.app/v1/")
             self.reload()
-        log.info("League {}, ID {} on {} connected".format(self.name, self.league_id, self.platform))
+        log.info("League {}, ID {} on platform id {} connected".format(self.name, self.league_id, self.platform))
 
     def __str__(self):
         return "<fantasy.FantasyLeague; league_id: {}, commish: {}, platform: {}>".format(
@@ -99,19 +99,21 @@ class FantasyLeague:
             self._sl_league_data["league"] = self._slc.make_request(endpoint="league/{}".format(self.league_id))
             rosters = self._slc.make_request(endpoint="league/{}/rosters".format(self.league_id))
             users = self._slc.make_request(endpoint="league/{}/users".format(self.league_id))
-            players = self._slc.make_request(endpoint="players/nfl")
-            Storage.set(self.plugin, players, "sleeper_players")
+            if not self.plugin.bot.DEBUG_MODE:
+                players = self._slc.make_request(endpoint="players/nfl")
+                Storage.set(self.plugin, players, "sleeper_players")
+                Storage.save(self.plugin, "sleeper_players")
 
             self._sl_league_data["teams"] = []
-            for r in rosters:
+            for roster in rosters:
                 team_name = ""
                 user_name = ""
-                for u in users:
-                    if u["user_id"] != r["owner_id"]:
-                        continue
-                    team_name = u["metadata"]["team_name"]
-                    user_name = u["metadata"]["display_name"]
-                self._sl_league_data["teams"].append(Team(team_name, user_name, r["roster_id"], r["owner_id"]))
+                for user in users:
+                    if user["user_id"] == roster["owner_id"]:
+                        user_name = user["display_name"]
+                        team_name = user.get("metadata", {}).get("team_name", user_name)
+                team = Team(team_name, user_name, roster["roster_id"], roster["owner_id"])
+                self._sl_league_data["teams"].append(team)
 
     @property
     def name(self) -> str:
@@ -239,9 +241,9 @@ class FantasyLeague:
                 away_lineup = []
 
                 if score.home_team is not None and score.home_team != 0:
-                    home_team = Team(score.home_team.team_name, score.home_team.team_abbrev, score.home_team.team_id)
+                    home_team = Team(score.home_team.team_name, score.home_team.team_abbrev, score.home_team.team_id, 0)
                 if score.away_team is not None and score.away_team != 0:
-                    away_team = Team(score.away_team.team_name, score.away_team.team_abbrev, score.away_team.team_id)
+                    away_team = Team(score.away_team.team_name, score.away_team.team_abbrev, score.away_team.team_id, 0)
 
                 for hp in score.home_lineup:
                     home_lineup.append(Player(pos_name(hp.slot_position), hp.name, hp.proTeam,
