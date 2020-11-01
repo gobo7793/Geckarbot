@@ -1,4 +1,5 @@
 import logging
+import operator
 from collections import namedtuple
 from datetime import datetime, timedelta
 from enum import IntEnum
@@ -26,7 +27,7 @@ from subsystems import timers
 log = logging.getLogger("fantasy")
 pos_alphabet = {"Q": 0, "R": 1, "W": 2, "T": 3, "F": 4, "D": 5, "K": 6, "B": 7}
 Activity = namedtuple("Activity", "date team_name type player_name")
-TeamStanding = namedtuple("TeamStanding", "team_name wins losses")
+TeamStanding = namedtuple("TeamStanding", "team_name wins losses record fpts")
 Team = namedtuple("Team", "team_name team_abbrev team_id owner_id")
 Player = namedtuple("Player", "slot_position name proTeam projected_points points")
 Match = namedtuple("Match", "home_team home_score home_lineup away_team away_score away_lineup")
@@ -256,6 +257,26 @@ class FantasyLeague:
                                      away_team, score.away_score, away_lineup))
             return matches
 
+        if self.platform == Platform.Sleeper:
+            if week < 1 or week > self.current_week:
+                week = self.current_week
+            matchups_raw = self._slc.make_request(endpoint="league/{}/matchups/{}".format(self.league_id, week))
+            matches = {}
+            for matchup in matchups_raw:
+                home_match = None
+                if matchup["matchup_id"] in matches.keys():
+                    home_match = matches[matchup["matchup_id"]]
+                score = matchup["points"]
+                team = next(t for t in self.get_teams() if t.team_id == matchup["roster_id"])
+
+                if home_match is None:
+                    matches[matchup["matchup_id"]] = Match(team, score, [], None, None, [])
+                else:
+                    matches[matchup["matchup_id"]] = Match(home_match.home_team, home_match.home_score, [],
+                                                           team, score, [])
+
+            return list(matches.values())
+
     def get_overall_standings(self) -> List[TeamStanding]:
         """
         Gets the current overall league standing
@@ -263,10 +284,30 @@ class FantasyLeague:
         :return: A list with TeamStanding tuples for the overall standing
         """
         if self.platform == Platform.ESPN:
-            standings = []
+            espn_standings = []
             for team in self._espn.standings():
-                standings.append(TeamStanding(team.team_name, int(team.wins), int(team.losses)))
-            return standings
+                wins = int(team.wins)
+                losses = int(team.losses)
+                record = wins / (wins + losses)
+                standing = TeamStanding(team.team_name, wins, losses, record, float(team.points_for))
+                espn_standings.append(standing)
+            return espn_standings
+
+        if self.platform == Platform.Sleeper:
+            rosters = self._slc.make_request(endpoint="league/{}/rosters".format(self.league_id))
+            sleeper_standings = []
+            for roster in rosters:
+                team = next(t for t in self.get_teams() if t.team_id == roster["roster_id"])
+                wins = roster["settings"]["wins"]
+                losses = roster["settings"]["losses"]
+                ties = roster["settings"]["ties"]
+                record = (wins + 0.5 * ties) / (wins + losses + ties)
+                pts_for = roster["settings"]["fpts"] + (roster["settings"]["fpts_decimal"] / 100)
+                standing = TeamStanding(team.team_name, wins, losses, record, pts_for)
+                sleeper_standings.append(standing)
+            sleeper_standings.sort(key=operator.itemgetter(4), reverse=True)
+            sleeper_standings.sort(key=operator.itemgetter(3), reverse=True)
+            return sleeper_standings
 
     def get_divisional_standings(self) -> Dict[str, List[TeamStanding]]:
         """
@@ -279,8 +320,14 @@ class FantasyLeague:
             for team in self._espn.standings():
                 if team.division_name not in divisions:
                     divisions[team.division_name] = []
-                divisions[team.division_name].append(TeamStanding(team.team_name, int(team.wins), int(team.losses)))
+                wins = int(team.wins)
+                losses = int(team.losses)
+                record = wins / (wins + losses)
+                standing = TeamStanding(team.team_name, wins, losses, record, float(team.points_for))
+                divisions[team.division_name].append(standing)
             return divisions
+        if self.platform == Platform.Sleeper:
+            return {Lang.lang(self.plugin, "overall"): self.get_overall_standings()}
 
     def get_most_recent_activity(self):
         """
@@ -300,7 +347,7 @@ class FantasyLeague:
             transactions = self._slc.make_request(
                 endpoint="league/{}/transactions/{}".format(self.league_id, self.current_week))
             transactions.extend(self._slc.make_request(
-                    endpoint="league/{}/transactions/{}".format(self.league_id, self.current_week - 1)))
+                endpoint="league/{}/transactions/{}".format(self.league_id, self.current_week - 1)))
             if not transactions:
                 return None
             for action in transactions:
@@ -308,11 +355,13 @@ class FantasyLeague:
                     continue
                 act_date = from_epoch_ms(action["status_updated"])
                 act_type = "ADD" if action["drops"] is None else "DROP"
-                act_roster_id = action["adds"].values()[0] if action["drops"] is None else action["drop"].values()[0]
-                player_id = action["adds"].keys()[0] if action["drops"] is None else action["drop"].keys()[0]
+                act_roster_id = list(action["adds"].values())[0]\
+                    if act_type == "ADD" else list(action["drops"].values())[0]
+                player_id = list(action["adds"].keys())[0]\
+                    if act_type == "ADD" else list(action["drops"].keys())[0]
                 act_team = next(t for t in self.get_teams() if t.team_id == act_roster_id)
-                act_player = Storage.get(self.plugin, "sleeper_players")[player_id]
-                player_name = "{} {}".format(act_player["first_name"], act_player["last_name"])
+                act_player = Storage.get(self.plugin, "sleeper_players")[int(player_id)]
+                player_name = act_player["full_name"]
 
                 return Activity(act_date, act_team.team_name, act_type, player_name)
 
@@ -558,6 +607,7 @@ class Plugin(BasePlugin, name="NFL Fantasyliga"):
             return
 
         is_team_in_any_league = False
+        no_boxscore_data = None
         for league in self.leagues:
             lweek = week
             if week == 0:
@@ -576,12 +626,18 @@ class Plugin(BasePlugin, name="NFL Fantasyliga"):
                                  or t.team_abbrev.lower() == team_name.lower()), None)
                     if team is None:
                         continue
-                    embed = self._get_boxscore_embed(league, team, lweek)
                     is_team_in_any_league = True
+                    if league.platform == Platform.Sleeper:
+                        no_boxscore_data = (team.team_name, "Sleeper", league.get_boxscore_url(week, team.team_id))
+                        continue
+                    embed = self._get_boxscore_embed(league, team, lweek)
 
             if embed is not None:
                 await channel.send(embed=embed)
 
+        if no_boxscore_data is not None:
+            await channel.send(Lang.lang(self, "no_boxscore_data", no_boxscore_data[0],
+                                         no_boxscore_data[1], no_boxscore_data[2]))
         if team_name is not None and not is_team_in_any_league:
             await channel.send(Lang.lang(self, "team_not_found", team_name))
 
@@ -719,9 +775,10 @@ class Plugin(BasePlugin, name="NFL Fantasyliga"):
 
                     standings_str = ""
                     footer_str = ""
-                    for div in divisions:
-                        standings_str += "{} ({})\n".format(divisions[div][0].team_name, div[0:1])
-                        footer_str += "{}: {} {} | ".format(div[0:1], div, division_str)
+                    if len(divisions) > 1:
+                        for div in divisions:
+                            standings_str += "{} ({})\n".format(divisions[div][0].team_name, div[0:1])
+                            footer_str += "{}: {} {} | ".format(div[0:1], div, division_str)
                     standings_str += "{} ({})".format(league.get_overall_standings()[0].team_name, overall_str[0:1])
                     footer_str += "{}: {}".format(overall_str[0:1], overall_str)
 

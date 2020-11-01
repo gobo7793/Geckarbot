@@ -44,7 +44,8 @@
         "box_suffix": "**Total: {} Pts.**",
         "box_footer": "Opponent: {}, {} Pts.",
         "box_footer_bye": "Team on bye.",
-        "platform_not_supported": "Sorry, but I don't know the hosting platforn {}."
+        "platform_not_supported": "Sorry, but I don't know the hosting platform {}.",
+        "no_boxscore_data": "Sorry, but I can't access the boxscore data for team {} on {}, please look yourself at {}"
     },
     "de": {
         "channel_id": "Die Channel-ID für das !dsc set-Kommando muss eine gültige ID auf diesem Server sein.",
@@ -91,6 +92,7 @@
         "box_suffix": "**Gesamt: {} Pts.**",
         "box_footer": "Gegner: {}, {} Pts.",
         "box_footer_bye": "Team in Bye-Week.",
-        "platform_not_supported": "Sorry, aber ich kenne die Hosting-Plattform {} nicht."
+        "platform_not_supported": "Sorry, aber ich kenne die Hosting-Plattform {} nicht.",
+        "no_boxscore_data": "Sorry, aber ich kann die Boxscore-Daten für {} auf der Plattform {} nicht abrufen, schau daher bitte selbst unter {}"
     }
 }
