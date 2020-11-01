@@ -700,11 +700,13 @@ class Plugin(BasePlugin, name="NFL Fantasyliga"):
         embed = discord.Embed(title=prefix, url=league.get_boxscore_url(week, team.team_id))
 
         msg = ""
+        proj = 0.0
         for pl in lineup:
             if pl.slot_position.lower() != "BE".lower():
                 msg = "{}{}\n".format(msg, Lang.lang(self, "box_data", pl.slot_position, pl.name,
                                                      pl.proTeam, pl.projected_points, pl.points))
-        msg = "{}\n{}".format(msg, Lang.lang(self, "box_suffix", score))
+                proj += pl.projected_points
+        msg = "{}\n{} {}".format(msg, Lang.lang(self, "box_suffix", score), Lang.lang(self, "box_proj_suffix", proj))
 
         embed.description = msg
         if opp_name is None:
