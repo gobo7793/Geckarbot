@@ -36,6 +36,26 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
         self.logger = logging.getLogger(__name__)
         self.teamname_dict = TeamnameDict(self)
         self.userbridge = UserBridge(self)
+        self.liveticker_reg = None
+
+    @commands.command(name="liveticker")
+    async def liveticker(self, ctx):
+        if self.liveticker_reg:
+            self.liveticker_reg.deregister()
+        reg = self.bot.liveticker.register("bl1", self.live_coro, False)
+        self.liveticker_reg = reg
+        await ctx.send(str(reg))
+
+    async def live_coro(self):
+        pass
+
+    @commands.command(name="goals")
+    async def newgoals(self, ctx):
+        if self.liveticker_reg:
+            matches = self.liveticker_reg.get_new_goals()
+            msgs = paginate(list(matches.values()))
+            for msg in msgs:
+                await ctx.send(msg)
 
     def default_config(self):
         return {
@@ -249,6 +269,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                 msg += "{0} {1} {2} Uhr | {3} - {6}\n".format(*row)
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
         await ctx.send(embed=discord.Embed(title=Lang.lang(self, 'title_matchday', matchday), description=msg))
+        # TODO liveticker-reg
 
     @spaetzle_set.command(name="duels", aliases=["duelle"])
     async def set_duels(self, ctx, matchday: int = None, league: int = None):
