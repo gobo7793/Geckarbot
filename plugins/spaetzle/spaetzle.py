@@ -42,12 +42,14 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
     async def liveticker(self, ctx):
         if self.liveticker_reg:
             self.liveticker_reg.deregister()
-        reg = self.bot.liveticker.register("bl1", self.live_coro, False)
+        leagreg, reg = self.bot.liveticker.register("bl1", self.live_coro, True)
+        job = leagreg.schedule_timers(datetime.now())
+        self.logger.debug(job)
         self.liveticker_reg = reg
         await ctx.send(str(reg))
 
-    async def live_coro(self):
-        pass
+    async def live_coro(self, *args):
+        self.logger.debug(args)
 
     @commands.command(name="goals")
     async def newgoals(self, ctx):
