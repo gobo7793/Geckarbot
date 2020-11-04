@@ -41,7 +41,8 @@ class CoroRegistration:
                 "team_home": match.get('Team1', {}).get('TeamName'),
                 "team_away": match.get('Team2', {}).get('TeamName'),
                 "score": score,
-                "new_goals": new_goals
+                "new_goals": new_goals,
+                "is_finished": match.get('MatchIsFinished')
             }
             self.last_goal[match_id] = max(self.last_goal.get(match_id, 0), 0,
                                            *(g.get('MatchMinute', 0) for g in match.get('Goals', [])))
@@ -59,6 +60,8 @@ class LeagueRegistration:
         self.listener = listener
         self.league = league
         self.registrations = []
+        self.logger = logging.getLogger(__name__)
+        self.schedule_matches()
 
     def register(self, coro, periodic: bool):
         reg = CoroRegistration(self, coro, periodic)
@@ -73,9 +76,58 @@ class LeagueRegistration:
         if coro in self.registrations:
             self.registrations.remove(coro)
 
-    def get_matches(self):
+    def get_matches(self, matchday=None):
         """Returns the current standings of the league"""
-        return restclient.Client("https://www.openligadb.de/api").make_request("/getmatchdata/{}".format(self.league))
+        if matchday:
+            return restclient.Client("https://www.openligadb.de/api").make_request("/getmatchdata/{}/2020/{}".format(
+                self.league, matchday))
+        else:
+            return restclient.Client("https://www.openligadb.de/api").make_request("/getmatchdata/{}".format(
+                self.league))
+
+    def get_kickoff_times(self, matchday=None):
+        def extract_times(m_list):
+            t = []
+            for match in m_list:
+                try:
+                    kickoff = datetime.datetime.strptime(match.get('MatchDateTime'), "%Y-%m-%dT%H:%M:%S")
+                except (ValueError, TypeError):
+                    continue
+                else:
+                    if kickoff not in t:
+                        if datetime.datetime.now() < kickoff:
+                            t.append(kickoff)
+            return t
+
+        def extract_matchday(m_list):
+            for match in m_list:
+                md = match.get('Group', {}).get('GroupOrderID')
+                if md is not None:
+                    break
+            else:
+                return None
+            return md
+
+        match_list = self.get_matches(matchday)
+        times = extract_times(match_list)
+        if not times:
+            matchday = extract_matchday(match_list)
+            if matchday:
+                match_list_next = self.get_matches(matchday + 1)
+                times = extract_times(match_list_next)
+        return times
+
+    def schedule_matches(self):
+        """
+        Schedules timers for all matches in a matchday
+
+        :return: List of returning jobs
+        """
+        jobs = []
+        match_times = self.get_kickoff_times()
+        for time in match_times:
+            jobs += self.schedule_timers(time)
+        return jobs
 
     def schedule_timers(self, start: datetime.datetime):
         """
@@ -101,6 +153,7 @@ class LeagueRegistration:
                                              hour=[start.hour + 1, start.hour + 2],
                                              minute=minutes_2)
             job2 = self.listener.bot.timers.schedule(coro=self.update_periodic_coros, td=intermediate)
+        self.logger.debug("Timers for match starting at {} scheduled.".format(start.strftime("%d/%m/%Y %H:%M")))
         return job1, job2
 
     async def update_periodic_coros(self, job: Job):
