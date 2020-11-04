@@ -61,7 +61,7 @@ class LeagueRegistration:
         self.league = league
         self.registrations = []
         self.logger = logging.getLogger(__name__)
-        self.schedule_matches()
+        self.timer_jobs = self.schedule_matches()
 
     def register(self, coro, periodic: bool):
         reg = CoroRegistration(self, coro, periodic)
@@ -70,6 +70,8 @@ class LeagueRegistration:
         return reg
 
     def deregister(self):
+        for job in self.timer_jobs:
+            job.cancel()
         self.listener.deregister(self)
 
     def deregister_coro(self, coro: CoroRegistration):
@@ -155,6 +157,13 @@ class LeagueRegistration:
             job2 = self.listener.bot.timers.schedule(coro=self.update_periodic_coros, td=intermediate)
         self.logger.debug("Timers for match starting at {} scheduled.".format(start.strftime("%d/%m/%Y %H:%M")))
         return job1, job2
+
+    def next_match(self):
+        """Returns datetime of the next match"""
+        if self.timer_jobs:
+            return min(job.next_execution() for job in self.timer_jobs if job)
+        else:
+            return None
 
     async def update_periodic_coros(self, job: Job):
         """

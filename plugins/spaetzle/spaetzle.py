@@ -49,6 +49,12 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
     async def live_coro(self, liveticker_info):
         pass
 
+    @commands.command(name="nextmatch")
+    async def nextmatch(self, ctx):
+        if self.liveticker_reg:
+            nextmatch = self.liveticker_reg.league_reg.next_match()
+            await ctx.send(nextmatch)
+
     @commands.command(name="goals")
     async def newgoals(self, ctx):
         if self.liveticker_reg:
