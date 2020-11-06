@@ -38,31 +38,6 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
         self.userbridge = UserBridge(self)
         self.liveticker_reg = None
 
-    @commands.command(name="liveticker")
-    async def liveticker(self, ctx):
-        if self.liveticker_reg:
-            self.liveticker_reg.deregister()
-        leagreg, reg = self.bot.liveticker.register("bl1", self.live_coro, True)
-        self.liveticker_reg = reg
-        await ctx.send(str(reg))
-
-    async def live_coro(self, liveticker_info):
-        pass
-
-    @commands.command(name="nextmatch")
-    async def nextmatch(self, ctx):
-        if self.liveticker_reg:
-            nextmatch = self.liveticker_reg.league_reg.next_match()
-            await ctx.send(nextmatch)
-
-    @commands.command(name="goals")
-    async def newgoals(self, ctx):
-        if self.liveticker_reg:
-            matches = self.liveticker_reg.get_new_goals()
-            msgs = paginate(list(matches.values()))
-            for msg in msgs:
-                await ctx.send(msg)
-
     def default_config(self):
         return {
             'manager': [],

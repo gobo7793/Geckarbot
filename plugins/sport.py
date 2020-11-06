@@ -5,7 +5,8 @@ import discord
 from discord.ext import commands
 
 from base import BasePlugin
-from botutils import restclient
+from botutils import restclient, utils
+from botutils.utils import add_reaction
 from conf import Lang, Config
 
 
@@ -16,6 +17,7 @@ class Plugin(BasePlugin, name="Sport"):
         super().__init__(bot)
         bot.register(self)
         self.can_reload = True
+        self.liveticker_regs = {}
 
     def default_config(self):
         return {
@@ -138,3 +140,13 @@ class Plugin(BasePlugin, name="Sport"):
             if not msg:
                 msg = Lang.lang(self, 'no_matches_24h')
         await ctx.send(msg)
+
+    @commands.command(name="liveticker")
+    async def liveticker(self, ctx):
+        self.liveticker_regs['bl1'] = self.bot.liveticker.register("bl1", self.live_goals, True)
+        self.liveticker_regs['bl2'] = self.bot.liveticker.register("bl2", self.live_goals, True)
+        await add_reaction(ctx.message, Lang.CMDSUCCESS)
+
+    async def live_goals(self, new_goals):
+        sport = Config().bot.get_channel(self.bot.CHAN_IDS.get('sport', 0))
+        await sport.send(str(new_goals)[:1500])
