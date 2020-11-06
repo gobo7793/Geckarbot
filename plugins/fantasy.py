@@ -355,9 +355,9 @@ class FantasyLeague:
                     continue
                 act_date = from_epoch_ms(action["status_updated"])
                 act_type = "ADD" if action["drops"] is None else "DROP"
-                act_roster_id = list(action["adds"].values())[0]\
+                act_roster_id = list(action["adds"].values())[0] \
                     if act_type == "ADD" else list(action["drops"].values())[0]
-                player_id = list(action["adds"].keys())[0]\
+                player_id = list(action["adds"].keys())[0] \
                     if act_type == "ADD" else list(action["drops"].keys())[0]
                 act_team = next(t for t in self.get_teams() if t.team_id == act_roster_id)
                 act_player = Storage.get(self.plugin, "sleeper_players")[int(player_id)]
@@ -563,6 +563,26 @@ class Plugin(BasePlugin, name="NFL Fantasyliga"):
         for job in self._score_timer_jobs:
             job.cancel()
 
+    def parse_platform(self, platform_name: str = None, ctx=None):
+        """
+        Parses the given platform string to the Platform enum type
+
+        :param platform_name: The platform name
+        :param ctx: returns a message if platform is not supported to the given context
+        :return: the Platform enum type or None if not supported
+        """
+        if platform_name is None:
+            return None
+        if platform_name.lower() == "espn":
+            return Platform.ESPN
+        if platform_name.lower() == "sleeper":
+            return Platform.Sleeper
+
+        if ctx is not None:
+            await add_reaction(ctx.message, Lang.CMDERROR)
+            await ctx.send(Lang.lang(self, "platform_not_supported", platform_name))
+        return None
+
     @commands.group(name="fantasy", help="Get and manage information about the NFL Fantasy Game",
                     description="Get the information about the Fantasy Game or manage it. "
                                 "Command only works in NFL fantasy channel, if set."
@@ -599,7 +619,7 @@ class Plugin(BasePlugin, name="NFL Fantasyliga"):
             await self._write_scores(channel=channel, show_errors=False, previous_week=job.data)
 
     async def _write_scores(self, *, channel: discord.TextChannel, week: int = 0, team_name: str = None,
-                            show_errors=True, previous_week=False):
+                            show_errors=True, previous_week=False, league_name: str = None):
         """Send the current scores of given week to given channel"""
         if not self.leagues:
             if show_errors:
@@ -609,6 +629,8 @@ class Plugin(BasePlugin, name="NFL Fantasyliga"):
         is_team_in_any_league = False
         no_boxscore_data = None
         for league in self.leagues:
+            if league_name is not None and league_name not in league.name:
+                continue
             lweek = week
             if week == 0:
                 lweek = league.current_week
@@ -716,12 +738,14 @@ class Plugin(BasePlugin, name="NFL Fantasyliga"):
         return embed
 
     @fantasy.command(name="standings", help="Gets the full current standings")
-    async def standings(self, ctx):
+    async def standings(self, ctx, league_name=None):
         if not self.leagues:
             await ctx.send(Lang.lang(self, "no_leagues"))
             return
 
         for league in self.leagues:
+            if league_name is not None and league_name not in league.name:
+                continue
             embed = discord.Embed(title=league.name)
             embed.url = league.standings_url
 
@@ -737,7 +761,7 @@ class Plugin(BasePlugin, name="NFL Fantasyliga"):
             await ctx.send(embed=embed)
 
     @fantasy.command(name="info", help="Get information about the NFL Fantasy Game")
-    async def info(self, ctx):
+    async def info(self, ctx, league_name=None):
         if self.supercommish is None or not self.leagues:
             await add_reaction(ctx.message, Lang.CMDERROR)
             await ctx.send(Lang.lang(self, "need_supercommish_leagues"))
@@ -746,6 +770,8 @@ class Plugin(BasePlugin, name="NFL Fantasyliga"):
         date_out_str = Lang.lang(self, 'info_date_str', self.date.strftime(Lang.lang(self, "until_strf")))
 
         for league in self.leagues:
+            if league_name is not None and league_name not in league.name:
+                continue
             embed = discord.Embed(title=league.name)
             embed.url = league.league_url
 
@@ -987,25 +1013,19 @@ class Plugin(BasePlugin, name="NFL Fantasyliga"):
                          usage="<Sleeper|ESPN> <League ID> [Commissioner Discord user]",
                          description="Adds a new fantasy league hosted on the given platform with the given "
                                      "league ID and the User as commissioner.")
-    async def set_add(self, ctx, platform, league_id: int, commish: Union[discord.Member, discord.User, str]):
-        platform = platform.lower()
-        if platform == "espn" and not Storage.get(self)["espn_credentials"]["espn_s2"] \
+    async def set_add(self, ctx, platform_name, league_id: int, commish: Union[discord.Member, discord.User, str]):
+        platform = self.parse_platform(platform_name, ctx)
+        if platform is None:
+            return
+
+        if platform == Platform.ESPN and not Storage.get(self)["espn_credentials"]["espn_s2"] \
                 and not Storage.get(self)["espn_credentials"]["swid"]:
             await add_reaction(ctx.message, Lang.CMDERROR)
             await ctx.send(Lang.lang(self, "credentials_first", league_id))
             return
 
-        if platform == "espn":
-            platform_enum = Platform.ESPN
-        elif platform == "sleeper":
-            platform_enum = Platform.Sleeper
-        else:
-            await add_reaction(ctx.message, Lang.CMDERROR)
-            await ctx.send(Lang.lang(self, "platform_not_supported", platform))
-            return
-
         async with ctx.typing():
-            league = FantasyLeague(self, platform_enum, league_id, commish)
+            league = FantasyLeague(self, platform, league_id, commish)
         if not league.name:
             await add_reaction(ctx.message, Lang.CMDERROR)
             await ctx.send(Lang.lang(self, "league_add_fail", league_id))
@@ -1018,7 +1038,8 @@ class Plugin(BasePlugin, name="NFL Fantasyliga"):
     @fantasy_set.command(name="del", help="Removes a fantasy league",
                          usage="<league id> [platform]",
                          description="Removes the fantasy league with the given league ID.")
-    async def set_del(self, ctx, league_id: int, platform: Platform = None):
+    async def set_del(self, ctx, league_id: int, platform_name: Platform = None):
+        platform = self.parse_platform(platform_name, ctx)
         to_remove = None
         for league in self.leagues:
             if league.league_id != league_id:
