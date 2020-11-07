@@ -563,7 +563,7 @@ class Plugin(BasePlugin, name="NFL Fantasyliga"):
         for job in self._score_timer_jobs:
             job.cancel()
 
-    def parse_platform(self, platform_name: str = None, ctx=None):
+    async def parse_platform(self, platform_name: str = None, ctx=None):
         """
         Parses the given platform string to the Platform enum type
 
@@ -602,15 +602,30 @@ class Plugin(BasePlugin, name="NFL Fantasyliga"):
     async def scores(self, ctx, *args):
         week = 0
         team_name = None
+        league_name = None
+        for league in self.leagues:
+            try:
+                if args[-1].lower() in league.name.lower():
+                    league_name = league.name
+                    break
+            except IndexError:
+                break
+
         try:
             week = int(args[0])
             if len(args) > 1:
-                team_name = " ".join(args[1:])
+                if league_name is None:
+                    team_name = " ".join(args[1:])
+                else:
+                    team_name = " ".join(args[1:-1])
         except (IndexError, ValueError):
             if len(args) > 0:
-                team_name = " ".join(args)
+                if league_name is None:
+                    team_name = " ".join(args)
+                else:
+                    team_name = " ".join(args[:-1])
 
-        await self._write_scores(channel=ctx.channel, week=week, team_name=team_name)
+        await self._write_scores(channel=ctx.channel, week=week, team_name=team_name, league_name=league_name)
 
     async def _score_send_callback(self, job):
         """Callback method for the timer to auto-send current scores to fantasy channel"""
@@ -640,7 +655,7 @@ class Plugin(BasePlugin, name="NFL Fantasyliga"):
                 lweek = 1
 
             async with channel.typing():
-                if team_name is None:
+                if team_name is None or not team_name:
                     embed = self._get_league_score_embed(league, lweek)
                 else:
                     team = next((t for t in league.get_teams()
@@ -660,7 +675,7 @@ class Plugin(BasePlugin, name="NFL Fantasyliga"):
         if no_boxscore_data is not None:
             await channel.send(Lang.lang(self, "no_boxscore_data", no_boxscore_data[0],
                                          no_boxscore_data[1], no_boxscore_data[2]))
-        if team_name is not None and not is_team_in_any_league:
+        if team_name is not None and team_name and not is_team_in_any_league:
             await channel.send(Lang.lang(self, "team_not_found", team_name))
 
     def _get_league_score_embed(self, league: FantasyLeague, week: int):
@@ -1014,7 +1029,7 @@ class Plugin(BasePlugin, name="NFL Fantasyliga"):
                          description="Adds a new fantasy league hosted on the given platform with the given "
                                      "league ID and the User as commissioner.")
     async def set_add(self, ctx, platform_name, league_id: int, commish: Union[discord.Member, discord.User, str]):
-        platform = self.parse_platform(platform_name, ctx)
+        platform = await self.parse_platform(platform_name, ctx)
         if platform is None:
             return
 
@@ -1039,7 +1054,7 @@ class Plugin(BasePlugin, name="NFL Fantasyliga"):
                          usage="<league id> [platform]",
                          description="Removes the fantasy league with the given league ID.")
     async def set_del(self, ctx, league_id: int, platform_name: Platform = None):
-        platform = self.parse_platform(platform_name, ctx)
+        platform = await self.parse_platform(platform_name, ctx)
         to_remove = None
         for league in self.leagues:
             if league.league_id != league_id:
