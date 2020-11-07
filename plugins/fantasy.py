@@ -11,7 +11,7 @@ from discord.ext import commands
 from espn_api.football import League
 
 import botutils.timeutils
-from base import BasePlugin
+from base import BasePlugin, NotFound
 from botutils import stringutils, permchecks
 from botutils.converters import get_best_username, get_best_user
 from botutils.timeutils import from_epoch_ms
@@ -453,6 +453,27 @@ class Plugin(BasePlugin, name="NFL Fantasyliga"):
         self._stop_score_timer()
         self.leagues.clear()
 
+    def command_help_string(self, command):
+        langstr = Lang.lang_no_failsafe(self, "help_{}".format(command.qualified_name.replace(" ", "_")))
+        if langstr is not None:
+            return langstr
+        else:
+            raise NotFound()
+
+    def command_description(self, command):
+        langstr = Lang.lang_no_failsafe(self, "help_desc_{}".format(command.qualified_name.replace(" ", "_")))
+        if langstr is not None:
+            return langstr
+        else:
+            raise NotFound()
+
+    def command_usage(self, command):
+        langstr = Lang.lang_no_failsafe(self, "help_usage_{}".format(command.qualified_name.replace(" ", "_")))
+        if langstr is not None:
+            return langstr
+        else:
+            raise NotFound()
+
     @property
     def year(self):
         return self.start_date.year
@@ -583,10 +604,7 @@ class Plugin(BasePlugin, name="NFL Fantasyliga"):
             await ctx.send(Lang.lang(self, "platform_not_supported", platform_name))
         return None
 
-    @commands.group(name="fantasy", help="Get and manage information about the NFL Fantasy Game",
-                    description="Get the information about the Fantasy Game or manage it. "
-                                "Command only works in NFL fantasy channel, if set."
-                                "Managing information is only permitted for modrole or organisator.")
+    @commands.group(name="fantasy")
     async def fantasy(self, ctx):
         if Config.get(self)['channel_id'] != 0 and Config.get(self)['channel_id'] != ctx.channel.id:
             await add_reaction(ctx.message, Lang.CMDNOPERMISSIONS)
@@ -595,10 +613,7 @@ class Plugin(BasePlugin, name="NFL Fantasyliga"):
         if ctx.invoked_subcommand is None:
             await ctx.invoke(self.bot.get_command('fantasy info'))
 
-    @fantasy.command(name="scores", help="Gets the matchup scores", usage="[week] [team]",
-                     description="Gets the current machtup scores or the scores from the given week. "
-                                 "If a team name or abbreviation is given, the boxscores for the team for "
-                                 "the current or given week is returned.")
+    @fantasy.command(name="scores", aliases=["score", "matchup", "matchups", "boxscore", "boxscores"])
     async def scores(self, ctx, *args):
         week = 0
         team_name = None
@@ -752,7 +767,7 @@ class Plugin(BasePlugin, name="NFL Fantasyliga"):
             embed.set_footer(text=Lang.lang(self, "box_footer", opp_name, opp_score))
         return embed
 
-    @fantasy.command(name="standings", help="Gets the full current standings")
+    @fantasy.command(name="standings", aliases=["standing"])
     async def standings(self, ctx, league_name=None):
         if not self.leagues:
             await ctx.send(Lang.lang(self, "no_leagues"))
@@ -775,7 +790,7 @@ class Plugin(BasePlugin, name="NFL Fantasyliga"):
 
             await ctx.send(embed=embed)
 
-    @fantasy.command(name="info", help="Get information about the NFL Fantasy Game")
+    @fantasy.command(name="info")
     async def info(self, ctx, league_name=None):
         if self.supercommish is None or not self.leagues:
             await add_reaction(ctx.message, Lang.CMDERROR)
@@ -855,14 +870,14 @@ class Plugin(BasePlugin, name="NFL Fantasyliga"):
 
             await ctx.send(embed=embed)
 
-    @fantasy.command(name="reload", help="Reloads the league data from ESPN")
+    @fantasy.command(name="reload")
     async def fantasy_reload(self, ctx):
         async with ctx.typing():
             for league in self.leagues:
                 league.reload()
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
-    @fantasy.group(name="set", help="Set data about the fantasy game.")
+    @fantasy.group(name="set")
     async def fantasy_set(self, ctx):
         is_mod = Config.get(self)['mod_role_id'] != 0 \
                  and Config.get(self)['mod_role_id'] in [role.id for role in ctx.author.roles]
@@ -875,15 +890,14 @@ class Plugin(BasePlugin, name="NFL Fantasyliga"):
         if ctx.invoked_subcommand is None:
             await self.bot.helpsys.cmd_help(ctx, self, ctx.command)
 
-    @fantasy_set.command(name="datalink", help="Sets the link for the Players Database")
+    @fantasy_set.command(name="datalink")
     async def set_datalink(self, ctx, link):
         link = stringutils.clear_link(link)
         self.datalink = link
         self.save()
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
-    @fantasy_set.command(name="start", help="Sets the start date of the current fantasy season",
-                         usage="DD.MM.[YYYY]")
+    @fantasy_set.command(name="start")
     async def set_start(self, ctx, *args):
         date = botutils.timeutils.parse_time_input(args, end_of_day=True)
         self.start_date = date
@@ -891,8 +905,7 @@ class Plugin(BasePlugin, name="NFL Fantasyliga"):
         self._start_score_timer()
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
-    @fantasy_set.command(name="end", help="Sets the end date of the current fantasy season",
-                         usage="DD.MM.[YYYY]")
+    @fantasy_set.command(name="end")
     async def set_end(self, ctx, *args):
         date = botutils.timeutils.parse_time_input(args, end_of_day=True)
         self.end_date = date
@@ -900,7 +913,7 @@ class Plugin(BasePlugin, name="NFL Fantasyliga"):
         self._start_score_timer()
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
-    @fantasy_set.command(name="orga", help="Sets the Fantasy Organisator")
+    @fantasy_set.command(name="orga", aliases=["organisator"])
     async def set_orga(self, ctx, organisator: Union[discord.Member, discord.User]):
         self.supercommish = organisator
         self.save()
@@ -923,10 +936,7 @@ class Plugin(BasePlugin, name="NFL Fantasyliga"):
         self.save()
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
-    @fantasy_set.command(name="state", help="Sets the Fantasy state",
-                         description="Sets the Fantasy state. "
-                                     "Possible states: signup, Predraft, Preseason, Regular, Postseason, Finished",
-                         usage="<signup|predraft|preseason|regular|postseason|finished>")
+    @fantasy_set.command(name="state", aliases=["phase"])
     async def fantasy_set_state(self, ctx, state):
         if state.lower() == "signup":
             await self._save_state(ctx, FantasyState.Sign_up)
@@ -944,24 +954,20 @@ class Plugin(BasePlugin, name="NFL Fantasyliga"):
             await add_reaction(ctx.message, Lang.CMDERROR)
             await ctx.send(Lang.lang(self, 'invalid_phase'))
 
-    @fantasy_set.command(name="date", help="Sets the state end date", usage="DD.MM.[YYYY] [HH:MM]",
-                         description="Sets the end date and time for all the phases. "
-                                     "If no time is given, 23:59 will be used.")
+    @fantasy_set.command(name="date")
     async def set_date(self, ctx, *args):
         date = botutils.timeutils.parse_time_input(args, end_of_day=True)
         self.date = date
         self.save()
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
-    @fantasy_set.command(name="status", help="Sets the status message",
-                         description="Sets a status message for additional information. To remove give no message.")
+    @fantasy_set.command(name="status")
     async def set_status(self, ctx, *, message):
         self.status = message
         self.save()
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
-    @fantasy_set.command(name="credentials", help="Sets the ESPN API credentials",
-                         description="Sets the ESPN API Credentials based on the credential cookies swid and espn_s2.")
+    @fantasy_set.command(name="credentials")
     async def set_api_credentials(self, ctx, swid, espn_s2):
         Storage.get(self)["espn_credentials"]["swid"] = swid
         Storage.get(self)["espn_credentials"]["espn_s2"] = espn_s2
@@ -1024,10 +1030,7 @@ class Plugin(BasePlugin, name="NFL Fantasyliga"):
         Config.save(self)
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
-    @fantasy_set.command(name="add", help="Adds a new fantasy league",
-                         usage="<Sleeper|ESPN> <League ID> [Commissioner Discord user]",
-                         description="Adds a new fantasy league hosted on the given platform with the given "
-                                     "league ID and the User as commissioner.")
+    @fantasy_set.command(name="add")
     async def set_add(self, ctx, platform_name, league_id: int, commish: Union[discord.Member, discord.User, str]):
         platform = await self.parse_platform(platform_name, ctx)
         if platform is None:
@@ -1050,9 +1053,7 @@ class Plugin(BasePlugin, name="NFL Fantasyliga"):
             await add_reaction(ctx.message, Lang.CMDSUCCESS)
             await ctx.send(Lang.lang(self, "league_added", get_best_username(commish), league.name))
 
-    @fantasy_set.command(name="del", help="Removes a fantasy league",
-                         usage="<league id> [platform]",
-                         description="Removes the fantasy league with the given league ID.")
+    @fantasy_set.command(name="del")
     async def set_del(self, ctx, league_id: int, platform_name: Platform = None):
         platform = await self.parse_platform(platform_name, ctx)
         to_remove = None
