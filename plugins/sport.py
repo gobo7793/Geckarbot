@@ -1,11 +1,13 @@
 import calendar
+import logging
 from datetime import datetime, timedelta
 
 import discord
 from discord.ext import commands
 
 from base import BasePlugin
-from botutils import restclient, utils
+from botutils import restclient
+from botutils.stringutils import paginate
 from botutils.utils import add_reaction
 from conf import Lang, Config
 
@@ -16,6 +18,7 @@ class Plugin(BasePlugin, name="Sport"):
     def __init__(self, bot):
         super().__init__(bot)
         bot.register(self)
+        self.logger = logging.getLogger(__name__)
         self.can_reload = True
         self.liveticker_regs = {}
 
@@ -149,4 +152,18 @@ class Plugin(BasePlugin, name="Sport"):
 
     async def live_goals(self, new_goals):
         sport = Config().bot.get_channel(self.bot.CHAN_IDS.get('sport', 0))
-        await sport.send(str(new_goals)[:1500])
+
+        matches_with_goals = [x for x in new_goals.values() if x['new_goals']]
+        sport.send(matches_with_goals)
+        if matches_with_goals:
+            match_msgs = []
+            for match in matches_with_goals:
+                match_msgs.append("**{} - {} | {}:{}**".format(match['team_home'], match['team_away'], *match['score']))
+                for goal in match['new_goals']:
+                    match_msgs.append("{}:{} *{}' {}*".format(goal['ScoreTeam1'], goal['ScoreTeam2'],
+                                                              goal['MatchMinute'], goal['GoalGetterName']))
+            msgs = paginate(match_msgs)
+            for msg in msgs:
+                await sport.send(msg)
+        else:
+            sport.send("Keine neuen Tore")

@@ -49,7 +49,7 @@ class CoroRegistration:
         return match_dict
 
     async def update(self, job: Job):
-        self.logger.debug("", job.next_execution())
+        self.logger.debug("Updated {}".format(str(self)))
         await self.coro(self.get_new_goals())
 
     def __str__(self):
@@ -97,7 +97,7 @@ class LeagueRegistration:
                     continue
                 else:
                     if kickoff not in t:
-                        if datetime.datetime.now() < kickoff:
+                        if datetime.datetime.now() < (kickoff + datetime.timedelta(seconds=7200)):
                             t.append(kickoff)
             return t
 
@@ -173,7 +173,7 @@ class LeagueRegistration:
         """
         for coro_reg in self.registrations:
             if coro_reg.periodic:
-                await coro_reg.update()
+                await coro_reg.update(job)
 
     def __str__(self):
         return "<liveticker.LeagueRegistration; league={}; regs={}>".format(self.league, len(self.registrations))
