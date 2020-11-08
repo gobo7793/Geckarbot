@@ -522,6 +522,8 @@ class Plugin(BasePlugin, name="NFL Fantasyliga"):
 
         for league in Storage.get(self)["leagues"]:
             league['platform'] = Platform.ESPN
+            league['league_id'] = league['espn_id']
+            del(league['espn_id'])
         Storage.get(self)["espn_credentials"] = Storage.get(self)["api"]
 
         new_cfg = self.default_config()
@@ -542,7 +544,7 @@ class Plugin(BasePlugin, name="NFL Fantasyliga"):
     def _update_config_from_2_to_3(self):
         log.info("Updating config from version 2 to version 3")
 
-        Config.get(self)["url_base_boxscore"] = self.default_config()["url_base_boxscore"]
+        Config.get(self)["url_base_boxscore"] = self.default_config()["espn"]["url_base_boxscore"]
         Config.get(self)["version"] = 3
         Config.save(self)
 
