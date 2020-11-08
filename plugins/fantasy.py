@@ -97,13 +97,17 @@ class FantasyLeague:
         if self.platform == Platform.ESPN:
             self._espn.refresh()
         elif self.platform == Platform.Sleeper:
+            def load_player_db():
+                players = self._slc.make_request(endpoint="players/nfl")
+                Storage.set(self.plugin, players, "sleeper_players")
+                Storage.save(self.plugin, "sleeper_players")
+
             self._sl_league_data["league"] = self._slc.make_request(endpoint="league/{}".format(self.league_id))
             rosters = self._slc.make_request(endpoint="league/{}/rosters".format(self.league_id))
             users = self._slc.make_request(endpoint="league/{}/users".format(self.league_id))
             if not self.plugin.bot.DEBUG_MODE:
-                players = self._slc.make_request(endpoint="players/nfl")
-                Storage.set(self.plugin, players, "sleeper_players")
-                Storage.save(self.plugin, "sleeper_players")
+                player_thread = Thread(target=load_player_db)
+                player_thread.start()
 
             self._sl_league_data["teams"] = []
             for roster in rosters:
