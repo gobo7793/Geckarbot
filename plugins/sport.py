@@ -1,4 +1,5 @@
 import calendar
+import logging
 from datetime import datetime, timedelta
 
 import discord
@@ -6,6 +7,8 @@ from discord.ext import commands
 
 from base import BasePlugin
 from botutils import restclient
+from botutils.stringutils import paginate
+from botutils.utils import add_reaction
 from conf import Lang, Config
 
 
@@ -15,11 +18,15 @@ class Plugin(BasePlugin, name="Sport"):
     def __init__(self, bot):
         super().__init__(bot)
         bot.register(self)
+        self.logger = logging.getLogger(__name__)
         self.can_reload = True
+        self.liveticker_regs = {}
+        Config().save(self)
 
     def default_config(self):
         return {
-            'leagues': ["bl1", "bl2", "bl3", "uefanl"]
+            'leagues': ["bl1", "bl2", "bl3", "uefanl"],
+            'liveticker_leagues': ["bl1", "bl2"]
         }
 
     def default_storage(self):
@@ -138,3 +145,45 @@ class Plugin(BasePlugin, name="Sport"):
             if not msg:
                 msg = Lang.lang(self, 'no_matches_24h')
         await ctx.send(msg)
+
+    @commands.command(name="liveticker")
+    async def liveticker(self, ctx):
+        msg = []
+        for league in Config().get(self)['liveticker_leagues']:
+            if league in self.liveticker_regs:
+                self.liveticker_regs[league].deregister()
+            leag_reg, self.liveticker_regs[league] = self.bot.liveticker.register(league, self.live_goals, True)
+            msg.append("{} - Next: {}".format(league, leag_reg.next_match()))
+        await add_reaction(ctx.message, Lang.CMDSUCCESS)
+        await ctx.send("\n".join(msg))
+
+    @commands.command(name="livegoals")
+    async def update_live(self, ctx):
+        """Debug Method / Updates Liveticker CoroRegistrations"""
+        for league in self.liveticker_regs:
+            await self.liveticker_regs[league].update()
+        await add_reaction(ctx.message, Lang.CMDSUCCESS)
+
+    async def live_goals(self, new_goals):
+        sport = Config().bot.get_channel(self.bot.CHAN_IDS.get('sport', 0))
+
+        matches_with_goals = [x for x in new_goals.values() if x['new_goals'] and not x['is_finished']]
+        if matches_with_goals:
+            match_msgs = []
+            for match in matches_with_goals:
+                match_msgs.append(
+                    "**{} - {} | {}:{}**".format(match['team_home'], match['team_away'], *match['score']))
+                match_goals = []
+                for goal in match['new_goals']:
+                    minute = goal.get('MatchMinute')
+                    if not minute:
+                        minute = "?"
+                    match_goals.append(
+                        "{}:{} *{}'* {}".format(goal.get('ScoreTeam1', "?"), goal.get('ScoreTeam2', "?"),
+                                                minute, goal.get('GoalGetterName', "-")))
+                match_msgs.append(" / ".join(match_goals))
+            msgs = paginate(match_msgs, prefix=Lang.lang(self, 'liveticker_prefix'))
+            for msg in msgs:
+                await sport.send(msg)
+        else:
+            await sport.send(Lang.lang(self, 'no_new_goals'))

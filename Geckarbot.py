@@ -17,7 +17,7 @@ import subsystems
 from base import BasePlugin, NotLoadable, ConfigurableType
 from botutils import utils, permchecks, converters, stringutils
 from conf import Config, Lang, Storage, ConfigurableData
-from subsystems import timers, reactions, ignoring, dmlisteners, help, presence
+from subsystems import timers, reactions, ignoring, dmlisteners, help, presence, liveticker
 
 
 class Exitcodes(Enum):
@@ -83,6 +83,7 @@ class Geckarbot(commands.Bot):
         self.ignoring = ignoring.Ignoring(self)
         self.helpsys = help.GeckiHelp(self)
         self.presence = presence.Presence(self)
+        self.liveticker = liveticker.Liveticker(self)
 
     def load_config(self):
         """
