@@ -21,10 +21,12 @@ class Plugin(BasePlugin, name="Sport"):
         self.logger = logging.getLogger(__name__)
         self.can_reload = True
         self.liveticker_regs = {}
+        Config().save(self)
 
     def default_config(self):
         return {
-            'leagues': ["bl1", "bl2", "bl3", "uefanl"]
+            'leagues': ["bl1", "bl2", "bl3", "uefanl"],
+            'liveticker_leagues': ["bl1", "bl2"]
         }
 
     def default_storage(self):
@@ -146,24 +148,41 @@ class Plugin(BasePlugin, name="Sport"):
 
     @commands.command(name="liveticker")
     async def liveticker(self, ctx):
-        self.liveticker_regs['bl1'] = self.bot.liveticker.register("bl1", self.live_goals, True)
-        self.liveticker_regs['bl2'] = self.bot.liveticker.register("bl2", self.live_goals, True)
+        msg = []
+        for league in Config().get(self)['liveticker_leagues']:
+            self.liveticker_regs[league], _ = self.bot.liveticker.register(league, self.live_goals, True)
+            msg.append("{} - Next: {}".format(league, self.liveticker_regs[league].next_match()))
+        await add_reaction(ctx.message, Lang.CMDSUCCESS)
+        await ctx.send("\n".join(msg))
+
+    @commands.command(name="live")
+    async def updatelive(self, ctx):
+        await self.liveticker_regs["gecki"].update_periodic_coros()
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
     async def live_goals(self, new_goals):
+        self.logger.debug("LIVE GOALS JA HIER KOMMEN SIE! WEHE DU MACHST NIX GECKI ICH BRING DICH UM")
         sport = Config().bot.get_channel(self.bot.CHAN_IDS.get('sport', 0))
 
-        matches_with_goals = [x for x in new_goals.values() if x['new_goals']]
-        sport.send(matches_with_goals)
+        matches_with_goals = [x for x in new_goals.values() if x['new_goals'] and not x['is_finished']]
+        self.logger.debug(matches_with_goals)
         if matches_with_goals:
             match_msgs = []
+            self.logger.debug(matches_with_goals)
             for match in matches_with_goals:
-                match_msgs.append("**{} - {} | {}:{}**".format(match['team_home'], match['team_away'], *match['score']))
+                match_msgs.append(
+                    "**{} - {} | {}:{}**".format(match['team_home'], match['team_away'], *match['score']))
+                match_goals = []
                 for goal in match['new_goals']:
-                    match_msgs.append("{}:{} *{}' {}*".format(goal['ScoreTeam1'], goal['ScoreTeam2'],
-                                                              goal['MatchMinute'], goal['GoalGetterName']))
+                    match_goals.append(
+                        "{}:{} *{}'* {}".format(goal.get('ScoreTeam1', "?"), goal.get('ScoreTeam2', "?"),
+                                                goal.get('MatchMinute', "?"),
+                                                goal.get('GoalGetterName', "-")))
+                match_msgs.append(" / ".join(match_goals))
+                self.logger.debug(match_goals)
+            self.logger.debug(match_msgs)
             msgs = paginate(match_msgs)
             for msg in msgs:
                 await sport.send(msg)
         else:
-            sport.send("Keine neuen Tore")
+            await sport.send("Keine neuen Tore")

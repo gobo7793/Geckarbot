@@ -34,7 +34,7 @@ class CoroRegistration:
             if match_id is None:
                 continue
             new_goals = [g for g in match.get('Goals', [])
-                         if g.get('MatchMinute', 0) > self.last_goal.get(match_id, 0)]
+                         if g.get('GoalID', 0) not in self.last_goal.get(match_id, [])]
             score = (max(0, 0, *(g.get('ScoreTeam1', 0) for g in match.get('Goals', []))),
                      max(0, 0, *(g.get('ScoreTeam2', 0) for g in match.get('Goals', []))))
             match_dict[match_id] = {
@@ -44,13 +44,15 @@ class CoroRegistration:
                 "new_goals": new_goals,
                 "is_finished": match.get('MatchIsFinished')
             }
-            self.last_goal[match_id] = max(self.last_goal.get(match_id, 0), 0,
-                                           *(g.get('MatchMinute', 0) for g in match.get('Goals', [])))
+            if not self.last_goal.get(match_id):
+                self.last_goal[match_id] = []
+            self.last_goal[match_id] += [g.get('GoalID') for g in new_goals]
         return match_dict
 
     async def update(self, job: Job):
         self.logger.debug("Updated {}".format(str(self)))
         await self.coro(self.get_new_goals())
+        self.logger.debug("Updated {} successfully?!".format(str(self)))
 
     def __str__(self):
         return "<liveticker.CoroRegistration; coro={}; periodic={}>".format(self.coro, self.periodic)
@@ -139,7 +141,7 @@ class LeagueRegistration:
         :param start: start datetime of the match
         :return: jobs objects of the timers
         """
-        minutes = list(range(start.minute + 15, start.minute + 75, 15))
+        minutes = list(range(start.minute + 5, start.minute + 75, 5))
         minutes_1 = [x for x in minutes if x < 60]
         minutes_2 = [x % 60 for x in minutes if x >= 60]
 
@@ -165,7 +167,7 @@ class LeagueRegistration:
         else:
             return None
 
-    async def update_periodic_coros(self, job: Job):
+    async def update_periodic_coros(self, job: Job = None):
         """
 
         :param job:
