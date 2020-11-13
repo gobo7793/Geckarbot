@@ -141,7 +141,7 @@ class LeagueRegistration:
         :param start: start datetime of the match
         :return: jobs objects of the timers
         """
-        minutes = list(range(start.minute + 5, start.minute + 75, 5))
+        minutes = list(range(start.minute + 15, start.minute + 75, 15))
         minutes_1 = [x for x in minutes if x < 60]
         minutes_2 = [x % 60 for x in minutes if x >= 60]
 

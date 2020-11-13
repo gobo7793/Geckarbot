@@ -155,20 +155,19 @@ class Plugin(BasePlugin, name="Sport"):
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
         await ctx.send("\n".join(msg))
 
-    @commands.command(name="live")
-    async def updatelive(self, ctx):
-        await self.liveticker_regs["gecki"].update_periodic_coros()
+    @commands.command(name="livegoals")
+    async def update_live(self, ctx):
+        """Debug Method / Updates periodic CoroRegistrations"""
+        for league in self.liveticker_regs:
+            await self.liveticker_regs[league].update_periodic_coros()
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
     async def live_goals(self, new_goals):
-        self.logger.debug("LIVE GOALS JA HIER KOMMEN SIE! WEHE DU MACHST NIX GECKI ICH BRING DICH UM")
         sport = Config().bot.get_channel(self.bot.CHAN_IDS.get('sport', 0))
 
         matches_with_goals = [x for x in new_goals.values() if x['new_goals'] and not x['is_finished']]
-        self.logger.debug(matches_with_goals)
         if matches_with_goals:
             match_msgs = []
-            self.logger.debug(matches_with_goals)
             for match in matches_with_goals:
                 match_msgs.append(
                     "**{} - {} | {}:{}**".format(match['team_home'], match['team_away'], *match['score']))
@@ -179,10 +178,8 @@ class Plugin(BasePlugin, name="Sport"):
                                                 goal.get('MatchMinute', "?"),
                                                 goal.get('GoalGetterName', "-")))
                 match_msgs.append(" / ".join(match_goals))
-                self.logger.debug(match_goals)
-            self.logger.debug(match_msgs)
-            msgs = paginate(match_msgs)
+            msgs = paginate(match_msgs, prefix=Lang.lang(self, 'liveticker_prefix'))
             for msg in msgs:
                 await sport.send(msg)
         else:
-            await sport.send("Keine neuen Tore")
+            await sport.send(Lang.lang(self, 'no_new_goals'))
