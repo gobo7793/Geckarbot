@@ -49,7 +49,7 @@ class CoroRegistration:
             self.last_goal[match_id] += [g.get('GoalID') for g in new_goals]
         return match_dict
 
-    async def update(self, job: Job):
+    async def update(self, job: Job = None):
         self.logger.debug("Updated {}".format(str(self)))
         await self.coro(self.get_new_goals())
         self.logger.debug("Updated {} successfully?!".format(str(self)))

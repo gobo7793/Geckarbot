@@ -150,16 +150,18 @@ class Plugin(BasePlugin, name="Sport"):
     async def liveticker(self, ctx):
         msg = []
         for league in Config().get(self)['liveticker_leagues']:
-            self.liveticker_regs[league], _ = self.bot.liveticker.register(league, self.live_goals, True)
-            msg.append("{} - Next: {}".format(league, self.liveticker_regs[league].next_match()))
+            if league in self.liveticker_regs:
+                self.liveticker_regs[league].deregister()
+            leag_reg, self.liveticker_regs[league] = self.bot.liveticker.register(league, self.live_goals, True)
+            msg.append("{} - Next: {}".format(league, leag_reg.next_match()))
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
         await ctx.send("\n".join(msg))
 
     @commands.command(name="livegoals")
     async def update_live(self, ctx):
-        """Debug Method / Updates periodic CoroRegistrations"""
+        """Debug Method / Updates Liveticker CoroRegistrations"""
         for league in self.liveticker_regs:
-            await self.liveticker_regs[league].update_periodic_coros()
+            await self.liveticker_regs[league].update()
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
     async def live_goals(self, new_goals):
@@ -173,10 +175,12 @@ class Plugin(BasePlugin, name="Sport"):
                     "**{} - {} | {}:{}**".format(match['team_home'], match['team_away'], *match['score']))
                 match_goals = []
                 for goal in match['new_goals']:
+                    minute = goal.get('MatchMinute')
+                    if not minute:
+                        minute = "?"
                     match_goals.append(
                         "{}:{} *{}'* {}".format(goal.get('ScoreTeam1', "?"), goal.get('ScoreTeam2', "?"),
-                                                goal.get('MatchMinute', "?"),
-                                                goal.get('GoalGetterName', "-")))
+                                                minute, goal.get('GoalGetterName', "-")))
                 match_msgs.append(" / ".join(match_goals))
             msgs = paginate(match_msgs, prefix=Lang.lang(self, 'liveticker_prefix'))
             for msg in msgs:
