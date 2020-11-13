@@ -110,7 +110,7 @@ class Mothership(BaseSubsystem, Thread):
         :param repeat: If set to False, the job runs only once.
         """
         job = Job(self, td, coro, repeat=repeat)
-        self.logger.debug("Scheduling {}".format(job))
+        self.logger.info("Scheduling {}".format(job))
         self._to_register.append(job)
         return job
 
@@ -141,7 +141,7 @@ class Job:
         return self._cancelled
 
     def cancel(self):
-        self._mothership.logger.debug("Cancelling {}".format(self))
+        self._mothership.logger.info("Cancelling {}".format(self))
         self._cancelled = True
         self._mothership.cancel(self)
 
@@ -157,7 +157,7 @@ class Job:
         if self._cancelled:
             return
 
-        self._mothership.logger.debug("Executing {} at {}".format(self, self.next_execution()))
+        self._mothership.logger.info("Executing {} at {}".format(self, self.next_execution()))
         self._last_exec = self.next_execution()
         self._cached_next_exec = next_occurence(self._timedict, ignore_now=True)
         asyncio.run_coroutine_threadsafe(self._coro(self), self._mothership.bot.loop)
@@ -169,7 +169,7 @@ class Job:
     def next_execution(self):
         if self._cached_next_exec is None:
             self._cached_next_exec = next_occurence(self._timedict)
-        self._mothership.logger.debug("Next execution: {}".format(self._cached_next_exec))
+        self._mothership.logger.info("Next execution: {}".format(self._cached_next_exec))
         return self._cached_next_exec
 
     def __str__(self):
