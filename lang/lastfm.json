@@ -8,8 +8,10 @@
     "usage_register": "<last.fm-Profilname>",
     "help_deregister": "Entfernt dein last.fm-Profil aus dem Register",
     "desc_deregister": "Entfernt deinen last.fm-Profilnamen aus dem Register. Andere lastfm-Kommandos können dann nicht mehr genutzt werden.",
-    "help_listening": "Teilt mit, was du gerade hörst",
-    "desc_listening": "Teilt mit, was du gerade hörst.",
+    "help_profile": "Gibt das Last.fm-Profil eines Users aus",
+    "desc_profile": "Gibt einen Link zum Last.fm-Profil eines Users aus, sofern dieser sich registriert hat.",
+    "help_now": "Teilt mit, was du gerade hörst",
+    "desc_now": "Teilt mit, was du gerade hörst.",
 
     "#1": "Errors",
     "not_registered": "Ich kenne leider dein last.fm-Profil nicht.",
@@ -25,9 +27,31 @@
     "listening_song_album": "{} aus dem Album **{}**",
     "most_interesting_base_present": "{} hört gerade {}",
     "most_interesting_base_past": "{} hörte zuletzt {}",
+    "most_interesting_past_format": "{} hörte bis {} {}",
     "most_interesting_song": "{} rauf und runter - {} der letzten {} Scrobbles.",
     "most_interesting_album": "das Album **{}** von **{}** ({} der letzten {} Scrobbles).",
     "most_interesting_artist": "**{}** - {} der letzten {} Scrobbles!",
-    "performance": "Im letzten `lastfm`-Kommando habe ich {} von {} Sekunden damit verbracht, auf Last.fm zu warten. Das sind {}%. Dabei habe ich {} Request(s) an Last.fm abgesetzt.\nDie restliche Zeit entfällt auf das Warten auf Discord, eventuelle andere Jobs und Kommandos und Berechnungen für das eigentliche Kommando."
+    "performance": "Im letzten `lastfm`-Kommando habe ich {} von {} Sekunden damit verbracht, auf Last.fm zu warten. Das sind {}%. Dabei habe ich {} Request(s) an Last.fm abgesetzt.\nDie restliche Zeit entfällt auf das Warten auf Discord, eventuelle andere Jobs und Kommandos und Berechnungen für das eigentliche Kommando.",
+
+    "#3": "Time format",
+    "baseformat": "vor {} {}",
+    "seconds": "Sekunden",
+    "minutes": "Minuten",
+    "hours": "Stunden",
+    "days": "Tage",
+    "weeks": "Wochen",
+    "months": "Monate",
+    "years": "Jahre",
+    "yesterday": "gestern",
+
+    "#4": "Quote",
+    "or": "or",
+    "quote_target": "Soll das Zitat deinem zuletzt gescrobbleten Lied ({}) zugeordnet werden (antworte mit \"scrobble\") oder einem anderen Lied (antworte mit \"neu\"?\nZum Abbruch kannst du jederzeit mit \"abbrechen\" antworten.",
+    "quote_scrobble": "scrobble",
+    "quote_new": "neu",
+    "quote_cancel": "abbrechen",
+    "quote_invalid": "Unzulässige Antwort. Bitte antworte mit scrobble, neu oder abbrechen.",
+    "quote_cancelled": "Zitat-Aufnahme abgebrochen.",
+    "quote_done": "Fertig!"
   }
 }

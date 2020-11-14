@@ -8,7 +8,7 @@ from datetime import datetime
 from base import BaseSubsystem
 from conf import Storage, Lang
 from botutils import utils
-from botutils.converters import get_best_username
+from botutils.converters import get_best_username, get_best_user
 from subsystems import timers
 
 """
@@ -180,9 +180,7 @@ class IgnoreDataset:
         :param ignoring_instance: The ignoring subsystem instance, only necessary for to_message()
         :return: IgnoreDataset object
         """
-        user = bot.guild.get_member(d["userid"])
-        if user is None:
-            user = bot.get_user(d["userid"])
+        user = get_best_user(d["userid"])
         channel = bot.get_channel(d["channelid"])
         return IgnoreDataset(d["type"], user, d["command_name"], channel, d["until"],
                              ignoring_instance=ignoring_instance)

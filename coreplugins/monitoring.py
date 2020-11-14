@@ -53,6 +53,16 @@ class Plugin(BasePlugin, name="Bot status commands for monitoring and debug purp
                             if_empty="None"):
             await ctx.send(msg)
 
+        liveticker_list = []
+        for leag in self.bot.liveticker.registrations.values():
+            liveticker_list.append(leag)
+            liveticker_list.extend("- {}".format(str(lt_reg)) for lt_reg in leag.registrations)
+        for msg in paginate(liveticker_list,
+                            prefix="**Liveticker Registrations:**\n",
+                            suffix="\n",
+                            if_empty="None"):
+            await ctx.send(msg)
+
     @commands.command(name="storagedump", help="Dumps plugin storage", usage="<plugin name>")
     @commands.has_any_role(Config().BOT_ADMIN_ROLE_ID)
     async def storagedump(self, ctx, name):

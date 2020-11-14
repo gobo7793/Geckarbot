@@ -77,12 +77,14 @@
         "title_matchday_league": "Matchday {} - Duels League {}",
         "danny_no_id": "Danny's ID is missing!",
         "danny_no_users": "Tell me usernames, pls!",
-        "danny_done": "Danny now got the predictions of {}!",
+        "danny_done": "{} now got the predictions of {}!",
+        "danny_done_notfound": "{} now got the predictions of {}!\nThese users I cant remember: {}",
         "table_footer": "Yes this is live, gobo7793!"
     },
     "de": {
         "help_spaetzle": "Commands für das Zeigen und Verwalten des Spätzle(s)-Tippspiels",
         "help_spaetzle_danny": "Schickt Danny Bundesliga-Tipps in die DMs",
+        "description_spaetzle_danny": "Schickt dem in der Config unter 'danny_id' angegebenen User (i.d.R. Danny) die aktuellen Tipps der in der Config unter 'danny_users' eingetragenen Spätzle-Teilnehmer. Die Auswahl kann alternativ auch durch die Angabe der gewünschten Teilnehmer (Spätzle-Namen) vorgenommen werden. Danny bzw der in der Config stehende User erhält die Tipps über private Nachrichten.\n\n\uD83D\uDD12 Dieses Kommando kann nur vom Spätzle-Manager bzw. Danny in Auftrag gegeben werden!",
         "help_spaetzle_duel": "Zeigt ein einzelnes Duell an",
         "help_spaetzle_duels": "Beobachtete Duelle bzw Duelle einer Liga",
         "description_spaetzle_duels": "1. Ist keine Liga angegeben, werden die Duelle der beobachteten Teilnehmer sowie deren aktueller Stand aufgelistet.\n2. Ist eine Liga angegeben, werden die Duelle dieser Liga aufgelistet inklusive deren aktueller Stände.\n3. Mit dem Zusatz 'all' können die Duelle aller Ligen angezeigt werden, dies ist jedoch nicht sehr übersichtlich.",
@@ -159,7 +161,8 @@
         "title_matchday_league": "Spieltag {} - Duelle Liga {}",
         "danny_no_id": "Bitte füge Dannys ID zur Config hinzu!",
         "danny_no_users": "Trage mir Namen in die Config ein oder sagse mir ins Gesicht!",
-        "danny_done": "Danny hat nun die Tipps von {} erhalten!",
+        "danny_done": "{} hat nun die Tipps von {} erhalten!",
+        "danny_done_notfound": "{} hat nun die Tipps von {} erhalten!\n{} kenne ich aber gar nicht.",
         "table_footer": "@gobo: möglicherweise live-stände"
     }
 }

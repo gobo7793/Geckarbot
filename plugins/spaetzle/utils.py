@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 from enum import Enum
 from typing import Tuple
 
+from botutils.sheetsclient import Cell
 from conf import Storage
 
 
@@ -178,7 +179,7 @@ def convert_to_datetime(day, time):
             day_ = datetime(*date[::-1])
         except (TypeError, ValueError):
             day_ = datetime.today()
-    if type(time) == int:
+    if type(time) == float:
         time_ = datetime(1, 1, 1) + timedelta(days=time)
     else:
         try:
@@ -224,7 +225,7 @@ def get_user_league(plugin, user: str):
         if user.lower() in (x.lower() for x in participants):
             return league
     else:
-        raise UserNotFound
+        raise UserNotFound(user)
 
 
 def get_user_cell(plugin, user: str):
@@ -236,11 +237,9 @@ def get_user_cell(plugin, user: str):
     for league, participants in Storage().get(plugin)['participants'].items():
         for i in range(len(participants)):
             if user.lower() == participants[i].lower():
-                col = 60 + (2 * i)
-                row = 12 * (int(league) - 1) + 2
-                return col, row
+                return Cell(column=60 + (2 * i), row=12 * (int(league) - 1) + 2)
     else:
-        raise UserNotFound
+        raise UserNotFound(user)
 
 
 def get_schedule(plugin, league, matchday: int):
@@ -278,4 +277,5 @@ def get_schedule_opponent(plugin, participant, matchday: int):
 
 
 class UserNotFound(Exception):
-    pass
+    def __init__(self, user):
+        self.user = user

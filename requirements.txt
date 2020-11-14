@@ -1,5 +1,5 @@
-dateutils>=0.6.11
-discord.py>=1.4.1
+dateutils>=0.6.12
+discord.py>=1.5.1
 emoji>=0.6.0
 google-api-python-client>=1.12.1
 google-auth-httplib2>=0.0.4
