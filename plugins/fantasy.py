@@ -101,6 +101,7 @@ class FantasyLeague:
                 players = self._slc.make_request(endpoint="players/nfl")
                 Storage.set(self.plugin, players, "sleeper_players")
                 Storage.save(self.plugin, "sleeper_players")
+                Storage.load(self.plugin)
 
             self._sl_league_data["league"] = self._slc.make_request(endpoint="league/{}".format(self.league_id))
             rosters = self._slc.make_request(endpoint="league/{}/rosters".format(self.league_id))
@@ -410,6 +411,7 @@ class Plugin(BasePlugin, name="NFL Fantasyliga"):
         self.start_date = datetime.now()
         self.end_date = datetime.now() + timedelta(days=16 * 7)
         self.use_timers = False
+        self.default_league = []
         self.leagues = []  # type: List[FantasyLeague]
         self._score_timer_jobs = []  # type: List[timers.Job]
 
@@ -446,6 +448,7 @@ class Plugin(BasePlugin, name="NFL Fantasyliga"):
             "start": datetime.now(),
             "end": datetime.now() + timedelta(days=16 * 7),
             "timers": False,
+            "def_league": None,
             "leagues": [],
             "espn_credentials": {
                 "swid": "",
@@ -488,6 +491,8 @@ class Plugin(BasePlugin, name="NFL Fantasyliga"):
             self._update_config_from_2_to_3()
         if Config.get(self)["version"] == 3:
             self._update_config_from_3_to_4()
+        if Config.get(self)["version"] == 4:
+            self._update_config_from_4_to_5()
 
         self.supercommish = get_best_user(Storage.get(self)["supercommish"])
         self.state = Storage.get(self)["state"]
@@ -497,6 +502,7 @@ class Plugin(BasePlugin, name="NFL Fantasyliga"):
         self.start_date = Storage.get(self)["start"]
         self.end_date = Storage.get(self)["end"]
         self.use_timers = Storage.get(self)["timers"]
+        self.default_league = Storage.get(self)["def_league"]
         for d in Storage.get(self)["leagues"]:
             self.leagues.append(FantasyLeague.deserialize(self, d))
 
@@ -511,6 +517,7 @@ class Plugin(BasePlugin, name="NFL Fantasyliga"):
             "start": self.start_date,
             "end": self.end_date,
             "timers": self.use_timers,
+            "def_league": self.default_league,
             "leagues": [el.serialize() for el in self.leagues],
             "espn_credentials": {
                 "swid": Storage.get(self)["espn_credentials"]["swid"],
@@ -520,6 +527,17 @@ class Plugin(BasePlugin, name="NFL Fantasyliga"):
         Storage.set(self, storage_d)
         Storage.save(self)
         Config.save(self)
+
+    def _update_config_from_4_to_5(self):
+        log.info("Updating config from version 4 to version 5")
+
+        Storage.get(self)["def_league"] = []
+
+        Config.get(self)["version"] = 5
+        Storage.save(self)
+        Config.save(self)
+
+        log.info("Update finished")
 
     def _update_config_from_3_to_4(self):
         log.info("Updating config from version 3 to version 4")
@@ -677,6 +695,9 @@ class Plugin(BasePlugin, name="NFL Fantasyliga"):
 
             async with channel.typing():
                 if team_name is None or not team_name:
+                    if league_name is None and len(self.default_league) == 2 and \
+                            (league.league_id != self.default_league[0] or league.platform != self.default_league[1]):
+                        continue
                     embed = self._get_league_score_embed(league, lweek)
                 else:
                     team = next((t for t in league.get_teams()
@@ -780,8 +801,13 @@ class Plugin(BasePlugin, name="NFL Fantasyliga"):
             return
 
         for league in self.leagues:
+            if league_name is None and len(self.default_league) == 2 and\
+                    (league.league_id != self.default_league[0] or league.platform != self.default_league[1]):
+                continue
+
             if league_name is not None and league_name not in league.name:
                 continue
+
             embed = discord.Embed(title=league.name)
             embed.url = league.standings_url
 
@@ -812,7 +838,8 @@ class Plugin(BasePlugin, name="NFL Fantasyliga"):
             embed.url = league.league_url
 
             embed.add_field(name=Lang.lang(self, "supercommish"), value=self.supercommish.mention)
-            embed.add_field(name=Lang.lang(self, "commish"), value=league.commish.mention)
+            com = league.commish.mention if league.commish is not None else Lang.lang(self, "unknown")
+            embed.add_field(name=Lang.lang(self, "commish"), value=com)
 
             async with ctx.typing():
                 if self.state == FantasyState.Sign_up:
@@ -1036,8 +1063,31 @@ class Plugin(BasePlugin, name="NFL Fantasyliga"):
         Config.save(self)
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
+    @fantasy_set.command(name="default")
+    async def set_default(self, ctx, platform_name, league_id: int = None):
+        if platform_name.lower() == "del":
+            self.default_league = []
+            self.save()
+            await add_reaction(ctx.message, Lang.CMDSUCCESS)
+            return
+
+        platform = await self.parse_platform(platform_name, ctx)
+        if platform is None:
+            return
+
+        for league in self.leagues:
+            if league.league_id == league_id and league.platform == platform:
+                self.default_league = [league.league_id, league.platform]
+                self.save()
+                await add_reaction(ctx.message, Lang.CMDSUCCESS)
+                break
+        else:
+            await add_reaction(ctx.message, Lang.CMDERROR)
+            await ctx.send(Lang.lang(self, "league_id_not_found", league_id))
+
     @fantasy_set.command(name="add")
-    async def set_add(self, ctx, platform_name, league_id: int, commish: Union[discord.Member, discord.User, str]):
+    async def set_add(self, ctx, platform_name, league_id: int,
+                      commish: Union[discord.Member, discord.User, str] = None):
         platform = await self.parse_platform(platform_name, ctx)
         if platform is None:
             return
@@ -1052,12 +1102,13 @@ class Plugin(BasePlugin, name="NFL Fantasyliga"):
             league = FantasyLeague(self, platform, league_id, commish)
         if not league.name:
             await add_reaction(ctx.message, Lang.CMDERROR)
-            await ctx.send(Lang.lang(self, "league_add_fail", league_id))
+            await ctx.send(Lang.lang(self, "league_add_fail", league_id, platform.name))
         else:
             self.leagues.append(league)
             self.save()
             await add_reaction(ctx.message, Lang.CMDSUCCESS)
-            await ctx.send(Lang.lang(self, "league_added", get_best_username(commish), league.name))
+            com = Lang.lang(self, "nobody") if commish is None or not commish else get_best_username(commish)
+            await ctx.send(Lang.lang(self, "league_added", get_best_username(com), league.name))
 
     @fantasy_set.command(name="del")
     async def set_del(self, ctx, league_id: int, platform_name: Platform = None):
@@ -1079,4 +1130,5 @@ class Plugin(BasePlugin, name="NFL Fantasyliga"):
             self.leagues.remove(to_remove)
             self.save()
             await add_reaction(ctx.message, Lang.CMDSUCCESS)
-            await ctx.send(Lang.lang(self, "league_removed", get_best_username(to_remove.commish), to_remove.name))
+            com = get_best_username(to_remove.commish) if to_remove.commish is not None else Lang.lang(self, "unknown")
+            await ctx.send(Lang.lang(self, "league_removed", com, to_remove.name))
