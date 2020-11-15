@@ -308,6 +308,9 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
         for league in self.leagues:
             if league_name is not None and league_name.lower() not in league.name.lower():
                 continue
+            if league_name is None and len(self.default_league) == 2 and \
+                    (league.league_id != self.default_league[0] or league.platform != self.default_league[1]):
+                continue
             lweek = week
             if week == 0:
                 lweek = league.current_week
@@ -318,9 +321,6 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
 
             async with channel.typing():
                 if team_name is None or not team_name:
-                    if league_name is None and len(self.default_league) == 2 and \
-                            (league.league_id != self.default_league[0] or league.platform != self.default_league[1]):
-                        continue
                     embed = self._get_league_score_embed(league, lweek)
                 else:
                     team = next((t for t in league.get_teams()
