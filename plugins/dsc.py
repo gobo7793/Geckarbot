@@ -227,7 +227,7 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
     @dsc_set.command(name="points", help="Sets the voting system",
                      description="Sets the point list for the current voting system. Points can be set like "
                                  "\"12-10-...\" or \"12 10 ...\", which will be converted to the first.")
-    async def dsc_set_status(self, ctx, *points):
+    async def dsc_set_points(self, ctx, *points):
         Storage.get(self)['points'] = "-".join(points)
         Storage().save(self)
         await utils.add_reaction(ctx.message, Lang.CMDSUCCESS)
