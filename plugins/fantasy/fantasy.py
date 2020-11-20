@@ -781,7 +781,7 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
             await add_reaction(ctx.message, Lang.CMDERROR)
             await ctx.send(Lang.lang(self, "league_add_fail", league_id, platform.name))
         else:
-            max_id = max(self.leagues)
+            max_id = max(self.leagues) + 1
             self.leagues[max_id] = league
             self.save()
             await add_reaction(ctx.message, Lang.CMDSUCCESS)
