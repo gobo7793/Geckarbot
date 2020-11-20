@@ -169,7 +169,7 @@ class Job:
     def next_execution(self):
         if self._cached_next_exec is None:
             self._cached_next_exec = next_occurence(self._timedict)
-        self._mothership.logger.info("Next execution: {}".format(self._cached_next_exec))
+        self._mothership.logger.debug("Next execution: {}".format(self._cached_next_exec))
         return self._cached_next_exec
 
     def __str__(self):
