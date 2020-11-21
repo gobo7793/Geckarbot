@@ -76,20 +76,20 @@ class PointsQuizController(BaseQuizController):
         self._score = Score(self.plugin, self.config, self.question_count)
 
         # State handling
+        self.eval_event = None
         self.stopped_manually = False
         self.ran_into_timeout = False
         self.current_question = None
         self.current_question_timer = None
         self.current_reaction_listener = None
-        self.statemachine = statemachine.StateMachine()
-        self.statemachine.add_state(Phases.INIT, None, None)
-        self.statemachine.add_state(Phases.REGISTERING, self.registering_phase, [Phases.INIT])
-        self.statemachine.add_state(Phases.ABOUTTOSTART, self.about_to_start, [Phases.REGISTERING])
-        self.statemachine.add_state(Phases.QUESTION, self.pose_question, [Phases.ABOUTTOSTART, Phases.EVAL])
-        self.statemachine.add_state(Phases.EVAL, self.eval, [Phases.QUESTION])
-        self.statemachine.add_state(Phases.END, self.end, [Phases.QUESTION], end=True)
-        self.statemachine.add_state(Phases.ABORT, self.abortphase, None, end=True)
-        self.statemachine.state = Phases.INIT
+        self.statemachine = statemachine.StateMachine(init_state=Phases.INIT)
+        self.statemachine.add_state(Phases.REGISTERING, self.registering_phase, start=True)
+        self.statemachine.add_state(Phases.ABOUTTOSTART, self.about_to_start, allowed_sources=[Phases.REGISTERING])
+        self.statemachine.add_state(Phases.QUESTION, self.pose_question,
+                                    allowed_sources=[Phases.ABOUTTOSTART, Phases.EVAL])
+        self.statemachine.add_state(Phases.EVAL, self.eval, allowed_sources=[Phases.QUESTION])
+        self.statemachine.add_state(Phases.END, self.end, allowed_sources=[Phases.QUESTION], end=True)
+        self.statemachine.add_state(Phases.ABORT, self.abortphase, end=True)
 
         # Participant handling
         self.registered_participants = {}
@@ -106,7 +106,6 @@ class PointsQuizController(BaseQuizController):
         REGISTERING -> ABOUTTOSTART; REGISTERING -> ABORT
         """
         self.plugin.logger.debug("Starting PointsQuizController")
-        self.state = Phases.REGISTERING
         reaction = Lang.lang(self.plugin, "reaction_signup")
         signup_msg = await self.channel.send(Lang.lang(self.plugin, "registering_phase", reaction,
                                                        self.config["points_quiz_register_timeout"] // 60))
@@ -151,9 +150,9 @@ class PointsQuizController(BaseQuizController):
         players = len(self.registered_participants)
         if players == 0 or (self.ranked and players < self.config["ranked_min_players"] and not self.debug):
             await self.channel.send(Lang.lang(self.plugin, "quiz_no_players"))
-            self.state = Phases.ABORT
+            return Phases.ABORT
         else:
-            self.state = Phases.ABOUTTOSTART
+            return Phases.ABOUTTOSTART
 
     async def about_to_start(self):
         """
@@ -178,7 +177,7 @@ class PointsQuizController(BaseQuizController):
             await self.channel.send(embed=embed)
 
         await asyncio.sleep(10)
-        self.state = Phases.QUESTION
+        return Phases.QUESTION
 
     async def pose_question(self):
         """
@@ -189,11 +188,11 @@ class PointsQuizController(BaseQuizController):
             self.current_question = self.quizapi.next_question()
         except QuizEnded:
             self.plugin.logger.debug("Caught QuizEnded, will end the quiz now.")
-            self.state = Phases.END
-            return
+            return Phases.END
 
+        self.eval_event = asyncio.Event()
         self.current_question_timer = timers.AsyncTimer(self.plugin.bot, self.config["points_quiz_question_timeout"],
-                                                        self.timeout_warning, self.current_question)
+                                                        self.timeout_warning, self.eval_event)
         msg = await self.current_question.pose(self.channel, emoji=self.config["emoji_in_pose"])
         self.current_reaction_listener = self.plugin.bot.reaction_listener.register(
             msg, self.on_reaction, data=self.current_question)
@@ -215,6 +214,11 @@ class PointsQuizController(BaseQuizController):
             answer = self.current_question.letter_mapping(found, emoji=True)
             self.registered_participants[self.plugin.bot.user] = [answer]
             self.answers_order.append(self.plugin.bot.user)
+
+        # Wait for answers or timeout
+        await self.eval_event.wait()
+        self.eval_event = None
+        return Phases.EVAL
 
     async def eval(self):
         """
@@ -273,10 +277,10 @@ class PointsQuizController(BaseQuizController):
             self.registered_participants[user] = []
 
         await asyncio.sleep(self.config["question_cooldown"])
-        self.state = Phases.QUESTION
+        return Phases.QUESTION
 
     async def end(self):
-
+        self.plugin.logger.debug("Ending quiz")
         embed = self.score.embed()
         winners = [get_best_username(Storage().get(self.plugin), x) for x in self.score.winners()]
 
@@ -308,6 +312,7 @@ class PointsQuizController(BaseQuizController):
         self.plugin.end_quiz(self.channel)
 
     async def abortphase(self):
+        self.plugin.logger.debug("Aborting quiz")
         self.plugin.end_quiz(self.channel)
         if self.current_question_timer is not None:
             try:
@@ -326,6 +331,15 @@ class PointsQuizController(BaseQuizController):
     """
     async def on_message(self, msg):
         return
+
+    def continue_event(self, event):
+        """
+        Gracefully continues after waiting for question answers
+        :param event: Eval event that is to be set
+        """
+        if event == self.eval_event:
+            self.plugin.logger.debug("Continuing after waiting for answers")
+            self.eval_event.set()
 
     async def on_reaction(self, event):
         if event.member == self.plugin.bot.user:
@@ -370,16 +384,17 @@ class PointsQuizController(BaseQuizController):
         if event.member not in self.answers_order:
             self.answers_order.append(event.member)
         if not self.havent_answered_hr():
-            self.state = Phases.EVAL
+            self.plugin.logger.debug("Everyone has answered, continuing")
+            self.continue_event(self.eval_event)
 
     """
     Timers stuff; these functions are scheduled by timers only
     """
-    async def timeout_warning(self, question):
+    async def timeout_warning(self, event):
         """
-        :param question: Question object of the question that was running at timer start time.
+        :param event: Eval event that is to be set after the timeout
         """
-        if self.current_question != question or self.state != Phases.QUESTION:
+        if self.eval_event != event:
             # We are out of date
             self.plugin.logger.debug("Timeout warning out of date")
             return
@@ -387,7 +402,7 @@ class PointsQuizController(BaseQuizController):
         self.plugin.logger.debug("Question timeout warning")
         self.current_question_timer = timers.AsyncTimer(self.plugin.bot,
                                                         self.config["points_quiz_question_timeout"] // 2,
-                                                        self.timeout, self.current_question)
+                                                        self.timeout, event)
 
         msg = Lang.lang(self.plugin, "points_timeout_warning",
                         format_andlist(self.havent_answered_hr(),
@@ -400,11 +415,11 @@ class PointsQuizController(BaseQuizController):
         if panic:
             await self.channel.send("I know this should not happen. Please leave a `!complain`, thank you very much.")
 
-    async def timeout(self, question):
+    async def timeout(self, event):
         """
-        :param question: Question object of the question that was running at timer start time.
+        :param event: Eval event that is to be set after the timeout
         """
-        if self.current_question != question or self.state != Phases.QUESTION:
+        if self.eval_event != event:
             # We are out of date
             self.plugin.logger.debug("Timeout warning out of date")
             return
@@ -416,8 +431,8 @@ class PointsQuizController(BaseQuizController):
                                        ands=Lang.lang(self.plugin, "and"),
                                        fulllist=Lang.lang(self.plugin, "everyone"),
                                        fulllen=len(self.registered_participants)))
-        self.state = Phases.EVAL
         await self.channel.send(msg)
+        self.continue_event(event)
 
     """
     Commands
@@ -434,7 +449,7 @@ class PointsQuizController(BaseQuizController):
                                     question_count=self.question_count,
                                     difficulty=self.difficulty,
                                     debug=self.debug)
-        self.state = Phases.REGISTERING
+        await self.statemachine.run()
 
     async def register_command(self, msg, *args):
         """
@@ -443,9 +458,6 @@ class PointsQuizController(BaseQuizController):
         :param args: Passed arguments, including "register"
         """
         assert self.cmdstring_register in args
-        if "skip" in args:
-            self.state = Phases.ABOUTTOSTART
-            return
 
         if len(args) > 1:
             await self.channel.send(Lang.lang(self.plugin, "too_many_arguments"))
@@ -484,7 +496,7 @@ class PointsQuizController(BaseQuizController):
         """
         Called when the status command is invoked.
         """
-        if self.state == Phases.INIT:
+        if self.state == Phases.INIT or self.state == Phases.REGISTERING:
             title = Lang.lang(self.plugin, "status_title_init")
         else:
             title = Lang.lang(self.plugin,
@@ -522,8 +534,8 @@ class PointsQuizController(BaseQuizController):
         Called when the quiz is aborted.
         """
         self.stopped_manually = True
-        self.state = Phases.ABORT
         await msg.add_reaction(Lang.CMDSUCCESS)
+        return Phases.ABORT
 
     @property
     def score(self):
@@ -538,10 +550,6 @@ class PointsQuizController(BaseQuizController):
     @property
     def state(self):
         return self.statemachine.state
-
-    @state.setter
-    def state(self, state):
-        self.statemachine.state = state
 
     def has_everyone_answered(self):
         if self.havent_answered_hr():
@@ -588,13 +596,12 @@ class RushQuizController(BaseQuizController):
         self.current_question = None
         self.current_question_timer = None
         self.statemachine = statemachine.StateMachine()
-        self.statemachine.add_state(Phases.INIT, None, None)
+        self.statemachine.add_state(Phases.INIT, None, None, start=True)
         self.statemachine.add_state(Phases.ABOUTTOSTART, self.about_to_start, [Phases.INIT])
         self.statemachine.add_state(Phases.QUESTION, self.pose_question, [Phases.ABOUTTOSTART, Phases.EVAL])
         self.statemachine.add_state(Phases.EVAL, self.eval, [Phases.QUESTION])
         self.statemachine.add_state(Phases.END, self.end, [Phases.QUESTION], end=True)
         self.statemachine.add_state(Phases.ABORT, self.abortphase, None, end=True)
-        self.statemachine.state = Phases.INIT
 
         # Quiz handling
         self.last_author = None

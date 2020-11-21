@@ -564,11 +564,12 @@ class Plugin(BasePlugin, name="LastFM"):
     def expand_formula(top_index, top_matches, current_index, current_matches):
         return current_matches / current_index > (top_matches - 2) / top_index
 
-    async def expand(self, lfmuser, so_far, criterion, example):
+    async def expand(self, lfmuser, page_len, so_far, criterion, example):
         """
         Expands a streak on the first page to the longest it can find across multiple pages.
         Potentially downgrades the criterion layer if the lower layer has far more matches.
         :param lfmuser: Last.fm user name
+        :param page_len: Last.fm request page length
         :param so_far: First page of songs
         :param criterion: MostInteresting instance
         :param example: Example song
@@ -577,7 +578,6 @@ class Plugin(BasePlugin, name="LastFM"):
         """
         self.logger.debug("Expanding")
         limit = 5
-        page_len = len(so_far)
         page_index = 1
         params = {
             "method": "user.getRecentTracks",
@@ -774,7 +774,7 @@ class Plugin(BasePlugin, name="LastFM"):
             # Nothing interesting found, send single song msg
             await ctx.send(self.listening_msg(user, songs[0]))
             return
-        matches, total, mi = await self.expand(lfmuser, songs, mi, mi_example)
+        matches, total, mi = await self.expand(lfmuser, pagelen, songs, mi, mi_example)
 
         # build msg
         if matches == total:
