@@ -222,7 +222,7 @@ class Plugin(BasePlugin, name="LastFM"):
                     r.append(cmd)
         return r
 
-    def request(self, params, method="GET"):
+    async def request(self, params, method="GET"):
         params["format"] = "json"
         params["api_key"] = self.conf["apikey"]
         headers = {
@@ -230,7 +230,7 @@ class Plugin(BasePlugin, name="LastFM"):
             "User-Agent": "Geckarbot/{}".format(self.bot.VERSION)
         }
         before = self.perf_timenow()
-        r = self.client.make_request("", params=params, headers=headers, method=method)
+        r = await self.client.request("", params=params, headers=headers, method=method)
         after = self.perf_timenow()
         self.perf_add_lastfm_time(after - before)
         return r
@@ -308,7 +308,7 @@ class Plugin(BasePlugin, name="LastFM"):
 
     @lastfm.command(name="register")
     async def register(self, ctx, lfmuser: str):
-        info = self.get_user_info(lfmuser)
+        info = await self.get_user_info(lfmuser)
         if info is None:
             await ctx.message.add_reaction(Lang.CMDERROR)
             await ctx.send(Lang.lang(self, "user_not_found"))
@@ -363,7 +363,7 @@ class Plugin(BasePlugin, name="LastFM"):
             "page": page,
             "limit": pagelen
         }
-        songs = self.build_songs(self.request(params))
+        songs = self.build_songs(await self.request(params))
         for i in range(len(songs)):
             songs[i] = self.listening_msg(ctx.author, songs[i])
         await ctx.message.add_reaction(Lang.CMDSUCCESS)
@@ -398,7 +398,7 @@ class Plugin(BasePlugin, name="LastFM"):
             "limit": 1,
             "extended": 1,
         }
-        response = self.request(params)
+        response = await self.request(params)
         song = self.build_songs(response)[0]
 
         # Build Questionnaire
@@ -472,7 +472,7 @@ class Plugin(BasePlugin, name="LastFM"):
         }
 
         async with ctx.typing():
-            response = self.request(params)
+            response = await self.request(params)
             song = self.build_songs(response)[0]
 
         await ctx.send(self.listening_msg(user, song))
@@ -500,13 +500,13 @@ class Plugin(BasePlugin, name="LastFM"):
             msg = "{} _{}_".format(msg, quote)
         return msg
 
-    def get_user_info(self, lfmuser):
+    async def get_user_info(self, lfmuser):
         params = {
             "method": "user.getInfo",
             "user": lfmuser
         }
         try:
-            return self.request(params)
+            return await self.request(params)
         except HTTPError:
             return None
 
@@ -564,11 +564,12 @@ class Plugin(BasePlugin, name="LastFM"):
     def expand_formula(top_index, top_matches, current_index, current_matches):
         return current_matches / current_index > (top_matches - 2) / top_index
 
-    def expand(self, lfmuser, so_far, criterion, example):
+    async def expand(self, lfmuser, page_len, so_far, criterion, example):
         """
         Expands a streak on the first page to the longest it can find across multiple pages.
         Potentially downgrades the criterion layer if the lower layer has far more matches.
         :param lfmuser: Last.fm user name
+        :param page_len: Last.fm request page length
         :param so_far: First page of songs
         :param criterion: MostInteresting instance
         :param example: Example song
@@ -577,7 +578,6 @@ class Plugin(BasePlugin, name="LastFM"):
         """
         self.logger.debug("Expanding")
         limit = 5
-        page_len = len(so_far)
         page_index = 1
         params = {
             "method": "user.getRecentTracks",
@@ -626,7 +626,7 @@ class Plugin(BasePlugin, name="LastFM"):
             params["limit"] = page_len
             params["page"] = page_index
             self.logger.debug("Expand: Fetching page {}".format(page_index))
-            current_page = self.build_songs(self.request(params), first=False)
+            current_page = self.build_songs(await self.request(params), first=False)
 
         self.logger.debug("counters: {}".format(counters))
 
@@ -739,7 +739,7 @@ class Plugin(BasePlugin, name="LastFM"):
             "limit": pagelen,
             "extended": 1,
         }
-        response = self.request(params, "GET")
+        response = await self.request(params, "GET")
         songs = self.build_songs(response)
 
         # Calc counts
@@ -774,7 +774,7 @@ class Plugin(BasePlugin, name="LastFM"):
             # Nothing interesting found, send single song msg
             await ctx.send(self.listening_msg(user, songs[0]))
             return
-        matches, total, mi = self.expand(lfmuser, songs, mi, mi_example)
+        matches, total, mi = await self.expand(lfmuser, pagelen, songs, mi, mi_example)
 
         # build msg
         if matches == total:
