@@ -416,15 +416,16 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             data = {}
             participants = Storage().get(self)['participants']
             for leag, p in participants.items():
-                data[leag] = [[num for elem in [[user, None] for user in p] for num in elem]]
+                data["Aktuell!{}".format(Config().get(self)['predictions_ranges'][leag])] = [[num for elem in
+                                                                         [[user, None] for user in p] for num in elem]]
                 for match in matches:
                     row = []
                     for user in p:
                         row.extend(predictions_by_user.get(user, {}).get(match, [None, None]))
-                    data[leag].append(row)
+                    data["Aktuell!{}".format(Config().get(self)['predictions_ranges'][leag])].append(row)
 
             # Updating cells
-            c.update("Aktuell!{}".format(Config().get(self)['predictions_range']), data, raw=False)
+            c.update_multiple(data, raw=False)
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
     @spaetzle_set.command(name="archive", help="Archives the current matchday and clears the frontpage")
