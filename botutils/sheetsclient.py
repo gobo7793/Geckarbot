@@ -67,15 +67,15 @@ class Cell:
 
     def translate(self, columns: int, rows: int):
         """
-        Translates the cell by the given number of columns and rows
+        Returns cell translated by the given number of columns and rows
 
         :param columns: number of columns the cell should be moved
         :param rows: number of rows the rows the cell should be moved
         :return: resulting cell
         """
-        self.column += columns
-        self.row += rows
-        return self
+        return Cell(column=self.column + columns,
+                    row=self.row + rows,
+                    grid=self.grid)
 
 
 class CellRange:
@@ -114,15 +114,16 @@ class CellRange:
 
     def translate(self, columns, rows):
         """
-        Translates the cell range by the given number of columns and rows
+        Returns cell range translated by the given number of columns and rows
 
         :param columns: number of columns the range should be moved
         :param rows: number of rows the rows the range should be moved
         :return: resulting cell range
         """
-        self.column += columns
-        self.row += rows
-        return self
+        return CellRange(start_cell=Cell(column=self.column + columns,
+                                         row=self.row + rows),
+                         width=self.width,
+                         height=self.height)
 
     def expand(self, top=0, bottom=0, left=0, right=0):
         if self.column <= left or self.row <= top or left + right <= -self.width or top + bottom <= -self.height:
