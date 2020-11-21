@@ -114,15 +114,14 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
         self.postgame = False
         self.presence_messsage = None
         self.participants = []
+        self.eval_event = None
 
-        self.statemachine = statemachine.StateMachine()
+        self.statemachine = statemachine.StateMachine(init_state=State.IDLE)
         self.statemachine.add_state(State.IDLE, None)
-        self.statemachine.add_state(State.REGISTER, self.registering_phase, [State.IDLE])
-        self.statemachine.add_state(State.COLLECT, self.collecting_phase, [State.REGISTER])
-        self.statemachine.add_state(State.DELIVER, self.delivering_phase, [State.COLLECT])
-
+        self.statemachine.add_state(State.REGISTER, self.registering_phase, start=True)
+        self.statemachine.add_state(State.COLLECT, self.collecting_phase, allowed_sources=[State.REGISTER])
+        self.statemachine.add_state(State.DELIVER, self.delivering_phase, allowed_sources=[State.COLLECT])
         self.statemachine.add_state(State.ABORT, self.abort)
-        self.statemachine.state = State.IDLE
 
     def command_help_string(self, command):
         return Lang.lang(self, "help_{}".format(command.name))
@@ -158,7 +157,7 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
         self.postgame = False
         self.channel = ctx.channel
         self.initiator = ctx.message.author
-        self.statemachine.state = State.REGISTER
+        await self.statemachine.run()
 
     @werbinich.command(name="status")
     async def statuscmd(self, ctx):
@@ -271,6 +270,7 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
 
     async def registering_phase(self):
         self.logger.debug("Starting registering phase")
+        self.eval_event = asyncio.Event()
         self.postgame = False
         self.presence_messsage = self.bot.presence.register(Lang.lang(self, "presence", self.channel.name),
                                                             priority=presence.PresencePriority.HIGH)
@@ -285,10 +285,11 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
         except HTTPException:
             # Unable to add reaction, therefore unable to begin the game
             await self.channel.send("PANIC")
-            self.statemachine.state = State.ABORT
-            return
+            return State.ABORT
 
         await asyncio.sleep(to * 60)
+        if self.statemachine.cancelled():
+            return
 
         # Consume signup reactions
         self.participants = []
@@ -315,23 +316,21 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
         if blocked:
             blocked = stringutils.format_andlist(blocked, ands=Lang.lang(self, "and"))
             await self.channel.send(Lang.lang(self, "dmblocked", blocked))
-            self.statemachine.state = State.ABORT
-            return
+            return State.ABORT
 
         for el in candidates:
             try:
                 self.participants.append(Participant(self, el))
             except RuntimeError:
                 await msg.add_reaction(Lang.CMDERROR)
-                self.statemachine.state = State.ABORT
-                return
+                return State.ABORT
 
         players = len(self.participants)
         if players <= 1:
             await self.channel.send(Lang.lang(self, "no_participants"))
-            self.statemachine.state = State.ABORT
+            return State.ABORT
         else:
-            self.statemachine.state = State.COLLECT
+            return State.COLLECT
 
     async def collecting_phase(self):
         assert len(self.participants) > 1
@@ -351,11 +350,18 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
         for el in self.participants:
             await el.init_dm()
 
+        await self.eval_event.wait()
+        if self.statemachine.cancelled():
+            for el in self.participants:
+                await el.cancelled_dm()
+            return None
+        return State.DELIVER
+
     def assigned(self):
         for el in self.participants:
             if el.chosen is None:
                 return
-        self.statemachine.state = State.DELIVER
+        self.eval_event.set()
 
     async def delivering_phase(self):
         for target in self.participants:
@@ -372,15 +378,16 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
                 await target.send(msg)
         await self.channel.send(Lang.lang(self, "done"))
         await self.cleanup()
-        self.statemachine.state = State.IDLE
+        return None
 
     async def abort(self):
         await self.cleanup()
 
     async def cleanup(self):
+        self.logger.debug("Cleaning up")
         for el in self.participants:
             el.cleanup()
         self.presence_messsage.deregister()
+        self.eval_event = None
         self.initiator = None
         self.show_assignees = True
-        self.statemachine.state = State.IDLE
