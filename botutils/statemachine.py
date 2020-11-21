@@ -113,37 +113,6 @@ class StateMachine:
     def cancel(self):
         self._cancelled = True
 
-    def set_state(self, state):
-        if self.has_ended:
-            self.logger.debug("{} state change to {} was requested but statemachine has already stopped at {}."
-                              .format(self.msg, state, self._state))
-            return
-        if state not in self.states:
-            raise Exception("unknown state: {}".format(state))
-
-        if state == self._state:
-            self.logger.debug("{} state is already {}; nothing to be done.".format(self.msg, state))
-            return
-
-        # Execute callback coro
-        source = self._state
-        coro, edges = self.states[state]
-        if edges is not None and source not in edges:
-            raise RuntimeError("{} {} -> {} is not an allowed transition.".format(self.msg, source, state))
-
-        self.logger.debug("Setting state {}".format(state))
-        self._state = state
-        if state in self.ends:
-            self.has_ended = True
-        if coro is not None:
-            self.logger.debug("Running coro for state {}".format(state))
-            try:
-                execute_anything(coro)
-            except Exception as e:
-                if self.cleanup is not None:
-                    execute_anything(self.cleanup, e)
-                raise
-
     def add_state(self, state, coro, allowed_sources=None, start=False, end=False):
         """
         Adds a state.
