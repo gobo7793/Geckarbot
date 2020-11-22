@@ -229,9 +229,14 @@ class Geckarbot(commands.Bot):
         """Loads the given plugin_name in plugin_dir, returns True if plugin loaded successfully"""
         try:
             to_import = "{}.{}".format(plugin_dir, plugin_name)
+            found = False
+            exc = None
             try:
                 self.import_plugin(to_import)
-            except PluginNotFound:
+                found = True
+            except PluginNotFound as e:
+                exc = e
+            if not found:
                 to_import = "{}.{}.{}".format(plugin_dir, plugin_name, plugin_name)
                 self.import_plugin(to_import)
         except NotLoadable as e:
