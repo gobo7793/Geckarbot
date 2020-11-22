@@ -126,15 +126,15 @@ class CellRange:
                          height=self.height)
 
     def expand(self, top=0, bottom=0, left=0, right=0):
+        """
+        Returns cell range expanded by the given amount in each direction
+        """
         if self.column <= left or self.row <= top or left + right <= -self.width or top + bottom <= -self.height:
             raise ValueError
         else:
-            self.column -= left
-            self.row -= top
-            self.width += left + right
-            self.height += top + bottom
-            return self
-
+            return CellRange(start_cell=Cell(column=self.column - left, row=self.row - top),
+                             width=self.width + left + right,
+                             height=self.height + top + bottom)
 
 def get_service():
     try:
