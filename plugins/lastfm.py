@@ -3,6 +3,7 @@ from enum import Enum
 from datetime import datetime
 import time
 import random
+import pprint
 from urllib.error import HTTPError
 
 import discord
@@ -58,8 +59,7 @@ class Song:
 
     @classmethod
     def from_response(cls, plugin, element):
-        import pprint
-        pprint.pprint(element)
+        plugin.logger.debug("Building song from {}".format(pprint.pformat(element)))
         title = element["name"]
         album = element["album"]["#text"]
 
@@ -100,6 +100,9 @@ class Song:
         return cls(plugin, artist, album, title, nowplaying=nowplaying, timestamp=ts, loved=loved)
 
     def quote(self, p=None):
+        if p is None:
+            p = self.plugin.get_config("quote_p")
+
         q = self.plugin.get_quotes(self.artist, self.title)
         if q is not None:
             q = random.choice(q)
@@ -281,7 +284,7 @@ class Plugin(BasePlugin, name="LastFM"):
         self.perf_add_total_time(after - before)
 
     @commands.has_role(Config().BOT_ADMIN_ROLE_ID)
-    @lastfm.command(name="config", hidden=True)
+    @lastfm.command(name="config", aliases=["set"], hidden=True)
     async def cmd_config(self, ctx, key=None, value=None):
         # list
         if key is None and value is None:
@@ -580,7 +583,6 @@ class Plugin(BasePlugin, name="LastFM"):
         out_of being the amount of scrobbles that were looked at, criterion the (new, potentially downgraded) criterion.
         """
         self.logger.debug("Expanding")
-        limit = 5
         page_index = 1
         params = {
             "method": "user.getRecentTracks",
@@ -618,13 +620,15 @@ class Plugin(BasePlugin, name="LastFM"):
                             c["top_index"] = current_index
                             c["top_matches"] = c["current_matches"]
 
+            self.logger.debug("Expand: Iteration done; counters: {}".format(pprint.pformat(counters)))
+
             if not improved and page_index > 1:
                 self.logger.debug("Expand: Done")
                 break
 
             # Done, prepare next loop
             page_index += 1
-            if page_index > limit:
+            if page_index > self.get_config("limit"):
                 break
             params["limit"] = page_len
             params["page"] = page_index
@@ -648,8 +652,7 @@ class Plugin(BasePlugin, name="LastFM"):
 
         return top_matches, top_index, criterion
 
-    @staticmethod
-    def tiebreaker(scores, songs, mitype):
+    def tiebreaker(self, scores, songs, mitype):
         """
         If multiple entries share the first place, decrease the score of all entries that are not the first
         to appear in the list of songs.
@@ -658,8 +661,7 @@ class Plugin(BasePlugin, name="LastFM"):
         :param mitype: MostInterestingType object that represents the criterion layer that is to be tie-broken
         :return:
         """
-        import pprint
-        pprint.pprint(scores)
+        self.logger.debug("Scores to tiebreak: {}".format(pprint.pformat(scores)))
         s = sorted(scores.keys(), key=lambda x: scores[x]["count"], reverse=True)
         first = [el for el in s if scores[el] == scores[s[0]]]
         found = False
@@ -790,13 +792,20 @@ class Plugin(BasePlugin, name="LastFM"):
                 paststr = hr_roughly(mi_example.timestamp,
                                      fstring=Lang.lang(self, "baseformat", "{}", "{}"),
                                      yesterday=Lang.lang(self, "yesterday"),
-                                     seconds=Lang.lang(self, "seconds"),
-                                     minutes=Lang.lang(self, "minutes"),
-                                     hours=Lang.lang(self, "hours"),
-                                     days=Lang.lang(self, "days"),
-                                     weeks=Lang.lang(self, "weeks"),
-                                     months=Lang.lang(self, "months"),
-                                     years=Lang.lang(self, "years"))
+                                     seconds_sg=Lang.lang(self, "seconds_sg"),
+                                     seconds=Lang.lang(self, "seconds_pl"),
+                                     minutes_sg=Lang.lang(self, "minutes_sg"),
+                                     minutes=Lang.lang(self, "minutes_pl"),
+                                     hours_sg=Lang.lang(self, "hours_sg"),
+                                     hours=Lang.lang(self, "hours_pl"),
+                                     days_sg=Lang.lang(self, "days_sg"),
+                                     days=Lang.lang(self, "days_pl"),
+                                     weeks_sg=Lang.lang(self, "weeks_sg"),
+                                     weeks=Lang.lang(self, "weeks_pl"),
+                                     months_sg=Lang.lang(self, "months_sg"),
+                                     months=Lang.lang(self, "months_pl"),
+                                     years_sg=Lang.lang(self, "years_sg"),
+                                     years=Lang.lang(self, "years_sg"))
                 vp = Lang.lang(self, "most_interesting_past_format", gbu(user), paststr, "{}")
             else:
                 vp = Lang.lang(self, "most_interesting_base_past", gbu(user), "{}")

@@ -9,6 +9,15 @@ class NotLoadable(Exception):
     pass
 
 
+class PluginNotFound(Exception):
+    """
+    Raised when there is no Plugin class.
+    """
+    def __init__(self, members):
+        super().__init__("Plugin class not found.")
+        self.members = members
+
+
 class NotFound(Exception):
     """
     Raised by override methods to signal that the method was not overridden.

@@ -31,7 +31,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
     def __init__(self, bot):
         super().__init__(bot)
         self.can_reload = True
-        bot.register(self, category=HelpCategory("Spaetzle", description="Plugin for the 'Spaetzle-Tippspiel'"))
+        bot.register(self, category=HelpCategory(bot, "Spaetzle", description="Plugin for the 'Spaetzle-Tippspiel'"))
 
         self.logger = logging.getLogger(__name__)
         self.teamname_dict = TeamnameDict(self)
