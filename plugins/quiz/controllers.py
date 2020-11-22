@@ -593,11 +593,11 @@ class RushQuizController(BaseQuizController):
         self.difficulty = kwargs["difficulty"]
 
         # State handling
+        self.eval_event = None
         self.current_question = None
         self.current_question_timer = None
-        self.statemachine = statemachine.StateMachine()
-        self.statemachine.add_state(Phases.INIT, None, None, start=True)
-        self.statemachine.add_state(Phases.ABOUTTOSTART, self.about_to_start, [Phases.INIT])
+        self.statemachine = statemachine.StateMachine(init_state=Phases.INIT)
+        self.statemachine.add_state(Phases.ABOUTTOSTART, self.about_to_start, start=True)
         self.statemachine.add_state(Phases.QUESTION, self.pose_question, [Phases.ABOUTTOSTART, Phases.EVAL])
         self.statemachine.add_state(Phases.EVAL, self.eval, [Phases.QUESTION])
         self.statemachine.add_state(Phases.END, self.end, [Phases.QUESTION], end=True)
@@ -614,21 +614,30 @@ class RushQuizController(BaseQuizController):
     async def about_to_start(self):
         await self.channel.send(Lang.lang(self.plugin, "quiz_phase"))
         await asyncio.sleep(10)
-        self.state = Phases.QUESTION
+        if self.statemachine.cancelled():
+            return Phases.ABORT
+        return Phases.QUESTION
 
     async def pose_question(self):
         """
         QUESTION -> EVAL
         """
+        self.eval_event = asyncio.Event()
         self.last_author = None
         self.plugin.logger.debug("Posing next question.")
         try:
             self.current_question = self.quizapi.next_question()
         except QuizEnded:
             self.plugin.logger.debug("Caught QuizEnded, will end the quiz now.")
-            self.state = Phases.END
-            return
+            return Phases.END
         await self.current_question.pose(self.channel)
+
+        await self.eval_event.wait()
+        self.eval_event = None
+        if self.statemachine.cancelled():
+            return Phases.ABORT
+        else:
+            return Phases.EVAL
 
     async def eval(self):
         """
@@ -646,7 +655,7 @@ class RushQuizController(BaseQuizController):
                                           question.correct_answer_letter))
 
         await asyncio.sleep(self.config["question_cooldown"])
-        self.state = Phases.QUESTION
+        return Phases.QUESTION
 
     async def end(self):
 
@@ -702,7 +711,7 @@ class RushQuizController(BaseQuizController):
 
         self.last_author = msg.author
         if check:
-            self.state = Phases.EVAL
+            self.eval_event.set()
         await msg.add_reaction(Lang.lang(self.plugin, reaction))
 
     async def abortphase(self):
@@ -716,7 +725,7 @@ class RushQuizController(BaseQuizController):
         self.quizapi = self.quizapi(self.config, self.channel,
                                     category=self.category, question_count=self.question_count,
                                     difficulty=self.difficulty, debug=self.debug)
-        self.state = Phases.ABOUTTOSTART
+        await self.statemachine.run()
 
     async def pause(self, msg):
         raise NotImplementedError
@@ -725,8 +734,14 @@ class RushQuizController(BaseQuizController):
         raise NotImplementedError
 
     async def status(self, msg):
-        embed = discord.Embed(title="Kwiss: question {}/{}".format(
-            self.quizapi.current_question_index() + 1, len(self.quizapi)))
+        if self.state == Phases.INIT or self == Phases.ABOUTTOSTART:
+            title = Lang.lang(self.plugin, "status_title_init")
+        else:
+            title = Lang.lang(self.plugin,
+                              "status_title_ingame",
+                              self.quizapi.current_question_index() + 1,
+                              len(self.quizapi))
+        embed = discord.Embed(title=title)
         embed.add_field(name="Category", value=self.quizapi.category_name(self.category))
         embed.add_field(name="Difficulty", value=Difficulty.human_readable(self.difficulty))
         embed.add_field(name="Mode", value="Rush (Winner takes it all)")
@@ -750,7 +765,7 @@ class RushQuizController(BaseQuizController):
         pass
 
     async def abort(self, msg):
-        self.state = Phases.ABORT
+        self.statemachine.cancel()
         await msg.add_reaction(Lang.CMDSUCCESS)
 
     """
@@ -759,7 +774,3 @@ class RushQuizController(BaseQuizController):
     @property
     def state(self):
         return self.statemachine.state
-
-    @state.setter
-    def state(self, state):
-        self.statemachine.state = state

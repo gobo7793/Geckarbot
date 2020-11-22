@@ -39,39 +39,51 @@ class StateMachine:
         self.msg = "statemachine " + str(id(self)) + ": "
         self.verbose = verbose
         self.states = {}
-        self.started = False
+        self._is_running = False
         self.start = None
         self.ends = []
-        self._state = None
+        self._init_state = init_state
+        self._state = init_state
         self.has_ended = False
         self.cleanup = None
         self.logger = logging.getLogger(__name__)
+        self._cancelled = False
 
     async def run(self):
-        if self.started:
+        if self._is_running:
             raise RuntimeError("Statemachine is already running.")
-        self.started = True
+        self._is_running = True
+        self._cancelled = False
 
         # Execute
-        to_call = self.start
+        to_call, _ = self.states[self.start]
+        self._state = self.start
         init = True
         while True:
+            # Execute
             source = self._state
             self._state = await execute_anything(to_call)
             self.logger.debug("Old state: {}".format(source))
             self.logger.debug("New state: {}".format(self._state))
+
+            # Cancel
+            if self._cancelled:
+                self.end()
+                break
 
             # End state
             if self._state is None:
                 # At least one registered end state
                 if self.ends:
                     if source in self.ends:
+                        self.end()
                         break
                     else:
                         raise IllegalTransition("{} is not registered as an end state but did not return a new state"
                                                 .format(source))
                 # No end state registered
                 else:
+                    self.end()
                     break
 
             # Errors
@@ -83,40 +95,23 @@ class StateMachine:
                                         .format(self.msg, source, self._state))
             init = False
 
+    def end(self):
+        self._is_running = False
+        self._state = self._init_state
+
     @property
     def state(self):
+        print("state: {}".format(self._state))
         return self._state
 
-    def set_state(self, state):
-        if self.has_ended:
-            self.logger.debug("{} state change to {} was requested but statemachine has already stopped at {}."
-                              .format(self.msg, state, self._state))
-            return
-        if state not in self.states:
-            raise Exception("unknown state: {}".format(state))
+    def is_running(self):
+        return self._is_running
 
-        if state == self._state:
-            self.logger.debug("{} state is already {}; nothing to be done.".format(self.msg, state))
-            return
+    def cancelled(self):
+        return self._cancelled
 
-        # Execute callback coro
-        source = self._state
-        coro, edges = self.states[state]
-        if edges is not None and source not in edges:
-            raise RuntimeError("{} {} -> {} is not an allowed transition.".format(self.msg, source, state))
-
-        self.logger.debug("Setting state {}".format(state))
-        self._state = state
-        if state in self.ends:
-            self.has_ended = True
-        if coro is not None:
-            self.logger.debug("Running coro for state {}".format(state))
-            try:
-                execute_anything(coro)
-            except Exception as e:
-                if self.cleanup is not None:
-                    execute_anything(self.cleanup, e)
-                raise
+    def cancel(self):
+        self._cancelled = True
 
     def add_state(self, state, coro, allowed_sources=None, start=False, end=False):
         """
@@ -135,8 +130,7 @@ class StateMachine:
         check is omitted.
         """
         if start:
-            self.start = coro
-            self._state = state
+            self.start = state
             if allowed_sources is not None:
                 raise RuntimeError("The start state cannot have allowed_sources.")
             if coro is None:
