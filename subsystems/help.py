@@ -18,10 +18,11 @@ class CategoryExists(Exception):
 
 class DefaultCategories(Enum):
     UTILS = 0
-    MISC = 1
-    ADMIN = 2
-    MOD = 3
-    GAMES = 4
+    GAMES = 1
+    SPORT = 2
+    MISC = 3
+    MOD = 4
+    ADMIN = 5
 
 
 class CategoryOrder(Enum):
@@ -175,16 +176,18 @@ class GeckiHelp(BaseSubsystem):
         self.logger = logging.getLogger(__name__)
 
         self.default_categories = {
-            DefaultCategories.MISC: HelpCategory(bot, Lang.lang(self, "default_category_misc"),
-                                                 order=CategoryOrder.LAST, defaultcat=True),
-            DefaultCategories.ADMIN: HelpCategory(bot, Lang.lang(self, "default_category_admin"),
-                                                  order=CategoryOrder.LAST, defaultcat=True),
-            DefaultCategories.MOD: HelpCategory(bot, Lang.lang(self, "default_category_mod"),
-                                                order=CategoryOrder.LAST, defaultcat=True),
+            DefaultCategories.UTILS: HelpCategory(bot, Lang.lang(self, "default_category_utils"),
+                                                  order=CategoryOrder.FIRST, defaultcat=True),
             DefaultCategories.GAMES: HelpCategory(bot, Lang.lang(self, "default_category_games"),
                                                   defaultcat=True),
-            DefaultCategories.UTILS: HelpCategory(bot, Lang.lang(self, "default_category_utils"),
-                                                  defaultcat=True)
+            DefaultCategories.SPORT: HelpCategory(bot, Lang.lang(self, "default_category_sport"),
+                                                  defaultcat=True),
+            DefaultCategories.MISC: HelpCategory(bot, Lang.lang(self, "default_category_misc"),
+                                                 order=CategoryOrder.LAST, defaultcat=True),
+            DefaultCategories.MOD: HelpCategory(bot, Lang.lang(self, "default_category_mod"),
+                                                order=CategoryOrder.LAST, defaultcat=True),
+            DefaultCategories.ADMIN: HelpCategory(bot, Lang.lang(self, "default_category_admin"),
+                                                  order=CategoryOrder.LAST, defaultcat=True),
         }
 
         self._categories = [self.default_categories[x] for x in self.default_categories]
