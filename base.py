@@ -14,7 +14,7 @@ class PluginNotFound(Exception):
     Raised when there is no Plugin class.
     """
     def __init__(self, members):
-        super().__init__()
+        super().__init__("Plugin class not found.")
         self.members = members
 
 
