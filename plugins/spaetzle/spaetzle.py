@@ -445,11 +445,13 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                     ranges.append("Aktuell!{}".format(r.rangename()))
                 clear = c.clear_multiple(ranges)
                 if clear:
-                    replace = c.find_and_replace(find="ST {}".format(int(Storage().get(self)['matchday']) - 1),
+                    replace = c.find_and_replace(find="ST {}".format(Storage().get(self)['matchday'] - 1),
                                                  replace="ST {}".format(Storage().get(self)['matchday']),
                                                  include_formulas=True, sheet="Aktuell",
                                                  range=Config().get(self)['findreplace_matchday_range'])
         if duplicate and clear and replace:
+            Storage().get(self)['matchday'] += 1
+            Storage().save(self)
             await add_reaction(ctx.message, Lang.CMDSUCCESS)
         else:
             await add_reaction(ctx.message, Lang.CMDERROR)
