@@ -40,17 +40,26 @@ class HelpCog(BasePlugin):
     def get_configurable_type(self):
         return ConfigurableType.COREPLUGIN
 
-    @commands.command(name="help", description="Zu Hülfe!", usage="[command | category]")
+    @commands.command(name="help")
     async def helpcmd(self, ctx, *args):
         await self.bot.helpsys.helpcmd(ctx, *args)
 
-    @commands.command(name="usage", description="Kurzer Benutzungshinweis", usage="[command | category]")
+    @commands.command(name="usage")
     async def usagecmd(self, ctx, *args):
         await self.bot.helpsys.usagecmd(ctx, *args)
 
     @commands.command(name="helpall")
     async def listcmd(self, ctx, *args):
         await self.bot.helpsys.listcmd(ctx, *args)
+
+    def command_help_string(self, command):
+        return Lang.lang(self, "help_{}".format(command.name))
+
+    def command_description(self, command):
+        return Lang.lang(self, "description_{}".format(command.name))
+
+    def command_usage(self, command):
+        return Lang.lang(self, "usage_{}".format(command.name))
 
 
 class HelpCategory:
