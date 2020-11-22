@@ -261,7 +261,7 @@ class Pastebin(BaseQuizAPI):
 
     @staticmethod
     def category_name(catkey):
-        if catkey == 0:
+        if catkey == Pastebin.CATKEY:
             return "Any"
         else:
             return "Unknown"

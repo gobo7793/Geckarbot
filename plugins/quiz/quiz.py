@@ -603,9 +603,10 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
 
             raise QuizInitError(self, "unknown_arg", arg)
 
-        # check if quizapi supports category
+        # set catkey and check if quizapi supports category
+        catkey = parsed["quizapi"].category_key(parsed["category"])
+        parsed["category"] = catkey
         if found["quizapi"] or found["category"]:  # todo improve this check
-            catkey = parsed["quizapi"].category_key(parsed["category"])
             if catkey is None:
                 apiname = None
                 for api in quizapis:
@@ -614,8 +615,6 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
                         break
                 assert apiname is not None
                 raise QuizInitError(self, "category_not_supported", apiname, parsed["category"])
-            else:
-                parsed["category"] = catkey
 
         self.logger.debug("Parsed kwiss args: {}".format(parsed))
         return controller, parsed
