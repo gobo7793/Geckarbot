@@ -25,6 +25,7 @@ class Plugin(BasePlugin, name="Sport"):
 
     def default_config(self):
         return {
+            'sport_chan': 0,
             'leagues': ["bl1", "bl2", "bl3", "uefanl"],
             'liveticker_leagues': ["bl1", "bl2"]
         }
@@ -154,6 +155,8 @@ class Plugin(BasePlugin, name="Sport"):
                 self.liveticker_regs[league].deregister()
             leag_reg, self.liveticker_regs[league] = self.bot.liveticker.register(league, self.live_goals, True)
             msg.append("{} - Next: {}".format(league, leag_reg.next_match()))
+        Config().get(self)['sport_chan'] = ctx.channel.id
+        Config().save(self)
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
         await ctx.send("\n".join(msg))
 
@@ -165,7 +168,7 @@ class Plugin(BasePlugin, name="Sport"):
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
     async def live_goals(self, new_goals):
-        sport = Config().bot.get_channel(self.bot.CHAN_IDS.get('sport', 0))
+        sport = Config().bot.get_channel(Config().get(self)['sport_chan'])
 
         matches_with_goals = [x for x in new_goals.values() if x['new_goals'] and not x['is_finished']]
         if matches_with_goals:
@@ -179,8 +182,8 @@ class Plugin(BasePlugin, name="Sport"):
                     if not minute:
                         minute = "?"
                     match_goals.append(
-                        "{}:{} *{}'* {}".format(goal.get('ScoreTeam1', "?"), goal.get('ScoreTeam2', "?"),
-                                                minute, goal.get('GoalGetterName', "-")))
+                        "{}:{} {} ({}.)".format(goal.get('ScoreTeam1', "?"), goal.get('ScoreTeam2', "?"),
+                                                goal.get('GoalGetterName', "-"), minute))
                 match_msgs.append(" / ".join(match_goals))
             msgs = paginate(match_msgs, prefix=Lang.lang(self, 'liveticker_prefix'))
             for msg in msgs:

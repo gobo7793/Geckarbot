@@ -417,7 +417,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             participants = Storage().get(self)['participants']
             for leag, p in participants.items():
                 data["Aktuell!{}".format(Config().get(self)['predictions_ranges'][leag])] = [[num for elem in
-                                                                         [[user, None] for user in p] for num in elem]]
+                                                                                              [[user, None] for user in p] for num in elem]]
                 for match in matches:
                     row = []
                     for user in p:
