@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
-import datetime
 import logging
 import pkgutil
 import sys
 import traceback
+import inspect
+import datetime
+import pprint
 from enum import Enum
 from logging import handlers
 from pathlib import Path
@@ -14,7 +16,7 @@ from discord.ext import commands
 
 import injections
 import subsystems
-from base import BasePlugin, NotLoadable, ConfigurableType
+from base import BasePlugin, NotLoadable, ConfigurableType, PluginNotFound
 from botutils import utils, permchecks, converters, stringutils
 from conf import Config, Lang, Storage, ConfigurableData
 from subsystems import timers, reactions, ignoring, dmlisteners, help, presence, liveticker
@@ -67,6 +69,7 @@ class Geckarbot(commands.Bot):
     MOD_ROLES = None
 
     def __init__(self, *args, **kwargs):
+        logging.info("Starting {} {}".format(self.NAME, self.VERSION))
         self.guild = None
         self._plugins = []
 
@@ -211,23 +214,37 @@ class Geckarbot(commands.Bot):
                 failed_list.append(el[1])
         return failed_list
 
+    def import_plugin(self, module_name):
+        module = pkgutil.importlib.import_module(module_name)
+        members = inspect.getmembers(module)
+        found = False
+        for name, obj in members:
+            if name == "Plugin":
+                found = True
+                obj(self)
+        if not found:
+            raise PluginNotFound(members)
+
     def load_plugin(self, plugin_dir, plugin_name):
         """Loads the given plugin_name in plugin_dir, returns True if plugin loaded successfully"""
         try:
             to_import = "{}.{}".format(plugin_dir, plugin_name)
             try:
-                pkgutil.importlib.import_module(to_import).Plugin(self)
-            except AttributeError:
+                self.import_plugin(to_import)
+            except PluginNotFound:
                 to_import = "{}.{}.{}".format(plugin_dir, plugin_name, plugin_name)
-                pkgutil.importlib.import_module(to_import).Plugin(self)
+                self.import_plugin(to_import)
         except NotLoadable as e:
             logging.warning("Plugin {} could not be loaded: {}".format(plugin_name, e))
             plugin_instance = converters.get_plugin_by_name(plugin_name)
             if plugin_instance is not None:
                 self.deregister(plugin_instance)
             return False
+        except PluginNotFound as e:
+            logging.error("Unable to load plugin '{}': Plugin class not found".format(plugin_name))
+            logging.debug("Members: {}".format(pprint.pformat(e.members)))
         except Exception as e:
-            logging.error("Unable to load plugin: {}:\n{}".format(plugin_name, traceback.format_exc()))
+            logging.error("Unable to load plugin '{}':\n{}".format(plugin_name, traceback.format_exc()))
             plugin_instance = converters.get_plugin_by_name(plugin_name)
             if plugin_instance is not None:
                 self.deregister(plugin_instance)
@@ -274,6 +291,7 @@ class Geckarbot(commands.Bot):
         logging.info("Shutting down.")
         logging.debug("Exit code: {}".format(status))
         sys.exit(status)
+
 
 def intent_setup():
     intents = discord.Intents.default()

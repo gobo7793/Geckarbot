@@ -186,6 +186,8 @@ class GeckiHelp(BaseSubsystem):
             langstr = "default_category_mod"
         elif const == DefaultCategories.GAMES:
             langstr = "default_category_games"
+        elif const == DefaultCategories.UTILS:
+            langstr = "default_category_utils"
 
         r = self.category(Lang.lang(self, langstr))
         assert r is not None
