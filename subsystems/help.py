@@ -16,10 +16,11 @@ class CategoryExists(Exception):
 
 
 class DefaultCategories(Enum):
-    MISC = 0
-    ADMIN = 1
-    MOD = 2
-    GAMES = 3
+    UTILS = 0
+    MISC = 1
+    ADMIN = 2
+    MOD = 3
+    GAMES = 4
 
 
 class CategoryOrder(Enum):
@@ -32,7 +33,7 @@ class HelpCog(BasePlugin):
     def __init__(self, bot):
         self.bot = bot
         super().__init__(bot)
-        self.category = HelpCategory(Lang.lang(self, "self_category_name"))
+        self.category = HelpCategory(bot, Lang.lang(self, "self_category_name"))
         self.category.add_plugin(self)
 
     def get_configurable_type(self):
@@ -52,10 +53,11 @@ class HelpCog(BasePlugin):
 
 
 class HelpCategory:
-    def __init__(self, name, description="", order=CategoryOrder.MIDDLE, bot=None, defaultcat=False):
+    def __init__(self, bot, name, description="", order=CategoryOrder.MIDDLE, defaultcat=False):
         self._name = name[0].upper() + name[1:]
         self.description = description
         self.plugins = []
+        self.standalone_commands = []
         self.order = order
         self.bot = bot
         self.default = defaultcat
@@ -108,16 +110,24 @@ class HelpCategory:
         else:
             return self.name
 
+    def command_list(self):
+        r = []
+        for el in self.plugins:
+            for cmd in el.get_commands():
+                r.append(cmd)
+        return r + self.standalone_commands
+
+    def sort_commands(self, ctx, cmds):
+        return sorted(cmds, key=lambda x: x.name)
+
     def format_commands(self, ctx):
         """
         :return: Message list with all commands that this category contains to be consumed by paginate().
         """
         r = []
-        for plugin in self.plugins:
-            cmds = plugin.get_commands()
-            cmds = plugin.sort_commands(ctx, None, cmds)
-            for command in cmds:
-                r.append("  {}".format(self.bot.helpsys.format_command_help_line(plugin, command)))
+        cmds = self.sort_commands(ctx, self.command_list())
+        for command in cmds:
+            r.append("  {}".format(self.bot.helpsys.format_command_help_line(command.cog, command)))
         return r
 
     async def send_category_help(self, ctx):
@@ -139,10 +149,10 @@ class GeckiHelp(BaseSubsystem):
         super().__init__(self.bot)
 
         self._categories = [
-            HelpCategory(Lang.lang(self, "default_category_misc"), order=CategoryOrder.LAST, bot=bot, defaultcat=True),
-            HelpCategory(Lang.lang(self, "default_category_admin"), order=CategoryOrder.LAST, bot=bot, defaultcat=True),
-            HelpCategory(Lang.lang(self, "default_category_mod"), order=CategoryOrder.LAST, bot=bot, defaultcat=True),
-            HelpCategory(Lang.lang(self, "default_category_games"), bot=bot, defaultcat=True),
+            HelpCategory(bot, Lang.lang(self, "default_category_misc"), order=CategoryOrder.LAST, defaultcat=True),
+            HelpCategory(bot, Lang.lang(self, "default_category_admin"), order=CategoryOrder.LAST, defaultcat=True),
+            HelpCategory(bot, Lang.lang(self, "default_category_mod"), order=CategoryOrder.LAST, defaultcat=True),
+            HelpCategory(bot, Lang.lang(self, "default_category_games"), defaultcat=True),
         ]
 
         # Setup help cmd
@@ -196,7 +206,7 @@ class GeckiHelp(BaseSubsystem):
     def register_category_by_name(self, name, description=""):
         cat = self.category(name)
         if cat is None:
-            cat = HelpCategory(name, description=description)
+            cat = HelpCategory(self.bot, name, description=description)
             self.register_category(cat)
         return cat
 
@@ -337,7 +347,7 @@ class GeckiHelp(BaseSubsystem):
         """
         try:
             helpstr = plugin.command_help_string(command)
-        except NotFound:
+        except (NotFound, AttributeError):
             helpstr = command.help
         if helpstr is not None and helpstr.strip():
             return "{}{} - {}".format(self.bot.command_prefix, command.qualified_name, helpstr)
