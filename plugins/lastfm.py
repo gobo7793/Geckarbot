@@ -213,6 +213,9 @@ class Plugin(BasePlugin, name="LastFM"):
             raise NotFound()
 
     def sort_commands(self, ctx, command, subcommands):
+        if command is None:
+            return subcommands
+        
         if command.name != "lastfm":
             return super().sort_commands(ctx, command, subcommands)
         r = []
