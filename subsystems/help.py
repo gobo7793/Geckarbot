@@ -90,6 +90,13 @@ class HelpCategory:
         """
         self.plugins.append(plugin)
 
+    def add_command(self, command):
+        """
+        Adds a standalone command to this HelpCategory.
+        :param command: Command that is to be added to the category
+        """
+        self.standalone_commands.append(command)
+
     def remove_plugin(self, plugin):
         """
         Removes a plugin from this HelpCategory.
@@ -153,6 +160,7 @@ class GeckiHelp(BaseSubsystem):
             HelpCategory(bot, Lang.lang(self, "default_category_admin"), order=CategoryOrder.LAST, defaultcat=True),
             HelpCategory(bot, Lang.lang(self, "default_category_mod"), order=CategoryOrder.LAST, defaultcat=True),
             HelpCategory(bot, Lang.lang(self, "default_category_games"), defaultcat=True),
+            HelpCategory(bot, Lang.lang(self, "default_category_utils"), defaultcat=True)
         ]
 
         # Setup help cmd
