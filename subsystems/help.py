@@ -1,4 +1,5 @@
 from enum import Enum
+import logging
 
 from discord.ext import commands
 
@@ -17,10 +18,11 @@ class CategoryExists(Exception):
 
 class DefaultCategories(Enum):
     UTILS = 0
-    MISC = 1
-    ADMIN = 2
-    MOD = 3
-    GAMES = 4
+    GAMES = 1
+    SPORT = 2
+    MISC = 3
+    MOD = 4
+    ADMIN = 5
 
 
 class CategoryOrder(Enum):
@@ -39,17 +41,26 @@ class HelpCog(BasePlugin):
     def get_configurable_type(self):
         return ConfigurableType.COREPLUGIN
 
-    @commands.command(name="help", description="Zu Hülfe!", usage="[command | category]")
+    @commands.command(name="help")
     async def helpcmd(self, ctx, *args):
         await self.bot.helpsys.helpcmd(ctx, *args)
 
-    @commands.command(name="usage", description="Kurzer Benutzungshinweis", usage="[command | category]")
+    @commands.command(name="usage")
     async def usagecmd(self, ctx, *args):
         await self.bot.helpsys.usagecmd(ctx, *args)
 
     @commands.command(name="helpall")
     async def listcmd(self, ctx, *args):
         await self.bot.helpsys.listcmd(ctx, *args)
+
+    def command_help_string(self, command):
+        return Lang.lang(self, "help_{}".format(command.name))
+
+    def command_description(self, command):
+        return Lang.lang(self, "description_{}".format(command.name))
+
+    def command_usage(self, command):
+        return Lang.lang(self, "usage_{}".format(command.name))
 
 
 class HelpCategory:
@@ -81,7 +92,7 @@ class HelpCategory:
         """
         :return: True if this HelpCategory does not contain any plugins, False otherwise.
         """
-        return len(self.plugins) == 0
+        return len(self.plugins) == 0 and len(self.standalone_commands) == 0
 
     def add_plugin(self, plugin):
         """
@@ -89,13 +100,6 @@ class HelpCategory:
         :param plugin: BasePlugin instance to be added to the category
         """
         self.plugins.append(plugin)
-
-    def add_command(self, command):
-        """
-        Adds a standalone command to this HelpCategory.
-        :param command: Command that is to be added to the category
-        """
-        self.standalone_commands.append(command)
 
     def remove_plugin(self, plugin):
         """
@@ -107,6 +111,21 @@ class HelpCategory:
 
         if self.is_empty() and not self.default:
             self.bot.helpsys.deregister_category(self)
+
+    def add_command(self, command):
+        """
+        Adds a standalone command to this HelpCategory.
+        :param command: Command that is to be added to the category
+        """
+        self.standalone_commands.append(command)
+
+    def remove_command(self, command):
+        """
+        Removes a standalone command from this HelpCategory.
+        :param command: Command that is to be removed from the category
+        """
+        while command in self.standalone_commands:
+            self.standalone_commands.remove(command)
 
     def single_line(self):
         """
@@ -154,14 +173,24 @@ class GeckiHelp(BaseSubsystem):
     def __init__(self, bot):
         self.bot = bot
         super().__init__(self.bot)
+        self.logger = logging.getLogger(__name__)
 
-        self._categories = [
-            HelpCategory(bot, Lang.lang(self, "default_category_misc"), order=CategoryOrder.LAST, defaultcat=True),
-            HelpCategory(bot, Lang.lang(self, "default_category_admin"), order=CategoryOrder.LAST, defaultcat=True),
-            HelpCategory(bot, Lang.lang(self, "default_category_mod"), order=CategoryOrder.LAST, defaultcat=True),
-            HelpCategory(bot, Lang.lang(self, "default_category_games"), defaultcat=True),
-            HelpCategory(bot, Lang.lang(self, "default_category_utils"), defaultcat=True)
-        ]
+        self.default_categories = {
+            DefaultCategories.UTILS: HelpCategory(bot, Lang.lang(self, "default_category_utils"),
+                                                  order=CategoryOrder.FIRST, defaultcat=True),
+            DefaultCategories.GAMES: HelpCategory(bot, Lang.lang(self, "default_category_games"),
+                                                  defaultcat=True),
+            DefaultCategories.SPORT: HelpCategory(bot, Lang.lang(self, "default_category_sport"),
+                                                  defaultcat=True),
+            DefaultCategories.MISC: HelpCategory(bot, Lang.lang(self, "default_category_misc"),
+                                                 order=CategoryOrder.LAST, defaultcat=True),
+            DefaultCategories.MOD: HelpCategory(bot, Lang.lang(self, "default_category_mod"),
+                                                order=CategoryOrder.LAST, defaultcat=True),
+            DefaultCategories.ADMIN: HelpCategory(bot, Lang.lang(self, "default_category_admin"),
+                                                  order=CategoryOrder.LAST, defaultcat=True),
+        }
+
+        self._categories = [self.default_categories[x] for x in self.default_categories]
 
         # Setup help cmd
         self.bot.remove_command("help")
@@ -177,21 +206,7 @@ class GeckiHelp(BaseSubsystem):
         :param const: One out of DefaultCategories
         :return: Corresponding registered category
         """
-        langstr = None
-        if const == DefaultCategories.MISC:
-            langstr = "default_category_misc"
-        elif const == DefaultCategories.ADMIN:
-            langstr = "default_category_admin"
-        elif const == DefaultCategories.MOD:
-            langstr = "default_category_mod"
-        elif const == DefaultCategories.GAMES:
-            langstr = "default_category_games"
-        elif const == DefaultCategories.UTILS:
-            langstr = "default_category_utils"
-
-        r = self.category(Lang.lang(self, langstr))
-        assert r is not None
-        return r
+        return self.default_categories[const]
 
     def category(self, name):
         """
@@ -203,15 +218,16 @@ class GeckiHelp(BaseSubsystem):
                 return cat
         return None
 
-    def category_by_plugin(self, plugin):
+    def categories_by_plugin(self, plugin):
         """
         :param plugin: Plugin
-        :return: HelpCategory that contains `plugin`
+        :return: List of HelpCategory objects that contain `plugin`
         """
+        r = []
         for cat in self._categories:
             if plugin in cat.plugins:
-                return cat
-        return None
+                r.append(cat)
+        return r
 
     def register_category_by_name(self, name, description=""):
         cat = self.category(name)
@@ -252,6 +268,14 @@ class GeckiHelp(BaseSubsystem):
             raise CategoryNotFound(category.name)
 
         self._categories.remove(category)
+
+    def purge_plugin(self, plugin):
+        cats = self.categories_by_plugin(plugin)
+        for cat in cats:
+            cat.remove_plugin(plugin)
+        for cmd in plugin.get_commands():
+            for cat in self._categories:
+                cat.remove_command(cmd)
 
     """
     Parsing methods
@@ -441,6 +465,7 @@ class GeckiHelp(BaseSubsystem):
             last = []
             for cat in self._categories:
                 if cat.is_empty():
+                    self.logger.debug("Ignoring category {} as it is empty".format(cat.name))
                     continue
 
                 line = "  {}".format(cat.single_line())

@@ -118,7 +118,7 @@ class BasePlugin(Cog, Configurable):
 
     async def command_help(self, ctx, command):
         """
-        Used to override command help. Raise NotFound to give control back to the help command.
+        Used to override the behavior of !help <command>. Raise NotFound to give control back to the help command.
         :param ctx: Context
         :param command: Command or Group instance
         """

@@ -14,6 +14,7 @@ from conf import Config, Storage, Lang
 from plugins.fantasy.league import FantasyLeague, deserialize_league, create_league
 from plugins.fantasy.utils import pos_alphabet, FantasyState, Platform, log, PlatformNotSupportedData
 from subsystems import timers
+from subsystems.help import DefaultCategories
 
 
 # Repo link for pip package for ESPN API https://github.com/cwendt94/espn-api
@@ -25,7 +26,7 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
 
     def __init__(self, bot):
         super().__init__(bot)
-        bot.register(self)
+        bot.register(self, category=DefaultCategories.SPORT)
 
         self.supercommish = None
         self.state = FantasyState.NA
@@ -44,7 +45,7 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
 
     def default_config(self):
         return {
-            "version": 3,
+            "version": 6,
             "channel_id": 0,
             "mod_role_id": 0,
             "espn": {

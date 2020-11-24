@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+
 import logging
 import pkgutil
 import sys
@@ -137,7 +138,8 @@ class Geckarbot(commands.Bot):
             avail.append(modname.name)
         return avail
 
-    def get_subsystem_list(self) -> List[str]:
+    @staticmethod
+    def get_subsystem_list() -> List[str]:
         """All normal plugins"""
         subsys = []
         for modname in pkgutil.iter_modules(subsystems.__path__):
@@ -147,7 +149,8 @@ class Geckarbot(commands.Bot):
     def get_name(self):
         return self.NAME.lower()
 
-    def configure(self, plugin):
+    @staticmethod
+    def configure(plugin):
         Config().load(plugin)
         Storage().load(plugin)
         Lang().remove_from_cache(plugin)
@@ -189,7 +192,7 @@ class Geckarbot(commands.Bot):
                           format(plugin.get_name()))
             return
 
-        self.helpsys.category_by_plugin(plugin).remove_plugin(plugin)
+        self.helpsys.purge_plugin(plugin)
         self.plugins.remove(plugin)
 
         logging.debug("Deregistered plugin {}".format(plugin.get_name()))
@@ -230,12 +233,11 @@ class Geckarbot(commands.Bot):
         try:
             to_import = "{}.{}".format(plugin_dir, plugin_name)
             found = False
-            exc = None
             try:
                 self.import_plugin(to_import)
                 found = True
-            except PluginNotFound as e:
-                exc = e
+            except PluginNotFound:
+                pass
             if not found:
                 to_import = "{}.{}.{}".format(plugin_dir, plugin_name, plugin_name)
                 self.import_plugin(to_import)
@@ -361,7 +363,7 @@ def main():
         logging.info(f"Server Members:\n - {members}")
 
         await utils.write_debug_channel(f"Geckarbot {bot.VERSION} connected on "
-                                             f"{guild.name} with {len(guild.members)} users.")
+                                        f"{guild.name} with {len(guild.members)} users.")
         await utils.write_debug_channel(f"Loaded subsystems: {', '.join(bot.get_subsystem_list())}")
         await utils.write_debug_channel(f"Loaded coreplugins: {', '.join(bot.get_coreplugins())}")
         await utils.write_debug_channel(f"Loaded plugins: {', '.join(bot.get_normalplugins())}")

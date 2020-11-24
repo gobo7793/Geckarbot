@@ -100,14 +100,18 @@ class Song:
         return cls(plugin, artist, album, title, nowplaying=nowplaying, timestamp=ts, loved=loved)
 
     def quote(self, p=None):
+        """
+        :param p: Probability (defaults to config value quote_p)
+        :return: quote
+        """
         if p is None:
             p = self.plugin.get_config("quote_p")
 
-        q = self.plugin.get_quotes(self.artist, self.title)
-        if q is not None:
-            q = random.choice(q)
+        quotes = self.plugin.get_quotes(self.artist, self.title)
+        if quotes:
+            qkey = random.choice([key for key in quotes.keys()])
             if p is not None and random.choices([True, False], weights=[p, 1 - p])[0]:
-                return q
+                return quotes[qkey]["quote"]
         return None
 
     def format_song(self):
@@ -142,6 +146,7 @@ class Plugin(BasePlugin, name="LastFM"):
         bot.register(self)
 
         self.logger = logging.getLogger(__name__)
+        self.migrate()
         self.client = Client(baseurl)
         self.conf = Config.get(self)
         if not self.conf.get("apikey", ""):
@@ -181,6 +186,29 @@ class Plugin(BasePlugin, name="LastFM"):
             "profile"
         ]
 
+    def migrate(self):
+        # Migrate Quotes 1 -> 2
+        struc = Storage.get(self, container="quotes")
+        if struc["version"] == 1:
+            quoteslist = struc.get("quotes", [])
+            new_quoteslist = {}
+            for i in range(len(quoteslist)):
+                artist, title, quotes = quoteslist[i]
+                new_quotes = {}
+                for j in range(len(quotes)):
+                    new_quotes[j+1] = {
+                        "author": None,
+                        "quote": quotes[j],
+                    }
+                new_quoteslist[i+1] = {
+                    "artist": artist,
+                    "title": title,
+                    "quotes": new_quotes,
+                }
+            struc["quotes"] = new_quoteslist
+            struc["version"] = 2
+            Storage.save(self, container="quotes")
+
     def get_config(self, key):
         return Config.get(self).get(key, self.base_config[key][1])
 
@@ -194,8 +222,8 @@ class Plugin(BasePlugin, name="LastFM"):
             }
         elif container == "quotes":
             return {
-                "version": 1,
-                "quotes": []
+                "version": 2,
+                "quotes": {}
             }
         else:
             raise RuntimeError
@@ -261,10 +289,11 @@ class Plugin(BasePlugin, name="LastFM"):
         self.perf_request_count += 1
 
     def get_quotes(self, artist, title):
-        for el in Storage.get(self, container="quotes").get("quotes", []):
-            if el[0].lower() == artist.lower() and el[1].lower() == title.lower():
-                return el[2]
-        return None
+        quotes = Storage.get(self, container="quotes").get("quotes", [])
+        for el in quotes.keys():
+            if quotes[el]["artist"].lower() == artist.lower() and quotes[el]["title"].lower() == title.lower():
+                return quotes[el]["quotes"]
+        return {}
 
     @staticmethod
     def perf_timenow():
@@ -424,6 +453,7 @@ class Plugin(BasePlugin, name="LastFM"):
         questions = [q_target, q_artist, q_title, q_quote]
         questionnaire = Questionnaire(self.bot, ctx.author, questions, lang=self.lang_questionnaire)
 
+        # Interrogate
         try:
             await questionnaire.interrogate()
         except Cancelled:
@@ -441,13 +471,26 @@ class Plugin(BasePlugin, name="LastFM"):
             artist = q_artist.answer
             title = q_title.answer
 
+        # Build new quote
         quotes = self.get_quotes(artist, title)
-        if quotes is None:
-            quotes = []
-            ta = [artist, title, quotes]
-            Storage.get(self, container="quotes")["quotes"].append(ta)
+        print("got quotes: {}".format(quotes))
+        if not quotes:
+            print("not quotes")
+            ta = {
+                "artist": artist,
+                "title": title,
+                "quotes": quotes,
+            }
+            allquotes = Storage.get(self, container="quotes")["quotes"]
+            allquotes[get_new_key(allquotes)] = ta
         self.logger.debug("Adding quote: {} to {}".format(q_quote.answer, quotes))
-        quotes.append(q_quote.answer)
+        quote = {
+            "author": ctx.author.id,
+            "quote": q_quote.answer,
+        }
+
+        # Add quote
+        quotes[get_new_key(quotes)] = quote
         Storage.save(self, container="quotes")
 
     @lastfm.command(name="now", aliases=["listening"])
@@ -579,8 +622,9 @@ class Plugin(BasePlugin, name="LastFM"):
         :param so_far: First page of songs
         :param criterion: MostInteresting instance
         :param example: Example song
-        :return: `(count, out_of, criterion)` with count being the amount of matches for criterion it found,
-        out_of being the amount of scrobbles that were looked at, criterion the (new, potentially downgraded) criterion.
+        :return: `(count, out_of, criterion, repr)` with count being the amount of matches for criterion it found,
+        out_of being the amount of scrobbles that were looked at, criterion the (new, potentially downgraded) criterion
+        and repr the most recent representative song of criterion.
         """
         self.logger.debug("Expanding")
         page_index = 1
@@ -593,6 +637,7 @@ class Plugin(BasePlugin, name="LastFM"):
             "top_index": 1,
             "top_matches": 0,
             "current_matches": 0,
+            "repr": None,
         }
         counters = {
             MostInterestingType.ARTIST: prototype,
@@ -608,6 +653,12 @@ class Plugin(BasePlugin, name="LastFM"):
                 for current_criterion in MostInterestingType:
                     if self.interest_match(song, current_criterion, example):
                         c = counters[current_criterion]
+
+                        # Set repr
+                        if c["repr"] is None:
+                            c["repr"] = song
+
+                        # Calc matches
                         c["current_matches"] += 1
                         logging.debug("Comparison: {} > {} on song {}"
                                       .format(c["current_matches"] / current_index,
@@ -647,10 +698,11 @@ class Plugin(BasePlugin, name="LastFM"):
             if top_matches <= downgrade_value:
                 self.logger.debug("mi downgrade from {} to {}".format(criterion, el))
                 criterion = el
+                example = counters[el]["repr"]
                 top_index = counters[el]["top_index"]
                 top_matches = counters[el]["top_matches"]
 
-        return top_matches, top_index, criterion
+        return top_matches, top_index, criterion, example
 
     def tiebreaker(self, scores, songs, mitype):
         """
@@ -779,7 +831,7 @@ class Plugin(BasePlugin, name="LastFM"):
             # Nothing interesting found, send single song msg
             await ctx.send(self.listening_msg(user, songs[0]))
             return
-        matches, total, mi = await self.expand(lfmuser, pagelen, songs, mi, mi_example)
+        matches, total, mi, mi_example = await self.expand(lfmuser, pagelen, songs, mi, mi_example)
 
         # build msg
         if matches == total:
@@ -825,3 +877,12 @@ class Plugin(BasePlugin, name="LastFM"):
         if quote is not None:
             msg = "{} _{}_".format(msg, quote)
         await ctx.send(msg)
+
+
+def get_new_key(d):
+    i = 1
+    for key in d.keys():
+        b = int(key)
+        if b >= i:
+            i = b + 1
+    return i
