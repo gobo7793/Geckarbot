@@ -8,7 +8,6 @@ import botutils.timeutils
 from base import BasePlugin, NotFound
 from botutils import stringutils, permchecks
 from botutils.converters import get_best_username, get_best_user
-from botutils.timeutils import from_epoch_ms
 from botutils.utils import add_reaction
 from conf import Config, Storage, Lang
 from plugins.fantasy.league import FantasyLeague, deserialize_league, create_league
@@ -147,7 +146,7 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
             "end": self.end_date,
             "timers": self.use_timers,
             "def_league": self.default_league,
-            "leagues": {k: v.serialize() for k, v in self.leagues},
+            "leagues": {k: self.leagues[k].serialize() for k in self.leagues},
             "espn_credentials": {
                 "swid": Storage.get(self)["espn_credentials"]["swid"],
                 "espn_s2": Storage.get(self)["espn_credentials"]["espn_s2"]
@@ -353,9 +352,10 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
 
             if not results:
                 for k in self.leagues:
-                    if league_name.lower() != "all" and (k == self.default_league or
-                            (league_name is not None and league_name
-                             and league_name.lower() != self.leagues[k].name.lower())):
+                    if league_name.lower() != "all" and \
+                            (k == self.default_league or
+                             (league_name is not None and league_name
+                              and league_name.lower() != self.leagues[k].name.lower())):
                         # default league already done directly above
                         continue
 
