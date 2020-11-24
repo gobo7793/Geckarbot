@@ -9,6 +9,7 @@ from base import BasePlugin
 from botutils import restclient
 from botutils.stringutils import paginate
 from botutils.utils import add_reaction
+from subsystems.help import DefaultCategories
 from conf import Lang, Config
 
 
@@ -17,7 +18,7 @@ class Plugin(BasePlugin, name="Sport"):
 
     def __init__(self, bot):
         super().__init__(bot)
-        bot.register(self)
+        bot.register(self, category=DefaultCategories.SPORT)
         self.logger = logging.getLogger(__name__)
         self.can_reload = True
         self.liveticker_regs = {}

@@ -1,4 +1,5 @@
 from datetime import timezone, date, datetime, time, timedelta
+from botutils.stringutils import sg_pl
 
 
 def to_local_time(timestamp):
@@ -85,8 +86,9 @@ def parse_time_input(*args, end_of_day=False):
 
 
 def hr_roughly(timestamp: datetime, now: datetime = None,
-               fstring="{} {} ago", yesterday="yesterday", seconds="seconds", minutes="minutes",
-               hours="hours", days="days", weeks="weeks", months="months", years="years"):
+               fstring="{} {} ago", yesterday="yesterday", seconds="seconds", seconds_sg="second", minutes="minutes",
+               minutes_sg="minute", hours="hours", hours_sg="hour", days="days", days_sg="day", weeks="weeks",
+               weeks_sg="week", months="months", months_sg="month", years="years", years_sg="year"):
     """
     Builds a human-readable version of a rough approximation of a timedelta into the past, such as "2 minutes ago".
     :param timestamp: end timestamp of the measured distance
@@ -94,12 +96,19 @@ def hr_roughly(timestamp: datetime, now: datetime = None,
     :param fstring: format string with two places for amount and time units
     :param yesterday: If the timedelta is roughly one day, this string is returned.
     :param seconds: Localized variant of "seconds"
+    :param seconds_sg: Localized variant of "second"
     :param minutes: Localized variant of "minutes"
+    :param minutes_sg: Localized variant of "minute"
     :param hours: Localized variant of "hours"
+    :param hours_sg: Localized variant of "hour"
     :param days: Localized variant of "days"
+    :param days_sg: Localized variant of "day"
     :param weeks: Localized variant of "weeks"
+    :param weeks_sg: Localized variant of "week"
     :param months: Localized variant of "months"
+    :param months_sg: Localized variant of "month"
     :param years: Localized variant of "years"
+    :param years_sg: Localized variant of "year"
     :return: human-readable approximation of the time distance between timestamp and now
     """
     if now is None:
@@ -107,18 +116,30 @@ def hr_roughly(timestamp: datetime, now: datetime = None,
     delta = now - timestamp
     if delta.seconds < 0:
         raise RuntimeError("Timestamp is not in the past")
-    if delta.days >= 365 and years is not None:
-        return fstring.format(delta.days // 365, years)
-    if delta.days >= 31 and months is not None:
-        return fstring.format(delta.days // 31, months)  # todo better month calc
-    if delta.days >= 7 and weeks is not None:
-        return fstring.format(delta.days // 7, weeks)
+
+    amount = delta.days // 365
+    if amount > 0 and years is not None:
+        return fstring.format(amount, sg_pl(amount, years_sg, years))
+
+    amount = delta.days // 31  # todo better month calc
+    if amount > 0 and months is not None:
+        return fstring.format(amount, sg_pl(amount, months_sg, months))
+
+    amount = delta.days // 7
+    if amount > 0 and weeks is not None:
+        return fstring.format(amount, sg_pl(amount, weeks_sg, weeks))
+
     if delta.days == 1 and yesterday is not None:
         return yesterday
+
     if delta.days >= 1 and days is not None:
-        return fstring.format(delta.days, days)
-    if delta.seconds >= 60*60 and hours is not None:
-        return fstring.format(delta.seconds // (60*60), hours)
-    if delta.seconds >= 60 and minutes is not None:
-        return fstring.format(delta.seconds // 60, minutes)
-    return fstring.format(delta.seconds, seconds)
+        return fstring.format(delta.days, sg_pl(delta.days, days_sg, days))
+
+    amount = delta.seconds // (60*60)
+    if amount > 0 and hours is not None:
+        return fstring.format(amount, sg_pl(amount, hours_sg, hours))
+
+    amount = delta.seconds // 60
+    if amount > 0 and minutes is not None:
+        return fstring.format(amount, sg_pl(amount, minutes_sg, minutes))
+    return fstring.format(delta.seconds, sg_pl(delta.seconds, seconds_sg, seconds))

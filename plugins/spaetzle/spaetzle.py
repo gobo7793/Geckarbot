@@ -23,7 +23,7 @@ from conf import Config, Storage, Lang
 from plugins.spaetzle.subsystems import UserBridge, Observed, Trusted
 from plugins.spaetzle.utils import TeamnameDict, pointdiff_possible, determine_winner, MatchResult, match_status, \
     MatchStatus, get_user_league, get_user_cell, get_schedule, get_schedule_opponent, UserNotFound, convert_to_datetime
-from subsystems.help import HelpCategory
+from subsystems.help import DefaultCategories
 
 
 class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
@@ -31,7 +31,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
     def __init__(self, bot):
         super().__init__(bot)
         self.can_reload = True
-        bot.register(self, category=HelpCategory("Spaetzle", description="Plugin for the 'Spaetzle-Tippspiel'"))
+        bot.register(self, category=DefaultCategories.SPORT)
 
         self.logger = logging.getLogger(__name__)
         self.teamname_dict = TeamnameDict(self)
