@@ -248,7 +248,7 @@ class Presence(BaseSubsystem):
         if dataset.presence_id not in self.messages:
             return False
 
-        del(self.messages[dataset.presence_id])
+        del (self.messages[dataset.presence_id])
         self.save()
         self.log.debug("Message deregistered, Priority: {}, ID {}: {}".format(
             dataset.priority, dataset.presence_id, dataset.message))
@@ -282,18 +282,20 @@ class Presence(BaseSubsystem):
     async def _set_presence(self, message):
         """Sets the presence message, based on discord.Game activity"""
         self.log.debug("Change displayed message to: {}".format(message))
+        message = message.replace("\\\\\\", "\\")
         message = message.replace("\\\\", "\\")
         await self.bot.change_presence(activity=discord.Game(name=message))
 
     def _execute_removing_change(self, removed_id: int):
         """Executes _change_callback() w/o awaiting with special handling for removed presence messages"""
-        if (self._timer_job.data["last_prio"] == PresencePriority.HIGH
-                or self._timer_job.data["current_id"] == removed_id):
+        if self.is_timer_up and (self._timer_job.data["last_prio"] == PresencePriority.HIGH
+                                 or self._timer_job.data["current_id"] == removed_id):
             self._execute_change()
 
     def _execute_change(self):
         """Executes _change_callback() w/o awaiting (every time this method is called)"""
-        asyncio.run_coroutine_threadsafe(self._change_callback(self._timer_job), self.bot.loop)
+        if self.is_timer_up:
+            asyncio.run_coroutine_threadsafe(self._change_callback(self._timer_job), self.bot.loop)
 
     async def _change_callback(self, job):
         """The callback method for the timer subsystem to change the presence message"""
@@ -312,7 +314,6 @@ class Presence(BaseSubsystem):
 
         if next_id == last_id:
             return  # do nothing if the same message should be displayed again
-
 
         job.data["id_before_high"] = last_id
         new_msg = self.messages[next_id]
