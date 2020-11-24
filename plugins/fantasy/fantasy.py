@@ -45,7 +45,7 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
 
     def default_config(self):
         return {
-            "version": 3,
+            "version": 6,
             "channel_id": 0,
             "mod_role_id": 0,
             "espn": {
