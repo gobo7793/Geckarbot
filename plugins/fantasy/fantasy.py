@@ -62,23 +62,25 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
             }
         }
 
-    def default_storage(self):
-        return {
-            "supercommish": 0,
-            "state": FantasyState.NA,
-            "date": datetime.now(),
-            "status": "",
-            "datalink": None,
-            "start": datetime.now(),
-            "end": datetime.now() + timedelta(days=16 * 7),
-            "timers": False,
-            "def_league": -1,
-            "leagues": [],
-            "espn_credentials": {
-                "swid": "",
-                "espn_s2": ""
+    def default_storage(self, container=None):
+        if container is None:
+            return {
+                "supercommish": 0,
+                "state": FantasyState.NA,
+                "date": datetime.now(),
+                "status": "",
+                "datalink": None,
+                "start": datetime.now(),
+                "end": datetime.now() + timedelta(days=16 * 7),
+                "timers": False,
+                "def_league": -1,
+                "leagues": [],
+                "espn_credentials": {
+                    "swid": "",
+                    "espn_s2": ""
+                }
             }
-        }
+        return {}
 
     async def shutdown(self):
         self._stop_score_timer()
@@ -556,11 +558,7 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
 
                     embed.add_field(name=Lang.lang(self, "current_leader"), value=standings_str)
                     embed.set_footer(text=footer_str)
-
-                    trade_deadline_int = league.trade_deadline
-                    if trade_deadline_int > 0:
-                        trade_deadline_str = from_epoch_ms(trade_deadline_int).strftime(Lang.lang(self, "until_strf"))
-                        embed.add_field(name=Lang.lang(self, "trade_deadline"), value=trade_deadline_str)
+                    embed.add_field(name=Lang.lang(self, "trade_deadline"), value=league.trade_deadline)
 
                     activity = league.get_most_recent_activity()
                     if activity is not None:

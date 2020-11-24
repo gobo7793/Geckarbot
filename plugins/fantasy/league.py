@@ -2,6 +2,7 @@ import operator
 from threading import Thread
 from typing import List, Dict, Optional
 from abc import ABC, abstractmethod
+from datetime import datetime
 
 import discord
 from espn_api.football import League
@@ -116,9 +117,9 @@ class FantasyLeague(ABC):
 
     @property
     @abstractmethod
-    def trade_deadline(self) -> int:
+    def trade_deadline(self) -> str:
         """Gets the tradeline week"""
-        pass
+        return Lang.lang(self.plugin, "unknown")
 
     @property
     @abstractmethod
@@ -239,8 +240,8 @@ class EspnLeague(FantasyLeague):
         return self._espn.nfl_week
 
     @property
-    def trade_deadline(self) -> int:
-        return self._espn.settings.trade_deadline
+    def trade_deadline(self) -> str:
+        return from_epoch_ms(self._espn.settings.trade_deadline).strftime(Lang.lang(self.plugin, "until_strf"))
 
     @property
     def league_url(self) -> str:
@@ -325,6 +326,10 @@ class EspnLeague(FantasyLeague):
 
 
 class SleeperLeague(FantasyLeague):
+
+    player_db_key = "sleeper_players"
+    last_db_call_key = "_last_call"
+
     def __init__(self, plugin, league_id: int, commish: discord.User = None, init=False):
         self._client = Client("https://api.sleeper.app/v1/")
         self._league_data = {}
@@ -337,10 +342,18 @@ class SleeperLeague(FantasyLeague):
         log.info("League {}, ID {} on platform Sleeper connected".format(self.name, self.league_id, self.platform))
 
     def _load_player_db(self):
+        last_call = Storage.get(self.plugin, self.player_db_key)\
+            .get(self.last_db_call_key, datetime.min)
+        if last_call.date() >= datetime.now().date():
+            log.debug("Sleepers player database shouldn't downloaded more than once per day.")
+            return
+
+        log.info("Getting Sleepers player database. This shouldn't be done more than once per day!")
         players_json = self._client.make_request(endpoint="players/nfl", parse_json=False)
         players = Decoder().decode(players_json)
-        Storage.set(self.plugin, players, "sleeper_players")
-        Storage.save(self.plugin, "sleeper_players")
+        players[self.last_db_call_key] = datetime.now()
+        Storage.set(self.plugin, players, self.player_db_key)
+        Storage.save(self.plugin, self.player_db_key)
 
     def reload(self):
         self._league_data = self._client.make_request(endpoint="league/{}".format(self.league_id))
@@ -386,8 +399,8 @@ class SleeperLeague(FantasyLeague):
         return self._league_data["settings"]["leg"]
 
     @property
-    def trade_deadline(self) -> int:
-        return self._league_data["settings"]["trade_deadline"]
+    def trade_deadline(self) -> str:
+        return "{} {}".format(Lang.lang(self.plugin, "week"), self._league_data["settings"]["trade_deadline"])
 
     @property
     def league_url(self) -> str:
@@ -463,7 +476,7 @@ class SleeperLeague(FantasyLeague):
             player_id = list(action["adds"].keys())[0] \
                 if act_type == "ADD" else list(action["drops"].keys())[0]
             act_team = next(t for t in self.get_teams() if t.team_id == act_roster_id)
-            act_player = Storage.get(self.plugin, "sleeper_players")[int(player_id)]
+            act_player = Storage.get(self.plugin, self.player_db_key)[int(player_id)]
             player_name = act_player["full_name"]
 
             return Activity(act_date, act_team.team_name, act_type, player_name)
