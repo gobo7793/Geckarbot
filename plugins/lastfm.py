@@ -622,8 +622,9 @@ class Plugin(BasePlugin, name="LastFM"):
         :param so_far: First page of songs
         :param criterion: MostInteresting instance
         :param example: Example song
-        :return: `(count, out_of, criterion)` with count being the amount of matches for criterion it found,
-        out_of being the amount of scrobbles that were looked at, criterion the (new, potentially downgraded) criterion.
+        :return: `(count, out_of, criterion, repr)` with count being the amount of matches for criterion it found,
+        out_of being the amount of scrobbles that were looked at, criterion the (new, potentially downgraded) criterion
+        and repr the most recent representative song of criterion.
         """
         self.logger.debug("Expanding")
         page_index = 1
@@ -636,6 +637,7 @@ class Plugin(BasePlugin, name="LastFM"):
             "top_index": 1,
             "top_matches": 0,
             "current_matches": 0,
+            "repr": None,
         }
         counters = {
             MostInterestingType.ARTIST: prototype,
@@ -651,6 +653,12 @@ class Plugin(BasePlugin, name="LastFM"):
                 for current_criterion in MostInterestingType:
                     if self.interest_match(song, current_criterion, example):
                         c = counters[current_criterion]
+
+                        # Set repr
+                        if c["repr"] is None:
+                            c["repr"] = song
+
+                        # Calc matches
                         c["current_matches"] += 1
                         logging.debug("Comparison: {} > {} on song {}"
                                       .format(c["current_matches"] / current_index,
@@ -690,10 +698,11 @@ class Plugin(BasePlugin, name="LastFM"):
             if top_matches <= downgrade_value:
                 self.logger.debug("mi downgrade from {} to {}".format(criterion, el))
                 criterion = el
+                example = counters[el]["repr"]
                 top_index = counters[el]["top_index"]
                 top_matches = counters[el]["top_matches"]
 
-        return top_matches, top_index, criterion
+        return top_matches, top_index, criterion, example
 
     def tiebreaker(self, scores, songs, mitype):
         """
@@ -822,7 +831,7 @@ class Plugin(BasePlugin, name="LastFM"):
             # Nothing interesting found, send single song msg
             await ctx.send(self.listening_msg(user, songs[0]))
             return
-        matches, total, mi = await self.expand(lfmuser, pagelen, songs, mi, mi_example)
+        matches, total, mi, mi_example = await self.expand(lfmuser, pagelen, songs, mi, mi_example)
 
         # build msg
         if matches == total:
