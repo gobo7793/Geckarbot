@@ -1,6 +1,7 @@
 import logging
 from enum import Enum
 from datetime import datetime
+from typing import Union
 import time
 import random
 import pprint
@@ -346,7 +347,7 @@ class Plugin(BasePlugin, name="LastFM"):
         info = await self.get_user_info(lfmuser)
         if info is None:
             await ctx.message.add_reaction(Lang.CMDERROR)
-            await ctx.send(Lang.lang(self, "user_not_found"))
+            await ctx.send(Lang.lang(self, "user_not_found", lfmuser))
             return
         if "user" not in info:
             await ctx.message.add_reaction(Lang.CMDERROR)
@@ -473,9 +474,7 @@ class Plugin(BasePlugin, name="LastFM"):
 
         # Build new quote
         quotes = self.get_quotes(artist, title)
-        print("got quotes: {}".format(quotes))
         if not quotes:
-            print("not quotes")
             ta = {
                 "artist": artist,
                 "title": title,
@@ -494,24 +493,25 @@ class Plugin(BasePlugin, name="LastFM"):
         Storage.save(self, container="quotes")
 
     @lastfm.command(name="now", aliases=["listening"])
-    async def cmd_now(self, ctx, user=None):
+    async def cmd_now(self, ctx, user: Union[discord.Member, discord.User, str, None]):
         self.perf_reset_timers()
         before = self.perf_timenow()
+        lfmuser = user
         if user is None:
             user = ctx.author
-        else:
-            # find mentioned user
+        if isinstance(user, discord.Member) or isinstance(user, discord.User):
             try:
-                user = await commands.MemberConverter().convert(ctx, user)
-            except (commands.CommandError, IndexError):
+                lfmuser = self.get_lastfm_user(user)
+            except NotRegistered as e:
+                await e.default(ctx)
+                return
+        else:
+            # user is a str
+            userinfo = await self.get_user_info(user)
+            if userinfo is None:
                 await ctx.message.add_reaction(Lang.CMDERROR)
                 await ctx.send(Lang.lang(self, "user_not_found", user))
                 return
-        try:
-            lfmuser = self.get_lastfm_user(user)
-        except NotRegistered as e:
-            await e.default(ctx)
-            return
 
         params = {
             "method": "user.getRecentTracks",
@@ -555,9 +555,13 @@ class Plugin(BasePlugin, name="LastFM"):
             "user": lfmuser
         }
         try:
-            return await self.request(params)
+            userinfo = await self.request(params)
         except HTTPError:
             return None
+
+        if "error" in userinfo:
+            return None
+        return userinfo
 
     def get_by_path(self, structure, path, default=None, strict=False):
         result = structure
