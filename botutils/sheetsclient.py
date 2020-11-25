@@ -481,13 +481,18 @@ class Client(restclient.Client):
         elif sheet and range:
             sheet_id = self.get_sheet_id(sheet)
             if sheet_id:
-                request['range'] = {
-                    "sheetId": sheet_id,
-                    "startRowIndex": 0,
-                    "endRowIndex": 5,
-                    "startColumnIndex": 0,
-                    "endColumnIndex": 3
-                }
+                try:
+                    cell_range = CellRange.from_a1(range)
+                except ValueError:
+                    return None
+                else:
+                    request['range'] = {
+                        "sheetId": sheet_id,
+                        "startRowIndex": cell_range.row,
+                        "endRowIndex": cell_range.row + cell_range.height,
+                        "startColumnIndex": cell_range.column,
+                        "endColumnIndex": cell_range.column + cell_range.width
+                    }
             else:
                 return None
         elif sheet:
