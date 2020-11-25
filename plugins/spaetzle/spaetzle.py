@@ -837,6 +837,9 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                     else:
                         data_ranges.append("Aktuell!{}".format(CellRange(cell, 2, 11).rangename()))
                 result = c.get_multiple(data_ranges, formatted=False)
+                if not result[0]:
+                    await ctx.send(Lang.lang(self, 'danny_empty'))
+                    return
                 matchday = result[0][0][0]
                 matches = result[0][2:]
                 preds = result[1:]
