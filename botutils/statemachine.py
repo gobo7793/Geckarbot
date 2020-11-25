@@ -1,34 +1,10 @@
 import logging
-import inspect
+
+from botutils.utils import execute_anything
 
 
 class IllegalTransition(Exception):
     pass
-
-
-async def execute_anything(f, *args, **kwargs):
-    """
-    Executes functions, coroutine functions and coroutines, returns their return values and raises their exceptions.
-    :param f: Function, coroutine function or coroutine to execute / schedule
-    :param args: args to pass to f
-    :param kwargs: kwargs to pass to f
-    :return: Return value of f
-    """
-    if inspect.iscoroutinefunction(f):
-        f = f(*args, **kwargs)
-    if inspect.iscoroutine(f):
-        """
-        loop = asyncio.get_event_loop()
-        task = loop.create_task(f)
-        loop.run_until_complete(task)
-        e = task.exception()
-        if e is not None:
-            raise e
-        return task.result()
-        """
-        return await f
-    else:
-        return f(*args, **kwargs)
 
 
 class StateMachine:

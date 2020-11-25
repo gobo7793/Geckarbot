@@ -4,6 +4,7 @@ from datetime import datetime
 from typing import Union
 import time
 import random
+import re
 import pprint
 from urllib.error import HTTPError
 
@@ -21,6 +22,7 @@ from botutils.restclient import Client
 
 
 baseurl = "https://ws.audioscrobbler.com/2.0/"
+mention_p = re.compile(r"<@[^>]+>")
 
 
 class NotRegistered(Exception):
@@ -165,6 +167,7 @@ class Plugin(BasePlugin, name="LastFM"):
             "min_title": [float, 0.5],
             "mi_downgrade": [float, 1.5],
             "quote_p": [float, 0.5],
+            "max_quote_length": [int, 100],
         }
 
         # Quote lang dicts
@@ -343,7 +346,7 @@ class Plugin(BasePlugin, name="LastFM"):
         await ctx.send("Changed {} value from {} to {}".format(key, oldval, value))
 
     @lastfm.command(name="register")
-    async def register(self, ctx, lfmuser: str):
+    async def cmd_register(self, ctx, lfmuser: str):
         info = await self.get_user_info(lfmuser)
         if info is None:
             await ctx.message.add_reaction(Lang.CMDERROR)
@@ -359,7 +362,7 @@ class Plugin(BasePlugin, name="LastFM"):
         await ctx.message.add_reaction(Lang.CMDSUCCESS)
 
     @lastfm.command(name="deregister")
-    async def deregister(self, ctx):
+    async def cmd_deregister(self, ctx):
         if ctx.author.id in Storage.get(self)["users"]:
             del Storage.get(self)["users"][ctx.author.id]
             await ctx.message.add_reaction(Lang.CMDSUCCESS)
@@ -367,7 +370,7 @@ class Plugin(BasePlugin, name="LastFM"):
             await ctx.message.add_reaction(Lang.CMDNOCHANGE)
 
     @lastfm.command(name="profile", usage="<User>")
-    async def cmd_profile(self, ctx, user: discord.User):
+    async def cmd_profile(self, ctx, user: Union[discord.Member, discord.User]):
         try:
             user = self.get_lastfm_user(user)
         except NotRegistered as e:
@@ -376,15 +379,15 @@ class Plugin(BasePlugin, name="LastFM"):
         await ctx.send("http://last.fm/user/{}".format(user))
 
     @lastfm.command(name="performance", hidden=True)
-    async def perf(self, ctx):
+    async def cmd_perf(self, ctx):
         decdigits = 3
         total = round(self.perf_total_time, decdigits)
         lastfm = round(self.perf_lastfm_time, decdigits)
         percent = int(round(lastfm * 100 / total))
         await ctx.send(Lang.lang(self, "performance", lastfm, total, percent, self.perf_request_count))
 
-    @lastfm.command(name="page", hidden=True)
-    async def history(self, ctx, page: int):
+    @lastfm.command(name="page", aliases=["history"], hidden=True)
+    async def cmd_history(self, ctx, page: int = 1):
         self.perf_reset_timers()
         before = self.perf_timenow()
         pagelen = 10
@@ -419,6 +422,21 @@ class Plugin(BasePlugin, name="LastFM"):
             return [question.data["q_quote"]]
         assert False
 
+    async def quote_sanity_cb(self, question, question_queue):
+        p = mention_p.search(question.answer)
+        print("re search: {}".format(p))
+        if p:
+            await question.answer_msg.add_reaction(Lang.CMDERROR)
+            await question.answer_msg.channel.send(Lang.lang(self, "quote_err_no_mentions"))
+            return [question] + question_queue
+
+        maxlen = self.get_config("max_quote_length")
+        if len(question.answer) > maxlen:
+            await question.answer_msg.add_reaction(Lang.CMDERROR)
+            await question.answer_msg.channel.send(Lang.lang(self, "quote_err_length", maxlen, len(question.answer)))
+            return [question] + question_queue
+        return question_queue
+
     @lastfm.command(name="quote", hidden=True)
     async def cmd_quote(self, ctx):
         # Acquire last song for first questionnaire route
@@ -440,7 +458,7 @@ class Plugin(BasePlugin, name="LastFM"):
         # Build Questionnaire
         q_artist = Question("Artist?", QuestionType.TEXT, lang=self.lang_question)
         q_title = Question("Title?", QuestionType.TEXT, lang=self.lang_question)
-        q_quote = Question("Quote?", QuestionType.TEXT, lang=self.lang_question)
+        q_quote = Question("Quote?", QuestionType.TEXT, lang=self.lang_question, callback=self.quote_sanity_cb)
         data = {
             "song": song,
             "q_quote": q_quote,
