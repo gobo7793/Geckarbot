@@ -5,10 +5,12 @@ from time import sleep
 import sys
 import asyncio
 import logging
+import traceback
 import warnings
 import datetime
 
 from base import BaseSubsystem
+from botutils.utils import write_debug_channel
 
 
 """
@@ -43,6 +45,15 @@ class Mothership(BaseSubsystem, Thread):
             self.start()
 
     def run(self):
+        while True:
+            try:
+                self.loop()
+            except Exception as e:
+                msg = "Timer Mothership crashed: {}; Traceback:```\n{}\n```".format(e, traceback.format_exc())
+                self.logger.error(msg)
+                asyncio.run_coroutine_threadsafe(write_debug_channel(msg), self.bot.loop)
+
+    def loop(self):
         while True:
             if self._shutdown is not None:
                 self.logger.info("Shutting down timer thread.")

@@ -16,7 +16,7 @@
     "#1": "Errors",
     "not_registered": "Ich kenne leider dein last.fm-Profil nicht.",
     "error": "Sorry, ich kann dir hier nicht helfen.",
-    "user_not_found": "Diesen Last.fm-User gibt es nicht.",
+    "user_not_found": "Den Last.fm-User \"{}\" gibt es nicht.",
 
     "#2": "Output",
     "all": "alle",
@@ -53,12 +53,17 @@
 
     "#4": "Quote",
     "or": "or",
-    "quote_target": "Soll das Zitat deinem zuletzt gescrobbleten Lied ({}) zugeordnet werden (antworte mit \"scrobble\") oder einem anderen Lied (antworte mit \"neu\"?\nZum Abbruch kannst du jederzeit mit \"abbrechen\" antworten.",
+    "quote_target": "Soll das Zitat deinem zuletzt gescrobbleten Lied ({}) zugeordnet werden (antworte mit \"scrobble\") oder einem anderen Lied (antworte mit \"neu\")?\nZum Abbruch kannst du jederzeit mit \"abbrechen\" antworten.",
     "quote_scrobble": "scrobble",
     "quote_new": "neu",
     "quote_cancel": "abbrechen",
     "quote_invalid": "Unzulässige Antwort. Bitte antworte mit scrobble, neu oder abbrechen.",
     "quote_cancelled": "Zitat-Aufnahme abgebrochen.",
-    "quote_done": "Fertig!"
+    "quote_done": "Fertig!",
+    "quote_question_artist": "Interpret?",
+    "quote_question_title": "Titel?",
+    "quote_question_quote": "Zitat?",
+    "quote_err_length": "Das Zitat ist leider zu lang. Das Maximum sind {} Zeichen; dein Zitat hat {} Zeichen.",
+    "quote_err_no_mentions": "User-Mentions sind in Zitaten nicht erlaubt."
   }
 }
