@@ -221,11 +221,14 @@ class NumberGuessing:
         self.min = 0
         self.max = 0
 
-    async def guess(self, msg, guess=0, arg1=None, arg2=None):
+    async def guess(self, msg, guess=None, arg1=None, arg2=None):
         self.msg = msg
         # logging.info("Gamemode: {}".format(self.gamemode))
         # logging.info("guess: {}, arg1: {}, arg2: {}".format(guess, arg1, arg2))
-        if guess == "start":
+        if guess is None:
+            await self.start()
+            return ReturnCode.CONTINUING
+        elif guess == "start":
             try:
                 if arg1 and arg2:
                     await self.start(int(arg1), int(arg2))

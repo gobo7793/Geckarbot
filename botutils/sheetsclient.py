@@ -67,15 +67,15 @@ class Cell:
 
     def translate(self, columns: int, rows: int):
         """
-        Translates the cell by the given number of columns and rows
+        Returns cell translated by the given number of columns and rows
 
         :param columns: number of columns the cell should be moved
         :param rows: number of rows the rows the cell should be moved
         :return: resulting cell
         """
-        self.column += columns
-        self.row += rows
-        return self
+        return Cell(column=self.column + columns,
+                    row=self.row + rows,
+                    grid=self.grid)
 
 
 class CellRange:
@@ -114,26 +114,27 @@ class CellRange:
 
     def translate(self, columns, rows):
         """
-        Translates the cell range by the given number of columns and rows
+        Returns cell range translated by the given number of columns and rows
 
         :param columns: number of columns the range should be moved
         :param rows: number of rows the rows the range should be moved
         :return: resulting cell range
         """
-        self.column += columns
-        self.row += rows
-        return self
+        return CellRange(start_cell=Cell(column=self.column + columns,
+                                         row=self.row + rows),
+                         width=self.width,
+                         height=self.height)
 
     def expand(self, top=0, bottom=0, left=0, right=0):
+        """
+        Returns cell range expanded by the given amount in each direction
+        """
         if self.column <= left or self.row <= top or left + right <= -self.width or top + bottom <= -self.height:
             raise ValueError
         else:
-            self.column -= left
-            self.row -= top
-            self.width += left + right
-            self.height += top + bottom
-            return self
-
+            return CellRange(start_cell=Cell(column=self.column - left, row=self.row - top),
+                             width=self.width + left + right,
+                             height=self.height + top + bottom)
 
 def get_service():
     try:
@@ -480,13 +481,18 @@ class Client(restclient.Client):
         elif sheet and range:
             sheet_id = self.get_sheet_id(sheet)
             if sheet_id:
-                request['range'] = {
-                    "sheetId": sheet_id,
-                    "startRowIndex": 0,
-                    "endRowIndex": 5,
-                    "startColumnIndex": 0,
-                    "endColumnIndex": 3
-                }
+                try:
+                    cell_range = CellRange.from_a1(range)
+                except ValueError:
+                    return None
+                else:
+                    request['range'] = {
+                        "sheetId": sheet_id,
+                        "startRowIndex": cell_range.row,
+                        "endRowIndex": cell_range.row + cell_range.height,
+                        "startColumnIndex": cell_range.column,
+                        "endColumnIndex": cell_range.column + cell_range.width
+                    }
             else:
                 return None
         elif sheet:
