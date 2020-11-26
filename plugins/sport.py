@@ -73,7 +73,7 @@ class Plugin(BasePlugin, name="Sport"):
     async def tippspiel(self, ctx):
         await ctx.send(Lang.lang(self, 'tippspiel_output'))
 
-    @commands.command(name="fußball")
+    @commands.command(name="fußball", alias="fussball")
     async def soccer_livescores(self, ctx, league, allmatches=None):
         if league not in Config().get(self)['leagues']:
             await ctx.send(Lang.lang(self, 'league_not_found', ", ".join(Config().get(self)['leagues'])))
