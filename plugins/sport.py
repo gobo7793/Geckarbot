@@ -26,7 +26,7 @@ class Plugin(BasePlugin, name="Sport"):
     def default_config(self):
         return {
             'sport_chan': 0,
-            'leagues': ["bl1", "bl2", "bl3", "uefanl"],
+            'leagues': {"bl1": ["bl", "1bl", "buli"], "bl2": ["2bl"], "bl3": ["3fl"], "uefanl": []},
             'liveticker_leagues': ["bl1", "bl2"]
         }
 
@@ -40,7 +40,12 @@ class Plugin(BasePlugin, name="Sport"):
         name = "_".join(command.qualified_name.split())
         lang_name = "description_{}".format(name)
         result = Lang.lang(self, lang_name)
-        return result if result != lang_name else Lang.lang(self, "help_{}".format(name))
+        if result != lang_name:
+            if name == "fußball":
+                result = Lang.lang(self, lang_name, ", ".join(Config().get(self)['leagues'].keys()))
+        else:
+            result = Lang.lang(self, "help_{}".format(name))
+        return result
 
     @commands.command(name="kicker")
     async def kicker_table(self, ctx):
@@ -73,11 +78,16 @@ class Plugin(BasePlugin, name="Sport"):
     async def tippspiel(self, ctx):
         await ctx.send(Lang.lang(self, 'tippspiel_output'))
 
-    @commands.command(name="fußball", alias="fussball")
+    @commands.command(name="fußball", aliases=["fussball"])
     async def soccer_livescores(self, ctx, league, allmatches=None):
         if league not in Config().get(self)['leagues']:
-            await ctx.send(Lang.lang(self, 'league_not_found', ", ".join(Config().get(self)['leagues'])))
-            return
+            for leag, aliases in Config().get(self)['leagues'].items():
+                if league in aliases:
+                    league = leag
+                    break
+            else:
+                await ctx.send(Lang.lang(self, 'league_not_found', ", ".join(Config().get(self)['leagues'])))
+                return
         matches = restclient.Client("https://www.openligadb.de/api").make_request("/getmatchdata/{}".format(league))
         finished, running, upcoming = [], [], []
         for match in matches:
@@ -123,7 +133,7 @@ class Plugin(BasePlugin, name="Sport"):
     async def matches_24h(self, ctx):
         async with ctx.typing():
             msg = ""
-            for league in Config().get(self)['leagues']:
+            for league in Config().get(self)['leagues'].keys():
                 matches = restclient.Client("https://www.openligadb.de/api").make_request(
                     "/getmatchdata/{}".format(league))
                 league_msg = ""
