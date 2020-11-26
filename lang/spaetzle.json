@@ -79,6 +79,7 @@
         "danny_no_users": "Tell me usernames, pls!",
         "danny_done": "{} now got the predictions of {}!",
         "danny_done_notfound": "{} now got the predictions of {}!\nThese users I cant remember: {}",
+        "danny_empty": "Sorry, but didnt you set the matches?!",
         "table_footer": "Yes this is live, gobo7793!"
     },
     "de": {
@@ -163,6 +164,7 @@
         "danny_no_users": "Trage mir Namen in die Config ein oder sagse mir ins Gesicht!",
         "danny_done": "{} hat nun die Tipps von {} erhalten!",
         "danny_done_notfound": "{} hat nun die Tipps von {} erhalten!\n{} kenne ich aber gar nicht.",
+        "danny_empty": "Ist der Spieltag noch nicht gesetzt oder warum finde ich nix? :face_with_raised_eyebrow:",
         "table_footer": "@gobo: möglicherweise live-stände"
     }
 }
