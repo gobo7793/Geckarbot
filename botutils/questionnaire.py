@@ -177,12 +177,12 @@ class Questionnaire:
         :param target_user: user that is to be DM'ed
         :param questions: list of Question objects that are to be posed
         :param name: String that identifies this questionnaire (e.g. command name)
-        :param kill_coro: DM registration kill callback; called when the DM registration is killed externally
+        :param kill_coro: DM registration kill callback; called when the DM registration is killed externally.
+        If this happens, this Questionnaire won't do any cleanup work.
         :param lang: Custom lang dict with the following keys:
         "intro": String that is sent as an introductory message before any question is posed. Use this to explain
         what is going to happen in the questionnaire and how it is used.
         "intro_howto_cancel": Second message that is sent. Usually used to explain how the questionnaire is cancelled.
-        If this happens, this Questionnaire won't do any cleanup work.
         "no_answers": Used in multiple choice questions to indicate that the "done" message cannot be the first.
         "result_rejected": Questionnaire response when the submitted answer is invalid.
         "state_cancelled": Response that is used when the questionnaire is cancelled.
