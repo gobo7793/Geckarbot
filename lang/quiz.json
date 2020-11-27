@@ -42,7 +42,6 @@
         "category_not_supported": "Quiz API {} does not have the category {}.",
 
         "existing_quiz": "There is already a kwiss running in this channel.",
-        "status_no_quiz": "There is no kwiss running in this channel.",
 
         "#4": "Ranked errors",
         "ranked_playercount": "Sorry, a ranked kwiss needs at least {} participants. Aborting.",
@@ -75,6 +74,7 @@
         "#8": "Status",
         "status_title_ingame": "Kwiss: question {}/{}",
         "status_title_init": "Starting kwiss!",
+        "status_no_quiz": "There is no kwiss running in this channel.",
 
         "#9": "Ladder",
         "ladder_entry": "**#{}:** {} - {} ({})",

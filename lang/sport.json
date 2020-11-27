@@ -15,6 +15,7 @@
         "league_not_found": "League must be one of the following: {}",
         "no_new_goals": "Liveticker: No new goals!",
         "liveticker_prefix": "Liveticker - New Goals\n",
+        "liveticker_prefix_kickoff": "__**Liveticker - Kickoff**__\n",
 
         "#2": "actually de strings",
         "kicker_title": "Kicker.de - Links - Spieltage",
@@ -49,7 +50,7 @@
         "help_buli": "Aktuelle Livestände der Bundesliga",
         "description_buli": "Zeigt die aktuellen Stände der derzeit laufenden Bundesliga-Spiele.\nMit dem Zusatz 'all' werden auch anstehende und beendete Spiele angezeigt.",
         "help_fußball": "Aktuelle Livestände einer Liga",
-        "description_fußball": "Zeigt die aktuellen Stände der derzeit laufenden Spieler einer Liga an. Die Liga wird über den entsprechenden Liga-Shortcut der OpenLigaDB angegeben.\nMit dem Zusatz 'all' werden auch anstehende und beendete Spiele angezeigt.",
+        "description_fußball": "Zeigt die aktuellen Stände der derzeit laufenden Spieler einer Liga an. Die Liga wird über den entsprechenden Liga-Shortcut der OpenLigaDB angegeben.\nMit dem Zusatz 'all' werden auch anstehende und beendete Spiele angezeigt.\nAkzeptierte Ligen: {}",
         "help_matches": "Listet alle Spiele, die in den nächsten 24 Stunden beginnen.",
 
         "soccer_title": "Fußball - {} - Live",
@@ -58,6 +59,7 @@
         "match_upcoming": "Bevorstehend",
         "league_not_found": "Liga muss eine der folgenden sein: {}",
         "no_new_goals": "Liveticker: Keine neuen Tore",
-        "liveticker_prefix": "Liveticker - Neue Tore\n"
+        "liveticker_prefix": "Liveticker - Neue Tore\n",
+        "liveticker_prefix_kickoff": "__**Liveticker - Anstoß**__\n"
     }
 }

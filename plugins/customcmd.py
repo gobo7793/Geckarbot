@@ -163,9 +163,9 @@ class Cmd:
 
 
 class CustomCMDHelpCategory(HelpCategory):
-    def __init__(self, plugin):
+    def __init__(self, bot, plugin):
         self.plugin = plugin
-        super().__init__("CustomCMD")
+        super().__init__(bot, "CustomCMD")
 
     async def send_category_help(self, ctx):
         # Command / category help
@@ -189,7 +189,7 @@ class Plugin(BasePlugin, name="Custom CMDs"):
 
     def __init__(self, bot):
         super().__init__(bot)
-        self.help_category = CustomCMDHelpCategory(self)
+        self.help_category = CustomCMDHelpCategory(bot, self)
         bot.register(self, self.help_category)
 
         self.prefix = Config.get(self)['prefix']

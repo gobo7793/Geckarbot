@@ -9,6 +9,15 @@ class NotLoadable(Exception):
     pass
 
 
+class PluginNotFound(Exception):
+    """
+    Raised when there is no Plugin class.
+    """
+    def __init__(self, members):
+        super().__init__("Plugin class not found.")
+        self.members = members
+
+
 class NotFound(Exception):
     """
     Raised by override methods to signal that the method was not overridden.
@@ -109,7 +118,7 @@ class BasePlugin(Cog, Configurable):
 
     async def command_help(self, ctx, command):
         """
-        Used to override command help. Raise NotFound to give control back to the help command.
+        Used to override the behavior of !help <command>. Raise NotFound to give control back to the help command.
         :param ctx: Context
         :param command: Command or Group instance
         """

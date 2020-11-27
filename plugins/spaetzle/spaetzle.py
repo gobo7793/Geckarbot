@@ -23,7 +23,7 @@ from conf import Config, Storage, Lang
 from plugins.spaetzle.subsystems import UserBridge, Observed, Trusted
 from plugins.spaetzle.utils import TeamnameDict, pointdiff_possible, determine_winner, MatchResult, match_status, \
     MatchStatus, get_user_league, get_user_cell, get_schedule, get_schedule_opponent, UserNotFound, convert_to_datetime
-from subsystems.help import HelpCategory
+from subsystems.help import DefaultCategories
 
 
 class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
@@ -31,7 +31,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
     def __init__(self, bot):
         super().__init__(bot)
         self.can_reload = True
-        bot.register(self, category=HelpCategory("Spaetzle", description="Plugin for the 'Spaetzle-Tippspiel'"))
+        bot.register(self, category=DefaultCategories.SPORT)
 
         self.logger = logging.getLogger(__name__)
         self.teamname_dict = TeamnameDict(self)
@@ -416,15 +416,16 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             data = {}
             participants = Storage().get(self)['participants']
             for leag, p in participants.items():
-                data[leag] = [[num for elem in [[user, None] for user in p] for num in elem]]
+                data["Aktuell!{}".format(Config().get(self)['predictions_ranges'][leag])] = [[num for elem in
+                                                                                              [[user, None] for user in p] for num in elem]]
                 for match in matches:
                     row = []
                     for user in p:
                         row.extend(predictions_by_user.get(user, {}).get(match, [None, None]))
-                    data[leag].append(row)
+                    data["Aktuell!{}".format(Config().get(self)['predictions_ranges'][leag])].append(row)
 
             # Updating cells
-            c.update("Aktuell!{}".format(Config().get(self)['predictions_range']), data, raw=False)
+            c.update_multiple(data, raw=False)
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
     @spaetzle_set.command(name="archive", help="Archives the current matchday and clears the frontpage")
@@ -444,11 +445,13 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                     ranges.append("Aktuell!{}".format(r.rangename()))
                 clear = c.clear_multiple(ranges)
                 if clear:
-                    replace = c.find_and_replace(find="ST {}".format(int(Storage().get(self)['matchday']) - 1),
+                    replace = c.find_and_replace(find="ST {}".format(Storage().get(self)['matchday'] - 1),
                                                  replace="ST {}".format(Storage().get(self)['matchday']),
                                                  include_formulas=True, sheet="Aktuell",
                                                  range=Config().get(self)['findreplace_matchday_range'])
         if duplicate and clear and replace:
+            Storage().get(self)['matchday'] += 1
+            Storage().save(self)
             await add_reaction(ctx.message, Lang.CMDSUCCESS)
         else:
             await add_reaction(ctx.message, Lang.CMDERROR)
@@ -834,6 +837,9 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                     else:
                         data_ranges.append("Aktuell!{}".format(CellRange(cell, 2, 11).rangename()))
                 result = c.get_multiple(data_ranges, formatted=False)
+                if not result[0]:
+                    await ctx.send(Lang.lang(self, 'danny_empty'))
+                    return
                 matchday = result[0][0][0]
                 matches = result[0][2:]
                 preds = result[1:]

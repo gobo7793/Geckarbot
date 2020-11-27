@@ -8,6 +8,7 @@ from botutils import utils, converters
 from conf import Config, Lang
 from subsystems import help
 from subsystems.presence import PresencePriority
+from typing import Union
 
 
 class Plugin(BasePlugin, name="Testing and debug things"):
@@ -140,3 +141,10 @@ class Plugin(BasePlugin, name="Testing and debug things"):
         await utils.log_to_admin_channel(ctx)
         await utils.log_to_mod_channel(ctx)
         await utils.write_debug_channel("writelogs used")
+
+    @commands.command(name="pingme", hidden=True)
+    async def pingme(self, ctx, user: Union[discord.Member, discord.User, str]):
+        if isinstance(user, discord.User) or isinstance(user, discord.Member):
+            await ctx.send("{}".format(user.mention))
+        else:
+            await ctx.send("Sorry, no user found for {}".format(user))

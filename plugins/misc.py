@@ -29,6 +29,12 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
         for el in reminders_to_remove:
             self.remove_reminder(el)
 
+        # Add commands to help category 'utils'
+        to_add = ("dice", "choose", "remindme")
+        for cmd in self.get_commands():
+            if cmd.name in to_add:
+                self.bot.helpsys.default_category(help.DefaultCategories.UTILS).add_command(cmd)
+
     def default_storage(self):
         return {'reminders': {}}
 

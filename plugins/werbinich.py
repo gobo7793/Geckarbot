@@ -9,6 +9,7 @@ from discord.http import HTTPException
 from base import BasePlugin, NotFound
 from conf import Lang
 from botutils import utils, statemachine, stringutils, converters
+from botutils.converters import get_best_username as gbu
 from subsystems import help, presence
 
 jsonify = {
@@ -39,7 +40,8 @@ class Participant:
         self.user = user
         self.assigned = None  # user this one has to choose for
         self.chosen = None
-        self.registration = self.plugin.bot.dm_listener.register(self.user, self.dm_callback, blocking=True)
+        self.registration = self.plugin.bot.dm_listener.register(self.user, self.dm_callback, "werbinich",
+                                                                 blocking=True)
         self.plugin.logger.debug("New Participant: {}".format(user))
 
     def assign(self, p):
@@ -52,9 +54,16 @@ class Participant:
         self.plugin.logger.debug("Assigning {} to {}".format(p, self.user))
         self.assigned = p
 
+    async def kill_cb(self):
+        """
+        The DM registration has been killed, so we're killing the whole game.
+        :return:
+        """
+        await self.plugin.kill(self)
+
     async def init_dm(self):
         self.plugin.logger.debug("Sending init DM to {}".format(self.user))
-        await self.send(Lang.lang(self.plugin, "ask_for_entry", converters.get_best_username(self.assigned.user)))
+        await self.send(Lang.lang(self.plugin, "ask_for_entry", gbu(self.assigned.user)))
 
     async def dm_callback(self, reg, message):
         self.plugin.logger.debug("Incoming message from {}: {}".format(self.user, message.content))
@@ -72,7 +81,7 @@ class Participant:
 
         self.chosen = message.content
         if first:
-            await self.send(Lang.lang(self.plugin, "entry_done", converters.get_best_username(self.assigned.user),
+            await self.send(Lang.lang(self.plugin, "entry_done", gbu(self.assigned.user),
                                       self.chosen))
         else:
             await self.send(Lang.lang(self.plugin, "entry_change", self.chosen))
@@ -88,8 +97,7 @@ class Participant:
             key = "result_with_assignees"
         else:
             key = "result_without_assignees"
-        return Lang.lang(self.plugin, key, converters.get_best_username(self.assigned.user), self.chosen,
-                         converters.get_best_username(self.user))
+        return Lang.lang(self.plugin, key, gbu(self.assigned.user), self.chosen, gbu(self.user))
 
     def cleanup(self):
         self.plugin.logger.debug("Cleaning up participant {}".format(self.user))
@@ -114,15 +122,14 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
         self.postgame = False
         self.presence_messsage = None
         self.participants = []
+        self.eval_event = None
 
-        self.statemachine = statemachine.StateMachine()
+        self.statemachine = statemachine.StateMachine(init_state=State.IDLE)
         self.statemachine.add_state(State.IDLE, None)
-        self.statemachine.add_state(State.REGISTER, self.registering_phase, [State.IDLE])
-        self.statemachine.add_state(State.COLLECT, self.collecting_phase, [State.REGISTER])
-        self.statemachine.add_state(State.DELIVER, self.delivering_phase, [State.COLLECT])
-
+        self.statemachine.add_state(State.REGISTER, self.registering_phase, start=True)
+        self.statemachine.add_state(State.COLLECT, self.collecting_phase, allowed_sources=[State.REGISTER])
+        self.statemachine.add_state(State.DELIVER, self.delivering_phase, allowed_sources=[State.COLLECT])
         self.statemachine.add_state(State.ABORT, self.abort)
-        self.statemachine.state = State.IDLE
 
     def command_help_string(self, command):
         return Lang.lang(self, "help_{}".format(command.name))
@@ -158,7 +165,7 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
         self.postgame = False
         self.channel = ctx.channel
         self.initiator = ctx.message.author
-        self.statemachine.state = State.REGISTER
+        await self.statemachine.run()
 
     @werbinich.command(name="status")
     async def statuscmd(self, ctx):
@@ -195,7 +202,7 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
         waitingfor = []
         for el in self.participants:
             if el.chosen is None:
-                waitingfor.append(converters.get_best_username(el.user))
+                waitingfor.append(gbu(el.user))
 
         wf = stringutils.format_andlist(waitingfor, ands=Lang.lang(self, "and"), emptylist=Lang.lang(self, "nobody"))
         await ctx.send(Lang.lang(self, "waiting_for", wf))
@@ -271,6 +278,7 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
 
     async def registering_phase(self):
         self.logger.debug("Starting registering phase")
+        self.eval_event = asyncio.Event()
         self.postgame = False
         self.presence_messsage = self.bot.presence.register(Lang.lang(self, "presence", self.channel.name),
                                                             priority=presence.PresencePriority.HIGH)
@@ -285,10 +293,11 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
         except HTTPException:
             # Unable to add reaction, therefore unable to begin the game
             await self.channel.send("PANIC")
-            self.statemachine.state = State.ABORT
-            return
+            return State.ABORT
 
         await asyncio.sleep(to * 60)
+        if self.statemachine.cancelled():
+            return
 
         # Consume signup reactions
         self.participants = []
@@ -308,35 +317,33 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
                     continue
 
                 if self.bot.dm_listener.is_blocked(user):
-                    blocked.append(converters.get_best_username(user))
+                    blocked.append(gbu(user))
                 else:
                     candidates.append(user)
 
         if blocked:
             blocked = stringutils.format_andlist(blocked, ands=Lang.lang(self, "and"))
             await self.channel.send(Lang.lang(self, "dmblocked", blocked))
-            self.statemachine.state = State.ABORT
-            return
+            return State.ABORT
 
         for el in candidates:
             try:
                 self.participants.append(Participant(self, el))
             except RuntimeError:
                 await msg.add_reaction(Lang.CMDERROR)
-                self.statemachine.state = State.ABORT
-                return
+                return State.ABORT
 
         players = len(self.participants)
         if players <= 1:
             await self.channel.send(Lang.lang(self, "no_participants"))
-            self.statemachine.state = State.ABORT
+            return State.ABORT
         else:
-            self.statemachine.state = State.COLLECT
+            return State.COLLECT
 
     async def collecting_phase(self):
         assert len(self.participants) > 1
 
-        msg = [converters.get_best_username(el.user) for el in self.participants]
+        msg = [gbu(el.user) for el in self.participants]
         msg = stringutils.format_andlist(msg, ands=Lang.lang(self, "and"))
         msg = Lang.lang(self, "list_participants", msg)
 
@@ -345,17 +352,24 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
         for i in range(len(self.participants)):
             self.participants[i].assign(shuffled[i])
 
-        self.participants = sorted(self.participants, key=converters.get_best_username)
+        self.participants = sorted(self.participants, key=gbu)
 
         await self.channel.send(msg)
         for el in self.participants:
             await el.init_dm()
 
+        await self.eval_event.wait()
+        if self.statemachine.cancelled():
+            for el in self.participants:
+                await el.cancelled_dm()
+            return None
+        return State.DELIVER
+
     def assigned(self):
         for el in self.participants:
             if el.chosen is None:
                 return
-        self.statemachine.state = State.DELIVER
+        self.eval_event.set()
 
     async def delivering_phase(self):
         for target in self.participants:
@@ -363,7 +377,7 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
             if self.show_assignees:
                 for el in self.participants:
                     if el.assigned == target:
-                        todo.append(Lang.lang(self, "user_assignee", converters.get_best_username(el.user)))
+                        todo.append(Lang.lang(self, "user_assignee", gbu(el.user)))
             for el in self.participants:
                 if el.assigned != target:
                     todo.append(el.to_msg(show_assignees=self.show_assignees))
@@ -372,15 +386,19 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
                 await target.send(msg)
         await self.channel.send(Lang.lang(self, "done"))
         await self.cleanup()
-        self.statemachine.state = State.IDLE
+        return None
+
+    async def kill(self, participant):
+        await self.channel.send("Cancelling werbinich, {}'s DM registration was killed.".format(gbu(participant.user)))
 
     async def abort(self):
         await self.cleanup()
 
     async def cleanup(self):
+        self.logger.debug("Cleaning up")
         for el in self.participants:
             el.cleanup()
         self.presence_messsage.deregister()
+        self.eval_event = None
         self.initiator = None
         self.show_assignees = True
-        self.statemachine.state = State.IDLE

@@ -9,6 +9,7 @@ from base import BasePlugin
 from botutils import restclient
 from botutils.stringutils import paginate
 from botutils.utils import add_reaction
+from subsystems.help import DefaultCategories
 from conf import Lang, Config
 
 
@@ -17,7 +18,7 @@ class Plugin(BasePlugin, name="Sport"):
 
     def __init__(self, bot):
         super().__init__(bot)
-        bot.register(self)
+        bot.register(self, category=DefaultCategories.SPORT)
         self.logger = logging.getLogger(__name__)
         self.can_reload = True
         self.liveticker_regs = {}
@@ -25,7 +26,8 @@ class Plugin(BasePlugin, name="Sport"):
 
     def default_config(self):
         return {
-            'leagues': ["bl1", "bl2", "bl3", "uefanl"],
+            'sport_chan': 0,
+            'leagues': {"bl1": ["bl", "1bl", "buli"], "bl2": ["2bl"], "bl3": ["3fl"], "uefanl": []},
             'liveticker_leagues': ["bl1", "bl2"]
         }
 
@@ -39,7 +41,12 @@ class Plugin(BasePlugin, name="Sport"):
         name = "_".join(command.qualified_name.split())
         lang_name = "description_{}".format(name)
         result = Lang.lang(self, lang_name)
-        return result if result != lang_name else Lang.lang(self, "help_{}".format(name))
+        if result != lang_name:
+            if name == "fußball":
+                result = Lang.lang(self, lang_name, ", ".join(Config().get(self)['leagues'].keys()))
+        else:
+            result = Lang.lang(self, "help_{}".format(name))
+        return result
 
     @commands.command(name="kicker")
     async def kicker_table(self, ctx):
@@ -72,11 +79,16 @@ class Plugin(BasePlugin, name="Sport"):
     async def tippspiel(self, ctx):
         await ctx.send(Lang.lang(self, 'tippspiel_output'))
 
-    @commands.command(name="fußball")
+    @commands.command(name="fußball", aliases=["fussball"])
     async def soccer_livescores(self, ctx, league, allmatches=None):
         if league not in Config().get(self)['leagues']:
-            await ctx.send(Lang.lang(self, 'league_not_found', ", ".join(Config().get(self)['leagues'])))
-            return
+            for leag, aliases in Config().get(self)['leagues'].items():
+                if league in aliases:
+                    league = leag
+                    break
+            else:
+                await ctx.send(Lang.lang(self, 'league_not_found', ", ".join(Config().get(self)['leagues'])))
+                return
         matches = restclient.Client("https://www.openligadb.de/api").make_request("/getmatchdata/{}".format(league))
         finished, running, upcoming = [], [], []
         for match in matches:
@@ -122,7 +134,7 @@ class Plugin(BasePlugin, name="Sport"):
     async def matches_24h(self, ctx):
         async with ctx.typing():
             msg = ""
-            for league in Config().get(self)['leagues']:
+            for league in Config().get(self)['leagues'].keys():
                 matches = restclient.Client("https://www.openligadb.de/api").make_request(
                     "/getmatchdata/{}".format(league))
                 league_msg = ""
@@ -152,8 +164,13 @@ class Plugin(BasePlugin, name="Sport"):
         for league in Config().get(self)['liveticker_leagues']:
             if league in self.liveticker_regs:
                 self.liveticker_regs[league].deregister()
-            leag_reg, self.liveticker_regs[league] = self.bot.liveticker.register(league, self.live_goals, True)
+            leag_reg, self.liveticker_regs[league] = self.bot.liveticker.register(league=league,
+                                                                                  coro=self.live_goals,
+                                                                                  coro_kickoff=self.live_kickoff,
+                                                                                  periodic=True)
             msg.append("{} - Next: {}".format(league, leag_reg.next_match()))
+        Config().get(self)['sport_chan'] = ctx.channel.id
+        Config().save(self)
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
         await ctx.send("\n".join(msg))
 
@@ -164,8 +181,18 @@ class Plugin(BasePlugin, name="Sport"):
             await self.liveticker_regs[league].update()
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
+    async def live_kickoff(self, match_dicts):
+        sport = Config().bot.get_channel(Config().get(self)['sport_chan'])
+        match_msgs = []
+        for match in match_dicts:
+            match_msgs.append("{} - {}".format(match.get("team_home"), match.get("team_away")))
+        msgs = paginate(match_msgs,
+                        prefix=Lang.lang(self, 'liveticker_prefix_kickoff', datetime.now().strftime('%H:&M')))
+        for msg in msgs:
+            await sport.send(msg)
+
     async def live_goals(self, new_goals):
-        sport = Config().bot.get_channel(self.bot.CHAN_IDS.get('sport', 0))
+        sport = Config().bot.get_channel(Config().get(self)['sport_chan'])
 
         matches_with_goals = [x for x in new_goals.values() if x['new_goals'] and not x['is_finished']]
         if matches_with_goals:
@@ -179,8 +206,8 @@ class Plugin(BasePlugin, name="Sport"):
                     if not minute:
                         minute = "?"
                     match_goals.append(
-                        "{}:{} *{}'* {}".format(goal.get('ScoreTeam1', "?"), goal.get('ScoreTeam2', "?"),
-                                                minute, goal.get('GoalGetterName', "-")))
+                        "{}:{} {} ({}.)".format(goal.get('ScoreTeam1', "?"), goal.get('ScoreTeam2', "?"),
+                                                goal.get('GoalGetterName', "-"), minute))
                 match_msgs.append(" / ".join(match_goals))
             msgs = paginate(match_msgs, prefix=Lang.lang(self, 'liveticker_prefix'))
             for msg in msgs:

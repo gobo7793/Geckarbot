@@ -1,8 +1,10 @@
 import logging
 from enum import Enum
 from datetime import datetime
+from typing import Union
 import time
 import random
+import re
 import pprint
 from urllib.error import HTTPError
 
@@ -20,6 +22,7 @@ from botutils.restclient import Client
 
 
 baseurl = "https://ws.audioscrobbler.com/2.0/"
+mention_p = re.compile(r"<@[^>]+>")
 
 
 class NotRegistered(Exception):
@@ -100,14 +103,18 @@ class Song:
         return cls(plugin, artist, album, title, nowplaying=nowplaying, timestamp=ts, loved=loved)
 
     def quote(self, p=None):
+        """
+        :param p: Probability (defaults to config value quote_p)
+        :return: quote
+        """
         if p is None:
             p = self.plugin.get_config("quote_p")
 
-        q = self.plugin.get_quotes(self.artist, self.title)
-        if q is not None:
-            q = random.choice(q)
+        quotes = self.plugin.get_quotes(self.artist, self.title)
+        if quotes:
+            qkey = random.choice([key for key in quotes.keys()])
             if p is not None and random.choices([True, False], weights=[p, 1 - p])[0]:
-                return q
+                return quotes[qkey]["quote"]
         return None
 
     def format_song(self):
@@ -142,6 +149,7 @@ class Plugin(BasePlugin, name="LastFM"):
         bot.register(self)
 
         self.logger = logging.getLogger(__name__)
+        self.migrate()
         self.client = Client(baseurl)
         self.conf = Config.get(self)
         if not self.conf.get("apikey", ""):
@@ -159,6 +167,7 @@ class Plugin(BasePlugin, name="LastFM"):
             "min_title": [float, 0.5],
             "mi_downgrade": [float, 1.5],
             "quote_p": [float, 0.5],
+            "max_quote_length": [int, 100],
         }
 
         # Quote lang dicts
@@ -181,6 +190,29 @@ class Plugin(BasePlugin, name="LastFM"):
             "profile"
         ]
 
+    def migrate(self):
+        # Migrate Quotes 1 -> 2
+        struc = Storage.get(self, container="quotes")
+        if struc["version"] == 1:
+            quoteslist = struc.get("quotes", [])
+            new_quoteslist = {}
+            for i in range(len(quoteslist)):
+                artist, title, quotes = quoteslist[i]
+                new_quotes = {}
+                for j in range(len(quotes)):
+                    new_quotes[j+1] = {
+                        "author": None,
+                        "quote": quotes[j],
+                    }
+                new_quoteslist[i+1] = {
+                    "artist": artist,
+                    "title": title,
+                    "quotes": new_quotes,
+                }
+            struc["quotes"] = new_quoteslist
+            struc["version"] = 2
+            Storage.save(self, container="quotes")
+
     def get_config(self, key):
         return Config.get(self).get(key, self.base_config[key][1])
 
@@ -194,8 +226,8 @@ class Plugin(BasePlugin, name="LastFM"):
             }
         elif container == "quotes":
             return {
-                "version": 1,
-                "quotes": []
+                "version": 2,
+                "quotes": {}
             }
         else:
             raise RuntimeError
@@ -228,7 +260,7 @@ class Plugin(BasePlugin, name="LastFM"):
                     r.append(cmd)
         return r
 
-    def request(self, params, method="GET"):
+    async def request(self, params, method="GET"):
         params["format"] = "json"
         params["api_key"] = self.conf["apikey"]
         headers = {
@@ -236,7 +268,7 @@ class Plugin(BasePlugin, name="LastFM"):
             "User-Agent": "Geckarbot/{}".format(self.bot.VERSION)
         }
         before = self.perf_timenow()
-        r = self.client.make_request("", params=params, headers=headers, method=method)
+        r = await self.client.request("", params=params, headers=headers, method=method)
         after = self.perf_timenow()
         self.perf_add_lastfm_time(after - before)
         return r
@@ -261,10 +293,11 @@ class Plugin(BasePlugin, name="LastFM"):
         self.perf_request_count += 1
 
     def get_quotes(self, artist, title):
-        for el in Storage.get(self, container="quotes").get("quotes", []):
-            if el[0].lower() == artist.lower() and el[1].lower() == title.lower():
-                return el[2]
-        return None
+        quotes = Storage.get(self, container="quotes").get("quotes", [])
+        for el in quotes.keys():
+            if quotes[el]["artist"].lower() == artist.lower() and quotes[el]["title"].lower() == title.lower():
+                return quotes[el]["quotes"]
+        return {}
 
     @staticmethod
     def perf_timenow():
@@ -313,11 +346,11 @@ class Plugin(BasePlugin, name="LastFM"):
         await ctx.send("Changed {} value from {} to {}".format(key, oldval, value))
 
     @lastfm.command(name="register")
-    async def register(self, ctx, lfmuser: str):
-        info = self.get_user_info(lfmuser)
+    async def cmd_register(self, ctx, lfmuser: str):
+        info = await self.get_user_info(lfmuser)
         if info is None:
             await ctx.message.add_reaction(Lang.CMDERROR)
-            await ctx.send(Lang.lang(self, "user_not_found"))
+            await ctx.send(Lang.lang(self, "user_not_found", lfmuser))
             return
         if "user" not in info:
             await ctx.message.add_reaction(Lang.CMDERROR)
@@ -329,7 +362,7 @@ class Plugin(BasePlugin, name="LastFM"):
         await ctx.message.add_reaction(Lang.CMDSUCCESS)
 
     @lastfm.command(name="deregister")
-    async def deregister(self, ctx):
+    async def cmd_deregister(self, ctx):
         if ctx.author.id in Storage.get(self)["users"]:
             del Storage.get(self)["users"][ctx.author.id]
             await ctx.message.add_reaction(Lang.CMDSUCCESS)
@@ -337,7 +370,7 @@ class Plugin(BasePlugin, name="LastFM"):
             await ctx.message.add_reaction(Lang.CMDNOCHANGE)
 
     @lastfm.command(name="profile", usage="<User>")
-    async def cmd_profile(self, ctx, user: discord.User):
+    async def cmd_profile(self, ctx, user: Union[discord.Member, discord.User]):
         try:
             user = self.get_lastfm_user(user)
         except NotRegistered as e:
@@ -346,15 +379,15 @@ class Plugin(BasePlugin, name="LastFM"):
         await ctx.send("http://last.fm/user/{}".format(user))
 
     @lastfm.command(name="performance", hidden=True)
-    async def perf(self, ctx):
+    async def cmd_perf(self, ctx):
         decdigits = 3
         total = round(self.perf_total_time, decdigits)
         lastfm = round(self.perf_lastfm_time, decdigits)
         percent = int(round(lastfm * 100 / total))
         await ctx.send(Lang.lang(self, "performance", lastfm, total, percent, self.perf_request_count))
 
-    @lastfm.command(name="page", hidden=True)
-    async def history(self, ctx, page: int):
+    @lastfm.command(name="page", aliases=["history"], hidden=True)
+    async def cmd_history(self, ctx, page: int = 1):
         self.perf_reset_timers()
         before = self.perf_timenow()
         pagelen = 10
@@ -369,7 +402,7 @@ class Plugin(BasePlugin, name="LastFM"):
             "page": page,
             "limit": pagelen
         }
-        songs = self.build_songs(self.request(params))
+        songs = self.build_songs(await self.request(params))
         for i in range(len(songs)):
             songs[i] = self.listening_msg(ctx.author, songs[i])
         await ctx.message.add_reaction(Lang.CMDSUCCESS)
@@ -389,6 +422,25 @@ class Plugin(BasePlugin, name="LastFM"):
             return [question.data["q_quote"]]
         assert False
 
+    async def quote_sanity_cb(self, question, question_queue):
+        p = mention_p.search(question.answer)
+        print("re search: {}".format(p))
+        if p:
+            await question.answer_msg.add_reaction(Lang.CMDERROR)
+            await question.answer_msg.channel.send(Lang.lang(self, "quote_err_no_mentions"))
+            return [question] + question_queue
+
+        maxlen = self.get_config("max_quote_length")
+        if len(question.answer) > maxlen:
+            await question.answer_msg.add_reaction(Lang.CMDERROR)
+            await question.answer_msg.channel.send(Lang.lang(self, "quote_err_length", maxlen, len(question.answer)))
+            return [question] + question_queue
+        return question_queue
+
+    async def quote_dm_kill_cb(self, msg, questionnaire):
+        await questionnaire.user.send(Lang.lang(self, "quote_err_dmkill"))
+        await msg.add_reaction(Lang.CMDERROR)
+
     @lastfm.command(name="quote", hidden=True)
     async def cmd_quote(self, ctx):
         # Acquire last song for first questionnaire route
@@ -404,13 +456,13 @@ class Plugin(BasePlugin, name="LastFM"):
             "limit": 1,
             "extended": 1,
         }
-        response = self.request(params)
+        response = await self.request(params)
         song = self.build_songs(response)[0]
 
         # Build Questionnaire
         q_artist = Question("Artist?", QuestionType.TEXT, lang=self.lang_question)
         q_title = Question("Title?", QuestionType.TEXT, lang=self.lang_question)
-        q_quote = Question("Quote?", QuestionType.TEXT, lang=self.lang_question)
+        q_quote = Question("Quote?", QuestionType.TEXT, lang=self.lang_question, callback=self.quote_sanity_cb)
         data = {
             "song": song,
             "q_quote": q_quote,
@@ -422,8 +474,10 @@ class Plugin(BasePlugin, name="LastFM"):
         q_target = Question(Lang.lang(self, "quote_target", song.format_song()), QuestionType.SINGLECHOICE,
                             answers=answers, callback=self.quote_cb, data=data)
         questions = [q_target, q_artist, q_title, q_quote]
-        questionnaire = Questionnaire(self.bot, ctx.author, questions, lang=self.lang_questionnaire)
+        questionnaire = Questionnaire(self.bot, ctx.author, questions, "lastfm quote", lang=self.lang_questionnaire)
+        questionnaire.kill_coro = self.quote_dm_kill_cb(ctx.message, questionnaire)
 
+        # Interrogate
         try:
             await questionnaire.interrogate()
         except Cancelled:
@@ -441,34 +495,46 @@ class Plugin(BasePlugin, name="LastFM"):
             artist = q_artist.answer
             title = q_title.answer
 
+        # Build new quote
         quotes = self.get_quotes(artist, title)
-        if quotes is None:
-            quotes = []
-            ta = [artist, title, quotes]
-            Storage.get(self, container="quotes")["quotes"].append(ta)
+        if not quotes:
+            ta = {
+                "artist": artist,
+                "title": title,
+                "quotes": quotes,
+            }
+            allquotes = Storage.get(self, container="quotes")["quotes"]
+            allquotes[get_new_key(allquotes)] = ta
         self.logger.debug("Adding quote: {} to {}".format(q_quote.answer, quotes))
-        quotes.append(q_quote.answer)
+        quote = {
+            "author": ctx.author.id,
+            "quote": q_quote.answer,
+        }
+
+        # Add quote
+        quotes[get_new_key(quotes)] = quote
         Storage.save(self, container="quotes")
 
     @lastfm.command(name="now", aliases=["listening"])
-    async def cmd_now(self, ctx, user=None):
+    async def cmd_now(self, ctx, user: Union[discord.Member, discord.User, str, None]):
         self.perf_reset_timers()
         before = self.perf_timenow()
+        lfmuser = user
         if user is None:
             user = ctx.author
-        else:
-            # find mentioned user
+        if isinstance(user, discord.Member) or isinstance(user, discord.User):
             try:
-                user = await commands.MemberConverter().convert(ctx, user)
-            except (commands.CommandError, IndexError):
+                lfmuser = self.get_lastfm_user(user)
+            except NotRegistered as e:
+                await e.default(ctx)
+                return
+        else:
+            # user is a str
+            userinfo = await self.get_user_info(user)
+            if userinfo is None:
                 await ctx.message.add_reaction(Lang.CMDERROR)
                 await ctx.send(Lang.lang(self, "user_not_found", user))
                 return
-        try:
-            lfmuser = self.get_lastfm_user(user)
-        except NotRegistered as e:
-            await e.default(ctx)
-            return
 
         params = {
             "method": "user.getRecentTracks",
@@ -478,7 +544,7 @@ class Plugin(BasePlugin, name="LastFM"):
         }
 
         async with ctx.typing():
-            response = self.request(params)
+            response = await self.request(params)
             song = self.build_songs(response)[0]
 
         await ctx.send(self.listening_msg(user, song))
@@ -506,15 +572,19 @@ class Plugin(BasePlugin, name="LastFM"):
             msg = "{} _{}_".format(msg, quote)
         return msg
 
-    def get_user_info(self, lfmuser):
+    async def get_user_info(self, lfmuser):
         params = {
             "method": "user.getInfo",
             "user": lfmuser
         }
         try:
-            return self.request(params)
+            userinfo = await self.request(params)
         except HTTPError:
             return None
+
+        if "error" in userinfo:
+            return None
+        return userinfo
 
     def get_by_path(self, structure, path, default=None, strict=False):
         result = structure
@@ -570,7 +640,7 @@ class Plugin(BasePlugin, name="LastFM"):
     def expand_formula(top_index, top_matches, current_index, current_matches):
         return current_matches / current_index > (top_matches - 2) / top_index
 
-    def expand(self, lfmuser, page_len, so_far, criterion, example):
+    async def expand(self, lfmuser, page_len, so_far, criterion, example):
         """
         Expands a streak on the first page to the longest it can find across multiple pages.
         Potentially downgrades the criterion layer if the lower layer has far more matches.
@@ -579,8 +649,9 @@ class Plugin(BasePlugin, name="LastFM"):
         :param so_far: First page of songs
         :param criterion: MostInteresting instance
         :param example: Example song
-        :return: `(count, out_of, criterion)` with count being the amount of matches for criterion it found,
-        out_of being the amount of scrobbles that were looked at, criterion the (new, potentially downgraded) criterion.
+        :return: `(count, out_of, criterion, repr)` with count being the amount of matches for criterion it found,
+        out_of being the amount of scrobbles that were looked at, criterion the (new, potentially downgraded) criterion
+        and repr the most recent representative song of criterion.
         """
         self.logger.debug("Expanding")
         page_index = 1
@@ -593,6 +664,7 @@ class Plugin(BasePlugin, name="LastFM"):
             "top_index": 1,
             "top_matches": 0,
             "current_matches": 0,
+            "repr": None,
         }
         counters = {
             MostInterestingType.ARTIST: prototype,
@@ -608,6 +680,12 @@ class Plugin(BasePlugin, name="LastFM"):
                 for current_criterion in MostInterestingType:
                     if self.interest_match(song, current_criterion, example):
                         c = counters[current_criterion]
+
+                        # Set repr
+                        if c["repr"] is None:
+                            c["repr"] = song
+
+                        # Calc matches
                         c["current_matches"] += 1
                         logging.debug("Comparison: {} > {} on song {}"
                                       .format(c["current_matches"] / current_index,
@@ -633,7 +711,7 @@ class Plugin(BasePlugin, name="LastFM"):
             params["limit"] = page_len
             params["page"] = page_index
             self.logger.debug("Expand: Fetching page {}".format(page_index))
-            current_page = self.build_songs(self.request(params), first=False)
+            current_page = self.build_songs(await self.request(params), first=False)
 
         self.logger.debug("counters: {}".format(counters))
 
@@ -647,10 +725,11 @@ class Plugin(BasePlugin, name="LastFM"):
             if top_matches <= downgrade_value:
                 self.logger.debug("mi downgrade from {} to {}".format(criterion, el))
                 criterion = el
+                example = counters[el]["repr"]
                 top_index = counters[el]["top_index"]
                 top_matches = counters[el]["top_matches"]
 
-        return top_matches, top_index, criterion
+        return top_matches, top_index, criterion, example
 
     def tiebreaker(self, scores, songs, mitype):
         """
@@ -744,7 +823,7 @@ class Plugin(BasePlugin, name="LastFM"):
             "limit": pagelen,
             "extended": 1,
         }
-        response = self.request(params, "GET")
+        response = await self.request(params, "GET")
         songs = self.build_songs(response)
 
         # Calc counts
@@ -779,7 +858,7 @@ class Plugin(BasePlugin, name="LastFM"):
             # Nothing interesting found, send single song msg
             await ctx.send(self.listening_msg(user, songs[0]))
             return
-        matches, total, mi = self.expand(lfmuser, pagelen, songs, mi, mi_example)
+        matches, total, mi, mi_example = await self.expand(lfmuser, pagelen, songs, mi, mi_example)
 
         # build msg
         if matches == total:
@@ -792,13 +871,20 @@ class Plugin(BasePlugin, name="LastFM"):
                 paststr = hr_roughly(mi_example.timestamp,
                                      fstring=Lang.lang(self, "baseformat", "{}", "{}"),
                                      yesterday=Lang.lang(self, "yesterday"),
-                                     seconds=Lang.lang(self, "seconds"),
-                                     minutes=Lang.lang(self, "minutes"),
-                                     hours=Lang.lang(self, "hours"),
-                                     days=Lang.lang(self, "days"),
-                                     weeks=Lang.lang(self, "weeks"),
-                                     months=Lang.lang(self, "months"),
-                                     years=Lang.lang(self, "years"))
+                                     seconds_sg=Lang.lang(self, "seconds_sg"),
+                                     seconds=Lang.lang(self, "seconds_pl"),
+                                     minutes_sg=Lang.lang(self, "minutes_sg"),
+                                     minutes=Lang.lang(self, "minutes_pl"),
+                                     hours_sg=Lang.lang(self, "hours_sg"),
+                                     hours=Lang.lang(self, "hours_pl"),
+                                     days_sg=Lang.lang(self, "days_sg"),
+                                     days=Lang.lang(self, "days_pl"),
+                                     weeks_sg=Lang.lang(self, "weeks_sg"),
+                                     weeks=Lang.lang(self, "weeks_pl"),
+                                     months_sg=Lang.lang(self, "months_sg"),
+                                     months=Lang.lang(self, "months_pl"),
+                                     years_sg=Lang.lang(self, "years_sg"),
+                                     years=Lang.lang(self, "years_sg"))
                 vp = Lang.lang(self, "most_interesting_past_format", gbu(user), paststr, "{}")
             else:
                 vp = Lang.lang(self, "most_interesting_base_past", gbu(user), "{}")
@@ -818,3 +904,12 @@ class Plugin(BasePlugin, name="LastFM"):
         if quote is not None:
             msg = "{} _{}_".format(msg, quote)
         await ctx.send(msg)
+
+
+def get_new_key(d):
+    i = 1
+    for key in d.keys():
+        b = int(key)
+        if b >= i:
+            i = b + 1
+    return i

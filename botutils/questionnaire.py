@@ -7,6 +7,7 @@ from discord import User
 
 from conf import Lang
 from botutils.stringutils import paginate, format_andlist as ellist
+from botutils.utils import execute_anything
 
 
 baselang = {
@@ -99,6 +100,8 @@ class Question:
         self.lang = lang if lang is not None else {}
 
         self.answer = None
+        self.question_msg = None
+        self.answer_msg = None
 
         if not answers and qtype != QuestionType.TEXT:
             raise RuntimeError("missing answers")
@@ -117,17 +120,20 @@ class Question:
             msg.append(get_lang(self.lang, "answer_list_sc").format(answers))
 
         for msg in paginate(msg):
-            await user.send(msg)
+            self.question_msg = await user.send(msg)
 
-    def handle_answer(self, answer) -> Result:
+    def handle_answer(self, answer_msg) -> Result:
         """
         Handles an answer according to the question type.
-        :param answer: submitted answer
+        :param answer_msg: submitted answer message
         :return: The resulting new State
         """
-        self.logger.debug("Handling answer {} on {}".format(answer, self))
-        if answer.lower() == self.lang.get("answer_cancel", baselang["answer_cancel"]):
+        self.logger.debug("Handling answer {} on {}".format(answer_msg.content, self))
+        if answer_msg.content.lower() == self.lang.get("answer_cancel", baselang["answer_cancel"]):
             return Result.CANCELLED
+
+        self.answer_msg = answer_msg
+        answer = answer_msg.content
 
         if self.type == QuestionType.TEXT:
             self.answer = answer
@@ -165,11 +171,14 @@ class Question:
 
 
 class Questionnaire:
-    def __init__(self, bot, target_user: User, questions: List[Question], lang: dict = None):
+    def __init__(self, bot, target_user: User, questions: List[Question], name: str, kill_coro=None, lang: dict = None):
         """
         :param bot: bot reference
         :param target_user: user that is to be DM'ed
         :param questions: list of Question objects that are to be posed
+        :param name: String that identifies this questionnaire (e.g. command name)
+        :param kill_coro: DM registration kill callback; called when the DM registration is killed externally.
+        If this happens, this Questionnaire won't do any cleanup work.
         :param lang: Custom lang dict with the following keys:
         "intro": String that is sent as an introductory message before any question is posed. Use this to explain
         what is going to happen in the questionnaire and how it is used.
@@ -181,10 +190,12 @@ class Questionnaire:
         """
         self.bot = bot
         self.user = target_user
+        self.name = name
         self.question_queue = questions
         self.current_question_index = -1
         self.current_question = None
         self.question_history = []
+        self.kill_coro = kill_coro
         self.dm_registration = None
         self.state = State.INIT
         self.lang = lang if lang is not None else {}
@@ -207,10 +218,10 @@ class Questionnaire:
 
     async def dm_callback(self, reg, msg):
         if not self.state == State.ANSWER:
-            msg.add_reaction(Lang.CMDERROR)
+            await msg.add_reaction(Lang.CMDERROR)
             return
 
-        result = self.current_question.handle_answer(msg.content)
+        result = self.current_question.handle_answer(msg)
         if result == Result.CANCELLED:
             self.state = State.DONE
             self.teardown()
@@ -238,7 +249,8 @@ class Questionnaire:
         questionnaire was cancelled.
         """
         # Setup
-        self.dm_registration = self.bot.dm_listener.register(self.user, self.dm_callback, blocking=True)
+        self.dm_registration = self.bot.dm_listener.register(self.user, self.dm_callback, self.name,
+                                                             kill_coro=self.kill_coro, blocking=True)
         self.logger.debug("Interrogating {}".format(self.user))
 
         # Intro
@@ -253,10 +265,9 @@ class Questionnaire:
                 self.logger.warning("Questionnaire here; please fix empty returns in paginate thx")
 
         # Pose questions
-        question = None
         while True:
             self.state = State.QUESTION
-            self.current_question = self.get_next_question(self.current_question)
+            self.current_question = await self.get_next_question(self.current_question)
             self.logger.debug("Next question: {}".format(self.current_question))
             if self.current_question is None:
                 self.state = State.DONE
@@ -279,13 +290,13 @@ class Questionnaire:
         self.teardown()
         return self.question_history
 
-    def get_next_question(self, last_question) -> Union[Question, None]:
+    async def get_next_question(self, last_question) -> Union[Question, None]:
         """
         Does the question and callback handling.
         :return: Question object, None if there is no next question.
         """
         if last_question is not None and last_question.callback is not None:
-            self.question_queue = last_question.callback(last_question, self.question_queue)
+            self.question_queue = await execute_anything(last_question.callback, last_question, self.question_queue)
         self.current_question_index += 1
         if len(self.question_queue) > 0:
             r = self.question_queue.pop(0)

@@ -298,18 +298,18 @@ class Plugin(BasePlugin, name="Bot updating system"):
             f.write(tag)
         await self.bot.shutdown(Geckarbot.Exitcodes.UPDATE)  # This signals the runscript
 
-    def get_releases(self):
-        r = self.client.make_request(ENDPOINT)
+    async def get_releases(self):
+        r = await self.client.request(ENDPOINT)
         return r
 
-    def check_release(self, version=None):
+    async def check_release(self, version=None):
         """
         Checks GitHub if there is a new release. Assumes that the GitHub releases are ordered by release date.
         :return: Tag of the newest release that is newer than the current version, None if there is none.
         """
         # find newest release with tag (all the others are worthless anyway)
         release = None
-        for el in self.get_releases():
+        for el in await self.get_releases():
             if "tag_name" in el:
                 el = el["tag_name"]
                 if version is None and (release is None or is_newer(el, release)):
@@ -331,12 +331,12 @@ class Plugin(BasePlugin, name="Bot updating system"):
         :param version: Release version that the news should be about.
         """
         if version == "latest":
-            version = self.check_release()
+            version = await self.check_release()
         if version is None:
             version = self.bot.VERSION
         ver = None
         body = None
-        for el in self.get_releases():
+        for el in await self.get_releases():
             ver = sanitize_version_s(el["tag_name"])
             logging.getLogger(__name__).debug("Comparing versions: {} and {}".format(self.bot.VERSION, ver))
             if is_equal(sanitize_version_s(version), ver):
@@ -447,7 +447,7 @@ class Plugin(BasePlugin, name="Bot updating system"):
     async def cmd_update(self, ctx, version=None):
         # Argument parsing
         if not permchecks.check_admin_access(ctx.author):
-            release = self.check_release(version=version)
+            release = await self.check_release(version=version)
             await ctx.message.add_reaction(Lang.CMDSUCCESS)
             if release is None:
                 await ctx.message.channel.send(Lang.lang(self, "no_new_version"))
@@ -469,7 +469,7 @@ class Plugin(BasePlugin, name="Bot updating system"):
 
         # Check for new version
         self.state = State.CHECKING
-        release = self.check_release(version=version)
+        release = await self.check_release(version=version)
         if release is None:
             if version is not None:
                 msg = Lang.lang(self, "version_not_found", version)
