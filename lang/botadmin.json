@@ -6,7 +6,7 @@
     "dm_true": "Yes",
     "dm_false": "No",
     "dm_empty_result": "No DM registrations found for user **{}**.",
-    "dm_result_prefix": "DM-Registrierungen für User **{}**:",
+    "dm_result_prefix": "DM registrations for user **{}**:",
     "dm_base_format": "**#{}**: Registered by `{}`; blocking: {}"
   },
   "de": {
