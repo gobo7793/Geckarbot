@@ -8,7 +8,6 @@ import botutils.timeutils
 from base import BasePlugin, NotFound
 from botutils import stringutils, permchecks
 from botutils.converters import get_best_username, get_best_user
-from botutils.timeutils import from_epoch_ms
 from botutils.utils import add_reaction
 from conf import Config, Storage, Lang
 from plugins.fantasy.league import FantasyLeague, deserialize_league, create_league
@@ -63,23 +62,25 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
             }
         }
 
-    def default_storage(self):
-        return {
-            "supercommish": 0,
-            "state": FantasyState.NA,
-            "date": datetime.now(),
-            "status": "",
-            "datalink": None,
-            "start": datetime.now(),
-            "end": datetime.now() + timedelta(days=16 * 7),
-            "timers": False,
-            "def_league": -1,
-            "leagues": [],
-            "espn_credentials": {
-                "swid": "",
-                "espn_s2": ""
+    def default_storage(self, container=None):
+        if container is None:
+            return {
+                "supercommish": 0,
+                "state": FantasyState.NA,
+                "date": datetime.now(),
+                "status": "",
+                "datalink": None,
+                "start": datetime.now(),
+                "end": datetime.now() + timedelta(days=16 * 7),
+                "timers": False,
+                "def_league": -1,
+                "leagues": [],
+                "espn_credentials": {
+                    "swid": "",
+                    "espn_s2": ""
+                }
             }
-        }
+        return {}
 
     async def shutdown(self):
         self._stop_score_timer()
@@ -145,7 +146,7 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
             "end": self.end_date,
             "timers": self.use_timers,
             "def_league": self.default_league,
-            "leagues": {k: v.serialize() for k, v in self.leagues},
+            "leagues": {k: self.leagues[k].serialize() for k in self.leagues},
             "espn_credentials": {
                 "swid": Storage.get(self)["espn_credentials"]["swid"],
                 "espn_s2": Storage.get(self)["espn_credentials"]["espn_s2"]
@@ -279,9 +280,11 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
         """Decides if the league can be ignored cause of the league name or it's not the default league"""
         if league_name is None and self.default_league > -1 and self.default_league != league_key:
             return True
-        if league_name is not None and league_name \
-                and league_name.lower() not in self.leagues[league_key].name.lower():
-            return True
+        if league_name is not None and league_name:
+            if league_name.lower() == "all":
+                return False
+            if league_name.lower() not in self.leagues[league_key].name.lower():
+                return True
         return False
 
     @commands.group(name="fantasy")
@@ -301,6 +304,8 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
         league_name = None
         for k in self.leagues:
             try:
+                if args[-1].lower() == "all":
+                    league_name = "all"
                 if args[-1].lower() in self.leagues[k].name.lower():
                     league_name = self.leagues[k].name
                     break
@@ -347,9 +352,10 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
 
             if not results:
                 for k in self.leagues:
-                    if k == self.default_league or\
-                            (league_name is not None and league_name and
-                             league_name.lower() != self.leagues[k].name.lower()):
+                    if league_name.lower() != "all" and \
+                            (k == self.default_league or
+                             (league_name is not None and league_name
+                              and league_name.lower() != self.leagues[k].name.lower())):
                         # default league already done directly above
                         continue
 
@@ -553,11 +559,7 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
 
                     embed.add_field(name=Lang.lang(self, "current_leader"), value=standings_str)
                     embed.set_footer(text=footer_str)
-
-                    trade_deadline_int = league.trade_deadline
-                    if trade_deadline_int > 0:
-                        trade_deadline_str = from_epoch_ms(trade_deadline_int).strftime(Lang.lang(self, "until_strf"))
-                        embed.add_field(name=Lang.lang(self, "trade_deadline"), value=trade_deadline_str)
+                    embed.add_field(name=Lang.lang(self, "trade_deadline"), value=league.trade_deadline)
 
                     activity = league.get_most_recent_activity()
                     if activity is not None:
