@@ -38,11 +38,14 @@ class Plugin(BasePlugin, name="Bot status commands for monitoring and debug purp
                             suffix="\n",
                             if_empty="None"):
             await ctx.send(msg)
-        for msg in paginate(self.bot.dm_listener.registrations.keys(),
+            
+        dmregs = self.bot.dm_listener.registrations
+        if not dmregs:
+            dmregs = {0: "None"}
+        for msg in paginate([x for x in dmregs.keys()],
                             prefix="**DM Listeners:**\n",
                             suffix="\n",
-                            f=lambda x: self.bot.dm_listener.registrations[x],
-                            if_empty="None"):
+                            f=lambda x: dmregs[x]):
             await ctx.send(msg)
 
         presence_timer_status = "up" if self.bot.presence.is_timer_up else "down"
