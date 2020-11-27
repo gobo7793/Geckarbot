@@ -164,7 +164,10 @@ class Plugin(BasePlugin, name="Sport"):
         for league in Config().get(self)['liveticker_leagues']:
             if league in self.liveticker_regs:
                 self.liveticker_regs[league].deregister()
-            leag_reg, self.liveticker_regs[league] = self.bot.liveticker.register(league, self.live_goals, True)
+            leag_reg, self.liveticker_regs[league] = self.bot.liveticker.register(league=league,
+                                                                                  coro=self.live_goals,
+                                                                                  coro_kickoff=self.live_kickoff,
+                                                                                  periodic=True)
             msg.append("{} - Next: {}".format(league, leag_reg.next_match()))
         Config().get(self)['sport_chan'] = ctx.channel.id
         Config().save(self)
@@ -177,6 +180,16 @@ class Plugin(BasePlugin, name="Sport"):
         for league in self.liveticker_regs:
             await self.liveticker_regs[league].update()
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
+
+    async def live_kickoff(self, match_dicts):
+        sport = Config().bot.get_channel(Config().get(self)['sport_chan'])
+        match_msgs = []
+        for match in match_dicts:
+            match_msgs.append("{} - {}".format(match.get("team_home"), match.get("team_away")))
+        msgs = paginate(match_msgs,
+                        prefix=Lang.lang(self, 'liveticker_prefix_kickoff', datetime.now().strftime('%H:&M')))
+        for msg in msgs:
+            await sport.send(msg)
 
     async def live_goals(self, new_goals):
         sport = Config().bot.get_channel(Config().get(self)['sport_chan'])
