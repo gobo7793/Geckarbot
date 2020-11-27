@@ -171,15 +171,18 @@ class Question:
 
 
 class Questionnaire:
-    def __init__(self, bot, target_user: User, questions: List[Question], lang: dict = None):
+    def __init__(self, bot, target_user: User, questions: List[Question], name: str, kill_coro=None, lang: dict = None):
         """
         :param bot: bot reference
         :param target_user: user that is to be DM'ed
         :param questions: list of Question objects that are to be posed
+        :param name: String that identifies this questionnaire (e.g. command name)
+        :param kill_coro: DM registration kill callback; called when the DM registration is killed externally
         :param lang: Custom lang dict with the following keys:
         "intro": String that is sent as an introductory message before any question is posed. Use this to explain
         what is going to happen in the questionnaire and how it is used.
         "intro_howto_cancel": Second message that is sent. Usually used to explain how the questionnaire is cancelled.
+        If this happens, this Questionnaire won't do any cleanup work.
         "no_answers": Used in multiple choice questions to indicate that the "done" message cannot be the first.
         "result_rejected": Questionnaire response when the submitted answer is invalid.
         "state_cancelled": Response that is used when the questionnaire is cancelled.
@@ -187,10 +190,12 @@ class Questionnaire:
         """
         self.bot = bot
         self.user = target_user
+        self.name = name
         self.question_queue = questions
         self.current_question_index = -1
         self.current_question = None
         self.question_history = []
+        self.kill_coro = kill_coro
         self.dm_registration = None
         self.state = State.INIT
         self.lang = lang if lang is not None else {}
@@ -244,7 +249,8 @@ class Questionnaire:
         questionnaire was cancelled.
         """
         # Setup
-        self.dm_registration = self.bot.dm_listener.register(self.user, self.dm_callback, blocking=True)
+        self.dm_registration = self.bot.dm_listener.register(self.user, self.dm_callback, self.name,
+                                                             kill_coro=self.kill_coro, blocking=True)
         self.logger.debug("Interrogating {}".format(self.user))
 
         # Intro
@@ -259,7 +265,6 @@ class Questionnaire:
                 self.logger.warning("Questionnaire here; please fix empty returns in paginate thx")
 
         # Pose questions
-        question = None
         while True:
             self.state = State.QUESTION
             self.current_question = await self.get_next_question(self.current_question)

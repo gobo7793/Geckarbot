@@ -27,7 +27,7 @@ class Plugin(BasePlugin):
     async def poll(self, ctx):
         self.logger.debug("Caught poll cmd")
         questions = [Question(question, qtype, answers=answers) for question, qtype, answers in protoquestions]
-        questionnaire = Questionnaire(self.bot, ctx.message.author, questions)
+        questionnaire = Questionnaire(self.bot, ctx.message.author, questions, "poll demo")
 
         try:
             answers = await questionnaire.interrogate()

@@ -46,6 +46,13 @@ def check_mod_access(user: discord.User):
     return _check_access(user, Config().MOD_ROLES)
 
 
+def is_botadmin(user: discord.User):
+    """
+    Checks if the user has bot admin role.
+    """
+    return _check_access(user, [Config().BOT_ADMIN_ROLE_ID])
+
+
 def debug_user_check_id(user_id: int):
     """
     Checks if the given user can use the bot based on the debug users list.

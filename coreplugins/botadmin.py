@@ -1,12 +1,15 @@
 import pprint
 from datetime import datetime
+from typing import Union
 
-from base import BasePlugin, ConfigurableType
-
+import discord
 from discord.ext import commands
 
+from base import BasePlugin, ConfigurableType
 from botutils import converters
+from botutils.permchecks import is_botadmin
 from botutils.stringutils import paginate
+from botutils.converters import get_best_username as gbu
 from conf import Storage, Config, Lang
 from subsystems import help
 
@@ -35,9 +38,10 @@ class Plugin(BasePlugin, name="Bot status commands for monitoring and debug purp
                             suffix="\n",
                             if_empty="None"):
             await ctx.send(msg)
-        for msg in paginate(self.bot.dm_listener.registrations,
+        for msg in paginate(self.bot.dm_listener.registrations.keys(),
                             prefix="**DM Listeners:**\n",
                             suffix="\n",
+                            f=lambda x: self.bot.dm_listener.registrations[x],
                             if_empty="None"):
             await ctx.send(msg)
 
@@ -126,3 +130,44 @@ class Plugin(BasePlugin, name="Bot status commands for monitoring and debug purp
         else:
             self.bot.set_debug_mode(toggle)
             await ctx.message.add_reaction(Lang.CMDSUCCESS)
+
+    @commands.command(name="dmreg")
+    async def cmd_listdmreg(self, ctx, user: Union[discord.Member, discord.User, None] = None):
+        print(user)
+        if user is None:
+            user = ctx.author
+
+        msgs = []
+        for key in self.bot.dm_listener.registrations:
+            reg = self.bot.dm_listener.registrations[key]
+            if reg.user == user:
+                if reg.blocking:
+                    block = Lang.lang(self, "dm_true")
+                else:
+                    block = Lang.lang(self, "dm_false")
+                msgs.append(Lang.lang(self, "dm_base_format", key, reg.name, block))
+
+        if not msgs:
+            await ctx.message.add_reaction(Lang.CMDSUCCESS)
+            await ctx.send(Lang.lang(self, "dm_empty_result", gbu(user)))
+            return
+
+        prefix = Lang.lang(self, "dm_result_prefix", gbu(user))
+        for msg in paginate(msgs, prefix=prefix):
+            await ctx.message.add_reaction(Lang.CMDSUCCESS)
+            await ctx.send(msg)
+
+    @commands.command(name="freedm")
+    async def cmd_dmkill(self, ctx, reg_id: int):
+        try:
+            reg = self.bot.dm_listener.registrations[reg_id]
+        except KeyError:
+            await ctx.message.add_reaction(Lang.CMDERROR)
+            return
+
+        if reg.user != ctx.author and not is_botadmin(reg.user):
+            await ctx.message.add_reaction(Lang.CMDNOPERMISSIONS)
+            return
+
+        await reg.kill()
+        await ctx.message.add_reaction(Lang.CMDSUCCESS)

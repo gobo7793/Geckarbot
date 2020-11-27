@@ -1,0 +1,22 @@
+{
+  "en": {
+    "#0": "Help",
+
+    "#1": "dm reg",
+    "dm_true": "Yes",
+    "dm_false": "No",
+    "dm_empty_result": "No DM registrations found for user **{}**.",
+    "dm_result_prefix": "DM-Registrierungen für User **{}**:",
+    "dm_base_format": "**#{}**: Registered by `{}`; blocking: {}"
+  },
+  "de": {
+    "#0": "Help",
+
+    "#1": "dm reg",
+    "dm_true": "Ja",
+    "dm_false": "Nein",
+    "dm_empty_result": "Es gibt für den User **{}** keine DM-Registrierungen.",
+    "dm_result_prefix": "DM-Registrierungen für User **{}**:\n",
+    "dm_base_format": "**#{}**: Registriert auf `{}`; blockierend: {}"
+  }
+}

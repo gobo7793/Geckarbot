@@ -437,6 +437,10 @@ class Plugin(BasePlugin, name="LastFM"):
             return [question] + question_queue
         return question_queue
 
+    async def quote_dm_kill_cb(self, msg, questionnaire):
+        await questionnaire.user.send(Lang.lang(self, "quote_err_dmkill"))
+        await msg.add_reaction(Lang.CMDERROR)
+
     @lastfm.command(name="quote", hidden=True)
     async def cmd_quote(self, ctx):
         # Acquire last song for first questionnaire route
@@ -470,7 +474,8 @@ class Plugin(BasePlugin, name="LastFM"):
         q_target = Question(Lang.lang(self, "quote_target", song.format_song()), QuestionType.SINGLECHOICE,
                             answers=answers, callback=self.quote_cb, data=data)
         questions = [q_target, q_artist, q_title, q_quote]
-        questionnaire = Questionnaire(self.bot, ctx.author, questions, lang=self.lang_questionnaire)
+        questionnaire = Questionnaire(self.bot, ctx.author, questions, "lastfm quote", lang=self.lang_questionnaire)
+        questionnaire.kill_coro = self.quote_dm_kill_cb(ctx.message, questionnaire)
 
         # Interrogate
         try:
