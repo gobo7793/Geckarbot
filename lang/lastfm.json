@@ -64,6 +64,7 @@
     "quote_question_title": "Titel?",
     "quote_question_quote": "Zitat?",
     "quote_err_length": "Das Zitat ist leider zu lang. Das Maximum sind {} Zeichen; dein Zitat hat {} Zeichen.",
-    "quote_err_no_mentions": "User-Mentions sind in Zitaten nicht erlaubt."
+    "quote_err_no_mentions": "User-Mentions sind in Zitaten nicht erlaubt.",
+    "quote_err_dmkill": "Deine DM-Registrierung wurde gekillt, wir müssen hier daher abbrechen."
   }
 }
