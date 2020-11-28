@@ -168,7 +168,7 @@ class Plugin(BasePlugin, name="Sport"):
                                                                                   coro=self.live_goals,
                                                                                   coro_kickoff=self.live_kickoff,
                                                                                   periodic=True)
-            msg.append("{} - Next: {}".format(league, leag_reg.next_match()))
+            msg.append("{} - Next: {}".format(league, leag_reg.next_kickoff()))
         Config().get(self)['sport_chan'] = ctx.channel.id
         Config().save(self)
         await add_reaction(ctx.message, Lang.CMDSUCCESS)

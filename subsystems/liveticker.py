@@ -69,7 +69,8 @@ class LeagueRegistration:
         self.league = league
         self.registrations = []
         self.logger = logging.getLogger(__name__)
-        self.timer_jobs = self.schedule_kickoffs()
+        self.kickoff_timers = self.schedule_kickoffs()
+        self.intermediate_timers = []
 
     def register(self, coro, coro_kickoff, coro_finished, periodic: bool):
         reg = CoroRegistration(self, coro, coro_kickoff, coro_finished, periodic)
@@ -78,7 +79,7 @@ class LeagueRegistration:
         return reg
 
     def deregister(self):
-        for job in self.timer_jobs:
+        for job in self.kickoff_timers:
             job.cancel()
         self.listener.deregister(self)
 
@@ -160,7 +161,7 @@ class LeagueRegistration:
                     })
         for coro_reg in self.registrations:
             await coro_reg.update_kickoff(match_dicts)
-        self.schedule_timers(start=datetime.datetime.now())
+        self.intermediate_timers += self.schedule_timers(start=datetime.datetime.now())
 
     def schedule_timers(self, start: datetime.datetime):
         """
@@ -189,12 +190,27 @@ class LeagueRegistration:
         self.logger.debug("Timers for match starting at {} scheduled.".format(start.strftime("%d/%m/%Y %H:%M")))
         return job1, job2
 
-    def next_match(self):
+    def next_kickoff(self):
         """Returns datetime of the next match"""
-        if self.timer_jobs:
-            return min(job.next_execution() for job in self.timer_jobs if job)
+        kickoffs = (i.next_execution() for i in self.kickoff_timers if i)
+        if kickoffs:
+            return min(kickoffs)
         else:
             return None
+
+    def next_execution(self):
+        """Returns datetime of the next timer execution"""
+        kickoffs = [i.next_execution() for i in self.kickoff_timers if i]
+        intermed = [i.next_execution() for i in self.intermediate_timers if i]
+        if kickoffs and intermed:
+            next_exec, timer_type = min((min(kickoffs), "kickoff"), (min(intermed), "intermediate"))
+        elif kickoffs:
+            next_exec, timer_type = min(kickoffs), "kickoff"
+        elif intermed:
+            next_exec, timer_type = min(intermed), "intermediate"
+        else:
+            return None
+        return next_exec, timer_type
 
     async def update_periodic_coros(self, job: Job = None):
         """
@@ -207,7 +223,9 @@ class LeagueRegistration:
                 await coro_reg.update(job)
 
     def __str__(self):
-        return "<liveticker.LeagueRegistration; league={}; regs={}>".format(self.league, len(self.registrations))
+        return "<liveticker.LeagueRegistration; league={}; regs={}; next={}>".format(self.league,
+                                                                                     len(self.registrations),
+                                                                                     self.next_execution())
 
 
 class Liveticker(BaseSubsystem):
