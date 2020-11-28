@@ -10,6 +10,7 @@ from botutils import converters
 from botutils.permchecks import is_botadmin
 from botutils.stringutils import paginate
 from botutils.converters import get_best_username as gbu
+from botutils.utils import add_reaction
 from conf import Storage, Config, Lang
 from subsystems import help
 
@@ -141,7 +142,7 @@ class Plugin(BasePlugin, name="Bot status commands for monitoring and debug purp
 
     @commands.command(name="livetickerlist", help="Debug info for liveticker")
     @commands.has_any_role(Config().BOT_ADMIN_ROLE_ID)
-    async def livetickerlist(self, ctx):
+    async def liveticker_list(self, ctx):
         liveticker_list = []
         for leag in self.bot.liveticker.registrations.values():
             liveticker_list.append(leag)
@@ -151,6 +152,13 @@ class Plugin(BasePlugin, name="Bot status commands for monitoring and debug purp
                             suffix="\n",
                             if_empty="None"):
             await ctx.send(msg)
+
+    @commands.command(name="livetickerkill", help="Kills all liveticker registrations")
+    @commands.has_any_role(Config().BOT_ADMIN_ROLE_ID)
+    async def liveticker_kill(self, ctx):
+        for reg in list(self.bot.liveticker.registrations.values()):
+            reg.deregister()
+        await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
     @commands.command(name="dmreg")
     async def cmd_listdmreg(self, ctx, user: Union[discord.Member, discord.User, None] = None):

@@ -81,6 +81,8 @@ class LeagueRegistration:
     def deregister(self):
         for job in self.kickoff_timers:
             job.cancel()
+        for job in self.intermediate_timers:
+            job.cancel()
         self.listener.deregister(self)
 
     def deregister_coro(self, coro: CoroRegistration):
