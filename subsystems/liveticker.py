@@ -234,9 +234,11 @@ class LeagueRegistration:
                 await coro_reg.update(job)
 
     def __str__(self):
+        next_exec = self.next_execution()
+        if next_exec:
+            next_exec = next_exec[0].strftime('%Y-%m-%d - %H:%M'), next_exec[1]
         return "<liveticker.LeagueRegistration; league={}; regs={}; next={}>".format(self.league,
-                                                                                     len(self.registrations),
-                                                                                     self.next_execution())
+                                                                                     len(self.registrations), next_exec)
 
 
 class Liveticker(BaseSubsystem):
