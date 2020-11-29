@@ -29,7 +29,7 @@ class CoroRegistration:
         self.league_reg.deregister_coro(self)
 
     def get_new_goals(self):
-        match_list = self.league_reg.get_matches()
+        match_list = self.league_reg.matches
         match_dict = {}
         for match in match_list:
             match_id = match.get('MatchID')
@@ -63,30 +63,6 @@ class CoroRegistration:
         return "<liveticker.CoroRegistration; coro={}; periodic={}>".format(self.coro, self.periodic)
 
 
-def extract_times(m_list):
-    t = []
-    for match in m_list:
-        try:
-            kickoff = datetime.datetime.strptime(match.get('MatchDateTime'), "%Y-%m-%dT%H:%M:%S")
-        except (ValueError, TypeError):
-            continue
-        else:
-            if kickoff not in t:
-                if datetime.datetime.now() < (kickoff + datetime.timedelta(seconds=7200)):
-                    t.append(kickoff)
-    return t
-
-
-def extract_matchday(m_list):
-    for match in m_list:
-        md = match.get('Group', {}).get('GroupOrderID')
-        if md is not None:
-            break
-    else:
-        return None
-    return md
-
-
 class LeagueRegistration:
     def __init__(self, listener, league):
         self.listener = listener
@@ -95,6 +71,9 @@ class LeagueRegistration:
         self.logger = logging.getLogger(__name__)
         self.kickoff_timers = []
         self.intermediate_timers = []
+        self.matches = []
+
+        self.update_matches()
         self.schedule_kickoffs()
 
     def register(self, coro, coro_kickoff, coro_finished, periodic: bool):
@@ -114,24 +93,23 @@ class LeagueRegistration:
         if coro in self.registrations:
             self.registrations.remove(coro)
 
-    def get_matches(self, matchday=None):
-        """Returns the current standings of the league"""
+    def update_matches(self, matchday=None):
+        """Updates the matches and current standings of the league"""
         if matchday:
-            return restclient.Client("https://www.openligadb.de/api").make_request("/getmatchdata/{}/2020/{}".format(
-                self.league, matchday))
+            self.matches = restclient.Client("https://www.openligadb.de/api").make_request(
+                "/getmatchdata/{}/2020/{}".format(self.league, matchday))
         else:
-            matches = restclient.Client("https://www.openligadb.de/api").make_request("/getmatchdata/{}".format(
+            self.matches = restclient.Client("https://www.openligadb.de/api").make_request("/getmatchdata/{}".format(
                 self.league))
-            if extract_times(matches):
-                return matches
-            else:
-                md = extract_matchday(matches)
+            if not self.extract_kickoffs():
+                md = self.extract_matchday()
                 if md:
-                    return self.get_matches(matchday=md + 1)
+                    self.update_matches(matchday=md + 1)
+        return self.matches
 
     def extract_matches_by_kickoff(self, time: datetime.datetime):
         match_dicts = []
-        for m in self.get_matches():
+        for m in self.matches:
             try:
                 kickoff = datetime.datetime.strptime(m.get('MatchDateTime'), "%Y-%m-%dT%H:%M:%S")
             except (ValueError, TypeError):
@@ -144,10 +122,27 @@ class LeagueRegistration:
                     })
         return match_dicts
 
-    def get_kickoff_times(self, matchday=None):
-        match_list = self.get_matches(matchday)
-        times = extract_times(match_list)
-        return times
+    def extract_kickoffs(self):
+        t = []
+        for match in self.matches:
+            try:
+                kickoff = datetime.datetime.strptime(match.get('MatchDateTime'), "%Y-%m-%dT%H:%M:%S")
+            except (ValueError, TypeError):
+                continue
+            else:
+                if kickoff not in t:
+                    if datetime.datetime.now() < (kickoff + datetime.timedelta(seconds=7200)):
+                        t.append(kickoff)
+        return t
+
+    def extract_matchday(self):
+        for match in self.matches:
+            md = match.get('Group', {}).get('GroupOrderID')
+            if md is not None:
+                break
+        else:
+            return None
+        return md
 
     def schedule_kickoffs(self):
         """
@@ -156,7 +151,7 @@ class LeagueRegistration:
         :return: List of jobs
         """
         jobs = []
-        kickoffs = self.get_kickoff_times()
+        kickoffs = self.extract_kickoffs()
         now = datetime.datetime.now()
         for time in kickoffs:
             if time > now:
@@ -239,6 +234,7 @@ class LeagueRegistration:
         :param job:
         :return:
         """
+        self.update_matches()
         for coro_reg in self.registrations:
             if coro_reg.periodic:
                 await coro_reg.update(job)
