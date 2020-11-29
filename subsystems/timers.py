@@ -103,6 +103,10 @@ class Mothership(BaseSubsystem, Thread):
         """
         self.logger.debug("Inserting job {} in job list".format(job))
         nexto = job.next_execution()
+        if not nexto:
+            # FIXME herausfinden warum das hier scheiße baut und None ist
+            self.logger.debug("insert_job mit nexto = None, pls help")
+            job.cancel()
         found = False
         for i in range(len(self.jobs)):
             next_execution = self.jobs[i].next_execution()
