@@ -5,7 +5,7 @@ import discord
 import emoji
 from discord.ext import commands
 
-from base import BasePlugin
+from base import BasePlugin, NotFound
 from botutils import utils, permchecks, converters, stringutils
 from conf import Storage, Config, Lang
 from subsystems import reactions, help
@@ -68,7 +68,7 @@ class Plugin(BasePlugin, name="Role Management"):
         bot.register(self, help.DefaultCategories.MOD)
 
         async def get_init_msg_data():
-            if self.has_init_msg_set():
+            if self.has_init_msg_set:
                 bot.reaction_listener.register(await self.get_init_msg(), self.update_reaction_based_user_role)
 
         asyncio.get_event_loop().create_task(get_init_msg_data())
@@ -83,17 +83,39 @@ class Plugin(BasePlugin, name="Role Management"):
             'roles': {}
         }
 
+    def command_help_string(self, command):
+        langstr = Lang.lang_no_failsafe(self, "help_{}".format(command.name.replace(" ", "_")))
+        if langstr is not None:
+            return langstr
+        else:
+            raise NotFound()
+
+    def command_description(self, command):
+        langstr = Lang.lang_no_failsafe(self, "help_desc_{}".format(command.name.replace(" ", "_")))
+        if langstr is not None:
+            return langstr
+        else:
+            raise NotFound()
+
+    def command_usage(self, command):
+        langstr = Lang.lang_no_failsafe(self, "help_usage_{}".format(command.name.replace(" ", "_")))
+        if langstr is not None:
+            return langstr
+        else:
+            raise NotFound()
+
     def rc(self):
         """Returns the roles config"""
         return Storage.get(self)['roles']
 
+    @property
     def has_init_msg_set(self):
         return (Storage.get(self)['message']['channel_id'] != 0
                 and Storage.get(self)['message']['message_id'] != 0)
 
     async def get_init_msg(self):
         """Returns the role management init message or None if not set"""
-        if self.has_init_msg_set():
+        if self.has_init_msg_set:
             channel = self.bot.get_channel(Storage.get(self)['message']['channel_id'])
             return await channel.fetch_message(Storage.get(self)['message']['message_id'])
         else:
@@ -355,7 +377,7 @@ class Plugin(BasePlugin, name="Role Management"):
             return
 
         if channel is not None:
-            if self.has_init_msg_set():
+            if self.has_init_msg_set:
                 await ctx.send(Lang.lang(self, 'channel_cant_changed'))
             else:
                 Storage.get(self)['message']['channel_id'] = channel.id
@@ -369,7 +391,7 @@ class Plugin(BasePlugin, name="Role Management"):
         await ctx.send(Lang.lang(self, 'role_update'))
         await utils.log_to_mod_channel(ctx)
 
-    @role.command(name="msg", help="Returns the jumplink to the init message.")
+    @role.command(name="msg")
     async def get_msg_cmd(self, ctx):
         msg = await self.get_init_msg()
         if msg is not None:
