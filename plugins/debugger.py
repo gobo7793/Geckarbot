@@ -6,7 +6,7 @@ from discord.ext import commands
 from base import BasePlugin
 from botutils import utils, converters
 from conf import Config, Lang
-from subsystems import help
+from subsystems import help, timers
 from subsystems.presence import PresencePriority
 from typing import Union
 
@@ -148,3 +148,12 @@ class Plugin(BasePlugin, name="Testing and debug things"):
             await ctx.send("{}".format(user.mention))
         else:
             await ctx.send("Sorry, no user found for {}".format(user))
+
+    @staticmethod
+    async def spamcb(job):
+        await job.data.send("Spam")
+
+    @commands.command(name="spam", hidden=True)
+    async def spam(self, ctx):
+        self.bot.timers.schedule(self.spamcb, timers.timedict(), data=ctx)
+        await ctx.message.add_reaction(Lang.CMDSUCCESS)

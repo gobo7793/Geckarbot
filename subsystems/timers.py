@@ -52,6 +52,7 @@ class Mothership(BaseSubsystem, Thread):
                 msg = "Timer Mothership crashed: {}; Traceback:```\n{}\n```".format(e, traceback.format_exc())
                 self.logger.error(msg)
                 asyncio.run_coroutine_threadsafe(write_debug_channel(msg), self.bot.loop)
+                sleep(60)
 
     def loop(self):
         while True:
@@ -76,7 +77,10 @@ class Mothership(BaseSubsystem, Thread):
                 executed = []
                 todel = []
                 for el in self.jobs:
-                    if (el.next_execution() - now).total_seconds() < 10:  # with this, it should always be < 0
+                    tocheck = (el.next_execution() - now).total_seconds()
+                    self.logger.debug("Checking if {} is < 10; now: {}".format(tocheck, now))
+                    if tocheck < 10:  # with this, it should always be < 0
+                        self.logger.debug("About to execute {}".format(el))
                         try:
                             el.execute()
                             executed.append(el)
@@ -99,6 +103,7 @@ class Mothership(BaseSubsystem, Thread):
         """
         Inserts a job at the correct position in the job list.
         """
+        self.logger.debug("Inserting job {} in job list".format(job))
         nexto = job.next_execution()
         found = False
         for i in range(len(self.jobs)):
@@ -113,14 +118,15 @@ class Mothership(BaseSubsystem, Thread):
     def cancel(self, job):
         self._to_cancel.append(job)
 
-    def schedule(self, coro, td, repeat=True):
+    def schedule(self, coro, td, data=None, repeat=True):
         """
         cron-like. Takes timedict elements as arguments.
         :param coro: Coroutine with the signature f(Cancellable).
         :param td: Timedict that specifies the execution schedule
+        :param data: Opaque object that is set as job.data
         :param repeat: If set to False, the job runs only once.
         """
-        job = Job(self, td, coro, repeat=repeat)
+        job = Job(self, td, coro, data=data, repeat=repeat)
         self.logger.info("Scheduling {}".format(job))
         self._to_register.append(job)
         return job
@@ -131,14 +137,14 @@ class Mothership(BaseSubsystem, Thread):
 
 
 class Job:
-    def __init__(self, mothership, td, coro, repeat=True):
+    def __init__(self, mothership, td, coro, data=None, repeat=True):
         self._mothership = mothership
         self._timedict = normalize_td(td)
         self._cancelled = False
         self._coro = coro
         self._repeat = repeat
 
-        self.data = None
+        self.data = data
 
         self._cached_next_exec = next_occurence(self._timedict)
         self._last_exec = None
@@ -168,8 +174,8 @@ class Job:
         if self._cancelled:
             return
 
-        self._mothership.logger.info("Executing {} at {}".format(self, self.next_execution()))
         self._last_exec = self.next_execution()
+        self._mothership.logger.info("Executing {} at {}".format(self, self._last_exec))
         self._cached_next_exec = next_occurence(self._timedict, ignore_now=True)
         asyncio.run_coroutine_threadsafe(self._coro(self), self._mothership.bot.loop)
 
@@ -179,6 +185,7 @@ class Job:
 
     def next_execution(self):
         if self._cached_next_exec is None:
+            self._mothership.logger.debug("No cached next occurence")
             self._cached_next_exec = next_occurence(self._timedict)
         self._mothership.logger.debug("Next execution: {}".format(self._cached_next_exec))
         return self._cached_next_exec
@@ -300,8 +307,12 @@ def next_occurence(ntd, now=None, ignore_now=False):
     :return datetime.datetime object that marks the next occurence; None if there is none
     """
     logger = logging.getLogger(__name__)
+    logger.debug("Called next_occurence with ntd {}; now: {}; ignore_now: {}".format(ntd, now, ignore_now))
     if now is None:
         now = datetime.datetime.now()
+
+    if ignore_now:
+        now += datetime.timedelta(minutes=1)
 
     weekdays = ntd["weekday"]
     if not weekdays:
@@ -355,7 +366,7 @@ def next_occurence(ntd, now=None, ignore_now=False):
             next_hour = nearest_element(starthour, ntd["hour"], 0, 23)
             for hour, day_d in ring_iterator(ntd["hour"], next_hour, 0, 23, 0):
                 logger.debug("Checking hour {}".format(hour))
-                # wraparound
+                # day wraparound
                 if day_d > 0:
                     logger.debug("Next day (wraparound)")
                     onthisday = False
@@ -364,15 +375,6 @@ def next_occurence(ntd, now=None, ignore_now=False):
                 # find minute
                 if year == now.year and month == now.month and day == now.day and hour == now.hour:
                     startminute = now.minute
-
-                    # Handle ignore_now flag
-                    if ignore_now:
-                        startminute += 1
-                        if startminute >= 60:
-                            startminute = 0
-                            starthour += 1
-                            if starthour == 24:
-                                continue  # nothing to do for this day
 
                 minute = nearest_element(startminute, ntd["minute"], 0, 59)
                 logger.debug("Checking minute {}".format(minute))
