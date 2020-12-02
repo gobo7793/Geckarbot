@@ -153,7 +153,7 @@ class Plugin(BasePlugin, name="Testing and debug things"):
     async def spamcb(job):
         await job.data.send("Spam")
 
-    @commands.command(name="spam", hidden=True)
+    # @commands.command(name="spam", hidden=True)
     async def spam(self, ctx):
         self.bot.timers.schedule(self.spamcb, timers.timedict(), data=ctx)
         await ctx.message.add_reaction(Lang.CMDSUCCESS)
