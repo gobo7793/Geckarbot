@@ -52,7 +52,7 @@ class TeamnameDict:
         if team is None:
             return None
         name = self.teamdict.get(team.lower())
-        if is_teamname_abbr(name):
+        if name is not None and is_teamname_abbr(name):
             name = self.teamdict.get(name.lower())
         return name
 
@@ -60,7 +60,7 @@ class TeamnameDict:
         if team is None:
             return None
         name = self.teamdict.get(team.lower())
-        if not is_teamname_abbr(name):
+        if name is not None and not is_teamname_abbr(name):
             name = self.teamdict.get(name.lower())
         return name
 
