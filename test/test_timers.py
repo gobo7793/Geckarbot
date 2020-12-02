@@ -54,11 +54,53 @@ def test_cron_alg_hour0():
     tcase_cron_alg(now, timedict, expected)
 
 
-def test_cron_alg_minute0():
+def test_cron_alg_minute59_yearwrap():
     now = datetime(year=2050, month=12, day=31, hour=23, minute=59)
     timedict = timers.timedict(minute=0)
     expected = datetime(year=2051, month=1, day=1, hour=0, minute=0)
     tcase_cron_alg(now, timedict, expected)
+
+
+def test_cron_alg_minute59_monthwrap():
+    now = datetime(year=2050, month=11, day=30, hour=23, minute=59)
+    timedict = timers.timedict(minute=0)
+    expected = datetime(year=2050, month=12, day=1, hour=0, minute=0)
+    tcase_cron_alg(now, timedict, expected)
+
+
+def test_cron_alg_minute59_daywrap():
+    now = datetime(year=2050, month=12, day=4, hour=23, minute=59)
+    timedict = timers.timedict(minute=0)
+    expected = datetime(year=2050, month=12, day=5, hour=0, minute=0)
+    tcase_cron_alg(now, timedict, expected)
+
+
+def test_cron_alg_minute59_hourwrap():
+    now = datetime(year=2050, month=12, day=4, hour=14, minute=59)
+    timedict = timers.timedict(minute=0)
+    expected = datetime(year=2050, month=12, day=4, hour=15, minute=0)
+    tcase_cron_alg(now, timedict, expected)
+
+
+def test_cron_alg_minute0():
+    now = datetime(year=2050, month=12, day=4, hour=14, minute=0)
+    timedict = timers.timedict()
+    expected = datetime(year=2050, month=12, day=4, hour=14, minute=0)
+    tcase_cron_alg(now, timedict, expected)
+
+
+def test_cron_alg_minute59_ignorenow():
+    now = datetime(year=2050, month=12, day=4, hour=14, minute=59)
+    timedict = timers.timedict()
+    expected = datetime(year=2050, month=12, day=4, hour=15, minute=0)
+    tcase_cron_alg(now, timedict, expected, ignore_now=True)
+
+
+def test_cron_alg_minute0_ignorenow():
+    now = datetime(year=2050, month=12, day=4, hour=14, minute=0)
+    timedict = timers.timedict()
+    expected = datetime(year=2050, month=12, day=4, hour=14, minute=1)
+    tcase_cron_alg(now, timedict, expected, ignore_now=True)
 
 
 def test_cron_alg_next_hour():
