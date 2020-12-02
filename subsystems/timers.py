@@ -77,9 +77,7 @@ class Mothership(BaseSubsystem, Thread):
                 executed = []
                 todel = []
                 for el in self.jobs:
-                    tocheck = (el.next_execution() - now).total_seconds()
-                    self.logger.debug("Checking if {} is < 10; now: {}".format(tocheck, now))
-                    if tocheck < 10:  # with this, it should always be < 0
+                    if (el.next_execution() - now).total_seconds() < 10:  # with this, it should always be < 0
                         self.logger.debug("About to execute {}".format(el))
                         try:
                             el.execute()
