@@ -1,5 +1,6 @@
 import logging
 import asyncio
+from datetime import datetime
 from enum import Enum
 
 import discord
@@ -7,14 +8,10 @@ from discord.ext import commands
 from discord.http import HTTPException
 
 from base import BasePlugin, NotFound
-from conf import Lang
-from botutils import utils, statemachine, stringutils, converters
+from conf import Lang, Config
+from botutils import utils, statemachine, stringutils
 from botutils.converters import get_best_username as gbu
 from subsystems import help, presence
-
-jsonify = {
-    "register_timeout": 1,
-}
 
 h_help = "Wer bin ich?"
 h_description = "Startet ein Wer bin ich?. Nach einer Registrierungsphase ordne ich jedem Spieler einen zufälligen " \
@@ -114,7 +111,6 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
         super().__init__(bot)
         bot.register(self, help.DefaultCategories.GAMES)
         self.logger = logging.getLogger(__name__)
-        self.config = jsonify
 
         self.channel = None
         self.initiator = None
@@ -122,14 +118,25 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
         self.postgame = False
         self.presence_messsage = None
         self.participants = []
-        self.eval_event = None
 
+        self.base_config = {
+            "register_timeout": [int, 1],
+        }
+
+        self.eval_event = None
+        self.reg_start_time = None
         self.statemachine = statemachine.StateMachine(init_state=State.IDLE)
         self.statemachine.add_state(State.IDLE, None)
         self.statemachine.add_state(State.REGISTER, self.registering_phase, start=True)
         self.statemachine.add_state(State.COLLECT, self.collecting_phase, allowed_sources=[State.REGISTER])
         self.statemachine.add_state(State.DELIVER, self.delivering_phase, allowed_sources=[State.COLLECT])
         self.statemachine.add_state(State.ABORT, self.abort)
+
+    def get_config(self, key):
+        return Config.get(self).get(key, self.base_config[key][1])
+
+    def default_config(self):
+        return {}
 
     def command_help_string(self, command):
         return Lang.lang(self, "help_{}".format(command.name))
@@ -189,7 +196,9 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
             await ctx.send(msg)
             return
         elif self.statemachine.state == State.REGISTER:
-            await ctx.send(Lang.lang(self, "status_registering"))
+            seconds = int((datetime.now() - self.reg_start_time).total_seconds())
+            seconds = self.get_config("register_timeout") * 60 - seconds
+            await ctx.send(Lang.lang(self, "status_registering", seconds))
             return
         elif self.statemachine.state == State.DELIVER:
             await ctx.send(Lang.lang(self, "status_delivering"))
@@ -283,7 +292,7 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
         self.presence_messsage = self.bot.presence.register(Lang.lang(self, "presence", self.channel.name),
                                                             priority=presence.PresencePriority.HIGH)
         reaction = Lang.lang(self, "reaction_signup")
-        to = self.config["register_timeout"]
+        to = self.get_config("register_timeout")
         msg = Lang.lang(self, "registering", reaction, to,
                         stringutils.sg_pl(to, Lang.lang(self, "minute_sg"), Lang.lang(self, "minute_pl")))
         msg = await self.channel.send(msg)
@@ -295,6 +304,7 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
             await self.channel.send("PANIC")
             return State.ABORT
 
+        self.reg_start_time = datetime.now()
         await asyncio.sleep(to * 60)
         if self.statemachine.cancelled():
             return
@@ -401,4 +411,5 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
         self.presence_messsage.deregister()
         self.eval_event = None
         self.initiator = None
+        self.reg_start_time = None
         self.show_assignees = True
