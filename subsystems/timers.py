@@ -179,7 +179,7 @@ class Job:
 
         if not self._repeat or self.next_execution() is None:
             self.cancel()
-            # raise LastExecution  # alternatively
+            raise LastExecution  # alternatively
 
     def next_execution(self):
         if self._cached_next_exec is None:

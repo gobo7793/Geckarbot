@@ -364,9 +364,12 @@ def main():
 
         await utils.write_debug_channel(f"Geckarbot {bot.VERSION} connected on "
                                         f"{guild.name} with {len(guild.members)} users.")
-        await utils.write_debug_channel(f"Loaded subsystems: {', '.join(bot.get_subsystem_list())}")
-        await utils.write_debug_channel(f"Loaded coreplugins: {', '.join(bot.get_coreplugins())}")
-        await utils.write_debug_channel(f"Loaded plugins: {', '.join(bot.get_normalplugins())}")
+        subsys = bot.get_subsystem_list()
+        await utils.write_debug_channel(f"Loaded {len(subsys)} subsystems: {', '.join(subsys)}")
+        core_p = bot.get_coreplugins()
+        await utils.write_debug_channel(f"Loaded {len(core_p)} coreplugins: {', '.join(core_p)}")
+        plugins = bot.get_normalplugins()
+        await utils.write_debug_channel(f"Loaded {len(plugins)} plugins: {', '.join(plugins)}")
         if len(failed_plugins) < 1:
             failed_plugins.append("None, all plugins loaded successfully!")
         await utils.write_debug_channel(f"Failed loading plugins: {', '.join(failed_plugins)}")

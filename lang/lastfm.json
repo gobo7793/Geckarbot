@@ -12,6 +12,8 @@
     "desc_profile": "Gibt einen Link zum Last.fm-Profil eines Users aus, sofern dieser sich registriert hat.",
     "help_now": "Teilt mit, was du gerade hörst",
     "desc_now": "Teilt mit, was du gerade hörst.",
+    "help_quote": "Fügt ein Liedzitat hinzu",
+    "desc_quote": "Eröffnet einen Dialog mit Gecki, in dem ein Liedzitat hinzugefügt werden kann.",
 
     "#1": "Errors",
     "not_registered": "Ich kenne leider dein last.fm-Profil nicht.",
