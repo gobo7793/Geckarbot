@@ -52,9 +52,10 @@ class CoroRegistration:
         return match_dict
 
     async def update(self, job: Job = None):
-        self.logger.debug("Updated {}".format(str(self)))
-        await self.coro(self.get_new_goals())
-        self.logger.debug("Updated {} successfully?!".format(str(self)))
+        minute = (datetime.datetime.now() - job.data).seconds // 60
+        if minute > 45:
+            minute = max(45, minute - 15)
+        await self.coro(self.get_new_goals(), self.league_reg.league, minute)
 
     async def update_kickoff(self, match_dicts):
         await self.coro_kickoff(match_dicts)
@@ -186,11 +187,13 @@ class LeagueRegistration:
                                            hour=[start.hour, start.hour + 1],
                                            minute=minutes_1)
             job1 = self.listener.bot.timers.schedule(coro=self.update_periodic_coros, td=intermediate)
+            job1.data = start
         if minutes_2:
             intermediate = timers.timedict(year=[start.year], month=[start.month], monthday=[start.day],
                                            hour=[start.hour + 1, start.hour + 2],
                                            minute=minutes_2)
             job2 = self.listener.bot.timers.schedule(coro=self.update_periodic_coros, td=intermediate)
+            job2.data = start
         self.logger.debug("Timers for match starting at {} scheduled.".format(start.strftime("%d/%m/%Y %H:%M")))
         self.intermediate_timers.extend((job1, job2))
         return job1, job2

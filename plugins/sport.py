@@ -194,7 +194,7 @@ class Plugin(BasePlugin, name="Sport"):
         for msg in msgs:
             await sport.send(msg)
 
-    async def live_goals(self, new_goals):
+    async def live_goals(self, new_goals, league, matchminute):
         sport = Config().bot.get_channel(Config().get(self)['sport_chan'])
 
         matches_with_goals = [x for x in new_goals.values() if x['new_goals'] and not x['is_finished']]
@@ -212,7 +212,7 @@ class Plugin(BasePlugin, name="Sport"):
                         "{}:{} {} ({}.)".format(goal.get('ScoreTeam1', "?"), goal.get('ScoreTeam2', "?"),
                                                 goal.get('GoalGetterName', "-"), minute))
                 match_msgs.append(" / ".join(match_goals))
-            msgs = paginate(match_msgs, prefix=Lang.lang(self, 'liveticker_prefix'))
+            msgs = paginate(match_msgs, prefix=Lang.lang(self, 'liveticker_prefix', league, matchminute))
             for msg in msgs:
                 await sport.send(msg)
         else:
