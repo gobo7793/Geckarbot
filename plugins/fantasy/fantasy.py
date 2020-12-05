@@ -3,11 +3,12 @@ from typing import Union, List, Dict
 
 import discord
 from discord.ext import commands
+from discord.ext.commands import TextChannelConverter, ChannelNotFound, RoleConverter, RoleNotFound
 
 import botutils.timeutils
 from base import BasePlugin, NotFound
 from botutils import stringutils, permchecks
-from botutils.converters import get_best_username, get_best_user
+from botutils.converters import get_best_username, get_best_user, get_plugin_by_name
 from botutils.utils import add_reaction
 from conf import Config, Storage, Lang
 from plugins.fantasy.league import FantasyLeague, deserialize_league, create_league
@@ -690,7 +691,13 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
     @fantasy_set.command(name="config", help="Gets or sets general config values for the plugin")
     async def set_config(self, ctx, key="", value=""):
         if not key and not value:
-            await ctx.invoke(self.bot.get_command("configdump"), self.get_name())
+            botadmin_plugin = get_plugin_by_name("botadmin")
+            if botadmin_plugin is None:
+                await add_reaction(ctx.message, Lang.CMDERROR)
+                await ctx.send(Lang.lang(self, 'botadmin_not_found'))
+                return
+            await botadmin_plugin.configdump(ctx, self.get_name())
+            # await ctx.invoke(self.bot.get_command("configdump"), self.get_name())
             return
 
         if key and not value:
@@ -704,34 +711,30 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
             return
 
         if key == "channel_id":
-            channel = None
-            int_value = Config.get(self)['channel_id']
             try:
-                int_value = int(value)
-                channel = self.bot.guild.get_channel(int_value)
-            except ValueError:
-                pass
+                channel = await TextChannelConverter().convert(ctx, value)
+            except ChannelNotFound:
+                channel = None
+
             if channel is None:
                 Lang.lang(self, 'channel_id')
                 await add_reaction(ctx.message, Lang.CMDERROR)
                 return
             else:
-                Config.get(self)[key] = int_value
+                Config.get(self)[key] = channel.id
 
         elif key == "mod_role_id":
-            role = None
-            int_value = Config.get(self)['mod_role_id']
             try:
-                int_value = int(value)
-                role = self.bot.guild.get_role(int_value)
-            except ValueError:
-                pass
+                role = await RoleConverter().convert(ctx, value)
+            except RoleNotFound:
+                role = None
+
             if role is None:
                 Lang.lang(self, 'mod_role_id')
                 await add_reaction(ctx.message, Lang.CMDERROR)
                 return
             else:
-                Config.get(self)[key] = int_value
+                Config.get(self)[key] = role.id
 
         elif key == "version":
             await add_reaction(ctx.message, Lang.CMDERROR)

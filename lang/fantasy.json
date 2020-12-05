@@ -50,6 +50,7 @@
         "nobody": "nobody",
         "unknown": "Unknown",
         "week": "Week",
+        "botadmin_not_found": "Can't dump the current config. Botadmin core plugin not found.",
 
         "help_fantasy": "Get and manage information about NFL Fantasy Games",
         "help_desc_fantasy": "Gets information about the fantasy game or manage it. Command only works in NFL fantasy channel, if set.\nIf no subcommand is used, 'fantasy info' will be executed.",
@@ -150,6 +151,7 @@
         "nobody": "niemanden",
         "unknown": "Unbekannt",
         "week": "Week",
+        "botadmin_not_found": "Aktuelle Config kann nicht ausgegeben werden. Botadmin Core Plugin nicht gefunden.",
 
         "help_fantasy": "Zeigt Infos zum NFL Fantasy Game an und verwaltet diese",
         "help_desc_fantasy": "Gibt Informationen zum Fantasy Game aus oder verwaltet diese. Das Kommando ist nur nutzbar im Fantasy-Channel, sofern gesetzt.\nWenn kein Unterkommando genutzt wird, wird 'fantasy info' ausgeführt.",
