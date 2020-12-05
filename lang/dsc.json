@@ -21,7 +21,6 @@
         "songmaster_id": "The role id for the songmaster role must be a valid role id on this server.",
         "key_not_exist": "A key `{}` doesn't exist.",
         "presence_voting": "DSC voting started",
-        "botadmin_not_found": "Can't dump the current config. Botadmin core plugin not found.",
 
         "help_dsc": "Gets data about current/next DSC",
         "help_desc_dsc": "Get and manage data about current or next DSC. If no subcommand is used, '!dsc info' will be executed.",
@@ -79,7 +78,6 @@
         "songmaster_id": "Die Rollen-ID für die Songmaster-Rolle muss eine gültige ID auf diesem Server sein.",
         "key_not_exist": "Es gibt keinen Key `{}`.",
         "presence_voting": "DSC-Voting läuft",
-        "botadmin_not_found": "Aktuelle Config kann nicht ausgegeben werden. Botadmin Core Plugin nicht gefunden.",
 
         "help_dsc": "Generelle Infos zum DSC",
         "help_desc_dsc": "Gibt Daten zum aktuellen oder nächsten DSC aus oder verwaltet diese. Wenn kein Unterkommando genutzt wird, wird '!dsc info' ausgeführt.",
