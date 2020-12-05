@@ -13,6 +13,13 @@ from subsystems import timers, help
 from botutils.converters import get_best_username
 
 
+keysmash_cmd_name = "keysmash"
+
+
+def _create_keysmash():
+    return "".join(random.choices(string.ascii_letters + string.digits, k=random.randint(25, 50)))
+
+
 class Plugin(BasePlugin, name="Funny/Misc Commands"):
 
     def __init__(self, bot):
@@ -39,6 +46,9 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
         return {'reminders': {}}
 
     def command_help_string(self, command):
+        if command.name == keysmash_cmd_name:
+            return _create_keysmash()
+
         langstr = Lang.lang_no_failsafe(self, "help_{}".format(command.name))
         if langstr is not None:
             return langstr
@@ -70,8 +80,7 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
                 highest = el + 1
         return highest
 
-    @commands.command(name="dice", brief="Simulates rolling dice.",
-                      usage="[NumberOfSides] [NumberOfDices]")
+    @commands.command(name="dice")
     async def dice(self, ctx, number_of_sides: int = 6, number_of_dice: int = 1):
         """Rolls number_of_dice dices with number_of_sides sides and returns the result"""
         dice = [
@@ -84,8 +93,7 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
             results = f"{results[:pos_last_comma + 1]}\u2026"
         await ctx.send(results)
 
-    @commands.command(name="choose", help="Picks on of the options. Separate options with '|'",
-                      usage="option1 | option2 | ...")
+    @commands.command(name="choose")
     async def choose(self, ctx, *args):
         full_options_str = " ".join(args)
         if "sabaton" in full_options_str.lower():
@@ -98,21 +106,21 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
         result = random.choice(options)
         await ctx.send(Lang.lang(self, 'choose_msg') + result.strip())
 
-    @commands.command(name="mud", brief="Pings the bot.")
+    @commands.command(name="mud")
     async def mud(self, ctx):
         await ctx.send(Lang.lang(self, 'mud_out'))
 
-    @commands.command(name="mudkip", brief="MUDKIP!")
+    @commands.command(name="mudkip")
     async def mudkip(self, ctx):
         await ctx.send(Lang.lang(self, 'mudkip_out'))
 
-    @commands.command(name="mimimi", help="Provides an .mp3 file that plays the sound of 'mimimi'.")
+    @commands.command(name="mimimi")
     async def mimimi(self, ctx):
         async with ctx.typing():
             file = discord.File(f"{Config().resource_dir(self)}/mimimi.mp3")
             await ctx.send(file=file)
 
-    @commands.command(name="geck", help="GECKARBOR!")
+    @commands.command(name="geck")
     async def geck(self, ctx):
         async with ctx.typing():
             try:
@@ -122,14 +130,12 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
                 return
             await ctx.send(Lang.lang(self, 'geck_out'), file=file)
 
-    @commands.command(name="keysmash", help="VtEGyAuGeAvBVYFSxnfgEpTwIFRUhbUXoMZIdHo")
+    @commands.command(name=keysmash_cmd_name)
     async def keysmash(self, ctx):
-        msg = "".join(random.choices(string.ascii_letters + string.digits, k=random.randint(25, 50)))
+        msg = _create_keysmash()
         await ctx.send(msg)
 
-    @commands.command(name="werwars", alsiases=["wermobbtgerade"], help="Shows which user is bullying other users",
-                      description="Shows who is bullying other users in the last 30 minutes in the current channel. "
-                                  "Supports ignore list.")
+    @commands.command(name="werwars", alsiases=["wermobbtgerade"])
     async def who_mobbing(self, ctx):
         after_date = (datetime.now(timezone.utc) - timedelta(minutes=30)).replace(tzinfo=None)
         users = [self.bot.user]
@@ -146,14 +152,7 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
             text = Lang.lang(self, "bully_msg", get_best_username(bully))
         await ctx.send(text)
 
-    @commands.command(name="remindme", help="Reminds the author.",
-                      usage="<#|#m|#h|#d|DD.MM.YYYY|HH:MM|DD.MM.YYYY HH:MM|DD.MM. HH:MM|cancel|list> "
-                            "[message|cancel_id]",
-                      description="Reminds the author in x minutes, hours or days or on a fixed date and/or time or "
-                                  "cancels the users reminder with given ids.\nThe duration unit can be set with "
-                                  "trailing m for minutes, h for hours or d for days. If none is set, the duration "
-                                  "unit is in minutes. Duration example: 5h = 5 hours.\nIf no cancel id is given, "
-                                  "all user's reminders will be removed.")
+    @commands.command(name="remindme")
     async def reminder(self, ctx, *args):
 
         # remove hostoric reminders

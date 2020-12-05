@@ -26,15 +26,17 @@ class Plugin(BasePlugin, name="Bot status commands for monitoring and debug purp
     @commands.command(name="subsys", help="Shows registrations on subsystems")
     @commands.has_any_role(Config().BOT_ADMIN_ROLE_ID)
     async def subsys(self, ctx):
+        reaction_prefix = "**{} Reactions registrations:**\n".format(len(self.bot.reaction_listener.callbacks))
         for msg in paginate(self.bot.reaction_listener.callbacks,
-                            prefix="**Reactions registrations:**\n",
+                            prefix=reaction_prefix,
                             suffix="\n",
                             if_empty="None"):
             await ctx.send(msg)
 
         timer_status = "up" if self.bot.timers.is_alive() else "down"
+        timer_prefix = "**{} Timers: Thread is {}; registrations:**\n".format(len(self.bot.timers.jobs), timer_status)
         for msg in paginate(self.bot.timers.jobs,
-                            prefix="**Timers: Thread is {}; registrations:**\n".format(timer_status),
+                            prefix=timer_prefix,
                             suffix="\n",
                             if_empty="None"):
             await ctx.send(msg)
@@ -42,20 +44,25 @@ class Plugin(BasePlugin, name="Bot status commands for monitoring and debug purp
         dmregs = self.bot.dm_listener.registrations
         if not dmregs:
             dmregs = {0: "None"}
+        dm_prefix = "**{} DM Listeners:**\n".format(len(self.bot.dm_listener.registrations))
         for msg in paginate([x for x in dmregs.keys()],
-                            prefix="**DM Listeners:**\n",
+                            prefix=dm_prefix,
                             suffix="\n",
                             f=lambda x: dmregs[x]):
             await ctx.send(msg)
 
         presence_timer_status = "up" if self.bot.presence.is_timer_up else "down"
+        presence_prefix = "**{} Presence entries, Timer is {}:**\n".format(len(self.bot.presence.messages),
+                                                                           presence_timer_status)
         for msg in paginate(list(self.bot.presence.messages.values()),
-                            prefix="**Full presence entries, Timer is {}:**\n".format(presence_timer_status),
+                            prefix=presence_prefix,
                             suffix="\n",
                             if_empty="None"):
             await ctx.send(msg)
+
+        ignoring_prefix = "**{} Ignoring entries:**\n".format(self.bot.ignoring.get_full_ignore_len())
         for msg in paginate(list(self.bot.ignoring.get_full_ignore_list()),
-                            prefix="**Ignoring entries:**\n",
+                            prefix=ignoring_prefix,
                             suffix="\n",
                             if_empty="None"):
             await ctx.send(msg)
@@ -64,8 +71,9 @@ class Plugin(BasePlugin, name="Bot status commands for monitoring and debug purp
         for leag in self.bot.liveticker.registrations.values():
             liveticker_list.append(leag)
             liveticker_list.extend("- {}".format(str(lt_reg)) for lt_reg in leag.registrations)
+        liveticker_prefix = "**{} Liveticker Registrations:**\n".format(len(self.bot.liveticker.registrations))
         for msg in paginate(liveticker_list,
-                            prefix="**Liveticker Registrations:**\n",
+                            prefix=liveticker_prefix,
                             suffix="\n",
                             if_empty="None"):
             await ctx.send(msg)

@@ -1,13 +1,19 @@
 {
     "en": {
-        "#0": "actually de strings",
-        "choose_sabaton": "SABATON! SABATON! Sabaton is always the best choice, but...",
+        "#0": "Single lang strings",
         "geck_out": "arbor!",
-
-        "#1": "real en strings",
         "mud_out": "kip!",
         "mudkip_out": "https://www.youtube.com/watch?v=3DkqMjfqqPc",
         "tree_out": "cko!",
+
+        "help_mud": "Kip!",
+        "help_mudkip": "Mudkip!",
+        "help_geck": "Arbor!",
+
+        "#1": "Stuff",
+        "choose_sabaton": "SABATON! SABATON! Sabaton is always the best choice, but...",
+        "choose_msg": "I pick: ",
+        "choose_noarg": "I need an option!",
         "remind_set": "I will remind you at {}. To cancel it, type `!remindme cancel {}`.",
         "remind_duration_err": "Duration must be a date and time or a positive number.",
         "remind_del_id_err": "ID must be a number",
@@ -20,8 +26,24 @@
         "remind_past": "Sorry, I don't have a time machine.",
         "bully_msg": "{} is bulling us :frowning:",
         "bully_msg_self": "I bully you :slight_smile:",
-        "choose_msg": "I pick: ",
-        "choose_noarg": "I need an option!"
+
+        "#2": "Help",
+        "help_dice": "Rolls a dice",
+        "help_desc_dice": "Alea iacta est! Simulates one or more dices.",
+        "help_usage_dice": "[Number of sites] [Number of dices]",
+        "help_choose": "Picks on of the options",
+        "help_desc_choose": "Picks on of the options. Separate options with '|'",
+        "help_usage_choose": "Option 1 | Option 2 | ...",
+        "help_desc_mudkip": "Wheres the '!mud' comes from.",
+        "help_mimimi": "For special mimimi moments",
+        "help_desc_mimimi": "Provides an .mp3 file that plays the sound of 'mimimi'.",
+        "help_desc_keysmash": "Protects the keyboard.",
+        "help_werwars": "Accuses a user",
+        "help_desc_werwars": "Searches a user which writed something in the last 30 min and accuses him. Supports passive ignoring.",
+        "help_remindme": "Sets a Reminder",
+        "help_usage_remindme": "<#|#m|#h|#d|DD.MM.YYYY|HH:MM|DD.MM.YYYY HH:MM|DD.MM. HH:MM|cancel|list> [Message|Cancel ID]",
+        "help_desc_remindme": "Reminds the author in x Minutes, Hours, Days or at a specific date or time.\nThe time span for the reminder can be set with a m for Minutes, h for Hours or d for days (e.g. '4h'). The default is Minutes.\nUsing 'cancel <id>' a reminder will be removed, without an ID all reminders of the users will be removed."
+
     },
     "de": {
         "#1": "Stuff",
@@ -44,22 +66,18 @@
         "#2": "Help",
         "help_dice": "Wirft einen Würfel",
         "help_desc_dice": "Alea iacta est! Simuliert den Wurf einer oder mehrerer Würfel.",
-        "help_usage_dice": "<Anzahl Seiten> <Anzahl Würfel>",
-        "help_kicker": "Wichtige Links zu kicker.de",
+        "help_usage_dice": "[Anzahl Seiten] [Anzahl Würfel]",
         "help_choose": "Zieht zufällig aus gegebenen Optionen.",
         "help_desc_choose": "Zieht zufällig aus anzugebenden Optionen. Optionen sind mit | zu trennen.",
-        "help_usage_choose": "option1 | option2 | ...",
-        "help_mud": "Pingt den Bot",
-        "help_mudkip": "Mudkip!",
-        "help_desc_mudkip": "Erklärt die Herkunft von !mud.",
+        "help_usage_choose": "Option 1 | Option 2 | ...",
+        "help_desc_mudkip": "Erklärt die Herkunft von '!mud'.",
         "help_mimimi": "Für besondere Mimimi-Momente",
         "help_desc_mimimi": "Postet eine mp3-Datei, die \"Mimimi\" enthält.",
-        "help_desc_geck": "Geckarbor!",
         "help_desc_keysmash": "Schont die Tastatur.",
         "help_werwars": "Zeigt anklagend auf einen User",
         "help_desc_werwars": "Sucht einen User, der in den letzten 30 Minuten aktiv war und zeigt anklagend auf diesen. Unterstützt die Ignore-Funktion.",
         "help_remindme": "Erinnerungsfunktion",
         "help_usage_remindme": "<#|#m|#h|#d|DD.MM.YYYY|HH:MM|DD.MM.YYYY HH:MM|DD.MM. HH:MM|cancel|list> [Nachricht|Cancel-ID]",
-        "help_desc_remindme": "Erinnert den Author in x Minuten, Stunden oder Tagen oder an einem festen Datum/Uhrzeit.\nDie Zeitspanne zur Erinnering lässt sich mit einem m für Minuten, h für Stunden oder d für Tage angeben (z.B. \"4h\"). Die Standardeinheit ist Minuten.\nMit cancel <id> wird eine Erinnerung abgebrochen, mit cancel (ohne ID) werden alle Erinnerungen des Users abgebrochen."
+        "help_desc_remindme": "Erinnert den Author in x Minuten, Stunden oder Tagen oder an einem festen Datum/Uhrzeit.\nDie Zeitspanne zur Erinnerung lässt sich mit einem m für Minuten, h für Stunden oder d für Tage angeben (z.B. '4h'). Die Standardeinheit ist Minuten.\nMit 'cancel <id>' wird eine Erinnerung abgebrochen, mit 'cancel' (ohne ID) werden alle Erinnerungen des Users abgebrochen."
     }
 }

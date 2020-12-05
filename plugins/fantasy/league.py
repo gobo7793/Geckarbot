@@ -1,3 +1,4 @@
+import asyncio
 import operator
 from threading import Thread
 from typing import List, Dict, Optional
@@ -212,8 +213,8 @@ class EspnLeague(FantasyLeague):
 
     def _load_league_data(self):
         self._espn = League(year=self.plugin.year, league_id=self.league_id,
-                            espn_s2=Storage.get(self.plugin)["espn_credentials"]["espn_s2"],
-                            swid=Storage.get(self.plugin)["espn_credentials"]["swid"])
+                            espn_s2=Config.get(self.plugin)["espn_credentials"]["espn_s2"],
+                            swid=Config.get(self.plugin)["espn_credentials"]["swid"])
         log.info("League {}, ID {} on platform ESPN connected".format(self.name, self.league_id))
 
     def reload(self):
@@ -341,7 +342,7 @@ class SleeperLeague(FantasyLeague):
         self.reload()
         log.info("League {}, ID {} on platform Sleeper connected".format(self.name, self.league_id, self.platform))
 
-    def _load_player_db(self):
+    async def _load_player_db(self):
         last_call = Storage.get(self.plugin, self.player_db_key)\
             .get(self.last_db_call_key, datetime.min)
         if last_call.date() >= datetime.now().date():
@@ -349,7 +350,7 @@ class SleeperLeague(FantasyLeague):
             return
 
         log.info("Getting Sleepers player database. This shouldn't be done more than once per day!")
-        players_json = self._client.make_request(endpoint="players/nfl", parse_json=False)
+        players_json = await self._client.request(endpoint="players/nfl", parse_json=False)
         players = Decoder().decode(players_json)
         players[self.last_db_call_key] = datetime.now()
         Storage.set(self.plugin, players, self.player_db_key)
@@ -360,8 +361,7 @@ class SleeperLeague(FantasyLeague):
         rosters = self._client.make_request(endpoint="league/{}/rosters".format(self.league_id))
         users = self._client.make_request(endpoint="league/{}/users".format(self.league_id))
         if not self.plugin.bot.DEBUG_MODE:
-            player_thread = Thread(target=self._load_player_db)
-            player_thread.start()
+            asyncio.run_coroutine_threadsafe(self._load_player_db, self.plugin.bot.loop)
 
         self._teams = []
         for roster in rosters:
