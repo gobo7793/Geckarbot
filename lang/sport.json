@@ -15,7 +15,8 @@
         "league_not_found": "League must be one of the following: {}",
         "no_new_goals": "Liveticker: No new goals!",
         "liveticker_prefix": "Liveticker - {} - New Goals - {}'\n",
-        "liveticker_prefix_kickoff": "__**Liveticker - Kickoff**__\n",
+        "liveticker_prefix_kickoff": "__**Liveticker - {} - Kickoff ({})**__\n",
+        "liveticker_prefix_finished": "__**Liveticker - {} - Final whistle**__\n",
 
         "#2": "actually de strings",
         "kicker_title": "Kicker.de - Links - Spieltage",
@@ -58,8 +59,9 @@
         "match_finished": "Beendet",
         "match_upcoming": "Bevorstehend",
         "league_not_found": "Liga muss eine der folgenden sein: {}",
-        "no_new_goals": "Liveticker: Keine neuen Tore",
+        "no_new_goals": "Liveticker ({}): Keine neuen Tore",
         "liveticker_prefix": "Liveticker - {} - Neue Tore - {}'\n",
-        "liveticker_prefix_kickoff": "__**Liveticker - Anstoß**__\n"
+        "liveticker_prefix_kickoff": "__**Liveticker - {} - Anstoß ({})**__\n",
+        "liveticker_prefix_finished": "__**Liveticker - {} - Abpfiff**__\n"
     }
 }

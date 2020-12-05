@@ -51,14 +51,21 @@ class CoroRegistration:
             self.last_goal[match_id] += [g.get('GoalID') for g in new_goals]
         return match_dict
 
-    async def update(self, job: Job = None):
-        minute = (datetime.datetime.now() - job.data).seconds // 60
+    async def update(self, job: Job):
+        minute = (datetime.datetime.now() - job.data['start']).seconds // 60
         if minute > 45:
             minute = max(45, minute - 15)
         await self.coro(self.get_new_goals(), self.league_reg.league, minute)
 
-    async def update_kickoff(self, match_dicts):
-        await self.coro_kickoff(match_dicts)
+    async def update_kickoff(self, match_list):
+        if self.coro_kickoff:
+            match_dicts = [convert_to_matchdict(m) for m in match_list]
+            await self.coro_kickoff(match_dicts, self.league_reg.league)
+
+    async def update_finished(self, match_list):
+        if self.coro_finished:
+            match_dicts = [convert_to_matchdict(m) for m in match_list]
+            await self.coro_finished(match_dicts, self.league_reg.league)
 
     def __str__(self):
         return "<liveticker.CoroRegistration; coro={}; periodic={}>".format(self.coro, self.periodic)
@@ -156,15 +163,14 @@ class LeagueRegistration:
                 # Running match
                 self.schedule_timers(start=time)
                 tmp_job = self.listener.bot.timers.schedule(coro=self.update_kickoff_coros, td=timers.timedict())
-                tmp_job.data = [convert_to_matchdict(m) for m in kickoffs[time]]
+                tmp_job.data = kickoffs[time]
                 tmp_job.execute()
         self.kickoff_timers.extend(jobs)
         return jobs
 
     async def schedule_match_timers(self, job=None):
         self.logger.debug("Match in League {} started.".format(self.league))
-        job.data = [convert_to_matchdict(m) for m in
-                    self.extract_kickoffs_with_matches()[datetime.datetime.now().replace(second=0, microsecond=0)]]
+        job.data = self.extract_kickoffs_with_matches()[datetime.datetime.now().replace(second=0, microsecond=0)]
         await self.update_kickoff_coros(job)
         self.schedule_timers(start=datetime.datetime.now())
 
@@ -176,27 +182,12 @@ class LeagueRegistration:
         :param start: start datetime of the match
         :return: jobs objects of the timers
         """
-        minutes = list(range(start.minute + 15, start.minute + 75, 15))
-        minutes_1 = [x for x in minutes if x < 60]
-        minutes_2 = [x % 60 for x in minutes if x >= 60]
-
-        job1 = None
-        job2 = None
-        if minutes_1:
-            intermediate = timers.timedict(year=[start.year], month=[start.month], monthday=[start.day],
-                                           hour=[start.hour, start.hour + 1],
-                                           minute=minutes_1)
-            job1 = self.listener.bot.timers.schedule(coro=self.update_periodic_coros, td=intermediate)
-            job1.data = start
-        if minutes_2:
-            intermediate = timers.timedict(year=[start.year], month=[start.month], monthday=[start.day],
-                                           hour=[start.hour + 1, start.hour + 2],
-                                           minute=minutes_2)
-            job2 = self.listener.bot.timers.schedule(coro=self.update_periodic_coros, td=intermediate)
-            job2.data = start
+        minutes = [m + (start.minute % 15) for m in range(0, 60, 15)]
+        intermediate = timers.timedict(year=[start.year], month=[start.month], monthday=[start.day], minute=minutes)
+        job = self.listener.bot.timers.schedule(coro=self.update_periodic_coros, td=intermediate, data={'start': start})
         self.logger.debug("Timers for match starting at {} scheduled.".format(start.strftime("%d/%m/%Y %H:%M")))
-        self.intermediate_timers.extend((job1, job2))
-        return job1, job2
+        self.intermediate_timers.append(job)
+        return job
 
     def next_kickoff(self):
         """Returns datetime of the next match"""
@@ -225,16 +216,28 @@ class LeagueRegistration:
             await coro_reg.update_kickoff(job.data)
         job.cancel()
 
-    async def update_periodic_coros(self, job: Job = None):
+    async def update_periodic_coros(self, job: Job):
         """
-
+        Regularly updates coros and checks if matches are still running.
         :param job:
         :return:
         """
         self.update_matches()
+        matches = self.extract_kickoffs_with_matches()[job.data['start']]
+        finished = []
+        if (datetime.datetime.now() - job.data['start']).seconds > 9000:
+            finished = matches
+        else:
+            for match in matches:
+                if match.get('MatchIsFinished', False):
+                    finished.append(match)
         for coro_reg in self.registrations:
             if coro_reg.periodic:
                 await coro_reg.update(job)
+            if finished:
+                await coro_reg.update_finished(finished)
+        if len(finished) == len(matches):
+            job.cancel()
 
     def __str__(self):
         next_exec = self.next_execution()
