@@ -361,7 +361,7 @@ class Plugin(BasePlugin, name="Role Management"):
 
     @role.command(name="update", invoke_without_command=True)
     @commands.has_any_role(*Config().MOD_ROLES)
-    async def role_update(self, ctx, *, message):
+    async def role_update(self, ctx, *, message=""):
         if not message:
             await self.bot.helpsys.cmd_help(ctx, self, ctx.command)
             return
@@ -372,7 +372,7 @@ class Plugin(BasePlugin, name="Role Management"):
         except commands.CommandError:
             pass
 
-        if channel is None:
+        if channel is None and len(message) < 2:
             await ctx.send(Lang.lang(self, 'invalid_channel'))
             return
 
