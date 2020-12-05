@@ -187,7 +187,8 @@ class Plugin(BasePlugin, name="LastFM"):
             "now",
             "register",
             "deregister",
-            "profile"
+            "profile",
+            "quote",
         ]
 
     def migrate(self):
@@ -441,7 +442,7 @@ class Plugin(BasePlugin, name="LastFM"):
         await questionnaire.user.send(Lang.lang(self, "quote_err_dmkill"))
         await msg.add_reaction(Lang.CMDERROR)
 
-    @lastfm.command(name="quote", hidden=True)
+    @lastfm.command(name="quote")
     async def cmd_quote(self, ctx):
         # Acquire last song for first questionnaire route
         try:

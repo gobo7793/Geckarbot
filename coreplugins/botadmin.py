@@ -78,42 +78,39 @@ class Plugin(BasePlugin, name="Bot status commands for monitoring and debug purp
                             if_empty="None"):
             await ctx.send(msg)
 
-    @commands.command(name="storagedump", help="Dumps plugin storage", usage="<plugin name>")
-    @commands.has_any_role(Config().BOT_ADMIN_ROLE_ID)
-    async def storagedump(self, ctx, name):
+    @staticmethod
+    async def dump(ctx, iodir, iodir_str, name, container=None):
         plugin = converters.get_plugin_by_name(name)
         if plugin is None:
             await ctx.message.add_reaction(Lang.CMDERROR)
             await ctx.send("Plugin {} not found.".format(name))
             return
         await ctx.message.add_reaction(Lang.CMDSUCCESS)
-
-        dump = pprint.pformat(Storage.get(plugin), indent=4).split("\n")
         prefix = ""
-        if not Storage.has_structure(plugin):
-            prefix = "**Warning: plugin {} does not have a storage structure.** " \
-                     "This is the default storage.".format(name)
-        for el in paginate(dump, prefix=prefix, msg_prefix="```", msg_suffix="```"):
+
+        # List existing structures when called on default container
+        if container is None:
+            containers = ", ".join(["`{}`".format(el) for el in iodir.data(plugin).structures() if el is not None])
+            if containers:
+                prefix += "Available containers: {}\n".format(containers)
+
+        dump = pprint.pformat(iodir.get(plugin, container=container), indent=4).split("\n")
+        if not iodir.data(plugin).has_structure(container):
+            prefix += "**Warning: plugin {} does not have the {} structure {}.** " \
+                      "This is the default {}.".format(name, iodir_str, container, iodir_str)
+        for el in paginate(dump, prefix=prefix, msg_prefix="```", msg_suffix="```", prefix_within_msg_prefix=False):
             await ctx.send(el)
 
-    @commands.command(name="configdump", help="Dumps plugin config", usage="<plugin name>")
+    @commands.command(name="storagedump", help="Dumps plugin storage", usage="<plugin name> [container]")
     @commands.has_any_role(Config().BOT_ADMIN_ROLE_ID)
-    # NOTE: Is called by "!dsc set config" and "!fantasy set config"
-    async def configdump(self, ctx, name):
-        plugin = converters.get_plugin_by_name(name)
-        if plugin is None:
-            await ctx.message.add_reaction(Lang.CMDERROR)
-            await ctx.send("Plugin {} not found.".format(name))
-            return
-        await ctx.message.add_reaction(Lang.CMDSUCCESS)
+    async def storagedump(self, ctx, name, container=None):
+        await self.dump(ctx, Storage, "storage", name, container=container)
 
-        dump = pprint.pformat(Config.get(plugin), indent=4).split("\n")
-        prefix = ""
-        if not Config.has_structure(plugin):
-            prefix = "**Warning: plugin {} does not have a config structure.** " \
-                     "This is the default config.".format(name)
-        for el in paginate(dump, prefix=prefix, msg_prefix="```", msg_suffix="```"):
-            await ctx.send(el)
+    # Disabled for security reasons, we have API keys, passwords etc in these files
+    # @commands.command(name="configdump", help="Dumps plugin config", usage="<plugin name> [container]")
+    # @commands.has_any_role(Config().BOT_ADMIN_ROLE_ID)
+    async def configdump(self, ctx, name, container=None):
+        await self.dump(ctx, Config, "config", name, container=container)
 
     @commands.command(name="date", help="Current date and time")
     async def date(self, ctx):
