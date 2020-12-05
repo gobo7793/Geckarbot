@@ -45,7 +45,7 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
 
     def default_config(self):
         return {
-            "version": 6,
+            "version": 7,
             "channel_id": 0,
             "mod_role_id": 0,
             "espn": {
@@ -60,6 +60,10 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
                 "url_base_scoreboard": "https://sleeper.app/leagues/{}/standings",
                 "url_base_standings": "https://sleeper.app/leagues/{}/standings",
                 "url_base_boxscore": "https://sleeper.app/leagues/{}/standings"
+            },
+            "espn_credentials": {
+                "swid": "",
+                "espn_s2": ""
             }
         }
 
@@ -75,11 +79,7 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
                 "end": datetime.now() + timedelta(days=16 * 7),
                 "timers": False,
                 "def_league": -1,
-                "leagues": [],
-                "espn_credentials": {
-                    "swid": "",
-                    "espn_s2": ""
-                }
+                "leagues": []
             }
         return {}
 
@@ -122,6 +122,8 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
             self._update_config_from_4_to_5()
         if Config.get(self)["version"] == 5:
             self._update_config_from_5_to_6()
+        if Config.get(self)["version"] == 6:
+            self._update_config_from_6_to_7()
 
         self.supercommish = get_best_user(Storage.get(self)["supercommish"])
         self.state = Storage.get(self)["state"]
@@ -147,18 +149,29 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
             "end": self.end_date,
             "timers": self.use_timers,
             "def_league": self.default_league,
-            "leagues": {k: self.leagues[k].serialize() for k in self.leagues},
-            "espn_credentials": {
-                "swid": Storage.get(self)["espn_credentials"]["swid"],
-                "espn_s2": Storage.get(self)["espn_credentials"]["espn_s2"]
-            }
+            "leagues": {k: self.leagues[k].serialize() for k in self.leagues}
         }
         Storage.set(self, storage_d)
         Storage.save(self)
         Config.save(self)
 
+    def _update_config_from_6_to_7(self):
+        log.info("Migrating config from version 6 to version 7")
+
+        Config.get(self)["espn_credentials"] = {
+            "swid": Storage.get(self)["espn_credentials"]["swid"],
+            "espn_s2": Storage.get(self)["espn_credentials"]["espn_s2"]
+        }
+        del(Storage.get(self)["espn_credentials"])
+
+        Config.get(self)["version"] = 7
+        Storage.save(self)
+        Config.save(self)
+
+        log.info("Update finished")
+
     def _update_config_from_5_to_6(self):
-        log.info("Updating config from version 5 to version 6")
+        log.info("Migrating config from version 5 to version 6")
 
         leagues_data = Storage.get(self)["leagues"]
         Storage.get(self)["leagues"] = {k: v for k, v in enumerate(leagues_data)}
@@ -178,7 +191,7 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
         log.info("Update finished")
 
     def _update_config_from_4_to_5(self):
-        log.info("Updating config from version 4 to version 5")
+        log.info("Migrating config from version 4 to version 5")
 
         Storage.get(self)["def_league"] = []
 
@@ -189,7 +202,7 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
         log.info("Update finished")
 
     def _update_config_from_3_to_4(self):
-        log.info("Updating config from version 3 to version 4")
+        log.info("Migrating config from version 3 to version 4")
 
         for league in Storage.get(self)["leagues"]:
             league['platform'] = Platform.ESPN
@@ -213,7 +226,7 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
         log.info("Update finished")
 
     def _update_config_from_2_to_3(self):
-        log.info("Updating config from version 2 to version 3")
+        log.info("Migrating config from version 2 to version 3")
 
         Config.get(self)["url_base_boxscore"] = self.default_config()["espn"]["url_base_boxscore"]
         Config.get(self)["version"] = 3
@@ -683,8 +696,8 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
 
     @fantasy_set.command(name="credentials")
     async def set_api_credentials(self, ctx, swid, espn_s2):
-        Storage.get(self)["espn_credentials"]["swid"] = swid
-        Storage.get(self)["espn_credentials"]["espn_s2"] = espn_s2
+        Config.get(self)["espn_credentials"]["swid"] = swid
+        Config.get(self)["espn_credentials"]["espn_s2"] = espn_s2
         self.save()
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
