@@ -476,7 +476,7 @@ class SleeperLeague(FantasyLeague):
             player_id = list(action["adds"].keys())[0] \
                 if act_type == "ADD" else list(action["drops"].keys())[0]
             act_team = next(t for t in self.get_teams() if t.team_id == act_roster_id)
-            act_player = Storage.get(self.plugin, self.player_db_key)[int(player_id)]
+            act_player = Storage.get(self.plugin, self.player_db_key)[player_id]
             player_name = act_player["full_name"]
 
             return Activity(act_date, act_team.team_name, act_type, player_name)

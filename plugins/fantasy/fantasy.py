@@ -9,6 +9,7 @@ import botutils.timeutils
 from base import BasePlugin, NotFound
 from botutils import stringutils, permchecks
 from botutils.converters import get_best_username, get_best_user, get_plugin_by_name
+from botutils.stringutils import paginate
 from botutils.utils import add_reaction
 from conf import Config, Storage, Lang
 from plugins.fantasy.league import FantasyLeague, deserialize_league, create_league
@@ -178,7 +179,7 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
         def_data = Storage.get(self)["def_league"]
         for k in Storage.get(self)["leagues"]:
             league = Storage.get(self)["leagues"][k]
-            if league["league_id"] == def_data[0] and league["platform"] == def_data[1]:
+            if def_data and league["league_id"] == def_data[0] and league["platform"] == def_data[1]:
                 Storage.get(self)["def_league"] = k
                 break
         else:
@@ -316,11 +317,33 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
         week = 0
         team_name = None
         league_name = None
+
+        # handle if week isn't first arg
+        if len(args) > 1:
+            try:
+                week = int(args[0])
+                week_first = True
+            except ValueError:
+                week_first = False
+
+            week_not_first = False
+            for arg in args[1:]:
+                try:
+                    int(arg)
+                    week_not_first = True
+                    break
+                except ValueError:
+                    week_not_first = False
+            if not week_first and week_not_first:
+                await add_reaction(ctx.message, Lang.CMDERROR)
+                await ctx.channel.send(Lang.lang(self, "week_must_first"))
+                return
+
         for k in self.leagues:
             try:
                 if args[-1].lower() == "all":
                     league_name = "all"
-                if args[-1].lower() in self.leagues[k].name.lower():
+                elif args[-1].lower() in self.leagues[k].name.lower():
                     league_name = self.leagues[k].name
                     break
             except IndexError:
@@ -366,7 +389,7 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
 
             if not results:
                 for k in self.leagues:
-                    if league_name.lower() != "all" and \
+                    if league_name is not None and league_name.lower() != "all" and \
                             (k == self.default_league or
                              (league_name is not None and league_name
                               and league_name.lower() != self.leagues[k].name.lower())):
@@ -704,13 +727,12 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
     @fantasy_set.command(name="config", help="Gets or sets general config values for the plugin")
     async def set_config(self, ctx, key="", value=""):
         if not key and not value:
-            botadmin_plugin = get_plugin_by_name("botadmin")
-            if botadmin_plugin is None:
-                await add_reaction(ctx.message, Lang.CMDERROR)
-                await ctx.send(Lang.lang(self, 'botadmin_not_found'))
-                return
-            await botadmin_plugin.configdump(ctx, self.get_name())
-            # await ctx.invoke(self.bot.get_command("configdump"), self.get_name())
+            msg = []
+            for key in Config.get(self):
+                if key != "espn_credentials":
+                    msg.append("{}: {}".format(key, Config.get(self)[key]))
+            for msg in paginate(msg, msg_prefix="```", msg_suffix="```"):
+                await ctx.send(msg)
             return
 
         if key and not value:
