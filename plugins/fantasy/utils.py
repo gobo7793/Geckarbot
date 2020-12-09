@@ -11,8 +11,6 @@ Team = namedtuple("Team", "team_name team_abbrev team_id owner_id")
 Player = namedtuple("Player", "slot_position name proTeam projected_points points")
 Match = namedtuple("Match", "home_team home_score home_lineup away_team away_score away_lineup")
 
-PlatformNotSupportedData = namedtuple("PlatformNotSupportedData", "team_name platform boxscore_url")
-
 
 class FantasyState(IntEnum):
     """Fantasy states"""
