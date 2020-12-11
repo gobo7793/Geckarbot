@@ -57,10 +57,10 @@ class CoroRegistration:
             minute = max(45, minute - 15)
         await self.coro(self.get_new_goals(), self.league_reg.league, minute)
 
-    async def update_kickoff(self, match_list):
+    async def update_kickoff(self, data):
         if self.coro_kickoff:
-            match_dicts = [convert_to_matchdict(m) for m in match_list]
-            await self.coro_kickoff(match_dicts, self.league_reg.league)
+            match_dicts = [convert_to_matchdict(m) for m in data['matches']]
+            await self.coro_kickoff(match_dicts, self.league_reg.league, data['start'])
 
     async def update_finished(self, match_list):
         if self.coro_finished:
@@ -162,15 +162,16 @@ class LeagueRegistration:
             else:
                 # Running match
                 self.schedule_timers(start=time)
-                tmp_job = self.listener.bot.timers.schedule(coro=self.update_kickoff_coros, td=timers.timedict())
-                tmp_job.data = kickoffs[time]
+                tmp_job = self.listener.bot.timers.schedule(coro=self.update_kickoff_coros, td=timers.timedict(),
+                                                            data={'start': time, 'matches': kickoffs[time]})
                 tmp_job.execute()
         self.kickoff_timers.extend(jobs)
         return jobs
 
-    async def schedule_match_timers(self, job=None):
+    async def schedule_match_timers(self, job):
         self.logger.debug("Match in League {} started.".format(self.league))
-        job.data = self.extract_kickoffs_with_matches()[datetime.datetime.now().replace(second=0, microsecond=0)]
+        job.data['matches'] = self.extract_kickoffs_with_matches()[datetime.datetime.now().replace(second=0,
+                                                                                                   microsecond=0)]
         await self.update_kickoff_coros(job)
         self.schedule_timers(start=datetime.datetime.now())
 

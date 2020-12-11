@@ -185,13 +185,13 @@ class Plugin(BasePlugin, name="Sport"):
             await self.liveticker_regs[league].update()
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
-    async def live_kickoff(self, match_dicts, league):
+    async def live_kickoff(self, match_dicts, league, time):
         sport = Config().bot.get_channel(Config().get(self)['sport_chan'])
         match_msgs = []
         for match in match_dicts:
             match_msgs.append("{} - {}".format(match.get("team_home"), match.get("team_away")))
         msgs = paginate(match_msgs,
-                        prefix=Lang.lang(self, 'liveticker_prefix_kickoff', league, datetime.now().strftime('%H:%M')))
+                        prefix=Lang.lang(self, 'liveticker_prefix_kickoff', league, time.strftime('%H:%M')))
         for msg in msgs:
             await sport.send(msg)
 
