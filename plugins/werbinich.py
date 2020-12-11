@@ -1,6 +1,7 @@
 import logging
 import asyncio
 from enum import Enum
+from datetime import datetime
 
 import discord
 from discord.ext import commands
@@ -123,6 +124,7 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
         self.presence_messsage = None
         self.participants = []
         self.eval_event = None
+        self.reg_ts = None
 
         self.statemachine = statemachine.StateMachine(init_state=State.IDLE)
         self.statemachine.add_state(State.IDLE, None)
@@ -189,7 +191,8 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
             await ctx.send(msg)
             return
         elif self.statemachine.state == State.REGISTER:
-            await ctx.send(Lang.lang(self, "status_registering"))
+            sec = self.config["register_timeout"] * 60 - int((datetime.now() - self.reg_ts).total_seconds())
+            await ctx.send(Lang.lang(self, "status_registering", sec))
             return
         elif self.statemachine.state == State.DELIVER:
             await ctx.send(Lang.lang(self, "status_delivering"))
@@ -213,8 +216,10 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
             await ctx.message.add_reaction(Lang.CMDERROR)
             await ctx.send(Lang.lang(self, "not_running"))
             return
-        await ctx.message.add_reaction(Lang.CMDSUCCESS)
-        await self.cleanup()
+        await ctx.send("Sorry, das tut momentan nicht")
+        await ctx.message.add_reaction(Lang.CMDERROR)
+        # await ctx.message.add_reaction(Lang.CMDSUCCESS)
+        # await self.cleanup()
 
     @werbinich.command(name="spoiler", help=h_spoiler)
     async def spoilercmd(self, ctx):
@@ -284,6 +289,7 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
                                                             priority=presence.PresencePriority.HIGH)
         reaction = Lang.lang(self, "reaction_signup")
         to = self.config["register_timeout"]
+        self.reg_ts = datetime.now()
         msg = Lang.lang(self, "registering", reaction, to,
                         stringutils.sg_pl(to, Lang.lang(self, "minute_sg"), Lang.lang(self, "minute_pl")))
         msg = await self.channel.send(msg)
@@ -402,3 +408,4 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
         self.eval_event = None
         self.initiator = None
         self.show_assignees = True
+        self.reg_ts = None
