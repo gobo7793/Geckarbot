@@ -81,6 +81,7 @@ class DMListener(BaseSubsystem):
             if i not in self.registrations.keys():
                 self.registrations[i] = reg
                 break
+            i += 1
         return reg
 
     def deregister(self, registration):
