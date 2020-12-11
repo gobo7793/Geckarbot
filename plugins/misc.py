@@ -164,8 +164,7 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
 
     @commands.command(name="remindme")
     async def reminder(self, ctx, *args):
-
-        # remove hostoric reminders
+        # remove historic reminders
         old_reminders = []
         for el in self.reminders:
             if (self.reminders[el].next_execution() is None
