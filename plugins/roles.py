@@ -389,7 +389,7 @@ class Plugin(BasePlugin, name="Role Management"):
         await ctx.send(Lang.lang(self, 'role_update'))
         await utils.log_to_mod_channel(ctx)
 
-    @role.command(name="msg")
+    @role.command(name="msg", aliases=["link"])
     async def get_msg_cmd(self, ctx):
         msg = await self.get_init_msg()
         if msg is not None:
