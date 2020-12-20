@@ -344,7 +344,7 @@ def main():
     logging_setup()
     logging.getLogger(__name__).debug("Debug mode: on")
     intents = intent_setup()
-    bot = Geckarbot(command_prefix='!', intents=intents)
+    bot = Geckarbot(command_prefix='!', intents=intents, case_insensitive=True)
     injections.post_injections(bot)
     logging.info("Loading core plugins")
     failed_plugins = bot.load_plugins(bot.CORE_PLUGIN_DIR)
