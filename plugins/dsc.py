@@ -251,13 +251,11 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
     @dsc_set.command(name="config")
     async def dsc_set_config(self, ctx, key="", value=""):
         if not key and not value:
-            botadmin_plugin = get_plugin_by_name("botadmin")
-            if botadmin_plugin is None:
-                await utils.add_reaction(ctx.message, Lang.CMDERROR)
-                await ctx.send(Lang.lang(self, 'botadmin_not_found'))
-                return
-            await botadmin_plugin.configdump(ctx, self.get_name())
-            # await ctx.invoke(self.bot.get_command("configdump"), self.get_name())
+            msg = []
+            for key in Config.get(self):
+                msg.append("{}: {}".format(key, Config.get(self)[key]))
+            for msg in paginate(msg, msg_prefix="```", msg_suffix="```"):
+                await ctx.send(msg)
             return
 
         if key and not value:

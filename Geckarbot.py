@@ -230,6 +230,11 @@ class Geckarbot(commands.Bot):
 
     def load_plugin(self, plugin_dir, plugin_name):
         """Loads the given plugin_name in plugin_dir, returns True if plugin loaded successfully"""
+        for pl in self.plugins:
+            if pl.get_name() == plugin_name:
+                logging.info("A Plugin called {} already loaded, skipping loading.".format(plugin_name))
+                return
+
         try:
             to_import = "{}.{}".format(plugin_dir, plugin_name)
             found = False
@@ -339,7 +344,7 @@ def main():
     logging_setup()
     logging.getLogger(__name__).debug("Debug mode: on")
     intents = intent_setup()
-    bot = Geckarbot(command_prefix='!', intents=intents)
+    bot = Geckarbot(command_prefix='!', intents=intents, case_insensitive=True)
     injections.post_injections(bot)
     logging.info("Loading core plugins")
     failed_plugins = bot.load_plugins(bot.CORE_PLUGIN_DIR)

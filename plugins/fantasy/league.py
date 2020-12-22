@@ -155,11 +155,12 @@ class FantasyLeague(ABC):
         pass
 
     @abstractmethod
-    def get_boxscores(self, week) -> List[Match]:
+    def get_boxscores(self, week, match_id=-1) -> List[Match]:
         """
-        Returns the boxscore data for all matches in given week of current year
+        Returns the boxscore data for the given match ID or all matches in given week of current year
 
         :param week: The week to get the boxscores from
+        :param match_id: The match ID of the match, or -1 for all matches
         :return: The Boxscores as List of Match tuples
         """
         pass
@@ -270,14 +271,15 @@ class EspnLeague(FantasyLeague):
             teams.append(Team(t.team_name, t.team_abbrev, t.team_id, 0))
         return teams
 
-    def get_boxscores(self, week) -> List[Match]:
+    def get_boxscores(self, week, match_id=-1) -> List[Match]:
         boxscores = self._espn.box_scores(week)
         matches = []
-        for score in boxscores:
-            home_team = None
-            away_team = None
-            home_lineup = []
-            away_lineup = []
+        for i in range(len(boxscores)):
+            if match_id > -1 and match_id != i:
+                continue
+            score = boxscores[i]
+            home_team, away_team = None, None
+            home_lineup, away_lineup = [], []
 
             if score.home_team is not None and score.home_team != 0:
                 home_team = Team(score.home_team.team_name, score.home_team.team_abbrev, score.home_team.team_id, 0)
@@ -420,7 +422,9 @@ class SleeperLeague(FantasyLeague):
     def get_teams(self) -> List[Team]:
         return self._teams
 
-    def get_boxscores(self, week) -> List[Match]:
+    def get_boxscores(self, week, match_id=-1) -> List[Match]:
+        # Doesn't support boxscores yet (12/2020), so match_id isn't used
+
         if week < 1 or week > self.current_week:
             week = self.current_week
         matchups_raw = self._client.make_request(endpoint="league/{}/matchups/{}".format(self.league_id, week))
@@ -476,7 +480,7 @@ class SleeperLeague(FantasyLeague):
             player_id = list(action["adds"].keys())[0] \
                 if act_type == "ADD" else list(action["drops"].keys())[0]
             act_team = next(t for t in self.get_teams() if t.team_id == act_roster_id)
-            act_player = Storage.get(self.plugin, self.player_db_key)[int(player_id)]
+            act_player = Storage.get(self.plugin, self.player_db_key)[player_id]
             player_name = act_player["full_name"]
 
             return Activity(act_date, act_team.team_name, act_type, player_name)

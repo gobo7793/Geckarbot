@@ -71,7 +71,8 @@ class Plugin(BasePlugin, name="Role Management"):
             if self.has_init_msg_set:
                 bot.reaction_listener.register(await self.get_init_msg(), self.update_reaction_based_user_role)
 
-        asyncio.get_event_loop().create_task(get_init_msg_data())
+        asyncio.run_coroutine_threadsafe(get_init_msg_data(), self.bot.loop)
+        # asyncio.get_event_loop().create_task(get_init_msg_data())
 
     def default_storage(self):
         return {
@@ -252,7 +253,7 @@ class Plugin(BasePlugin, name="Role Management"):
                                                           'Reaction': event.emoji,
                                                           'role': role.mention})
 
-    @commands.group(name="role", invoke_without_command=True)
+    @commands.group(name="role", aliases=["roles"], invoke_without_command=True)
     async def role(self, ctx, user: discord.Member, action, role: discord.Role):
         async with ctx.typing():
             if not permchecks.check_mod_access(ctx.author):
@@ -361,18 +362,14 @@ class Plugin(BasePlugin, name="Role Management"):
 
     @role.command(name="update", invoke_without_command=True)
     @commands.has_any_role(*Config().MOD_ROLES)
-    async def role_update(self, ctx, *, message):
-        if not message:
-            await self.bot.helpsys.cmd_help(ctx, self, ctx.command)
-            return
-
+    async def role_update(self, ctx, *, message=""):
         channel = None
         try:
             channel = await commands.TextChannelConverter().convert(ctx, message)
         except commands.CommandError:
             pass
 
-        if channel is None:
+        if channel is None and len(message) < 2:
             await ctx.send(Lang.lang(self, 'invalid_channel'))
             return
 
@@ -384,14 +381,15 @@ class Plugin(BasePlugin, name="Role Management"):
                 await ctx.send(Lang.lang(self, 'channel_updated'))
             return
 
-        Storage.get(self)['message']['content'] = message
+        if message:
+            Storage.get(self)['message']['content'] = message
 
         Storage.save(self)
         await self.update_role_management(ctx)
         await ctx.send(Lang.lang(self, 'role_update'))
         await utils.log_to_mod_channel(ctx)
 
-    @role.command(name="msg")
+    @role.command(name="msg", aliases=["link"])
     async def get_msg_cmd(self, ctx):
         msg = await self.get_init_msg()
         if msg is not None:
