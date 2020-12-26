@@ -445,7 +445,11 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
 
             if command is None and await self._is_valid_command(arg):
                 if await self._pre_cmd_checks(message, arg):
-                    command = self.bot.get_command(arg).qualified_name
+                    native_cmd = self.bot.get_command(arg)
+                    if native_cmd is not None:
+                        command = native_cmd.qualified_name
+                    else:
+                        command = arg
                     continue
 
             if until is None:
