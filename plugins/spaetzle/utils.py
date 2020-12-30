@@ -99,6 +99,16 @@ def points(score: Tuple[int, int], pred: Tuple[int, int]):
     else:
         return 0
 
+def duel_points(pts, opp_pts):
+    try:
+        pts = int(pts)
+    except (ValueError, TypeError):
+        return 0
+    try:
+        opp_pts = int(opp_pts)
+    except (ValueError, TypeError):
+        opp_pts = 0
+    return 3 * (pts > opp_pts) + (pts == opp_pts)
 
 def pointdiff_possible(score: Tuple[int, int], pred1: Tuple[int, int], pred2: Tuple[int, int]):
     """

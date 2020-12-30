@@ -23,8 +23,8 @@ from botutils.utils import add_reaction
 from conf import Config, Storage, Lang
 from plugins.spaetzle.subsystems import UserBridge, Observed, Trusted
 from plugins.spaetzle.utils import TeamnameDict, pointdiff_possible, determine_winner, MatchResult, match_status, \
-    MatchStatus, get_user_league, get_user_cell, get_schedule, get_schedule_opponent, UserNotFound, convert_to_datetime, \
-    get_participant_history
+    MatchStatus, get_user_league, get_user_cell, get_schedule, get_schedule_opponent, UserNotFound, \
+    convert_to_datetime, get_participant_history, duel_points
 from subsystems.help import DefaultCategories
 
 
@@ -826,9 +826,32 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                 await ctx.send(Lang.lang(self, 'error_wrong_matchday?'))
             else:
                 rows = []
-                for title, pts, pts_opp, opp in history_data:
-                    rows.append("{} | {} - {}:{}".format(title, opp, pts, pts_opp))
+                for md, pts, pts_opp, opp in history_data:
+                    rows.append("{} | {} - {}:{}".format(md, opp, pts, pts_opp))
                 await ctx.send(embed=discord.Embed(title=participant, description="\n".join(rows)))
+
+    @spaetzle.command(name="purge")
+    async def purge_user(self, ctx, participant: str):
+        if not await Trusted(self).is_manager(ctx):
+            return
+        async with ctx.typing():
+            try:
+                history_data = get_participant_history(self, participant)
+            except UserNotFound:
+                await add_reaction(ctx.message, Lang.CMDERROR)
+                await ctx.send(Lang.lang(self, 'user_not_found', participant))
+            except HTTPError:
+                await add_reaction(ctx.message, Lang.CMDERROR)
+                await ctx.send(Lang.lang(self, 'error_wrong_matchday?'))
+            else:
+                msg = []
+                correction = {}
+                for md, pts, pts_opp, opp in history_data:
+                    if str(pts).isnumeric():
+                        msg.append("{0} | {1} - {2}:{3} \u2192 –:{3}".format(md, opp, pts, pts_opp))
+                        correction[opp] = int(pts), duel_points(pts_opp, 0) - duel_points(pts_opp, pts)
+                await ctx.send(embed=discord.Embed(title=participant, description="\n".join(msg)))
+                # TODO automatic correction in spreadsheet
 
     @spaetzle.command(name="danny", help="Sends Danny the predictions of the participants who also take part in his"
                                          "Bundesliga prediction game.")
