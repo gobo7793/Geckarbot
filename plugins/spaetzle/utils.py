@@ -232,7 +232,7 @@ def get_user_cell(plugin, user: str):
     """
     Returns the position of the user's title cell in the 'Tipps' section
 
-    :return: (col, row) of the cell
+    :return: Cell
     """
     for league, participants in Storage().get(plugin)['participants'].items():
         for i in range(len(participants)):

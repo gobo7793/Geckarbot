@@ -198,20 +198,26 @@ class Client(restclient.Client):
         # self.logger.debug("Response: {}".format(response))
         return response
 
+    def get_sheets(self):
+        info = get_service().spreadsheets().get(spreadsheetId=self.spreadsheet_id).execute()
+        sheets = info.get('sheets', [])
+        return sheets
+
     def get_sheet_properties(self, sheet):
         """
-        Converts the title of a sheet into the coresponding sheet id
+        Returns properties of the specified sheet
 
         :param sheet: name or id of the sheet
-        :return: sheetId if found, None instead
+        :return: sheet properties
         """
-        info = get_service().spreadsheets().get(spreadsheetId=self.spreadsheet_id).execute()
-        for sh in info.get('sheets', []):
+        sheets = self.get_sheets()
+        for sh in sheets:
             properties = sh.get('properties', {})
             if sheet == properties.get('title') or sheet == properties.get('sheetId'):
                 return properties
 
     def get_sheet_id(self, sheet):
+        """Converts the title of a sheet into the coresponding sheet id"""
         if type(sheet) == int:
             return sheet
         else:

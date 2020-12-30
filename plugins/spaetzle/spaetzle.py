@@ -417,7 +417,8 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             participants = Storage().get(self)['participants']
             for leag, p in participants.items():
                 data["Aktuell!{}".format(Config().get(self)['predictions_ranges'][leag])] = [[num for elem in
-                                                                                              [[user, None] for user in p] for num in elem]]
+                                                                                              [[user, None] for user in
+                                                                                               p] for num in elem]]
                 for match in matches:
                     row = []
                     for user in p:
@@ -809,6 +810,29 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             msgs = paginate(content, prefix=Lang.lang(self, 'raw_posts_prefix', posts_count))
             for msg in msgs:
                 await ctx.send(msg)
+
+    @spaetzle.command(name="history")
+    async def show_history(self, ctx, participant: str):
+        async with ctx.typing():
+            try:
+                cell = get_user_cell(self, participant)
+            except UserNotFound:
+                await add_reaction(ctx.message, Lang.CMDERROR)
+                return
+            else:
+                c = self.get_api_client()
+                sheet_titles = []
+                for sheet in c.get_sheets():
+                    title = sheet.get('properties', {}).get('title')
+                    if title and re.fullmatch(r"ST \d+", title):
+                        sheet_titles.insert(0, title)
+                cell_range = CellRange(start_cell=cell.translate(0, 10), width=2, height=2).rangename()
+                ranges = ["{}!{}".format(t, cell_range) for t in sheet_titles]
+                data = c.get_multiple(ranges=ranges)
+                rows = []
+                for title, values in zip(sheet_titles, data):
+                    rows.append("{} | {} - {}:{}".format(title, values[1][1], values[0][0], values[1][0]))
+                await ctx.send(embed=discord.Embed(title=participant, description="\n".join(rows)))
 
     @spaetzle.command(name="danny", help="Sends Danny the predictions of the participants who also take part in his"
                                          "Bundesliga prediction game.")
