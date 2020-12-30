@@ -22,7 +22,8 @@ from botutils.utils import add_reaction
 from conf import Config, Storage, Lang
 from plugins.spaetzle.subsystems import UserBridge, Observed, Trusted
 from plugins.spaetzle.utils import TeamnameDict, pointdiff_possible, determine_winner, MatchResult, match_status, \
-    MatchStatus, get_user_league, get_user_cell, get_schedule, get_schedule_opponent, UserNotFound, convert_to_datetime
+    MatchStatus, get_user_league, get_user_cell, get_schedule, get_schedule_opponent, UserNotFound, convert_to_datetime, \
+    get_participant_history
 from subsystems.help import DefaultCategories
 
 
@@ -820,18 +821,13 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                 await add_reaction(ctx.message, Lang.CMDERROR)
                 return
             else:
-                c = self.get_api_client()
-                sheet_titles = []
-                for sheet in c.get_sheets():
-                    title = sheet.get('properties', {}).get('title')
-                    if title and re.fullmatch(r"ST \d+", title):
-                        sheet_titles.insert(0, title)
-                cell_range = CellRange(start_cell=cell.translate(0, 10), width=2, height=2).rangename()
-                ranges = ["{}!{}".format(t, cell_range) for t in sheet_titles]
-                data = c.get_multiple(ranges=ranges)
                 rows = []
-                for title, values in zip(sheet_titles, data):
-                    rows.append("{} | {} - {}:{}".format(title, values[1][1], values[0][0], values[1][0]))
+                history_data = get_participant_history(self, cell)
+                if history_data is None:
+                    await add_reaction(ctx.message, Lang.CMDERROR)
+                    await ctx.send(Lang.lang(self, 'error_wrong_matchday?'))
+                for title, pts, pts_opp, opp in history_data:
+                    rows.append("{} | {} - {}:{}".format(title, opp, pts, pts_opp))
                 await ctx.send(embed=discord.Embed(title=participant, description="\n".join(rows)))
 
     @spaetzle.command(name="danny", help="Sends Danny the predictions of the participants who also take part in his"

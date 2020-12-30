@@ -2,8 +2,9 @@ import random
 from datetime import datetime, timedelta
 from enum import Enum
 from typing import Tuple
+from urllib.error import HTTPError
 
-from botutils.sheetsclient import Cell
+from botutils.sheetsclient import Cell, CellRange
 from conf import Storage
 
 
@@ -275,6 +276,22 @@ def get_schedule_opponent(plugin, participant, matchday: int):
     else:
         return None
 
+def get_participant_history(plugin, cell):
+    c = plugin.get_api_client()
+    cell_range = CellRange(start_cell=cell.translate(0, 10), width=2, height=2).rangename()
+    ranges = ["ST {}!{}".format(t, cell_range) for t in range(1, Storage.get(plugin)['matchday'])]
+    try:
+        values = c.get_multiple(ranges=ranges)
+    except HTTPError:
+        return None
+    else:
+        data = []
+        for title, v in zip(range(1, Storage.get(plugin)['matchday']), values):
+            pts = v[0][0]
+            pts_opp = v[1][0]
+            opp = v[1][1]
+            data.append((title, pts, pts_opp, opp))
+        return data
 
 class UserNotFound(Exception):
     def __init__(self, user):
