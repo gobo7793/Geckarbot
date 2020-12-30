@@ -4,6 +4,7 @@ import json
 import logging
 import re
 from datetime import datetime
+from urllib.error import HTTPError
 from urllib.parse import urljoin, urlparse
 
 import discord
@@ -816,16 +817,15 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
     async def show_history(self, ctx, participant: str):
         async with ctx.typing():
             try:
-                cell = get_user_cell(self, participant)
+                history_data = get_participant_history(self, participant)
             except UserNotFound:
                 await add_reaction(ctx.message, Lang.CMDERROR)
-                return
+                await ctx.send(Lang.lang(self, 'user_not_found', participant))
+            except HTTPError:
+                await add_reaction(ctx.message, Lang.CMDERROR)
+                await ctx.send(Lang.lang(self, 'error_wrong_matchday?'))
             else:
                 rows = []
-                history_data = get_participant_history(self, cell)
-                if history_data is None:
-                    await add_reaction(ctx.message, Lang.CMDERROR)
-                    await ctx.send(Lang.lang(self, 'error_wrong_matchday?'))
                 for title, pts, pts_opp, opp in history_data:
                     rows.append("{} | {} - {}:{}".format(title, opp, pts, pts_opp))
                 await ctx.send(embed=discord.Embed(title=participant, description="\n".join(rows)))
