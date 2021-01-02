@@ -106,6 +106,16 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
         result = random.choice(options)
         await ctx.send(Lang.lang(self, 'choose_msg') + result.strip())
 
+    @commands.command(name="multichoose")
+    async def multichoose(self, ctx, count: int, *args):
+        full_options_str = " ".join(args)
+        options = [i for i in full_options_str.split("|") if i.strip() != ""]
+        if count < 1 or len(options) < count:
+            await ctx.send(Lang.lang(self, 'choose_falsecount'))
+            return
+        result = random.sample(options, k=count)
+        await ctx.send(Lang.lang(self, 'choose_msg') + ", ".join(x.strip() for x in result))
+
     @commands.command(name="mud")
     async def mud(self, ctx):
         await ctx.send(Lang.lang(self, 'mud_out'))
