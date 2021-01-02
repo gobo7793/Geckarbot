@@ -87,6 +87,7 @@ class LeagueRegistration:
         self.kickoff_timers = []
         self.intermediate_timers = []
         self.matches = []
+        self.finished = []
 
         self.update_matches()
         self.schedule_kickoffs()
@@ -183,7 +184,7 @@ class LeagueRegistration:
         :param start: start datetime of the match
         :return: jobs objects of the timers
         """
-        minutes = [m + (start.minute % 15) for m in range(0, 60, 15)]
+        minutes = [m + (start.minute % 2) for m in range(0, 60, 2)]
         intermediate = timers.timedict(year=[start.year], month=[start.month], monthday=[start.day], minute=minutes)
         job = self.listener.bot.timers.schedule(coro=self.update_periodic_coros, td=intermediate, data={'start': start})
         self.logger.debug("Timers for match starting at {} scheduled.".format(start.strftime("%d/%m/%Y %H:%M")))
@@ -223,21 +224,23 @@ class LeagueRegistration:
         :param job:
         :return:
         """
+        new_finished = []
         self.update_matches()
         matches = self.extract_kickoffs_with_matches()[job.data['start']]
-        finished = []
         if (datetime.datetime.now() - job.data['start']).seconds > 9000:
-            finished = matches
+            new_finished = matches
+            self.finished.extend([m.get('MatchID') for m in matches])
         else:
             for match in matches:
-                if match.get('MatchIsFinished', False):
-                    finished.append(match)
+                if match.get('MatchIsFinished') and match.get('MatchID') not in self.finished:
+                    new_finished.append(match)
+                    self.finished.append(match.get('MatchID'))
         for coro_reg in self.registrations:
             if coro_reg.periodic:
                 await coro_reg.update(job)
-            if finished:
-                await coro_reg.update_finished(finished)
-        if len(finished) == len(matches):
+            if new_finished:
+                await coro_reg.update_finished(new_finished)
+        if len([m for m in matches if m.get('MatchID') not in self.finished]) == 0:
             job.cancel()
 
     def __str__(self):

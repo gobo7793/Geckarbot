@@ -110,7 +110,7 @@ def duel_points(pts, opp_pts):
         opp_pts = 0
     return 3 * (pts > opp_pts) + (pts == opp_pts)
 
-def pointdiff_possible(score: Tuple[int, int], pred1: Tuple[int, int], pred2: Tuple[int, int]):
+def pointdiff_possible(score: Tuple[int, int], pred1, pred2):
     """
     Returns the maximal point difference possible at a single match
     """
