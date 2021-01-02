@@ -167,8 +167,12 @@ class Plugin(BasePlugin, name="Sport"):
             leag_reg, self.liveticker_regs[league] = self.bot.liveticker.register(league=league,
                                                                                   coro=self.live_goals,
                                                                                   coro_kickoff=self.live_kickoff,
+                                                                                  coro_finished=self.live_finished,
                                                                                   periodic=True)
-            msg.append("{} - Next: {}".format(league, leag_reg.next_match()))
+            next_exec = leag_reg.next_execution()
+            if next_exec:
+                next_exec = next_exec[0].strftime('%d.%m.%Y - %H:%M')
+            msg.append("{} - Next: {}".format(league, next_exec))
         Config().get(self)['sport_chan'] = ctx.channel.id
         Config().save(self)
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
@@ -181,17 +185,17 @@ class Plugin(BasePlugin, name="Sport"):
             await self.liveticker_regs[league].update()
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
-    async def live_kickoff(self, match_dicts):
+    async def live_kickoff(self, match_dicts, league, time):
         sport = Config().bot.get_channel(Config().get(self)['sport_chan'])
         match_msgs = []
         for match in match_dicts:
             match_msgs.append("{} - {}".format(match.get("team_home"), match.get("team_away")))
         msgs = paginate(match_msgs,
-                        prefix=Lang.lang(self, 'liveticker_prefix_kickoff', datetime.now().strftime('%H:&M')))
+                        prefix=Lang.lang(self, 'liveticker_prefix_kickoff', league, time.strftime('%H:%M')))
         for msg in msgs:
             await sport.send(msg)
 
-    async def live_goals(self, new_goals):
+    async def live_goals(self, new_goals, league, matchminute):
         sport = Config().bot.get_channel(Config().get(self)['sport_chan'])
 
         matches_with_goals = [x for x in new_goals.values() if x['new_goals'] and not x['is_finished']]
@@ -209,8 +213,18 @@ class Plugin(BasePlugin, name="Sport"):
                         "{}:{} {} ({}.)".format(goal.get('ScoreTeam1', "?"), goal.get('ScoreTeam2', "?"),
                                                 goal.get('GoalGetterName', "-"), minute))
                 match_msgs.append(" / ".join(match_goals))
-            msgs = paginate(match_msgs, prefix=Lang.lang(self, 'liveticker_prefix'))
+            msgs = paginate(match_msgs, prefix=Lang.lang(self, 'liveticker_prefix', league, matchminute))
             for msg in msgs:
                 await sport.send(msg)
         else:
-            await sport.send(Lang.lang(self, 'no_new_goals'))
+            await sport.send(Lang.lang(self, 'no_new_goals', league))
+
+    async def live_finished(self, match_dicts, league):
+        sport = Config().bot.get_channel(Config().get(self)['sport_chan'])
+        match_msgs = []
+        for match in match_dicts:
+            match_msgs.append("{} - {}".format(match.get("team_home"), match.get("team_away")))
+        msgs = paginate(match_msgs,
+                        prefix=Lang.lang(self, 'liveticker_prefix_finished', league))
+        for msg in msgs:
+            await sport.send(msg)

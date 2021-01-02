@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 from enum import Enum
 from typing import Tuple
 
-from botutils.sheetsclient import Cell
+from botutils.sheetsclient import Cell, CellRange
 from conf import Storage
 
 
@@ -52,7 +52,7 @@ class TeamnameDict:
         if team is None:
             return None
         name = self.teamdict.get(team.lower())
-        if is_teamname_abbr(name):
+        if name is not None and is_teamname_abbr(name):
             name = self.teamdict.get(name.lower())
         return name
 
@@ -60,7 +60,7 @@ class TeamnameDict:
         if team is None:
             return None
         name = self.teamdict.get(team.lower())
-        if not is_teamname_abbr(name):
+        if name is not None and not is_teamname_abbr(name):
             name = self.teamdict.get(name.lower())
         return name
 
@@ -99,8 +99,18 @@ def points(score: Tuple[int, int], pred: Tuple[int, int]):
     else:
         return 0
 
+def duel_points(pts, opp_pts):
+    try:
+        pts = int(pts)
+    except (ValueError, TypeError):
+        return 0
+    try:
+        opp_pts = int(opp_pts)
+    except (ValueError, TypeError):
+        opp_pts = 0
+    return 3 * (pts > opp_pts) + (pts == opp_pts)
 
-def pointdiff_possible(score: Tuple[int, int], pred1: Tuple[int, int], pred2: Tuple[int, int]):
+def pointdiff_possible(score: Tuple[int, int], pred1, pred2):
     """
     Returns the maximal point difference possible at a single match
     """
@@ -232,7 +242,7 @@ def get_user_cell(plugin, user: str):
     """
     Returns the position of the user's title cell in the 'Tipps' section
 
-    :return: (col, row) of the cell
+    :return: Cell
     """
     for league, participants in Storage().get(plugin)['participants'].items():
         for i in range(len(participants)):
@@ -275,6 +285,19 @@ def get_schedule_opponent(plugin, participant, matchday: int):
     else:
         return None
 
+def get_participant_history(plugin, participant):
+    c = plugin.get_api_client()
+    cell = get_user_cell(plugin, participant)
+    cell_range = CellRange(start_cell=cell.translate(0, 10), width=2, height=2).rangename()
+    ranges = ["ST {}!{}".format(t, cell_range) for t in range(1, Storage.get(plugin)['matchday'])]
+    values = c.get_multiple(ranges=ranges)
+    data = []
+    for title, v in zip(range(1, Storage.get(plugin)['matchday']), values):
+        pts = v[0][0]
+        pts_opp = v[1][0]
+        opp = v[1][1]
+        data.append((title, pts, pts_opp, opp))
+    return data
 
 class UserNotFound(Exception):
     def __init__(self, user):
