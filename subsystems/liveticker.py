@@ -184,7 +184,7 @@ class LeagueRegistration:
         :param start: start datetime of the match
         :return: jobs objects of the timers
         """
-        minutes = [m + (start.minute % 2) for m in range(0, 60, 2)]
+        minutes = [m + (start.minute % 15) for m in range(0, 60, 15)]
         intermediate = timers.timedict(year=[start.year], month=[start.month], monthday=[start.day], minute=minutes)
         job = self.listener.bot.timers.schedule(coro=self.update_periodic_coros, td=intermediate, data={'start': start})
         self.logger.debug("Timers for match starting at {} scheduled.".format(start.strftime("%d/%m/%Y %H:%M")))
