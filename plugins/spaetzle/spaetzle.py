@@ -39,6 +39,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
         self.teamname_dict = TeamnameDict(self)
         self.userbridge = UserBridge(self)
         self.liveticker_reg = None
+        self.match_ids = []
 
     def default_config(self):
         return {
@@ -220,8 +221,10 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
 
             # Extract matches
             matches = []
+            self.match_ids = []
             for i in range(len(match_list)):
                 match = match_list[i]
+                self.match_ids.append(match.get('MatchID'))
                 home = self.teamname_dict.get_abbr(match.get('Team1', {}).get('TeamName', 'n.a.'))
                 away = self.teamname_dict.get_abbr(match.get('Team2', {}).get('TeamName', 'n.a.'))
                 match_dict = {
@@ -247,12 +250,35 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             Storage().get(self)['matchday'] = matchday
             Storage().save(self)
 
+            # Liveticker-Reg
+            self.liveticker_reg = self.bot.liveticker.register(league="bl1", coro=self.liveticker_coro, periodic=True)
+
             msg = ""
             for row in values[2:]:
                 msg += "{0} {1} {2} Uhr | {3} - {6}\n".format(*row)
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
         await ctx.send(embed=discord.Embed(title=Lang.lang(self, 'title_matchday', matchday), description=msg))
-        # TODO liveticker-reg
+
+    async def liveticker_coro(self, matches, *_):
+        self.logger.debug("Update process started")
+        c = self.get_api_client()
+        values = [[]]*9
+
+        # Build values
+        for match_id, match in matches.items():
+            self.logger.debug("Match progressed")
+            if match_id in self.match_ids and match['kickoff_time'] and \
+                    match['kickoff_time'] < datetime.now() and not match['is_finished']:
+                row = self.match_ids.index(match_id)
+                values[row] = [*match['score']]
+
+        # Put scores into spreadsheet
+        self.logger.debug("und jetzt noch ins spreadsheet hauen yay")
+        print(values)
+        c.update(range="Aktuell!{}".format(CellRange.from_a1(Config.get(self)['matches_range']).expand(top=-2, left=-4)
+                                           .rangename()),
+                 values=values)
+        self.logger.debug("Updated liveticker scores.")
 
     @spaetzle_set.command(name="duels", aliases=["duelle"])
     async def set_duels(self, ctx, matchday: int = None, league: int = None):

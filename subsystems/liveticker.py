@@ -28,7 +28,8 @@ class CoroRegistration:
     def deregister(self):
         self.league_reg.deregister_coro(self)
 
-    def get_new_goals(self):
+    def get_match_dicts(self):
+        """Builds the dictionarys for each match"""
         match_list = self.league_reg.matches
         match_dict = {}
         for match in match_list:
@@ -39,11 +40,16 @@ class CoroRegistration:
                          if g.get('GoalID', 0) not in self.last_goal.get(match_id, [])]
             score = (max(0, 0, *(g.get('ScoreTeam1', 0) for g in match.get('Goals', []))),
                      max(0, 0, *(g.get('ScoreTeam2', 0) for g in match.get('Goals', []))))
+            try:
+                kickoff = datetime.datetime.strptime(match.get('MatchDateTime'), "%Y-%m-%dT%H:%M:%S")
+            except (ValueError, TypeError):
+                kickoff = None
             match_dict[match_id] = {
                 "team_home": match.get('Team1', {}).get('TeamName'),
                 "team_away": match.get('Team2', {}).get('TeamName'),
                 "score": score,
                 "new_goals": new_goals,
+                "kickoff_time": kickoff,
                 "is_finished": match.get('MatchIsFinished')
             }
             if not self.last_goal.get(match_id):
@@ -55,7 +61,7 @@ class CoroRegistration:
         minute = (datetime.datetime.now() - job.data['start']).seconds // 60
         if minute > 45:
             minute = max(45, minute - 15)
-        await self.coro(self.get_new_goals(), self.league_reg.league, minute)
+        await self.coro(self.get_match_dicts(), self.league_reg.league, minute)
 
     async def update_kickoff(self, data):
         if self.coro_kickoff:
