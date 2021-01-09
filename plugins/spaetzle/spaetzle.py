@@ -260,25 +260,22 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
         await ctx.send(embed=discord.Embed(title=Lang.lang(self, 'title_matchday', matchday), description=msg))
 
     async def liveticker_coro(self, matches, *_):
-        self.logger.debug("Update process started")
+        self.logger.debug("Spätzle score update started.")
         c = self.get_api_client()
         values = [[]]*9
 
         # Build values
         for match_id, match in matches.items():
-            self.logger.debug("Match progressed")
             if match_id in self.match_ids and match['kickoff_time'] and \
                     match['kickoff_time'] < datetime.now() and not match['is_finished']:
                 row = self.match_ids.index(match_id)
                 values[row] = [*match['score']]
 
         # Put scores into spreadsheet
-        self.logger.debug("und jetzt noch ins spreadsheet hauen yay")
-        print(values)
         c.update(range="Aktuell!{}".format(CellRange.from_a1(Config.get(self)['matches_range']).expand(top=-2, left=-4)
                                            .rangename()),
                  values=values)
-        self.logger.debug("Updated liveticker scores.")
+        self.logger.debug("Spätzle score update finished.")
 
     @spaetzle_set.command(name="duels", aliases=["duelle"])
     async def set_duels(self, ctx, matchday: int = None, league: int = None):
