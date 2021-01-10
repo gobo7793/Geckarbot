@@ -39,7 +39,6 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
         self.teamname_dict = TeamnameDict(self)
         self.userbridge = UserBridge(self)
         self.liveticker_reg = None
-        self.match_ids = []
 
     def default_config(self):
         return {
@@ -118,35 +117,6 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
     def get_api_client(self):
         return sheetsclient.Client(self.bot, Config().get(self)['spaetzledoc_id'])
 
-    @commands.command(name="goal", help="Scores a goal for a team (Spätzle-command)")
-    async def goal(self, ctx, team, goals: int = None):
-        name = self.teamname_dict.get_long(team)
-        if name is None:
-            await ctx.send(Lang.lang(self, 'team_not_found', team))
-        else:
-            async with ctx.typing():
-                c = self.get_api_client()
-                data = c.get(Config().get(self)['matches_range'], formatted=False)
-                values = [x[:] for x in [[None] * 7] * len(data)]
-                for i in range(2, len(data)):
-                    row = data[i]
-                    if len(row) >= 7:
-                        if row[3] == name:
-                            values[i][4] = row[4] = (row[4] + 1) if goals is None else goals
-                            await ctx.send("{3} [**{4}**:{5}] {6}".format(*row))
-                            break
-                        elif row[6] == name:
-                            values[i][5] = row[5] = (row[5] + 1) if goals is None else goals
-                            await ctx.send("{3} [{4}:**{5}**] {6}".format(*row))
-                            break
-                else:
-                    await ctx.send(Lang.lang(self, 'team_not_found', team))
-                    return
-
-                c.update(range=Config().get(self)['matches_range'], values=values, raw=False)
-
-            await add_reaction(ctx.message, Lang.CMDSUCCESS)
-
     @commands.group(name="spaetzle", aliases=["spätzle", "spätzles"],
                     help="commands for managing the 'Spätzles-Tippspiel'")
     async def spaetzle(self, ctx):
@@ -221,10 +191,10 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
 
             # Extract matches
             matches = []
-            self.match_ids = []
+            match_ids = []
             for i in range(len(match_list)):
                 match = match_list[i]
-                self.match_ids.append(match.get('MatchID'))
+                match_ids.append(match.get('MatchID'))
                 home = self.teamname_dict.get_abbr(match.get('Team1', {}).get('TeamName', 'n.a.'))
                 away = self.teamname_dict.get_abbr(match.get('Team2', {}).get('TeamName', 'n.a.'))
                 match_dict = {
@@ -246,36 +216,19 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                                match.get('team_home'), date_formula, date_formula, match.get('team_away')])
             c.update("Aktuell!{}".format(Config().get(self)['matches_range']), values, raw=False)
 
-            # Set matchday
+            # Set matchday and match_ids
+            Storage().get(self)['match_ids'] = match_ids
             Storage().get(self)['matchday'] = matchday
             Storage().save(self)
 
             # Liveticker-Reg
-            self.liveticker_reg = self.bot.liveticker.register(league="bl1", coro=self.liveticker_coro, periodic=True)
+            await self.start_liveticker()
 
             msg = ""
             for row in values[2:]:
                 msg += "{0} {1} {2} Uhr | {3} - {6}\n".format(*row)
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
         await ctx.send(embed=discord.Embed(title=Lang.lang(self, 'title_matchday', matchday), description=msg))
-
-    async def liveticker_coro(self, matches, *_):
-        self.logger.debug("Spätzle score update started.")
-        c = self.get_api_client()
-        values = [[]]*9
-
-        # Build values
-        for match_id, match in matches.items():
-            if match_id in self.match_ids and match['kickoff_time'] and \
-                    match['kickoff_time'] < datetime.now() and not match['is_finished']:
-                row = self.match_ids.index(match_id)
-                values[row] = [*match['score']]
-
-        # Put scores into spreadsheet
-        c.update(range="Aktuell!{}".format(CellRange.from_a1(Config.get(self)['matches_range']).expand(top=-2, left=-4)
-                                           .rangename()),
-                 values=values)
-        self.logger.debug("Spätzle score update finished.")
 
     @spaetzle_set.command(name="duels", aliases=["duelle"])
     async def set_duels(self, ctx, matchday: int = None, league: int = None):
@@ -506,12 +459,33 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
     @spaetzle_set.command(name="matchday", help="Sets the matchday manually, but it's normally already done by "
-                                                "set_matches.")
+                                                "set_matches.", hidden=True)
     async def set_matchday(self, ctx, matchday: int):
         if await Trusted(self).is_trusted(ctx):
             Storage().get(self)['matchday'] = matchday
             Storage().save(self)
             await add_reaction(ctx.message, Lang.CMDSUCCESS)
+
+    @spaetzle_set.command(name="liveticker", hidden=True)
+    async def start_liveticker(self):
+        self.liveticker_reg = self.bot.liveticker.register(league="bl1", coro=self.liveticker_coro, periodic=True)
+
+    async def liveticker_coro(self, matches, *_):
+        self.logger.debug("Spätzle score update started.")
+        c = self.get_api_client()
+        values = [[]] * 9
+
+        # Build values
+        for match_id, match in matches.items():
+            if match_id in Storage().get(self)['match_ids'] and match['kickoff_time'] and \
+                    match['kickoff_time'] < datetime.now() and not match['is_finished']:
+                values[Storage().get(self)['match_ids'].index(match_id)] = [*match['score']]
+
+        # Put scores into spreadsheet
+        c.update(range="Aktuell!{}".format(CellRange.from_a1(Config.get(self)['matches_range']).expand(top=-2, left=-4)
+                                           .rangename()),
+                 values=values)
+        self.logger.debug("Spätzle score update finished.")
 
     @spaetzle_set.command(name="config", help="Sets general config values for the plugin.",
                           usage="<path...> <value>")
@@ -557,6 +531,35 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             Config().save(self)
             await add_reaction(ctx.message, Lang.CMDSUCCESS)
             await ctx.send(embed=embed)
+
+    @spaetzle.command(name="goal", help="Scores a goal for a team (Spätzle-command)", hidden=True)
+    async def goal(self, ctx, team, goals: int = None):
+        name = self.teamname_dict.get_long(team)
+        if name is None:
+            await ctx.send(Lang.lang(self, 'team_not_found', team))
+        else:
+            async with ctx.typing():
+                c = self.get_api_client()
+                data = c.get(Config().get(self)['matches_range'], formatted=False)
+                values = [x[:] for x in [[None] * 7] * len(data)]
+                for i in range(2, len(data)):
+                    row = data[i]
+                    if len(row) >= 7:
+                        if row[3] == name:
+                            values[i][4] = row[4] = (row[4] + 1) if goals is None else goals
+                            await ctx.send("{3} [**{4}**:{5}] {6}".format(*row))
+                            break
+                        elif row[6] == name:
+                            values[i][5] = row[5] = (row[5] + 1) if goals is None else goals
+                            await ctx.send("{3} [{4}:**{5}**] {6}".format(*row))
+                            break
+                else:
+                    await ctx.send(Lang.lang(self, 'team_not_found', team))
+                    return
+
+                c.update(range=Config().get(self)['matches_range'], values=values, raw=False)
+
+            await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
     @spaetzle.command(name="duel", aliases=["duell"], help="Displays the duel of a specific user")
     async def show_duel_single(self, ctx, user=None):
