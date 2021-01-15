@@ -40,6 +40,10 @@ class UnknownResponse(Exception):
         self.user_message = usermsg
         super().__init__(msg)
 
+    async def default(self, ctx):
+        await ctx.message.add_reaction(Lang.CMDERROR)
+        await ctx.send(self.user_message)
+
 
 class MostInterestingType(Enum):
     TITLE = 0
@@ -311,7 +315,7 @@ class Plugin(BasePlugin, name="LastFM"):
         try:
             async with ctx.typing():
                 await self.most_interesting(ctx, ctx.author)
-        except NotRegistered as e:
+        except (NotRegistered, UnknownResponse) as e:
             await e.default(ctx)
             return
         after = self.perf_timenow()
@@ -403,7 +407,12 @@ class Plugin(BasePlugin, name="LastFM"):
             "page": page,
             "limit": pagelen
         }
-        songs = self.build_songs(await self.request(params))
+        try:
+            songs = self.build_songs(await self.request(params))
+        except UnknownResponse as e:
+            await e.default(ctx)
+            return
+
         for i in range(len(songs)):
             songs[i] = self.listening_msg(ctx.author, songs[i])
         await ctx.message.add_reaction(Lang.CMDSUCCESS)
@@ -458,7 +467,12 @@ class Plugin(BasePlugin, name="LastFM"):
             "extended": 1,
         }
         response = await self.request(params)
-        song = self.build_songs(response)[0]
+
+        try:
+            song = self.build_songs(response)[0]
+        except UnknownResponse as e:
+            await e.default(ctx)
+            return
 
         # Build Questionnaire
         q_artist = Question("Artist?", QuestionType.TEXT, lang=self.lang_question)
@@ -546,7 +560,11 @@ class Plugin(BasePlugin, name="LastFM"):
 
         async with ctx.typing():
             response = await self.request(params)
-            song = self.build_songs(response)[0]
+            try:
+                song = self.build_songs(response)[0]
+            except UnknownResponse as e:
+                await e.default(ctx)
+                return
 
         await ctx.send(self.listening_msg(user, song))
         after = self.perf_timenow()
@@ -607,7 +625,10 @@ class Plugin(BasePlugin, name="LastFM"):
         :param first: If False, removes a leading "nowplaying" song if existant.
         :return: List of song dicts that have the keys `artist`, `title`, `album`, `nowplaying`
         """
-        tracks = response["recenttracks"]["track"]
+        try:
+            tracks = response["recenttracks"]["track"]
+        except KeyError:
+            raise UnknownResponse("\"recenttracks\" not in response", Lang.lang(self, "api_error"))
         r = [] if append_to is None else append_to
         done = False
         for el in tracks:
