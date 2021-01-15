@@ -30,9 +30,13 @@ class NotRegistered(Exception):
         self.plugin = plugin
         super().__init__()
 
-    async def default(self, ctx):
+    async def default(self, ctx, sg3p=False):
+        if sg3p:
+            msg = "not_registered_sg3p"
+        else:
+            msg = "not_registered"
         await ctx.message.add_reaction(Lang.CMDERROR)
-        await ctx.send(Lang.lang(self.plugin, "not_registered"))
+        await ctx.send(Lang.lang(self.plugin, msg))
 
 
 class UnknownResponse(Exception):
@@ -375,11 +379,16 @@ class Plugin(BasePlugin, name="LastFM"):
             await ctx.message.add_reaction(Lang.CMDNOCHANGE)
 
     @lastfm.command(name="profile", usage="<User>")
-    async def cmd_profile(self, ctx, user: Union[discord.Member, discord.User]):
+    async def cmd_profile(self, ctx, user: Union[discord.Member, discord.User, None]):
+        sg3p = False
+        if user is None:
+            sg3p = True
+            user = ctx.author
+
         try:
             user = self.get_lastfm_user(user)
         except NotRegistered as e:
-            await e.default(ctx)
+            await e.default(ctx, sg3p=sg3p)
             return
         await ctx.send("http://last.fm/user/{}".format(user))
 
@@ -535,13 +544,15 @@ class Plugin(BasePlugin, name="LastFM"):
         self.perf_reset_timers()
         before = self.perf_timenow()
         lfmuser = user
+        sg3p = False
         if user is None:
+            sg3p = True
             user = ctx.author
         if isinstance(user, discord.Member) or isinstance(user, discord.User):
             try:
                 lfmuser = self.get_lastfm_user(user)
             except NotRegistered as e:
-                await e.default(ctx)
+                await e.default(ctx, sg3p=sg3p)
                 return
         else:
             # user is a str
