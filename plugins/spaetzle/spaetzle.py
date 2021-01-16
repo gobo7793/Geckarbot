@@ -467,8 +467,11 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
     @spaetzle_set.command(name="liveticker", hidden=True)
-    async def start_liveticker(self):
-        self.liveticker_reg = self.bot.liveticker.register(league="bl1", coro=self.liveticker_coro, periodic=True)
+    async def start_liveticker(self, ctx=None):
+        self.liveticker_reg = self.bot.liveticker.register(league="bl1", plugin=self, coro=self.liveticker_coro,
+                                                           periodic=True)
+        if ctx:
+            await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
     async def liveticker_coro(self, matches, *_):
         self.logger.debug("Spätzle score update started.")

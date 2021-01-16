@@ -164,7 +164,7 @@ class Plugin(BasePlugin, name="Sport"):
         for league in Config().get(self)['liveticker_leagues']:
             if league in self.liveticker_regs:
                 self.liveticker_regs[league].deregister()
-            leag_reg, self.liveticker_regs[league] = self.bot.liveticker.register(league=league,
+            leag_reg, self.liveticker_regs[league] = self.bot.liveticker.register(league=league, plugin=self,
                                                                                   coro=self.live_goals,
                                                                                   coro_kickoff=self.live_kickoff,
                                                                                   coro_finished=self.live_finished,
