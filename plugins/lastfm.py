@@ -30,15 +30,23 @@ class NotRegistered(Exception):
         self.plugin = plugin
         super().__init__()
 
-    async def default(self, ctx):
+    async def default(self, ctx, sg3p=False):
+        if sg3p:
+            msg = "not_registered_sg3p"
+        else:
+            msg = "not_registered"
         await ctx.message.add_reaction(Lang.CMDERROR)
-        await ctx.send(Lang.lang(self.plugin, "not_registered"))
+        await ctx.send(Lang.lang(self.plugin, msg))
 
 
 class UnknownResponse(Exception):
     def __init__(self, msg, usermsg):
         self.user_message = usermsg
         super().__init__(msg)
+
+    async def default(self, ctx):
+        await ctx.message.add_reaction(Lang.CMDERROR)
+        await ctx.send(self.user_message)
 
 
 class MostInterestingType(Enum):
@@ -311,7 +319,7 @@ class Plugin(BasePlugin, name="LastFM"):
         try:
             async with ctx.typing():
                 await self.most_interesting(ctx, ctx.author)
-        except NotRegistered as e:
+        except (NotRegistered, UnknownResponse) as e:
             await e.default(ctx)
             return
         after = self.perf_timenow()
@@ -371,11 +379,16 @@ class Plugin(BasePlugin, name="LastFM"):
             await ctx.message.add_reaction(Lang.CMDNOCHANGE)
 
     @lastfm.command(name="profile", usage="<User>")
-    async def cmd_profile(self, ctx, user: Union[discord.Member, discord.User]):
+    async def cmd_profile(self, ctx, user: Union[discord.Member, discord.User, None]):
+        sg3p = False
+        if user is None:
+            sg3p = True
+            user = ctx.author
+
         try:
             user = self.get_lastfm_user(user)
         except NotRegistered as e:
-            await e.default(ctx)
+            await e.default(ctx, sg3p=sg3p)
             return
         await ctx.send("http://last.fm/user/{}".format(user))
 
@@ -403,7 +416,12 @@ class Plugin(BasePlugin, name="LastFM"):
             "page": page,
             "limit": pagelen
         }
-        songs = self.build_songs(await self.request(params))
+        try:
+            songs = self.build_songs(await self.request(params))
+        except UnknownResponse as e:
+            await e.default(ctx)
+            return
+
         for i in range(len(songs)):
             songs[i] = self.listening_msg(ctx.author, songs[i])
         await ctx.message.add_reaction(Lang.CMDSUCCESS)
@@ -458,7 +476,12 @@ class Plugin(BasePlugin, name="LastFM"):
             "extended": 1,
         }
         response = await self.request(params)
-        song = self.build_songs(response)[0]
+
+        try:
+            song = self.build_songs(response)[0]
+        except UnknownResponse as e:
+            await e.default(ctx)
+            return
 
         # Build Questionnaire
         q_artist = Question("Artist?", QuestionType.TEXT, lang=self.lang_question)
@@ -521,13 +544,15 @@ class Plugin(BasePlugin, name="LastFM"):
         self.perf_reset_timers()
         before = self.perf_timenow()
         lfmuser = user
+        sg3p = False
         if user is None:
+            sg3p = True
             user = ctx.author
         if isinstance(user, discord.Member) or isinstance(user, discord.User):
             try:
                 lfmuser = self.get_lastfm_user(user)
             except NotRegistered as e:
-                await e.default(ctx)
+                await e.default(ctx, sg3p=sg3p)
                 return
         else:
             # user is a str
@@ -546,7 +571,11 @@ class Plugin(BasePlugin, name="LastFM"):
 
         async with ctx.typing():
             response = await self.request(params)
-            song = self.build_songs(response)[0]
+            try:
+                song = self.build_songs(response)[0]
+            except UnknownResponse as e:
+                await e.default(ctx)
+                return
 
         await ctx.send(self.listening_msg(user, song))
         after = self.perf_timenow()
@@ -607,7 +636,10 @@ class Plugin(BasePlugin, name="LastFM"):
         :param first: If False, removes a leading "nowplaying" song if existant.
         :return: List of song dicts that have the keys `artist`, `title`, `album`, `nowplaying`
         """
-        tracks = response["recenttracks"]["track"]
+        try:
+            tracks = response["recenttracks"]["track"]
+        except KeyError:
+            raise UnknownResponse("\"recenttracks\" not in response", Lang.lang(self, "api_error"))
         r = [] if append_to is None else append_to
         done = False
         for el in tracks:

@@ -1,4 +1,5 @@
 import sys
+import asyncio
 
 import discord
 from discord.ext import commands
@@ -156,4 +157,10 @@ class Plugin(BasePlugin, name="Testing and debug things"):
     # @commands.command(name="spam", hidden=True)
     async def spam(self, ctx):
         self.bot.timers.schedule(self.spamcb, timers.timedict(), data=ctx)
+        await ctx.message.add_reaction(Lang.CMDSUCCESS)
+
+    @commands.command(name="tasks", hidden=True)
+    async def tasklist(self, ctx):
+        for el in asyncio.all_tasks():
+            print(el)
         await ctx.message.add_reaction(Lang.CMDSUCCESS)
