@@ -3,6 +3,7 @@ import logging
 
 from base import BaseSubsystem
 from botutils import restclient
+from botutils.converters import get_plugin_by_name
 from conf import Storage
 from subsystems import timers
 from subsystems.timers import Job
@@ -287,7 +288,29 @@ class Liveticker(BaseSubsystem):
     def __init__(self, bot):
         super().__init__(bot)
         self.bot = bot
+        self.logger = logging.getLogger(__name__)
         self.registrations = {}
+
+        @bot.listen()
+        async def on_ready():
+            # Restore registrations
+            self.logger.debug('Restoration of liveticker regs started.')
+            registrations = Storage().get(self)['registrations']
+            for league in registrations:
+                self.registrations[league] = LeagueRegistration(self, league)
+                for reg in registrations[league]:
+                    coro = getattr(get_plugin_by_name(reg['plugin']),
+                                   reg['coro']) if reg['coro'] else None
+                    coro_kickoff = getattr(get_plugin_by_name(reg['plugin']),
+                                           reg['coro_kickoff']) if reg['coro_kickoff'] else None
+                    coro_finished = getattr(get_plugin_by_name(reg['plugin']),
+                                            reg['coro_finished']) if reg['coro_finished'] else None
+                    self.registrations[league].register(plugin=get_plugin_by_name(reg['plugin']),
+                                                        coro=coro,
+                                                        coro_kickoff=coro_kickoff,
+                                                        coro_finished=coro_finished,
+                                                        periodic=reg['periodic'])
+            self.logger.debug('Restoration of liveticker regs finished.')
 
     def default_storage(self):
         return {
