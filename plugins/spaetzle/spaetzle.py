@@ -190,30 +190,29 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                     "/getmatchdata/bl1/2020/{}".format(str(matchday)))
 
             # Extract matches
-            matches = []
-            match_ids = []
-            for i in range(len(match_list)):
-                match = match_list[i]
-                match_ids.append(match.get('MatchID'))
-                home = self.teamname_dict.get_abbr(match.get('Team1', {}).get('TeamName', 'n.a.'))
-                away = self.teamname_dict.get_abbr(match.get('Team2', {}).get('TeamName', 'n.a.'))
-                match_dict = {
-                    'match_date_time': datetime.strptime(match.get('MatchDateTime', '0001-01-01T01:01:01'),
-                                                         "%Y-%m-%dT%H:%M:%S"),
-                    'team_home': self.teamname_dict.get_long(home),
-                    'team_away': self.teamname_dict.get_long(away)
-                }
-                matches.append(match_dict)
-
-            # Put matches into spreadsheet
             c = self.get_api_client()
             values = [[matchday], [None]]
-            for match in matches:
-                date_time = match.get('match_date_time')
+            match_ids = []
+            for match in match_list:
+                match_ids.append(match.get('MatchID'))
+
+                date_time = datetime.strptime(match.get('MatchDateTime', '0001-01-01T01:01:01'), "%Y-%m-%dT%H:%M:%S")
                 date_formula = '=IF(DATE({};{};{}) + TIME({};{};0) < F12;0;"")'.format(*list(date_time.timetuple()))
+                if date_time < datetime.now():
+                    score1 = max(0, 0, *(g.get('ScoreTeam1', 0) for g in match.get('Goals', [])))
+                    score2 = max(0, 0, *(g.get('ScoreTeam2', 0) for g in match.get('Goals', [])))
+                else:
+                    score1, score2 = date_formula, date_formula
                 values.append([calendar.day_abbr[date_time.weekday()],
-                               date_time.strftime("%d.%m.%Y"), date_time.strftime("%H:%M"),
-                               match.get('team_home'), date_formula, date_formula, match.get('team_away')])
+                               date_time.strftime("%d.%m.%Y"),
+                               date_time.strftime("%H:%M"),
+                               self.teamname_dict.get_long(match.get('Team1', {}).get('TeamName', 'n.a.')),
+                               score1,
+                               score2,
+                               self.teamname_dict.get_long(match.get('Team2', {}).get('TeamName', 'n.a.'))])
+
+            # Put matches into spreadsheet
+
             c.update("Aktuell!{}".format(Config().get(self)['matches_range']), values, raw=False)
 
             # Set matchday and match_ids
