@@ -29,8 +29,9 @@ class CoroRegistration:
         self.logger = logging.getLogger(__name__)
 
     def deregister(self):
-        if self.storage() in Storage().get(self.league_reg.listener)['registrations'][self.league_reg.league]:
-            Storage().get(self.league_reg.listener)['registrations'][self.league_reg.league].remove(self.storage())
+        reg_storage = self.storage()
+        if reg_storage in Storage().get(self.league_reg.listener)['registrations'][self.league_reg.league]:
+            Storage().get(self.league_reg.listener)['registrations'][self.league_reg.league].remove(reg_storage)
             Storage().save(self.league_reg.listener)
         self.league_reg.deregister_coro(self)
 
@@ -123,8 +124,11 @@ class LeagueRegistration:
         reg = CoroRegistration(self, plugin, coro, coro_kickoff, coro_finished, periodic)
         if reg not in self.registrations:
             self.registrations.append(reg)
-            Storage().get(self.listener)['registrations'][self.league].append(reg.storage())
-            Storage().save(self.listener)
+            reg_storage = reg.storage()
+            if reg_storage not in Storage().get(self.listener)['registrations'][self.league]:
+                Storage().get(self.listener)['registrations'][self.league].append(reg_storage)
+                Storage().save(self.listener)
+
         return reg
 
     def deregister(self):

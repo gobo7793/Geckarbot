@@ -217,7 +217,7 @@ class Plugin(BasePlugin, name="Sport"):
             for msg in msgs:
                 await sport.send(msg)
         else:
-            await sport.send(Lang.lang(self, 'no_new_goals', league))
+            await sport.send(Lang.lang(self, 'no_new_goals', league, matchminute))
 
     async def live_finished(self, match_dicts, league):
         sport = Config().bot.get_channel(Config().get(self)['sport_chan'])
