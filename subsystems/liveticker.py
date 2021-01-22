@@ -105,6 +105,8 @@ class CoroRegistration:
         return "<liveticker.CoroRegistration; coro={}; coro_kickoff={}; coro_finished={}; periodic={}>"\
             .format(self.coro, self.coro_kickoff, self.coro_finished, self.periodic)
 
+    def __bool__(self):
+        return bool(self.next_execution())
 
 def convert_to_matchdict(match):
     return {
@@ -159,7 +161,11 @@ class LeagueRegistration:
             self.matches = restclient.Client("https://www.openligadb.de/api").make_request(
                 "/getmatchdata/{}/2020/{}".format(self.league, matchday))
         elif self.matchday():
-            self.update_matches(matchday=self.matchday())
+            if self.next_execution():
+                self.update_matches(matchday=self.matchday())
+            else:
+                self.update_matches(matchday=self.matchday() + 1)
+                self.schedule_kickoffs()
         else:
             self.matches = restclient.Client("https://www.openligadb.de/api").make_request("/getmatchdata/{}".format(
                 self.league))
@@ -295,6 +301,8 @@ class LeagueRegistration:
         return "<liveticker.LeagueRegistration; league={}; regs={}; next={}>".format(self.league,
                                                                                      len(self.registrations), next_exec)
 
+    def __bool__(self):
+        return bool(self.next_execution())
 
 class Liveticker(BaseSubsystem):
     def __init__(self, bot):
