@@ -79,7 +79,7 @@ class Plugin(BasePlugin, name="Sport"):
     async def tippspiel(self, ctx):
         await ctx.send(Lang.lang(self, 'tippspiel_output'))
 
-    @commands.command(name="fußball", aliases=["fussball"])
+    @commands.command(name="fußball", aliases=["fusselball"])
     async def soccer_livescores(self, ctx, league, allmatches=None):
         if league not in Config().get(self)['leagues']:
             for leag, aliases in Config().get(self)['leagues'].items():
@@ -164,12 +164,12 @@ class Plugin(BasePlugin, name="Sport"):
         for league in Config().get(self)['liveticker_leagues']:
             if league in self.liveticker_regs:
                 self.liveticker_regs[league].deregister()
-            leag_reg, self.liveticker_regs[league] = self.bot.liveticker.register(league=league,
+            self.liveticker_regs[league] = self.bot.liveticker.register(league=league, plugin=self,
                                                                                   coro=self.live_goals,
                                                                                   coro_kickoff=self.live_kickoff,
                                                                                   coro_finished=self.live_finished,
                                                                                   periodic=True)
-            next_exec = leag_reg.next_execution()
+            next_exec = self.liveticker_regs[league].next_execution()
             if next_exec:
                 next_exec = next_exec[0].strftime('%d.%m.%Y - %H:%M')
             msg.append("{} - Next: {}".format(league, next_exec))
@@ -178,7 +178,7 @@ class Plugin(BasePlugin, name="Sport"):
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
         await ctx.send("\n".join(msg))
 
-    @commands.command(name="livegoals")
+    @commands.command(name="livegoals", hidden=True)
     async def update_live(self, ctx):
         """Debug Method / Updates Liveticker CoroRegistrations"""
         for league in self.liveticker_regs:
@@ -217,7 +217,7 @@ class Plugin(BasePlugin, name="Sport"):
             for msg in msgs:
                 await sport.send(msg)
         else:
-            await sport.send(Lang.lang(self, 'no_new_goals', league))
+            await sport.send(Lang.lang(self, 'no_new_goals', league, matchminute))
 
     async def live_finished(self, match_dicts, league):
         sport = Config().bot.get_channel(Config().get(self)['sport_chan'])

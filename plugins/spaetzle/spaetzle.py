@@ -1,4 +1,3 @@
-import calendar
 import inspect
 import json
 import logging
@@ -117,35 +116,6 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
     def get_api_client(self):
         return sheetsclient.Client(self.bot, Config().get(self)['spaetzledoc_id'])
 
-    @commands.command(name="goal", help="Scores a goal for a team (Spätzle-command)")
-    async def goal(self, ctx, team, goals: int = None):
-        name = self.teamname_dict.get_long(team)
-        if name is None:
-            await ctx.send(Lang.lang(self, 'team_not_found', team))
-        else:
-            async with ctx.typing():
-                c = self.get_api_client()
-                data = c.get(Config().get(self)['matches_range'], formatted=False)
-                values = [x[:] for x in [[None] * 7] * len(data)]
-                for i in range(2, len(data)):
-                    row = data[i]
-                    if len(row) >= 7:
-                        if row[3] == name:
-                            values[i][4] = row[4] = (row[4] + 1) if goals is None else goals
-                            await ctx.send("{3} [**{4}**:{5}] {6}".format(*row))
-                            break
-                        elif row[6] == name:
-                            values[i][5] = row[5] = (row[5] + 1) if goals is None else goals
-                            await ctx.send("{3} [{4}:**{5}**] {6}".format(*row))
-                            break
-                else:
-                    await ctx.send(Lang.lang(self, 'team_not_found', team))
-                    return
-
-                c.update(range=Config().get(self)['matches_range'], values=values, raw=False)
-
-            await add_reaction(ctx.message, Lang.CMDSUCCESS)
-
     @commands.group(name="spaetzle", aliases=["spätzle", "spätzles"],
                     help="commands for managing the 'Spätzles-Tippspiel'")
     async def spaetzle(self, ctx):
@@ -200,50 +170,43 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             return
         async with ctx.typing():
             # Request data
-            if matchday is None:
-                match_list = restclient.Client("https://www.openligadb.de/api").make_request("/getmatchdata/bl1")
-                try:
-                    matchday = match_list[0].get('Group', {}).get('GroupOrderID', 0)
-                except IndexError:
-                    await add_reaction(ctx.message, Lang.CMDERROR)
-                    return
-                for match in match_list:
-                    if match.get('MatchIsFinished', True) is False:
-                        break
-                else:
-                    matchday += 1
-                    match_list = restclient.Client("https://www.openligadb.de/api").make_request(
-                        "/getmatchdata/bl1/2020/{}".format(str(matchday)))
-            else:
+            if matchday:
                 match_list = restclient.Client("https://www.openligadb.de/api").make_request(
                     "/getmatchdata/bl1/2020/{}".format(str(matchday)))
+                if self.liveticker_reg:
+                    self.liveticker_reg.deregister()
+            else:
+                self.start_liveticker()
+                matchday = self.liveticker_reg.league_reg.matchday()
+                match_list = self.liveticker_reg.league_reg.matches
 
             # Extract matches
-            matches = []
-            for i in range(len(match_list)):
-                match = match_list[i]
-                home = self.teamname_dict.get_abbr(match.get('Team1', {}).get('TeamName', 'n.a.'))
-                away = self.teamname_dict.get_abbr(match.get('Team2', {}).get('TeamName', 'n.a.'))
-                match_dict = {
-                    'match_date_time': datetime.strptime(match.get('MatchDateTime', '0001-01-01T01:01:01'),
-                                                         "%Y-%m-%dT%H:%M:%S"),
-                    'team_home': self.teamname_dict.get_long(home),
-                    'team_away': self.teamname_dict.get_long(away)
-                }
-                matches.append(match_dict)
-
-            # Put matches into spreadsheet
             c = self.get_api_client()
             values = [[matchday], [None]]
-            for match in matches:
-                date_time = match.get('match_date_time')
+            match_ids = []
+            for match in match_list:
+                match_ids.append(match.get('MatchID'))
+
+                date_time = datetime.strptime(match.get('MatchDateTime', '0001-01-01T01:01:01'), "%Y-%m-%dT%H:%M:%S")
                 date_formula = '=IF(DATE({};{};{}) + TIME({};{};0) < F12;0;"")'.format(*list(date_time.timetuple()))
-                values.append([calendar.day_abbr[date_time.weekday()],
-                               date_time.strftime("%d.%m.%Y"), date_time.strftime("%H:%M"),
-                               match.get('team_home'), date_formula, date_formula, match.get('team_away')])
+                if date_time < datetime.now():
+                    score1 = max(0, 0, *(g.get('ScoreTeam1', 0) for g in match.get('Goals', [])))
+                    score2 = max(0, 0, *(g.get('ScoreTeam2', 0) for g in match.get('Goals', [])))
+                else:
+                    score1, score2 = date_formula, date_formula
+                values.append([['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'][date_time.weekday()],
+                               date_time.strftime("%d.%m.%Y"),
+                               date_time.strftime("%H:%M"),
+                               self.teamname_dict.get_long(match.get('Team1', {}).get('TeamName', 'n.a.')),
+                               score1,
+                               score2,
+                               self.teamname_dict.get_long(match.get('Team2', {}).get('TeamName', 'n.a.'))])
+
+            # Put matches into spreadsheet
             c.update("Aktuell!{}".format(Config().get(self)['matches_range']), values, raw=False)
 
-            # Set matchday
+            # Set matchday and match_ids
+            Storage().get(self)['match_ids'] = match_ids
             Storage().get(self)['matchday'] = matchday
             Storage().save(self)
 
@@ -252,7 +215,6 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                 msg += "{0} {1} {2} Uhr | {3} - {6}\n".format(*row)
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
         await ctx.send(embed=discord.Embed(title=Lang.lang(self, 'title_matchday', matchday), description=msg))
-        # TODO liveticker-reg
 
     @spaetzle_set.command(name="duels", aliases=["duelle"])
     async def set_duels(self, ctx, matchday: int = None, league: int = None):
@@ -303,12 +265,13 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
         await add_reaction(message, Lang.CMDSUCCESS)
 
     @spaetzle_set.command(name="scrape", help="Scrapes the predictions thread for forum posts")
-    async def set_scrape(self, ctx):
+    async def set_scrape(self, ctx, url=None):
         if not await Trusted(self).is_trusted(ctx):
             return
 
         data = []
-        url = Storage().get(self)['predictions_thread']
+        if url is None:
+            url = Storage().get(self)['predictions_thread']
 
         if not url or urlparse(url).netloc not in "www.transfermarkt.de":
             await ctx.send(Lang.lang(self, 'scrape_incorrect_url', url))
@@ -438,6 +401,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
 
         async with ctx.typing():
             c = self.get_api_client()
+
             duplicate = c.duplicate_and_archive_sheet("Aktuell", "ST {}".format(Storage().get(self)['matchday']))
             if duplicate:
                 ranges = ["Aktuell!{}".format(Config().get(self)['matches_range'])]
@@ -483,12 +447,38 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
     @spaetzle_set.command(name="matchday", help="Sets the matchday manually, but it's normally already done by "
-                                                "set_matches.")
+                                                "set_matches.", hidden=True)
     async def set_matchday(self, ctx, matchday: int):
         if await Trusted(self).is_trusted(ctx):
             Storage().get(self)['matchday'] = matchday
             Storage().save(self)
             await add_reaction(ctx.message, Lang.CMDSUCCESS)
+
+    @spaetzle_set.command(name="liveticker", hidden=True)
+    async def set_liveticker(self, ctx):
+        self.start_liveticker()
+        await add_reaction(ctx.message, Lang.CMDSUCCESS)
+
+    def start_liveticker(self):
+        self.liveticker_reg = self.bot.liveticker.register(league="bl1", plugin=self, coro=self.liveticker_coro,
+                                                           periodic=True)
+
+    async def liveticker_coro(self, matches, *_):
+        self.logger.debug("Spätzle score update started.")
+        c = self.get_api_client()
+        values = [[]] * 9
+
+        # Build values
+        for match_id, match in matches.items():
+            if match_id in Storage().get(self)['match_ids'] and match['kickoff_time'] and \
+                    match['kickoff_time'] < datetime.now() and not match['is_finished']:
+                values[Storage().get(self)['match_ids'].index(match_id)] = [*match['score']]
+
+        # Put scores into spreadsheet
+        c.update(range="Aktuell!{}".format(CellRange.from_a1(Config.get(self)['matches_range']).expand(top=-2, left=-4)
+                                           .rangename()),
+                 values=values)
+        self.logger.debug("Spätzle score update finished.")
 
     @spaetzle_set.command(name="config", help="Sets general config values for the plugin.",
                           usage="<path...> <value>")
@@ -534,6 +524,39 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             Config().save(self)
             await add_reaction(ctx.message, Lang.CMDSUCCESS)
             await ctx.send(embed=embed)
+
+    @spaetzle.command(name="goal", help="Scores a goal for a team (Spätzle-command)", hidden=True)
+    async def goal(self, ctx, team, goals: int = None, goals_other: int = None):
+        name = self.teamname_dict.get_long(team)
+        if name is None:
+            await ctx.send(Lang.lang(self, 'team_not_found', team))
+        else:
+            async with ctx.typing():
+                c = self.get_api_client()
+                data = c.get(Config().get(self)['matches_range'], formatted=False)
+                for i in range(2, len(data)):
+                    row = data[i]
+                    if len(row) >= 7:
+                        if row[3] == name:
+                            values = [goals if goals else row[4] + 1 if row[4] else 1,
+                                      goals_other if goals_other else row[5] if row[5] else 0]
+                            await ctx.send("{} [**{}**:{}] {}".format(row[3], *values, row[6]))
+                            index = i
+                            break
+                        elif row[6] == name:
+                            values = [goals_other if goals_other else row[4] if row[4] else 0,
+                                      goals if goals else row[5] + 1 if row[5] else 1]
+                            await ctx.send("{} [{}:**{}**] {}".format(row[3], *values, row[6]))
+                            index = i
+                            break
+                else:
+                    await ctx.send(Lang.lang(self, 'team_not_found', team))
+                    return
+
+                cellrange = CellRange.from_a1(Config().get(self)['matches_range']).expand(top=-index, left=-4)
+                c.update(range="Aktuell!{}".format(cellrange.rangename()), values=[values], raw=False)
+
+            await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
     @spaetzle.command(name="duel", aliases=["duell"], help="Displays the duel of a specific user")
     async def show_duel_single(self, ctx, user=None):

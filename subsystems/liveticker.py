@@ -3,12 +3,14 @@ import logging
 
 from base import BaseSubsystem
 from botutils import restclient
+from botutils.converters import get_plugin_by_name
+from conf import Storage
 from subsystems import timers
 from subsystems.timers import Job
 
 
 class CoroRegistration:
-    def __init__(self, league_reg, coro=None, coro_kickoff=None, coro_finished=None, periodic: bool = False):
+    def __init__(self, league_reg, plugin, coro=None, coro_kickoff=None, coro_finished=None, periodic: bool = False):
         """
         Registration for a single Coroutine
 
@@ -18,6 +20,7 @@ class CoroRegistration:
         :param periodic:
         """
         self.league_reg = league_reg
+        self.plugin_name = plugin.get_name()
         self.coro = coro
         self.coro_kickoff = coro_kickoff
         self.coro_finished = coro_finished
@@ -26,9 +29,14 @@ class CoroRegistration:
         self.logger = logging.getLogger(__name__)
 
     def deregister(self):
+        reg_storage = self.storage()
+        if reg_storage in Storage().get(self.league_reg.listener)['registrations'][self.league_reg.league]:
+            Storage().get(self.league_reg.listener)['registrations'][self.league_reg.league].remove(reg_storage)
+            Storage().save(self.league_reg.listener)
         self.league_reg.deregister_coro(self)
 
-    def get_new_goals(self):
+    def get_match_dicts(self):
+        """Builds the dictionarys for each match"""
         match_list = self.league_reg.matches
         match_dict = {}
         for match in match_list:
@@ -39,11 +47,16 @@ class CoroRegistration:
                          if g.get('GoalID', 0) not in self.last_goal.get(match_id, [])]
             score = (max(0, 0, *(g.get('ScoreTeam1', 0) for g in match.get('Goals', []))),
                      max(0, 0, *(g.get('ScoreTeam2', 0) for g in match.get('Goals', []))))
+            try:
+                kickoff = datetime.datetime.strptime(match.get('MatchDateTime'), "%Y-%m-%dT%H:%M:%S")
+            except (ValueError, TypeError):
+                kickoff = None
             match_dict[match_id] = {
                 "team_home": match.get('Team1', {}).get('TeamName'),
                 "team_away": match.get('Team2', {}).get('TeamName'),
                 "score": score,
                 "new_goals": new_goals,
+                "kickoff_time": kickoff,
                 "is_finished": match.get('MatchIsFinished')
             }
             if not self.last_goal.get(match_id):
@@ -51,11 +64,19 @@ class CoroRegistration:
             self.last_goal[match_id] += [g.get('GoalID') for g in new_goals]
         return match_dict
 
+    def next_kickoff(self):
+        """Returns datetime of the next match"""
+        return self.league_reg.next_kickoff()
+
+    def next_execution(self):
+        """Returns datetime of the next timer execution"""
+        return self.league_reg.next_execution()
+
     async def update(self, job: Job):
         minute = (datetime.datetime.now() - job.data['start']).seconds // 60
         if minute > 45:
             minute = max(45, minute - 15)
-        await self.coro(self.get_new_goals(), self.league_reg.league, minute)
+        await self.coro(self.get_match_dicts(), self.league_reg.league, minute)
 
     async def update_kickoff(self, data):
         if self.coro_kickoff:
@@ -67,9 +88,25 @@ class CoroRegistration:
             match_dicts = [convert_to_matchdict(m) for m in match_list]
             await self.coro_finished(match_dicts, self.league_reg.league)
 
-    def __str__(self):
-        return "<liveticker.CoroRegistration; coro={}; periodic={}>".format(self.coro, self.periodic)
+    def storage(self):
+        return {
+            'plugin': self.plugin_name,
+            'coro': self.coro.__name__ if self.coro else None,
+            'coro_kickoff': self.coro_kickoff.__name__ if self.coro_kickoff else None,
+            'coro_finished': self.coro_finished.__name__ if self.coro_finished else None,
+            'periodic': self.periodic
+        }
 
+    def __eq__(self, other):
+        return self.coro == other.coro and self.coro_kickoff == other.coro_kickoff and\
+               self.coro_finished == other.coro_finished and self.periodic == other.periodic
+
+    def __str__(self):
+        return "<liveticker.CoroRegistration; coro={}; coro_kickoff={}; coro_finished={}; periodic={}>"\
+            .format(self.coro, self.coro_kickoff, self.coro_finished, self.periodic)
+
+    def __bool__(self):
+        return bool(self.next_execution())
 
 def convert_to_matchdict(match):
     return {
@@ -92,17 +129,26 @@ class LeagueRegistration:
         self.update_matches()
         self.schedule_kickoffs()
 
-    def register(self, coro, coro_kickoff, coro_finished, periodic: bool):
-        reg = CoroRegistration(self, coro, coro_kickoff, coro_finished, periodic)
+    def register(self, plugin, coro, coro_kickoff, coro_finished, periodic: bool):
+        """Registers a CoroReg for this league"""
+        reg = CoroRegistration(self, plugin, coro, coro_kickoff, coro_finished, periodic)
         if reg not in self.registrations:
             self.registrations.append(reg)
+            reg_storage = reg.storage()
+            if reg_storage not in Storage().get(self.listener)['registrations'][self.league]:
+                Storage().get(self.listener)['registrations'][self.league].append(reg_storage)
+                Storage().save(self.listener)
         return reg
 
     def deregister(self):
+        """Deregisters this LeagueReg correctly"""
         for job in self.kickoff_timers:
             job.cancel()
         for job in self.intermediate_timers:
             job.cancel()
+        if self.league in Storage().get(self.listener)['registrations']:
+            Storage().get(self.listener)['registrations'].pop(self.league)
+            Storage().save(self.listener)
         self.listener.deregister(self)
 
     def deregister_coro(self, coro: CoroRegistration):
@@ -114,11 +160,17 @@ class LeagueRegistration:
         if matchday:
             self.matches = restclient.Client("https://www.openligadb.de/api").make_request(
                 "/getmatchdata/{}/2020/{}".format(self.league, matchday))
+        elif self.matchday():
+            if self.next_execution():
+                self.update_matches(matchday=self.matchday())
+            else:
+                self.update_matches(matchday=self.matchday() + 1)
+                self.schedule_kickoffs()
         else:
             self.matches = restclient.Client("https://www.openligadb.de/api").make_request("/getmatchdata/{}".format(
                 self.league))
             if not self.extract_kickoffs_with_matches():
-                md = self.extract_matchday()
+                md = self.matchday()
                 if md:
                     self.update_matches(matchday=md + 1)
         return self.matches
@@ -137,14 +189,13 @@ class LeagueRegistration:
                     kickoff_dict[kickoff] = [match]
         return kickoff_dict
 
-    def extract_matchday(self):
+    def matchday(self):
         for match in self.matches:
             md = match.get('Group', {}).get('GroupOrderID')
-            if md is not None:
-                break
+            if md:
+                return md
         else:
             return None
-        return md
 
     def schedule_kickoffs(self):
         """
@@ -200,7 +251,7 @@ class LeagueRegistration:
             return None
 
     def next_execution(self):
-        """Returns datetime of the next timer execution"""
+        """Returns datetime and type of the next timer execution"""
         kickoffs = [j for j in (i.next_execution() for i in self.kickoff_timers if i) if j]
         intermed = [j for j in (i.next_execution() for i in self.intermediate_timers if i) if j]
         if kickoffs and intermed:
@@ -250,27 +301,60 @@ class LeagueRegistration:
         return "<liveticker.LeagueRegistration; league={}; regs={}; next={}>".format(self.league,
                                                                                      len(self.registrations), next_exec)
 
+    def __bool__(self):
+        return bool(self.next_execution())
 
 class Liveticker(BaseSubsystem):
     def __init__(self, bot):
         super().__init__(bot)
         self.bot = bot
+        self.logger = logging.getLogger(__name__)
         self.registrations = {}
 
-    def register(self, league, coro, coro_kickoff=None, coro_finished=None, periodic: bool = False):
+        @bot.listen()
+        async def on_ready():
+            # Restore registrations
+            self.logger.debug('Restoration of liveticker regs started.')
+            registrations = Storage().get(self)['registrations']
+            for league in registrations:
+                self.registrations[league] = LeagueRegistration(self, league)
+                for reg in registrations[league]:
+                    coro = getattr(get_plugin_by_name(reg['plugin']),
+                                   reg['coro']) if reg['coro'] else None
+                    coro_kickoff = getattr(get_plugin_by_name(reg['plugin']),
+                                           reg['coro_kickoff']) if reg['coro_kickoff'] else None
+                    coro_finished = getattr(get_plugin_by_name(reg['plugin']),
+                                            reg['coro_finished']) if reg['coro_finished'] else None
+                    self.registrations[league].register(plugin=get_plugin_by_name(reg['plugin']),
+                                                        coro=coro,
+                                                        coro_kickoff=coro_kickoff,
+                                                        coro_finished=coro_finished,
+                                                        periodic=reg['periodic'])
+            self.logger.debug('Restoration of liveticker regs finished.')
+
+    def default_storage(self):
+        return {
+            'registrations': {}
+        }
+
+    def register(self, league, plugin, coro, coro_kickoff=None, coro_finished=None, periodic: bool = False):
         """
 
+        :param plugin:
         :param coro_kickoff:
         :param coro_finished:
         :param league:
         :param coro:
         :param periodic:
-        :return: LeagueRegistration, CoroRegistration
+        :return: CoroRegistration
         """
         if league not in self.registrations:
             self.registrations[league] = LeagueRegistration(self, league)
-        coro_reg = self.registrations[league].register(coro, coro_kickoff, coro_finished, periodic)
-        return self.registrations[league], coro_reg
+        if league not in Storage().get(self)['registrations']:
+            Storage().get(self)['registrations'][league] = []
+            Storage().save(self)
+        coro_reg = self.registrations[league].register(plugin, coro, coro_kickoff, coro_finished, periodic)
+        return coro_reg
 
     def deregister(self, reg: LeagueRegistration):
         if reg.league in self.registrations:

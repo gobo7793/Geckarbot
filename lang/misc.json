@@ -27,6 +27,8 @@
         "remind_past": "Sorry, I don't have a time machine.",
         "bully_msg": "{} is bulling us :frowning:",
         "bully_msg_self": "I bully you :slight_smile:",
+        "money_converted": "**{} {}** are the equivalent of **{} {}**",
+        "money_error": "Whoops! No money?!",
 
         "#2": "Help",
         "help_dice": "Rolls a dice",
@@ -43,8 +45,9 @@
         "help_desc_werwars": "Searches a user which writed something in the last 30 min and accuses him. Supports passive ignoring.",
         "help_remindme": "Sets a Reminder",
         "help_usage_remindme": "<#|#m|#h|#d|DD.MM.YYYY|HH:MM|DD.MM.YYYY HH:MM|DD.MM. HH:MM|cancel|list> [Message|Cancel ID]",
-        "help_desc_remindme": "Reminds the author in x Minutes, Hours, Days or at a specific date or time.\nThe time span for the reminder can be set with a m for Minutes, h for Hours or d for days (e.g. '4h'). The default is Minutes.\nUsing 'cancel <id>' a reminder will be removed, without an ID all reminders of the users will be removed."
-
+        "help_desc_remindme": "Reminds the author in x Minutes, Hours, Days or at a specific date or time.\nThe time span for the reminder can be set with a m for Minutes, h for Hours or d for days (e.g. '4h'). The default is Minutes.\nUsing 'cancel <id>' a reminder will be removed, without an ID all reminders of the users will be removed.",
+        "help_money": "Exchanges money!",
+        "help_usage_money": "<currency> [other_currency] [amount]"
     },
     "de": {
         "#1": "Stuff",
@@ -64,6 +67,8 @@
         "remind_past": "Sorry, aber ich habe keine Zeitmaschine.",
         "bully_msg": "{} mobbt uns :frowning:",
         "bully_msg_self": "Ich mobbe euch :slight_smile:",
+        "money_converted": "**{} {}** entsprechen aktuell **{} {}**",
+        "money_error": "Bin ich pleite?! Irgendwas stimmt hier nicht!",
 
         "#2": "Help",
         "help_dice": "Wirft einen Würfel",
@@ -85,6 +90,8 @@
         "help_desc_werwars": "Sucht einen User, der in den letzten 30 Minuten aktiv war und zeigt anklagend auf diesen. Unterstützt die Ignore-Funktion.",
         "help_remindme": "Erinnerungsfunktion",
         "help_usage_remindme": "<#|#m|#h|#d|DD.MM.YYYY|HH:MM|DD.MM.YYYY HH:MM|DD.MM. HH:MM|cancel|list> [Nachricht|Cancel-ID]",
-        "help_desc_remindme": "Erinnert den Author in x Minuten, Stunden oder Tagen oder an einem festen Datum/Uhrzeit.\nDie Zeitspanne zur Erinnerung lässt sich mit einem m für Minuten, h für Stunden oder d für Tage angeben (z.B. '4h'). Die Standardeinheit ist Minuten.\nMit 'cancel <id>' wird eine Erinnerung abgebrochen, mit 'cancel' (ohne ID) werden alle Erinnerungen des Users abgebrochen."
+        "help_desc_remindme": "Erinnert den Author in x Minuten, Stunden oder Tagen oder an einem festen Datum/Uhrzeit.\nDie Zeitspanne zur Erinnerung lässt sich mit einem m für Minuten, h für Stunden oder d für Tage angeben (z.B. '4h'). Die Standardeinheit ist Minuten.\nMit 'cancel <id>' wird eine Erinnerung abgebrochen, mit 'cancel' (ohne ID) werden alle Erinnerungen des Users abgebrochen.",
+        "help_money": "Wechselt Geld um!",
+        "help_usage_money": "<Währung> [andere Währung] [Geldmenge]"
     }
 }
