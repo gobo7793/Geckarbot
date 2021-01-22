@@ -258,7 +258,7 @@ def get_schedule(plugin, league, matchday: int):
     if participants is None:
         raise LeagueNotFound()
     participants.extend([None] * max(0, 18 - len(participants)))  # Extend if not enough participants
-    p = [participants[i] for i in [4, 2, 11, 16, 9, 10, 14, 7, 3, 15, 12, 1, 0, 8, 5, 6, 13]]
+    p = [participants[i] for i in [4, 2, 11, 16, 9, 17, 10, 14, 7, 3, 15, 12, 1, 0, 8, 5, 6, 13]]
     p = p[0:1] + p[1:][matchday:] + p[1:][:matchday]
     schedule = []
     schedule.extend([(p[0], p[1]),
