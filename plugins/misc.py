@@ -6,6 +6,7 @@ import discord
 from discord.ext import commands
 
 import botutils.timeutils
+from botutils import restclient
 from conf import Storage, Lang, Config
 
 from base import BasePlugin, NotFound
@@ -129,6 +130,32 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
         async with ctx.typing():
             file = discord.File(f"{Config().resource_dir(self)}/mimimi.mp3")
             await ctx.send(file=file)
+
+    @commands.command(name="money")
+    async def money_converter(self, ctx, currency, arg2=None, arg3: float = None):
+        currency = currency.upper()
+        if arg3:
+            amount = arg3
+            other_curr = arg2.upper()
+        elif arg2:
+            try:
+                amount = float(arg2)
+            except (TypeError, ValueError):
+                other_curr = arg2.upper()
+                amount = 1
+            else:
+                other_curr = "EUR"
+        else:
+            amount = 1
+            other_curr = "EUR"
+        rates = restclient.Client("https://api.exchangeratesapi.io").make_request("/latest")
+        rate1 = rates.get('rates', {}).get(currency) if currency != "EUR" else 1
+        rate2 = rates.get('rates', {}).get(other_curr) if other_curr != "EUR" else 1
+        if rate1 and rate2:
+            await ctx.send(Lang.lang(self, 'money_converted', amount, currency,
+                                     round(float(rate2)/float(rate1) * amount, 2), other_curr))
+        else:
+            await ctx.send(Lang.lang(self, 'money_error'))
 
     @commands.command(name="geck")
     async def geck(self, ctx):
