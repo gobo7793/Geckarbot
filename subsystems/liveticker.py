@@ -64,6 +64,14 @@ class CoroRegistration:
             self.last_goal[match_id] += [g.get('GoalID') for g in new_goals]
         return match_dict
 
+    def next_kickoff(self):
+        """Returns datetime of the next match"""
+        return self.league_reg.next_kickoff()
+
+    def next_execution(self):
+        """Returns datetime of the next timer execution"""
+        return self.league_reg.next_execution()
+
     async def update(self, job: Job):
         minute = (datetime.datetime.now() - job.data['start']).seconds // 60
         if minute > 45:
@@ -128,7 +136,6 @@ class LeagueRegistration:
             if reg_storage not in Storage().get(self.listener)['registrations'][self.league]:
                 Storage().get(self.listener)['registrations'][self.league].append(reg_storage)
                 Storage().save(self.listener)
-
         return reg
 
     def deregister(self):
@@ -151,11 +158,13 @@ class LeagueRegistration:
         if matchday:
             self.matches = restclient.Client("https://www.openligadb.de/api").make_request(
                 "/getmatchdata/{}/2020/{}".format(self.league, matchday))
+        elif self.matchday():
+            self.update_matches(matchday=self.matchday())
         else:
             self.matches = restclient.Client("https://www.openligadb.de/api").make_request("/getmatchdata/{}".format(
                 self.league))
             if not self.extract_kickoffs_with_matches():
-                md = self.extract_matchday()
+                md = self.matchday()
                 if md:
                     self.update_matches(matchday=md + 1)
         return self.matches
@@ -174,14 +183,13 @@ class LeagueRegistration:
                     kickoff_dict[kickoff] = [match]
         return kickoff_dict
 
-    def extract_matchday(self):
+    def matchday(self):
         for match in self.matches:
             md = match.get('Group', {}).get('GroupOrderID')
-            if md is not None:
-                break
+            if md:
+                return md
         else:
             return None
-        return md
 
     def schedule_kickoffs(self):
         """
@@ -237,7 +245,7 @@ class LeagueRegistration:
             return None
 
     def next_execution(self):
-        """Returns datetime of the next timer execution"""
+        """Returns datetime and type of the next timer execution"""
         kickoffs = [j for j in (i.next_execution() for i in self.kickoff_timers if i) if j]
         intermed = [j for j in (i.next_execution() for i in self.intermediate_timers if i) if j]
         if kickoffs and intermed:
@@ -330,7 +338,7 @@ class Liveticker(BaseSubsystem):
         :param league:
         :param coro:
         :param periodic:
-        :return: LeagueRegistration, CoroRegistration
+        :return: CoroRegistration
         """
         if league not in self.registrations:
             self.registrations[league] = LeagueRegistration(self, league)
@@ -338,7 +346,7 @@ class Liveticker(BaseSubsystem):
             Storage().get(self)['registrations'][league] = []
             Storage().save(self)
         coro_reg = self.registrations[league].register(plugin, coro, coro_kickoff, coro_finished, periodic)
-        return self.registrations[league], coro_reg
+        return coro_reg
 
     def deregister(self, reg: LeagueRegistration):
         if reg.league in self.registrations:
