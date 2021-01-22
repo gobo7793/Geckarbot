@@ -222,6 +222,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             return
         if matchday is None:
             matchday = Storage().get(self)['matchday']
+        matchday %= 17
         if matchday not in range(1, 18):
             await add_reaction(ctx.message, Lang.CMDERROR)
             await ctx.send(Lang.lang(self, 'matchday_out_of_range'))
@@ -441,7 +442,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                                                                         "Manager only.")
     async def set_participants(self, ctx, league: int, *participants):
         if await Trusted(self).is_manager(ctx):
-            Storage().get(self)['participants'][league] = participants
+            Storage().get(self)['participants'][league] = list(participants)
             Storage().save(self)
             await ctx.send(Lang.lang(self, 'participants_added', len(participants), league))
             await add_reaction(ctx.message, Lang.CMDSUCCESS)
