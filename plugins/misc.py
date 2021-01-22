@@ -17,7 +17,7 @@ keysmash_cmd_name = "keysmash"
 
 
 def _create_keysmash():
-    return "".join(random.choices(string.ascii_letters + string.digits, k=random.randint(25, 50)))
+    return "".join(random.choices(string.ascii_lowercase, k=random.randint(25, 35)))
 
 
 class Plugin(BasePlugin, name="Funny/Misc Commands"):
