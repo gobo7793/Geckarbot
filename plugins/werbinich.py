@@ -339,7 +339,7 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
 
         if blocked:
             blocked = stringutils.format_andlist(blocked, ands=Lang.lang(self, "and"))
-            await self.channel.send(Lang.lang(self, "dmblocked", blocked))
+            await self.channel.send(Lang.lang(self, "dm_blocked", blocked))
             return State.ABORT
 
         for el in candidates:
