@@ -57,6 +57,8 @@
 
     "#4": "Quote",
     "or": "oder",
+    "yes": "ja",
+    "nein": "nein",
     "quote_target": "Soll das Zitat deinem zuletzt gescrobbleten Lied ({}) zugeordnet werden (antworte mit \"scrobble\") oder einem anderen Lied (antworte mit \"neu\")?\nZum Abbruch kannst du jederzeit mit \"abbrechen\" antworten.",
     "quote_scrobble": "scrobble",
     "quote_new": "neu",
@@ -66,9 +68,10 @@
     "quote_done": "Fertig!",
     "quote_question_artist": "Interpret?",
     "quote_question_title": "Titel?",
-    "quote_question_quote": "Zitat?",
+    "quote_question_quote": "Wie lautet das Zitat, das ich hinzufügen soll?",
     "quote_err_length": "Das Zitat ist leider zu lang. Das Maximum sind {} Zeichen; dein Zitat hat {} Zeichen.",
     "quote_err_no_mentions": "User-Mentions sind in Zitaten nicht erlaubt.",
-    "quote_err_dmkill": "Deine DM-Registrierung wurde gekillt, wir müssen hier daher abbrechen."
+    "quote_err_dmkill": "Deine DM-Registrierung wurde gekillt, wir müssen hier daher abbrechen.",
+    "quote_existing_quote": "Ich kenne bereits Zitate für diesen Song. Soll ich diese erst einmal auflisten?"
   }
 }
