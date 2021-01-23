@@ -1,14 +1,15 @@
 import logging
 import asyncio
-from datetime import datetime
 from enum import Enum
 from datetime import datetime
 
 import discord
 from discord.ext import commands
 from discord.http import HTTPException
+from discord.errors import Forbidden
 
 from base import BasePlugin, NotFound
+from botutils.stringutils import format_andlist
 from conf import Lang, Config
 from botutils import utils, statemachine, stringutils
 from botutils.converters import get_best_username as gbu
@@ -199,7 +200,7 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
             await ctx.send(msg)
             return
         elif self.statemachine.state == State.REGISTER:
-            sec = self.config["register_timeout"] * 60 - int((datetime.now() - self.reg_ts).total_seconds())
+            sec = self.get_config("register_timeout") * 60 - int((datetime.now() - self.reg_ts).total_seconds())
             await ctx.send(Lang.lang(self, "status_registering", sec))
             return
         elif self.statemachine.state == State.DELIVER:
@@ -296,7 +297,7 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
         self.presence_messsage = self.bot.presence.register(Lang.lang(self, "presence", self.channel.name),
                                                             priority=presence.PresencePriority.HIGH)
         reaction = Lang.lang(self, "reaction_signup")
-        to = self.config["register_timeout"]
+        to = self.get_config("register_timeout")
         self.reg_ts = datetime.now()
         msg = Lang.lang(self, "registering", reaction, to,
                         stringutils.sg_pl(to, Lang.lang(self, "minute_sg"), Lang.lang(self, "minute_pl")))
@@ -358,7 +359,7 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
     async def collecting_phase(self):
         assert len(self.participants) > 1
 
-        msg = [gbu(el.user) for el in self.participants]
+        msg = sorted([gbu(el.user) for el in self.participants], key=str.casefold)
         msg = stringutils.format_andlist(msg, ands=Lang.lang(self, "and"))
         msg = Lang.lang(self, "list_participants", msg)
 
@@ -367,11 +368,28 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
         for i in range(len(self.participants)):
             self.participants[i].assign(shuffled[i])
 
-        self.participants = sorted(self.participants, key=gbu)
+        self.participants = sorted(self.participants, key=lambda x: gbu(x).lower())
 
         await self.channel.send(msg)
+        errors = []
         for el in self.participants:
-            await el.init_dm()
+            try:
+                await el.init_dm()
+            except Forbidden:
+                errors.append(el)
+
+        # check for DM forbidden errors and cancel if necessary
+        if errors:
+            msg = [gbu(el.user) for el in errors]
+            msg = Lang.lang(self, "blocked_by_user", format_andlist(msg, ands=Lang.lang(self, "and")))
+
+            # Notify participants
+            for el in self.participants:
+                if el in errors:
+                    continue
+                await el.send(msg)
+            await self.channel.send(msg)
+            return State.ABORT
 
         await self.eval_event.wait()
         if self.statemachine.cancelled():

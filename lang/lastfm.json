@@ -56,7 +56,7 @@
     "yesterday": "gestern",
 
     "#4": "Quote",
-    "or": "or",
+    "or": "oder",
     "quote_target": "Soll das Zitat deinem zuletzt gescrobbleten Lied ({}) zugeordnet werden (antworte mit \"scrobble\") oder einem anderen Lied (antworte mit \"neu\")?\nZum Abbruch kannst du jederzeit mit \"abbrechen\" antworten.",
     "quote_scrobble": "scrobble",
     "quote_new": "neu",
