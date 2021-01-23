@@ -212,9 +212,10 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
     @commands.group(name="disable", invoke_without_command=True, aliases=["ignore", "block"],
                     usage="<full command name>")
     async def disable(self, ctx, *, command):
-        cmd = self.bot.get_command(command).qualified_name
-        if not await self._pre_cmd_checks(ctx.message, cmd):
+        if not await self._pre_cmd_checks(ctx.message, command):
             return
+
+        cmd = self._get_full_cmd_name(command)
 
         result = self.bot.ignoring.add_passive(ctx.author, cmd)
         if result == IgnoreEditResult.Success:
@@ -326,15 +327,20 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
             reaction = Lang.CMDSUCCESS
             final_msg = Lang.lang(self, 'all_passives_unblocked')
 
-        # remove given command
-        else:
-            cmd = self.bot.get_command(command).qualified_name
+        # remove VALID given command
+        elif self._is_valid_command(command):
+            cmd = self._get_full_cmd_name(command)
             result = self.bot.ignoring.remove_passive(ctx.author, cmd)
             if result == IgnoreEditResult.Success:
                 reaction = Lang.CMDSUCCESS
             elif result == IgnoreEditResult.Not_in_list:
                 reaction = Lang.CMDERROR
                 final_msg = Lang.lang(self, 'passive_not_blocked', cmd)
+
+        # command not valid
+        else:
+            reaction = Lang.CMDERROR
+            final_msg = Lang.lang(self, 'cmd_not_found', command)
 
         await utils.log_to_mod_channel(ctx)
         await ctx.message.add_reaction(reaction)
@@ -389,7 +395,21 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
         if final_msg is not None:
             await ctx.send(final_msg)
 
-    async def _is_valid_command(self, command):
+    def _get_full_cmd_name(self, command):
+        """
+        Returns the full qualified command name for native commands or it's custom command name.
+        Doesn't check if command name is valid.
+
+        :param command: The command
+        :return: The command name
+        """
+        native_cmd = self.bot.get_command(command)
+        if native_cmd is not None:
+            return native_cmd.qualified_name
+        else:
+            return command
+
+    def _is_valid_command(self, command):
         """
         Checks if the command is a valid and registered, existing command
 
@@ -411,7 +431,7 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
         :param command: the command to disable
         :return: True if command can be disabled
         """
-        if not await self._is_valid_command(command):
+        if not self._is_valid_command(command):
             await utils.add_reaction(message, Lang.CMDERROR)
             await message.channel.send(Lang.lang(self, 'cmd_not_found', command))
             return False
@@ -443,13 +463,9 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
                 except commands.CommandError:
                     pass
 
-            if command is None and await self._is_valid_command(arg):
+            if command is None and self._is_valid_command(arg):
                 if await self._pre_cmd_checks(message, arg):
-                    native_cmd = self.bot.get_command(arg)
-                    if native_cmd is not None:
-                        command = native_cmd.qualified_name
-                    else:
-                        command = arg
+                    command = self._get_full_cmd_name(arg)
                     continue
 
             if until is None:
