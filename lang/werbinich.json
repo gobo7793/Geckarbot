@@ -60,7 +60,7 @@
         "not_running": "Es läuft gerade kein Spiel.",
         "past_game_in_mem": "Das letzte Spiel fand in {} statt.",
         "post_game_status": "Es wurde beendet.",
-        "status_registering": "Ich warte auf Registrierungen; {} Sekunden verbleibend.",
+        "status_registering": "Ich warte auf Registrierungen ({} Sekunden verbleibend).",
         "status_delivering": "Ich verteile gerade die Ergebnisse.",
         "status_aborting": "Ich breche gerade das Spiel ab.",
         "waiting_for": "Wir warten auf {}.",

@@ -2,6 +2,7 @@ import logging
 import asyncio
 from datetime import datetime
 from enum import Enum
+from datetime import datetime
 
 import discord
 from discord.ext import commands
@@ -118,6 +119,8 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
         self.postgame = False
         self.presence_messsage = None
         self.participants = []
+        self.eval_event = None
+        self.reg_ts = None
 
         self.base_config = {
             "register_timeout": [int, 1],
@@ -196,9 +199,8 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
             await ctx.send(msg)
             return
         elif self.statemachine.state == State.REGISTER:
-            seconds = int((datetime.now() - self.reg_start_time).total_seconds())
-            seconds = self.get_config("register_timeout") * 60 - seconds
-            await ctx.send(Lang.lang(self, "status_registering", seconds))
+            sec = self.config["register_timeout"] * 60 - int((datetime.now() - self.reg_ts).total_seconds())
+            await ctx.send(Lang.lang(self, "status_registering", sec))
             return
         elif self.statemachine.state == State.DELIVER:
             await ctx.send(Lang.lang(self, "status_delivering"))
@@ -222,8 +224,10 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
             await ctx.message.add_reaction(Lang.CMDERROR)
             await ctx.send(Lang.lang(self, "not_running"))
             return
-        await ctx.message.add_reaction(Lang.CMDSUCCESS)
-        await self.cleanup()
+        await ctx.send("Sorry, das tut momentan nicht")
+        await ctx.message.add_reaction(Lang.CMDERROR)
+        # await ctx.message.add_reaction(Lang.CMDSUCCESS)
+        # await self.cleanup()
 
     @werbinich.command(name="spoiler", help=h_spoiler)
     async def spoilercmd(self, ctx):
@@ -292,7 +296,8 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
         self.presence_messsage = self.bot.presence.register(Lang.lang(self, "presence", self.channel.name),
                                                             priority=presence.PresencePriority.HIGH)
         reaction = Lang.lang(self, "reaction_signup")
-        to = self.get_config("register_timeout")
+        to = self.config["register_timeout"]
+        self.reg_ts = datetime.now()
         msg = Lang.lang(self, "registering", reaction, to,
                         stringutils.sg_pl(to, Lang.lang(self, "minute_sg"), Lang.lang(self, "minute_pl")))
         msg = await self.channel.send(msg)
@@ -413,3 +418,4 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
         self.initiator = None
         self.reg_start_time = None
         self.show_assignees = True
+        self.reg_ts = None
