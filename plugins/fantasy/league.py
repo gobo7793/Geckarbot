@@ -1,3 +1,4 @@
+import asyncio
 import operator
 from threading import Thread
 from typing import List, Dict, Optional
@@ -154,11 +155,12 @@ class FantasyLeague(ABC):
         pass
 
     @abstractmethod
-    def get_boxscores(self, week) -> List[Match]:
+    def get_boxscores(self, week, match_id=-1) -> List[Match]:
         """
-        Returns the boxscore data for all matches in given week of current year
+        Returns the boxscore data for the given match ID or all matches in given week of current year
 
         :param week: The week to get the boxscores from
+        :param match_id: The match ID of the match, or -1 for all matches
         :return: The Boxscores as List of Match tuples
         """
         pass
@@ -212,8 +214,8 @@ class EspnLeague(FantasyLeague):
 
     def _load_league_data(self):
         self._espn = League(year=self.plugin.year, league_id=self.league_id,
-                            espn_s2=Storage.get(self.plugin)["espn_credentials"]["espn_s2"],
-                            swid=Storage.get(self.plugin)["espn_credentials"]["swid"])
+                            espn_s2=Config.get(self.plugin)["espn_credentials"]["espn_s2"],
+                            swid=Config.get(self.plugin)["espn_credentials"]["swid"])
         log.info("League {}, ID {} on platform ESPN connected".format(self.name, self.league_id))
 
     def reload(self):
@@ -269,14 +271,15 @@ class EspnLeague(FantasyLeague):
             teams.append(Team(t.team_name, t.team_abbrev, t.team_id, 0))
         return teams
 
-    def get_boxscores(self, week) -> List[Match]:
+    def get_boxscores(self, week, match_id=-1) -> List[Match]:
         boxscores = self._espn.box_scores(week)
         matches = []
-        for score in boxscores:
-            home_team = None
-            away_team = None
-            home_lineup = []
-            away_lineup = []
+        for i in range(len(boxscores)):
+            if match_id > -1 and match_id != i:
+                continue
+            score = boxscores[i]
+            home_team, away_team = None, None
+            home_lineup, away_lineup = [], []
 
             if score.home_team is not None and score.home_team != 0:
                 home_team = Team(score.home_team.team_name, score.home_team.team_abbrev, score.home_team.team_id, 0)
@@ -341,7 +344,7 @@ class SleeperLeague(FantasyLeague):
         self.reload()
         log.info("League {}, ID {} on platform Sleeper connected".format(self.name, self.league_id, self.platform))
 
-    def _load_player_db(self):
+    async def _load_player_db(self):
         last_call = Storage.get(self.plugin, self.player_db_key)\
             .get(self.last_db_call_key, datetime.min)
         if last_call.date() >= datetime.now().date():
@@ -349,7 +352,7 @@ class SleeperLeague(FantasyLeague):
             return
 
         log.info("Getting Sleepers player database. This shouldn't be done more than once per day!")
-        players_json = self._client.make_request(endpoint="players/nfl", parse_json=False)
+        players_json = await self._client.request(endpoint="players/nfl", parse_json=False)
         players = Decoder().decode(players_json)
         players[self.last_db_call_key] = datetime.now()
         Storage.set(self.plugin, players, self.player_db_key)
@@ -360,8 +363,7 @@ class SleeperLeague(FantasyLeague):
         rosters = self._client.make_request(endpoint="league/{}/rosters".format(self.league_id))
         users = self._client.make_request(endpoint="league/{}/users".format(self.league_id))
         if not self.plugin.bot.DEBUG_MODE:
-            player_thread = Thread(target=self._load_player_db)
-            player_thread.start()
+            asyncio.run_coroutine_threadsafe(self._load_player_db, self.plugin.bot.loop)
 
         self._teams = []
         for roster in rosters:
@@ -420,7 +422,9 @@ class SleeperLeague(FantasyLeague):
     def get_teams(self) -> List[Team]:
         return self._teams
 
-    def get_boxscores(self, week) -> List[Match]:
+    def get_boxscores(self, week, match_id=-1) -> List[Match]:
+        # Doesn't support boxscores yet (12/2020), so match_id isn't used
+
         if week < 1 or week > self.current_week:
             week = self.current_week
         matchups_raw = self._client.make_request(endpoint="league/{}/matchups/{}".format(self.league_id, week))
@@ -476,7 +480,7 @@ class SleeperLeague(FantasyLeague):
             player_id = list(action["adds"].keys())[0] \
                 if act_type == "ADD" else list(action["drops"].keys())[0]
             act_team = next(t for t in self.get_teams() if t.team_id == act_roster_id)
-            act_player = Storage.get(self.plugin, self.player_db_key)[int(player_id)]
+            act_player = Storage.get(self.plugin, self.player_db_key)[player_id]
             player_name = act_player["full_name"]
 
             return Activity(act_date, act_team.team_name, act_type, player_name)

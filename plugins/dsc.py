@@ -2,13 +2,15 @@ import logging
 import re
 from datetime import datetime
 from enum import IntEnum
+from typing import Union
 
 import discord
 from discord.ext import commands
+from discord.ext.commands import ChannelNotFound, TextChannelConverter, RoleConverter, RoleNotFound
 
-from base import BasePlugin
+from base import BasePlugin, NotFound
 from botutils import permchecks, sheetsclient, utils, timeutils
-from botutils.converters import get_best_user
+from botutils.converters import get_best_user, get_plugin_by_name
 from botutils.stringutils import paginate, clear_link
 from conf import Storage, Lang, Config
 
@@ -25,7 +27,6 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
 
     def __init__(self, bot):
         super().__init__(bot)
-        self.can_reload = True
         bot.register(self, category="DSC")
         self.log = logging.getLogger("dsc")
 
@@ -56,6 +57,27 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
             'status': None
         }
 
+    def command_help_string(self, command):
+        langstr = Lang.lang_no_failsafe(self, "help_{}".format(command.qualified_name.replace(" ", "_")))
+        if langstr is not None:
+            return langstr
+        else:
+            raise NotFound()
+
+    def command_description(self, command):
+        langstr = Lang.lang_no_failsafe(self, "help_desc_{}".format(command.qualified_name.replace(" ", "_")))
+        if langstr is not None:
+            return langstr
+        else:
+            raise NotFound()
+
+    def command_usage(self, command):
+        langstr = Lang.lang_no_failsafe(self, "help_usage_{}".format(command.qualified_name.replace(" ", "_")))
+        if langstr is not None:
+            return langstr
+        else:
+            raise NotFound()
+
     def get_api_client(self):
         """Returns a client to access Google Sheets API for the dsc contestdoc sheet"""
         return sheetsclient.Client(self.bot, Config.get(self)['contestdoc_id'])
@@ -76,26 +98,26 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
     def _fill_rule_link(self):
         if not Storage.get(self)['rule_link']:
             Storage.get(self)['rule_link'] = self._get_rule_link()
-            
+
     def register_presence(self):
         """Registers the presence message"""
         self.presence = self.bot.presence.register(Lang.lang(self, "presence_voting"))
-            
+
     def deregister_presence(self):
         """Deregisters the presence message"""
         self.bot.presence.deregister(self.presence)
 
-    @commands.group(name="dsc", help="Get and manage data about current/next DSC")
+    @commands.group(name="dsc")
     async def dsc(self, ctx):
         if ctx.invoked_subcommand is None:
             await ctx.invoke(self.bot.get_command('dsc info'))
 
-    @dsc.command(name="rules", help="Get the link to the DSC rules", aliases=["regeln"])
+    @dsc.command(name="rules", aliases=["regeln"])
     async def dsc_rules(self, ctx):
         self._fill_rule_link()
         await ctx.send(f"<{Storage.get(self)['rule_link']}>")
 
-    @dsc.command(name="status", help="Get the current status message from the Songmasters about the current/next DSC")
+    @dsc.command(name="status")
     async def dsc_status(self, ctx):
         if Storage.get(self)['status']:
             status_msg = Lang.lang(self, 'status_base', Storage.get(self)['status'])
@@ -104,7 +126,7 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
 
         await ctx.send(status_msg)
 
-    @dsc.command(name="winners", help="Returns previous DSC winners")
+    @dsc.command(name="winners")
     async def dsc_winners(self, ctx):
         c = self.get_api_client()
         winners = c.get(Config.get(self)['winners_range'])
@@ -131,7 +153,7 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
         for m in paginate(w_msgs, Lang.lang(self, 'winner_prefix')):
             await ctx.send(m)
 
-    @dsc.command(name="info", help="Get information about current DSC")
+    @dsc.command(name="info")
     async def dsc_info(self, ctx):
         date_out_str = Lang.lang(self, 'info_date_str', Storage.get(self)['date'].strftime('%d.%m.%Y, %H:%M'))
         if not Storage.get(self)['host_id']:
@@ -166,7 +188,7 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
 
         await ctx.send(embed=embed)
 
-    @dsc.group(name="set", help="Set data about current/next DSC.")
+    @dsc.group(name="set")
     async def dsc_set(self, ctx):
         if (not permchecks.check_mod_access(ctx.author)
                 and Config.get(self)['mod_role_id'] != 0
@@ -176,10 +198,10 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
             raise commands.CheckFailure()
 
         if ctx.invoked_subcommand is None:
-            await ctx.send_help(self.dsc_set)
+            await self.bot.helpsys.cmd_help(ctx, self, ctx.command)
 
-    @dsc_set.command(name="host", help="Sets the current/next DSC host")
-    async def dsc_set_host(self, ctx, user: discord.Member):
+    @dsc_set.command(name="host")
+    async def dsc_set_host(self, ctx, user: Union[discord.Member, discord.User]):
         Storage.get(self)['host_id'] = user.id
         Storage().save(self)
         await utils.add_reaction(ctx.message, Lang.CMDSUCCESS)
@@ -189,8 +211,7 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
         Storage().save(self)
         await utils.add_reaction(ctx.message, Lang.CMDSUCCESS)
 
-    @dsc_set.command(name="state", help="Sets the current DSC state (Voting/Sign up)",
-                     usage="<voting|signup>")
+    @dsc_set.command(name="state")
     async def dsc_set_state(self, ctx, state):
         if state.lower() == "voting":
             await self._dsc_save_state(ctx, DscState.Voting)
@@ -201,42 +222,40 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
         else:
             await ctx.send(Lang.lang(self, 'invalid_phase'))
 
-    @dsc_set.command(name="yt", help="Sets the Youtube playlist link")
+    @dsc_set.command(name="yt")
     async def dsc_set_yt_link(self, ctx, link):
         link = clear_link(link)
         Storage.get(self)['yt_link'] = link
         Storage().save(self)
         await utils.add_reaction(ctx.message, Lang.CMDSUCCESS)
 
-    @dsc_set.command(name="date", help="Sets the registration/voting end date", usage="DD.MM.[YYYY] [HH:MM]",
-                     description="Sets the end date and time for registration and voting phase. "
-                                 "If no time is given, 23:59 will be used.")
+    @dsc_set.command(name="date")
     async def dsc_set_date(self, ctx, *args):
         date = timeutils.parse_time_input(args, end_of_day=True)
         Storage.get(self)['date'] = date
         Storage().save(self)
         await utils.add_reaction(ctx.message, Lang.CMDSUCCESS)
 
-    @dsc_set.command(name="status", help="Sets the status message",
-                     description="Sets a status message for additional information. To remove give no message.")
-    async def dsc_set_status(self, ctx, *message):
-        Storage.get(self)['status'] = " ".join(message)
+    @dsc_set.command(name="status")
+    async def dsc_set_status(self, ctx, *, message):
+        Storage.get(self)['status'] = message
         Storage().save(self)
         await utils.add_reaction(ctx.message, Lang.CMDSUCCESS)
 
-    @dsc_set.command(name="points", help="Sets the voting system",
-                     description="Sets the point list for the current voting system. Points can be set like "
-                                 "\"12-10-...\" or \"12 10 ...\", which will be converted to the first.")
+    @dsc_set.command(name="points")
     async def dsc_set_points(self, ctx, *points):
         Storage.get(self)['points'] = "-".join(points)
         Storage().save(self)
         await utils.add_reaction(ctx.message, Lang.CMDSUCCESS)
 
-    @dsc_set.command(name="config", invoke_without_command=True,
-                     help="Gets or sets general config values for the plugin")
+    @dsc_set.command(name="config")
     async def dsc_set_config(self, ctx, key="", value=""):
         if not key and not value:
-            await ctx.invoke(self.bot.get_command("configdump"), self.get_name())
+            msg = []
+            for key in Config.get(self):
+                msg.append("{}: {}".format(key, Config.get(self)[key]))
+            for msg in paginate(msg, msg_prefix="```", msg_suffix="```"):
+                await ctx.send(msg)
             return
 
         if key and not value:
@@ -250,34 +269,30 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
             return
 
         if key == "channel_id":
-            channel = None
-            int_value = Config.get(self)['channel_id']
             try:
-                int_value = int(value)
-                channel = self.bot.guild.get_channel(int_value)
-            except ValueError:
-                pass
+                channel = await TextChannelConverter().convert(ctx, value)
+            except ChannelNotFound:
+                channel = None
+
             if channel is None:
                 Lang.lang(self, 'channel_id')
                 await utils.add_reaction(ctx.message, Lang.CMDERROR)
                 return
             else:
-                Config.get(self)[key] = int_value
+                Config.get(self)[key] = channel.id
 
         elif key == "mod_role_id":
-            role = None
-            int_value = Config.get(self)['mod_role_id']
             try:
-                int_value = int(value)
-                role = self.bot.guild.get_role(int_value)
-            except ValueError:
-                pass
+                role = await RoleConverter().convert(ctx, value)
+            except RoleNotFound:
+                role = None
+
             if role is None:
                 Lang.lang(self, 'songmaster_id')
                 await utils.add_reaction(ctx.message, Lang.CMDERROR)
                 return
             else:
-                Config.get(self)[key] = int_value
+                Config.get(self)[key] = role.id
 
         else:
             Config.get(self)[key] = value

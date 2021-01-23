@@ -5,7 +5,7 @@ import discord
 import emoji
 from discord.ext import commands
 
-from base import BasePlugin
+from base import BasePlugin, NotFound
 from botutils import utils, permchecks, converters, stringutils
 from conf import Storage, Config, Lang
 from subsystems import reactions, help
@@ -68,10 +68,11 @@ class Plugin(BasePlugin, name="Role Management"):
         bot.register(self, help.DefaultCategories.MOD)
 
         async def get_init_msg_data():
-            if self.has_init_msg_set():
+            if self.has_init_msg_set:
                 bot.reaction_listener.register(await self.get_init_msg(), self.update_reaction_based_user_role)
 
-        asyncio.get_event_loop().create_task(get_init_msg_data())
+        asyncio.run_coroutine_threadsafe(get_init_msg_data(), self.bot.loop)
+        # asyncio.get_event_loop().create_task(get_init_msg_data())
 
     def default_storage(self):
         return {
@@ -83,17 +84,39 @@ class Plugin(BasePlugin, name="Role Management"):
             'roles': {}
         }
 
+    def command_help_string(self, command):
+        langstr = Lang.lang_no_failsafe(self, "help_{}".format(command.name.replace(" ", "_")))
+        if langstr is not None:
+            return langstr
+        else:
+            raise NotFound()
+
+    def command_description(self, command):
+        langstr = Lang.lang_no_failsafe(self, "help_desc_{}".format(command.name.replace(" ", "_")))
+        if langstr is not None:
+            return langstr
+        else:
+            raise NotFound()
+
+    def command_usage(self, command):
+        langstr = Lang.lang_no_failsafe(self, "help_usage_{}".format(command.name.replace(" ", "_")))
+        if langstr is not None:
+            return langstr
+        else:
+            raise NotFound()
+
     def rc(self):
         """Returns the roles config"""
         return Storage.get(self)['roles']
 
+    @property
     def has_init_msg_set(self):
         return (Storage.get(self)['message']['channel_id'] != 0
                 and Storage.get(self)['message']['message_id'] != 0)
 
     async def get_init_msg(self):
         """Returns the role management init message or None if not set"""
-        if self.has_init_msg_set():
+        if self.has_init_msg_set:
             channel = self.bot.get_channel(Storage.get(self)['message']['channel_id'])
             return await channel.fetch_message(Storage.get(self)['message']['message_id'])
         else:
@@ -230,11 +253,7 @@ class Plugin(BasePlugin, name="Role Management"):
                                                           'Reaction': event.emoji,
                                                           'role': role.mention})
 
-    @commands.group(name="role", invoke_without_command=True, help="Adds or removes the role to/from users roles",
-                    usage="<user> <add|del> <role>",
-                    description="Adds or removes the role to or from users roles."
-                                " Only usable for users with corresponding mod role."
-                                " Admins can add/remove all roles including roles which aren't in the role management.")
+    @commands.group(name="role", aliases=["roles"], invoke_without_command=True)
     async def role(self, ctx, user: discord.Member, action, role: discord.Role):
         async with ctx.typing():
             if not permchecks.check_mod_access(ctx.author):
@@ -265,15 +284,7 @@ class Plugin(BasePlugin, name="Role Management"):
 
         await utils.log_to_mod_channel(ctx)
 
-    @role.command(name="add", help="Creates a new role or updates its management data",
-                  usage="<role_name> [emoji|modrole] [color]",
-                  description="Creates a new role on the server with the given management data. If an emoji is given, "
-                              "the role will be self-assignable by the users via reaction in the role init message. "
-                              "If a mod role is given, a user with the mod role can add/remove the role via "
-                              "!role <user> add <role>. If the role already exists, it will be added to the role "
-                              "management with the given data. If role is already in the role management, "
-                              "the management data will be updated. As color a color name like 'blue' can be given or "
-                              "a hexcode like '#0000ff'.")
+    @role.command(name="add")
     @commands.has_any_role(*Config().MOD_ROLES)
     async def role_add(self, ctx, role_name, emoji_or_modrole="", color: discord.Color = None):
         async with ctx.typing():
@@ -319,7 +330,7 @@ class Plugin(BasePlugin, name="Role Management"):
         await ctx.send(Lang.lang(self, 'role_add_created', role_name, color))
         await utils.log_to_mod_channel(ctx)
 
-    @role.command(name="del", help="Deletes the role from the server and role management")
+    @role.command(name="del")
     @commands.has_any_role(*Config().MOD_ROLES)
     async def role_del(self, ctx, role: discord.Role):
         async with ctx.typing():
@@ -328,7 +339,7 @@ class Plugin(BasePlugin, name="Role Management"):
         await ctx.send(Lang.lang(self, 'role_del', role.name))
         await utils.log_to_mod_channel(ctx)
 
-    @role.command(name="untrack", help="Removes the role from the role management, but not from server")
+    @role.command(name="untrack")
     @commands.has_any_role(*Config().MOD_ROLES)
     async def role_untrack(self, ctx, role: discord.Role):
         del (self.rc()[role.id])
@@ -336,9 +347,7 @@ class Plugin(BasePlugin, name="Role Management"):
         await ctx.send(Lang.lang(self, 'role_untrack', role.name))
         await utils.log_to_mod_channel(ctx)
 
-    @role.command(name="request", help="Pings the corresponding mod role for a role request",
-                  description="Pings the roles corresponding mod role, that the executing user requests the given "
-                              "role.")
+    @role.command(name="request")
     async def role_request(self, ctx, role: discord.Role):
         modrole = None
         for configured_role in self.rc():
@@ -351,40 +360,36 @@ class Plugin(BasePlugin, name="Role Management"):
         else:
             await ctx.send(Lang.lang(self, 'role_request_ping', modrole.mention, ctx.author.mention, role.name))
 
-    @role.command(name="update", help="Reads the server data and updates the role management",
-                  description="Updates the role management from server data and removes deleted roles from role "
-                              "management. If a message content is given, this message will be used for the role "
-                              "management init message text.\n"
-                              "Before using the role management, the channel must be set via "
-                              "!role update channel=<channel>")
+    @role.command(name="update", invoke_without_command=True)
     @commands.has_any_role(*Config().MOD_ROLES)
-    async def role_update(self, ctx, *message):
-        chan_key = "channel="
-        msg = " ".join(message)
-        if msg.startswith(chan_key):
-            if self.has_init_msg_set():
-                await ctx.send(Lang.lang(self, 'channel_cant_changed'))
-                return
+    async def role_update(self, ctx, *, message=""):
+        channel = None
+        try:
+            channel = await commands.TextChannelConverter().convert(ctx, message)
+        except commands.CommandError:
+            pass
 
-            try:
-                channel = await commands.TextChannelConverter().convert(ctx, msg[len(chan_key):])
-            except commands.CommandError:
-                await ctx.send(Lang.lang(self, 'invalid_channel'))
-                return
-
-            Storage.get(self)['message']['channel_id'] = channel.id
-            await ctx.send(Lang.lang(self, 'channel_updated'))
+        if channel is None and len(message) < 2:
+            await ctx.send(Lang.lang(self, 'invalid_channel'))
             return
 
-        if len(msg) > 0:
-            Storage.get(self)['message']['content'] = msg
+        if channel is not None:
+            if self.has_init_msg_set:
+                await ctx.send(Lang.lang(self, 'channel_cant_changed'))
+            else:
+                Storage.get(self)['message']['channel_id'] = channel.id
+                await ctx.send(Lang.lang(self, 'channel_updated'))
+            return
+
+        if message:
+            Storage.get(self)['message']['content'] = message
 
         Storage.save(self)
         await self.update_role_management(ctx)
         await ctx.send(Lang.lang(self, 'role_update'))
         await utils.log_to_mod_channel(ctx)
 
-    @role.command(name="msg", help="Returns the jumplink to the init message.")
+    @role.command(name="msg", aliases=["link"])
     async def get_msg_cmd(self, ctx):
         msg = await self.get_init_msg()
         if msg is not None:

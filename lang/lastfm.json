@@ -12,11 +12,15 @@
     "desc_profile": "Gibt einen Link zum Last.fm-Profil eines Users aus, sofern dieser sich registriert hat.",
     "help_now": "Teilt mit, was du gerade hörst",
     "desc_now": "Teilt mit, was du gerade hörst.",
+    "help_quote": "Fügt ein Liedzitat hinzu",
+    "desc_quote": "Eröffnet einen DM-Dialog mit Gecki, in dem ein Liedzitat hinzugefügt werden kann. Gecki erklärt dort das Prozedere Schritt für Schritt.",
 
     "#1": "Errors",
     "not_registered": "Ich kenne leider dein last.fm-Profil nicht.",
+    "not_registered_sg3p": "Ich kenne leider das last.fm-Profil des Users nicht.",
     "error": "Sorry, ich kann dir hier nicht helfen.",
     "user_not_found": "Den Last.fm-User \"{}\" gibt es nicht.",
+    "api_error": "Sorry, Last.fm zickt gerade rum.",
 
     "#2": "Output",
     "all": "alle",
@@ -52,7 +56,7 @@
     "yesterday": "gestern",
 
     "#4": "Quote",
-    "or": "or",
+    "or": "oder",
     "quote_target": "Soll das Zitat deinem zuletzt gescrobbleten Lied ({}) zugeordnet werden (antworte mit \"scrobble\") oder einem anderen Lied (antworte mit \"neu\")?\nZum Abbruch kannst du jederzeit mit \"abbrechen\" antworten.",
     "quote_scrobble": "scrobble",
     "quote_new": "neu",

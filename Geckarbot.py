@@ -39,7 +39,7 @@ class Geckarbot(commands.Bot):
     Basic bot info
     """
     NAME = "Geckarbot"
-    VERSION = "2.7.5"
+    VERSION = "2.8.0"
     PLUGIN_DIR = "plugins"
     CORE_PLUGIN_DIR = "coreplugins"
     CONFIG_DIR = "config"
@@ -230,6 +230,11 @@ class Geckarbot(commands.Bot):
 
     def load_plugin(self, plugin_dir, plugin_name):
         """Loads the given plugin_name in plugin_dir, returns True if plugin loaded successfully"""
+        for pl in self.plugins:
+            if pl.get_name() == plugin_name:
+                logging.info("A Plugin called {} already loaded, skipping loading.".format(plugin_name))
+                return
+
         try:
             to_import = "{}.{}".format(plugin_dir, plugin_name)
             found = False
@@ -339,7 +344,7 @@ def main():
     logging_setup()
     logging.getLogger(__name__).debug("Debug mode: on")
     intents = intent_setup()
-    bot = Geckarbot(command_prefix='!', intents=intents)
+    bot = Geckarbot(command_prefix='!', intents=intents, case_insensitive=True)
     injections.post_injections(bot)
     logging.info("Loading core plugins")
     failed_plugins = bot.load_plugins(bot.CORE_PLUGIN_DIR)
@@ -364,9 +369,12 @@ def main():
 
         await utils.write_debug_channel(f"Geckarbot {bot.VERSION} connected on "
                                         f"{guild.name} with {len(guild.members)} users.")
-        await utils.write_debug_channel(f"Loaded subsystems: {', '.join(bot.get_subsystem_list())}")
-        await utils.write_debug_channel(f"Loaded coreplugins: {', '.join(bot.get_coreplugins())}")
-        await utils.write_debug_channel(f"Loaded plugins: {', '.join(bot.get_normalplugins())}")
+        subsys = bot.get_subsystem_list()
+        await utils.write_debug_channel(f"Loaded {len(subsys)} subsystems: {', '.join(subsys)}")
+        core_p = bot.get_coreplugins()
+        await utils.write_debug_channel(f"Loaded {len(core_p)} coreplugins: {', '.join(core_p)}")
+        plugins = bot.get_normalplugins()
+        await utils.write_debug_channel(f"Loaded {len(plugins)} plugins: {', '.join(plugins)}")
         if len(failed_plugins) < 1:
             failed_plugins.append("None, all plugins loaded successfully!")
         await utils.write_debug_channel(f"Failed loading plugins: {', '.join(failed_plugins)}")

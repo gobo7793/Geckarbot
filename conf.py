@@ -99,6 +99,15 @@ class ConfigurableData:
                 if el is not None:
                     self._structures[container] = el
 
+    def structures(self):
+        return self._structures.keys()
+
+    def has_structure(self, container=None):
+        if container in self._structures:
+            return True
+        else:
+            return False
+
     def get(self, container=None):
         if container in self._structures:
             return self._structures[container]

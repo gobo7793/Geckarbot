@@ -3,15 +3,17 @@ from typing import Union, List, Dict
 
 import discord
 from discord.ext import commands
+from discord.ext.commands import TextChannelConverter, ChannelNotFound, RoleConverter, RoleNotFound
 
 import botutils.timeutils
 from base import BasePlugin, NotFound
 from botutils import stringutils, permchecks
 from botutils.converters import get_best_username, get_best_user
+from botutils.stringutils import paginate
 from botutils.utils import add_reaction
 from conf import Config, Storage, Lang
 from plugins.fantasy.league import FantasyLeague, deserialize_league, create_league
-from plugins.fantasy.utils import pos_alphabet, FantasyState, Platform, log, PlatformNotSupportedData
+from plugins.fantasy.utils import pos_alphabet, FantasyState, Platform, log, Match
 from subsystems import timers
 from subsystems.help import DefaultCategories
 
@@ -44,7 +46,7 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
 
     def default_config(self):
         return {
-            "version": 6,
+            "version": 7,
             "channel_id": 0,
             "mod_role_id": 0,
             "espn": {
@@ -59,6 +61,10 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
                 "url_base_scoreboard": "https://sleeper.app/leagues/{}/standings",
                 "url_base_standings": "https://sleeper.app/leagues/{}/standings",
                 "url_base_boxscore": "https://sleeper.app/leagues/{}/standings"
+            },
+            "espn_credentials": {
+                "swid": "",
+                "espn_s2": ""
             }
         }
 
@@ -74,11 +80,7 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
                 "end": datetime.now() + timedelta(days=16 * 7),
                 "timers": False,
                 "def_league": -1,
-                "leagues": [],
-                "espn_credentials": {
-                    "swid": "",
-                    "espn_s2": ""
-                }
+                "leagues": []
             }
         return {}
 
@@ -121,6 +123,8 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
             self._update_config_from_4_to_5()
         if Config.get(self)["version"] == 5:
             self._update_config_from_5_to_6()
+        if Config.get(self)["version"] == 6:
+            self._update_config_from_6_to_7()
 
         self.supercommish = get_best_user(Storage.get(self)["supercommish"])
         self.state = Storage.get(self)["state"]
@@ -146,25 +150,36 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
             "end": self.end_date,
             "timers": self.use_timers,
             "def_league": self.default_league,
-            "leagues": {k: self.leagues[k].serialize() for k in self.leagues},
-            "espn_credentials": {
-                "swid": Storage.get(self)["espn_credentials"]["swid"],
-                "espn_s2": Storage.get(self)["espn_credentials"]["espn_s2"]
-            }
+            "leagues": {k: self.leagues[k].serialize() for k in self.leagues}
         }
         Storage.set(self, storage_d)
         Storage.save(self)
         Config.save(self)
 
+    def _update_config_from_6_to_7(self):
+        log.info("Migrating config from version 6 to version 7")
+
+        Config.get(self)["espn_credentials"] = {
+            "swid": Storage.get(self)["espn_credentials"]["swid"],
+            "espn_s2": Storage.get(self)["espn_credentials"]["espn_s2"]
+        }
+        del (Storage.get(self)["espn_credentials"])
+
+        Config.get(self)["version"] = 7
+        Storage.save(self)
+        Config.save(self)
+
+        log.info("Update finished")
+
     def _update_config_from_5_to_6(self):
-        log.info("Updating config from version 5 to version 6")
+        log.info("Migrating config from version 5 to version 6")
 
         leagues_data = Storage.get(self)["leagues"]
         Storage.get(self)["leagues"] = {k: v for k, v in enumerate(leagues_data)}
         def_data = Storage.get(self)["def_league"]
         for k in Storage.get(self)["leagues"]:
             league = Storage.get(self)["leagues"][k]
-            if league["league_id"] == def_data[0] and league["platform"] == def_data[1]:
+            if def_data and league["league_id"] == def_data[0] and league["platform"] == def_data[1]:
                 Storage.get(self)["def_league"] = k
                 break
         else:
@@ -177,7 +192,7 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
         log.info("Update finished")
 
     def _update_config_from_4_to_5(self):
-        log.info("Updating config from version 4 to version 5")
+        log.info("Migrating config from version 4 to version 5")
 
         Storage.get(self)["def_league"] = []
 
@@ -188,7 +203,7 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
         log.info("Update finished")
 
     def _update_config_from_3_to_4(self):
-        log.info("Updating config from version 3 to version 4")
+        log.info("Migrating config from version 3 to version 4")
 
         for league in Storage.get(self)["leagues"]:
             league['platform'] = Platform.ESPN
@@ -212,7 +227,7 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
         log.info("Update finished")
 
     def _update_config_from_2_to_3(self):
-        log.info("Updating config from version 2 to version 3")
+        log.info("Migrating config from version 2 to version 3")
 
         Config.get(self)["url_base_boxscore"] = self.default_config()["espn"]["url_base_boxscore"]
         Config.get(self)["version"] = 3
@@ -302,16 +317,40 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
         week = 0
         team_name = None
         league_name = None
+
+        # handle if week isn't first arg
+        if len(args) > 1:
+            try:
+                week = int(args[0])
+                week_first = True
+            except ValueError:
+                week_first = False
+
+            week_not_first = False
+            for arg in args[1:]:
+                try:
+                    int(arg)
+                    week_not_first = True
+                    break
+                except ValueError:
+                    week_not_first = False
+            if not week_first and week_not_first:
+                await add_reaction(ctx.message, Lang.CMDERROR)
+                await ctx.channel.send(Lang.lang(self, "week_must_first"))
+                return
+
+        # league name
         for k in self.leagues:
             try:
                 if args[-1].lower() == "all":
                     league_name = "all"
-                if args[-1].lower() in self.leagues[k].name.lower():
+                elif args[-1].lower() in self.leagues[k].name.lower():
                     league_name = self.leagues[k].name
                     break
             except IndexError:
                 break
 
+        # week and team name
         try:
             week = int(args[0])
             if len(args) > 1:
@@ -352,7 +391,7 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
 
             if not results:
                 for k in self.leagues:
-                    if league_name.lower() != "all" and \
+                    if league_name is not None and league_name.lower() != "all" and \
                             (k == self.default_league or
                              (league_name is not None and league_name
                               and league_name.lower() != self.leagues[k].name.lower())):
@@ -371,13 +410,12 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
         for result in results:
             if isinstance(result, discord.Embed):
                 await channel.send(embed=result)
-            if isinstance(result, PlatformNotSupportedData):
-                await channel.send(Lang.lang(self, "no_boxscore_data",
-                                             result.team_name, result.platform, result.boxscore_url))
+            if isinstance(result, str):
+                await channel.send(result)
 
     def _write_scores_league_perform(self, league: FantasyLeague, week: int,
                                      previous_week: bool, team_name: str = None) \
-            -> Union[discord.Embed, None, PlatformNotSupportedData]:
+            -> Union[discord.Embed, str, None]:
         """
         Decides which league data should be outputed, league scores or boxscores for given team_name
 
@@ -393,17 +431,39 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
         if lweek < 1:
             lweek = 1
 
+        # full league score
         if team_name is None or not team_name:
             return self._get_league_score_embed(league, lweek)
 
+        # boxscore of both teams
+        if len(team_name) > 1 and team_name.startswith("#"):
+            match_id = -1
+            try:
+                match_id = int(team_name[1:]) - 1
+            except (IndexError, ValueError):
+                return Lang.lang(self, "wrong_match_id")
+
+            match = next(iter(league.get_boxscores(lweek, match_id)), None)
+            if match is None:
+                return Lang.lang(self, "wrong_match_id")
+            embed_away = self._get_boxscore_embed(league, lweek, team=match.away_team, match=match)
+            embed_home = self._get_boxscore_embed(league, lweek, team=match.home_team, match=match)
+            full_embed = discord.Embed(title=Lang.lang(self, "match_boxscore", match_id + 1, league.name, lweek),
+                                       url=embed_away.url)
+            full_embed.add_field(name=match.away_team.team_name, value=embed_away.description, inline=False)
+            full_embed.add_field(name=match.home_team.team_name, value=embed_home.description, inline=False)
+            return full_embed
+
+        # single team boxscore
         team = next((t for t in league.get_teams()
                      if team_name.lower() in t.team_name.lower()
                      or t.team_abbrev.lower() == team_name.lower()), None)
         if team is None:
             return
         if league.platform == Platform.Sleeper:
-            return PlatformNotSupportedData(team.team_name, "Sleeper", league.get_boxscore_url(week, team.team_id))
-        return self._get_boxscore_embed(league, team, lweek)
+            return Lang.lang(self, "no_boxscore_data", team.team_name, league.platform,
+                             league.get_boxscore_url(week, team.team_id))
+        return self._get_boxscore_embed(league, lweek, team=team)
 
     def _get_league_score_embed(self, league: FantasyLeague, week: int):
         """Builds the discord.Embed for scoring overview in league with all matches"""
@@ -434,16 +494,20 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
 
         return embed
 
-    def _get_boxscore_embed(self, league: FantasyLeague, team, week: int):
+    def _get_boxscore_embed(self, league: FantasyLeague, week: int, team=None, match: Match = None):
         """Builds the discord.Embed for the boxscore for given team in given week"""
-        match = next((b for b in league.get_boxscores(week)
-                      if (b.home_team is not None and b.home_team.team_name.lower() == team.team_name.lower())
-                      or (b.away_team is not None and b.away_team.team_name.lower() == team.team_name.lower())), None)
+        if match is None:
+            # first search match based on team name if match isn't given before aborting
+            match = next((b for b in league.get_boxscores(week)
+                          if (b.home_team is not None and b.home_team.team_name.lower() == team.team_name.lower())
+                          or (b.away_team is not None and b.away_team.team_name.lower() == team.team_name.lower())),
+                         None)
         if match is None:
             return
 
         opp_name = None
         opp_score = None
+        opp_lineup = None
         if match.home_team == team:
             score = match.home_score
             lineup = match.home_lineup
@@ -451,12 +515,14 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
             if match.away_team is not None:
                 opp_name = match.away_team.team_name
                 opp_score = match.away_score
+                opp_lineup = match.away_lineup
         else:
             score = match.away_score
             lineup = match.away_lineup
             if match.home_team is not None:
                 opp_name = match.home_team.team_name
                 opp_score = match.home_score
+                opp_lineup = match.home_lineup
 
         lineup = sorted(lineup, key=lambda word: [pos_alphabet.get(c, ord(c)) for c in word.slot_position])
 
@@ -467,16 +533,22 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
         proj = 0.0
         for pl in lineup:
             if pl.slot_position.lower() != "BE".lower():
+                points = str(pl.points)
+                if isinstance(pl.points, int):
+                    points = "-"
                 msg = "{}{}\n".format(msg, Lang.lang(self, "box_data", pl.slot_position, pl.name,
-                                                     pl.proTeam, pl.projected_points, pl.points))
+                                                     pl.proTeam, pl.projected_points, points))
                 proj += pl.projected_points
-        msg = "{}\n{} {}".format(msg, Lang.lang(self, "box_suffix", score), Lang.lang(self, "box_proj_suffix", proj))
+        msg = "{}\n{}".format(msg, Lang.lang(self, "box_suffix", score, proj))
 
         embed.description = msg
         if opp_name is None:
             embed.set_footer(text=Lang.lang(self, "box_footer_bye"))
         else:
-            embed.set_footer(text=Lang.lang(self, "box_footer", opp_name, opp_score))
+            opp_proj = 0.0
+            for pl in opp_lineup:
+                opp_proj += pl.projected_points
+            embed.set_footer(text=Lang.lang(self, "box_footer", opp_name, opp_score, opp_proj))
         return embed
 
     @fantasy.command(name="standings", aliases=["standing"])
@@ -682,15 +754,20 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
 
     @fantasy_set.command(name="credentials")
     async def set_api_credentials(self, ctx, swid, espn_s2):
-        Storage.get(self)["espn_credentials"]["swid"] = swid
-        Storage.get(self)["espn_credentials"]["espn_s2"] = espn_s2
+        Config.get(self)["espn_credentials"]["swid"] = swid
+        Config.get(self)["espn_credentials"]["espn_s2"] = espn_s2
         self.save()
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
     @fantasy_set.command(name="config", help="Gets or sets general config values for the plugin")
     async def set_config(self, ctx, key="", value=""):
         if not key and not value:
-            await ctx.invoke(self.bot.get_command("configdump"), self.get_name())
+            msg = []
+            for key in Config.get(self):
+                if key != "espn_credentials":
+                    msg.append("{}: {}".format(key, Config.get(self)[key]))
+            for msg in paginate(msg, msg_prefix="```", msg_suffix="```"):
+                await ctx.send(msg)
             return
 
         if key and not value:
@@ -704,34 +781,30 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
             return
 
         if key == "channel_id":
-            channel = None
-            int_value = Config.get(self)['channel_id']
             try:
-                int_value = int(value)
-                channel = self.bot.guild.get_channel(int_value)
-            except ValueError:
-                pass
+                channel = await TextChannelConverter().convert(ctx, value)
+            except ChannelNotFound:
+                channel = None
+
             if channel is None:
                 Lang.lang(self, 'channel_id')
                 await add_reaction(ctx.message, Lang.CMDERROR)
                 return
             else:
-                Config.get(self)[key] = int_value
+                Config.get(self)[key] = channel.id
 
         elif key == "mod_role_id":
-            role = None
-            int_value = Config.get(self)['mod_role_id']
             try:
-                int_value = int(value)
-                role = self.bot.guild.get_role(int_value)
-            except ValueError:
-                pass
+                role = await RoleConverter().convert(ctx, value)
+            except RoleNotFound:
+                role = None
+
             if role is None:
                 Lang.lang(self, 'mod_role_id')
                 await add_reaction(ctx.message, Lang.CMDERROR)
                 return
             else:
-                Config.get(self)[key] = int_value
+                Config.get(self)[key] = role.id
 
         elif key == "version":
             await add_reaction(ctx.message, Lang.CMDERROR)

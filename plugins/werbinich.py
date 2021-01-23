@@ -6,16 +6,14 @@ from datetime import datetime
 import discord
 from discord.ext import commands
 from discord.http import HTTPException
+from discord.errors import Forbidden
 
 from base import BasePlugin, NotFound
-from conf import Lang
-from botutils import utils, statemachine, stringutils, converters
+from botutils.stringutils import format_andlist
+from conf import Lang, Config
+from botutils import utils, statemachine, stringutils
 from botutils.converters import get_best_username as gbu
 from subsystems import help, presence
-
-jsonify = {
-    "register_timeout": 1,
-}
 
 h_help = "Wer bin ich?"
 h_description = "Startet ein Wer bin ich?. Nach einer Registrierungsphase ordne ich jedem Spieler einen zufälligen " \
@@ -115,7 +113,6 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
         super().__init__(bot)
         bot.register(self, help.DefaultCategories.GAMES)
         self.logger = logging.getLogger(__name__)
-        self.config = jsonify
 
         self.channel = None
         self.initiator = None
@@ -126,12 +123,24 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
         self.eval_event = None
         self.reg_ts = None
 
+        self.base_config = {
+            "register_timeout": [int, 1],
+        }
+
+        self.eval_event = None
+        self.reg_start_time = None
         self.statemachine = statemachine.StateMachine(init_state=State.IDLE)
         self.statemachine.add_state(State.IDLE, None)
         self.statemachine.add_state(State.REGISTER, self.registering_phase, start=True)
         self.statemachine.add_state(State.COLLECT, self.collecting_phase, allowed_sources=[State.REGISTER])
         self.statemachine.add_state(State.DELIVER, self.delivering_phase, allowed_sources=[State.COLLECT])
         self.statemachine.add_state(State.ABORT, self.abort)
+
+    def get_config(self, key):
+        return Config.get(self).get(key, self.base_config[key][1])
+
+    def default_config(self):
+        return {}
 
     def command_help_string(self, command):
         return Lang.lang(self, "help_{}".format(command.name))
@@ -191,7 +200,7 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
             await ctx.send(msg)
             return
         elif self.statemachine.state == State.REGISTER:
-            sec = self.config["register_timeout"] * 60 - int((datetime.now() - self.reg_ts).total_seconds())
+            sec = self.get_config("register_timeout") * 60 - int((datetime.now() - self.reg_ts).total_seconds())
             await ctx.send(Lang.lang(self, "status_registering", sec))
             return
         elif self.statemachine.state == State.DELIVER:
@@ -288,7 +297,7 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
         self.presence_messsage = self.bot.presence.register(Lang.lang(self, "presence", self.channel.name),
                                                             priority=presence.PresencePriority.HIGH)
         reaction = Lang.lang(self, "reaction_signup")
-        to = self.config["register_timeout"]
+        to = self.get_config("register_timeout")
         self.reg_ts = datetime.now()
         msg = Lang.lang(self, "registering", reaction, to,
                         stringutils.sg_pl(to, Lang.lang(self, "minute_sg"), Lang.lang(self, "minute_pl")))
@@ -301,6 +310,7 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
             await self.channel.send("PANIC")
             return State.ABORT
 
+        self.reg_start_time = datetime.now()
         await asyncio.sleep(to * 60)
         if self.statemachine.cancelled():
             return
@@ -329,7 +339,7 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
 
         if blocked:
             blocked = stringutils.format_andlist(blocked, ands=Lang.lang(self, "and"))
-            await self.channel.send(Lang.lang(self, "dmblocked", blocked))
+            await self.channel.send(Lang.lang(self, "dm_blocked", blocked))
             return State.ABORT
 
         for el in candidates:
@@ -349,7 +359,7 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
     async def collecting_phase(self):
         assert len(self.participants) > 1
 
-        msg = [gbu(el.user) for el in self.participants]
+        msg = sorted([gbu(el.user) for el in self.participants], key=str.casefold)
         msg = stringutils.format_andlist(msg, ands=Lang.lang(self, "and"))
         msg = Lang.lang(self, "list_participants", msg)
 
@@ -358,11 +368,28 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
         for i in range(len(self.participants)):
             self.participants[i].assign(shuffled[i])
 
-        self.participants = sorted(self.participants, key=gbu)
+        self.participants = sorted(self.participants, key=lambda x: gbu(x).lower())
 
         await self.channel.send(msg)
+        errors = []
         for el in self.participants:
-            await el.init_dm()
+            try:
+                await el.init_dm()
+            except Forbidden:
+                errors.append(el)
+
+        # check for DM forbidden errors and cancel if necessary
+        if errors:
+            msg = [gbu(el.user) for el in errors]
+            msg = Lang.lang(self, "blocked_by_user", format_andlist(msg, ands=Lang.lang(self, "and")))
+
+            # Notify participants
+            for el in self.participants:
+                if el in errors:
+                    continue
+                await el.send(msg)
+            await self.channel.send(msg)
+            return State.ABORT
 
         await self.eval_event.wait()
         if self.statemachine.cancelled():
@@ -407,5 +434,6 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
         self.presence_messsage.deregister()
         self.eval_event = None
         self.initiator = None
+        self.reg_start_time = None
         self.show_assignees = True
         self.reg_ts = None

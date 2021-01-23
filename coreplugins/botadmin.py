@@ -10,6 +10,7 @@ from botutils import converters
 from botutils.permchecks import is_botadmin
 from botutils.stringutils import paginate
 from botutils.converters import get_best_username as gbu
+from botutils.utils import add_reaction
 from conf import Storage, Config, Lang
 from subsystems import help
 
@@ -26,86 +27,83 @@ class Plugin(BasePlugin, name="Bot status commands for monitoring and debug purp
     @commands.command(name="subsys", help="Shows registrations on subsystems")
     @commands.has_any_role(Config().BOT_ADMIN_ROLE_ID)
     async def subsys(self, ctx):
+        reaction_prefix = "**{} Reactions registrations:**\n".format(len(self.bot.reaction_listener.callbacks))
         for msg in paginate(self.bot.reaction_listener.callbacks,
-                            prefix="**Reactions registrations:**\n",
+                            prefix=reaction_prefix,
                             suffix="\n",
                             if_empty="None"):
             await ctx.send(msg)
 
         timer_status = "up" if self.bot.timers.is_alive() else "down"
+        timer_prefix = "**{} Timers: Thread is {}; registrations:**\n".format(len(self.bot.timers.jobs), timer_status)
         for msg in paginate(self.bot.timers.jobs,
-                            prefix="**Timers: Thread is {}; registrations:**\n".format(timer_status),
+                            prefix=timer_prefix,
                             suffix="\n",
                             if_empty="None"):
             await ctx.send(msg)
-            
+
         dmregs = self.bot.dm_listener.registrations
         if not dmregs:
             dmregs = {0: "None"}
+        dm_prefix = "**{} DM Listeners:**\n".format(len(self.bot.dm_listener.registrations))
         for msg in paginate([x for x in dmregs.keys()],
-                            prefix="**DM Listeners:**\n",
+                            prefix=dm_prefix,
                             suffix="\n",
                             f=lambda x: dmregs[x]):
             await ctx.send(msg)
 
         presence_timer_status = "up" if self.bot.presence.is_timer_up else "down"
+        presence_prefix = "**{} Presence entries, Timer is {}:**\n".format(len(self.bot.presence.messages),
+                                                                           presence_timer_status)
         for msg in paginate(list(self.bot.presence.messages.values()),
-                            prefix="**Full presence entries, Timer is {}:**\n".format(presence_timer_status),
+                            prefix=presence_prefix,
                             suffix="\n",
                             if_empty="None"):
             await ctx.send(msg)
+
+        ignoring_prefix = "**{} Ignoring entries:**\n".format(self.bot.ignoring.get_full_ignore_len())
         for msg in paginate(list(self.bot.ignoring.get_full_ignore_list()),
-                            prefix="**Ignoring entries:**\n",
+                            prefix=ignoring_prefix,
                             suffix="\n",
                             if_empty="None"):
             await ctx.send(msg)
 
-        liveticker_list = []
-        for leag in self.bot.liveticker.registrations.values():
-            liveticker_list.append(leag)
-            liveticker_list.extend("- {}".format(str(lt_reg)) for lt_reg in leag.registrations)
-        for msg in paginate(liveticker_list,
-                            prefix="**Liveticker Registrations:**\n",
-                            suffix="\n",
-                            if_empty="None"):
+        for msg in self.liveticker_msgs():
             await ctx.send(msg)
 
-    @commands.command(name="storagedump", help="Dumps plugin storage", usage="<plugin name>")
-    @commands.has_any_role(Config().BOT_ADMIN_ROLE_ID)
-    async def storagedump(self, ctx, name):
+    @staticmethod
+    async def dump(ctx, iodir, iodir_str, name, container=None):
         plugin = converters.get_plugin_by_name(name)
         if plugin is None:
             await ctx.message.add_reaction(Lang.CMDERROR)
             await ctx.send("Plugin {} not found.".format(name))
             return
         await ctx.message.add_reaction(Lang.CMDSUCCESS)
-
-        dump = pprint.pformat(Storage.get(plugin), indent=4).split("\n")
         prefix = ""
-        if not Storage.has_structure(plugin):
-            prefix = "**Warning: plugin {} does not have a storage structure.** " \
-                     "This is the default storage.".format(name)
-        for el in paginate(dump, prefix=prefix, msg_prefix="```", msg_suffix="```"):
+
+        # List existing structures when called on default container
+        if container is None:
+            containers = ", ".join(["`{}`".format(el) for el in iodir.data(plugin).structures() if el is not None])
+            if containers:
+                prefix += "Available containers: {}\n".format(containers)
+
+        dump = pprint.pformat(iodir.get(plugin, container=container), indent=4).split("\n")
+        if not iodir.data(plugin).has_structure(container):
+            prefix += "**Warning: plugin {} does not have the {} structure {}.** " \
+                      "This is the default {}.".format(name, iodir_str, container, iodir_str)
+        for el in paginate(dump, prefix=prefix, msg_prefix="```", msg_suffix="```", prefix_within_msg_prefix=False):
             await ctx.send(el)
 
-    @commands.command(name="configdump", help="Dumps plugin config", usage="<plugin name>")
+    @commands.command(name="storagedump", help="Dumps plugin storage", usage="<plugin name> [container]")
     @commands.has_any_role(Config().BOT_ADMIN_ROLE_ID)
-    # NOTE: Is called by "!dsc set config" and "!fantasy set config"
-    async def configdump(self, ctx, name):
-        plugin = converters.get_plugin_by_name(name)
-        if plugin is None:
-            await ctx.message.add_reaction(Lang.CMDERROR)
-            await ctx.send("Plugin {} not found.".format(name))
-            return
-        await ctx.message.add_reaction(Lang.CMDSUCCESS)
+    async def storagedump(self, ctx, name, container=None):
+        await self.dump(ctx, Storage, "storage", name, container=container)
 
-        dump = pprint.pformat(Config.get(plugin), indent=4).split("\n")
-        prefix = ""
-        if not Config.has_structure(plugin):
-            prefix = "**Warning: plugin {} does not have a config structure.** " \
-                     "This is the default config.".format(name)
-        for el in paginate(dump, prefix=prefix, msg_prefix="```", msg_suffix="```"):
-            await ctx.send(el)
+    # Disabled for security reasons, we have API keys, passwords etc in these files
+    # @commands.command(name="configdump", help="Dumps plugin config", usage="<plugin name> [container]")
+    # @commands.has_any_role(Config().BOT_ADMIN_ROLE_ID)
+    async def configdump(self, ctx, name, container=None):
+        await self.dump(ctx, Config, "config", name, container=container)
 
     @commands.command(name="date", help="Current date and time")
     async def date(self, ctx):
@@ -133,6 +131,26 @@ class Plugin(BasePlugin, name="Bot status commands for monitoring and debug purp
         else:
             self.bot.set_debug_mode(toggle)
             await ctx.message.add_reaction(Lang.CMDSUCCESS)
+
+    @commands.command(name="livetickerlist", help="Debug info for liveticker")
+    @commands.has_any_role(Config().BOT_ADMIN_ROLE_ID)
+    async def liveticker_list(self, ctx):
+        for msg in self.liveticker_msgs():
+            await ctx.send(msg)
+
+    def liveticker_msgs(self):
+        liveticker_list = []
+        for leag in self.bot.liveticker.registrations.values():
+            liveticker_list.append("\u2b1c {}".format(str(leag)))
+            liveticker_list.extend("\u25ab {}".format(str(lt_reg)) for lt_reg in leag.registrations)
+        return paginate(liveticker_list, prefix="**Liveticker Registrations:**\n", suffix="\n", if_empty="None")
+
+    @commands.command(name="livetickerkill", help="Kills all liveticker registrations")
+    @commands.has_any_role(Config().BOT_ADMIN_ROLE_ID)
+    async def liveticker_kill(self, ctx):
+        for reg in list(self.bot.liveticker.registrations.values()):
+            reg.deregister()
+        await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
     @commands.command(name="dmreg")
     async def cmd_listdmreg(self, ctx, user: Union[discord.Member, discord.User, None] = None):
