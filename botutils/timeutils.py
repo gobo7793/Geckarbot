@@ -50,36 +50,31 @@ def parse_time_input(*args, end_of_day=False):
     fill_time = time.max if end_of_day else datetime.now().time()
     arg = unpack_tuple(args).replace(" ", "")
 
-    try:  # duration: #|#m|#h|#d
+    try:
+        # duration: #|#m|#h|#d (possible with . and , as comma separator)
+        if "," in arg:
+            arg = arg.replace(",", ".")
+
         if arg.endswith("m"):
-            return datetime.now() + timedelta(minutes=int(arg[:-1]))
+            return datetime.now() + timedelta(minutes=float(arg[:-1]))
         elif arg.endswith("h"):
-            return datetime.now() + timedelta(hours=int(arg[:-1]))
+            return datetime.now() + timedelta(hours=float(arg[:-1]))
         elif arg.endswith("d"):
-            return datetime.now() + timedelta(days=int(arg[:-1]))
+            return datetime.now() + timedelta(days=float(arg[:-1]))
         else:
-            return datetime.now() + timedelta(minutes=int(arg))
+            return datetime.now() + timedelta(minutes=float(arg))
     except ValueError:
-        try:  # date: DD.MM.YYYY
-            parsed = datetime.strptime(arg, "%d.%m.%Y")
-            return datetime.combine(parsed.date(), fill_time)
-        except ValueError:
-            try:  # full datetime: DD.MM.YYYY HH:MM
-                return datetime.strptime(arg, "%d.%m.%Y%H:%M")
+        # the other possible formats
+        for dt_format in ["%d.%m.%Y", "%d.%m.%Y%H:%M", "%d.%m.", "%d.%m.%H:%M", "%H:%M"]:
+            try:
+                parsed = datetime.strptime(arg, dt_format)
+                return datetime(parsed.year if '%Y' in dt_format else today.year,
+                                parsed.month if '%m' in dt_format else today.month,
+                                parsed.day if '%d' in dt_format else today.day,
+                                parsed.hour if '%H' in dt_format else fill_time.hour,
+                                parsed.minute if '%M' in dt_format else fill_time.minute)
             except ValueError:
-                try:  # date: DD.MM
-                    parsed = datetime.strptime(arg, "%d.%m.")
-                    return datetime(today.year, parsed.month, parsed.day, fill_time.hour, fill_time.minute)
-                except ValueError:
-                    try:  # datetime w/o year: DD.MM. HH:MM
-                        parsed = datetime.strptime(arg, "%d.%m.%H:%M")
-                        return datetime(today.year, parsed.month, parsed.day, parsed.hour, parsed.minute)
-                    except ValueError:
-                        try:  # time: HH:MM
-                            parsed = datetime.strptime(arg, "%H:%M")
-                            return datetime.combine(today, parsed.time())
-                        except ValueError:
-                            pass
+                pass
 
     # No valid time input
     return datetime.max
@@ -135,7 +130,7 @@ def hr_roughly(timestamp: datetime, now: datetime = None,
     if delta.days >= 1 and days is not None:
         return fstring.format(delta.days, sg_pl(delta.days, days_sg, days))
 
-    amount = delta.seconds // (60*60)
+    amount = delta.seconds // (60 * 60)
     if amount > 0 and hours is not None:
         return fstring.format(amount, sg_pl(amount, hours_sg, hours))
 

@@ -13,6 +13,7 @@ from base import BasePlugin, NotFound
 from subsystems import timers, help
 from botutils.converters import get_best_username
 
+log = logging.getLogger("misc")
 keysmash_cmd_name = "keysmash"
 
 
@@ -214,7 +215,7 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
         reminder_id = self.get_new_reminder_id()
 
         if remind_time < datetime.now():
-            logging.debug("Attempted reminder {} in the past: {}".format(reminder_id, remind_time))
+            log.debug("Attempted reminder {} in the past: {}".format(reminder_id, remind_time))
             await ctx.send(Lang.lang(self, 'remind_past'))
             return
 
@@ -283,10 +284,10 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
         :returns: True if reminder is registered, otherwise False
         """
         if remind_time < datetime.now():
-            logging.debug("Attempted reminder {} in the past: {}".format(reminder_id, remind_time))
+            log.debug("Attempted reminder {} in the past: {}".format(reminder_id, remind_time))
             return False
 
-        logging.info("Adding reminder {} for user with id {} at {}: {}".format(reminder_id, user_id,
+        log.info("Adding reminder {} for user with id {} at {}: {}".format(reminder_id, user_id,
                                                                                remind_time, text))
 
         job_data = {'chan': channel_id, 'user': user_id, 'time': remind_time, 'text': text, 'id': reminder_id}
@@ -326,7 +327,7 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
         if reminder_id in Storage().get(self)['reminders']:
             del (Storage().get(self)['reminders'][reminder_id])
         Storage().save(self)
-        logging.info("Reminder {} removed".format(reminder_id))
+        log.info("Reminder {} removed".format(reminder_id))
 
     async def _reminder_callback(self, job):
         channel = self.bot.get_channel(job.data['chan'])
@@ -338,5 +339,5 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
         else:
             remind_text = Lang.lang(self, 'remind_callback_no_msg', user.mention)
         await channel.send(remind_text)
-        logging.info("Executed reminder {}".format(rid))
+        log.info("Executed reminder {}".format(rid))
         self._remove_reminder(rid)
