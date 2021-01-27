@@ -1,17 +1,17 @@
 # Geckarbot
 A simple discord bot for the Communityserver
 
-Note that the releases are accessible using the Tags, Github Releases or the Release branch.
+Note that the releases are accessible using the Tags, Github Releases or the Release branch!
 
-### Requirements from server administration
-- Blacklist and unsubscribing from bot games participation
+### Requirements from Communityserver server administration
+- Ignorelist and unsubscribing from bot games participation
 - No (execution of) special rights which aren't wanted by administration or users
 - Administration stuff must be logged directly on admin channel
 - Administration stuff only executable by administration
 
 ### Current Features
 Some of the current Geckarbot features includes:
-- Plugin API and Config API to add and manage feature plugins and its configuration
+- Plugin API and Data API to add and manage feature plugins and its configuration
 - Subsystems for common used features like reaction and timer listeners
 - Ignore list to block users, commands or commands for specific users
 - Role management including self-assignable roles via reactions
@@ -22,7 +22,7 @@ Some of the current Geckarbot features includes:
 See full command list with `!help` or in [the wiki](https://github.com/gobo7793/Geckarbot/wiki/Commands).
 
 ### For devs:
-The bot requires a json file for its system configuration stored as `config/geckarbot.json`. See [the wiki](https://github.com/gobo7793/Geckarbot/wiki/Plugin-and-Data-API#bot-system-configuration) for full information about.
+The bot requires a json file for its system configuration stored as `config/geckarbot.json`. See [the wiki](https://github.com/gobo7793/Geckarbot/wiki/Bot Configuration) for full information about.
 
 Required pip packages:
 - discord.py 
@@ -43,5 +43,5 @@ To start the bot, you need an own Discord server and Discord application with a 
 6. Open the URL and add the Bot to a Server (you need Manage Server permissions for this)
 
 To start the bot:
-- Easy and full start: `./runscript.sh`
-- For devs: `python3 Geckarbot.py`
+- Automatic start incl. installing pip packages: `./runscript.sh`
+- Manually start the bot itself (`!restart` won't work): `python3 Geckarbot.py`
