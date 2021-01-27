@@ -38,7 +38,7 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
             self._remove_reminder(el)
 
         # Add commands to help category 'utils'
-        to_add = ("dice", "choose", "remindme")
+        to_add = ("dice", "choose", "remindme", "multichoose")
         for cmd in self.get_commands():
             if cmd.name in to_add:
                 self.bot.helpsys.default_category(help.DefaultCategories.UTILS).add_command(cmd)
