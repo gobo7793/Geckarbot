@@ -19,10 +19,10 @@ Some of the current Geckarbot features includes:
 - Manage data for server events
 - Some games like a kwiss or number guessing
 
-See full command list with `!help` or in [the wiki](https://github.com/gobo7793/Geckarbot/wiki/Commands).
+See full command list with `!help`.
 
 ### For devs:
-The bot requires a json file for its system configuration stored as `config/geckarbot.json`. See [the wiki](https://github.com/gobo7793/Geckarbot/wiki/Bot Configuration) for full information about.
+The bot requires a json file for its system configuration stored as `config/geckarbot.json`. See [the wiki](https://github.com/gobo7793/Geckarbot/wiki/Bot-Configuration) for full information about.
 
 Required pip packages:
 - discord.py 
