@@ -59,6 +59,7 @@ class Geckarbot(commands.Bot):
     DEBUG_USERS = None
     GOOGLE_API_KEY = None
     LANGUAGE_CODE = None
+    PLUGINS = None
 
     ADMIN_CHAN_ID = None
     DEBUG_CHAN_ID = None
@@ -68,6 +69,8 @@ class Geckarbot(commands.Bot):
     MOD_ROLE_ID = None
     ADMIN_ROLES = None
     MOD_ROLES = None
+    LOAD_PLUGINS = None
+    NOT_LOAD_PLUGINS = None
 
     def __init__(self, *args, **kwargs):
         logging.info("Starting {} {}".format(self.NAME, self.VERSION))
@@ -103,6 +106,7 @@ class Geckarbot(commands.Bot):
         self.DEBUG_USERS = cfg.get('DEBUG_USERS', cfg.get('DEBUG_WHITELIST', []))
         self.GOOGLE_API_KEY = cfg.get('GOOGLE_API_KEY', "")
         self.LANGUAGE_CODE = cfg.get('LANG', self.DEFAULT_LANG)
+        self.PLUGINS = cfg.get('PLUGINS', {})
 
         self.ADMIN_CHAN_ID = self.CHAN_IDS.get('admin', 0)
         self.DEBUG_CHAN_ID = self.CHAN_IDS.get('debug', self.CHAN_IDS.get('bot-interna', 0))
@@ -112,6 +116,8 @@ class Geckarbot(commands.Bot):
         self.MOD_ROLE_ID = self.ROLE_IDS.get('mod', 0)
         self.ADMIN_ROLES = [self.BOT_ADMIN_ROLE_ID, self.SERVER_ADMIN_ROLE_ID]
         self.MOD_ROLES = [self.BOT_ADMIN_ROLE_ID, self.SERVER_ADMIN_ROLE_ID, self.MOD_ROLE_ID]
+        self.LOAD_PLUGINS = self.PLUGINS.get('load', [])
+        self.NOT_LOAD_PLUGINS = self.PLUGINS.get('not_load', [])
 
     def get_default(self, container=None):
         raise RuntimeError("Config file missing")
@@ -123,20 +129,25 @@ class Geckarbot(commands.Bot):
 
     def get_coreplugins(self) -> List[str]:
         """All coreplugins"""
-        return [c.get_name()
-                for c in self._plugins if c.get_configurable_type() == ConfigurableType.COREPLUGIN]
+        return [c.get_name() for c in self._plugins
+                if c.get_configurable_type() == ConfigurableType.COREPLUGIN]
 
     def get_normalplugins(self) -> List[str]:
         """All normal plugins"""
-        return [c.get_name()
-                for c in self._plugins if c.get_configurable_type() == ConfigurableType.PLUGIN]
+        return [c.get_name() for c in self._plugins
+                if c.get_configurable_type() == ConfigurableType.PLUGIN]
 
-    def get_available_plugins(self) -> List[str]:
+    def get_all_available_plugins(self) -> List[str]:
         """Get all available normal plugins including loaded plugins"""
         avail = []
         for modname in pkgutil.iter_modules([self.PLUGIN_DIR]):
             avail.append(modname.name)
         return avail
+
+    def get_unloaded_plugins(self) -> List[str]:
+        """Get all available normal plugins including loaded plugins"""
+        return [x for x in self.get_all_available_plugins()
+                if x not in self.get_normalplugins()]
 
     @staticmethod
     def get_subsystem_list() -> List[str]:
@@ -208,11 +219,22 @@ class Geckarbot(commands.Bot):
 
     def load_plugins(self, plugin_dir):
         """
-        Loads all plugins in plugin_dir.
-        :return: Returns a list with the plugin names on which loading failed.
+        Loads all plugins in given plugin_dir with following conditions:
+            1. If LOAD_PLUGINS is empty: All available plugins will be loaded
+            2. If LOAD_PLUGINS is not empty: Only the plugins in this list will be loaded
+            3. From the plugins that should be loaded, the plugins listed in NOT_LOAD_PLUGINS won't be loaded
+        Plugins are indicated by their names. These conditions don't apply to core plugins in CORE_PLUGIN_DIR.
+
+        :return: Returns a list with the plugin names which should be loaded, but failed.
         """
         failed_list = []
         for el in pkgutil.iter_modules([plugin_dir]):
+            if plugin_dir != self.CORE_PLUGIN_DIR:
+                if self.LOAD_PLUGINS and el[1] not in self.LOAD_PLUGINS:
+                    continue
+                if el[1] in self.NOT_LOAD_PLUGINS:
+                    continue
+
             if not self.load_plugin(plugin_dir, el[1]):
                 failed_list.append(el[1])
         return failed_list
@@ -377,7 +399,9 @@ def main():
         await utils.write_debug_channel(f"Loaded {len(plugins)} plugins: {', '.join(plugins)}")
         if len(failed_plugins) < 1:
             failed_plugins.append("None, all plugins loaded successfully!")
-        await utils.write_debug_channel(f"Failed loading plugins: {', '.join(failed_plugins)}")
+        await utils.write_debug_channel(f"Failed loading {len(failed_plugins)} plugins: {', '.join(failed_plugins)}")
+        unloaded = bot.get_unloaded_plugins()
+        await utils.write_debug_channel(f"{len(unloaded)} additional plugins available: {', '.join(unloaded)}")
 
     if not bot.DEBUG_MODE:
         @bot.event
