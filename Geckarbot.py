@@ -397,11 +397,14 @@ def main():
         await utils.write_debug_channel(f"Loaded {len(core_p)} coreplugins: {', '.join(core_p)}")
         plugins = bot.get_normalplugins()
         await utils.write_debug_channel(f"Loaded {len(plugins)} plugins: {', '.join(plugins)}")
-        if len(failed_plugins) < 1:
-            failed_plugins.append("None, all plugins loaded successfully!")
-        await utils.write_debug_channel(f"Failed loading {len(failed_plugins)} plugins: {', '.join(failed_plugins)}")
+
+        if len(failed_plugins) > 0:
+            await utils.write_debug_channel("Failed loading {} plugins: {}".format(len(failed_plugins),
+                                                                                   ', '.join(failed_plugins)))
         unloaded = bot.get_unloaded_plugins()
-        await utils.write_debug_channel(f"{len(unloaded)} additional plugins available: {', '.join(unloaded)}")
+        if len(unloaded) > 0:
+            await utils.write_debug_channel("{} additional plugins available: {}".format(len(unloaded),
+                                                                                         ', '.join(unloaded)))
 
     if not bot.DEBUG_MODE:
         @bot.event
