@@ -106,12 +106,15 @@ class Plugin(BasePlugin, name="Sport"):
                         upcoming.append(match)
 
         def match_msg(m):
+            dt = datetime.strptime(m.get('MatchDateTime'), "%Y-%m-%dT%H:%M:%S")
+            weekday = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'][dt.weekday()]
+            time_ = dt.strftime("%H:%M")
             team_h = m.get('Team1', {}).get('TeamName')
             team_a = m.get('Team2', {}).get('TeamName')
             goals = m.get('Goals', [])
             goals_h = max(0, *(x.get('ScoreTeam1', 0) for x in goals)) if len(goals) else ("–" if m in upcoming else 0)
             goals_a = max(0, *(x.get('ScoreTeam2', 0) for x in goals)) if len(goals) else ("–" if m in upcoming else 0)
-            return "{} [{}:{}] {}".format(team_h, goals_h, goals_a, team_a)
+            return "{}. {} | {} [{}:{}] {}".format(weekday, time_, team_h, goals_h, goals_a, team_a)
 
         embed = discord.Embed(title=Lang.lang(self, 'soccer_title', league))
         running_msg = "\n".join(match_msg(m) for m in running)
