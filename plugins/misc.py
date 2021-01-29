@@ -6,14 +6,14 @@ import discord
 from discord.ext import commands
 
 import botutils.timeutils
-from botutils import restclient
+from botutils import restclient, utils
 from conf import Storage, Lang, Config
 
 from base import BasePlugin, NotFound
 from subsystems import timers, help
 from botutils.converters import get_best_username
 
-
+log = logging.getLogger("misc")
 keysmash_cmd_name = "keysmash"
 
 
@@ -31,14 +31,14 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
         reminders_to_remove = []
         for reminder_id in Storage().get(self)['reminders']:
             reminder = Storage().get(self)['reminders'][reminder_id]
-            if not self.register_reminder(reminder['chan'], reminder['user'], reminder['time'],
-                                          reminder_id, reminder['text'], True):
+            if not self._register_reminder(reminder['chan'], reminder['user'], reminder['time'],
+                                           reminder_id, reminder['text'], True):
                 reminders_to_remove.append(reminder_id)
         for el in reminders_to_remove:
-            self.remove_reminder(el)
+            self._remove_reminder(el)
 
         # Add commands to help category 'utils'
-        to_add = ("dice", "choose", "remindme")
+        to_add = ("dice", "choose", "remindme", "multichoose")
         for cmd in self.get_commands():
             if cmd.name in to_add:
                 self.bot.helpsys.default_category(help.DefaultCategories.UTILS).add_command(cmd)
@@ -50,21 +50,21 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
         if command.name == keysmash_cmd_name:
             return _create_keysmash()
 
-        langstr = Lang.lang_no_failsafe(self, "help_{}".format(command.name))
+        langstr = Lang.lang_no_failsafe(self, "help_{}".format(command.qualified_name.replace(" ", "_")))
         if langstr is not None:
             return langstr
         else:
             raise NotFound()
 
     def command_description(self, command):
-        langstr = Lang.lang_no_failsafe(self, "help_desc_{}".format(command.name))
+        langstr = Lang.lang_no_failsafe(self, "help_desc_{}".format(command.qualified_name.replace(" ", "_")))
         if langstr is not None:
             return langstr
         else:
             raise NotFound()
 
     def command_usage(self, command):
-        langstr = Lang.lang_no_failsafe(self, "help_usage_{}".format(command.name))
+        langstr = Lang.lang_no_failsafe(self, "help_usage_{}".format(command.qualified_name.replace(" ", "_")))
         if langstr is not None:
             return langstr
         else:
@@ -153,19 +153,21 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
         rate2 = rates.get('rates', {}).get(other_curr) if other_curr != "EUR" else 1
         if rate1 and rate2:
             await ctx.send(Lang.lang(self, 'money_converted', amount, currency,
-                                     round(float(rate2)/float(rate1) * amount, 2), other_curr))
+                                     round(float(rate2) / float(rate1) * amount, 2), other_curr))
         else:
             await ctx.send(Lang.lang(self, 'money_error'))
 
     @commands.command(name="geck")
     async def geck(self, ctx):
+        treecko_file = f"{Config().resource_dir(self)}/treecko.jpg"
         async with ctx.typing():
             try:
-                file = discord.File(f"{Config().resource_dir(self)}/treecko.jpg")
+                file = discord.File(treecko_file)
             except (FileNotFoundError, IsADirectoryError):
-                await ctx.message.add_reaction(Lang.CMDERROR)
+                await utils.add_reaction(ctx.message, Lang.CMDERROR)
+                await utils.write_debug_channel(Lang.lang(self, 'geck_error', treecko_file))
                 return
-            await ctx.send(Lang.lang(self, 'geck_out'), file=file)
+        await ctx.send(Lang.lang(self, 'geck_out'), file=file)
 
     @commands.command(name=keysmash_cmd_name)
     async def keysmash(self, ctx):
@@ -189,64 +191,10 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
             text = Lang.lang(self, "bully_msg", get_best_username(bully))
         await ctx.send(text)
 
-    @commands.command(name="remindme")
+    @commands.group(name="remindme", invoke_without_command=True)
     async def reminder(self, ctx, *args):
-        # remove historic reminders
-        old_reminders = []
-        for el in self.reminders:
-            if (self.reminders[el].next_execution() is None
-                    or self.reminders[el].next_execution() < datetime.now()):
-                old_reminders.append(el)
-        for el in old_reminders:
-            self.remove_reminder(el)
+        self._remove_old_reminders()
 
-        # cancel reminders
-        if args[0] == "cancel":
-            if len(args) == 2:
-                try:
-                    remove_id = int(args[1])
-                except ValueError:
-                    raise commands.BadArgument(message=Lang.lang(self, 'remind_del_id_err'))
-            else:
-                remove_id = -1
-
-            # remove reminder with id
-            if remove_id >= 0:
-                if self.reminders[remove_id].data['user'] == ctx.author.id:
-                    self.remove_reminder(remove_id)
-                    await ctx.message.add_reaction(Lang.CMDSUCCESS)
-                    return
-
-                await ctx.send(Lang.lang(self, 'remind_wrong_del'))
-                return
-
-            # remove all reminders from user
-            to_remove = []
-            for el in self.reminders:
-                if self.reminders[el].data['user'] == ctx.author.id:
-                    to_remove.append(el)
-            for el in to_remove:
-                self.remove_reminder(el)
-
-            await ctx.message.add_reaction(Lang.CMDSUCCESS)
-            return
-
-        # list user's reminders
-        if args[0] == "list":
-            msg = Lang.lang(self, 'remind_list_prefix')
-            reminders_msg = ""
-            for job in sorted(self.reminders.values(), key=lambda x: x.next_execution()):
-                if job.data['user'] == ctx.author.id:
-                    reminders_msg += Lang.lang(self, 'remind_list_element',
-                                               job.next_execution().strftime('%d.%m.%Y %H:%M'),
-                                               job.data['text'], job.data['id'])
-
-            if not reminders_msg:
-                msg = Lang.lang(self, 'remind_list_none')
-            await ctx.send(msg + reminders_msg)
-            return
-
-        # set reminder
         try:
             datetime.strptime(f"{args[0]} {args[1]}", "%d.%m.%Y %H:%M")
             rtext = " ".join(args[2:])
@@ -267,17 +215,64 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
         reminder_id = self.get_new_reminder_id()
 
         if remind_time < datetime.now():
-            logging.debug("Attempted reminder {} in the past: {}".format(reminder_id, remind_time))
+            log.debug("Attempted reminder {} in the past: {}".format(reminder_id, remind_time))
             await ctx.send(Lang.lang(self, 'remind_past'))
             return
 
-        if self.register_reminder(ctx.channel.id, ctx.author.id, remind_time, reminder_id, rtext):
+        if self._register_reminder(ctx.channel.id, ctx.author.id, remind_time, reminder_id, rtext):
             await ctx.send(Lang.lang(self, 'remind_set', remind_time.strftime('%d.%m.%Y %H:%M'), reminder_id))
         else:
-            await ctx.message.add_reaction(Lang.CMDERROR)
+            await utils.add_reaction(ctx.message, Lang.CMDERROR)
 
-    def register_reminder(self, channel_id: int, user_id: int, remind_time: datetime,
-                          reminder_id: int, text, is_restart: bool = False):
+    @reminder.command(name="list")
+    async def reminder_list(self, ctx):
+        self._remove_old_reminders()
+
+        msg = Lang.lang(self, 'remind_list_prefix')
+        reminders_msg = ""
+        for job in sorted(self.reminders.values(), key=lambda x: x.next_execution()):
+            if job.data['user'] == ctx.author.id:
+                if job.data['text']:
+                    reminder_text = Lang.lang(self, 'remind_list_message', job.data['text'])
+                else:
+                    reminder_text = Lang.lang(self, 'remind_list_no_message')
+                reminders_msg += Lang.lang(self, 'remind_list_element',
+                                           job.next_execution().strftime('%d.%m.%Y %H:%M'),
+                                           reminder_text, job.data['id'])
+
+        if not reminders_msg:
+            msg = Lang.lang(self, 'remind_list_none')
+        await ctx.send(msg + reminders_msg)
+
+    @reminder.command(name="cancel")
+    async def reminder_cancel(self, ctx, reminder_id: int = -1):
+        self._remove_old_reminders()
+
+        # remove reminder with id
+        if reminder_id >= 0:
+            if reminder_id not in self.reminders:
+                await utils.add_reaction(ctx.message, Lang.CMDERROR)
+                await ctx.send(Lang.lang(self, 'remind_del_id_err', reminder_id))
+                return
+            if self.reminders[reminder_id].data['user'] == ctx.author.id:
+                self._remove_reminder(reminder_id)
+                await utils.add_reaction(ctx.message, Lang.CMDSUCCESS)
+                return
+            await ctx.send(Lang.lang(self, 'remind_wrong_del'))
+            return
+
+        # remove all reminders from user
+        to_remove = []
+        for el in self.reminders:
+            if self.reminders[el].data['user'] == ctx.author.id:
+                to_remove.append(el)
+        for el in to_remove:
+            self._remove_reminder(el)
+
+        await utils.add_reaction(ctx.message, Lang.CMDSUCCESS)
+
+    def _register_reminder(self, channel_id: int, user_id: int, remind_time: datetime,
+                           reminder_id: int, text, is_restart: bool = False):
         """
         Registers a reminder
         :param channel_id: The id of the channel in which the reminder was set
@@ -289,17 +284,17 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
         :returns: True if reminder is registered, otherwise False
         """
         if remind_time < datetime.now():
-            logging.debug("Attempted reminder {} in the past: {}".format(reminder_id, remind_time))
+            log.debug("Attempted reminder {} in the past: {}".format(reminder_id, remind_time))
             return False
 
-        logging.info("Adding reminder {} for user with id {} at {}: {}".format(reminder_id, user_id,
+        log.info("Adding reminder {} for user with id {} at {}: {}".format(reminder_id, user_id,
                                                                                remind_time, text))
 
         job_data = {'chan': channel_id, 'user': user_id, 'time': remind_time, 'text': text, 'id': reminder_id}
 
         timedict = timers.timedict(year=remind_time.year, month=remind_time.month, monthday=remind_time.day,
                                    hour=remind_time.hour, minute=remind_time.minute)
-        job = self.bot.timers.schedule(self.reminder_callback, timedict, repeat=False)
+        job = self.bot.timers.schedule(self._reminder_callback, timedict, repeat=False)
         job.data = job_data
 
         self.reminders[reminder_id] = job
@@ -309,7 +304,19 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
 
         return True
 
-    def remove_reminder(self, reminder_id):
+    def _remove_old_reminders(self):
+        """
+        Auto-Removes all reminders in the past
+        """
+        old_reminders = []
+        for el in self.reminders:
+            if (self.reminders[el].next_execution() is None
+                    or self.reminders[el].next_execution() < datetime.now()):
+                old_reminders.append(el)
+        for el in old_reminders:
+            self._remove_reminder(el)
+
+    def _remove_reminder(self, reminder_id):
         """
         Removes the reminder if in config
         :param reminder_id: the reminder ID
@@ -320,16 +327,17 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
         if reminder_id in Storage().get(self)['reminders']:
             del (Storage().get(self)['reminders'][reminder_id])
         Storage().save(self)
-        logging.info("Reminder {} removed".format(reminder_id))
+        log.info("Reminder {} removed".format(reminder_id))
 
-    async def reminder_callback(self, job):
+    async def _reminder_callback(self, job):
         channel = self.bot.get_channel(job.data['chan'])
         user = self.bot.get_user(job.data['user'])
         text = job.data['text']
         rid = job.data['id']
-        remind_text = ""
         if text:
-            remind_text = Lang.lang(self, 'remind_callback_msg', text)
-        await channel.send(Lang.lang(self, 'remind_callback', user.mention, remind_text))
-        logging.info("Executed reminder {}".format(rid))
-        self.remove_reminder(rid)
+            remind_text = Lang.lang(self, 'remind_callback', user.mention, text)
+        else:
+            remind_text = Lang.lang(self, 'remind_callback_no_msg', user.mention)
+        await channel.send(remind_text)
+        log.info("Executed reminder {}".format(rid))
+        self._remove_reminder(rid)
