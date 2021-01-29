@@ -29,10 +29,6 @@ class CoroRegistration:
         self.logger = logging.getLogger(__name__)
 
     def deregister(self):
-        reg_storage = self.storage()
-        if reg_storage in Storage().get(self.league_reg.listener)['registrations'][self.league_reg.league]:
-            Storage().get(self.league_reg.listener)['registrations'][self.league_reg.league].remove(reg_storage)
-            Storage().save(self.league_reg.listener)
         self.league_reg.deregister_coro(self)
 
     def get_match_dicts(self):
@@ -146,12 +142,13 @@ class LeagueRegistration:
             job.cancel()
         for job in self.intermediate_timers:
             job.cancel()
-        if self.league in Storage().get(self.listener)['registrations']:
-            Storage().get(self.listener)['registrations'].pop(self.league)
-            Storage().save(self.listener)
         self.listener.deregister(self)
 
     def deregister_coro(self, coro: CoroRegistration):
+        reg_storage = coro.storage()
+        if reg_storage in Storage().get(self.listener)['registrations'].get(self.league, []):
+            Storage().get(self.listener)['registrations'][self.league].remove(reg_storage)
+            Storage().save(self.listener)
         if coro in self.registrations:
             self.registrations.remove(coro)
 
@@ -359,3 +356,6 @@ class Liveticker(BaseSubsystem):
     def deregister(self, reg: LeagueRegistration):
         if reg.league in self.registrations:
             self.registrations.pop(reg.league)
+        if reg.league in Storage().get(self)['registrations']:
+            Storage().get(self)['registrations'].pop(reg.league)
+            Storage().save(self)
