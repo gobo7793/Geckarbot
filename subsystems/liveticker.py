@@ -219,8 +219,9 @@ class LeagueRegistration:
 
     async def schedule_match_timers(self, job):
         self.logger.debug("Match in League {} started.".format(self.league))
-        job.data['matches'] = self.extract_kickoffs_with_matches()[datetime.datetime.now().replace(second=0,
-                                                                                                   microsecond=0)]
+        now = datetime.datetime.now().replace(second=0, microsecond=0)
+        job.data = {'start': now,
+                    'matches': self.extract_kickoffs_with_matches()[now]}
         await self.update_kickoff_coros(job)
         self.schedule_timers(start=datetime.datetime.now())
 
