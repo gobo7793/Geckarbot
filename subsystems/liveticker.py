@@ -94,15 +94,16 @@ class CoroRegistration:
         }
 
     def __eq__(self, other):
-        return self.coro == other.coro and self.coro_kickoff == other.coro_kickoff and\
+        return self.coro == other.coro and self.coro_kickoff == other.coro_kickoff and \
                self.coro_finished == other.coro_finished and self.periodic == other.periodic
 
     def __str__(self):
-        return "<liveticker.CoroRegistration; coro={}; coro_kickoff={}; coro_finished={}; periodic={}>"\
+        return "<liveticker.CoroRegistration; coro={}; coro_kickoff={}; coro_finished={}; periodic={}>" \
             .format(self.coro, self.coro_kickoff, self.coro_finished, self.periodic)
 
     def __bool__(self):
         return bool(self.next_execution())
+
 
 def convert_to_matchdict(match):
     return {
@@ -302,6 +303,7 @@ class LeagueRegistration:
     def __bool__(self):
         return bool(self.next_execution())
 
+
 class Liveticker(BaseSubsystem):
     def __init__(self, bot):
         super().__init__(bot)
@@ -360,3 +362,19 @@ class Liveticker(BaseSubsystem):
         if reg.league in Storage().get(self)['registrations']:
             Storage().get(self)['registrations'].pop(reg.league)
             Storage().save(self)
+
+    def search(self, plugin=None, league=None):
+        if league:
+            league_reg = self.registrations.get(league)
+            if league_reg:
+                coro_regs = [(league, self.registrations[league].registrations)]
+            else:
+                return {}
+        else:
+            coro_regs = [(leag.league, leag.registrations) for leag in self.registrations.values()]
+        coro_dict = {}
+        for leag, regs in coro_regs:
+            r = [i for i in regs if plugin is None or i.plugin_name == plugin]
+            if r:
+                coro_dict[leag] = r
+        return coro_dict
