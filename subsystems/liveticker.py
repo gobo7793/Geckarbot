@@ -337,15 +337,16 @@ class Liveticker(BaseSubsystem):
             'registrations': {}
         }
 
-    def register(self, league, plugin, coro, coro_kickoff=None, coro_finished=None, periodic: bool = False):
+    def register(self, league, plugin, coro, coro_kickoff=None, coro_finished=None, periodic: bool = True):
         """
+        Registers a new liveticker for the specified league.
 
-        :param plugin:
-        :param coro_kickoff:
-        :param coro_finished:
-        :param league:
-        :param coro:
-        :param periodic:
+        :param plugin: plugin where all coroutines are in
+        :param league: League the liveticker should observe
+        :param coro_kickoff: coroutine called at the kickoff
+        :param coro_finished: coroutine called at the last whistle
+        :param coro: coroutine which is called for in-game-updates
+        :param periodic: if coro should be updated automatically
         :return: CoroRegistration
         """
         if league not in self.registrations:
@@ -363,7 +364,12 @@ class Liveticker(BaseSubsystem):
             Storage().get(self)['registrations'].pop(reg.league)
             Storage().save(self)
 
-    def search(self, plugin=None, league=None):
+    def search(self, plugin=None, league=None) -> dict:
+        """
+        Searches all CoroRegistrations fulfilling the requirements
+
+        :return: Dictionary with a list of all matching registrations per league
+        """
         if league:
             league_reg = self.registrations.get(league)
             if league_reg:

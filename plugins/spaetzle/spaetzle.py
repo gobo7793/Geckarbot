@@ -37,7 +37,6 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
         self.logger = logging.getLogger(__name__)
         self.teamname_dict = TeamnameDict(self)
         self.userbridge = UserBridge(self)
-        self.liveticker_reg = None
 
     def default_config(self):
         return {
@@ -173,12 +172,13 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             if matchday:
                 match_list = restclient.Client("https://www.openligadb.de/api").make_request(
                     "/getmatchdata/bl1/2020/{}".format(str(matchday)))
-                if self.liveticker_reg:
-                    self.liveticker_reg.deregister()
+                regs = self.bot.liveticker.search(plugin=self.get_name())
+                for reg in regs.values():
+                    reg.deregister()
             else:
-                self.start_liveticker()
-                matchday = self.liveticker_reg.league_reg.matchday()
-                match_list = self.liveticker_reg.league_reg.matches
+                reg = self.start_liveticker()
+                matchday = reg.league_reg.matchday()
+                match_list = reg.league_reg.matches
 
             # Extract matches
             c = self.get_api_client()
@@ -461,8 +461,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
     def start_liveticker(self):
-        self.liveticker_reg = self.bot.liveticker.register(league="bl1", plugin=self, coro=self.liveticker_coro,
-                                                           periodic=True)
+        return self.bot.liveticker.register(league="bl1", plugin=self, coro=self.liveticker_coro, periodic=True)
 
     async def liveticker_coro(self, matches, *_):
         self.logger.debug("Spätzle score update started.")
