@@ -361,6 +361,32 @@ def logging_setup(debug=False):
         logger.setLevel(logging.INFO)
 
 
+async def send_error_to_ctx(ctx: discord.ext.commands.Context,
+                            error: Exception,
+                            default="Unknown Error.",
+                            message=""):
+    """
+    Sends an error to the command executing user. If the error contains a user_message attribute with content,
+    its content will be send as message. Otherwise if the error contains a message in its
+    Exception class member "args", the message in args[0] will be send. If a message is given,
+    this message will be send no matter what the "args" member contains.
+
+    :param ctx: The context to send the error message
+    :param error: The error to send
+    :param default: The default message
+    :param message: The error dependent error message
+    :return:
+    """
+    if message:
+        await ctx.send(message)
+    elif hasattr(error, "user_message") and str(error.user_message):
+        await ctx.send(str(error.user_message))
+    elif len(error.args) > 0 and error.args[0] is not None and str(error.args[0]):
+        await ctx.send(str(error.args[0]))
+    else:
+        await ctx.send(default)
+
+
 def main():
     injections.pre_injections()
     logging_setup()
@@ -438,28 +464,32 @@ def main():
         async def on_command_error(ctx, error):
             """Error handling for bot commands"""
             # No command or ignoring list handling
+            if isinstance(error, ignoring.UserBlockedCommand):
+                await send_error_to_ctx(ctx, error, message="{} has blocked the command `{}`.".
+                                        format(converters.get_best_username(error.user), error.command))
             if isinstance(error, (commands.CommandNotFound, commands.DisabledCommand)):
                 return
-            if isinstance(error, ignoring.UserBlockedCommand):
-                await ctx.send("User {} has blocked the command.".format(converters.get_best_username(error.user)))
 
             # Check Failures
             elif isinstance(error, (commands.MissingRole, commands.MissingAnyRole)):
-                await ctx.send("You don't have the correct role for this command.")
+                await send_error_to_ctx(ctx, error, default="You don't have the correct role for this command.")
+            elif isinstance(error, permchecks.WrongChannel):
+                await send_error_to_ctx(ctx, error,
+                                        message="Command can only be executed in channel {}".format(error.channel))
             elif isinstance(error, commands.NoPrivateMessage):
-                await ctx.send("Command can't be executed in private messages.")
+                await send_error_to_ctx(ctx, error, default="Command can't be executed in private messages.")
             elif isinstance(error, commands.CheckFailure):
-                await ctx.send("Permission error.")
+                await send_error_to_ctx(ctx, error, default="Permission error.")
 
             # User input errors
             elif isinstance(error, commands.MissingRequiredArgument):
-                await ctx.send("Required argument missing: {}".format(error.param))
+                await send_error_to_ctx(ctx, error, default="Required argument missing: {}".format(error.param))
             elif isinstance(error, commands.TooManyArguments):
-                await ctx.send("Too many arguments given.")
+                await send_error_to_ctx(ctx, error, default="Too many arguments given.")
             elif isinstance(error, commands.BadArgument):
-                await ctx.send("Error on given argument: {}".format(error))
+                await send_error_to_ctx(ctx, error, default="Error on given argument: {}".format(error))
             elif isinstance(error, commands.UserInputError):
-                await ctx.send("Wrong user input format: {}".format(error))
+                await send_error_to_ctx(ctx, error, default="Wrong user input format: {}".format(error))
 
             # Other errors
             else:
@@ -478,6 +508,7 @@ def main():
                 embed.url = ctx.message.jump_url
                 embed.timestamp = datetime.datetime.utcnow()
 
+                # gather traceback
                 ex_tb = "".join(traceback.TracebackException.from_exception(error).format())
                 is_tb_own_msg = len(ex_tb) > 2000
                 if is_tb_own_msg:
@@ -486,15 +517,13 @@ def main():
                 else:
                     embed.description = f"```python\n{ex_tb}```"
 
+                # send messages
                 await utils.write_debug_channel(embed)
                 if is_tb_own_msg:
                     for msg in ex_tb:
                         await utils.write_debug_channel(msg)
                 await utils.add_reaction(ctx.message, Lang.CMDERROR)
-                msg = "Unknown error while executing command."
-                if hasattr(error, "user_message"):
-                    msg = error.user_message
-                await ctx.send(msg)
+                await send_error_to_ctx(ctx, error, default="Unknown error while executing command.")
 
     @bot.event
     async def on_message(message):

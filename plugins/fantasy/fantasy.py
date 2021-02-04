@@ -9,6 +9,7 @@ import botutils.timeutils
 from base import BasePlugin, NotFound
 from botutils import stringutils, permchecks
 from botutils.converters import get_best_username, get_best_user
+from botutils.permchecks import WrongChannel
 from botutils.stringutils import paginate
 from botutils.utils import add_reaction
 from conf import Config, Storage, Lang
@@ -306,7 +307,7 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
     async def fantasy(self, ctx):
         if Config.get(self)['channel_id'] != 0 and Config.get(self)['channel_id'] != ctx.channel.id:
             await add_reaction(ctx.message, Lang.CMDNOPERMISSIONS)
-            raise commands.CheckFailure()
+            raise WrongChannel(Config.get(self)['channel_id'])
 
         if ctx.invoked_subcommand is None:
             await ctx.invoke(self.bot.get_command('fantasy info'))
@@ -665,13 +666,23 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
 
     @fantasy.group(name="set")
     async def fantasy_set(self, ctx):
-        is_mod = Config.get(self)['mod_role_id'] != 0 \
-                 and Config.get(self)['mod_role_id'] in [role.id for role in ctx.author.roles]
-        is_supercomm = self.supercommish is not None and ctx.author.id == self.supercommish.id
-        if not permchecks.check_mod_access(ctx.author) and not is_mod and not is_supercomm:
+        def check_mod_perms():
+            if Config.get(self)['mod_role_id'] == 0:
+                return False
+            if Config.get(self)['mod_role_id'] in [role.id for role in ctx.author.roles]:
+                return True
+            return permchecks.check_mod_access(ctx.author)
+
+        def check_supercommish():
+            if self.supercommish is None:
+                return True
+            if ctx.author.id == self.supercommish.id:
+                return True
+            return False
+
+        if not check_supercommish() and not check_mod_perms():
             await add_reaction(ctx.message, Lang.CMDNOPERMISSIONS)
-            await ctx.send(Lang.lang(self, "no_set_access"))
-            return
+            raise commands.CheckFailure(message=Lang.lang(self, "no_set_access"))
 
         if ctx.invoked_subcommand is None:
             await self.bot.helpsys.cmd_help(ctx, self, ctx.command)

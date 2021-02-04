@@ -8,6 +8,7 @@ from base import BasePlugin
 from botutils import utils, converters
 from conf import Config, Lang
 from subsystems import help, timers
+from subsystems.ignoring import UserBlockedCommand
 from subsystems.presence import PresencePriority
 from typing import Union
 
@@ -112,6 +113,13 @@ class Plugin(BasePlugin, name="Testing and debug things"):
         await ctx.send(args)
 
     # Testing commands
+
+    @commands.command(name="mentionuser", help="Mentions a user, supports user cmd disabling.")
+    async def mentionuser(self, ctx, user: discord.Member):
+        if self.bot.ignoring.check_passive_usage(user, ctx.command.qualified_name):
+            raise UserBlockedCommand(user, ctx.command.qualified_name)
+        else:
+            await ctx.send(user.mention)
 
     @commands.command(name="sleep", hidden=True)
     async def sleep(self, ctx):
