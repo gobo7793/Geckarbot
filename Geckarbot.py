@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-
+import locale
 import logging
 import pkgutil
 import sys
@@ -83,6 +83,7 @@ class Geckarbot(commands.Bot):
         Config().bot = self
         Storage().bot = self
         self.load_config()
+        self._set_locale()
 
         self.add_check(self.command_disabled)
 
@@ -123,6 +124,13 @@ class Geckarbot(commands.Bot):
 
     def get_default(self, container=None):
         raise RuntimeError("Config file missing")
+
+    def _set_locale(self):
+        """
+        Sets the localization settings to the LANGUAGE_CODE configuration
+        """
+        locale.setlocale(locale.LC_ALL, self.LANGUAGE_CODE)
+        logging.getLogger("").info(f"Localization set to '{locale.getlocale(locale.LC_ALL)}'")
 
     @property
     def plugins(self) -> List[BasePlugin]:
