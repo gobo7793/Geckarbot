@@ -94,7 +94,7 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
         for msg in paginate(msgs, delimiter="\n\n"):
             await ctx.send(msg)
 
-    @plugins.command(name="available", aliases=["unloaded"])
+    @plugins.command(name="available", aliases=["unloaded", "disabled"])
     async def plugins_avail(self, ctx):
         avail = self.bot.get_unloaded_plugins()
 
@@ -103,7 +103,7 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
         else:
             await ctx.send(Lang.lang(self, 'no_plugin_avail'))
 
-    @plugins.command(name="unload")
+    @plugins.command(name="unload", aliases=["disable"])
     @commands.has_any_role(*Config().ADMIN_ROLES)
     async def plugins_unload(self, ctx, name):
         instance = get_plugin_by_name(name)
@@ -123,7 +123,7 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
             await utils.add_reaction(ctx.message, Lang.CMDERROR)
             await ctx.send(Lang.lang(self, "plugin_not_unloadable", name))
 
-    @plugins.command(name="load")
+    @plugins.command(name="load", aliases=["enable"])
     @commands.has_any_role(*Config().ADMIN_ROLES)
     async def plugins_load(self, ctx, name):
         instance = get_plugin_by_name(name)
