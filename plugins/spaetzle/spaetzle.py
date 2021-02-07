@@ -37,7 +37,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
         self.logger = logging.getLogger(__name__)
         self.teamname_dict = TeamnameDict(self)
         self.userbridge = UserBridge(self)
-        self.liveticker_reg = None
+        self.bot.liveticker.restore(self)
 
     def default_config(self):
         return {
@@ -173,12 +173,13 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             if matchday:
                 match_list = restclient.Client("https://www.openligadb.de/api").make_request(
                     "/getmatchdata/bl1/2020/{}".format(str(matchday)))
-                if self.liveticker_reg:
-                    self.liveticker_reg.deregister()
+                regs = self.bot.liveticker.search(plugin=self.get_name())
+                for reg in regs.values():
+                    reg.deregister()
             else:
-                self.start_liveticker()
-                matchday = self.liveticker_reg.league_reg.matchday()
-                match_list = self.liveticker_reg.league_reg.matches
+                reg = self.start_liveticker()
+                matchday = reg.league_reg.matchday()
+                match_list = reg.league_reg.matches
 
             # Extract matches
             c = self.get_api_client()
@@ -461,8 +462,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
     def start_liveticker(self):
-        self.liveticker_reg = self.bot.liveticker.register(league="bl1", plugin=self, coro=self.liveticker_coro,
-                                                           periodic=True)
+        return self.bot.liveticker.register(league="bl1", plugin=self, coro=self.liveticker_coro, periodic=True)
 
     async def liveticker_coro(self, matches, *_):
         self.logger.debug("Spätzle score update started.")
@@ -766,14 +766,14 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                 try:
                     league = int(get_user_league(self, user_or_league))
                 except (ValueError, UserNotFound):
-                    ctx.send(Lang.lang(self, 'user_not_found', user_or_league))
+                    await ctx.send(Lang.lang(self, 'user_not_found', user_or_league))
                     return
 
-            data_range = "Aktuell!{}".format(Config().get(self)['table_ranges'].get(league))
-            if data_range is None:
+            table_range = Config().get(self)['table_ranges'].get(league)
+            if table_range is None:
                 await ctx.send(Lang.lang(self, 'invalid_league'))
                 return
-            result = c.get(data_range)
+            result = c.get("Aktuell!{}".format(table_range))
 
             if not user_or_league.isnumeric():
                 # Restrict the view to users area
@@ -785,6 +785,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
 
             msg = ""
             for line in result:
+                line.extend([''] * (11 - len(line)))
                 msg += "{0}{1} | {4} | {7}:{9} {10} | {11}{0}\n".format("**" if line[3].lower() ==
                                                                                 user_or_league.lower() else "", *line)
             embed = discord.Embed(title=Lang.lang(self, 'title_table', league), description=msg)

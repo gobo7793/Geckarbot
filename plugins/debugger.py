@@ -164,3 +164,7 @@ class Plugin(BasePlugin, name="Testing and debug things"):
         for el in asyncio.all_tasks():
             print(el)
         await ctx.message.add_reaction(Lang.CMDSUCCESS)
+
+    @commands.command(name="livetickersuche")
+    async def suche(self, ctx, plugin=None, league=None):
+        await ctx.send(self.bot.liveticker.search(plugin, league))
