@@ -21,6 +21,7 @@ class Plugin(BasePlugin, name="Sport"):
         bot.register(self, category=DefaultCategories.SPORT)
         self.logger = logging.getLogger(__name__)
         self.can_reload = True
+        self.bot.liveticker.restore(self)
         Config().save(self)
 
     def default_config(self):
