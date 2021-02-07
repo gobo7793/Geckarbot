@@ -766,14 +766,14 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                 try:
                     league = int(get_user_league(self, user_or_league))
                 except (ValueError, UserNotFound):
-                    ctx.send(Lang.lang(self, 'user_not_found', user_or_league))
+                    await ctx.send(Lang.lang(self, 'user_not_found', user_or_league))
                     return
 
-            data_range = "Aktuell!{}".format(Config().get(self)['table_ranges'].get(league))
-            if data_range is None:
+            table_range = Config().get(self)['table_ranges'].get(league)
+            if table_range is None:
                 await ctx.send(Lang.lang(self, 'invalid_league'))
                 return
-            result = c.get(data_range)
+            result = c.get("Aktuell!{}".format(table_range))
 
             if not user_or_league.isnumeric():
                 # Restrict the view to users area
@@ -785,6 +785,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
 
             msg = ""
             for line in result:
+                line.extend([''] * (11 - len(line)))
                 msg += "{0}{1} | {4} | {7}:{9} {10} | {11}{0}\n".format("**" if line[3].lower() ==
                                                                                 user_or_league.lower() else "", *line)
             embed = discord.Embed(title=Lang.lang(self, 'title_table', league), description=msg)
