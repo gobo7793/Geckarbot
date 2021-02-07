@@ -2,6 +2,7 @@ import platform
 from datetime import datetime
 
 from discord.ext import commands
+from discord.ext.commands import MemberConverter, UserConverter
 
 from base import BasePlugin, ConfigurableType
 from botutils import utils
@@ -226,7 +227,7 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
     @disable.command(name="mod", usage="[user|command|until]")
     @commands.has_any_role(*Config().MOD_ROLES)
     async def disable_mod(self, ctx, *args):
-        user, command, until = await self._parse_mod_args(ctx.message, *args)
+        user, command, until = await self._parse_mod_args(ctx, *args)
         if user == -1 or command == -1 or until == -1:
             return
 
@@ -354,7 +355,7 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
     @enable.command(name="mod", usage="[user|command]")
     @commands.has_any_role(*Config().MOD_ROLES)
     async def enable_mod(self, ctx, *args):
-        user, command, until = await self._parse_mod_args(ctx.message, *args)
+        user, command, until = await self._parse_mod_args(ctx, *args)
 
         final_msg = None
         reaction = Lang.CMDERROR
@@ -445,11 +446,11 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
             return False
         return True
 
-    async def _parse_mod_args(self, message, *args):
+    async def _parse_mod_args(self, ctx, *args):
         """
         Parses the input args for valid command names, users and until datetime input.
 
-        :param message: the message
+        :param ctx: the command context
         :param args: the arguments
         :return: a tuple of user, command, until.
          If a valid value can be found, the value will be returned for each tuple element.
@@ -466,13 +467,17 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
 
             if user is None:
                 try:
-                    user = convert_member(arg) # TODO: get User instead of Member
+                    user = await MemberConverter().convert(ctx, arg)
                     continue
                 except commands.CommandError:
-                    pass
+                    try:
+                        user = await UserConverter().convert(ctx, arg)
+                        continue
+                    except commands.CommandError:
+                        pass
 
             if command is None and self._is_valid_command(arg):
-                if await self._pre_cmd_checks(message, arg):
+                if await self._pre_cmd_checks(ctx.message, arg):
                     command = self._get_full_cmd_name(arg)
                 else:
                     command = -1

@@ -496,7 +496,10 @@ def logging_setup(debug=False):
         logger = logging.root.manager.loggerDict[el]
         if isinstance(logger, logging.PlaceHolder):
             continue
-        logger.setLevel(level)
+        elif logger.name.startswith("discord."):
+            logger.setLevel(logging.INFO)  # set discord.py logger always to info
+        else:
+            logger.setLevel(level)
 
     logging.getLogger('').log(level, f"Logging level set to {level}")
 
