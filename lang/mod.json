@@ -93,7 +93,8 @@
         "passive_not_blocked": "You´haven't blocked any interaction with command `{}`.",
         "cmd_not_blocked": "Command `{}` is not blocked in this channel.",
         "user_not_blocked": "{} is not blocked.",
-        "active_not_blocked": "{} can use command `{}` already."
+        "active_not_blocked": "{} can use command `{}` already.",
+        "cant_block_yourself": "If you block yourself you can't unblock yourself. Why do you actually have mod rights for me at all if you don't want to use me?!"
     },
     "de": {
         "#0": "help textes",
@@ -189,6 +190,7 @@
         "passive_not_blocked": "Du hast jegliche Interaktion mit dem Kommando `{}` nicht blockiert.",
         "cmd_not_blocked": "Das Kommando `{}` ist in diesem Channel nicht blockiert.",
         "user_not_blocked": "{} ist nicht blockiert.",
-        "active_not_blocked": "{} darf das Kommando `{}` bereits nutzen."
+        "active_not_blocked": "{} darf das Kommando `{}` bereits nutzen.",
+        "cant_block_yourself": "Wenn du dich selbst blockierst, kannst du dich nicht mehr entblocken. Warum hast du eigentlich überhaupt Modrechte für mich, wenn du mich nicht nutzen willst?!"
         }
 }

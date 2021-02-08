@@ -1,17 +1,17 @@
 import asyncio
 import operator
-from threading import Thread
-from typing import List, Dict, Optional
 from abc import ABC, abstractmethod
 from datetime import datetime
+from threading import Thread
+from typing import List, Dict, Optional
 
 import discord
 from espn_api.football import League
 
 from botutils.converters import get_best_user
+from botutils.jsonutils import Decoder
 from botutils.restclient import Client
 from botutils.timeutils import from_epoch_ms
-from botutils.jsonutils import Decoder
 from conf import Storage, Config, Lang
 from plugins.fantasy.utils import Activity, TeamStanding, Team, Player, Match, Platform, log
 
@@ -62,18 +62,25 @@ class FantasyLeague(ABC):
         :param commish: The commissioner
         :param init: True if league is loading from Storage
         """
+
+        async def loading_league_data_wrapper():
+            await self._load_league_data()
+
+        def loading_coro_wrapper():
+            asyncio.run_coroutine_threadsafe(loading_league_data_wrapper(), self.plugin.bot.loop)
+
         self.plugin = plugin
         self.league_id = league_id
         self.commish = commish
 
         if init:
-            connect_thread = Thread(target=self._load_league_data)
+            connect_thread = Thread(target=loading_coro_wrapper())
             connect_thread.start()
         else:
-            self._load_league_data()
+            loading_league_data_wrapper()
 
     @abstractmethod
-    def _load_league_data(self):
+    async def _load_league_data(self):
         """Login and load league data from hosting platform"""
         pass
 
@@ -82,7 +89,7 @@ class FantasyLeague(ABC):
             self.league_id, self.commish, self.platform)
 
     @abstractmethod
-    def reload(self):
+    async def reload(self):
         """Reloads cached league data from host platform"""
         pass
 
@@ -155,7 +162,7 @@ class FantasyLeague(ABC):
         pass
 
     @abstractmethod
-    def get_boxscores(self, week, match_id=-1) -> List[Match]:
+    async def get_boxscores(self, week, match_id=-1) -> List[Match]:
         """
         Returns the boxscore data for the given match ID or all matches in given week of current year
 
@@ -166,7 +173,7 @@ class FantasyLeague(ABC):
         pass
 
     @abstractmethod
-    def get_overall_standings(self) -> List[TeamStanding]:
+    async def get_overall_standings(self) -> List[TeamStanding]:
         """
         Gets the current overall league standing
 
@@ -175,7 +182,7 @@ class FantasyLeague(ABC):
         pass
 
     @abstractmethod
-    def get_divisional_standings(self) -> Dict[str, List[TeamStanding]]:
+    async def get_divisional_standings(self) -> Dict[str, List[TeamStanding]]:
         """
         Gets the current standings of each division of the league
 
@@ -184,7 +191,7 @@ class FantasyLeague(ABC):
         pass
 
     @abstractmethod
-    def get_most_recent_activity(self):
+    async def get_most_recent_activity(self):
         """
         Gets the most recent activity.
 
@@ -212,13 +219,13 @@ class EspnLeague(FantasyLeague):
 
         FantasyLeague.__init__(self, plugin, league_id, commish, init)
 
-    def _load_league_data(self):
+    async def _load_league_data(self):
         self._espn = League(year=self.plugin.year, league_id=self.league_id,
                             espn_s2=Config.get(self.plugin)["espn_credentials"]["espn_s2"],
                             swid=Config.get(self.plugin)["espn_credentials"]["swid"])
         log.info("League {}, ID {} on platform ESPN connected".format(self.name, self.league_id))
 
-    def reload(self):
+    async def reload(self):
         self._espn.refresh()
 
     @property
@@ -271,7 +278,7 @@ class EspnLeague(FantasyLeague):
             teams.append(Team(t.team_name, t.team_abbrev, t.team_id, 0))
         return teams
 
-    def get_boxscores(self, week, match_id=-1) -> List[Match]:
+    async def get_boxscores(self, week, match_id=-1) -> List[Match]:
         boxscores = self._espn.box_scores(week)
         matches = []
         for i in range(len(boxscores)):
@@ -297,7 +304,7 @@ class EspnLeague(FantasyLeague):
                                  away_team, score.away_score, away_lineup))
         return matches
 
-    def get_overall_standings(self) -> List[TeamStanding]:
+    async def get_overall_standings(self) -> List[TeamStanding]:
         standings = []
         for team in self._espn.standings():
             wins = int(team.wins)
@@ -307,7 +314,7 @@ class EspnLeague(FantasyLeague):
             standings.append(standing)
         return standings
 
-    def get_divisional_standings(self) -> Dict[str, List[TeamStanding]]:
+    async def get_divisional_standings(self) -> Dict[str, List[TeamStanding]]:
         divisions = {}
         for team in self._espn.standings():
             if team.division_name not in divisions:
@@ -319,7 +326,7 @@ class EspnLeague(FantasyLeague):
             divisions[team.division_name].append(standing)
         return divisions
 
-    def get_most_recent_activity(self):
+    async def get_most_recent_activity(self):
         activities = self._espn.recent_activity()
         act_date = from_epoch_ms(activities[0].date)
         act_team = activities[0].actions[0][0].team_name
@@ -329,7 +336,6 @@ class EspnLeague(FantasyLeague):
 
 
 class SleeperLeague(FantasyLeague):
-
     player_db_key = "sleeper_players"
     last_db_call_key = "_last_call"
 
@@ -340,12 +346,12 @@ class SleeperLeague(FantasyLeague):
 
         FantasyLeague.__init__(self, plugin, league_id, commish, init)
 
-    def _load_league_data(self):
-        self.reload()
+    async def _load_league_data(self):
+        await self.reload()
         log.info("League {}, ID {} on platform Sleeper connected".format(self.name, self.league_id, self.platform))
 
     async def _load_player_db(self):
-        last_call = Storage.get(self.plugin, self.player_db_key)\
+        last_call = Storage.get(self.plugin, self.player_db_key) \
             .get(self.last_db_call_key, datetime.min)
         if last_call.date() >= datetime.now().date():
             log.debug("Sleepers player database shouldn't downloaded more than once per day.")
@@ -358,12 +364,12 @@ class SleeperLeague(FantasyLeague):
         Storage.set(self.plugin, players, self.player_db_key)
         Storage.save(self.plugin, self.player_db_key)
 
-    def reload(self):
-        self._league_data = self._client.make_request(endpoint="league/{}".format(self.league_id))
-        rosters = self._client.make_request(endpoint="league/{}/rosters".format(self.league_id))
-        users = self._client.make_request(endpoint="league/{}/users".format(self.league_id))
+    async def reload(self):
+        self._league_data = await self._client.request(endpoint="league/{}".format(self.league_id))
+        rosters = await self._client.request(endpoint="league/{}/rosters".format(self.league_id))
+        users = await self._client.request(endpoint="league/{}/users".format(self.league_id))
         if not self.plugin.bot.DEBUG_MODE:
-            asyncio.run_coroutine_threadsafe(self._load_player_db, self.plugin.bot.loop)
+            await self._load_player_db()
 
         self._teams = []
         for roster in rosters:
@@ -422,12 +428,12 @@ class SleeperLeague(FantasyLeague):
     def get_teams(self) -> List[Team]:
         return self._teams
 
-    def get_boxscores(self, week, match_id=-1) -> List[Match]:
+    async def get_boxscores(self, week, match_id=-1) -> List[Match]:
         # Doesn't support boxscores yet (12/2020), so match_id isn't used
 
         if week < 1 or week > self.current_week:
             week = self.current_week
-        matchups_raw = self._client.make_request(endpoint="league/{}/matchups/{}".format(self.league_id, week))
+        matchups_raw = await self._client.request(endpoint="league/{}/matchups/{}".format(self.league_id, week))
         matches = {}
         for matchup in matchups_raw:
             home_match = None
@@ -444,8 +450,8 @@ class SleeperLeague(FantasyLeague):
 
         return list(matches.values())
 
-    def get_overall_standings(self) -> List[TeamStanding]:
-        rosters = self._client.make_request(endpoint="league/{}/rosters".format(self.league_id))
+    async def get_overall_standings(self) -> List[TeamStanding]:
+        rosters = await self._client.request(endpoint="league/{}/rosters".format(self.league_id))
         sleeper_standings = []
         for roster in rosters:
             team = next(t for t in self.get_teams() if t.team_id == roster["roster_id"])
@@ -460,13 +466,13 @@ class SleeperLeague(FantasyLeague):
         sleeper_standings.sort(key=operator.itemgetter(3), reverse=True)
         return sleeper_standings
 
-    def get_divisional_standings(self) -> Dict[str, List[TeamStanding]]:
-        return {Lang.lang(self.plugin, "overall"): self.get_overall_standings()}
+    async def get_divisional_standings(self) -> Dict[str, List[TeamStanding]]:
+        return {Lang.lang(self.plugin, "overall"): await self.get_overall_standings()}
 
-    def get_most_recent_activity(self):
-        transactions = self._client.make_request(
+    async def get_most_recent_activity(self):
+        transactions = await self._client.request(
             endpoint="league/{}/transactions/{}".format(self.league_id, self.current_week))
-        transactions.extend(self._client.make_request(
+        transactions.extend(await self._client.request(
             endpoint="league/{}/transactions/{}".format(self.league_id, self.current_week - 1)))
         if not transactions:
             return None
@@ -480,7 +486,8 @@ class SleeperLeague(FantasyLeague):
             player_id = list(action["adds"].keys())[0] \
                 if act_type == "ADD" else list(action["drops"].keys())[0]
             act_team = next(t for t in self.get_teams() if t.team_id == act_roster_id)
-            act_player = Storage.get(self.plugin, self.player_db_key)[player_id]
+            playerlist = Storage.get(self.plugin, self.player_db_key)
+            act_player = playerlist.get(player_id, playerlist.get(int(player_id)))
             player_name = act_player["full_name"]
 
             return Activity(act_date, act_team.team_name, act_type, player_name)

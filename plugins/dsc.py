@@ -193,7 +193,7 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
         if (not permchecks.check_mod_access(ctx.author)
                 and Config.get(self)['mod_role_id'] != 0
                 and Config.get(self)['mod_role_id'] not in [role.id for role in ctx.author.roles]):
-            raise commands.BotMissingAnyRole([*Config().ADMIN_ROLES, Config.get(self)['mod_role_id']])
+            raise commands.BotMissingAnyRole([*Config().MOD_ROLES, Config.get(self)['mod_role_id']])
         if Config.get(self)['channel_id'] != 0 and Config.get(self)['channel_id'] != ctx.channel.id:
             raise commands.CheckFailure()
 

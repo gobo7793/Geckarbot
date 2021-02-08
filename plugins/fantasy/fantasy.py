@@ -9,6 +9,7 @@ import botutils.timeutils
 from base import BasePlugin, NotFound
 from botutils import stringutils, permchecks
 from botutils.converters import get_best_username, get_best_user
+from botutils.permchecks import WrongChannel
 from botutils.stringutils import paginate
 from botutils.utils import add_reaction
 from conf import Config, Storage, Lang
@@ -306,7 +307,7 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
     async def fantasy(self, ctx):
         if Config.get(self)['channel_id'] != 0 and Config.get(self)['channel_id'] != ctx.channel.id:
             await add_reaction(ctx.message, Lang.CMDNOPERMISSIONS)
-            raise commands.CheckFailure()
+            raise WrongChannel(Config.get(self)['channel_id'])
 
         if ctx.invoked_subcommand is None:
             await ctx.invoke(self.bot.get_command('fantasy info'))
@@ -384,8 +385,8 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
         results = []
         async with channel.typing():
             if self.default_league > -1 and (league_name is None or not league_name):
-                res = self._write_scores_league_perform(self.leagues[self.default_league], week,
-                                                        previous_week, team_name)
+                res = await self._write_scores_league_perform(self.leagues[self.default_league], week,
+                                                              previous_week, team_name)
                 if res is not None:
                     results.append(res)
 
@@ -398,8 +399,8 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
                         # default league already done directly above
                         continue
 
-                    res = self._write_scores_league_perform(self.leagues[k], week,
-                                                            previous_week, team_name)
+                    res = await self._write_scores_league_perform(self.leagues[k], week,
+                                                                  previous_week, team_name)
                     if res is not None:
                         results.append(res)
 
@@ -413,8 +414,8 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
             if isinstance(result, str):
                 await channel.send(result)
 
-    def _write_scores_league_perform(self, league: FantasyLeague, week: int,
-                                     previous_week: bool, team_name: str = None) \
+    async def _write_scores_league_perform(self, league: FantasyLeague, week: int,
+                                           previous_week: bool, team_name: str = None) \
             -> Union[discord.Embed, str, None]:
         """
         Decides which league data should be outputed, league scores or boxscores for given team_name
@@ -433,21 +434,20 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
 
         # full league score
         if team_name is None or not team_name:
-            return self._get_league_score_embed(league, lweek)
+            return await self._get_league_score_embed(league, lweek)
 
         # boxscore of both teams
         if len(team_name) > 1 and team_name.startswith("#"):
-            match_id = -1
             try:
                 match_id = int(team_name[1:]) - 1
             except (IndexError, ValueError):
                 return Lang.lang(self, "wrong_match_id")
 
-            match = next(iter(league.get_boxscores(lweek, match_id)), None)
+            match = next(iter(await league.get_boxscores(lweek, match_id)), None)
             if match is None:
                 return Lang.lang(self, "wrong_match_id")
-            embed_away = self._get_boxscore_embed(league, lweek, team=match.away_team, match=match)
-            embed_home = self._get_boxscore_embed(league, lweek, team=match.home_team, match=match)
+            embed_away = await self._get_boxscore_embed(league, lweek, team=match.away_team, match=match)
+            embed_home = await self._get_boxscore_embed(league, lweek, team=match.home_team, match=match)
             full_embed = discord.Embed(title=Lang.lang(self, "match_boxscore", match_id + 1, league.name, lweek),
                                        url=embed_away.url)
             full_embed.add_field(name=match.away_team.team_name, value=embed_away.description, inline=False)
@@ -463,9 +463,9 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
         if league.platform == Platform.Sleeper:
             return Lang.lang(self, "no_boxscore_data", team.team_name, league.platform,
                              league.get_boxscore_url(week, team.team_id))
-        return self._get_boxscore_embed(league, lweek, team=team)
+        return await self._get_boxscore_embed(league, lweek, team=team)
 
-    def _get_league_score_embed(self, league: FantasyLeague, week: int):
+    async def _get_league_score_embed(self, league: FantasyLeague, week: int):
         """Builds the discord.Embed for scoring overview in league with all matches"""
         prefix = Lang.lang(self, "scores_prefix", league.name,
                            week if week <= league.current_week else league.current_week)
@@ -474,7 +474,7 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
         match_no = 0
         bye_team = None
         bye_pts = 0
-        for match in league.get_boxscores(week):
+        for match in await league.get_boxscores(week):
             if match.home_team is None or match.home_team == 0 or not match.home_team:
                 bye_team = match.away_team.team_name
                 bye_pts = match.away_score
@@ -494,11 +494,11 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
 
         return embed
 
-    def _get_boxscore_embed(self, league: FantasyLeague, week: int, team=None, match: Match = None):
+    async def _get_boxscore_embed(self, league: FantasyLeague, week: int, team=None, match: Match = None):
         """Builds the discord.Embed for the boxscore for given team in given week"""
         if match is None:
             # first search match based on team name if match isn't given before aborting
-            match = next((b for b in league.get_boxscores(week)
+            match = next((b for b in await league.get_boxscores(week)
                           if (b.home_team is not None and b.home_team.team_name.lower() == team.team_name.lower())
                           or (b.away_team is not None and b.away_team.team_name.lower() == team.team_name.lower())),
                          None)
@@ -566,7 +566,7 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
             embed.url = league.standings_url
 
             async with ctx.typing():
-                divisions = league.get_divisional_standings()
+                divisions = await league.get_divisional_standings()
                 for division in divisions:
                     div = divisions[division]
                     standing_str = "\n".join([
@@ -618,7 +618,7 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
 
                     overall_str = Lang.lang(self, "overall")
                     division_str = Lang.lang(self, "division")
-                    divisions = league.get_divisional_standings()
+                    divisions = await league.get_divisional_standings()
 
                     standings_str = ""
                     footer_str = ""
@@ -626,14 +626,16 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
                         for div in divisions:
                             standings_str += "{} ({})\n".format(divisions[div][0].team_name, div[0:1])
                             footer_str += "{}: {} {} | ".format(div[0:1], div, division_str)
-                    standings_str += "{} ({})".format(league.get_overall_standings()[0].team_name, overall_str[0:1])
+                    standings = await league.get_overall_standings()
+                    standings_str += "{} ({})".format(standings[0].team_name,
+                                                      overall_str[0:1])
                     footer_str += "{}: {}".format(overall_str[0:1], overall_str)
 
                     embed.add_field(name=Lang.lang(self, "current_leader"), value=standings_str)
                     embed.set_footer(text=footer_str)
                     embed.add_field(name=Lang.lang(self, "trade_deadline"), value=league.trade_deadline)
 
-                    activity = league.get_most_recent_activity()
+                    activity = await league.get_most_recent_activity()
                     if activity is not None:
                         act_str = Lang.lang(self, "last_activity_content",
                                             activity.date.strftime(Lang.lang(self, "until_strf")),
@@ -659,18 +661,28 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
     async def fantasy_reload(self, ctx):
         async with ctx.typing():
             for k in self.leagues:
-                self.leagues[k].reload()
+                await self.leagues[k].reload()
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
     @fantasy.group(name="set")
     async def fantasy_set(self, ctx):
-        is_mod = Config.get(self)['mod_role_id'] != 0 \
-                 and Config.get(self)['mod_role_id'] in [role.id for role in ctx.author.roles]
-        is_supercomm = self.supercommish is not None and ctx.author.id == self.supercommish.id
-        if not permchecks.check_mod_access(ctx.author) and not is_mod and not is_supercomm:
+        def check_mod_perms():
+            if Config.get(self)['mod_role_id'] == 0:
+                return False
+            if Config.get(self)['mod_role_id'] in [role.id for role in ctx.author.roles]:
+                return True
+            return permchecks.check_mod_access(ctx.author)
+
+        def check_supercommish():
+            if self.supercommish is None:
+                return True
+            if ctx.author.id == self.supercommish.id:
+                return True
+            return False
+
+        if not check_supercommish() and not check_mod_perms():
             await add_reaction(ctx.message, Lang.CMDNOPERMISSIONS)
-            await ctx.send(Lang.lang(self, "no_set_access"))
-            return
+            raise commands.CheckFailure(message=Lang.lang(self, "no_set_access"))
 
         if ctx.invoked_subcommand is None:
             await self.bot.helpsys.cmd_help(ctx, self, ctx.command)

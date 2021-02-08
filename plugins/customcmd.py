@@ -386,7 +386,7 @@ class Plugin(BasePlugin, name="Custom CMDs"):
             if full:
                 arg_lens = []
                 for t in self.commands[k].texts:
-                    arg_list = arg_list_re.findall(t)
+                    arg_list = arg_list_re.findall(str(t))
                     arg_lens.append(len(arg_list))
                 cmds.append(Lang.lang(self, 'list_full_data', prefix, k, len(self.commands[k].texts), max(arg_lens)))
 
@@ -403,6 +403,9 @@ class Plugin(BasePlugin, name="Custom CMDs"):
     @cmd.command(name="list", help="Lists all custom commands.",
                  descripton="Lists all custom commands. Argument full gives more information about the commands.")
     async def cmd_list(self, ctx, full=""):
+        if full in self.commands.keys():
+            return await ctx.invoke(self.bot.get_command("cmd info"), full)
+
         cmds = self.format_cmd_list(full=full)
 
         for msg in cmds:

@@ -1,6 +1,25 @@
+from typing import Union
+
 import discord
 from discord.ext import commands
+from discord.ext.commands import CheckFailure
+
 from conf import Config
+
+
+class WrongChannel(CheckFailure):
+    """
+    Will be raised if a command is executed in a channel in which the command is not allowed.
+    """
+
+    def __init__(self, channel: Union[str, int]):
+        """
+        Creates a new WrongChannel instance
+
+        :param channel: Channel in which the command can be executed
+        """
+        self.channel = channel
+        super().__init__()
 
 
 def in_channel(channel_id):
@@ -13,7 +32,9 @@ def in_channel(channel_id):
         is_dm = isinstance(ctx.channel, discord.DMChannel)
         is_group = isinstance(ctx.channel, discord.GroupChannel)
         is_id = ctx.channel.id == channel_id
-        return is_dm or is_group or is_id
+        if is_dm or is_group or is_id:
+            return True
+        raise WrongChannel(channel_id)
 
     return commands.check(predicate)
 

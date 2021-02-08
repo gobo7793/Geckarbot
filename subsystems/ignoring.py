@@ -5,6 +5,8 @@ import discord
 from discord.ext import commands
 from datetime import datetime
 
+from discord.ext.commands import DisabledCommand
+
 from base import BaseSubsystem
 from conf import Storage, Lang
 from botutils import utils
@@ -16,7 +18,7 @@ This subsystem provides the possibility to block certain commands, users or acti
 """
 
 
-class UserBlockedCommand(Exception):
+class UserBlockedCommand(DisabledCommand):
     """
     Will be raised if a command is blocked for the specific user.
     Can be used for passive command checking.

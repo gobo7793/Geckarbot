@@ -1,7 +1,10 @@
+import locale
 import random
 import logging
 import string
 from datetime import datetime, timezone, timedelta
+from decimal import Decimal
+
 import discord
 from discord.ext import commands
 
@@ -38,7 +41,7 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
             self._remove_reminder(el)
 
         # Add commands to help category 'utils'
-        to_add = ("dice", "choose", "remindme", "multichoose")
+        to_add = ("dice", "choose", "remindme", "multichoose", "money")
         for cmd in self.get_commands():
             if cmd.name in to_add:
                 self.bot.helpsys.default_category(help.DefaultCategories.UTILS).add_command(cmd)
@@ -152,8 +155,11 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
         rate1 = rates.get('rates', {}).get(currency) if currency != "EUR" else 1
         rate2 = rates.get('rates', {}).get(other_curr) if other_curr != "EUR" else 1
         if rate1 and rate2:
-            await ctx.send(Lang.lang(self, 'money_converted', amount, currency,
-                                     round(float(rate2) / float(rate1) * amount, 2), other_curr))
+            print(f"{amount:n}")
+            other_amount = float(rate2) / float(rate1) * amount
+            await ctx.send(Lang.lang(self, 'money_converted',
+                                     locale.format_string('%.2f', amount, grouping=True), currency,
+                                     locale.format_string('%.2f', other_amount, grouping=True), other_curr))
         else:
             await ctx.send(Lang.lang(self, 'money_error'))
 

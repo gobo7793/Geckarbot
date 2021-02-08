@@ -2,6 +2,7 @@ import platform
 from datetime import datetime
 
 from discord.ext import commands
+from discord.ext.commands import MemberConverter, UserConverter
 
 from base import BasePlugin, ConfigurableType
 from botutils import utils
@@ -94,7 +95,7 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
         for msg in paginate(msgs, delimiter="\n\n"):
             await ctx.send(msg)
 
-    @plugins.command(name="available", aliases=["unloaded"])
+    @plugins.command(name="available", aliases=["unloaded", "disabled"])
     async def plugins_avail(self, ctx):
         avail = self.bot.get_unloaded_plugins()
 
@@ -103,8 +104,8 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
         else:
             await ctx.send(Lang.lang(self, 'no_plugin_avail'))
 
-    @plugins.command(name="unload")
-    @commands.has_any_role(*Config().ADMIN_ROLES)
+    @plugins.command(name="unload", aliases=["disable"])
+    @commands.has_any_role(*Config().MOD_ROLES)
     async def plugins_unload(self, ctx, name):
         instance = get_plugin_by_name(name)
         if instance is None:
@@ -123,8 +124,8 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
             await utils.add_reaction(ctx.message, Lang.CMDERROR)
             await ctx.send(Lang.lang(self, "plugin_not_unloadable", name))
 
-    @plugins.command(name="load")
-    @commands.has_any_role(*Config().ADMIN_ROLES)
+    @plugins.command(name="load", aliases=["enable"])
+    @commands.has_any_role(*Config().MOD_ROLES)
     async def plugins_load(self, ctx, name):
         instance = get_plugin_by_name(name)
         if instance is not None:
@@ -139,7 +140,7 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
             await ctx.send(Lang.lang(self, "plugin_not_loadable", name))
 
     @plugins.command(name="reload")
-    @commands.has_any_role(*Config().ADMIN_ROLES)
+    @commands.has_any_role(*Config().MOD_ROLES)
     async def plugins_reload(self, ctx, name):
         instance = get_plugin_by_name(name)
         if instance is None:
@@ -180,7 +181,7 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
                 await ctx.send(msg)
 
     @presence.command(name="add")
-    # @commands.has_any_role(*Config().ADMIN_ROLES)
+    # @commands.has_any_role(*Config().MOD_ROLES)
     async def presence_add(self, ctx, *, message):
         if self.bot.presence.register(message, PresencePriority.LOW) is not None:
             await utils.add_reaction(ctx.message, Lang.CMDSUCCESS)
@@ -190,7 +191,7 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
             await ctx.send(Lang.lang(self, "presence_unknown_error"))
 
     @presence.command(name="del", usage="<id>")
-    # @commands.has_any_role(*Config().ADMIN_ROLES)
+    # @commands.has_any_role(*Config().MOD_ROLES)
     async def presence_del(self, ctx, entry_id: int):
         entry_id -= 1
         presence_message = "PANIC"
@@ -224,9 +225,11 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
         await utils.log_to_mod_channel(ctx)
 
     @disable.command(name="mod", usage="[user|command|until]")
-    @commands.has_any_role(*Config().ADMIN_ROLES)
+    @commands.has_any_role(*Config().MOD_ROLES)
     async def disable_mod(self, ctx, *args):
-        user, command, until = await self._parse_mod_args(ctx.message, *args)
+        user, command, until = await self._parse_mod_args(ctx, *args)
+        if user == -1 or command == -1 or until == -1:
+            return
 
         final_msg = None
         reaction = Lang.CMDERROR
@@ -252,16 +255,20 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
 
         # disable user completely
         elif user is not None and command is None:
-            result = self.bot.ignoring.add_user(user, until)
-            if result == IgnoreEditResult.Success:
-                reaction = Lang.CMDSUCCESS
-                final_msg = Lang.lang(self, 'user_blocked', get_best_username(user), until_str)
-            elif result == IgnoreEditResult.Already_in_list:
+            if user.id == ctx.author.id:
                 reaction = Lang.CMDERROR
-                final_msg = Lang.lang(self, 'user_already_blocked', get_best_username(user))
-            elif result == IgnoreEditResult.Until_in_past:
-                reaction = Lang.CMDERROR
-                final_msg = Lang.lang(self, 'no_time_machine')
+                final_msg = Lang.lang(self, 'cant_block_yourself')
+            else:
+                result = self.bot.ignoring.add_user(user, until)
+                if result == IgnoreEditResult.Success:
+                    reaction = Lang.CMDSUCCESS
+                    final_msg = Lang.lang(self, 'user_blocked', get_best_username(user), until_str)
+                elif result == IgnoreEditResult.Already_in_list:
+                    reaction = Lang.CMDERROR
+                    final_msg = Lang.lang(self, 'user_already_blocked', get_best_username(user))
+                elif result == IgnoreEditResult.Until_in_past:
+                    reaction = Lang.CMDERROR
+                    final_msg = Lang.lang(self, 'no_time_machine')
 
         # disable active command usage for user
         elif user is not None and command is not None:
@@ -346,9 +353,9 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
             await ctx.send(final_msg)
 
     @enable.command(name="mod", usage="[user|command]")
-    @commands.has_any_role(*Config().ADMIN_ROLES)
+    @commands.has_any_role(*Config().MOD_ROLES)
     async def enable_mod(self, ctx, *args):
-        user, command, until = await self._parse_mod_args(ctx.message, *args)
+        user, command, until = await self._parse_mod_args(ctx, *args)
 
         final_msg = None
         reaction = Lang.CMDERROR
@@ -423,7 +430,7 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
 
     async def _pre_cmd_checks(self, message, command):
         """
-        Some pre-checks for command disabling
+        Some pre-checks for command disabling including output to the channel of the message
 
         :param message: the message
         :param command: the command to disable
@@ -433,19 +440,23 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
             await utils.add_reaction(message, Lang.CMDERROR)
             await message.channel.send(Lang.lang(self, 'cmd_not_found', command))
             return False
-        if command == "enable":
+        if self._get_full_cmd_name(command) == "enable":
             await utils.add_reaction(message, Lang.CMDERROR)
             await message.channel.send(Lang.lang(self, 'enable_cant_blocked'))
             return False
         return True
 
-    async def _parse_mod_args(self, message, *args):
+    async def _parse_mod_args(self, ctx, *args):
         """
-        Parses the input args for valid command names, users and until datetime input
+        Parses the input args for valid command names, users and until datetime input.
 
-        :param message: the message
+        :param ctx: the command context
         :param args: the arguments
-        :return: a tuple of user, command, until with None as value if not found
+        :return: a tuple of user, command, until.
+         If a valid value can be found, the value will be returned for each tuple element.
+         If a value can't be found, None will be returned for each tuple element.
+         If a value has an invalid value, -1 for this value will be returned if a
+          sub-check already did an output to the channel or -2 otherwise for each tuple element.
         """
         user = None
         command = None
@@ -456,15 +467,21 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
 
             if user is None:
                 try:
-                    user = convert_member(arg)
+                    user = await MemberConverter().convert(ctx, arg)
                     continue
                 except commands.CommandError:
-                    pass
+                    try:
+                        user = await UserConverter().convert(ctx, arg)
+                        continue
+                    except commands.CommandError:
+                        pass
 
             if command is None and self._is_valid_command(arg):
-                if await self._pre_cmd_checks(message, arg):
+                if await self._pre_cmd_checks(ctx.message, arg):
                     command = self._get_full_cmd_name(arg)
-                    continue
+                else:
+                    command = -1
+                continue
 
             if until is None:
                 parsed_time = datetime.max
