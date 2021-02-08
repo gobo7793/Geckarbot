@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import operator
 from abc import ABC, abstractmethod
 from datetime import datetime
@@ -13,7 +14,10 @@ from botutils.jsonutils import Decoder
 from botutils.restclient import Client
 from botutils.timeutils import from_epoch_ms
 from conf import Storage, Config, Lang
-from plugins.fantasy.utils import Activity, TeamStanding, Team, Player, Match, Platform, log
+from plugins.fantasy.utils import Activity, TeamStanding, Team, Player, Match, Platform
+
+
+log = logging.getLogger(__name__)
 
 
 def set_flex_pos_name(slot_position_old):

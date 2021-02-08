@@ -21,6 +21,7 @@ from subsystems import help
 # 2.5-a
 
 # CONFIG
+log = logging.getLogger(__name__)
 CONFIRMTIMEOUT = 10
 OWNER = "gobo7793"
 REPO = "Geckarbot"
@@ -338,7 +339,7 @@ class Plugin(BasePlugin, name="Bot updating system"):
         body = None
         for el in await self.get_releases():
             ver = sanitize_version_s(el["tag_name"])
-            logging.getLogger(__name__).debug("Comparing versions: {} and {}".format(self.bot.VERSION, ver))
+            log.debug("Comparing versions: {} and {}".format(self.bot.VERSION, ver))
             if is_equal(sanitize_version_s(version), ver):
                 body = el["body"]
                 break
@@ -368,19 +369,18 @@ class Plugin(BasePlugin, name="Bot updating system"):
         try:
             f = open(TAGFILE)
         except FileNotFoundError:
-            logging.getLogger(__name__).debug("I was not !update'd.")
+            log.debug("I was not !update'd.")
             return False
         except IsADirectoryError:
-            logging.getLogger(__name__).error(
-                "{} is a directory, I expected a file or nothing. Please clean this up.".format(TAGFILE))
+            log.error("{} is a directory, I expected a file or nothing. Please clean this up.".format(TAGFILE))
             return False
 
         lines = f.readlines()
         if len(lines) > 1:
-            logging.getLogger(__name__).error("{} has more than 1 line. This should not happen.".format(TAGFILE))
+            log.error("{} has more than 1 line. This should not happen.".format(TAGFILE))
             return False
         if len(lines) == 0 or lines[0].strip() == "":
-            logging.getLogger(__name__).error("{} is empty. This should not happen.".format(TAGFILE))
+            log.error("{} is empty. This should not happen.".format(TAGFILE))
             return False
 
         if lines[0].strip() == ERRORCODE:
@@ -388,7 +388,7 @@ class Plugin(BasePlugin, name="Bot updating system"):
             os.remove(TAGFILE)
             return False
         else:
-            logging.getLogger(__name__).debug("I was !update'd! Yay!.")
+            log.debug("I was !update'd! Yay!.")
             await utils.write_debug_channel(
                 "I updated successfully! One step closer towards world dominance!")
             os.remove(TAGFILE)
@@ -498,7 +498,6 @@ class Plugin(BasePlugin, name="Bot updating system"):
             await self.do_update(ctx.message.channel, release)
             return
         else:
-            logging.getLogger(__name__).error(
-                "{}: PANIC! I am on {}, this should not happen!".format(self.get_name(), self.state))
+            log.error("{}: PANIC! I am on {}, this should not happen!".format(self.get_name(), self.state))
             self.state = State.IDLE
             self.waiting_for_confirm = None

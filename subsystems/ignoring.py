@@ -234,7 +234,7 @@ class Ignoring(BaseSubsystem):
     def __init__(self, bot):
         super().__init__(bot)
         bot.plugins.append(self)
-        self.log = logging.getLogger("ignoring")
+        self.log = logging.getLogger(__name__)
 
         self.additional_cmds = []
 

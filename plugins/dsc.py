@@ -28,7 +28,7 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
     def __init__(self, bot):
         super().__init__(bot)
         bot.register(self, category="DSC")
-        self.log = logging.getLogger("dsc")
+        self.log = logging.getLogger(__name__)
 
         self.presence = None
         if Storage.get(self)["state"] == DscState.Voting:

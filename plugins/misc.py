@@ -16,7 +16,7 @@ from base import BasePlugin, NotFound
 from subsystems import timers, help
 from botutils.converters import get_best_username
 
-log = logging.getLogger("misc")
+log = logging.getLogger(__name__)
 keysmash_cmd_name = "keysmash"
 
 

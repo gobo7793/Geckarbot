@@ -87,7 +87,7 @@ class Presence(BaseSubsystem):
 
     def __init__(self, bot):
         super().__init__(bot)
-        self.log = logging.getLogger("presence")
+        self.log = logging.getLogger(__name__)
         self.messages = {}  # type: Dict[int, PresenceMessage]
         self.highest_id = None  # type: Optional[int]
         self._timer_job = None  # type: Optional[Job]
