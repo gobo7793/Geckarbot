@@ -1,11 +1,13 @@
 {
     "en_US": {
-        "reaction_signup": "📋"
+        "reaction_signup": "📋",
+        "reaction_spoiler": "\uD83D\uDC40"
     },
 
     "de_DE": {
         "#0": "Grammar",
         "reaction_signup": "📋",
+        "reaction_spoiler": "\uD83D\uDC40",
         "and": "und",
         "nobody": "niemanden",
         "minute_sg": "Minute",

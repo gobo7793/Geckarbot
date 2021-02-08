@@ -15,6 +15,7 @@ from data import Lang, Config
 from botutils import utils, statemachine, stringutils
 from botutils.converters import get_best_username as gbu
 from subsystems import help, presence
+from subsystems.reactions import ReactionAddedEvent
 
 h_help = "Wer bin ich?"
 h_description = "Startet ein Wer bin ich?. Nach einer Registrierungsphase ordne ich jedem Spieler einen zufälligen " \
@@ -405,6 +406,11 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
                 return
         self.eval_event.set()
 
+    async def spoiler_dm(self, event):
+        if type(event) == ReactionAddedEvent and event.emoji.name == Lang.lang(self, "reaction_spoiler"):
+            # TODO send spoiler
+            pass
+
     async def delivering_phase(self):
         for target in self.participants:
             todo = []
@@ -418,9 +424,16 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
 
             for msg in stringutils.paginate(todo, prefix=Lang.lang(self, "list_title")):
                 await target.send(msg)
-        await self.channel.send(Lang.lang(self, "done"))
+        done_msg = await self.channel.send(Lang.lang(self, "done"))
+        await add_reaction(done_msg, Lang.lang(self, "reaction_spoiler"))
+        self.bot.reaction_listener.register(done_msg, self.spoiler_dm, data=None)
+
         await self.cleanup()
         return None
+
+    @commands.command(name="reag")
+    async def reag(self, ctx):
+        self.bot.reaction_listener.register(ctx.message, self.spoiler_dm, data=None)
 
     async def kill(self, participant):
         await self.channel.send("Cancelling werbinich, {}'s DM registration was killed.".format(gbu(participant.user)))
