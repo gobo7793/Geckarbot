@@ -202,6 +202,10 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
     async def reminder(self, ctx, *args):
         self._remove_old_reminders()
 
+        if not args:
+            await ctx.send(Lang.lang(self, 'remind_noargs'))
+            return
+
         try:
             datetime.strptime(f"{args[0]} {args[1]}", "%d.%m.%Y %H:%M")
             rtext = " ".join(args[2:])
