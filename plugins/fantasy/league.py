@@ -207,7 +207,7 @@ class FantasyLeague(ABC):
         """
         Serializes the league dataset to a dict
 
-        :return: A dict with the espn_id and commish
+        :return: A dict with the platform, league id and commish user id
         """
         return {
             'platform': self.platform,
