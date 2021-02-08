@@ -1,3 +1,4 @@
+import calendar
 import inspect
 import json
 import logging
@@ -195,7 +196,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                     score2 = max(0, 0, *(g.get('ScoreTeam2', 0) for g in match.get('Goals', [])))
                 else:
                     score1, score2 = date_formula, date_formula
-                values.append([['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'][date_time.weekday()],
+                values.append([calendar.day_abbr[date_time.weekday()],
                                date_time.strftime("%d.%m.%Y"),
                                date_time.strftime("%H:%M"),
                                self.teamname_dict.get_long(match.get('Team1', {}).get('TeamName', 'n.a.')),
