@@ -372,19 +372,19 @@ class Geckarbot(commands.Bot):
 
         # No command or ignoring list handling
         if isinstance(error, ignoring.UserBlockedCommand):
-            await send_error_to_ctx(ctx, error, message="{} has blocked the command `{}`.".
+            await send_error_to_ctx(ctx, error, default="{} has blocked the command `{}`.".
                                     format(converters.get_best_username(error.user), error.command))
         if isinstance(error, (commands.CommandNotFound, commands.DisabledCommand)):
             return
 
         # Check Failures
         elif isinstance(error, (commands.MissingRole, commands.MissingAnyRole)):
-            await send_error_to_ctx(ctx, error, default="You don't have the correct role for this command.")
+            await send_error_to_ctx(ctx, error, default="You don't have the required role for this command.")
         elif isinstance(error, permchecks.WrongChannel):
             await send_error_to_ctx(ctx, error,
-                                    message="Command can only be executed in channel {}".format(error.channel))
+                                    default="Command can only be used in channel {}".format(error.channel))
         elif isinstance(error, commands.NoPrivateMessage):
-            await send_error_to_ctx(ctx, error, default="Command can't be executed in private messages.")
+            await send_error_to_ctx(ctx, error, default="Command can't be used in private messages.")
         elif isinstance(error, commands.CheckFailure):
             await send_error_to_ctx(ctx, error, default="Permission error.")
 
@@ -394,9 +394,9 @@ class Geckarbot(commands.Bot):
         elif isinstance(error, commands.TooManyArguments):
             await send_error_to_ctx(ctx, error, default="Too many arguments given.")
         elif isinstance(error, commands.BadArgument):
-            await send_error_to_ctx(ctx, error, default="Error on given argument: {}".format(error))
+            await send_error_to_ctx(ctx, error, default="Argument don't have the required format: {}".format(error))
         elif isinstance(error, commands.UserInputError):
-            await send_error_to_ctx(ctx, error, default="Wrong user input format: {}".format(error))
+            await send_error_to_ctx(ctx, error, default="Argument error for argument: {}".format(error))
 
         # Other errors
         else:
