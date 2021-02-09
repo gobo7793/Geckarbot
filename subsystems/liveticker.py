@@ -224,7 +224,7 @@ class LeagueRegistration:
         job.data = {'start': now,
                     'matches': self.extract_kickoffs_with_matches()[now]}
         await self.update_kickoff_coros(job)
-        self.schedule_timers(start=datetime.datetime.now())
+        self.schedule_timers(start=now)
 
     def schedule_timers(self, start: datetime.datetime):
         """
@@ -237,6 +237,8 @@ class LeagueRegistration:
         minutes = [m + (start.minute % 15) for m in range(0, 60, 15)]
         intermediate = timers.timedict(year=[start.year], month=[start.month], monthday=[start.day], minute=minutes)
         job = self.listener.bot.timers.schedule(coro=self.update_periodic_coros, td=intermediate, data={'start': start})
+        if job.next_execution().minute == datetime.datetime.now().minute:
+            job.execute()
         self.logger.debug("Timers for match starting at {} scheduled.".format(start.strftime("%d/%m/%Y %H:%M")))
         self.intermediate_timers.append(job)
         return job
@@ -274,6 +276,8 @@ class LeagueRegistration:
         :param job:
         :return:
         """
+        if job.data['start'] == datetime.datetime.now().replace(second=0, microsecond=0):
+            return
         new_finished = []
         self.update_matches()
         matches = self.extract_kickoffs_with_matches()[job.data['start']]
