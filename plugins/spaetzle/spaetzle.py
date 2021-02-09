@@ -37,7 +37,6 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
         self.logger = logging.getLogger(__name__)
         self.teamname_dict = TeamnameDict(self)
         self.userbridge = UserBridge(self)
-        self.bot.liveticker.restore(self)
 
     def default_config(self):
         return {

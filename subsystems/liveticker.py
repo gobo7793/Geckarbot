@@ -315,6 +315,11 @@ class Liveticker(BaseSubsystem):
         self.logger = logging.getLogger(__name__)
         self.registrations = {}
 
+        @bot.listen()
+        async def on_ready():
+            plugins = self.bot.get_normalplugins()
+            self.restore(plugins)
+
     def default_storage(self):
         return {
             'registrations': {}
@@ -368,11 +373,13 @@ class Liveticker(BaseSubsystem):
                 coro_dict[leag] = r
         return coro_dict
 
-    def restore(self, plugin):
+    def restore(self, plugins: list):
+        i = 0
         registrations = Storage().get(self)['registrations']
         for league in registrations:
             for reg in registrations[league]:
-                if reg['plugin'] == plugin.get_name():
+                if reg['plugin'] in plugins:
+                    i += 1
                     coro = getattr(get_plugin_by_name(reg['plugin']),
                                    reg['coro']) if reg['coro'] else None
                     coro_kickoff = getattr(get_plugin_by_name(reg['plugin']),
@@ -385,4 +392,4 @@ class Liveticker(BaseSubsystem):
                                   coro_kickoff=coro_kickoff,
                                   coro_finished=coro_finished,
                                   periodic=reg['periodic'])
-        self.logger.debug('Liveticker registrations for plugin {}'.format(plugin.get_name()))
+        self.logger.debug(f'{i} Liveticker registrations restored.')
