@@ -586,7 +586,7 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
                 await ctx.send(embed=embed)
 
             except (IndexError, ValueError):
-                return Lang.lang(self, "api_error", self.leagues[k].name)
+                await ctx.send(Lang.lang(self, "api_error", self.leagues[k].name))
 
     @fantasy.command(name="info")
     async def info(self, ctx, league_name=None):
@@ -631,11 +631,11 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
 
                     overall_str = Lang.lang(self, "overall")
                     division_str = Lang.lang(self, "division")
+                    footer_str = ""
                     try:
                         divisions = await league.get_divisional_standings()
 
                         standings_str = ""
-                        footer_str = ""
                         if len(divisions) > 1:
                             for div in divisions:
                                 standings_str += "{} ({})\n".format(divisions[div][0].team_name, div[0:1])
@@ -645,7 +645,6 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
                                                           overall_str[0:1])
                         footer_str += "{}: {}".format(overall_str[0:1], overall_str)
 
-                        embed.set_footer(text=footer_str)
                         embed.add_field(name=Lang.lang(self, "current_leader"), value=standings_str)
                     except (ValueError, IndexError):
                         has_api_errors = True
@@ -663,7 +662,8 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
                         has_api_errors = True
 
                     if has_api_errors:
-                        embed.set_footer(text=" | ".join([embed.footer.text, Lang.lang(self, "api_error_short")]))
+                        footer_str = " | ".join([footer_str, Lang.lang(self, "api_error_short")])
+                    embed.set_footer(text=footer_str)
 
                 elif self.state == FantasyState.Postseason:
                     phase_lang = "postseason_phase_info"
