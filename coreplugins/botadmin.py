@@ -24,52 +24,61 @@ class Plugin(BasePlugin, name="Bot status commands for monitoring and debug purp
     def get_configurable_type(self):
         return ConfigurableType.COREPLUGIN
 
-    @commands.command(name="subsys", help="Shows registrations on subsystems")
+    @commands.command(name="subsys", help="Shows registrations on subsystems",
+                      description="Shows registrations on subsystems. If a subsystem name is given, "
+                                  "only registrations for this subsystem will be shown.",
+                      usage="[dmlisteners|ignoring|liveticker|presence|reactions|timers]")
     @commands.has_any_role(Config().BOT_ADMIN_ROLE_ID)
-    async def subsys(self, ctx):
-        reaction_prefix = "**{} Reactions registrations:**\n".format(len(self.bot.reaction_listener.callbacks))
-        for msg in paginate(self.bot.reaction_listener.callbacks,
-                            prefix=reaction_prefix,
-                            suffix="\n",
-                            if_empty="None"):
-            await ctx.send(msg)
+    async def subsys(self, ctx, subsystem=""):
+        if not subsystem or subsystem == "reactions":
+            reaction_prefix = "**{} Reactions registrations:**\n".format(len(self.bot.reaction_listener.callbacks))
+            for msg in paginate(self.bot.reaction_listener.callbacks,
+                                prefix=reaction_prefix,
+                                suffix="\n",
+                                if_empty="None"):
+                await ctx.send(msg)
 
-        timer_status = "up" if self.bot.timers.is_alive() else "down"
-        timer_prefix = "**{} Timers: Thread is {}; registrations:**\n".format(len(self.bot.timers.jobs), timer_status)
-        for msg in paginate(self.bot.timers.jobs,
-                            prefix=timer_prefix,
-                            suffix="\n",
-                            if_empty="None"):
-            await ctx.send(msg)
+        if not subsystem or subsystem == "timers":
+            timer_status = "up" if self.bot.timers.is_alive() else "down"
+            timer_prefix = "**{} Timers: Thread is {}; registrations:**\n".format(len(self.bot.timers.jobs), timer_status)
+            for msg in paginate(self.bot.timers.jobs,
+                                prefix=timer_prefix,
+                                suffix="\n",
+                                if_empty="None"):
+                await ctx.send(msg)
 
-        dmregs = self.bot.dm_listener.registrations
-        if not dmregs:
-            dmregs = {0: "None"}
-        dm_prefix = "**{} DM Listeners:**\n".format(len(self.bot.dm_listener.registrations))
-        for msg in paginate([x for x in dmregs.keys()],
-                            prefix=dm_prefix,
-                            suffix="\n",
-                            f=lambda x: dmregs[x]):
-            await ctx.send(msg)
+        if not subsystem or subsystem == "dmlisteners":
+            dmregs = self.bot.dm_listener.registrations
+            if not dmregs:
+                dmregs = {0: "None"}
+            dm_prefix = "**{} DM Listeners:**\n".format(len(self.bot.dm_listener.registrations))
+            for msg in paginate([x for x in dmregs.keys()],
+                                prefix=dm_prefix,
+                                suffix="\n",
+                                f=lambda x: dmregs[x]):
+                await ctx.send(msg)
 
-        presence_timer_status = "up" if self.bot.presence.is_timer_up else "down"
-        presence_prefix = "**{} Presence entries, Timer is {}:**\n".format(len(self.bot.presence.messages),
-                                                                           presence_timer_status)
-        for msg in paginate(list(self.bot.presence.messages.values()),
-                            prefix=presence_prefix,
-                            suffix="\n",
-                            if_empty="None"):
-            await ctx.send(msg)
+        if not subsystem or subsystem == "presence":
+            presence_timer_status = "up" if self.bot.presence.is_timer_up else "down"
+            presence_prefix = "**{} Presence entries, Timer is {}:**\n".format(len(self.bot.presence.messages),
+                                                                               presence_timer_status)
+            for msg in paginate(list(self.bot.presence.messages.values()),
+                                prefix=presence_prefix,
+                                suffix="\n",
+                                if_empty="None"):
+                await ctx.send(msg)
 
-        ignoring_prefix = "**{} Ignoring entries:**\n".format(self.bot.ignoring.get_full_ignore_len())
-        for msg in paginate(list(self.bot.ignoring.get_full_ignore_list()),
-                            prefix=ignoring_prefix,
-                            suffix="\n",
-                            if_empty="None"):
-            await ctx.send(msg)
+        if not subsystem or subsystem == "ignoring":
+            ignoring_prefix = "**{} Ignoring entries:**\n".format(self.bot.ignoring.get_full_ignore_len())
+            for msg in paginate(list(self.bot.ignoring.get_full_ignore_list()),
+                                prefix=ignoring_prefix,
+                                suffix="\n",
+                                if_empty="None"):
+                await ctx.send(msg)
 
-        for msg in self.liveticker_msgs():
-            await ctx.send(msg)
+        if not subsystem or subsystem == "liveticker":
+            for msg in self.liveticker_msgs():
+                await ctx.send(msg)
 
     @staticmethod
     async def dump(ctx, iodir, iodir_str, name, container=None):
