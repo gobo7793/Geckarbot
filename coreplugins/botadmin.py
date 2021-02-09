@@ -24,6 +24,11 @@ class Plugin(BasePlugin, name="Bot status commands for monitoring and debug purp
     def get_configurable_type(self):
         return ConfigurableType.COREPLUGIN
 
+    def default_config(self):
+        return {
+            'max_dump': 5  # maximum storage/configdump messages to show
+        }
+
     @commands.command(name="subsys", help="Shows registrations on subsystems",
                       description="Shows registrations on subsystems. If a subsystem name is given, "
                                   "only registrations for this subsystem will be shown.",
@@ -80,14 +85,13 @@ class Plugin(BasePlugin, name="Bot status commands for monitoring and debug purp
             for msg in self.liveticker_msgs():
                 await ctx.send(msg)
 
-    @staticmethod
-    async def dump(ctx, iodir, iodir_str, name, container=None):
+    async def dump(self, ctx, iodir, iodir_str, name, container=None):
         plugin = converters.get_plugin_by_name(name)
         if plugin is None:
-            await ctx.message.add_reaction(Lang.CMDERROR)
+            await add_reaction(ctx.message, Lang.CMDERROR)
             await ctx.send("Plugin {} not found.".format(name))
             return
-        await ctx.message.add_reaction(Lang.CMDSUCCESS)
+        await add_reaction(ctx.message, Lang.CMDSUCCESS)
         prefix = ""
 
         # List existing structures when called on default container
@@ -100,8 +104,15 @@ class Plugin(BasePlugin, name="Bot status commands for monitoring and debug purp
         if not iodir.data(plugin).has_structure(container):
             prefix += "**Warning: plugin {} does not have the {} structure {}.** " \
                       "This is the default {}.".format(name, iodir_str, container, iodir_str)
+
+        counter = 0
         for el in paginate(dump, prefix=prefix, msg_prefix="```", msg_suffix="```", prefix_within_msg_prefix=False):
+            counter += 1
+            if counter > Config.get(self)["max_dump"]:
+                await ctx.send("There are more data in dump which won't be shown.")
+                return
             await ctx.send(el)
+
 
     @commands.command(name="storagedump", help="Dumps plugin storage", usage="<plugin name> [container]")
     @commands.has_any_role(Config().BOT_ADMIN_ROLE_ID)
