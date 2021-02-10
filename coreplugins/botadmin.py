@@ -94,16 +94,17 @@ class Plugin(BasePlugin, name="Bot status commands for monitoring and debug purp
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
         prefix = ""
 
-        # List existing structures when called on default container
-        if container is None:
-            containers = ", ".join(["`{}`".format(el) for el in iodir.data(plugin).structures() if el is not None])
-            if containers:
-                prefix += "Available containers: {}\n".format(containers)
+        async with ctx.typing():
+            # List existing structures when called on default container
+            if container is None:
+                containers = ", ".join(["`{}`".format(el) for el in iodir.data(plugin).structures() if el is not None])
+                if containers:
+                    prefix += "Available containers: {}\n".format(containers)
 
-        dump = pprint.pformat(iodir.get(plugin, container=container), indent=4).split("\n")
-        if not iodir.data(plugin).has_structure(container):
-            prefix += "**Warning: plugin {} does not have the {} structure {}.** " \
-                      "This is the default {}.".format(name, iodir_str, container, iodir_str)
+            dump = pprint.pformat(iodir.get(plugin, container=container), indent=4).split("\n")
+            if not iodir.data(plugin).has_structure(container):
+                prefix += "**Warning: plugin {} does not have the {} structure {}.** " \
+                          "This is the default {}.".format(name, iodir_str, container, iodir_str)
 
         counter = 0
         for el in paginate(dump, prefix=prefix, msg_prefix="```", msg_suffix="```", prefix_within_msg_prefix=False):
@@ -112,7 +113,6 @@ class Plugin(BasePlugin, name="Bot status commands for monitoring and debug purp
                 await ctx.send("There are more data in dump which won't be shown.")
                 return
             await ctx.send(el)
-
 
     @commands.command(name="storagedump", help="Dumps plugin storage", usage="<plugin name> [container]")
     @commands.has_any_role(Config().BOT_ADMIN_ROLE_ID)
