@@ -22,6 +22,20 @@ class DscState(IntEnum):
     Sign_up = 2
 
 
+def dsc_set_checks():
+    def predicate(ctx):
+        plugin = get_plugin_by_name(__name__.rsplit(".", 1)[1])
+        if (not permchecks.check_mod_access(ctx.author)
+                and Config.get(plugin)['mod_role_id'] != 0
+                and Config.get(plugin)['mod_role_id'] not in [role.id for role in ctx.author.roles]):
+            raise commands.BotMissingAnyRole([*Config().MOD_ROLES, Config.get(plugin)['mod_role_id']])
+        if Config.get(plugin)['channel_id'] != 0 and Config.get(plugin)['channel_id'] != ctx.channel.id:
+            raise commands.CheckFailure()
+        return True
+
+    return commands.check(predicate)
+
+
 class Plugin(BasePlugin, name="Discord Song Contest"):
     """Commands for the DSC"""
 
@@ -188,16 +202,15 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
 
         await ctx.send(embed=embed)
 
-    @dsc.group(name="set")
-    async def dsc_set(self, ctx):
-        if (not permchecks.check_mod_access(ctx.author)
-                and Config.get(self)['mod_role_id'] != 0
-                and Config.get(self)['mod_role_id'] not in [role.id for role in ctx.author.roles]):
-            raise commands.BotMissingAnyRole([*Config().MOD_ROLES, Config.get(self)['mod_role_id']])
-        if Config.get(self)['channel_id'] != 0 and Config.get(self)['channel_id'] != ctx.channel.id:
-            raise commands.CheckFailure()
+    @dsc.group(name="set", invoke_without_command=True)
+    @dsc_set_checks()
+    async def dsc_set(self, ctx, *args):
+        if len(args) > 2 and args[1] == "until":
+            # !dsc set <signup|voting> until <date>
+            await ctx.invoke(self.bot.get_command('dsc set state'), args[0])
+            await ctx.invoke(self.bot.get_command('dsc set date'), args[2:])
 
-        if ctx.invoked_subcommand is None:
+        elif ctx.invoked_subcommand is None:
             await self.bot.helpsys.cmd_help(ctx, self, ctx.command)
 
     @dsc_set.command(name="host")
