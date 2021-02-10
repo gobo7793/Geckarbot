@@ -120,10 +120,11 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
         self.initiator = None
         self.show_assignees = True
         self.postgame = False
-        self.presence_messsage = None
+        self.presence_message = None
         self.participants = []
         self.eval_event = None
         self.reg_ts = None
+        self.spoiler_reaction_listener = None
 
         self.base_config = {
             "register_timeout": [int, 1],
@@ -296,8 +297,8 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
         self.logger.debug("Starting registering phase")
         self.eval_event = asyncio.Event()
         self.postgame = False
-        self.presence_messsage = self.bot.presence.register(Lang.lang(self, "presence", self.channel.name),
-                                                            priority=presence.PresencePriority.HIGH)
+        self.presence_message = self.bot.presence.register(Lang.lang(self, "presence", self.channel.name),
+                                                           priority=presence.PresencePriority.HIGH)
         reaction = Lang.lang(self, "reaction_signup")
         to = self.get_config("register_timeout")
         self.reg_ts = datetime.now()
@@ -430,14 +431,10 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
                 await target.send(msg)
         done_msg = await self.channel.send(Lang.lang(self, "done"))
         await add_reaction(done_msg, Lang.lang(self, "reaction_spoiler"))
-        self.bot.reaction_listener.register(done_msg, self.spoiler_dm, data=None)
+        self.spoiler_reaction_listener = self.bot.reaction_listener.register(done_msg, self.spoiler_dm, data=None)
 
         await self.cleanup()
         return None
-
-    @commands.command(name="reag")
-    async def reag(self, ctx):
-        self.bot.reaction_listener.register(ctx.message, self.spoiler_dm, data=None)
 
     async def kill(self, participant):
         await self.channel.send("Cancelling werbinich, {}'s DM registration was killed.".format(gbu(participant.user)))
@@ -449,7 +446,8 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
         self.logger.debug("Cleaning up")
         for el in self.participants:
             el.cleanup()
-        self.presence_messsage.deregister()
+        self.presence_message.deregister()
+        self.spoiler_reaction_listener.unregister()
         self.eval_event = None
         self.initiator = None
         self.reg_start_time = None
