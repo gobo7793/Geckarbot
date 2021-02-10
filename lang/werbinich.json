@@ -32,7 +32,7 @@
         "#2": "Public",
         "registering": "Ein Wer bin ich? wurde gestartet! Um teilzunehmen, melde dich mit einer {}-Reaktion an. Ihr habt {} {} Zeit.",
         "list_participants": "Teilnehmer: {}",
-        "done": "Fertig.",
+        "done": "Fertig. Reagiere mit \uD83D\uDC40 um als Beobachter die Zuordnungen mitgeteilt zu bekommen!",
 
         "#3": "DM",
         "ask_for_entry": "Du darfst für {} eine zu erratende Person aussuchen. Wer darf's sein?",

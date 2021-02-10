@@ -408,8 +408,12 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
 
     async def spoiler_dm(self, event):
         if type(event) == ReactionAddedEvent and event.emoji.name == Lang.lang(self, "reaction_spoiler"):
-            # TODO send spoiler
-            pass
+            if self.statemachine.state == State.IDLE and self.participants \
+                    and (event.user not in (x.user for x in self.participants) or self.postgame):
+                # send dm
+                for msg in stringutils.paginate(self.participants, prefix=Lang.lang(self, "participants_last_round"),
+                                                f=lambda x: x.to_msg()):
+                    await event.user.send(msg)
 
     async def delivering_phase(self):
         for target in self.participants:
