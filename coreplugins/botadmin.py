@@ -82,7 +82,14 @@ class Plugin(BasePlugin, name="Bot status commands for monitoring and debug purp
                 await ctx.send(msg)
 
         if not subsystem or subsystem == "liveticker":
-            for msg in self.liveticker_msgs():
+            liveticker_list = []
+            for leag in self.bot.liveticker.registrations.values():
+                liveticker_list.append("\u2b1c {}".format(str(leag)))
+                liveticker_list.extend("\u25ab {}".format(str(lt_reg)) for lt_reg in leag.registrations)
+            for msg in paginate(liveticker_list,
+                                prefix="**Liveticker Registrations:**\n",
+                                suffix="\n",
+                                if_empty="None"):
                 await ctx.send(msg)
 
     async def dump(self, ctx, iodir, iodir_str, name, container=None):
@@ -151,19 +158,6 @@ class Plugin(BasePlugin, name="Bot status commands for monitoring and debug purp
         else:
             self.bot.set_debug_mode(toggle)
             await ctx.message.add_reaction(Lang.CMDSUCCESS)
-
-    @commands.command(name="livetickerlist", help="Debug info for liveticker")
-    @commands.has_any_role(Config().BOT_ADMIN_ROLE_ID)
-    async def liveticker_list(self, ctx):
-        for msg in self.liveticker_msgs():
-            await ctx.send(msg)
-
-    def liveticker_msgs(self):
-        liveticker_list = []
-        for leag in self.bot.liveticker.registrations.values():
-            liveticker_list.append("\u2b1c {}".format(str(leag)))
-            liveticker_list.extend("\u25ab {}".format(str(lt_reg)) for lt_reg in leag.registrations)
-        return paginate(liveticker_list, prefix="**Liveticker Registrations:**\n", suffix="\n", if_empty="None")
 
     @commands.command(name="livetickerkill", help="Kills all liveticker registrations")
     @commands.has_any_role(Config().BOT_ADMIN_ROLE_ID)
