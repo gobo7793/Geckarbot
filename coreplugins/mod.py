@@ -169,7 +169,7 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
     @presence.command(name="list")
     async def presence_list(self, ctx):
         def get_message(item):
-            return Lang.lang(self, "presence_entry", item.presence_id + 1, item.message)
+            return Lang.lang(self, "presence_entry", item.presence_id, item.message)
 
         entries = self.bot.presence.filter_messages_list(PresencePriority.LOW)
         if not entries:
@@ -193,7 +193,6 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
     @presence.command(name="del", usage="<id>")
     # @commands.has_any_role(*Config().MOD_ROLES)
     async def presence_del(self, ctx, entry_id: int):
-        entry_id -= 1
         presence_message = "PANIC"
         if entry_id in self.bot.presence.messages:
             presence_message = self.bot.presence.messages[entry_id].message
