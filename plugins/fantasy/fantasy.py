@@ -1,4 +1,5 @@
 import logging
+from asyncio import create_task
 from datetime import datetime, timedelta
 from typing import Union, List, Dict
 
@@ -46,8 +47,9 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
         self.leagues = {}  # type: Dict[int, FantasyLeague]
         self._score_timer_jobs = []  # type: List[timers.Job]
 
-        self._load()
-        self._start_score_timer()
+        create_task(self._load())
+        # self._load()
+        # self._start_score_timer()
 
     def default_config(self):
         return {
@@ -118,7 +120,7 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
     def year(self):
         return self.start_date.year
 
-    def _load(self):
+    async def _load(self):
         """Loads the league settings from Storage"""
         if Config.get(self)["version"] == 2:
             self._update_config_from_2_to_3()
@@ -141,7 +143,7 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
         self.use_timers = Storage.get(self)["timers"]
         self.default_league = Storage.get(self)["def_league"]
         for k in Storage.get(self)["leagues"]:
-            self.leagues[k] = deserialize_league(self, Storage.get(self)["leagues"][k])
+            self.leagues[k] = await deserialize_league(self, Storage.get(self)["leagues"][k])
 
     def save(self):
         """Saves the league settings to json"""
@@ -698,11 +700,13 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
     @fantasy.group(name="set")
     async def fantasy_set(self, ctx):
         def check_mod_perms():
-            if Config.get(self)['mod_role_id'] == 0:
-                return False
+            if permchecks.check_mod_access(ctx.author):
+                return True
+            # if Config.get(self)['mod_role_id'] == 0:
+            #     return False
             if Config.get(self)['mod_role_id'] in [role.id for role in ctx.author.roles]:
                 return True
-            return permchecks.check_mod_access(ctx.author)
+            return False
 
         def check_supercommish():
             if self.supercommish is None:
@@ -711,7 +715,7 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
                 return True
             return False
 
-        if not check_supercommish() and not check_mod_perms():
+        if not (check_supercommish() or check_mod_perms()):
             await add_reaction(ctx.message, Lang.CMDNOPERMISSIONS)
             raise commands.CheckFailure(message=Lang.lang(self, "no_set_access"))
 
@@ -888,15 +892,15 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
         if platform is None:
             return
 
-        if platform == Platform.ESPN and not Storage.get(self)["espn_credentials"]["espn_s2"] \
-                and not Storage.get(self)["espn_credentials"]["swid"]:
+        if platform == Platform.ESPN and not Config.get(self)["espn_credentials"]["espn_s2"] \
+                and not Config.get(self)["espn_credentials"]["swid"]:
             await add_reaction(ctx.message, Lang.CMDERROR)
             await ctx.send(Lang.lang(self, "credentials_first", league_id))
             return
 
         try:
             with ctx.typing():
-                league = create_league(self, platform, league_id, commish)
+                league = await create_league(self, platform, league_id, commish)
         except (ValueError, IndexError):
             await add_reaction(ctx.message, Lang.CMDERROR)
             await ctx.send(Lang.lang(self, "api_error", league_id))
@@ -906,7 +910,7 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
             await add_reaction(ctx.message, Lang.CMDERROR)
             await ctx.send(Lang.lang(self, "league_add_fail", league_id, platform.name))
         else:
-            max_id = max(self.leagues) + 1
+            max_id = max(self.leagues, default=-1) + 1
             self.leagues[max_id] = league
             self.save()
             await add_reaction(ctx.message, Lang.CMDSUCCESS)
