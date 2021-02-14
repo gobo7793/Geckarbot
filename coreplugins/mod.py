@@ -176,7 +176,7 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
             await ctx.send(Lang.lang(self, "no_presences"))
         else:
             for msg in paginate(entries,
-                                prefix=Lang.lang(self, "presence_prefix"),
+                                prefix=Lang.lang(self, "presence_prefix", len(entries)),
                                 f=get_message):
                 await ctx.send(msg)
 
