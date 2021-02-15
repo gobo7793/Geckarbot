@@ -5,6 +5,7 @@ from datetime import datetime
 
 import discord
 
+from botutils.utils import add_reaction
 from subsystems.reactions import ReactionRemovedEvent
 from subsystems import timers
 from botutils import statemachine
@@ -109,7 +110,7 @@ class PointsQuizController(BaseQuizController):
         reaction = Lang.lang(self.plugin, "reaction_signup")
         signup_msg = await self.channel.send(Lang.lang(self.plugin, "registering_phase", reaction,
                                                        self.config["points_quiz_register_timeout"] // 60))
-        await signup_msg.add_reaction(Lang.lang(self.plugin, "reaction_signup"))
+        await signup_add_reaction(msg, Lang.lang(self.plugin, "reaction_signup"))
 
         before = datetime.now()
         await self.quizapi.fetch()
@@ -477,7 +478,7 @@ class PointsQuizController(BaseQuizController):
         self.registered_participants[msg.author] = []
         self.score.add_participant(msg.author)
         self.plugin.logger.debug("{} registered".format(msg.author.name))
-        await msg.add_reaction(Lang.CMDSUCCESS)
+        await add_reaction(msg, Lang.CMDSUCCESS)
         # await self.channel.send(message(self.config, "register_success", msg.author))
 
     async def pause(self, msg):
@@ -534,7 +535,7 @@ class PointsQuizController(BaseQuizController):
         Called when the quiz is aborted.
         """
         self.stopped_manually = True
-        await msg.add_reaction(Lang.CMDSUCCESS)
+        await add_reaction(msg, Lang.CMDSUCCESS)
         return Phases.ABORT
 
     @property
@@ -712,7 +713,7 @@ class RushQuizController(BaseQuizController):
         self.last_author = msg.author
         if check:
             self.eval_event.set()
-        await msg.add_reaction(Lang.lang(self.plugin, reaction))
+        await add_reaction(msg, Lang.lang(self.plugin, reaction))
 
     async def abortphase(self):
         await self.channel.send("The quiz was aborted.")
@@ -754,7 +755,7 @@ class RushQuizController(BaseQuizController):
         if self.debug:
             embed.add_field(name="Debug mode", value=":beetle:")
 
-        await msg.add_reaction(Lang.CMDSUCCESS)
+        await add_reaction(msg, Lang.CMDSUCCESS)
         await self.channel.send(embed=embed)
 
     @property
@@ -766,7 +767,7 @@ class RushQuizController(BaseQuizController):
 
     async def abort(self, msg):
         self.statemachine.cancel()
-        await msg.add_reaction(Lang.CMDSUCCESS)
+        await add_reaction(msg, Lang.CMDSUCCESS)
 
     """
     Utils

@@ -157,7 +157,7 @@ class Plugin(BasePlugin, name="Bot status commands for monitoring and debug purp
                 await ctx.send("I am not in debug mode.")
         else:
             self.bot.set_debug_mode(toggle)
-            await ctx.message.add_reaction(Lang.CMDSUCCESS)
+            await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
     @commands.command(name="livetickerkill", help="Kills all liveticker registrations")
     @commands.has_any_role(Config().BOT_ADMIN_ROLE_ID)
@@ -183,13 +183,13 @@ class Plugin(BasePlugin, name="Bot status commands for monitoring and debug purp
                 msgs.append(Lang.lang(self, "dm_base_format", key, reg.name, block))
 
         if not msgs:
-            await ctx.message.add_reaction(Lang.CMDSUCCESS)
+            await add_reaction(ctx.message, Lang.CMDSUCCESS)
             await ctx.send(Lang.lang(self, "dm_empty_result", gbu(user)))
             return
 
         prefix = Lang.lang(self, "dm_result_prefix", gbu(user))
         for msg in paginate(msgs, prefix=prefix):
-            await ctx.message.add_reaction(Lang.CMDSUCCESS)
+            await add_reaction(ctx.message, Lang.CMDSUCCESS)
             await ctx.send(msg)
 
     @commands.command(name="freedm")
@@ -197,12 +197,12 @@ class Plugin(BasePlugin, name="Bot status commands for monitoring and debug purp
         try:
             reg = self.bot.dm_listener.registrations[reg_id]
         except KeyError:
-            await ctx.message.add_reaction(Lang.CMDERROR)
+            await add_reaction(ctx.message, Lang.CMDERROR)
             return
 
         if reg.user != ctx.author and not is_botadmin(reg.user):
-            await ctx.message.add_reaction(Lang.CMDNOPERMISSIONS)
+            await add_reaction(ctx.message, Lang.CMDNOPERMISSIONS)
             return
 
         await reg.kill()
-        await ctx.message.add_reaction(Lang.CMDSUCCESS)
+        await add_reaction(ctx.message, Lang.CMDSUCCESS)

@@ -4,6 +4,7 @@ import logging
 from discord.ext import commands
 
 from base import BaseSubsystem, NotFound, BasePlugin, ConfigurableType
+from botutils.utils import add_reaction
 from conf import Lang
 from botutils.stringutils import paginate
 
@@ -495,7 +496,7 @@ class GeckiHelp(BaseSubsystem):
             # find category
             if len(args) != 1:
                 # no category
-                await ctx.message.add_reaction(Lang.CMDERROR)
+                await add_reaction(ctx.message, Lang.CMDERROR)
                 await self.error(ctx, "cmd_not_found")
                 return
             cat = None
@@ -507,7 +508,7 @@ class GeckiHelp(BaseSubsystem):
                 await cat.send_category_help(ctx)
                 return
 
-            await ctx.message.add_reaction(Lang.CMDERROR)
+            await add_reaction(ctx.message, Lang.CMDERROR)
             await self.error(ctx, "cmd_cat_not_found")
 
     async def usagecmd(self, ctx, *args):
@@ -518,7 +519,7 @@ class GeckiHelp(BaseSubsystem):
         """
         plugin, cmd = self.find_command(args)
         if cmd is None:
-            await ctx.message.add_reaction(Lang.CMDERROR)
+            await add_reaction(ctx.message, Lang.CMDERROR)
             await self.error(ctx, "cmd_not_found")
             return
 

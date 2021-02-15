@@ -16,7 +16,7 @@ from conf import Config, Lang, Storage
 from botutils.converters import get_best_username as gbu
 from botutils.timeutils import hr_roughly
 from botutils.stringutils import paginate
-from botutils.utils import write_debug_channel
+from botutils.utils import write_debug_channel, add_reaction
 from botutils.questionnaire import Questionnaire, Question, QuestionType, Cancelled
 from botutils.restclient import Client
 
@@ -35,7 +35,7 @@ class NotRegistered(Exception):
             msg = "not_registered_sg3p"
         else:
             msg = "not_registered"
-        await ctx.message.add_reaction(Lang.CMDERROR)
+        await add_reaction(ctx.message, Lang.CMDERROR)
         await ctx.send(Lang.lang(self.plugin, msg))
 
 
@@ -45,7 +45,7 @@ class UnknownResponse(Exception):
         super().__init__(msg)
 
     async def default(self, ctx):
-        await ctx.message.add_reaction(Lang.CMDERROR)
+        await add_reaction(ctx.message, Lang.CMDERROR)
         await ctx.send(self.user_message)
 
 
@@ -339,44 +339,44 @@ class Plugin(BasePlugin, name="LastFM"):
 
         # set
         if key not in self.base_config:
-            await ctx.message.add_reaction(Lang.CMDERROR)
+            await add_reaction(ctx.message, Lang.CMDERROR)
             await ctx.send("Invalid config key")
             return
         try:
             value = self.base_config[key][0](value)
         except (TypeError, ValueError):
-            await ctx.message.add_reaction(Lang.CMDERROR)
+            await add_reaction(ctx.message, Lang.CMDERROR)
             await ctx.send("Invalid value")
             return
         oldval = self.get_config(key)
         Config.get(self)[key] = value
         Config.save(self)
-        await ctx.message.add_reaction(Lang.CMDSUCCESS)
+        await add_reaction(ctx.message, Lang.CMDSUCCESS)
         await ctx.send("Changed {} value from {} to {}".format(key, oldval, value))
 
     @lastfm.command(name="register")
     async def cmd_register(self, ctx, lfmuser: str):
         info = await self.get_user_info(lfmuser)
         if info is None:
-            await ctx.message.add_reaction(Lang.CMDERROR)
+            await add_reaction(ctx.message, Lang.CMDERROR)
             await ctx.send(Lang.lang(self, "user_not_found", lfmuser))
             return
         if "user" not in info:
-            await ctx.message.add_reaction(Lang.CMDERROR)
+            await add_reaction(ctx.message, Lang.CMDERROR)
             await ctx.send(self, "error")
             await write_debug_channel("Error: \"user\" not in {}".format(info))
             return
         Storage.get(self)["users"][ctx.author.id] = lfmuser
         Storage.save(self)
-        await ctx.message.add_reaction(Lang.CMDSUCCESS)
+        await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
     @lastfm.command(name="deregister")
     async def cmd_deregister(self, ctx):
         if ctx.author.id in Storage.get(self)["users"]:
             del Storage.get(self)["users"][ctx.author.id]
-            await ctx.message.add_reaction(Lang.CMDSUCCESS)
+            await add_reaction(ctx.message, Lang.CMDSUCCESS)
         else:
-            await ctx.message.add_reaction(Lang.CMDNOCHANGE)
+            await add_reaction(ctx.message, Lang.CMDNOCHANGE)
 
     @lastfm.command(name="profile", usage="<User>")
     async def cmd_profile(self, ctx, user: Union[discord.Member, discord.User, None]):
@@ -424,7 +424,7 @@ class Plugin(BasePlugin, name="LastFM"):
 
         for i in range(len(songs)):
             songs[i] = self.listening_msg(ctx.author, songs[i])
-        await ctx.message.add_reaction(Lang.CMDSUCCESS)
+        await add_reaction(ctx.message, Lang.CMDSUCCESS)
         for msg in paginate(songs):
             await ctx.send(msg)
         after = self.perf_timenow()
@@ -445,20 +445,20 @@ class Plugin(BasePlugin, name="LastFM"):
         p = mention_p.search(question.answer)
         print("re search: {}".format(p))
         if p:
-            await question.answer_msg.add_reaction(Lang.CMDERROR)
+            await add_reaction(question.answer_msg, Lang.CMDERROR)
             await question.answer_msg.channel.send(Lang.lang(self, "quote_err_no_mentions"))
             return [question] + question_queue
 
         maxlen = self.get_config("max_quote_length")
         if len(question.answer) > maxlen:
-            await question.answer_msg.add_reaction(Lang.CMDERROR)
+            await add_reaction(question.answer_msg, Lang.CMDERROR)
             await question.answer_msg.channel.send(Lang.lang(self, "quote_err_length", maxlen, len(question.answer)))
             return [question] + question_queue
         return question_queue
 
     async def quote_dm_kill_cb(self, msg, questionnaire):
         await questionnaire.user.send(Lang.lang(self, "quote_err_dmkill"))
-        await msg.add_reaction(Lang.CMDERROR)
+        await add_reaction(msg, Lang.CMDERROR)
 
     @lastfm.command(name="quote")
     async def cmd_quote(self, ctx):
@@ -507,9 +507,9 @@ class Plugin(BasePlugin, name="LastFM"):
         except Cancelled:
             return
         except (KeyError, RuntimeError):
-            await ctx.message.add_reaction(Lang.CMDERROR)
+            await add_reaction(ctx.message, Lang.CMDERROR)
             return
-        await ctx.message.add_reaction(Lang.CMDSUCCESS)
+        await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
         assert data["result_scrobble"] is not None
         if data["result_scrobble"]:
@@ -558,7 +558,7 @@ class Plugin(BasePlugin, name="LastFM"):
             # user is a str
             userinfo = await self.get_user_info(user)
             if userinfo is None:
-                await ctx.message.add_reaction(Lang.CMDERROR)
+                await add_reaction(ctx.message, Lang.CMDERROR)
                 await ctx.send(Lang.lang(self, "user_not_found", user))
                 return
 

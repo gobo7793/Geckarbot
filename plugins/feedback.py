@@ -4,6 +4,7 @@ import discord.utils
 from discord.ext import commands
 
 from base import BasePlugin, NotFound
+from botutils.utils import add_reaction
 from conf import Storage, Config, Lang
 from botutils import converters
 from botutils.stringutils import paginate, format_andlist
@@ -248,24 +249,24 @@ class Plugin(BasePlugin, name="Feedback"):
             if cid not in self.complaints:
                 not_found.append("**#{}**".format(cid))
         if not_found:
-            await ctx.message.add_reaction(Lang.CMDERROR)
+            await add_reaction(ctx.message, Lang.CMDERROR)
             await ctx.send(Lang.lang(self, "redact_del_not_found", format_andlist(not_found)))
             return
         for cid in cids:
             try:
                 del self.complaints[cid]
             except KeyError:
-                await ctx.message.add_reaction(Lang.CMDERROR)
+                await add_reaction(ctx.message, Lang.CMDERROR)
                 await ctx.send("PANIC")
                 return
         self.write()
         self.reset_highest_id()
-        await ctx.message.add_reaction(Lang.CMDSUCCESS)
+        await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
     @redact.command(name="search", help="Finds all complaints that contain all search terms", usage=h_search_usage)
     async def cmd_search(self, ctx, *args):
         if len(args) == 0:
-            await ctx.message.add_reaction(Lang.CMDERROR)
+            await add_reaction(ctx.message, Lang.CMDERROR)
             await ctx.send(Lang.lang(self, "redact_search_args"))
             return
 
@@ -319,7 +320,7 @@ class Plugin(BasePlugin, name="Feedback"):
         self.complaints = new
         self.highest_id = i
         self.write()
-        await ctx.message.add_reaction(Lang.CMDSUCCESS)
+        await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
     async def category_move(self, ctx, complaint_ids: list, category):
         """
@@ -343,7 +344,7 @@ class Plugin(BasePlugin, name="Feedback"):
                 msgs.append(Lang.lang(self, "redact_cat_moved", cid, precat, category))
 
         self.write()
-        await ctx.message.add_reaction(Lang.CMDSUCCESS)
+        await add_reaction(ctx.message, Lang.CMDSUCCESS)
         if msgs:
             for msg in paginate(msgs):
                 await ctx.send(msg)
@@ -431,7 +432,7 @@ class Plugin(BasePlugin, name="Feedback"):
         msg = ctx.message
         complaint = Complaint.from_message(self, msg)
         self.complaints[complaint.id] = complaint
-        await ctx.message.add_reaction(Lang.CMDSUCCESS)
+        await add_reaction(ctx.message, Lang.CMDSUCCESS)
         self.write()
 
     """
@@ -462,26 +463,26 @@ class Plugin(BasePlugin, name="Feedback"):
 
     async def bugscore_del(self, ctx, user):
         if discord.utils.get(ctx.author.roles, id=Config().BOT_ADMIN_ROLE_ID) is None:
-            await ctx.message.add_reaction(Lang.CMDNOPERMISSIONS)
+            await add_reaction(ctx.message, Lang.CMDNOPERMISSIONS)
             return
         try:
             user = await commands.MemberConverter().convert(ctx, user)
         except (commands.CommandError, IndexError):
             await ctx.send(Lang.lang(self, "bugscore_user_not_found", user))
-            await ctx.message.add_reaction(Lang.CMDERROR)
+            await add_reaction(ctx.message, Lang.CMDERROR)
             return
 
         if user.id in self.bugscore:
             del self.bugscore[user.id]
             Storage.save(self)
-            await ctx.message.add_reaction(Lang.CMDSUCCESS)
+            await add_reaction(ctx.message, Lang.CMDSUCCESS)
         else:
-            await ctx.message.add_reaction(Lang.CMDNOCHANGE)
+            await add_reaction(ctx.message, Lang.CMDNOCHANGE)
 
     @commands.has_any_role(Config().BOT_ADMIN_ROLE_ID)
     async def bugscore_increment(self, ctx, user, increment):
         if discord.utils.get(ctx.author.roles, id=Config().BOT_ADMIN_ROLE_ID) is None:
-            await ctx.message.add_reaction(Lang.CMDNOPERMISSIONS)
+            await add_reaction(ctx.message, Lang.CMDNOPERMISSIONS)
             return
 
         # find user
@@ -489,14 +490,14 @@ class Plugin(BasePlugin, name="Feedback"):
             user = await commands.MemberConverter().convert(ctx, user)
         except (commands.CommandError, IndexError):
             await ctx.send(Lang.lang(self, "bugscore_user_not_found", user))
-            await ctx.message.add_reaction(Lang.CMDERROR)
+            await add_reaction(ctx.message, Lang.CMDERROR)
             return
 
         try:
             increment = int(increment)
         except (ValueError, TypeError):
             await ctx.send(Lang.lang(self, "bugscore_nan", increment))
-            await ctx.message.add_reaction(Lang.CMDERROR)
+            await add_reaction(ctx.message, Lang.CMDERROR)
             return
 
         if user.id in self.bugscore:
@@ -506,7 +507,7 @@ class Plugin(BasePlugin, name="Feedback"):
         if self.bugscore[user.id] <= 0:
             del self.bugscore[user.id]
         Storage.save(self, container="bugscore")
-        await ctx.message.add_reaction(Lang.CMDSUCCESS)
+        await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
     @commands.command(name="bugscore", help="High score for users who found bugs",
                       description="Shows the current bug score.\n\n"

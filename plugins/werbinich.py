@@ -10,6 +10,7 @@ from discord.errors import Forbidden
 
 from base import BasePlugin, NotFound
 from botutils.stringutils import format_andlist
+from botutils.utils import add_reaction
 from conf import Lang, Config
 from botutils import utils, statemachine, stringutils
 from botutils.converters import get_best_username as gbu
@@ -222,12 +223,12 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
     @werbinich.command(name="stop")
     async def stopcmd(self, ctx):
         if self.statemachine.state == State.IDLE:
-            await ctx.message.add_reaction(Lang.CMDERROR)
+            await add_reaction(ctx.message, Lang.CMDERROR)
             await ctx.send(Lang.lang(self, "not_running"))
             return
         await ctx.send("Sorry, das tut momentan nicht")
-        await ctx.message.add_reaction(Lang.CMDERROR)
-        # await ctx.message.add_reaction(Lang.CMDSUCCESS)
+        await add_reaction(ctx.message, Lang.CMDERROR)
+        # await add_reaction(ctx.message, Lang.CMDSUCCESS)
         # await self.cleanup()
 
     @werbinich.command(name="spoiler", help=h_spoiler)
@@ -244,11 +245,11 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
             error = "no_spoiler"
 
         if error is not None:
-            await ctx.message.add_reaction(Lang.CMDERROR)
+            await add_reaction(ctx.message, Lang.CMDERROR)
             await ctx.send(Lang.lang(self, error))
             return
 
-        await ctx.message.add_reaction(Lang.CMDSUCCESS)
+        await add_reaction(ctx.message, Lang.CMDSUCCESS)
         for msg in stringutils.paginate(self.participants, prefix=Lang.lang(self, "participants_last_round"),
                                         f=lambda x: x.to_msg()):
             await ctx.author.send(msg)
@@ -269,22 +270,22 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
                 error = "postgame_unauthorized"
 
         if error is not None:
-            await ctx.message.add_reaction(Lang.CMDERROR)
+            await add_reaction(ctx.message, Lang.CMDERROR)
             await ctx.send(Lang.lang(self, error))
             return
 
         # Actual cmd
         self.postgame = True
-        await ctx.message.add_reaction(Lang.CMDSUCCESS)
+        await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
     @werbinich.command(name="del", help=h_clear)
     async def delcmd(self, ctx):
         if not self.participants:
-            await ctx.message.add_reaction(Lang.CMDERROR)
+            await add_reaction(ctx.message, Lang.CMDERROR)
             return
         self.participants = []
         self.channel = None
-        await ctx.message.add_reaction(Lang.CMDSUCCESS)
+        await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
     """
     Transitions
@@ -304,7 +305,7 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
         msg = await self.channel.send(msg)
 
         try:
-            await msg.add_reaction(Lang.lang(self, "reaction_signup"))
+            await add_reaction(msg, Lang.lang(self, "reaction_signup"))
         except HTTPException:
             # Unable to add reaction, therefore unable to begin the game
             await self.channel.send("PANIC")
@@ -346,7 +347,7 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
             try:
                 self.participants.append(Participant(self, el))
             except RuntimeError:
-                await msg.add_reaction(Lang.CMDERROR)
+                await add_reaction(msg, Lang.CMDERROR)
                 return State.ABORT
 
         players = len(self.participants)

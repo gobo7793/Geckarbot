@@ -6,7 +6,7 @@ from discord.ext.commands import MemberConverter, UserConverter
 
 from base import BasePlugin, ConfigurableType
 from botutils import utils
-from botutils.converters import get_best_username, convert_member, get_plugin_by_name
+from botutils.converters import get_best_username, get_plugin_by_name
 from botutils.stringutils import paginate
 from botutils.timeutils import parse_time_input
 from conf import Config, Lang
@@ -217,9 +217,9 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
 
         result = self.bot.ignoring.add_passive(ctx.author, cmd)
         if result == IgnoreEditResult.Success:
-            await ctx.message.add_reaction(Lang.CMDSUCCESS)
+            await utils.add_reaction(ctx.message, Lang.CMDSUCCESS)
         elif result == IgnoreEditResult.Already_in_list:
-            await ctx.message.add_reaction(Lang.CMDERROR)
+            await utils.add_reaction(ctx.message, Lang.CMDERROR)
             await ctx.send(Lang.lang(self, 'passive_already_blocked', cmd))
         await utils.log_to_mod_channel(ctx)
 
@@ -288,7 +288,7 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
             final_msg = Lang.lang(self, 'member_or_time_not_found')
 
         await utils.log_to_mod_channel(ctx)
-        await ctx.message.add_reaction(reaction)
+        await utils.add_reaction(ctx.message, reaction)
         if final_msg is not None:
             await ctx.send(final_msg)
 
@@ -347,7 +347,7 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
             final_msg = Lang.lang(self, 'cmd_not_found', command)
 
         await utils.log_to_mod_channel(ctx)
-        await ctx.message.add_reaction(reaction)
+        await utils.add_reaction(ctx.message, reaction)
         if final_msg is not None:
             await ctx.send(final_msg)
 
@@ -395,7 +395,7 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
             final_msg = Lang.lang(self, 'member_or_time_not_found')
 
         await utils.log_to_mod_channel(ctx)
-        await ctx.message.add_reaction(reaction)
+        await utils.add_reaction(ctx.message, reaction)
         if final_msg is not None:
             await ctx.send(final_msg)
 
