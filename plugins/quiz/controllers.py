@@ -110,7 +110,7 @@ class PointsQuizController(BaseQuizController):
         reaction = Lang.lang(self.plugin, "reaction_signup")
         signup_msg = await self.channel.send(Lang.lang(self.plugin, "registering_phase", reaction,
                                                        self.config["points_quiz_register_timeout"] // 60))
-        await signup_add_reaction(msg, Lang.lang(self.plugin, "reaction_signup"))
+        await add_reaction(signup_msg, Lang.lang(self.plugin, "reaction_signup"))
 
         before = datetime.now()
         await self.quizapi.fetch()
