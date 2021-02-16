@@ -67,6 +67,9 @@ class Plugin(BasePlugin, name="Role Management"):
         self.can_reload = True
 
         bot.register(self, help.DefaultCategories.MOD)
+        for cmd in self.get_commands():
+            if cmd.name == "role msg":
+                self.bot.helpsys.default_category(help.DefaultCategories.MISC).add_command(cmd)
 
         async def get_init_msg_data():
             if self.has_init_msg_set:
