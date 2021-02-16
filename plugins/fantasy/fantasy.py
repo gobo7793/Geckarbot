@@ -34,6 +34,7 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
     def __init__(self, bot):
         super().__init__(bot)
         bot.register(self, category=DefaultCategories.SPORT)
+        self.dump_except_keys = ["espn_credentials"]
 
         self.supercommish = None
         self.state = FantasyState.NA

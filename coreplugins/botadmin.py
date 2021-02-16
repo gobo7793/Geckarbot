@@ -26,7 +26,7 @@ class Plugin(BasePlugin, name="Bot status commands for monitoring and debug purp
 
     def default_config(self):
         return {
-            'max_dump': 5  # maximum storage/configdump messages to show
+            'max_dump': 4  # maximum storage/configdump messages to show
         }
 
     @commands.command(name="subsys", help="Shows registrations on subsystems",
@@ -45,7 +45,8 @@ class Plugin(BasePlugin, name="Bot status commands for monitoring and debug purp
 
         if not subsystem or subsystem == "timers":
             timer_status = "up" if self.bot.timers.is_alive() else "down"
-            timer_prefix = "**{} Timers: Thread is {}; registrations:**\n".format(len(self.bot.timers.jobs), timer_status)
+            timer_prefix = "**{} Timers: Thread is {}; registrations:**\n".format(len(self.bot.timers.jobs),
+                                                                                  timer_status)
             for msg in paginate(self.bot.timers.jobs,
                                 prefix=timer_prefix,
                                 suffix="\n",
@@ -98,6 +99,10 @@ class Plugin(BasePlugin, name="Bot status commands for monitoring and debug purp
             await add_reaction(ctx.message, Lang.CMDERROR)
             await ctx.send("Plugin {} not found.".format(name))
             return
+        if iodir is Config and not plugin.can_configdump:
+            await add_reaction(ctx.message, Lang.CMDERROR)
+            await ctx.send("Config of plugin {} can't be dumped.".format(name))
+            return
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
         prefix = ""
 
@@ -108,13 +113,32 @@ class Plugin(BasePlugin, name="Bot status commands for monitoring and debug purp
                 if containers:
                     prefix += "Available containers: {}\n".format(containers)
 
-            dump = pprint.pformat(iodir.get(plugin, container=container), indent=4).split("\n")
             if not iodir.data(plugin).has_structure(container):
                 prefix += "**Warning: plugin {} does not have the {} structure {}.** " \
-                          "This is the default {}.".format(name, iodir_str, container, iodir_str)
+                          "This is the main {}.\n".format(name, iodir_str, container, iodir_str)
+                container = None
+
+            origin = iodir.get(plugin, container=container)
+            dump = {}
+            has_not_shown_keys = False
+            for key in origin:
+                if key in plugin.dump_except_keys:
+                    has_not_shown_keys = True
+                else:
+                    dump[key] = origin[key]
+            dump = pprint.pformat(dump, indent=4).split("\n")
+            # dump = pprint.pformat(iodir.get(plugin, container=container), indent=4).split("\n")
+
+            if plugin.dump_except_keys and has_not_shown_keys:
+                keys = ", ".join(["`{}`".format(el) for el in plugin.dump_except_keys if el])
+                prefix += "Keys not shown: {}\n".format(keys)
 
         counter = 0
-        for el in paginate(dump, prefix=prefix, msg_prefix="```", msg_suffix="```", prefix_within_msg_prefix=False):
+        for el in paginate(dump,
+                           prefix=prefix,
+                           msg_prefix="```",
+                           msg_suffix="```",
+                           prefix_within_msg_prefix=False):
             counter += 1
             if counter > Config.get(self)["max_dump"]:
                 await ctx.send("There are more data in dump which won't be shown.")
@@ -127,8 +151,8 @@ class Plugin(BasePlugin, name="Bot status commands for monitoring and debug purp
         await self.dump(ctx, Storage, "storage", name, container=container)
 
     # Disabled for security reasons, we have API keys, passwords etc in these files
-    # @commands.command(name="configdump", help="Dumps plugin config", usage="<plugin name> [container]")
-    # @commands.has_any_role(Config().BOT_ADMIN_ROLE_ID)
+    @commands.command(name="configdump", help="Dumps plugin config", usage="<plugin name> [container]")
+    @commands.has_any_role(Config().BOT_ADMIN_ROLE_ID)
     async def configdump(self, ctx, name, container=None):
         await self.dump(ctx, Config, "config", name, container=container)
 

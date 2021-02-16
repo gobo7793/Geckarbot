@@ -154,7 +154,6 @@ class Song:
 class Plugin(BasePlugin, name="LastFM"):
     def __init__(self, bot):
         super().__init__(bot)
-        bot.register(self)
 
         self.logger = logging.getLogger(__name__)
         self.migrate()
@@ -162,6 +161,9 @@ class Plugin(BasePlugin, name="LastFM"):
         self.conf = Config.get(self)
         if not self.conf.get("apikey", ""):
             raise NotLoadable("API Key not found")
+        self.dump_except_keys = ["username", "password", "apikey", "sharedsecret"]
+
+        bot.register(self)
 
         self.perf_total_time = None
         self.perf_lastfm_time = None
