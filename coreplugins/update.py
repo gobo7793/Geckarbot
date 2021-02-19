@@ -12,7 +12,7 @@ import Geckarbot
 from base import BasePlugin, ConfigurableType, NotFound
 from botutils import restclient, utils, permchecks
 from botutils.stringutils import paginate
-from botutils.utils import sort_commands_helper
+from botutils.utils import sort_commands_helper, add_reaction
 from conf import Config, Lang
 from subsystems import help
 
@@ -21,6 +21,9 @@ from subsystems import help
 # 2.5-a
 
 # CONFIG
+from subsystems.presence import PresencePriority
+
+log = logging.getLogger(__name__)
 CONFIRMTIMEOUT = 10
 OWNER = "gobo7793"
 REPO = "Geckarbot"
@@ -282,6 +285,7 @@ class Plugin(BasePlugin, name="Bot updating system"):
 
     async def do_update(self, channel, tag):
         self.state = State.UPDATING
+        self.bot.presence.register(Lang.lang("presence_update", tag), PresencePriority.HIGH)
         await channel.send(Lang.lang(self, "doing_update", tag))
         for plugin in self.bot.plugin_objects(plugins_only=True):
             try:
@@ -338,7 +342,7 @@ class Plugin(BasePlugin, name="Bot updating system"):
         body = None
         for el in await self.get_releases():
             ver = sanitize_version_s(el["tag_name"])
-            logging.getLogger(__name__).debug("Comparing versions: {} and {}".format(self.bot.VERSION, ver))
+            log.debug("Comparing versions: {} and {}".format(self.bot.VERSION, ver))
             if is_equal(sanitize_version_s(version), ver):
                 body = el["body"]
                 break
@@ -368,19 +372,18 @@ class Plugin(BasePlugin, name="Bot updating system"):
         try:
             f = open(TAGFILE)
         except FileNotFoundError:
-            logging.getLogger(__name__).debug("I was not !update'd.")
+            log.debug("I was not !update'd.")
             return False
         except IsADirectoryError:
-            logging.getLogger(__name__).error(
-                "{} is a directory, I expected a file or nothing. Please clean this up.".format(TAGFILE))
+            log.error("{} is a directory, I expected a file or nothing. Please clean this up.".format(TAGFILE))
             return False
 
         lines = f.readlines()
         if len(lines) > 1:
-            logging.getLogger(__name__).error("{} has more than 1 line. This should not happen.".format(TAGFILE))
+            log.error("{} has more than 1 line. This should not happen.".format(TAGFILE))
             return False
         if len(lines) == 0 or lines[0].strip() == "":
-            logging.getLogger(__name__).error("{} is empty. This should not happen.".format(TAGFILE))
+            log.error("{} is empty. This should not happen.".format(TAGFILE))
             return False
 
         if lines[0].strip() == ERRORCODE:
@@ -388,7 +391,7 @@ class Plugin(BasePlugin, name="Bot updating system"):
             os.remove(TAGFILE)
             return False
         else:
-            logging.getLogger(__name__).debug("I was !update'd! Yay!.")
+            log.debug("I was !update'd! Yay!.")
             await utils.write_debug_channel(
                 "I updated successfully! One step closer towards world dominance!")
             os.remove(TAGFILE)
@@ -415,13 +418,15 @@ class Plugin(BasePlugin, name="Bot updating system"):
     @commands.command(name="restart", help="Restarts the bot.")
     @commands.has_any_role(Config().BOT_ADMIN_ROLE_ID)
     async def cmd_restart(self, ctx):
-        await ctx.message.add_reaction(Lang.CMDSUCCESS)
+        self.bot.presence.register(Lang.lang("presence_restart"), PresencePriority.HIGH)
+        await add_reaction(ctx.message, Lang.CMDSUCCESS)
         await self.bot.shutdown(Geckarbot.Exitcodes.RESTART)  # This signals the runscript
 
     @commands.command(name="shutdown", help="Stops the bot.")
     @commands.has_any_role(Config().BOT_ADMIN_ROLE_ID)
     async def cmd_shutdowncmd(self, ctx):
-        await ctx.message.add_reaction(Lang.CMDSUCCESS)
+        self.bot.presence.register(Lang.lang("presence_shutdown"), PresencePriority.HIGH)
+        await add_reaction(ctx.message, Lang.CMDSUCCESS)
         await self.bot.shutdown(Geckarbot.Exitcodes.SUCCESS)  # This signals the runscript
 
     @commands.command(name="replace", help="Confirms an !update command.")
@@ -437,7 +442,7 @@ class Plugin(BasePlugin, name="Bot updating system"):
             return
 
         await utils.log_to_admin_channel(self.to_log)
-        await ctx.message.add_reaction(Lang.CMDSUCCESS)
+        await add_reaction(ctx.message, Lang.CMDSUCCESS)
         self.to_log = None
         self.state = State.CONFIRMED
 
@@ -448,7 +453,7 @@ class Plugin(BasePlugin, name="Bot updating system"):
         # Argument parsing
         if not permchecks.check_admin_access(ctx.author):
             release = await self.check_release(version=version)
-            await ctx.message.add_reaction(Lang.CMDSUCCESS)
+            await add_reaction(ctx.message, Lang.CMDSUCCESS)
             if release is None:
                 await ctx.message.channel.send(Lang.lang(self, "no_new_version"))
             else:
@@ -478,7 +483,7 @@ class Plugin(BasePlugin, name="Bot updating system"):
             await ctx.message.channel.send(msg)
             self.state = State.IDLE
             return
-        await ctx.message.add_reaction(Lang.CMDSUCCESS)
+        await add_reaction(ctx.message, Lang.CMDSUCCESS)
         await ctx.message.channel.send(Lang.lang(self, "new_version_update", release))
 
         # Ask for confirmation
@@ -498,7 +503,6 @@ class Plugin(BasePlugin, name="Bot updating system"):
             await self.do_update(ctx.message.channel, release)
             return
         else:
-            logging.getLogger(__name__).error(
-                "{}: PANIC! I am on {}, this should not happen!".format(self.get_name(), self.state))
+            log.error("{}: PANIC! I am on {}, this should not happen!".format(self.get_name(), self.state))
             self.state = State.IDLE
             self.waiting_for_confirm = None

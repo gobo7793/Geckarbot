@@ -7,6 +7,7 @@ from discord.ext import commands
 
 from base import BasePlugin, NotFound
 from botutils import utils, permchecks, converters, stringutils
+from botutils.utils import add_reaction
 from conf import Storage, Config, Lang
 from subsystems import reactions, help
 
@@ -66,6 +67,9 @@ class Plugin(BasePlugin, name="Role Management"):
         self.can_reload = True
 
         bot.register(self, help.DefaultCategories.MOD)
+        for cmd in self.get_commands():
+            if cmd.name == "role msg":
+                self.bot.helpsys.default_category(help.DefaultCategories.MISC).add_command(cmd)
 
         async def get_init_msg_data():
             if self.has_init_msg_set:
@@ -163,7 +167,7 @@ class Plugin(BasePlugin, name="Role Management"):
 
         channel = self.bot.get_channel(Storage.get(self)['message']['channel_id'])
         if channel is None:
-            await ctx.message.add_reaction(Lang.CMDERROR)
+            await add_reaction(ctx.message, Lang.CMDERROR)
             await utils.write_mod_channel(Lang.lang(self, 'must_set_channel_id'))
             await ctx.send(Lang.lang(self, 'must_set_channel_id'))
             return

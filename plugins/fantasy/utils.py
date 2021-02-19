@@ -3,7 +3,6 @@ from collections import namedtuple
 from enum import IntEnum
 
 
-log = logging.getLogger("fantasy")
 pos_alphabet = {"Q": 0, "R": 1, "W": 2, "T": 3, "F": 4, "D": 5, "K": 6, "B": 7}
 Activity = namedtuple("Activity", "date team_name type player_name")
 TeamStanding = namedtuple("TeamStanding", "team_name wins losses record fpts")

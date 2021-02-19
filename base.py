@@ -1,3 +1,4 @@
+from typing import List
 from enum import Enum
 from discord.ext.commands import Cog
 
@@ -39,7 +40,13 @@ class Configurable:
         super().__init__()
         self.iodirs = {}
         self.bot = bot
-        self.can_reload = False
+        self.can_configdump = True
+        """Enables or disables that !configdump can dump the config of the plugin"""
+        self.dump_except_keys = []  # type: List[str]
+        """
+        List of first level keys which won't be showed using !configdump and !storagedump.
+        Effects main config/ storage and every container.
+        """
 
     def default_config(self):
         """

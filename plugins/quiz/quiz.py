@@ -10,7 +10,7 @@ from base import BasePlugin, NotFound
 from conf import Storage, Lang
 from subsystems import help
 from botutils import permchecks
-from botutils.utils import sort_commands_helper
+from botutils.utils import sort_commands_helper, add_reaction
 
 from plugins.quiz.controllers import RushQuizController, PointsQuizController
 from plugins.quiz.quizapis import quizapis, opentdb
@@ -213,19 +213,19 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
                 args = (self.config["ranked_min_participants"],)
             if err == "ranked_questioncount":
                 args = (self.config["ranked_min_questions"],)
-            await ctx.message.add_reaction(Lang.CMDERROR)
+            await add_reaction(ctx.message, Lang.CMDERROR)
             await ctx.send(Lang.lang(self, err, *args))
             return
 
         # Look for existing quiz
         method = args["method"]
         if method == Methods.START and self.get_controller(channel):
-            await ctx.message.add_reaction(Lang.CMDERROR)
+            await add_reaction(ctx.message, Lang.CMDERROR)
             raise QuizInitError(self, "existing_quiz")
 
         # Starting a new quiz
         assert method == Methods.START
-        await ctx.message.add_reaction(Lang.EMOJI["success"])
+        await add_reaction(ctx.message, Lang.EMOJI["success"])
         async with ctx.typing():
             quiz_controller = controller_class(self,
                                                self.config,
@@ -247,7 +247,7 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
     async def cmd_status(self, ctx):
         controller = self.get_controller(ctx.channel)
         if controller is None:
-            await ctx.message.add_reaction(Lang.CMDERROR)
+            await add_reaction(ctx.message, Lang.CMDERROR)
             await ctx.send(Lang.lang(self, "status_no_quiz"))
         else:
             await controller.status(ctx.message)
@@ -256,7 +256,7 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
     async def cmd_score(self, ctx):
         controller = self.get_controller(ctx.channel)
         if controller is None:
-            await ctx.message.add_reaction(Lang.CMDERROR)
+            await add_reaction(ctx.message, Lang.CMDERROR)
         else:
             await ctx.send(embed=controller.score.embed())
 
@@ -264,11 +264,11 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
     async def cmd_stop(self, ctx):
         controller = self.get_controller(ctx.channel)
         if controller is None:
-            await ctx.message.add_reaction(Lang.CMDERROR)
+            await add_reaction(ctx.message, Lang.CMDERROR)
         elif permchecks.check_mod_access(ctx.message.author) or controller.requester == ctx.message.author:
             await self.abort_quiz(ctx.channel, ctx.message)
         else:
-            await ctx.message.add_reaction(Lang.CMDNOPERMISSIONS)
+            await add_reaction(ctx.message, Lang.CMDNOPERMISSIONS)
 
     @kwiss.command(name="emoji")
     async def cmd_emoji(self, ctx, *args):
@@ -276,27 +276,27 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
         if len(args) == 0:
             if ctx.message.author.id in Storage().get(self)["emoji"]:
                 del Storage().get(self)["emoji"][ctx.message.author.id]
-                await ctx.message.add_reaction(Lang.CMDSUCCESS)
+                await add_reaction(ctx.message, Lang.CMDSUCCESS)
                 Storage().save(self)
             else:
-                await ctx.message.add_reaction(Lang.CMDNOCHANGE)
+                await add_reaction(ctx.message, Lang.CMDNOCHANGE)
             return
 
         # Too many arguments
         if len(args) != 1:
-            await ctx.message.add_reaction(Lang.CMDERROR)
+            await add_reaction(ctx.message, Lang.CMDERROR)
             return
 
         emoji = args[0]
         try:
-            await ctx.message.add_reaction(emoji)
+            await add_reaction(ctx.message, emoji)
         except HTTPException:
-            await ctx.message.add_reaction(Lang.CMDERROR)
+            await add_reaction(ctx.message, Lang.CMDERROR)
             return
 
         Storage().get(self)["emoji"][ctx.message.author.id] = emoji
         Storage().save(self)
-        await ctx.message.add_reaction(Lang.CMDSUCCESS)
+        await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
     @kwiss.command(name="ladder")
     async def cmd_ladder(self, ctx):
@@ -342,36 +342,36 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
     @kwiss.command(name="del", usage="<user>")
     async def cmd_del(self, ctx, *args):
         if len(args) != 1:
-            await ctx.message.add_reaction(Lang.CMDERROR)
+            await add_reaction(ctx.message, Lang.CMDERROR)
             return
         if not permchecks.check_mod_access(ctx.message.author):
-            await ctx.message.add_reaction(Lang.CMDERROR)
+            await add_reaction(ctx.message, Lang.CMDERROR)
             return
 
         try:
             user = await commands.MemberConverter().convert(ctx, args[0])
         except (commands.CommandError, IndexError):
-            await ctx.message.add_reaction(Lang.CMDERROR)
+            await add_reaction(ctx.message, Lang.CMDERROR)
             return
 
         ladder = Storage().get(self)["ladder"]
         if user.id in ladder:
             del ladder[user.id]
             Storage().save(self)
-            await ctx.message.add_reaction(Lang.CMDSUCCESS)
+            await add_reaction(ctx.message, Lang.CMDSUCCESS)
         else:
-            await ctx.message.add_reaction(Lang.CMDNOCHANGE)
+            await add_reaction(ctx.message, Lang.CMDNOCHANGE)
 
     @kwiss.command(name="question")
     async def cmd_question(self, ctx, *args):
         if len(args) != 0:
-            await ctx.message.add_reaction(Lang.CMDERROR)
+            await add_reaction(ctx.message, Lang.CMDERROR)
             await ctx.send("Too many arguments")
             return
 
         controller = self.get_controller(ctx.channel)
         if controller is None:
-            await ctx.message.add_reaction(Lang.CMDERROR)
+            await add_reaction(ctx.message, Lang.CMDERROR)
             await ctx.send("No kwiss running")
             return
 

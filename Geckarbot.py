@@ -130,7 +130,7 @@ class Geckarbot(commands.Bot):
         Sets the localization settings to the LANGUAGE_CODE configuration
         """
         locale.setlocale(locale.LC_ALL, self.LANGUAGE_CODE)
-        logging.getLogger("").info(f"Localization set to '{locale.getlocale(locale.LC_ALL)}'")
+        logging.info(f"Localization set to '{locale.getlocale(locale.LC_ALL)}'")
 
     @property
     def plugins(self) -> List[BasePlugin]:
@@ -324,6 +324,8 @@ class Geckarbot(commands.Bot):
             self.DEBUG_MODE = True
         else:
             self.DEBUG_MODE = False
+
+        logging.info(f"Debug mode set to {self.DEBUG_MODE}")
         logging_setup(debug=mode)
 
     async def shutdown(self, status):
@@ -372,19 +374,19 @@ class Geckarbot(commands.Bot):
 
         # No command or ignoring list handling
         if isinstance(error, ignoring.UserBlockedCommand):
-            await send_error_to_ctx(ctx, error, message="{} has blocked the command `{}`.".
+            await send_error_to_ctx(ctx, error, default="{} has blocked the command `{}`.".
                                     format(converters.get_best_username(error.user), error.command))
         if isinstance(error, (commands.CommandNotFound, commands.DisabledCommand)):
             return
 
         # Check Failures
         elif isinstance(error, (commands.MissingRole, commands.MissingAnyRole)):
-            await send_error_to_ctx(ctx, error, default="You don't have the correct role for this command.")
+            await send_error_to_ctx(ctx, error, default="You don't have the required role for this command.")
         elif isinstance(error, permchecks.WrongChannel):
             await send_error_to_ctx(ctx, error,
-                                    message="Command can only be executed in channel {}".format(error.channel))
+                                    default="Command can only be used in channel {}".format(error.channel))
         elif isinstance(error, commands.NoPrivateMessage):
-            await send_error_to_ctx(ctx, error, default="Command can't be executed in private messages.")
+            await send_error_to_ctx(ctx, error, default="Command can't be used in private messages.")
         elif isinstance(error, commands.CheckFailure):
             await send_error_to_ctx(ctx, error, default="Permission error.")
 
@@ -394,9 +396,9 @@ class Geckarbot(commands.Bot):
         elif isinstance(error, commands.TooManyArguments):
             await send_error_to_ctx(ctx, error, default="Too many arguments given.")
         elif isinstance(error, commands.BadArgument):
-            await send_error_to_ctx(ctx, error, default="Error on given argument: {}".format(error))
+            await send_error_to_ctx(ctx, error, default="Argument don't have the required format: {}".format(error))
         elif isinstance(error, commands.UserInputError):
-            await send_error_to_ctx(ctx, error, default="Wrong user input format: {}".format(error))
+            await send_error_to_ctx(ctx, error, default="Argument error for argument: {}".format(error))
 
         # Other errors
         else:
@@ -501,7 +503,7 @@ def logging_setup(debug=False):
         else:
             logger.setLevel(level)
 
-    logging.getLogger('').log(level, f"Logging level set to {level}")
+    logging.log(level, f"Logging level set to {level}")
 
 
 async def send_error_to_ctx(ctx: discord.ext.commands.Context,
@@ -533,7 +535,6 @@ async def send_error_to_ctx(ctx: discord.ext.commands.Context,
 def main():
     injections.pre_injections()
     logging_setup()
-    logging.getLogger(__name__).debug("Debug mode: on")
     intents = intent_setup()
     bot = Geckarbot(command_prefix='!', intents=intents, case_insensitive=True)
     injections.post_injections(bot)
@@ -574,137 +575,6 @@ def main():
         if len(unloaded) > 0:
             await utils.write_debug_channel("{} additional plugins available: {}".format(len(unloaded),
                                                                                          ', '.join(unloaded)))
-
-    # @bot.event
-    # async def on_error(event, *args, **kwargs):
-    #     """On bot errors print error state in debug channel"""
-    #     if bot.DEBUG_MODE:
-    #         return await bot.super().on_error(event, *args, **kwargs)
-    #
-    #     exc_type, exc_value, exc_traceback = sys.exc_info()
-    #
-    #     if (exc_type is commands.CommandNotFound
-    #             or exc_type is commands.DisabledCommand):
-    #         return
-    #
-    #     embed = discord.Embed(title=':x: Error', colour=0xe74c3c)  # Red
-    #     embed.add_field(name='Error', value=exc_type)
-    #     embed.add_field(name='Event', value=event)
-    #     embed.timestamp = datetime.datetime.utcnow()
-    #
-    #     ex_tb = "".join(traceback.format_exception(exc_type, exc_value, exc_traceback))
-    #     is_tb_own_msg = len(ex_tb) > 2000
-    #     if is_tb_own_msg:
-    #         embed.description = "Exception Traceback see next message."
-    #         ex_tb = stringutils.paginate(ex_tb.split("\n"), msg_prefix="```python\n", msg_suffix="```")
-    #     else:
-    #         embed.description = f"```python\n{ex_tb}```"
-    #
-    #     await utils.write_debug_channel(embed)
-    #     if is_tb_own_msg:
-    #         for msg in ex_tb:
-    #             await utils.write_debug_channel(msg)
-    #
-    # @bot.event
-    # async def on_command_error(ctx, error):
-    #     """Error handling for bot commands"""
-    #     if bot.DEBUG_MODE:
-    #         return await bot.on_command_error(ctx, error)
-    #
-    #     # No command or ignoring list handling
-    #     if isinstance(error, ignoring.UserBlockedCommand):
-    #         await send_error_to_ctx(ctx, error, message="{} has blocked the command `{}`.".
-    #                                 format(converters.get_best_username(error.user), error.command))
-    #     if isinstance(error, (commands.CommandNotFound, commands.DisabledCommand)):
-    #         return
-    #
-    #     # Check Failures
-    #     elif isinstance(error, (commands.MissingRole, commands.MissingAnyRole)):
-    #         await send_error_to_ctx(ctx, error, default="You don't have the correct role for this command.")
-    #     elif isinstance(error, permchecks.WrongChannel):
-    #         await send_error_to_ctx(ctx, error,
-    #                                 message="Command can only be executed in channel {}".format(error.channel))
-    #     elif isinstance(error, commands.NoPrivateMessage):
-    #         await send_error_to_ctx(ctx, error, default="Command can't be executed in private messages.")
-    #     elif isinstance(error, commands.CheckFailure):
-    #         await send_error_to_ctx(ctx, error, default="Permission error.")
-    #
-    #     # User input errors
-    #     elif isinstance(error, commands.MissingRequiredArgument):
-    #         await send_error_to_ctx(ctx, error, default="Required argument missing: {}".format(error.param))
-    #     elif isinstance(error, commands.TooManyArguments):
-    #         await send_error_to_ctx(ctx, error, default="Too many arguments given.")
-    #     elif isinstance(error, commands.BadArgument):
-    #         await send_error_to_ctx(ctx, error, default="Error on given argument: {}".format(error))
-    #     elif isinstance(error, commands.UserInputError):
-    #         await send_error_to_ctx(ctx, error, default="Wrong user input format: {}".format(error))
-    #
-    #     # Other errors
-    #     else:
-    #         # error handling
-    #         embed = discord.Embed(title=':x: Command Error', colour=0xe74c3c)  # Red
-    #         embed.add_field(name='Error', value=error)
-    #         embed.add_field(name='Command', value=ctx.command)
-    #         embed.add_field(name='Message', value=ctx.message.clean_content)
-    #         if isinstance(ctx.channel, discord.TextChannel):
-    #             embed.add_field(name='Channel', value=ctx.channel.name)
-    #         if isinstance(ctx.channel, discord.DMChannel):
-    #             embed.add_field(name='Channel', value=ctx.channel.recipient)
-    #         if isinstance(ctx.channel, discord.GroupChannel):
-    #             embed.add_field(name='Channel', value=ctx.channel.recipients)
-    #         embed.add_field(name='Author', value=ctx.author.display_name)
-    #         embed.url = ctx.message.jump_url
-    #         embed.timestamp = datetime.datetime.utcnow()
-    #
-    #         # gather traceback
-    #         ex_tb = "".join(traceback.TracebackException.from_exception(error).format())
-    #         is_tb_own_msg = len(ex_tb) > 2000
-    #         if is_tb_own_msg:
-    #             embed.description = "Exception Traceback see next message."
-    #             ex_tb = stringutils.paginate(ex_tb.split("\n"), msg_prefix="```python\n", msg_suffix="```")
-    #         else:
-    #             embed.description = f"```python\n{ex_tb}```"
-    #
-    #         # send messages
-    #         await utils.write_debug_channel(embed)
-    #         if is_tb_own_msg:
-    #             for msg in ex_tb:
-    #                 await utils.write_debug_channel(msg)
-    #         await utils.add_reaction(ctx.message, Lang.CMDERROR)
-    #         await send_error_to_ctx(ctx, error, default="Unknown error while executing command.")
-    #
-    # @bot.event
-    # async def on_message(message):
-    #     """Basic message and ignore list handling"""
-    #
-    #     # DM handling
-    #     if message.guild is None:
-    #         if await bot.dm_listener.handle_dm(message):
-    #             return
-    #
-    #     # user on ignore list
-    #     if bot.ignoring.check_user(message.author):
-    #         return
-    #
-    #     # debug mode whitelist
-    #     if not permchecks.debug_user_check(message.author):
-    #         return
-    #
-    #     await bot.process_commands(message)
-    #
-    # @bot.check
-    # async def command_disabled(ctx):
-    #     """
-    #     Checks if a command is disabled or blocked for user.
-    #     This check will be executed before other command checks.
-    #     """
-    #     if bot.ignoring.check_command(ctx):
-    #         raise commands.DisabledCommand()
-    #     if bot.ignoring.check_active_usage(ctx.author, ctx.command.qualified_name):
-    #         raise commands.DisabledCommand()
-    #     if bot.ignoring.check_passive_usage(ctx.author, ctx.command.qualified_name):
-    #         raise commands.DisabledCommand()
-    #     return True
 
     bot.run(bot.TOKEN)
 

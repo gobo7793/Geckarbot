@@ -52,6 +52,8 @@
         "week_must_first": "The week must be the first argument!",
         "wrong_match_id": "Match ID can't be found. Please look using '!fantasy scores' for valid match IDs.",
         "match_boxscore": "Boxscores Match #{} (in {}, Week {})",
+        "api_error": "Currently I can't request the data for league {}. You could try it again later...",
+        "api_error_short": "There were errors requesting some data.",
 
         "help_fantasy": "Get and manage information about NFL Fantasy Games",
         "help_desc_fantasy": "Gets information about the fantasy game or manage it. Command only works in NFL fantasy channel, if set.\nIf no subcommand is used, 'fantasy info' will be executed.",
@@ -154,6 +156,8 @@
         "week_must_first": "Die Woche muss als erstes angegeben werden!",
         "wrong_match_id": "Match-ID kann nicht gefunden werden. Schau doch bitte mithilfe von '!fantasy scores' nach den Match-IDs.",
         "match_boxscore": "Boxscores Spiel #{} (in {}, Week {})",
+        "api_error": "Ich kann aktuell leider keine Daten für die Liga {} abrufen. Du könntest es später nochmal probieren...",
+        "api_error_short": "Hinweis: Fehler beim abruf einiger Daten.",
 
         "help_fantasy": "Zeigt Infos zum NFL Fantasy Game an und verwaltet diese",
         "help_desc_fantasy": "Gibt Informationen zum Fantasy Game aus oder verwaltet diese. Das Kommando ist nur nutzbar im Fantasy-Channel, sofern gesetzt.\nWenn kein Unterkommando genutzt wird, wird 'fantasy info' ausgeführt.",

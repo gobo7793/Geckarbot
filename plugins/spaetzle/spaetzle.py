@@ -17,7 +17,7 @@ from botutils import sheetsclient, restclient
 from botutils.converters import get_best_user, get_best_username
 from botutils.permchecks import check_mod_access
 from botutils.sheetsclient import CellRange, Cell
-from botutils.stringutils import paginate
+from botutils.stringutils import paginate, format_andlist
 from botutils.utils import add_reaction
 from conf import Config, Storage, Lang
 from plugins.spaetzle.subsystems import UserBridge, Observed, Trusted
@@ -786,7 +786,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             msg = ""
             for line in result:
                 msg += "{0}{1} | {4} | {7}:{9} {10} | {11}{0}\n".format("**" if line[3].lower() ==
-                                                                                user_or_league.lower() else "", *line)
+                                                                        user_or_league.lower() else "", *line)
             embed = discord.Embed(title=Lang.lang(self, 'title_table', league), description=msg)
             embed.set_footer(text=Lang.lang(self, 'table_footer'))
         await ctx.send(embed=embed)
@@ -877,8 +877,8 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                 await ctx.send(embed=discord.Embed(title=participant, description="\n".join(msg)))
                 # TODO automatic correction in spreadsheet
 
-    @spaetzle.command(name="danny", help="Sends Danny the predictions of the participants who also take part in his"
-                                         "Bundesliga prediction game.")
+    @spaetzle.command(name="danny", help="Sends Danny (or whoever manage it) the predictions of the participants "
+                                         "who also take part in his Bundesliga prediction game.")
     async def danny_dm(self, ctx, *users):
         danny_id = Config().get(self)['danny_id']
         not_found_users = []
@@ -929,10 +929,15 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             for embed in embeds:
                 await danny.send(embed=embed)
             if not_found_users:
-                await ctx.send(Lang.lang(self, 'danny_done_notfound', get_best_username(danny), ", ".join(users),
-                                         ", ".join(not_found_users)))
+                await ctx.send(Lang.lang(self, 'danny_done_notfound', get_best_username(danny),
+                                         format_andlist(users, Lang.lang(self, 'danny_and'),
+                                                        Lang.lang(self, 'danny_nobody')),
+                                         format_andlist(not_found_users, Lang.lang(self, 'danny_and'),
+                                                        Lang.lang(self, 'danny_nobody'))))
             else:
-                await ctx.send(Lang.lang(self, 'danny_done', get_best_username(danny), ", ".join(users)))
+                await ctx.send(Lang.lang(self, 'danny_done', get_best_username(danny),
+                                         format_andlist(users, Lang.lang(self, 'danny_and'),
+                                                        Lang.lang(self, 'danny_nobody'))))
 
     @spaetzle.group(name="trusted", help="Configures which users are trusted for help")
     async def trusted(self, ctx):

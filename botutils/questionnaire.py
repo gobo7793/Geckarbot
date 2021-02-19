@@ -7,8 +7,7 @@ from discord import User
 
 from conf import Lang
 from botutils.stringutils import paginate, format_andlist as ellist
-from botutils.utils import execute_anything
-
+from botutils.utils import execute_anything, add_reaction
 
 baselang = {
     "intro": "This is a questionnaire. I will ask questions and you may answer them.",
@@ -218,7 +217,7 @@ class Questionnaire:
 
     async def dm_callback(self, reg, msg):
         if not self.state == State.ANSWER:
-            await msg.add_reaction(Lang.CMDERROR)
+            await add_reaction(msg, Lang.CMDERROR)
             return
 
         result = self.current_question.handle_answer(msg)
@@ -231,14 +230,14 @@ class Questionnaire:
             self.question_answered_event.set()
 
         elif result == Result.ACCEPTED:
-            await msg.add_reaction(Lang.CMDSUCCESS)
+            await add_reaction(msg, Lang.CMDSUCCESS)
 
         elif result == Result.EMPTY:
-            await msg.add_reaction(Lang.CMDERROR)
+            await add_reaction(msg, Lang.CMDERROR)
             await self.user.send(get_lang(self.lang, "no_answers"))
 
         elif result == Result.REJECTED:
-            await msg.add_reaction(Lang.CMDERROR)
+            await add_reaction(msg, Lang.CMDERROR)
             await self.user.send(get_lang(self.lang, "result_rejected"))
 
     async def interrogate(self) -> Union[List[Question], None]:

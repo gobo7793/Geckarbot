@@ -80,6 +80,8 @@
         "danny_done": "{} now got the predictions of {}!",
         "danny_done_notfound": "{} now got the predictions of {}!\nThese users I cant remember: {}",
         "danny_empty": "Sorry, but didnt you set the matches?!",
+        "danny_and": "and",
+        "danny_nobody": "nobody",
         "table_footer": "Yes this is live, gobo7793!",
         "error_wrong_matchday?": "Something went wrong, is the matchday correct?"
     },
@@ -166,6 +168,8 @@
         "danny_done": "{} hat nun die Tipps von {} erhalten!",
         "danny_done_notfound": "{} hat nun die Tipps von {} erhalten!\n{} kenne ich aber gar nicht.",
         "danny_empty": "Ist der Spieltag noch nicht gesetzt oder warum finde ich nix? :face_with_raised_eyebrow:",
+        "danny_and": "und",
+        "danny_nobody": "niemandem",
         "table_footer": "@gobo: möglicherweise live-stände",
         "error_wrong_matchday?": "Irgendwas konnte ich nicht finden. Fehlt ein Spieltag?!"
     }

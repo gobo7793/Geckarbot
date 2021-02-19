@@ -9,6 +9,9 @@
     "killing_plugins": "I will now ask every plugin nicely to shut down without any protest.",
     "doing_update": "These are my last words. I will update to {} now. Please don't forget me!",
     "update_timeout": "Update request cancelled. Phew, that was close!",
+    "presence_shutdown": "shutdown",
+    "presence_restart": "restarting",
+    "presence_update": "updating to {}",
 
     "err_within_timeout": "Dude, you already requested an update.",
     "err_different_channel": "Sorry, there is already an update request running in a different channel.",
@@ -26,6 +29,9 @@
     "killing_plugins": "Ich werde nun alle Plugins bitten, sich herunterzufahren. Widerstand ist zwecklos.",
     "doing_update": "Dies sind meine letzten Worte, ich werde nun auf Version {} updaten.",
     "update_timeout": "Updatevorgang abgebrochen.",
+    "presence_shutdown": "Runterfahren",
+    "presence_restart": "Neustarten",
+    "presence_update": "Updaten auf {}",
 
     "err_within_timeout": "Du hast bereits nach einem Update gefragt.",
     "err_different_channel": "In einem anderen Channel läuft bereits ein Updateprozess.",

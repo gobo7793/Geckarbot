@@ -1,3 +1,5 @@
+import logging
+from asyncio import create_task
 from datetime import datetime, timedelta
 from typing import Union, List, Dict
 
@@ -14,9 +16,12 @@ from botutils.stringutils import paginate
 from botutils.utils import add_reaction
 from conf import Config, Storage, Lang
 from plugins.fantasy.league import FantasyLeague, deserialize_league, create_league
-from plugins.fantasy.utils import pos_alphabet, FantasyState, Platform, log, Match
+from plugins.fantasy.utils import pos_alphabet, FantasyState, Platform, Match
 from subsystems import timers
 from subsystems.help import DefaultCategories
+
+
+log = logging.getLogger(__name__)
 
 
 # Repo link for pip package for ESPN API https://github.com/cwendt94/espn-api
@@ -29,6 +34,7 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
     def __init__(self, bot):
         super().__init__(bot)
         bot.register(self, category=DefaultCategories.SPORT)
+        self.dump_except_keys = ["espn_credentials"]
 
         self.supercommish = None
         self.state = FantasyState.NA
@@ -42,8 +48,9 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
         self.leagues = {}  # type: Dict[int, FantasyLeague]
         self._score_timer_jobs = []  # type: List[timers.Job]
 
-        self._load()
-        self._start_score_timer()
+        create_task(self._load())
+        # self._load()
+        # self._start_score_timer()
 
     def default_config(self):
         return {
@@ -114,7 +121,7 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
     def year(self):
         return self.start_date.year
 
-    def _load(self):
+    async def _load(self):
         """Loads the league settings from Storage"""
         if Config.get(self)["version"] == 2:
             self._update_config_from_2_to_3()
@@ -137,7 +144,7 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
         self.use_timers = Storage.get(self)["timers"]
         self.default_league = Storage.get(self)["def_league"]
         for k in Storage.get(self)["leagues"]:
-            self.leagues[k] = deserialize_league(self, Storage.get(self)["leagues"][k])
+            self.leagues[k] = await deserialize_league(self, Storage.get(self)["leagues"][k])
 
     def save(self):
         """Saves the league settings to json"""
@@ -432,38 +439,42 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
         if lweek < 1:
             lweek = 1
 
-        # full league score
-        if team_name is None or not team_name:
-            return await self._get_league_score_embed(league, lweek)
+        try:
+            # full league score
+            if team_name is None or not team_name:
+                return await self._get_league_score_embed(league, lweek)
 
-        # boxscore of both teams
-        if len(team_name) > 1 and team_name.startswith("#"):
-            try:
-                match_id = int(team_name[1:]) - 1
-            except (IndexError, ValueError):
-                return Lang.lang(self, "wrong_match_id")
+            # boxscore of both teams
+            if len(team_name) > 1 and team_name.startswith("#"):
+                try:
+                    match_id = int(team_name[1:]) - 1
+                except (IndexError, ValueError):
+                    return Lang.lang(self, "wrong_match_id")
 
-            match = next(iter(await league.get_boxscores(lweek, match_id)), None)
-            if match is None:
-                return Lang.lang(self, "wrong_match_id")
-            embed_away = await self._get_boxscore_embed(league, lweek, team=match.away_team, match=match)
-            embed_home = await self._get_boxscore_embed(league, lweek, team=match.home_team, match=match)
-            full_embed = discord.Embed(title=Lang.lang(self, "match_boxscore", match_id + 1, league.name, lweek),
-                                       url=embed_away.url)
-            full_embed.add_field(name=match.away_team.team_name, value=embed_away.description, inline=False)
-            full_embed.add_field(name=match.home_team.team_name, value=embed_home.description, inline=False)
-            return full_embed
+                match = next(iter(await league.get_boxscores(lweek, match_id)), None)
+                if match is None:
+                    return Lang.lang(self, "wrong_match_id")
+                embed_away = await self._get_boxscore_embed(league, lweek, team=match.away_team, match=match)
+                embed_home = await self._get_boxscore_embed(league, lweek, team=match.home_team, match=match)
+                full_embed = discord.Embed(title=Lang.lang(self, "match_boxscore", match_id + 1, league.name, lweek),
+                                           url=embed_away.url)
+                full_embed.add_field(name=match.away_team.team_name, value=embed_away.description, inline=False)
+                full_embed.add_field(name=match.home_team.team_name, value=embed_home.description, inline=False)
+                return full_embed
 
-        # single team boxscore
-        team = next((t for t in league.get_teams()
-                     if team_name.lower() in t.team_name.lower()
-                     or t.team_abbrev.lower() == team_name.lower()), None)
-        if team is None:
-            return
-        if league.platform == Platform.Sleeper:
-            return Lang.lang(self, "no_boxscore_data", team.team_name, league.platform,
-                             league.get_boxscore_url(week, team.team_id))
-        return await self._get_boxscore_embed(league, lweek, team=team)
+            # single team boxscore
+            team = next((t for t in league.get_teams()
+                         if team_name.lower() in t.team_name.lower()
+                         or t.team_abbrev.lower() == team_name.lower()), None)
+            if team is None:
+                return
+            if league.platform == Platform.Sleeper:
+                return Lang.lang(self, "no_boxscore_data", team.team_name, league.platform,
+                                 league.get_boxscore_url(week, team.team_id))
+            return await self._get_boxscore_embed(league, lweek, team=team)
+
+        except (IndexError, ValueError):
+            return Lang.lang(self, "api_error", league.name)
 
     async def _get_league_score_embed(self, league: FantasyLeague, week: int):
         """Builds the discord.Embed for scoring overview in league with all matches"""
@@ -558,23 +569,27 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
             return
 
         for k in self.leagues:
-            if self.can_skip_league(k, league_name):
-                continue
+            try:
+                if self.can_skip_league(k, league_name):
+                    continue
 
-            league = self.leagues[k]
-            embed = discord.Embed(title=league.name)
-            embed.url = league.standings_url
+                league = self.leagues[k]
+                embed = discord.Embed(title=league.name)
+                embed.url = league.standings_url
 
-            async with ctx.typing():
-                divisions = await league.get_divisional_standings()
-                for division in divisions:
-                    div = divisions[division]
-                    standing_str = "\n".join([
-                        Lang.lang(self, "standings_data", t + 1, div[t].team_name, div[t].wins, div[t].losses)
-                        for t in range(len(div))])
-                    embed.add_field(name=division, value=standing_str)
+                async with ctx.typing():
+                    divisions = await league.get_divisional_standings()
+                    for division in divisions:
+                        div = divisions[division]
+                        standing_str = "\n".join([
+                            Lang.lang(self, "standings_data", t + 1, div[t].team_name, div[t].wins, div[t].losses)
+                            for t in range(len(div))])
+                        embed.add_field(name=division, value=standing_str)
 
-            await ctx.send(embed=embed)
+                await ctx.send(embed=embed)
+
+            except (IndexError, ValueError):
+                await ctx.send(Lang.lang(self, "api_error", self.leagues[k].name))
 
     @fantasy.command(name="info")
     async def info(self, ctx, league_name=None):
@@ -611,6 +626,7 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
                     phase_lang = "preseason_phase_info"
 
                 elif self.state == FantasyState.Regular:
+                    has_api_errors = False
                     phase_lang = "regular_phase_info"
                     season_str = Lang.lang(self, "curr_week", league.nfl_week, self.year, league.current_week)
 
@@ -618,29 +634,39 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
 
                     overall_str = Lang.lang(self, "overall")
                     division_str = Lang.lang(self, "division")
-                    divisions = await league.get_divisional_standings()
-
-                    standings_str = ""
                     footer_str = ""
-                    if len(divisions) > 1:
-                        for div in divisions:
-                            standings_str += "{} ({})\n".format(divisions[div][0].team_name, div[0:1])
-                            footer_str += "{}: {} {} | ".format(div[0:1], div, division_str)
-                    standings = await league.get_overall_standings()
-                    standings_str += "{} ({})".format(standings[0].team_name,
-                                                      overall_str[0:1])
-                    footer_str += "{}: {}".format(overall_str[0:1], overall_str)
+                    try:
+                        divisions = await league.get_divisional_standings()
 
-                    embed.add_field(name=Lang.lang(self, "current_leader"), value=standings_str)
-                    embed.set_footer(text=footer_str)
+                        standings_str = ""
+                        if len(divisions) > 1:
+                            for div in divisions:
+                                standings_str += "{} ({})\n".format(divisions[div][0].team_name, div[0:1])
+                                footer_str += "{}: {} {} | ".format(div[0:1], div, division_str)
+                        standings = await league.get_overall_standings()
+                        standings_str += "{} ({})".format(standings[0].team_name,
+                                                          overall_str[0:1])
+                        footer_str += "{}: {}".format(overall_str[0:1], overall_str)
+
+                        embed.add_field(name=Lang.lang(self, "current_leader"), value=standings_str)
+                    except (ValueError, IndexError):
+                        has_api_errors = True
+
                     embed.add_field(name=Lang.lang(self, "trade_deadline"), value=league.trade_deadline)
 
-                    activity = await league.get_most_recent_activity()
-                    if activity is not None:
-                        act_str = Lang.lang(self, "last_activity_content",
-                                            activity.date.strftime(Lang.lang(self, "until_strf")),
-                                            activity.team_name, activity.type, activity.player_name)
-                        embed.add_field(name=Lang.lang(self, "last_activity"), value=act_str)
+                    try:
+                        activity = await league.get_most_recent_activity()
+                        if activity is not None:
+                            act_str = Lang.lang(self, "last_activity_content",
+                                                activity.date.strftime(Lang.lang(self, "until_strf")),
+                                                activity.team_name, activity.type, activity.player_name)
+                            embed.add_field(name=Lang.lang(self, "last_activity"), value=act_str)
+                    except (ValueError, IndexError):
+                        has_api_errors = True
+
+                    if has_api_errors:
+                        footer_str = " | ".join([footer_str, Lang.lang(self, "api_error_short")])
+                    embed.set_footer(text=footer_str)
 
                 elif self.state == FantasyState.Postseason:
                     phase_lang = "postseason_phase_info"
@@ -659,19 +685,29 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
 
     @fantasy.command(name="reload")
     async def fantasy_reload(self, ctx):
+        has_errors = False
         async with ctx.typing():
             for k in self.leagues:
-                await self.leagues[k].reload()
-        await add_reaction(ctx.message, Lang.CMDSUCCESS)
+                try:
+                    await self.leagues[k].reload()
+                except (ValueError, IndexError):
+                    has_errors = True
+                    ctx.send(Lang.lang(self, "api_error", self.leagues[k].name))
+        if has_errors:
+            await add_reaction(ctx.message, Lang.CMDERROR)
+        else:
+            await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
     @fantasy.group(name="set")
     async def fantasy_set(self, ctx):
         def check_mod_perms():
-            if Config.get(self)['mod_role_id'] == 0:
-                return False
+            if permchecks.check_mod_access(ctx.author):
+                return True
+            # if Config.get(self)['mod_role_id'] == 0:
+            #     return False
             if Config.get(self)['mod_role_id'] in [role.id for role in ctx.author.roles]:
                 return True
-            return permchecks.check_mod_access(ctx.author)
+            return False
 
         def check_supercommish():
             if self.supercommish is None:
@@ -680,7 +716,7 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
                 return True
             return False
 
-        if not check_supercommish() and not check_mod_perms():
+        if not (check_supercommish() or check_mod_perms()):
             await add_reaction(ctx.message, Lang.CMDNOPERMISSIONS)
             raise commands.CheckFailure(message=Lang.lang(self, "no_set_access"))
 
@@ -857,19 +893,25 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
         if platform is None:
             return
 
-        if platform == Platform.ESPN and not Storage.get(self)["espn_credentials"]["espn_s2"] \
-                and not Storage.get(self)["espn_credentials"]["swid"]:
+        if platform == Platform.ESPN and not Config.get(self)["espn_credentials"]["espn_s2"] \
+                and not Config.get(self)["espn_credentials"]["swid"]:
             await add_reaction(ctx.message, Lang.CMDERROR)
             await ctx.send(Lang.lang(self, "credentials_first", league_id))
             return
 
-        async with ctx.typing():
-            league = create_league(self, platform, league_id, commish)
+        try:
+            with ctx.typing():
+                league = await create_league(self, platform, league_id, commish)
+        except (ValueError, IndexError):
+            await add_reaction(ctx.message, Lang.CMDERROR)
+            await ctx.send(Lang.lang(self, "api_error", league_id))
+            return
+
         if not league.name:
             await add_reaction(ctx.message, Lang.CMDERROR)
             await ctx.send(Lang.lang(self, "league_add_fail", league_id, platform.name))
         else:
-            max_id = max(self.leagues) + 1
+            max_id = max(self.leagues, default=-1) + 1
             self.leagues[max_id] = league
             self.save()
             await add_reaction(ctx.message, Lang.CMDSUCCESS)

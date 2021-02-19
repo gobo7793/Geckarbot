@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import operator
 from abc import ABC, abstractmethod
 from datetime import datetime
@@ -13,7 +14,10 @@ from botutils.jsonutils import Decoder
 from botutils.restclient import Client
 from botutils.timeutils import from_epoch_ms
 from conf import Storage, Config, Lang
-from plugins.fantasy.utils import Activity, TeamStanding, Team, Player, Match, Platform, log
+from plugins.fantasy.utils import Activity, TeamStanding, Team, Player, Match, Platform
+
+
+log = logging.getLogger(__name__)
 
 
 def set_flex_pos_name(slot_position_old):
@@ -22,7 +26,7 @@ def set_flex_pos_name(slot_position_old):
     return slot_position_old
 
 
-def create_league(plugin, platform: Platform, league_id: int, commish: discord.User = None, init=False):
+async def create_league(plugin, platform: Platform, league_id: int, commish: discord.User = None, init=False):
     """
     Creates a FantasyLeague object based on the given platform
 
@@ -34,12 +38,12 @@ def create_league(plugin, platform: Platform, league_id: int, commish: discord.U
     :return: The created FantasyLeague object for the given platform
     """
     if platform == Platform.ESPN:
-        return EspnLeague(plugin, league_id, commish, init)
+        return await EspnLeague.create(plugin, league_id, commish, init)
     if platform == Platform.Sleeper:
-        return SleeperLeague(plugin, league_id, commish, init)
+        return await SleeperLeague.create(plugin, league_id, commish, init)
 
 
-def deserialize_league(plugin, d: dict):
+async def deserialize_league(plugin, d: dict):
     """
     Constructs a FantasyLeague object based on the platform saved in the dict.
 
@@ -47,13 +51,19 @@ def deserialize_league(plugin, d: dict):
     :param d: dict made by FantasyLeague.serialize()
     :return: FantasyLeague object
     """
-    return create_league(plugin, d["platform"], d['league_id'], get_best_user(d['commish']), init=True)
+    return await create_league(plugin, d["platform"], d['league_id'], get_best_user(d['commish']), init=True)
 
 
 class FantasyLeague(ABC):
     """Fatasy Football League dataset"""
 
-    def __init__(self, plugin, league_id: int, commish: discord.User = None, init=False):
+    def __init__(self):
+        self.plugin = None
+        self.league_id = None  # type: Optional[int]
+        self.commish = None  # type: Optional[discord.User]
+
+    @classmethod
+    async def create(cls, plugin, league_id: int, commish: discord.User = None, init=False):
         """
         Creates a new FantasyLeague dataset instance
 
@@ -61,23 +71,25 @@ class FantasyLeague(ABC):
         :param league_id: The league ID on the platform
         :param commish: The commissioner
         :param init: True if league is loading from Storage
+        :returns: The created league object
         """
+        league = cls()
 
-        async def loading_league_data_wrapper():
-            await self._load_league_data()
+        # def loading_coro_wrapper():
+        #     asyncio.run_coroutine_threadsafe(league._load_league_data(), league.plugin.bot.loop)
 
-        def loading_coro_wrapper():
-            asyncio.run_coroutine_threadsafe(loading_league_data_wrapper(), self.plugin.bot.loop)
+        league.plugin = plugin
+        league.league_id = league_id
+        league.commish = commish
 
-        self.plugin = plugin
-        self.league_id = league_id
-        self.commish = commish
+        # if init:
+        #     # connect_thread = Thread(target=loading_coro_wrapper())
+        #     # connect_thread.start()
+        #     asyncio.create_task(league._load_league_data())
+        # else:
+        await league._load_league_data()
 
-        if init:
-            connect_thread = Thread(target=loading_coro_wrapper())
-            connect_thread.start()
-        else:
-            loading_league_data_wrapper()
+        return league
 
     @abstractmethod
     async def _load_league_data(self):
@@ -203,21 +215,20 @@ class FantasyLeague(ABC):
         """
         Serializes the league dataset to a dict
 
-        :return: A dict with the espn_id and commish
+        :return: A dict with the platform, league id and commish user id
         """
         return {
             'platform': self.platform,
             'league_id': self.league_id,
-            'commish': self.commish.id
+            'commish': self.commish.id if self.commish is not None else 0
         }
 
 
 class EspnLeague(FantasyLeague):
 
-    def __init__(self, plugin, league_id: int, commish: discord.User = None, init=False):
+    def __init__(self):
+        super().__init__()
         self._espn = None  # type: Optional[League]
-
-        FantasyLeague.__init__(self, plugin, league_id, commish, init)
 
     async def _load_league_data(self):
         self._espn = League(year=self.plugin.year, league_id=self.league_id,
@@ -339,12 +350,11 @@ class SleeperLeague(FantasyLeague):
     player_db_key = "sleeper_players"
     last_db_call_key = "_last_call"
 
-    def __init__(self, plugin, league_id: int, commish: discord.User = None, init=False):
+    def __init__(self):
+        super().__init__()
         self._client = Client("https://api.sleeper.app/v1/")
         self._league_data = {}
         self._teams = []
-
-        FantasyLeague.__init__(self, plugin, league_id, commish, init)
 
     async def _load_league_data(self):
         await self.reload()
