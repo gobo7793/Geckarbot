@@ -1,8 +1,10 @@
+import asyncio
 import locale
 import logging
 import random
 import string
 from datetime import datetime, timezone, timedelta
+from typing import Dict
 
 import discord
 from discord.ext import commands
@@ -28,15 +30,12 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
         super().__init__(bot)
         bot.register(self, help.DefaultCategories.MISC)
 
-        self.reminders = {}
-        reminders_to_remove = []
+        self.reminders = {}  # type: Dict[int, timers.Job]
         for reminder_id in Storage().get(self)['reminders']:
             reminder = Storage().get(self)['reminders'][reminder_id]
-            if not self._register_reminder(reminder['chan'], reminder['user'], reminder['time'],
-                                           reminder_id, reminder['text'], True):
-                reminders_to_remove.append(reminder_id)
-        for el in reminders_to_remove:
-            self._remove_reminder(el)
+            self._register_reminder(reminder['chan'], reminder['user'], reminder['time'],
+                                    reminder_id, reminder['text'], True)
+        self._remove_old_reminders()
 
         # Add commands to help category 'utils'
         to_add = ("dice", "choose", "remindme", "multichoose", "money")
@@ -70,17 +69,6 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
             return langstr
         else:
             raise NotFound()
-
-    def get_new_reminder_id(self):
-        """
-        Acquires a new reminder id
-        :return: free id that can be used for a new timer
-        """
-        highest = 0
-        for el in self.reminders:
-            if el >= highest:
-                highest = el + 1
-        return highest
 
     @commands.command(name="dice")
     async def dice(self, ctx, number_of_sides: int = 6, number_of_dice: int = 1):
@@ -216,7 +204,7 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
         if remind_time == datetime.max:
             raise commands.BadArgument(message=Lang.lang(self, 'remind_duration_err'))
 
-        reminder_id = self.get_new_reminder_id()
+        reminder_id = max(self.reminders, default=0) + 1
 
         if remind_time < datetime.now():
             log.debug("Attempted reminder {} in the past: {}".format(reminder_id, remind_time))
@@ -287,7 +275,7 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
         :param is_restart: True if reminder is restarting after bot (re)start
         :returns: True if reminder is registered, otherwise False
         """
-        if remind_time < datetime.now():
+        if remind_time < datetime.now() and not is_restart:
             log.debug("Attempted reminder {} in the past: {}".format(reminder_id, remind_time))
             return False
 
@@ -318,7 +306,7 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
                     or self.reminders[el].next_execution() < datetime.now()):
                 old_reminders.append(el)
         for el in old_reminders:
-            self._remove_reminder(el)
+            asyncio.run_coroutine_threadsafe(self._reminder_callback(self.reminders[el]), self.bot.loop)
 
     def _remove_reminder(self, reminder_id):
         """
@@ -334,14 +322,17 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
         log.info("Reminder {} removed".format(reminder_id))
 
     async def _reminder_callback(self, job):
+        log.info("Executing reminder {}".format(job.data['id']))
+
         channel = self.bot.get_channel(job.data['chan'])
         user = self.bot.get_user(job.data['user'])
         text = job.data['text']
         rid = job.data['id']
+
         if text:
             remind_text = Lang.lang(self, 'remind_callback', user.mention, text)
         else:
             remind_text = Lang.lang(self, 'remind_callback_no_msg', user.mention)
+
         await channel.send(remind_text)
-        log.info("Executed reminder {}".format(rid))
         self._remove_reminder(rid)
