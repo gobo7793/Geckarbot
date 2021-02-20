@@ -33,28 +33,28 @@ class Plugin(BasePlugin):
         return {
             "memes": [
                 "https://tenor.com/view/hello-there-gif-9442662",
+                "https://tenor.com/view/general-kenobi-kenobi-general-hello-there-star-wars-gif-13723705",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "https://i.redd.it/u4viabqenpi61.png",
+                "https://i.redd.it/zf3b2i3y4hi61.jpg",
                 "",
                 "",
                 "",
                 "",
                 "",
                 "",
+                "https://tenor.com/view/your-move-obi-wan-kenobi-star-wars-jedi-master-gif-15824683",
                 "",
                 "",
                 "",
                 "",
                 "",
                 "",
-                "",
-                "",
-                "",
-                "",
-                "",
-                "",
-                "",
-                "",
-                "",
-                "",
+                "https://i.redd.it/aozydy26hki61.jpg",
                 "https://tenor.com/view/general-grievous-abandon-ship-funny-abort-evacuate-gif-10721574",
             ]
         }
@@ -69,7 +69,8 @@ class Plugin(BasePlugin):
                     "execution of Order 66",
                     "the Imperial March",
                     "with the Cantina Band",
-                    "with his Death Star"
+                    "with his Death Star",
+                    "with the Force"
                 ]
             },
             "de": {
@@ -80,7 +81,8 @@ class Plugin(BasePlugin):
                     "Ausführung der Order 66",
                     "den Imperial March",
                     "mit der Cantina Band",
-                    "mit seinem Todesstern"
+                    "mit seinem Todesstern",
+                    "mit der Macht"
                 ]
             }
         }
