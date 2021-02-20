@@ -31,6 +31,9 @@ class CoroRegistration:
     def deregister(self):
         self.league_reg.deregister_coro(self)
 
+    def unload(self):
+        self.league_reg.unload_coro(self)
+
     def get_match_dicts(self):
         """Builds the dictionarys for each match"""
         match_list = self.league_reg.matches
@@ -145,6 +148,13 @@ class LeagueRegistration:
             job.cancel()
         self.listener.deregister(self)
 
+    def unload(self):
+        for job in self.kickoff_timers:
+            job.cancel()
+        for job in self.intermediate_timers:
+            job.cancel()
+        self.listener.unload(self)
+
     def deregister_coro(self, coro: CoroRegistration):
         reg_storage = coro.storage()
         if reg_storage in Storage().get(self.listener)['registrations'].get(self.league, []):
@@ -152,6 +162,14 @@ class LeagueRegistration:
             Storage().save(self.listener)
         if coro in self.registrations:
             self.registrations.remove(coro)
+        if not self.registrations:
+            self.deregister()
+
+    def unload_coro(self, coro: CoroRegistration):
+        if coro in self.registrations:
+            self.registrations.remove(coro)
+        if not self.registrations:
+            self.unload()
 
     def update_matches(self, matchday=None):
         """Updates the matches and current standings of the league"""
@@ -224,7 +242,7 @@ class LeagueRegistration:
         job.data = {'start': now,
                     'matches': self.extract_kickoffs_with_matches()[now]}
         await self.update_kickoff_coros(job)
-        self.schedule_timers(start=datetime.datetime.now())
+        self.schedule_timers(start=now)
 
     def schedule_timers(self, start: datetime.datetime):
         """
@@ -237,6 +255,8 @@ class LeagueRegistration:
         minutes = [m + (start.minute % 15) for m in range(0, 60, 15)]
         intermediate = timers.timedict(year=[start.year], month=[start.month], monthday=[start.day], minute=minutes)
         job = self.listener.bot.timers.schedule(coro=self.update_periodic_coros, td=intermediate, data={'start': start})
+        if job.next_execution().minute == datetime.datetime.now().minute:
+            job.execute()
         self.logger.debug("Timers for match starting at {} scheduled.".format(start.strftime("%d/%m/%Y %H:%M")))
         self.intermediate_timers.append(job)
         return job
@@ -274,6 +294,8 @@ class LeagueRegistration:
         :param job:
         :return:
         """
+        if job.data['start'] == datetime.datetime.now().replace(second=0, microsecond=0):
+            return
         new_finished = []
         self.update_matches()
         matches = self.extract_kickoffs_with_matches()[job.data['start']]
@@ -310,6 +332,13 @@ class Liveticker(BaseSubsystem):
         self.bot = bot
         self.logger = logging.getLogger(__name__)
         self.registrations = {}
+        self.restored = False
+
+        @bot.listen()
+        async def on_ready():
+            plugins = self.bot.get_normalplugins()
+            self.restore(plugins)
+            self.restored = True
 
     def default_storage(self):
         return {
@@ -343,10 +372,16 @@ class Liveticker(BaseSubsystem):
             Storage().get(self)['registrations'].pop(reg.league)
             Storage().save(self)
 
+    def unload(self, reg: LeagueRegistration):
+        if reg.league in self.registrations:
+            self.registrations.pop(reg.league)
+
     def search(self, plugin=None, league=None) -> dict:
         """
         Searches all CoroRegistrations fulfilling the requirements
 
+        :param plugin: plugin name
+        :param league: league key
         :return: Dictionary with a list of all matching registrations per league
         """
         if league:
@@ -364,11 +399,13 @@ class Liveticker(BaseSubsystem):
                 coro_dict[leag] = r
         return coro_dict
 
-    def restore(self, plugin):
+    def restore(self, plugins: list):
+        i = 0
         registrations = Storage().get(self)['registrations']
         for league in registrations:
             for reg in registrations[league]:
-                if reg['plugin'] == plugin.get_name():
+                if reg['plugin'] in plugins:
+                    i += 1
                     coro = getattr(get_plugin_by_name(reg['plugin']),
                                    reg['coro']) if reg['coro'] else None
                     coro_kickoff = getattr(get_plugin_by_name(reg['plugin']),
@@ -381,4 +418,11 @@ class Liveticker(BaseSubsystem):
                                   coro_kickoff=coro_kickoff,
                                   coro_finished=coro_finished,
                                   periodic=reg['periodic'])
-        self.logger.debug('Liveticker registrations for plugin {}'.format(plugin.get_name()))
+        self.logger.debug(f'{i} Liveticker registrations restored.')
+
+    def unload_plugin(self, plugin_name):
+        coro_dict = self.search(plugin=plugin_name)
+        for leag in coro_dict.values():
+            for reg in leag:
+                reg.unload()
+        self.logger.debug(f'Liveticker for plugin {plugin_name} unloaded')

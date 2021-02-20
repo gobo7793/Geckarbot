@@ -37,7 +37,6 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
         self.logger = logging.getLogger(__name__)
         self.teamname_dict = TeamnameDict(self)
         self.userbridge = UserBridge(self)
-        self.bot.liveticker.restore(self)
 
     def default_config(self):
         return {
@@ -174,8 +173,9 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                 match_list = restclient.Client("https://www.openligadb.de/api").make_request(
                     "/getmatchdata/bl1/2020/{}".format(str(matchday)))
                 regs = self.bot.liveticker.search(plugin=self.get_name())
-                for reg in regs.values():
-                    reg.deregister()
+                for leag in regs.values():
+                    for reg in leag:
+                        reg.deregister()
             else:
                 reg = self.start_liveticker()
                 matchday = reg.league_reg.matchday()

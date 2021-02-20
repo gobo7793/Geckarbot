@@ -263,6 +263,8 @@ class Geckarbot(commands.Bot):
             return False
         else:
             logging.info("Loaded plugin {}".format(plugin_name))
+            if self.liveticker.restored:
+                self.liveticker.restore([plugin_name])
             return True
 
     def unload_plugin(self, plugin_name, save_config=True):
@@ -275,6 +277,7 @@ class Geckarbot(commands.Bot):
             if save_config:
                 Config.save(plugin)
                 Storage.save(plugin)
+            self.liveticker.unload_plugin(plugin_name)
 
             self.deregister(plugin)
         except Exception as e:
