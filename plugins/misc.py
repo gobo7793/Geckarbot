@@ -1,20 +1,18 @@
 import locale
-import random
 import logging
+import random
 import string
 from datetime import datetime, timezone, timedelta
-from decimal import Decimal
 
 import discord
 from discord.ext import commands
 
 import botutils.timeutils
-from botutils import restclient, utils
-from conf import Storage, Lang, Config
-
 from base import BasePlugin, NotFound
-from subsystems import timers, help
+from botutils import restclient, utils
 from botutils.converters import get_best_username
+from conf import Storage, Lang, Config
+from subsystems import timers, help
 
 log = logging.getLogger(__name__)
 keysmash_cmd_name = "keysmash"
@@ -294,7 +292,7 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
             return False
 
         log.info("Adding reminder {} for user with id {} at {}: {}".format(reminder_id, user_id,
-                                                                               remind_time, text))
+                                                                           remind_time, text))
 
         job_data = {'chan': channel_id, 'user': user_id, 'time': remind_time, 'text': text, 'id': reminder_id}
 
