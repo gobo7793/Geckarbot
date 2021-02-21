@@ -131,7 +131,7 @@ class Plugin(BasePlugin, name="Sport"):
         await ctx.invoke(self.bot.get_command('fußball'), 'bl1', allmatches)
 
     @commands.command(name="buli2")
-    async def buli_livescores(self, ctx, allmatches=None):
+    async def buli2_livescores(self, ctx, allmatches=None):
         await ctx.invoke(self.bot.get_command('fußball'), 'bl2', allmatches)
 
     @commands.command(name="matches")
