@@ -21,7 +21,6 @@ class Plugin(BasePlugin, name="Sport"):
         bot.register(self, category=DefaultCategories.SPORT)
         self.logger = logging.getLogger(__name__)
         self.can_reload = True
-        self.liveticker_regs = {}
         Config().save(self)
 
     def default_config(self):
@@ -106,12 +105,15 @@ class Plugin(BasePlugin, name="Sport"):
                         upcoming.append(match)
 
         def match_msg(m):
+            dt = datetime.strptime(m.get('MatchDateTime'), "%Y-%m-%dT%H:%M:%S")
+            weekday = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'][dt.weekday()]
+            time_ = dt.strftime("%H:%M")
             team_h = m.get('Team1', {}).get('TeamName')
             team_a = m.get('Team2', {}).get('TeamName')
             goals = m.get('Goals', [])
             goals_h = max(0, *(x.get('ScoreTeam1', 0) for x in goals)) if len(goals) else ("–" if m in upcoming else 0)
             goals_a = max(0, *(x.get('ScoreTeam2', 0) for x in goals)) if len(goals) else ("–" if m in upcoming else 0)
-            return "{} [{}:{}] {}".format(team_h, goals_h, goals_a, team_a)
+            return "{}. {} | {} [{}:{}] {}".format(weekday, time_, team_h, goals_h, goals_a, team_a)
 
         embed = discord.Embed(title=Lang.lang(self, 'soccer_title', league))
         running_msg = "\n".join(match_msg(m) for m in running)
@@ -166,14 +168,14 @@ class Plugin(BasePlugin, name="Sport"):
     async def liveticker(self, ctx):
         msg = []
         for league in Config().get(self)['liveticker_leagues']:
-            if league in self.liveticker_regs:
-                self.liveticker_regs[league].deregister()
-            self.liveticker_regs[league] = self.bot.liveticker.register(league=league, plugin=self,
-                                                                                  coro=self.live_goals,
-                                                                                  coro_kickoff=self.live_kickoff,
-                                                                                  coro_finished=self.live_finished,
-                                                                                  periodic=True)
-            next_exec = self.liveticker_regs[league].next_execution()
+            liveticker_regs = self.bot.liveticker.search(plugin=self.get_name())
+            if league in liveticker_regs:
+                for reg in liveticker_regs[league]:
+                    reg.deregister()
+            reg_ = self.bot.liveticker.register(league=league, plugin=self,
+                                                coro=self.live_goals, coro_kickoff=self.live_kickoff,
+                                                coro_finished=self.live_finished, periodic=True)
+            next_exec = reg_.next_execution()
             if next_exec:
                 next_exec = next_exec[0].strftime('%d.%m.%Y - %H:%M')
             msg.append("{} - Next: {}".format(league, next_exec))
@@ -181,13 +183,6 @@ class Plugin(BasePlugin, name="Sport"):
         Config().save(self)
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
         await ctx.send("\n".join(msg))
-
-    @commands.command(name="livegoals", hidden=True)
-    async def update_live(self, ctx):
-        """Debug Method / Updates Liveticker CoroRegistrations"""
-        for league in self.liveticker_regs:
-            await self.liveticker_regs[league].update()
-        await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
     async def live_kickoff(self, match_dicts, league, time):
         sport = Config().bot.get_channel(Config().get(self)['sport_chan'])

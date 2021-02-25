@@ -1,9 +1,8 @@
 import json
 import datetime
-import dateutil.parser
 
 CONVERTERS = {
-    'datetime': dateutil.parser.parse
+    'datetime': datetime.datetime.fromisoformat
 }
 
 

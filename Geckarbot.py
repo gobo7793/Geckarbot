@@ -39,7 +39,7 @@ class Geckarbot(commands.Bot):
     Basic bot info
     """
     NAME = "Geckarbot"
-    VERSION = "2.8.0"
+    VERSION = "2.8.2"
     PLUGIN_DIR = "plugins"
     CORE_PLUGIN_DIR = "coreplugins"
     CONFIG_DIR = "config"
@@ -295,6 +295,8 @@ class Geckarbot(commands.Bot):
             return False
         else:
             logging.info("Loaded plugin {}".format(plugin_name))
+            if self.liveticker.restored:
+                self.liveticker.restore([plugin_name])
             return True
 
     def unload_plugin(self, plugin_name, save_config=True):
@@ -307,6 +309,7 @@ class Geckarbot(commands.Bot):
             if save_config:
                 Config.save(plugin)
                 Storage.save(plugin)
+            self.liveticker.unload_plugin(plugin_name)
 
             self.deregister(plugin)
         except Exception as e:

@@ -6,7 +6,6 @@ from discord.ext import commands
 
 from base import BasePlugin
 from botutils import utils, converters
-from botutils.utils import add_reaction
 from conf import Config, Lang
 from subsystems import help, timers
 from subsystems.ignoring import UserBlockedCommand
@@ -39,16 +38,16 @@ class Plugin(BasePlugin, name="Testing and debug things"):
     async def get_emoji_id(self, ctx, emoji: discord.Emoji):
         str_rep = str(emoji).replace("<", "`").replace(">", "`")
         msg = await ctx.send(str_rep)
-        await add_reaction(msg, emoji)
+        await utils.add_reaction(msg, emoji)
 
     @commands.command(name="defaultstorage")
     async def defaultstorage(self, ctx, pluginname):
         plugin = converters.get_plugin_by_name(pluginname)
         if plugin is None:
-            await add_reaction(ctx.message, Lang.CMDERROR)
+            await utils.add_reaction(ctx.message, Lang.CMDERROR)
             await ctx.send("Plugin {} not found.".format(pluginname))
             return
-        await add_reaction(ctx.message, Lang.CMDSUCCESS)
+        await utils.add_reaction(ctx.message, Lang.CMDSUCCESS)
         await ctx.send("```{}```".format(plugin.default_storage()))
 
     @commands.command(name="cmdplugin")
@@ -105,7 +104,7 @@ class Plugin(BasePlugin, name="Testing and debug things"):
     async def stop_presence(self, ctx):
         if self.bot.presence.is_timer_up:
             self.bot.presence._execute_change()
-            await add_reaction(ctx.message, Lang.CMDSUCCESS)
+            await utils.add_reaction(ctx.message, Lang.CMDSUCCESS)
         else:
             await ctx.send("Timer not started")
 
@@ -140,7 +139,7 @@ class Plugin(BasePlugin, name="Testing and debug things"):
     @commands.command(name="react", hidden=True)
     async def react(self, ctx, reaction):
         print(reaction)
-        await add_reaction(ctx.message, reaction)
+        await utils.add_reaction(ctx.message, reaction)
 
     @commands.command(name="doerror", hidden=True)
     async def do_error(self, ctx):
@@ -166,10 +165,14 @@ class Plugin(BasePlugin, name="Testing and debug things"):
     # @commands.command(name="spam", hidden=True)
     async def spam(self, ctx):
         self.bot.timers.schedule(self.spamcb, timers.timedict(), data=ctx)
-        await add_reaction(ctx.message, Lang.CMDSUCCESS)
+        await utils.add_reaction(ctx.message, Lang.CMDSUCCESS)
 
     @commands.command(name="tasks", hidden=True)
     async def tasklist(self, ctx):
         for el in asyncio.all_tasks():
             print(el)
-        await add_reaction(ctx.message, Lang.CMDSUCCESS)
+        await utils.add_reaction(ctx.message, Lang.CMDSUCCESS)
+
+    @commands.command(name="livetickersuche")
+    async def suche(self, ctx, plugin=None, league=None):
+        await ctx.send(self.bot.liveticker.search(plugin, league))
