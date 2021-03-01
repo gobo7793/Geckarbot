@@ -184,7 +184,6 @@ class Plugin(BasePlugin, name="Sport"):
         await ctx.send("\n".join(msg))
 
     async def live_coro(self, event):
-        self.logger.debug("OH HIER IST JA WAS ANGEKOMMEN :O")
         sport = Config().bot.get_channel(Config().get(self)['sport_chan'])
         if type(event) == LivetickerKickoff:
             # Kickoff-Event
@@ -198,11 +197,9 @@ class Plugin(BasePlugin, name="Sport"):
                 await sport.send(msg)
         elif type(event) == LivetickerUpdate:
             # Intermediate-Event
-            self.logger.debug("Es ist ein Update, soso...")
             if not event.matches:
                 return
             matches_with_goals = [x for x in event.matches if x.new_goals and not x.is_finished]
-            self.logger.debug("Tore gab es: {}".format(matches_with_goals))
             if matches_with_goals:
                 match_msgs = []
                 for match in matches_with_goals:
@@ -222,7 +219,6 @@ class Plugin(BasePlugin, name="Sport"):
                 for msg in msgs:
                     await sport.send(msg)
             else:
-                self.logger.debug("Gab keine Tore, mist :C")
                 await sport.send(Lang.lang(self, 'no_new_goals', event.league, event.matches[0].minute))
         elif type(event) == LivetickerFinish:
             # Finished-Event

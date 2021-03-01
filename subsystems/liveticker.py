@@ -31,7 +31,7 @@ class Match:
         self.new_goals = None
 
     @classmethod
-    def update(cls, match, new_goals):
+    def intermediate(cls, match, new_goals):
         cls.new_goals = new_goals
         cls.score = (max(0, 0, *(g.get('ScoreTeam1', 0) for g in match.get('Goals', []))),
                      max(0, 0, *(g.get('ScoreTeam2', 0) for g in match.get('Goals', []))))
@@ -59,19 +59,13 @@ class LivetickerKickoff(LivetickerEvent):
 
 class LivetickerUpdate(LivetickerEvent):
     def __init__(self, league, matches, past_goals):
-        self.logger = logging.getLogger(__name__)
-        self.logger.debug("OK PANIK")
-        self.logger.debug(f"League: {league} / matches: {matches} / goals: {past_goals}")
         m_list = []
         for m in matches:
-            self.logger.debug(f"Match: {m}")
             new_goals = [g for g in m.get('Goals', []) if g.get('GoalID', 0) not in
                          past_goals.get(m.get('MatchID'), [])]
-            self.logger.debug(f"newgoals: {new_goals}")
-            m_list.append(Match.update(m, new_goals))
-        self.logger.debug("JA LÄUFT EY")
+            m_list.append(Match.intermediate(m, new_goals))
         super().__init__(league, m_list)
-        self.logger.debug("JA WIRKLICH")
+
 
 class LivetickerFinish(LivetickerEvent):
     def __init__(self, league, matches):
@@ -137,11 +131,9 @@ class CoroRegistration:
         """Returns datetime of the next timer execution"""
         return self.league_reg.next_execution()
 
-    async def update(self, job: Job):
-        self.logger.debug("Update just normal update.")
-        self.logger.debug(f"League: {self.league_reg.league} / matches: {job.data['matches']} / goals: {self.last_goal}")
-        event = LivetickerUpdate(self.league_reg.league, job.data['matches'], self.last_goal)
-        self.logger.debug("event created")
+    async def update(self, job):
+        matches = self.league_reg.extract_kickoffs_with_matches()[job.data['start']]
+        event = LivetickerUpdate(self.league_reg.league, matches, self.last_goal)
         await self.coro(event)
 
     async def update_kickoff(self, data):
@@ -312,7 +304,7 @@ class LeagueRegistration:
         :param start: start datetime of the match
         :return: jobs objects of the timers
         """
-        minutes = [m + (start.minute % 5) for m in range(0, 60, 5)]
+        minutes = [m + (start.minute % 3) for m in range(0, 60, 3)]
         intermediate = timers.timedict(year=[start.year], month=[start.month], monthday=[start.day], minute=minutes)
         job = self.listener.bot.timers.schedule(coro=self.update_periodic_coros, td=intermediate, data={'start': start})
         if job.next_execution().minute == datetime.datetime.now().minute:
