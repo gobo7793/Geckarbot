@@ -59,11 +59,10 @@ class LivetickerKickoff(LivetickerEvent):
         self.kickoff = kickoff
 
 class LivetickerUpdate(LivetickerEvent):
-    def __init__(self, league, matches, past_goals):
+    def __init__(self, league, matches, ng):
         m_list = []
         for m in matches:
-            new_goals = [g for g in m.get('Goals', []) if g.get('GoalID', 0) not in
-                         past_goals.get(m.get('MatchID'), [])]
+            new_goals = ng.get(m.get('MatchID'))
             m_list.append(Match.intermediate(m, new_goals))
         super().__init__(league, m_list)
 
@@ -134,7 +133,15 @@ class CoroRegistration:
 
     async def update(self, job):
         matches = self.league_reg.extract_kickoffs_with_matches()[job.data['start']]
-        event = LivetickerUpdate(self.league_reg.league, matches, self.last_goal)
+        new_goals = {}
+        for m in matches:
+            m_id = m.get('MatchID')
+            if m_id not in self.last_goal:
+                self.last_goal[m_id] = []
+            ng = [g for g in m.get('Goals', []) if g.get('GoalID', 0) not in self.last_goal[m_id]]
+            new_goals[m_id] = ng
+            self.last_goal[m_id].extend([g.get('GoalID', 0) for g in ng])
+        event = LivetickerUpdate(self.league_reg.league, matches, new_goals)
         await self.coro(event)
 
     async def update_kickoff(self, data):
