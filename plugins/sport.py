@@ -206,7 +206,7 @@ class Plugin(BasePlugin, name="Sport"):
                     match_msgs.append(
                         "**{} - {} | {}:{}**".format(match.home_team, match.away_team, *match.score))
                     match_goals = []
-                    for goal in match['new_goals']:
+                    for goal in match.new_goals:
                         minute = goal.get('MatchMinute')
                         if not minute:
                             minute = "?"

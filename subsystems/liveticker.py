@@ -32,10 +32,11 @@ class Match:
 
     @classmethod
     def intermediate(cls, match, new_goals):
-        cls.new_goals = new_goals
-        cls.score = (max(0, 0, *(g.get('ScoreTeam1', 0) for g in match.get('Goals', []))),
+        m = cls(match)
+        m.new_goals = new_goals
+        m.score = (max(0, 0, *(g.get('ScoreTeam1', 0) for g in match.get('Goals', []))),
                      max(0, 0, *(g.get('ScoreTeam2', 0) for g in match.get('Goals', []))))
-        return cls(match)
+        return m
 
 class Goal:
     def __init__(self, goal):
