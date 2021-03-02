@@ -1,5 +1,6 @@
 import datetime
 import logging
+from enum import Enum
 
 from base import BaseSubsystem
 from botutils import restclient
@@ -8,10 +9,45 @@ from data import Storage
 from subsystems import timers
 from subsystems.timers import Job
 
+
+class MatchStatus(Enum):
+    COMPLETED = ":ballot_box_with_check:"
+    RUNNING = ":green_square:"
+    UPCOMING = ":clock4:"
+    POSTPONED = ":no_entry_sign:"
+    UNKNOWN = "❔"
+
+    @staticmethod
+    def match_status_espn(m):
+        status = m.get('status', {}).get('type', {}).get('state')
+        if status == "pre":
+            return MatchStatus.UPCOMING
+        elif status == "in":
+            return MatchStatus.RUNNING
+        elif status == "post":
+            if m.get('status', {}).get('type', {}).get('completed'):
+                return MatchStatus.COMPLETED
+            else:
+                return MatchStatus.POSTPONED
+        return MatchStatus.UNKNOWN
+
+
 class Match:
-    def __init__(self, match):
+    def __init__(self, match_id, kickoff, minute, home_team, home_team_id, away_team, away_team_id, is_completed):
+        self.match_id = match_id
+        self.kickoff = kickoff
+        self.minute = minute
+        self.home_team = home_team
+        self.home_team_id = home_team_id
+        self.away_team = away_team
+        self.away_team_id = away_team_id
+        self.score = {self.home_team_id: 0, self.away_team_id: 0}
+        self.is_completed = is_completed
+
+    @classmethod
+    def from_openligadb(cls, m):
         try:
-            kickoff = datetime.datetime.strptime(match.get('MatchDateTime'), "%Y-%m-%dT%H:%M:%S")
+            kickoff = datetime.datetime.strptime(m.get('MatchDateTime'), "%Y-%m-%dT%H:%M:%S")
         except (ValueError, TypeError):
             kickoff = None
         if kickoff:
@@ -21,55 +57,123 @@ class Match:
         else:
             minute = None
 
-        self.match_id = match.get('MatchID')
-        self.home_team = match.get('Team1', {}).get('TeamName')
-        self.away_team = match.get('Team2', {}).get('TeamName')
-        self.score = (0, 0)
-        self.kickoff = kickoff
-        self.is_finished = match.get('MatchIsFinished')
-        self.minute = minute
-        self.new_goals = None
+        match = cls(match_id=m.get('MatchID'),
+                    kickoff=kickoff,
+                    minute=minute,
+                    home_team=m.get('Team1', {}).get('TeamName'),
+                    home_team_id=m.get('Team1', {}).get('TeamId'),
+                    away_team=m.get('Team2', {}).get('TeamName'),
+                    away_team_id=m.get('Team2', {}).get('TeamId'),
+                    is_completed=m.get('MatchIsFinished'))
+        return match
 
     @classmethod
-    def intermediate(cls, match, new_goals):
-        m = cls(match)
-        m.new_goals = new_goals
-        m.score = (max(0, 0, *(g.get('ScoreTeam1', 0) for g in match.get('Goals', []))),
-                     max(0, 0, *(g.get('ScoreTeam2', 0) for g in match.get('Goals', []))))
-        return m
+    def from_openligadb_int(cls, m, new_goals):
+        match = cls.from_openligadb(m)
+        match.new_goals = new_goals
+        match.score[match.home_team_id] = max(0, 0, *(g.get('ScoreTeam1', 0) for g in match.get('Goals', [])))
+        match.score[match.away_team_id] = max(0, 0, *(g.get('ScoreTeam2', 0) for g in match.get('Goals', [])))
+        return match
 
-class Goal:
-    def __init__(self, goal):
-        self.goal_id = goal.get('GoalID')
-        self.goalgetter = goal.get('GoalGetterName')
-        self.minute = goal.get('MatchMinute')
-        self.score = (goal.get('ScoreTeam1'), goal.get('ScoreTeam2'))
-        self.is_overtime = goal.get('IsOvertime')
-        self.is_owngoal = goal.get('IsOwnGoal')
-        self.is_penalty = goal.get('IsPenalty')
+    @classmethod
+    def from_espn(cls, m):
+        # Extract kickoff into datetime object
+        try:
+            kickoff = datetime.datetime.strptime(m.get('date'), "%Y-%m-%dT%H:%MZ")
+        except (ValueError, TypeError):
+            kickoff = None
+        # Get home and away team
+        home_team, away_team, home_id, away_id = None, None, None, None
+        for team in m.get('competitions', [{}])[0].get('competitors'):
+            if team.get('homeAway') == "home":
+                home_team = team.get('team', {}).get('displayName')
+                home_id = team.get('id')
+            elif team.get('homeAway') == "away":
+                away_team = team.get('team', {}).get('displayName')
+                away_id = team.get('id')
+
+        # Put all informations together
+        match = cls(match_id=m.get('uid'),
+                    kickoff=kickoff,
+                    minute=m.get('status', {}).get('displayClock'),
+                    home_team=home_team,
+                    home_team_id=home_id,
+                    away_team=away_team,
+                    away_team_id=away_id,
+                    is_completed=m.get('status', {}).get('type', {}).get('completed'))
+        return match
+
+class PlayerEvent:
+    def __init__(self, player, minute):
+        self.player = player
+        self.minute = minute
+
+
+class Goal(PlayerEvent):
+    def __init__(self, player, minute, score, is_owngoal, is_penalty):
+        super().__init__(player, minute)
+        self.score = score
+        self.is_owngoal = is_owngoal
+        self.is_penalty = is_penalty
+
+    @classmethod
+    def from_openligadb(cls, g: dict):
+        goal = cls(player=g.get('GoalGetterName'),
+                   minute=g.get('MatchMinute'),
+                   score={g.get('Team1', {}).get('TeamId'): g.get('ScoreTeam1'),
+                          g.get('Team2', {}).get('TeamId'): g.get('ScoreTeam2')},
+                   is_owngoal=g.get('IsOwnGoal'),
+                   is_penalty=g.get('IsPenalty'))
+        goal.goal_id = g.get('GoalID')
+        goal.is_overtime = g.get('IsOvertime')
+        return goal
+
+    @classmethod
+    def from_espn(cls, g: dict, score: dict):
+        score[g.get('team', {}).get('id')] = g.get('scoreValue')
+        goal = cls(player=g.get('athletesInvolved', [{}])[0].get('displayName'),
+                   minute=g.get('clock', {}).get('displayValue'),
+                   score=score,
+                   is_owngoal=g.get('ownGoal'),
+                   is_penalty=g.get('penaltyKick'))
+        return goal
+
+
+class RedCard(PlayerEvent):
+    def __init__(self, player, minute):
+        super().__init__(player, minute)
+
+    @classmethod
+    def from_espn(cls, redcard):
+        return cls(player=redcard.get('athletesInvolved', [{}])[0].get('displayName'),
+                   minute=redcard.get('clock', {}).get('displayValue'))
+
 
 class LivetickerEvent:
     def __init__(self, league, matches):
         self.league = league
         self.matches = matches
 
+
 class LivetickerKickoff(LivetickerEvent):
     def __init__(self, league, matches, kickoff):
-        super().__init__(league, [Match(m) for m in matches])
+        super().__init__(league, [Match.from_openligadb(m) for m in matches])
         self.kickoff = kickoff
+
 
 class LivetickerUpdate(LivetickerEvent):
     def __init__(self, league, matches, ng):
         m_list = []
         for m in matches:
             new_goals = ng.get(m.get('MatchID'))
-            m_list.append(Match.intermediate(m, new_goals))
+            m_list.append(Match.from_openligadb_int(m, new_goals))
         super().__init__(league, m_list)
 
 
 class LivetickerFinish(LivetickerEvent):
     def __init__(self, league, matches):
-        super().__init__(league, [Match(m) for m in matches])
+        super().__init__(league, [Match.from_openligadb(m) for m in matches])
+
 
 class CoroRegistration:
     def __init__(self, league_reg, plugin, coro, periodic: bool = False):

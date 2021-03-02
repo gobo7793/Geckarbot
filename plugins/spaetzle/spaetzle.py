@@ -23,10 +23,10 @@ from botutils.utils import add_reaction
 from data import Config, Storage, Lang
 from plugins.spaetzle.subsystems import UserBridge, Observed, Trusted
 from plugins.spaetzle.utils import TeamnameDict, pointdiff_possible, determine_winner, MatchResult, match_status, \
-    MatchStatus, get_user_league, get_user_cell, get_schedule, get_schedule_opponent, UserNotFound, \
+    get_user_league, get_user_cell, get_schedule, get_schedule_opponent, UserNotFound, \
     convert_to_datetime, get_participant_history, duel_points
 from subsystems.help import DefaultCategories
-from subsystems.liveticker import LivetickerUpdate
+from subsystems.liveticker import LivetickerUpdate, MatchStatus
 
 
 class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
@@ -618,7 +618,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             # Calculating possible point difference
             diff1, diff2 = 0, 0
             for i in range(len(matches)):
-                if match_status(matches[i][1], matches[i][2]) == MatchStatus.CLOSED:
+                if match_status(matches[i][1], matches[i][2]) == MatchStatus.COMPLETED:
                     continue
                 diff = pointdiff_possible(matches[i][4:6], preds_h[i], preds_a[i])
                 diff1 += diff[0]

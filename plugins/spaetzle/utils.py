@@ -5,6 +5,7 @@ from typing import Tuple
 
 from botutils.sheetsclient import Cell, CellRange
 from data import Storage
+from subsystems.liveticker import MatchStatus
 
 
 class LeagueNotFound(Exception):
@@ -16,17 +17,6 @@ class MatchResult(Enum):
     DRAW = 0
     AWAY = 1
     NONE = None
-
-
-class MatchStatus(Enum):
-    CLOSED = ":ballot_box_with_check:"
-    RUNNING = ":green_square:"
-    UPCOMING = ":clock4:"
-    UNKNOWN = "❔"
-
-
-def is_teamname_abbr(team):
-    return team is not None and len(team) <= 3
 
 
 class TeamnameDict:
@@ -41,7 +31,7 @@ class TeamnameDict:
             self.teamdict[long_name.lower()] = team['short_name']
         for long_name, team in teamnames.items():
             for name in team['other']:
-                if is_teamname_abbr(name):
+                if self.is_teamname_abbr(name):
                     # Abbreviation
                     self.teamdict.setdefault(name.lower(), long_name)
                 else:
@@ -52,7 +42,7 @@ class TeamnameDict:
         if team is None:
             return None
         name = self.teamdict.get(team.lower())
-        if name is not None and is_teamname_abbr(name):
+        if name is not None and self.is_teamname_abbr(name):
             name = self.teamdict.get(name.lower())
         return name
 
@@ -60,9 +50,13 @@ class TeamnameDict:
         if team is None:
             return None
         name = self.teamdict.get(team.lower())
-        if name is not None and not is_teamname_abbr(name):
+        if name is not None and not self.is_teamname_abbr(name):
             name = self.teamdict.get(name.lower())
         return name
+
+    @staticmethod
+    def is_teamname_abbr(team):
+        return team is not None and len(team) <= 3
 
 
 def valid_pred(pred: tuple):
@@ -225,7 +219,7 @@ def match_status(day, time=None):
         elif timediff < 7200:
             return MatchStatus.RUNNING
         else:
-            return MatchStatus.CLOSED
+            return MatchStatus.COMPLETED
     except ValueError:
         return MatchStatus.UNKNOWN
 
