@@ -33,7 +33,10 @@ class MatchStatus(Enum):
 
 
 class Match:
-    def __init__(self, match_id, kickoff, minute, home_team, home_team_id, away_team, away_team_id, is_completed):
+    def __init__(self, match_id, kickoff, minute, home_team, home_team_id, away_team, away_team_id, is_completed,
+                 score=None, new_goals=None):
+        if new_goals is None:
+            new_goals = []
         self.match_id = match_id
         self.kickoff = kickoff
         self.minute = minute
@@ -41,8 +44,12 @@ class Match:
         self.home_team_id = home_team_id
         self.away_team = away_team
         self.away_team_id = away_team_id
-        self.score = {self.home_team_id: 0, self.away_team_id: 0}
         self.is_completed = is_completed
+        self.new_goals = new_goals
+        if score:
+            self.score = score
+        else:
+            self.score = {self.home_team_id: 0, self.away_team_id: 0}
 
     @classmethod
     def from_openligadb(cls, m):
@@ -76,21 +83,23 @@ class Match:
         return match
 
     @classmethod
-    def from_espn(cls, m):
+    def from_espn(cls, m, new_goals=None):
         # Extract kickoff into datetime object
         try:
             kickoff = datetime.datetime.strptime(m.get('date'), "%Y-%m-%dT%H:%MZ")
         except (ValueError, TypeError):
             kickoff = None
         # Get home and away team
-        home_team, away_team, home_id, away_id = None, None, None, None
+        home_team, away_team, home_id, away_id, home_score, away_score = None, None, None, None, None, None
         for team in m.get('competitions', [{}])[0].get('competitors'):
             if team.get('homeAway') == "home":
                 home_team = team.get('team', {}).get('displayName')
                 home_id = team.get('id')
+                home_score = team.get('score')
             elif team.get('homeAway') == "away":
                 away_team = team.get('team', {}).get('displayName')
                 away_id = team.get('id')
+                away_score = team.get('score')
 
         # Put all informations together
         match = cls(match_id=m.get('uid'),
@@ -100,7 +109,9 @@ class Match:
                     home_team_id=home_id,
                     away_team=away_team,
                     away_team_id=away_id,
-                    is_completed=m.get('status', {}).get('type', {}).get('completed'))
+                    is_completed=m.get('status', {}).get('type', {}).get('completed'),
+                    score={home_id: home_score, away_id: away_score},
+                    new_goals=new_goals)
         return match
 
 class PlayerEvent:
