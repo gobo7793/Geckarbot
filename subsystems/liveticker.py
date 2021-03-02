@@ -36,10 +36,26 @@ class MatchStatus(Enum):
                 return MatchStatus.POSTPONED
         return MatchStatus.UNKNOWN
 
+    @staticmethod
+    def match_status_oldb(m):
+        if m.get('MatchIsFinished'):
+            return MatchStatus.COMPLETED
+        else:
+            try:
+                kickoff = datetime.datetime.strptime(m.get('MatchDateTimeUTC'), "%Y-%m-%dT%H:%M:%SZ") \
+                    .replace(tzinfo=datetime.timezone.utc).astimezone().replace(tzinfo=None)
+            except (ValueError, TypeError):
+                return MatchStatus.UNKNOWN
+            else:
+                if kickoff < datetime.datetime.now():
+                    return MatchStatus.RUNNING
+                else:
+                    return MatchStatus.UPCOMING
+
 
 class Match:
     def __init__(self, match_id, kickoff, minute, home_team, home_team_id, away_team, away_team_id, is_completed,
-                 score=None, new_goals=None):
+                 status, raw_events, score=None, new_goals=None):
         if new_goals is None:
             new_goals = []
         self.match_id = match_id
@@ -49,7 +65,9 @@ class Match:
         self.home_team_id = home_team_id
         self.away_team = away_team
         self.away_team_id = away_team_id
+        self.status = status
         self.is_completed = is_completed
+        self.raw_events = raw_events
         self.new_goals = new_goals
         if score:
             self.score = score
@@ -57,41 +75,45 @@ class Match:
             self.score = {self.home_team_id: 0, self.away_team_id: 0}
 
     @classmethod
-    def from_openligadb(cls, m):
+    def from_openligadb(cls, m, new_goals):
+        # Extract kickoff into datetime object
         try:
-            kickoff = datetime.datetime.strptime(m.get('MatchDateTime'), "%Y-%m-%dT%H:%M:%S")
+            kickoff = datetime.datetime.strptime(m.get('MatchDateTimeUTC'), "%Y-%m-%dT%H:%M:%SZ")\
+                .replace(tzinfo=datetime.timezone.utc).astimezone().replace(tzinfo=None)
         except (ValueError, TypeError):
             kickoff = None
+        # Calculate current minute
         if kickoff:
             minute = (datetime.datetime.now() - kickoff).seconds // 60
             if minute > 45:
                 minute = max(45, minute - 15)
         else:
             minute = None
+        # Note team IDs
+        home_id = m.get('Team1', {}).get('TeamId')
+        away_id = m.get('Team2', {}).get('TeamId')
 
         match = cls(match_id=m.get('MatchID'),
                     kickoff=kickoff,
                     minute=minute,
                     home_team=m.get('Team1', {}).get('TeamName'),
-                    home_team_id=m.get('Team1', {}).get('TeamId'),
+                    home_team_id=home_id,
                     away_team=m.get('Team2', {}).get('TeamName'),
-                    away_team_id=m.get('Team2', {}).get('TeamId'),
-                    is_completed=m.get('MatchIsFinished'))
-        return match
-
-    @classmethod
-    def from_openligadb_int(cls, m, new_goals):
-        match = cls.from_openligadb(m)
-        match.new_goals = new_goals
-        match.score[match.home_team_id] = max(0, 0, *(g.get('ScoreTeam1', 0) for g in match.get('Goals', [])))
-        match.score[match.away_team_id] = max(0, 0, *(g.get('ScoreTeam2', 0) for g in match.get('Goals', [])))
+                    away_team_id=away_id,
+                    score={home_id: max(0, 0, *(g.get('ScoreTeam1', 0) for g in m.get('Goals', []))),
+                           away_id: max(0, 0, *(g.get('ScoreTeam2', 0) for g in m.get('Goals', [])))},
+                    is_completed=m.get('MatchIsFinished'),
+                    raw_events=m.get('Goals'),
+                    status=MatchStatus.match_status_oldb(m),
+                    new_goals=new_goals)
         return match
 
     @classmethod
     def from_espn(cls, m, new_goals=None):
         # Extract kickoff into datetime object
         try:
-            kickoff = datetime.datetime.strptime(m.get('date'), "%Y-%m-%dT%H:%MZ")
+            kickoff = datetime.datetime.strptime(m.get('date'), "%Y-%m-%dT%H:%MZ")\
+                .replace(tzinfo=datetime.timezone.utc).astimezone().replace(tzinfo=None)
         except (ValueError, TypeError):
             kickoff = None
         # Get home and away team
@@ -116,38 +138,51 @@ class Match:
                     away_team_id=away_id,
                     is_completed=m.get('status', {}).get('type', {}).get('completed'),
                     score={home_id: home_score, away_id: away_score},
-                    new_goals=new_goals)
+                    new_goals=new_goals,
+                    raw_events=m.get('competitions', [{}])[0].get('details'),
+                    status=MatchStatus.match_status_espn(m))
         return match
 
 class PlayerEvent:
-    def __init__(self, player, minute):
+    def __init__(self, event_id, player, minute):
+        self.event_id = event_id
         self.player = player
         self.minute = minute
 
+    @staticmethod
+    def from_espn(event):
+        if event.get('scoringPlay'):
+            return Goal.from_espn(event)
+        elif event.get('type', {}).get('id') == "93":
+            return RedCard.from_espn(event)
+
 
 class Goal(PlayerEvent):
-    def __init__(self, player, minute, score, is_owngoal, is_penalty):
-        super().__init__(player, minute)
+    def __init__(self, event_id, player, minute, score, is_owngoal, is_penalty):
+        super().__init__(event_id, player, minute)
         self.score = score
         self.is_owngoal = is_owngoal
         self.is_penalty = is_penalty
 
     @classmethod
     def from_openligadb(cls, g: dict):
-        goal = cls(player=g.get('GoalGetterName'),
+        goal = cls(event_id=g.get('GoalID'),
+                   player=g.get('GoalGetterName'),
                    minute=g.get('MatchMinute'),
                    score={g.get('Team1', {}).get('TeamId'): g.get('ScoreTeam1'),
                           g.get('Team2', {}).get('TeamId'): g.get('ScoreTeam2')},
                    is_owngoal=g.get('IsOwnGoal'),
                    is_penalty=g.get('IsPenalty'))
-        goal.goal_id = g.get('GoalID')
         goal.is_overtime = g.get('IsOvertime')
         return goal
 
     @classmethod
     def from_espn(cls, g: dict, score: dict):
         score[g.get('team', {}).get('id')] = g.get('scoreValue')
-        goal = cls(player=g.get('athletesInvolved', [{}])[0].get('displayName'),
+        goal = cls(event_id="{}/{}/{}".format(g.get('type', {}).get('id'),
+                                              g.get('clock', {}).get('value'),
+                                              g.get('athletesInvolved', [{}])[0].get('id')),
+                   player=g.get('athletesInvolved', [{}])[0].get('displayName'),
                    minute=g.get('clock', {}).get('displayValue'),
                    score=score,
                    is_owngoal=g.get('ownGoal'),
@@ -156,13 +191,16 @@ class Goal(PlayerEvent):
 
 
 class RedCard(PlayerEvent):
-    def __init__(self, player, minute):
-        super().__init__(player, minute)
+    def __init__(self, event_id, player, minute):
+        super().__init__(event_id, player, minute)
 
     @classmethod
-    def from_espn(cls, redcard):
-        return cls(player=redcard.get('athletesInvolved', [{}])[0].get('displayName'),
-                   minute=redcard.get('clock', {}).get('displayValue'))
+    def from_espn(cls, rc):
+        return cls(event_id="{}/{}/{}".format(rc.get('type', {}).get('id'),
+                                              rc.get('clock', {}).get('value'),
+                                              rc.get('athletesInvolved', [{}])[0].get('id')),
+                   player=rc.get('athletesInvolved', [{}])[0].get('displayName'),
+                   minute=rc.get('clock', {}).get('displayValue'))
 
 
 class LivetickerEvent:
@@ -173,22 +211,22 @@ class LivetickerEvent:
 
 class LivetickerKickoff(LivetickerEvent):
     def __init__(self, league, matches, kickoff):
-        super().__init__(league, [Match.from_openligadb(m) for m in matches])
+        super().__init__(league, matches)
         self.kickoff = kickoff
 
 
 class LivetickerUpdate(LivetickerEvent):
-    def __init__(self, league, matches, ng):
+    def __init__(self, league, matches, new_events):
         m_list = []
         for m in matches:
-            new_goals = ng.get(m.get('MatchID'))
-            m_list.append(Match.from_openligadb_int(m, new_goals))
+            new_goals = new_events.get(m.match_id)
+            m_list.append(Match.from_openligadb(m, new_goals))
         super().__init__(league, m_list)
 
 
 class LivetickerFinish(LivetickerEvent):
     def __init__(self, league, matches):
-        super().__init__(league, [Match.from_openligadb(m) for m in matches])
+        super().__init__(league, matches)
 
 
 class CoroRegistration:
@@ -205,7 +243,7 @@ class CoroRegistration:
         self.plugin_name = plugin.get_name()
         self.coro = coro
         self.periodic = periodic
-        self.last_goal = {}
+        self.last_events = {}
         self.logger = logging.getLogger(__name__)
 
     def deregister(self):
@@ -213,35 +251,6 @@ class CoroRegistration:
 
     def unload(self):
         self.league_reg.unload_coro(self)
-
-    def get_match_dicts(self):
-        """Builds the dictionarys for each match"""
-        match_list = self.league_reg.matches
-        match_dict = {}
-        for match in match_list:
-            match_id = match.get('MatchID')
-            if match_id is None:
-                continue
-            new_goals = [g for g in match.get('Goals', [])
-                         if g.get('GoalID', 0) not in self.last_goal.get(match_id, [])]
-            score = (max(0, 0, *(g.get('ScoreTeam1', 0) for g in match.get('Goals', []))),
-                     max(0, 0, *(g.get('ScoreTeam2', 0) for g in match.get('Goals', []))))
-            try:
-                kickoff = datetime.datetime.strptime(match.get('MatchDateTime'), "%Y-%m-%dT%H:%M:%S")
-            except (ValueError, TypeError):
-                kickoff = None
-            match_dict[match_id] = {
-                "team_home": match.get('Team1', {}).get('TeamName'),
-                "team_away": match.get('Team2', {}).get('TeamName'),
-                "score": score,
-                "new_goals": new_goals,
-                "kickoff_time": kickoff,
-                "is_finished": match.get('MatchIsFinished')
-            }
-            if not self.last_goal.get(match_id):
-                self.last_goal[match_id] = []
-            self.last_goal[match_id] += [g.get('GoalID') for g in new_goals]
-        return match_dict
 
     def next_kickoff(self):
         """Returns datetime of the next match"""
@@ -253,16 +262,24 @@ class CoroRegistration:
 
     async def update(self, job):
         matches = self.league_reg.extract_kickoffs_with_matches()[job.data['start']]
-        new_goals = {}
+        new_events = {}
         for m in matches:
-            m_id = m.get('MatchID')
-            if m_id not in self.last_goal:
-                self.last_goal[m_id] = []
-            ng = [g for g in m.get('Goals', []) if g.get('GoalID', 0) not in self.last_goal[m_id]]
-            new_goals[m_id] = ng
-            self.last_goal[m_id].extend([g.get('GoalID', 0) for g in ng])
-        event = LivetickerUpdate(self.league_reg.league, matches, new_goals)
-        await self.coro(event)
+            if m.match_id not in self.last_events:
+                self.last_events[m.match_id] = []
+            events = []
+            if self.league_reg.source == LTSource.OPENLIGADB:
+                for g in m.raw_events:
+                    goal = Goal.from_openligadb(g)
+                    if goal.event_id not in self.last_events[m.match_id]:
+                        events.append(goal)
+            elif self.league_reg.source == LTSource.ESPN:
+                for e in m.raw_events:
+                    event = PlayerEvent.from_espn(e)
+                    if event.event_id not in self.last_events[m.match_id]:
+                        events.append(event)
+            new_events[m.match_id] = events
+            self.last_events[m.match_id].extend([e.event_id for e in events])
+        await self.coro(LivetickerUpdate(self.league_reg.league, matches, new_events))
 
     async def update_kickoff(self, data):
         await self.coro(LivetickerKickoff(self.league_reg.league, data['matches'], data['start']))
@@ -347,43 +364,56 @@ class LeagueRegistration:
 
     def update_matches(self, matchday=None):
         """Updates the matches and current standings of the league"""
+        if self.source == LTSource.OPENLIGADB:
+            self._update_matches_oldb(matchday)
+        elif self.source == LTSource.ESPN:
+            self._update_matches_espn()
+        return self.matches
+
+    def _update_matches_oldb(self, matchday=None):
         if matchday:
-            self.matches = restclient.Client("https://www.openligadb.de/api").make_request(
+            raw_matches = restclient.Client("https://www.openligadb.de/api").make_request(
                 "/getmatchdata/{}/2020/{}".format(self.league, matchday))
+            self.matches = [Match.from_openligadb(m) for m in raw_matches]
         elif self.matchday():
             if self.next_execution():
-                self.update_matches(matchday=self.matchday())
+                self._update_matches_oldb(matchday=self.matchday())
             else:
-                self.update_matches(matchday=self.matchday() + 1)
+                self._update_matches_oldb(matchday=self.matchday() + 1)
                 self.schedule_kickoffs()
         else:
-            self.matches = restclient.Client("https://www.openligadb.de/api").make_request("/getmatchdata/{}".format(
-                self.league))
+            self.matches = restclient.Client("https://www.openligadb.de/api").make_request(
+                "/getmatchdata/{}".format(
+                    self.league))
             if not self.extract_kickoffs_with_matches():
                 md = self.matchday()
                 if md:
-                    self.update_matches(matchday=md + 1)
-        return self.matches
+                    self._update_matches_oldb(matchday=md + 1)
+
+    def _update_matches_espn(self):
+        raw = restclient.Client("http://site.api.espn.com/apis/site/v2/sports").make_request(
+            f"/soccer/{self.league}/scoreboard")
+        self.matches = [Match.from_espn(m) for m in raw.get('events', [])]
 
     def extract_kickoffs_with_matches(self):
         kickoff_dict = {}
         for match in self.matches:
-            try:
-                kickoff = datetime.datetime.strptime(match.get('MatchDateTime'), "%Y-%m-%dT%H:%M:%S")
-            except (ValueError, TypeError):
-                continue
-            else:
-                if kickoff in kickoff_dict:
-                    kickoff_dict[kickoff].append(match)
-                elif datetime.datetime.now() < (kickoff + datetime.timedelta(seconds=7200)):
-                    kickoff_dict[kickoff] = [match]
+            if match.kickoff is None:  # Unknown kickoff
+                if None not in kickoff_dict:
+                    kickoff_dict[None] = []
+                kickoff_dict[None].append(match)
+            elif match.kickoff in kickoff_dict:  # Insert at kickoff
+                kickoff_dict[match.kickoff].append(match)
+            elif match.status != MatchStatus.COMPLETED:
+                kickoff_dict[match.kickoff] = [match]
         return kickoff_dict
 
     def matchday(self):
-        for match in self.matches:
-            md = match.get('Group', {}).get('GroupOrderID')
-            if md:
-                return md
+        if self.source == LTSource.OPENLIGADB:
+            for match in self.matches:
+                md = match.get('Group', {}).get('GroupOrderID')
+                if md:
+                    return md
         else:
             return None
 
@@ -426,7 +456,8 @@ class LeagueRegistration:
         :param start: start datetime of the match
         :return: jobs objects of the timers
         """
-        minutes = [m + (start.minute % 3) for m in range(0, 60, 3)]
+        interval = 3
+        minutes = [m + (start.minute % interval) for m in range(0, 60, interval)]
         intermediate = timers.timedict(year=[start.year], month=[start.month], monthday=[start.day], minute=minutes)
         job = self.listener.bot.timers.schedule(coro=self.update_periodic_coros, td=intermediate, data={'start': start})
         if job.next_execution().minute == datetime.datetime.now().minute:
@@ -476,26 +507,26 @@ class LeagueRegistration:
         matches = self.extract_kickoffs_with_matches()[job.data['start']]
         if (datetime.datetime.now() - job.data['start']).seconds > 9000:
             new_finished = matches
-            self.finished.extend([m.get('MatchID') for m in matches])
+            self.finished.extend([m.match_id for m in matches])
         else:
             for match in matches:
-                if match.get('MatchIsFinished') and match.get('MatchID') not in self.finished:
+                if match.is_completed and match.match_id not in self.finished:
                     new_finished.append(match)
-                    self.finished.append(match.get('MatchID'))
+                    self.finished.append(match.match_id)
         for coro_reg in self.registrations:
             if coro_reg.periodic:
                 await coro_reg.update(job)
             if new_finished:
                 await coro_reg.update_finished(new_finished)
-        if len([m for m in matches if m.get('MatchID') not in self.finished]) == 0:
+        if len([m for m in matches if m.match_id not in self.finished]) == 0:
             job.cancel()
 
     def __str__(self):
         next_exec = self.next_execution()
         if next_exec:
             next_exec = next_exec[0].strftime('%Y-%m-%d - %H:%M'), next_exec[1]
-        return "<liveticker.LeagueRegistration; league={}; regs={}; next={}>".format(self.league,
-                                                                                     len(self.registrations), next_exec)
+        return f"<liveticker.LeagueRegistration; league={self.league}; src={self.source.value}; " \
+               f"regs={len(self.registrations)}; next={next_exec}>"
 
     def __bool__(self):
         return bool(self.next_execution())
