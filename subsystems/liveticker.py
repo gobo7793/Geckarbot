@@ -10,6 +10,11 @@ from subsystems import timers
 from subsystems.timers import Job
 
 
+class LTSource(Enum):
+    OPENLIGADB = "oldb"
+    ESPN = "espn"
+
+
 class MatchStatus(Enum):
     COMPLETED = ":ballot_box_with_check:"
     RUNNING = ":green_square:"
@@ -283,17 +288,11 @@ class CoroRegistration:
         return bool(self.next_execution())
 
 
-def convert_to_matchdict(match):
-    return {
-        "team_home": match.get('Team1', {}).get('TeamName'),
-        "team_away": match.get('Team2', {}).get('TeamName'),
-    }
-
-
 class LeagueRegistration:
-    def __init__(self, listener, league):
+    def __init__(self, listener, league, source: LTSource):
         self.listener = listener
         self.league = league
+        self.source = source
         self.registrations = []
         self.logger = logging.getLogger(__name__)
         self.kickoff_timers = []
@@ -310,8 +309,8 @@ class LeagueRegistration:
         if reg not in self.registrations:
             self.registrations.append(reg)
             reg_storage = reg.storage()
-            if reg_storage not in Storage().get(self.listener)['registrations'][self.league]:
-                Storage().get(self.listener)['registrations'][self.league].append(reg_storage)
+            if reg_storage not in Storage().get(self.listener)[self.source.value][self.league]:
+                Storage().get(self.listener)[self.source.value][self.league].append(reg_storage)
                 Storage().save(self.listener)
         return reg
 
@@ -332,8 +331,8 @@ class LeagueRegistration:
 
     def deregister_coro(self, coro: CoroRegistration):
         reg_storage = coro.storage()
-        if reg_storage in Storage().get(self.listener)['registrations'].get(self.league, []):
-            Storage().get(self.listener)['registrations'][self.league].remove(reg_storage)
+        if reg_storage in Storage().get(self.listener)[self.source.value].get(self.league, []):
+            Storage().get(self.listener)[self.source.value][self.league].remove(reg_storage)
             Storage().save(self.listener)
         if coro in self.registrations:
             self.registrations.remove(coro)
@@ -517,24 +516,27 @@ class Liveticker(BaseSubsystem):
             self.restored = True
 
     def default_storage(self):
-        return {
-            'registrations': {}
-        }
+        regs = {}
+        for src in LTSource.__members__.values():
+            regs[src.value] = {}
+        return regs
 
-    def register(self, league, plugin, coro, periodic: bool = True):
+    def register(self, league, raw_source, plugin, coro, periodic: bool = True):
         """
         Registers a new liveticker for the specified league.
 
+        :param raw_source: which data source should be used (espn, oldb etc.)
         :param plugin: plugin where all coroutines are in
         :param league: League the liveticker should observe
         :param coro: coroutine for the events
         :param periodic: if coro should be updated automatically
         :return: CoroRegistration
         """
+        source = LTSource(raw_source)
         if league not in self.registrations:
-            self.registrations[league] = LeagueRegistration(self, league)
-        if league not in Storage().get(self)['registrations']:
-            Storage().get(self)['registrations'][league] = []
+            self.registrations[league] = LeagueRegistration(self, league, source)
+        if league not in Storage().get(self)[source.value]:
+            Storage().get(self)[source.value][league] = []
             Storage().save(self)
         coro_reg = self.registrations[league].register(plugin, coro, periodic)
         return coro_reg
@@ -542,8 +544,8 @@ class Liveticker(BaseSubsystem):
     def deregister(self, reg: LeagueRegistration):
         if reg.league in self.registrations:
             self.registrations.pop(reg.league)
-        if reg.league in Storage().get(self)['registrations']:
-            Storage().get(self)['registrations'].pop(reg.league)
+        if reg.league in Storage().get(self)[reg.source.value]:
+            Storage().get(self)[reg.source.value].pop(reg.league)
             Storage().save(self)
 
     def unload(self, reg: LeagueRegistration):
@@ -575,17 +577,18 @@ class Liveticker(BaseSubsystem):
 
     def restore(self, plugins: list):
         i = 0
-        registrations = Storage().get(self)['registrations']
-        for league in registrations:
-            for reg in registrations[league]:
-                if reg['plugin'] in plugins:
-                    i += 1
-                    coro = getattr(get_plugin_by_name(reg['plugin']),
-                                   reg['coro']) if reg['coro'] else None
-                    self.register(plugin=get_plugin_by_name(reg['plugin']),
-                                  league=league,
-                                  coro=coro,
-                                  periodic=reg['periodic'])
+        for src, registrations in Storage().get(self).items():
+            for league in registrations:
+                for reg in registrations[league]:
+                    if reg['plugin'] in plugins:
+                        i += 1
+                        coro = getattr(get_plugin_by_name(reg['plugin']),
+                                       reg['coro']) if reg['coro'] else None
+                        self.register(plugin=get_plugin_by_name(reg['plugin']),
+                                      league=league,
+                                      raw_source=src,
+                                      coro=coro,
+                                      periodic=reg['periodic'])
         self.logger.debug(f'{i} Liveticker registrations restored.')
 
     def unload_plugin(self, plugin_name):

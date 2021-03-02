@@ -189,7 +189,7 @@ class Plugin(BasePlugin, name="Sport"):
         for league in Config().get(self)['liveticker_leagues']:
             for reg in liveticker_regs.get(league, []):
                 reg.deregister()
-            reg_ = self.bot.liveticker.register(league=league, plugin=self,
+            reg_ = self.bot.liveticker.register(league=league, raw_source="oldb", plugin=self,
                                                 coro=self.live_coro, periodic=True)
             next_exec = reg_.next_execution()
             if next_exec:
