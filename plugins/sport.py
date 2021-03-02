@@ -216,7 +216,7 @@ class Plugin(BasePlugin, name="Sport"):
             # Intermediate-Event
             if not event.matches:
                 return
-            matches_with_goals = [x for x in event.matches if x.new_goals and not x.is_finished]
+            matches_with_goals = [x for x in event.matches if x.new_goals and not x.is_completed]
             if matches_with_goals:
                 match_msgs = []
                 for match in matches_with_goals:
@@ -224,12 +224,12 @@ class Plugin(BasePlugin, name="Sport"):
                         "**{} - {} | {}:{}**".format(match.home_team, match.away_team, *match.score.values()))
                     match_goals = []
                     for goal in match.new_goals:
-                        minute = goal.get('MatchMinute')
+                        minute = goal.minute
                         if not minute:
                             minute = "?"
                         match_goals.append(
-                            "{}:{} {} ({}.)".format(goal.get('ScoreTeam1', "?"), goal.get('ScoreTeam2', "?"),
-                                                    goal.get('GoalGetterName', "-"), minute))
+                            "{}:{} {} ({}.)".format(*goal.score.values(),
+                                                    goal.player, minute))
                     match_msgs.append(" / ".join(match_goals))
                 msgs = paginate(match_msgs, prefix=Lang.lang(self, 'liveticker_prefix', event.league,
                                                              event.matches[0].minute))

@@ -75,8 +75,10 @@ class Match:
             self.score = {self.home_team_id: 0, self.away_team_id: 0}
 
     @classmethod
-    def from_openligadb(cls, m, new_goals):
+    def from_openligadb(cls, m, new_goals=None):
         # Extract kickoff into datetime object
+        if new_goals is None:
+            new_goals = []
         try:
             kickoff = datetime.datetime.strptime(m.get('MatchDateTimeUTC'), "%Y-%m-%dT%H:%M:%SZ")\
                 .replace(tzinfo=datetime.timezone.utc).astimezone().replace(tzinfo=None)
@@ -106,6 +108,7 @@ class Match:
                     raw_events=m.get('Goals'),
                     status=MatchStatus.match_status_oldb(m),
                     new_goals=new_goals)
+        match.matchday = m.get('Group', {}).get('GroupOrderID')
         return match
 
     @classmethod
@@ -165,12 +168,12 @@ class Goal(PlayerEvent):
         self.is_penalty = is_penalty
 
     @classmethod
-    def from_openligadb(cls, g: dict):
+    def from_openligadb(cls, g: dict, home_id, away_id):
         goal = cls(event_id=g.get('GoalID'),
                    player=g.get('GoalGetterName'),
                    minute=g.get('MatchMinute'),
-                   score={g.get('Team1', {}).get('TeamId'): g.get('ScoreTeam1'),
-                          g.get('Team2', {}).get('TeamId'): g.get('ScoreTeam2')},
+                   score={home_id: g.get('ScoreTeam1'),
+                          away_id: g.get('ScoreTeam2')},
                    is_owngoal=g.get('IsOwnGoal'),
                    is_penalty=g.get('IsPenalty'))
         goal.is_overtime = g.get('IsOvertime')
@@ -219,8 +222,8 @@ class LivetickerUpdate(LivetickerEvent):
     def __init__(self, league, matches, new_events):
         m_list = []
         for m in matches:
-            new_goals = new_events.get(m.match_id)
-            m_list.append(Match.from_openligadb(m, new_goals))
+            m.new_goals = new_events.get(m.match_id)
+            m_list.append(m)
         super().__init__(league, m_list)
 
 
@@ -261,6 +264,7 @@ class CoroRegistration:
         return self.league_reg.next_execution()
 
     async def update(self, job):
+        self.logger.debug("CoroReg updates.")
         matches = self.league_reg.extract_kickoffs_with_matches()[job.data['start']]
         new_events = {}
         for m in matches:
@@ -269,7 +273,7 @@ class CoroRegistration:
             events = []
             if self.league_reg.source == LTSource.OPENLIGADB:
                 for g in m.raw_events:
-                    goal = Goal.from_openligadb(g)
+                    goal = Goal.from_openligadb(g, m.home_team_id, m.away_team_id)
                     if goal.event_id not in self.last_events[m.match_id]:
                         events.append(goal)
             elif self.league_reg.source == LTSource.ESPN:
@@ -382,9 +386,9 @@ class LeagueRegistration:
                 self._update_matches_oldb(matchday=self.matchday() + 1)
                 self.schedule_kickoffs()
         else:
-            self.matches = restclient.Client("https://www.openligadb.de/api").make_request(
-                "/getmatchdata/{}".format(
-                    self.league))
+            raw_matches = restclient.Client("https://www.openligadb.de/api").make_request(
+                "/getmatchdata/{}".format(self.league))
+            self.matches = [Match.from_openligadb(m) for m in raw_matches]
             if not self.extract_kickoffs_with_matches():
                 md = self.matchday()
                 if md:
@@ -411,7 +415,7 @@ class LeagueRegistration:
     def matchday(self):
         if self.source == LTSource.OPENLIGADB:
             for match in self.matches:
-                md = match.get('Group', {}).get('GroupOrderID')
+                md = match.matchday
                 if md:
                     return md
         else:
