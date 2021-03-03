@@ -138,22 +138,6 @@ class Plugin(BasePlugin, name="Sport"):
     async def buli2_livescores(self, ctx, allmatches=None):
         await ctx.invoke(self.bot.get_command('fußball'), 'bl2', allmatches)
 
-    @commands.command(name="matchinfo")
-    async def matchinfo(self, ctx):
-        with open(r"C:\Users\fifas\Desktop\espn-ger1.json") as json_file:
-            data = json.load(json_file)
-            day = data.get('day', {}).get('date')
-            match_msgs = []
-            for match in data.get('events', []):
-                match_msgs.append("{} | {}:{} | {}".format(MatchStatus.match_status_espn(match).value,
-                                                           match.get('competitions', {})[0]
-                                                           .get('competitors', {})[0].get('score'),
-                                                           match.get('competitions', {})[0]
-                                                           .get('competitors', {})[1].get('score'),
-                                                           match.get('name')))
-
-            await ctx.send("**{}**\n{}".format(day, "\n".join(match_msgs)))
-
     @commands.command(name="matches")
     async def matches_24h(self, ctx):
         async with ctx.typing():
