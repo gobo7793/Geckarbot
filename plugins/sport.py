@@ -29,7 +29,7 @@ class Plugin(BasePlugin, name="Sport"):
         return {
             'sport_chan': 0,
             'leagues': {"bl1": ["bl", "1bl", "buli"], "bl2": ["2bl"], "bl3": ["3fl"], "uefanl": []},
-            'liveticker_leagues': ["bl1", "bl2"]
+            'liveticker_leagues': {"oldb": ["bl1", "bl2"], "espn": []}
         }
 
     def default_storage(self):
@@ -186,15 +186,16 @@ class Plugin(BasePlugin, name="Sport"):
     async def liveticker(self, ctx):
         msg = []
         liveticker_regs = self.bot.liveticker.search(plugin=self.get_name())
-        for league in Config().get(self)['liveticker_leagues']:
-            for reg in liveticker_regs.get(league, []):
-                reg.deregister()
-            reg_ = self.bot.liveticker.register(league=league, raw_source="oldb", plugin=self,
-                                                coro=self.live_coro, periodic=True)
-            next_exec = reg_.next_execution()
-            if next_exec:
-                next_exec = next_exec[0].strftime('%d.%m.%Y - %H:%M')
-            msg.append("{} - Next: {}".format(league, next_exec))
+        for src, leagues in Config().get(self)['liveticker_leagues'].items():
+            for league in leagues:
+                for reg in liveticker_regs.get(league, []):
+                    reg.deregister()
+                reg_ = self.bot.liveticker.register(league=league, raw_source=src, plugin=self,
+                                                    coro=self.live_coro, periodic=True)
+                next_exec = reg_.next_execution()
+                if next_exec:
+                    next_exec = next_exec[0].strftime('%d.%m.%Y - %H:%M')
+                msg.append("{} - Next: {}".format(league, next_exec))
         Config().get(self)['sport_chan'] = ctx.channel.id
         Config().save(self)
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
@@ -216,21 +217,16 @@ class Plugin(BasePlugin, name="Sport"):
             # Intermediate-Event
             if not event.matches:
                 return
-            matches_with_goals = [x for x in event.matches if x.new_goals and not x.is_completed]
-            if matches_with_goals:
+            matches_with_events = [x for x in event.matches if x.new_events and not x.is_completed]
+            if matches_with_events:
                 match_msgs = []
-                for match in matches_with_goals:
+                for match in matches_with_events:
                     match_msgs.append(
                         "**{} - {} | {}:{}**".format(match.home_team, match.away_team, *match.score.values()))
-                    match_goals = []
-                    for goal in match.new_goals:
-                        minute = goal.minute
-                        if not minute:
-                            minute = "?"
-                        match_goals.append(
-                            "{}:{} {} ({}.)".format(*goal.score.values(),
-                                                    goal.player, minute))
-                    match_msgs.append(" / ".join(match_goals))
+                    match_events = []
+                    for e in match.new_events:
+                        match_events.append(e.display())
+                    match_msgs.append(" / ".join(match_events))
                 msgs = paginate(match_msgs, prefix=Lang.lang(self, 'liveticker_prefix', event.league,
                                                              event.matches[0].minute))
                 for msg in msgs:

@@ -55,9 +55,9 @@ class MatchStatus(Enum):
 
 class Match:
     def __init__(self, match_id, kickoff, minute, home_team, home_team_id, away_team, away_team_id, is_completed,
-                 status, raw_events, score=None, new_goals=None):
-        if new_goals is None:
-            new_goals = []
+                 status, raw_events, score=None, new_events=None):
+        if new_events is None:
+            new_events = []
         self.match_id = match_id
         self.kickoff = kickoff
         self.minute = minute
@@ -68,17 +68,17 @@ class Match:
         self.status = status
         self.is_completed = is_completed
         self.raw_events = raw_events
-        self.new_goals = new_goals
+        self.new_events = new_events
         if score:
             self.score = score
         else:
             self.score = {self.home_team_id: 0, self.away_team_id: 0}
 
     @classmethod
-    def from_openligadb(cls, m, new_goals=None):
+    def from_openligadb(cls, m, new_events=None):
         # Extract kickoff into datetime object
-        if new_goals is None:
-            new_goals = []
+        if new_events is None:
+            new_events = []
         try:
             kickoff = datetime.datetime.strptime(m.get('MatchDateTimeUTC'), "%Y-%m-%dT%H:%M:%SZ")\
                 .replace(tzinfo=datetime.timezone.utc).astimezone().replace(tzinfo=None)
@@ -107,12 +107,12 @@ class Match:
                     is_completed=m.get('MatchIsFinished'),
                     raw_events=m.get('Goals'),
                     status=MatchStatus.match_status_oldb(m),
-                    new_goals=new_goals)
+                    new_events=new_events)
         match.matchday = m.get('Group', {}).get('GroupOrderID')
         return match
 
     @classmethod
-    def from_espn(cls, m, new_goals=None):
+    def from_espn(cls, m, new_events=None):
         # Extract kickoff into datetime object
         try:
             kickoff = datetime.datetime.strptime(m.get('date'), "%Y-%m-%dT%H:%MZ")\
@@ -141,7 +141,7 @@ class Match:
                     away_team_id=away_id,
                     is_completed=m.get('status', {}).get('type', {}).get('completed'),
                     score={home_id: home_score, away_id: away_score},
-                    new_goals=new_goals,
+                    new_events=new_events,
                     raw_events=m.get('competitions', [{}])[0].get('details'),
                     status=MatchStatus.match_status_espn(m))
         return match
@@ -152,12 +152,8 @@ class PlayerEvent:
         self.player = player
         self.minute = minute
 
-    @staticmethod
-    def from_espn(event):
-        if event.get('scoringPlay'):
-            return Goal.from_espn(event)
-        elif event.get('type', {}).get('id') == "93":
-            return RedCard.from_espn(event)
+    def display(self):
+        pass
 
 
 class Goal(PlayerEvent):
@@ -181,16 +177,32 @@ class Goal(PlayerEvent):
 
     @classmethod
     def from_espn(cls, g: dict, score: dict):
-        score[g.get('team', {}).get('id')] = g.get('scoreValue')
+        score[g.get('team', {}).get('id')] = score[g.get('team', {}).get('id')] + g.get('scoreValue')
         goal = cls(event_id="{}/{}/{}".format(g.get('type', {}).get('id'),
                                               g.get('clock', {}).get('value'),
                                               g.get('athletesInvolved', [{}])[0].get('id')),
                    player=g.get('athletesInvolved', [{}])[0].get('displayName'),
                    minute=g.get('clock', {}).get('displayValue'),
-                   score=score,
+                   score=score.copy(),
                    is_owngoal=g.get('ownGoal'),
                    is_penalty=g.get('penaltyKick'))
         return goal
+
+    def display(self):
+        return ":soccer: {}:{} {} ({})".format(*list(self.score.values())[0:2], self.player, self.minute)
+
+
+class YellowCard(PlayerEvent):
+    @classmethod
+    def from_espn(cls, rc):
+        return cls(event_id="{}/{}/{}".format(rc.get('type', {}).get('id'),
+                                              rc.get('clock', {}).get('value'),
+                                              rc.get('athletesInvolved', [{}])[0].get('id')),
+                   player=rc.get('athletesInvolved', [{}])[0].get('displayName'),
+                   minute=rc.get('clock', {}).get('displayValue'))
+
+    def display(self):
+        return ":yellow_square: {} ({})".format(self.player, self.minute)
 
 
 class RedCard(PlayerEvent):
@@ -204,6 +216,17 @@ class RedCard(PlayerEvent):
                                               rc.get('athletesInvolved', [{}])[0].get('id')),
                    player=rc.get('athletesInvolved', [{}])[0].get('displayName'),
                    minute=rc.get('clock', {}).get('displayValue'))
+
+    def display(self):
+        return ":red_square: {} ({})".format(self.player, self.minute)
+
+def build_player_event(event, score):
+    if event.get('scoringPlay'):
+        return Goal.from_espn(event, score)
+    elif event.get('type', {}).get('id') == "93":
+        return RedCard.from_espn(event)
+    elif event.get('type', {}).get('id') == "94":
+        return YellowCard.from_espn(event)
 
 
 class LivetickerEvent:
@@ -222,7 +245,7 @@ class LivetickerUpdate(LivetickerEvent):
     def __init__(self, league, matches, new_events):
         m_list = []
         for m in matches:
-            m.new_goals = new_events.get(m.match_id)
+            m.new_events = new_events.get(m.match_id)
             m_list.append(m)
         super().__init__(league, m_list)
 
@@ -277,8 +300,11 @@ class CoroRegistration:
                     if goal.event_id not in self.last_events[m.match_id]:
                         events.append(goal)
             elif self.league_reg.source == LTSource.ESPN:
+                tmp_score = {m.home_team_id: 0, m.away_team_id: 0}
                 for e in m.raw_events:
-                    event = PlayerEvent.from_espn(e)
+                    event = build_player_event(e, tmp_score)
+                    if type(event) == Goal:
+                        tmp_score = event.score
                     if event.event_id not in self.last_events[m.match_id]:
                         events.append(event)
             new_events[m.match_id] = events
