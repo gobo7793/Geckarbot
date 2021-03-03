@@ -177,13 +177,13 @@ class Goal(PlayerEvent):
 
     @classmethod
     def from_espn(cls, g: dict, score: dict):
-        score[g.get('team', {}).get('id')] = score[g.get('team', {}).get('id')] + g.get('scoreValue')
+        score[g.get('team', {}).get('id')] += g.get('scoreValue')
         goal = cls(event_id="{}/{}/{}".format(g.get('type', {}).get('id'),
                                               g.get('clock', {}).get('value'),
                                               g.get('athletesInvolved', [{}])[0].get('id')),
                    player=g.get('athletesInvolved', [{}])[0].get('displayName'),
                    minute=g.get('clock', {}).get('displayValue'),
-                   score=score.copy(),
+                   score=score,
                    is_owngoal=g.get('ownGoal'),
                    is_penalty=g.get('penaltyKick'))
         return goal
@@ -302,7 +302,7 @@ class CoroRegistration:
             elif self.league_reg.source == LTSource.ESPN:
                 tmp_score = {m.home_team_id: 0, m.away_team_id: 0}
                 for e in m.raw_events:
-                    event = build_player_event(e, tmp_score)
+                    event = build_player_event(e, tmp_score.copy())
                     if type(event) == Goal:
                         tmp_score = event.score
                     if event.event_id not in self.last_events[m.match_id]:

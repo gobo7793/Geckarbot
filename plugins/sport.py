@@ -29,7 +29,7 @@ class Plugin(BasePlugin, name="Sport"):
         return {
             'sport_chan': 0,
             'leagues': {"bl1": ["bl", "1bl", "buli"], "bl2": ["2bl"], "bl3": ["3fl"], "uefanl": []},
-            'liveticker_leagues': {"oldb": ["bl1", "bl2"], "espn": []}
+            'liveticker_leagues': {"oldb": [], "espn": []}
         }
 
     def default_storage(self):
