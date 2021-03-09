@@ -170,13 +170,13 @@ class CustomCMDHelpCategory(HelpCategory):
     async def send_category_help(self, ctx):
         # Command / category help
         msg = [
-            Lang.lang(self.plugin, "help_help") + "\n",
-            Lang.lang(self.plugin, "help_cmd_list_prefix"),
+            Lang.lang(self.plugin, "help_cmd") + "\n",
+            Lang.lang(self.plugin, "help_cmd_list_prefix")
         ]
         msg += self.plugin.bot.helpsys.flattened_plugin_help(self.plugin)
 
         # Custom command list
-        msg.append("")
+        msg.append("\n" + Lang.lang(self.plugin, "desc_cmd") + "\n")
         msg.append(Lang.lang(self.plugin, "help_custom_cmd_list_prefix"))
         msg += self.plugin.format_cmd_list(incl_prefix=True)
 
@@ -238,19 +238,42 @@ class Plugin(BasePlugin, name="Custom CMDs"):
             },
         }
 
-    def command_usage(self, command):
-        if command.name == "search":
-            return Lang.lang(self, "help_search_usage")
-        else:
+    async def command_help(self, ctx, command):
+        if not command.name == "cmd":
+            raise NotFound
+        await self.help_category.send_category_help(ctx)
+
+    def command_help_string(self, command):
+        langstr = Lang.lang_no_failsafe(self, "help_{}".format(command.name.replace(" ", "_")))
+        if langstr is None:
             raise NotFound()
+        return langstr
 
     def command_description(self, command):
-        if command.name == "info":
-            return Lang.lang(self, "help_info_options")
-        elif command.name == "search":
-            return Lang.lang(self, "help_search_desc")
-        else:
+        langstr = Lang.lang_no_failsafe(self, "desc_{}".format(command.name.replace(" ", "_")))
+        if langstr is None:
             raise NotFound()
+        return langstr
+
+    def command_usage(self, command):
+        langstr = Lang.lang_no_failsafe(self, "usage_{}".format(command.name.replace(" ", "_")))
+        if langstr is None:
+            raise NotFound()
+        return langstr
+
+    # def command_usage(self, command):
+    #     if command.name == "search":
+    #         return Lang.lang(self, "help_search_usage")
+    #     else:
+    #         raise NotFound()
+    #
+    # def command_description(self, command):
+    #     if command.name == "info":
+    #         return Lang.lang(self, "help_info_options")
+    #     elif command.name == "search":
+    #         return Lang.lang(self, "help_search_desc")
+    #     else:
+    #         raise NotFound()
 
     def load(self):
         """Loads the commands"""
@@ -339,24 +362,11 @@ class Plugin(BasePlugin, name="Custom CMDs"):
 
         await msg.channel.send(cmd_content)
 
-    async def command_help(self, ctx, command):
-        if not command.name == "cmd":
-            raise NotFound
-
-        await self.help_category.send_category_help(ctx)
-
-    @commands.group(name="cmd", invoke_without_command=True, aliases=["bar"],
-                    help="Adds, list or (for admins) removes a custom command",
-                    description="Adds, list or removes a custom command. Custom commands can be added and removed in "
-                                "runtime. To use a custom command, the message must start with the setted prefix, "
-                                "which can be returned using the prefix subcommand.\n"
-                                "More info about adding commands, see !help cmd add.")
+    @commands.group(name="cmd", invoke_without_command=True, aliases=["bar"])
     async def cmd(self, ctx):
         await self.bot.helpsys.cmd_help(ctx, self, ctx.command)
 
-    @cmd.command(name="prefix", help="Returns or sets the prefix",
-                 description="Returns or sets the custom command prefix. Only admins can set a new prefix which "
-                             "mustn't be the same like for regular commands.")
+    @cmd.command(name="prefix")
     async def cmd_prefix(self, ctx, new_prefix=None):
         # get current prefix
         if new_prefix is None:
@@ -400,8 +410,7 @@ class Plugin(BasePlugin, name="Custom CMDs"):
         cmds = paginate(cmds, delimiter=", ", suffix=suffix)
         return cmds
 
-    @cmd.command(name="list", help="Lists all custom commands.",
-                 descripton="Lists all custom commands. Argument full gives more information about the commands.")
+    @cmd.command(name="list")
     async def cmd_list(self, ctx, full=""):
         if full in self.commands.keys():
             return await ctx.invoke(self.bot.get_command("cmd info"), full)
@@ -435,9 +444,7 @@ class Plugin(BasePlugin, name="Custom CMDs"):
             msg += delimiter + el
         await ctx.send(msg)
 
-    @cmd.command(name="info",
-                 help="Gets full info about a command",
-                 usage="<command> [# | #+ | #++]")
+    @cmd.command(name="info")
     async def cmd_raw(self, ctx, cmd_name, index=None):
         cmd_name = cmd_name.lower()
 
@@ -516,22 +523,11 @@ class Plugin(BasePlugin, name="Custom CMDs"):
             for msg in paginate(found, prefix=Lang.lang(self, "search_prefix")):
                 await ctx.send(msg)
 
-    @cmd.command(name="guidelines", help="Returns the link to the general command guidelines")
+    @cmd.command(name="guidelines")
     async def cmd_guidelines(self, ctx):
         await ctx.send("<{}>".format(Config.get(self)['guidelines']))
 
-    @cmd.command(name="add", help="Adds a custom command or text", usage="<cmd name> <text...>",
-                 description="Adds a custom command or a new output text for an existing command. "
-                             "Following wildcards can be used, which will be replaced on using:\n"
-                             "%u: The user who uses the command\n"
-                             "%um: Mentions the user who uses the command\n"
-                             "%n: The nth command argument\n"
-                             "%n*: The nth and all following arguments\n"
-                             "%a: Alias for %1*\n\n"
-                             "Supports /me. If a picture should be added, a URL is required. "
-                             "Custom commands must be compliant to the general command guidelines, "
-                             "which can be accessed via !cmd guidelines.\n"
-                             "Example: !cmd add test Argument1: %1 from user %u\n")
+    @cmd.command(name="add")
     async def cmd_add(self, ctx, cmd_name, *, message: str):
         if not message:
             await utils.add_reaction(ctx.message, Lang.CMDERROR)
@@ -589,12 +585,7 @@ class Plugin(BasePlugin, name="Custom CMDs"):
             await ctx.invoke(self.bot.get_command(f"cmd del"), cmd_name, text_id)
             await ctx.invoke(self.bot.get_command(f"cmd add"), cmd_name, arg_text)
 
-    @cmd.command(name="del", help="Deletes a custom command or output text",
-                 description="Deletes a custom command or one of its output texts. If the last output text was "
-                             "deleted, the whole command will be removed. To delete a output text, "
-                             "the ID of the text must be given. The IDs and creator can be get via "
-                             "!cmd info <command>. Only the original command creator or admins can delete commands "
-                             "or its texts.")
+    @cmd.command(name="del")
     async def cmd_del(self, ctx, cmd_name, text_id: int = None):
         cmd_name = cmd_name.lower()
         if text_id is not None:
