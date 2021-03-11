@@ -58,6 +58,8 @@ class Complaint:
     @classmethod
     def from_message(cls, plugin, msg):
         content = msg.content[len("!complain"):].strip()  # todo check if necessary
+        if not content.strip():
+            return None
         return cls(plugin, plugin.get_new_id(), msg.author, msg.jump_url, content, None)
 
     def to_message(self, show_cat=True, include_url=True):
@@ -385,7 +387,7 @@ class Plugin(BasePlugin, name="Feedback"):
         else:
             for cid in ids:
                 if cid not in self.complaints:
-                    error = Lang.lang(self, "redact_cat_complaint_not_found")
+                    error = Lang.lang(self, "redact_cat_complaint_not_found", cid)
                     break
         if error is not None:
             await ctx.send(error)
@@ -412,6 +414,9 @@ class Plugin(BasePlugin, name="Feedback"):
     async def complain(self, ctx, *args):
         msg = ctx.message
         complaint = Complaint.from_message(self, msg)
+        if complaint is None:
+            await self.bot.helpsys.cmd_help(ctx, self, ctx.command)
+            return
         self.complaints[complaint.id] = complaint
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
         self.write()
