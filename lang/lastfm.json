@@ -64,6 +64,7 @@
     "quote_new": "neu",
     "quote_cancel": "abbrechen",
     "quote_invalid": "Unzulässige Antwort. Bitte antworte mit scrobble, neu oder abbrechen.",
+    "quote_answer_list_sc": "Die möglichen Antworten sind {}\n. Bitte wähle eine.",
     "quote_cancelled": "Zitat-Aufnahme abgebrochen.",
     "quote_done": "Fertig!",
     "quote_question_artist": "Interpret?",

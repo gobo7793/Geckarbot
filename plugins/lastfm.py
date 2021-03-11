@@ -195,7 +195,8 @@ class Plugin(BasePlugin, name="LastFM"):
             "intro_howto_cancel": "",
             "result_rejected": Lang.lang(self, "quote_invalid"),
             "state_cancelled": Lang.lang(self, "quote_cancelled"),
-            "state_done": Lang.lang(self, "quote_done")
+            "state_done": Lang.lang(self, "quote_done"),
+            "answer_list_sc": Lang.lang(self, "quote_answer_list_sc"),
         }
         self.cmd_order = [
             "now",
@@ -556,7 +557,7 @@ class Plugin(BasePlugin, name="LastFM"):
         q_title.data = cargo
         answers = [Lang.lang(self, "quote_scrobble"), Lang.lang(self, "quote_new")]
         q_target = Question(Lang.lang(self, "quote_target", song.format_song()), QuestionType.SINGLECHOICE,
-                            answers=answers, callback=self.quote_cb, data=cargo)
+                            answers=answers, callback=self.quote_cb, data=cargo, lang=self.lang_question)
         questions = [q_target, q_artist, q_title, q_quote]
         questionnaire = Questionnaire(self.bot, ctx.author, questions, "lastfm quote", lang=self.lang_questionnaire)
         questionnaire.kill_coro = self.quote_dm_kill_cb(ctx.message, questionnaire)
