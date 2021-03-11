@@ -112,6 +112,7 @@ class Song:
 
     def quote(self, p=None):
         """
+        Returns a random quote if there is one.
         :param p: Probability (defaults to config value quote_p)
         :return: quote
         """
@@ -126,6 +127,9 @@ class Song:
         return None
 
     def format_song(self):
+        """
+        :return: Nice readable representation of the song according to lang string
+        """
         r = Lang.lang(self.plugin, "listening_song_base", self.title, self.artist)
         if self.loved:
             r = "{} {}".format(Lang.lang(self.plugin, "loved"), r)
@@ -438,7 +442,26 @@ class Plugin(BasePlugin, name="LastFM"):
         after = self.perf_timenow()
         self.perf_add_total_time(after - before)
 
-    def quote_cb(self, question, question_queue):
+    async def quote_so_far_helper(self, user, song):
+        """
+        Sends a list of current quotes to User `user`'s DM
+        :param user: User
+        :param song: Song instance
+        """
+        self.logger.debug("Sending current quotes for {} to {}".format(song, user))
+        msg = [Lang.lang(self, "quote_existing_quotes")]
+        quotes = self.get_quotes(song.artist, song.title)
+        for key in quotes:
+            author = quotes[key]["author"]
+            author = gbu(author) if author is not None else Lang.lang(self, "quote_unknown_user")
+            msg.append(Lang.lang(self, "quote_list_entry", quotes[key]["quote"], author))
+        if len(msg) == 1:
+            return
+
+        for msg in paginate(msg):
+            await user.send(msg)
+
+    async def quote_cb(self, question, question_queue):
         """
         Is called when the answer for the question "scrobble or new?" comes in.
         :param question: Question object
@@ -453,16 +476,23 @@ class Plugin(BasePlugin, name="LastFM"):
             self.logger.debug("Got answer scrobble")
             question.data["result_scrobble"] = True
             r = [question.data["q_quote"]]
+            await self.quote_so_far_helper(question.data["user"], question.data["song"])
         else:
             assert False
 
-        # Find existing quotes and show them if existent
-        quotes = self.get_quotes(question.data)
-
         return r
 
-    async def quote_existing_cb(self, question, question_queue):
-        pass
+    async def quote_new_song_cb(self, question, question_queue):
+        """
+        Is called when the answer for the question "Title?" comes in
+        :param question:
+        :param question_queue:
+        :return:
+        """
+        song = Song(self, question.data["q_artist"].answer, "", question.data["q_title"].answer)
+        question.data["song"] = song
+        await self.quote_so_far_helper(question.data["user"], song)
+        return question_queue
 
     async def quote_sanity_cb(self, question, question_queue):
         p = mention_p.search(question.answer)
@@ -507,25 +537,26 @@ class Plugin(BasePlugin, name="LastFM"):
 
         # Build Questionnaire
         q_artist = Question(Lang.lang(self, "quote_question_artist"), QuestionType.TEXT, lang=self.lang_question)
-        q_title = Question(Lang.lang(self, "quote_question_title"), QuestionType.TEXT, lang=self.lang_question)
+        q_title = Question(Lang.lang(self, "quote_question_title"), QuestionType.TEXT, lang=self.lang_question,
+                           callback=self.quote_new_song_cb)
         q_quote = Question(Lang.lang(self, "quote_question_quote"), QuestionType.TEXT,
                            lang=self.lang_question, callback=self.quote_sanity_cb)
-        q_existing_quote = Question(Lang.lang(self, "quote_existing_quote"), QuestionType.SINGLECHOICE,
-                                    lang=self.lang_question, answers=[Lang.lang(self, "yes"), Lang.lang(self, "no")],
-                                    callback=self.quote_existing_cb)
-        data = {
+        cargo = {
+            "user": ctx.author,
             "song": song,
             "q_quote": q_quote,
-            "q_existing_quote": q_existing_quote,
+            "q_artist": q_artist,
+            "q_title": q_title,
             "scrobble": Lang.lang(self, "quote_scrobble"),
             "new": Lang.lang(self, "quote_new"),
             "result_scrobble": None,
             "result_artist": None,
             "result_title": None,
         }
+        q_title.data = cargo
         answers = [Lang.lang(self, "quote_scrobble"), Lang.lang(self, "quote_new")]
         q_target = Question(Lang.lang(self, "quote_target", song.format_song()), QuestionType.SINGLECHOICE,
-                            answers=answers, callback=self.quote_cb, data=data)
+                            answers=answers, callback=self.quote_cb, data=cargo)
         questions = [q_target, q_artist, q_title, q_quote]
         questionnaire = Questionnaire(self.bot, ctx.author, questions, "lastfm quote", lang=self.lang_questionnaire)
         questionnaire.kill_coro = self.quote_dm_kill_cb(ctx.message, questionnaire)
@@ -540,8 +571,8 @@ class Plugin(BasePlugin, name="LastFM"):
             return
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
-        assert data["result_scrobble"] is not None
-        if data["result_scrobble"]:
+        assert cargo["result_scrobble"] is not None
+        if cargo["result_scrobble"]:
             artist = song.artist
             title = song.title
         else:

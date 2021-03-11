@@ -72,6 +72,8 @@
     "quote_err_length": "Das Zitat ist leider zu lang. Das Maximum sind {} Zeichen; dein Zitat hat {} Zeichen.",
     "quote_err_no_mentions": "User-Mentions sind in Zitaten nicht erlaubt.",
     "quote_err_dmkill": "Deine DM-Registrierung wurde gekillt, wir müssen hier daher abbrechen.",
-    "quote_existing_quote": "Ich kenne bereits Zitate für diesen Song. Soll ich diese erst einmal auflisten?"
+    "quote_existing_quotes": "Ich kenne bereits folgende Zitate für diesen Song:",
+    "quote_unknown_user": "einem unbekannten User",
+    "quote_list_entry": "_{}_ (hinzugefügt von {})"
   }
 }
