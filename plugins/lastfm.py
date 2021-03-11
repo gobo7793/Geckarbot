@@ -13,7 +13,7 @@ from discord.ext import commands
 
 from base import BasePlugin, NotLoadable, NotFound
 from conf import Config, Lang, Storage
-from botutils.converters import get_best_username as gbu
+from botutils.converters import get_best_username as gbu, get_best_user
 from botutils.timeutils import hr_roughly
 from botutils.stringutils import paginate
 from botutils.utils import write_debug_channel, add_reaction
@@ -452,7 +452,7 @@ class Plugin(BasePlugin, name="LastFM"):
         msg = [Lang.lang(self, "quote_existing_quotes")]
         quotes = self.get_quotes(song.artist, song.title)
         for key in quotes:
-            author = quotes[key]["author"]
+            author = get_best_user(quotes[key]["author"])
             author = gbu(author) if author is not None else Lang.lang(self, "quote_unknown_user")
             msg.append(Lang.lang(self, "quote_list_entry", quotes[key]["quote"], author))
         if len(msg) == 1:
