@@ -3,7 +3,7 @@ import logging
 from botutils.utils import execute_anything
 
 
-class IllegalTransition(Exception):
+class IllegalTransition(RuntimeError):
     pass
 
 
@@ -11,7 +11,15 @@ class StateMachine:
     """
     Statemachine implementation for coroutines.
     """
-    def __init__(self, init_state=None, verbose=True):
+    def __init__(self, init_state=None, verbose=True, cleanup=None):
+        """
+
+        :param init_state: Initial state
+        :param verbose: switch for verbosity
+        :param cleanup: Cleanup callback function that is called when an exception occurs; signature:
+        f(e) with e being the exception. Can be coro, function or coroutine function. Is not called when
+        IllegalTransition is raised (fix your stuff instead :)).
+        """
         self.msg = "statemachine " + str(id(self)) + ": "
         self.verbose = verbose
         self.states = {}
@@ -21,7 +29,7 @@ class StateMachine:
         self._init_state = init_state
         self._state = init_state
         self.has_ended = False
-        self.cleanup = None
+        self.cleanup = cleanup
         self.logger = logging.getLogger(__name__)
         self._cancelled = False
 
@@ -38,7 +46,11 @@ class StateMachine:
         while True:
             # Execute
             source = self._state
-            self._state = await execute_anything(to_call)
+            try:
+                self._state = await execute_anything(to_call)
+            except Exception as e:
+                if self.cleanup:
+                    await execute_anything(self.cleanup, e)
             self.logger.debug("Old state: {}".format(source))
             self.logger.debug("New state: {}".format(self._state))
 

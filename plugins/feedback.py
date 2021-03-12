@@ -311,7 +311,7 @@ class Plugin(BasePlugin, name="Feedback"):
 
     async def category_move(self, ctx, complaint_ids: list, category):
         """
-        Moves a complaint to a category.
+        Moves complaints to a category.
         :param ctx: Context
         :param complaint_ids: List of IDs of (existing!) complaints to be moved
         :param category: New category; category will be removed from complaints if this is None

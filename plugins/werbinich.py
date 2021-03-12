@@ -428,7 +428,7 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
     async def abort(self):
         await self.cleanup()
 
-    async def cleanup(self):
+    async def cleanup(self, exception=None):
         self.logger.debug("Cleaning up")
         for el in self.participants:
             el.cleanup()
@@ -438,3 +438,5 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
         self.reg_start_time = None
         self.show_assignees = True
         self.reg_ts = None
+        if exception:
+            raise exception
