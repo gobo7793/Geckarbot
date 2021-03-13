@@ -1,6 +1,6 @@
 name: Linting and analyze lang strings
 
-on: [push, pull_request]
+on: [pull_request]
 
 jobs:
   build:
