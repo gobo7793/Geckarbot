@@ -180,7 +180,7 @@ class Plugin(BasePlugin, name="Feedback"):
     @commands.group(name="redact",
                     invoke_without_command=True)
     @commands.has_any_role(*Config().ADMIN_ROLES)
-    async def redact(self, ctx, *args):
+    async def cmd_redact(self, ctx, *args):
         aliases = ["all", "full"]
         full = True if len(args) > 0 and args[0] in aliases else False
 
@@ -226,7 +226,7 @@ class Plugin(BasePlugin, name="Feedback"):
         for el in msgs:
             await ctx.send(el)
 
-    @redact.command(name="del")
+    @cmd_redact.command(name="del")
     async def cmd_delete(self, ctx, *args):
         cids, _ = self.parse_args(args)
         cids = set(cids)
@@ -250,7 +250,7 @@ class Plugin(BasePlugin, name="Feedback"):
         self.reset_highest_id()
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
-    @redact.command(name="search")
+    @cmd_redact.command(name="search")
     async def cmd_search(self, ctx, *args):
         if len(args) == 0:
             await add_reaction(ctx.message, Lang.CMDERROR)
@@ -280,7 +280,7 @@ class Plugin(BasePlugin, name="Feedback"):
         for el in msgs:
             await ctx.send(el)
 
-    @redact.command(name="count")
+    @cmd_redact.command(name="count")
     async def cmd_count(self, ctx):
         cats = set()
         uncategorized = 0
@@ -295,7 +295,7 @@ class Plugin(BasePlugin, name="Feedback"):
         total = uncategorized + categorized
         await ctx.send(Lang.lang(self, "redact_count", total, categorized, uncategorized, len(cats)))
 
-    @redact.command(name="flatten", hidden=True)
+    @cmd_redact.command(name="flatten", hidden=True)
     async def cmd_flatten(self, ctx):
         i = 0
         new = {}
@@ -376,8 +376,8 @@ class Plugin(BasePlugin, name="Feedback"):
             for msg in paginate(cats, prefix=Lang.lang(self, "redact_cat_list_prefix")):
                 await ctx.send(msg)
 
-    @redact.command(name="category", aliases=["cat"])
-    async def category(self, ctx, *args):
+    @cmd_redact.command(name="category", aliases=["cat"])
+    async def cmd_category(self, ctx, *args):
         ids, cats = self.parse_args(args)
 
         # Errors / arg validation
@@ -411,7 +411,7 @@ class Plugin(BasePlugin, name="Feedback"):
             await self.category_move(ctx, ids, cat)
 
     @commands.command(name="complain")
-    async def complain(self, ctx, *args):
+    async def cmd_complain(self, ctx, *args):
         msg = ctx.message
         complaint = Complaint.from_message(self, msg)
         if complaint is None:
@@ -496,7 +496,7 @@ class Plugin(BasePlugin, name="Feedback"):
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
     @commands.command(name="bugscore")
-    async def bugscore(self, ctx, *args):
+    async def cmd_bugscore(self, ctx, *args):
         if len(args) == 0:
             await self.bugscore_show(ctx)
             return

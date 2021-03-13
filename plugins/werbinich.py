@@ -160,7 +160,7 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
 
     @commands.group(name="werbinich", invoke_without_command=True,
                     help=h_help, description=h_description, usage=h_usage)
-    async def werbinich(self, ctx, *args):
+    async def cmd_werbinich(self, ctx, *args):
         # Argument parsing
         for arg in args:
             if arg == "geheim":
@@ -179,8 +179,8 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
         self.initiator = ctx.message.author
         await self.statemachine.run()
 
-    @werbinich.command(name="status")
-    async def statuscmd(self, ctx):
+    @cmd_werbinich.command(name="status")
+    async def cmd_statuscmd(self, ctx):
         if self.statemachine.state == State.IDLE:
             # Post-game and game in mem
             if self.channel is not None and self.postgame:
@@ -220,8 +220,8 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
         wf = stringutils.format_andlist(waitingfor, ands=Lang.lang(self, "and"), emptylist=Lang.lang(self, "nobody"))
         await ctx.send(Lang.lang(self, "waiting_for", wf))
 
-    @werbinich.command(name="stop")
-    async def stopcmd(self, ctx):
+    @cmd_werbinich.command(name="stop")
+    async def cmd_stopcmd(self, ctx):
         if self.statemachine.state == State.IDLE:
             await add_reaction(ctx.message, Lang.CMDERROR)
             await ctx.send(Lang.lang(self, "not_running"))
@@ -231,8 +231,8 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
         # await add_reaction(ctx.message, Lang.CMDSUCCESS)
         # await self.cleanup()
 
-    @werbinich.command(name="spoiler", help=h_spoiler)
-    async def spoilercmd(self, ctx):
+    @cmd_werbinich.command(name="spoiler", help=h_spoiler)
+    async def cmd_spoilercmd(self, ctx):
         # State check
         error = None
         if self.statemachine.state != State.IDLE:
@@ -254,8 +254,8 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
                                         f=lambda x: x.to_msg()):
             await ctx.author.send(msg)
 
-    @werbinich.command(name="fertig", help=h_postgame)
-    async def postgamecmd(self, ctx):
+    @cmd_werbinich.command(name="fertig", help=h_postgame)
+    async def cmd_postgamecmd(self, ctx):
         error = None
         if ctx.channel != self.channel:
             error = "wrong_channel"
@@ -278,8 +278,8 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
         self.postgame = True
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
-    @werbinich.command(name="del", help=h_clear)
-    async def delcmd(self, ctx):
+    @cmd_werbinich.command(name="del", help=h_clear)
+    async def cmd_delcmd(self, ctx):
         if not self.participants:
             await add_reaction(ctx.message, Lang.CMDERROR)
             return

@@ -51,7 +51,7 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
     """
 
     @commands.command(name="about", aliases=["git", "github"])
-    async def about(self, ctx):
+    async def cmd_about(self, ctx):
         about_msg = Lang.lang(self, 'about_version', self.bot.VERSION, self.bot.guild.name,
                               platform.system(), platform.release(), platform.version())
 
@@ -77,11 +77,11 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
     Plugin control
     """
     @commands.group(name="plugin", aliases=["plugins"], invoke_without_command=True)
-    async def plugins(self, ctx):
+    async def cmd_plugins(self, ctx):
         await ctx.invoke(self.bot.get_command("plugin list"))
 
-    @plugins.command(name="list")
-    async def plugins_list(self, ctx):
+    @cmd_plugins.command(name="list")
+    async def cmd_plugins_list(self, ctx):
         coreplugins = self.bot.get_coreplugins()
         plugins = self.bot.get_normalplugins()
         subsys = self.bot.get_subsystem_list()
@@ -95,8 +95,8 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
         for msg in paginate(msgs, delimiter="\n\n"):
             await ctx.send(msg)
 
-    @plugins.command(name="available", aliases=["unloaded", "disabled"])
-    async def plugins_avail(self, ctx):
+    @cmd_plugins.command(name="available", aliases=["unloaded", "disabled"])
+    async def cmd_plugins_avail(self, ctx):
         avail = self.bot.get_unloaded_plugins()
 
         if avail:
@@ -104,9 +104,9 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
         else:
             await ctx.send(Lang.lang(self, 'no_plugin_avail'))
 
-    @plugins.command(name="unload", aliases=["disable"])
+    @cmd_plugins.command(name="unload", aliases=["disable"])
     @commands.has_any_role(*Config().MOD_ROLES)
-    async def plugins_unload(self, ctx, name):
+    async def cmd_plugins_unload(self, ctx, name):
         instance = get_plugin_by_name(name)
         if instance is None:
             await utils.add_reaction(ctx.message, Lang.CMDERROR)
@@ -124,9 +124,9 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
             await utils.add_reaction(ctx.message, Lang.CMDERROR)
             await ctx.send(Lang.lang(self, "plugin_not_unloadable", name))
 
-    @plugins.command(name="load", aliases=["enable"])
+    @cmd_plugins.command(name="load", aliases=["enable"])
     @commands.has_any_role(*Config().MOD_ROLES)
-    async def plugins_load(self, ctx, name):
+    async def cmd_plugins_load(self, ctx, name):
         instance = get_plugin_by_name(name)
         if instance is not None:
             await utils.add_reaction(ctx.message, Lang.CMDERROR)
@@ -139,9 +139,9 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
             await utils.add_reaction(ctx.message, Lang.CMDERROR)
             await ctx.send(Lang.lang(self, "plugin_not_loadable", name))
 
-    @plugins.command(name="reload")
+    @cmd_plugins.command(name="reload")
     @commands.has_any_role(*Config().MOD_ROLES)
-    async def plugins_reload(self, ctx, name):
+    async def cmd_plugins_reload(self, ctx, name):
         instance = get_plugin_by_name(name)
         if instance is None:
             await utils.add_reaction(ctx.message, Lang.CMDERROR)
@@ -163,11 +163,11 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
     Presence subsystem
     """
     @commands.group(name="presence", invoke_without_command=True)
-    async def presence(self, ctx):
+    async def cmd_presence(self, ctx):
         await ctx.invoke(self.bot.get_command("presence list"))
 
-    @presence.command(name="list")
-    async def presence_list(self, ctx):
+    @cmd_presence.command(name="list")
+    async def cmd_presence_list(self, ctx):
         def get_message(item):
             return Lang.lang(self, "presence_entry", item.presence_id, item.message)
 
@@ -180,9 +180,9 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
                                 f=get_message):
                 await ctx.send(msg)
 
-    @presence.command(name="add")
+    @cmd_presence.command(name="add")
     # @commands.has_any_role(*Config().MOD_ROLES)
-    async def presence_add(self, ctx, *, message):
+    async def cmd_presence_add(self, ctx, *, message):
         if self.bot.presence.register(message, PresencePriority.LOW) is not None:
             await utils.add_reaction(ctx.message, Lang.CMDSUCCESS)
             await utils.write_mod_channel(Lang.lang(self, "presence_added_debug", message))
@@ -190,9 +190,9 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
             await utils.add_reaction(ctx.message, Lang.CMDERROR)
             await ctx.send(Lang.lang(self, "presence_unknown_error"))
 
-    @presence.command(name="del", usage="<id>")
+    @cmd_presence.command(name="del", usage="<id>")
     # @commands.has_any_role(*Config().MOD_ROLES)
-    async def presence_del(self, ctx, entry_id: int):
+    async def cmd_presence_del(self, ctx, entry_id: int):
         presence_message = "PANIC"
         if entry_id in self.bot.presence.messages:
             presence_message = self.bot.presence.messages[entry_id].message
@@ -209,7 +209,7 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
     """
     @commands.group(name="disable", invoke_without_command=True, aliases=["ignore", "block"],
                     usage="<full command name>")
-    async def disable(self, ctx, *, command):
+    async def cmd_disable(self, ctx, *, command):
         if not await self._pre_cmd_checks(ctx.message, command):
             return
 
@@ -223,9 +223,9 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
             await ctx.send(Lang.lang(self, 'passive_already_blocked', cmd))
         await utils.log_to_mod_channel(ctx)
 
-    @disable.command(name="mod", usage="[user|command|until]")
+    @cmd_disable.command(name="mod", usage="[user|command|until]")
     @commands.has_any_role(*Config().MOD_ROLES)
-    async def disable_mod(self, ctx, *args):
+    async def cmd_disable_mod(self, ctx, *args):
         user, command, until = await self._parse_mod_args(ctx, *args)
         if user == -1 or command == -1 or until == -1:
             return
@@ -292,8 +292,8 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
         if final_msg is not None:
             await ctx.send(final_msg)
 
-    @disable.command(name="list")
-    async def disable_list(self, ctx):
+    @cmd_disable.command(name="list")
+    async def cmd_disable_list(self, ctx):
         def get_item_msg(item):
             return item.to_message()
 
@@ -312,9 +312,9 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
         await write_list(IgnoreType.Active_Usage, Lang.lang(self, 'list_active'))
         await write_list(IgnoreType.Passive_Usage, Lang.lang(self, 'list_passive'))
 
-    @commands.group(name="enable", invoke_without_command=True, aliases=["unignore", "unblock"],
+    @cmd_commands.group(name="enable", invoke_without_command=True, aliases=["unignore", "unblock"],
                     usage="[full command name]")
-    async def enable(self, ctx, *, command=None):
+    async def cmd_enable(self, ctx, *, command=None):
         final_msg = None
         reaction = Lang.CMDERROR
 
@@ -351,9 +351,9 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
         if final_msg is not None:
             await ctx.send(final_msg)
 
-    @enable.command(name="mod", usage="[user|command]")
+    @cmd_enable.command(name="mod", usage="[user|command]")
     @commands.has_any_role(*Config().MOD_ROLES)
-    async def enable_mod(self, ctx, *args):
+    async def cmd_enable_mod(self, ctx, *args):
         user, command, until = await self._parse_mod_args(ctx, *args)
 
         final_msg = None

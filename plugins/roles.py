@@ -258,7 +258,7 @@ class Plugin(BasePlugin, name="Role Management"):
                                                           'role': role.mention})
 
     @commands.group(name="role", aliases=["roles"], invoke_without_command=True)
-    async def role(self, ctx, user: discord.Member, action, role: discord.Role):
+    async def cmd_role(self, ctx, user: discord.Member, action, role: discord.Role):
         async with ctx.typing():
             if not permchecks.check_mod_access(ctx.author):
                 if role.id not in self.rc():
@@ -288,9 +288,9 @@ class Plugin(BasePlugin, name="Role Management"):
 
         await utils.log_to_mod_channel(ctx)
 
-    @role.command(name="add")
+    @cmd_role.command(name="add")
     @commands.has_any_role(*Config().MOD_ROLES)
-    async def role_add(self, ctx, role_name, emoji_or_modrole="", color: discord.Color = None):
+    async def cmd_role_add(self, ctx, role_name, emoji_or_modrole="", color: discord.Color = None):
         async with ctx.typing():
             emoji_str = await stringutils.demojize(emoji_or_modrole, ctx)
             try:
@@ -334,25 +334,25 @@ class Plugin(BasePlugin, name="Role Management"):
         await ctx.send(Lang.lang(self, 'role_add_created', role_name, color))
         await utils.log_to_mod_channel(ctx)
 
-    @role.command(name="del")
+    @cmd_role.command(name="del")
     @commands.has_any_role(*Config().MOD_ROLES)
-    async def role_del(self, ctx, role: discord.Role):
+    async def cmd_role_del(self, ctx, role: discord.Role):
         async with ctx.typing():
             await remove_server_role(role)
             await self.update_role_management(ctx)
         await ctx.send(Lang.lang(self, 'role_del', role.name))
         await utils.log_to_mod_channel(ctx)
 
-    @role.command(name="untrack")
+    @cmd_role.command(name="untrack")
     @commands.has_any_role(*Config().MOD_ROLES)
-    async def role_untrack(self, ctx, role: discord.Role):
+    async def cmd_role_untrack(self, ctx, role: discord.Role):
         del (self.rc()[role.id])
         await self.update_role_management(ctx)
         await ctx.send(Lang.lang(self, 'role_untrack', role.name))
         await utils.log_to_mod_channel(ctx)
 
-    @role.command(name="request")
-    async def role_request(self, ctx, role: discord.Role):
+    @cmd_role.command(name="request")
+    async def cmd_role_request(self, ctx, role: discord.Role):
         modrole = None
         for configured_role in self.rc():
             if configured_role == role.id:
@@ -364,9 +364,9 @@ class Plugin(BasePlugin, name="Role Management"):
         else:
             await ctx.send(Lang.lang(self, 'role_request_ping', modrole.mention, ctx.author.mention, role.name))
 
-    @role.command(name="update", invoke_without_command=True)
+    @cmd_role.command(name="update", invoke_without_command=True)
     @commands.has_any_role(*Config().MOD_ROLES)
-    async def role_update(self, ctx, *, message=""):
+    async def cmd_role_update(self, ctx, *, message=""):
         channel = None
         try:
             channel = await commands.TextChannelConverter().convert(ctx, message)
@@ -393,8 +393,8 @@ class Plugin(BasePlugin, name="Role Management"):
         await ctx.send(Lang.lang(self, 'role_update'))
         await utils.log_to_mod_channel(ctx)
 
-    @role.command(name="msg", aliases=["link"])
-    async def get_msg_cmd(self, ctx):
+    @cmd_role.command(name="msg", aliases=["link"])
+    async def cmd_get_msg_cmd(self, ctx):
         msg = await self.get_init_msg()
         if msg is not None:
             await ctx.send(msg.jump_url)

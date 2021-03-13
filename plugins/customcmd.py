@@ -178,7 +178,7 @@ class CustomCMDHelpCategory(HelpCategory):
         # Custom command list
         msg.append("\n" + Lang.lang(self.plugin, "desc_cmd") + "\n")
         msg.append(Lang.lang(self.plugin, "help_custom_cmd_list_prefix"))
-        msg += self.plugin.format_cmd_list(incl_prefix=True)
+        msg += self.plugin._format_cmd_list(incl_prefix=True)
 
         for msg in paginate(msg, msg_prefix="```", msg_suffix="```"):
             await ctx.send(msg)
@@ -195,7 +195,7 @@ class Plugin(BasePlugin, name="Custom CMDs"):
         self.prefix = Config.get(self)['prefix']
         self.commands = {}
 
-        self.load()
+        self._load()
 
     @commands.Cog.listener()
     async def on_message(self, msg):
@@ -203,7 +203,7 @@ class Plugin(BasePlugin, name="Custom CMDs"):
                 and msg.author.id != self.bot.user.id
                 and not self.bot.ignoring.check_user(msg.author)
                 and permchecks.debug_user_check(msg.author)):
-            await self.process_message(msg)
+            await self._process_message(msg)
 
     def default_config(self):
         return {
@@ -275,23 +275,23 @@ class Plugin(BasePlugin, name="Custom CMDs"):
     #     else:
     #         raise NotFound()
 
-    def load(self):
+    def _load(self):
         """Loads the commands"""
         # Update from old config versions
         if "_prefix" in Storage.get(self):
-            self.update_config_from_1_to_2(Storage.get(self))
+            self._update_config_from_1_to_2(Storage.get(self))
         elif "_prefix" in Config.get(self):
-            self.update_config_from_1_to_2(Config.get(self))
+            self._update_config_from_1_to_2(Config.get(self))
 
         if Config.get(self)['cfgversion'] == 2:
-            self.update_config_from_2_to_3()
+            self._update_config_from_2_to_3()
 
         # actually load the commands
         for k in Storage.get(self).keys():
             self.commands[str(k)] = Cmd.deserialize(self, k, Storage.get(self)[k])
             self.bot.ignoring.add_additional_command(k)
 
-    def save(self):
+    def _save(self):
         """Saves the commands to the storage and the plugin config"""
         cmd_dict = {}
         for k in self.commands:
@@ -302,7 +302,7 @@ class Plugin(BasePlugin, name="Custom CMDs"):
 
         Config.save(self)
 
-    def update_config_from_2_to_3(self):
+    def _update_config_from_2_to_3(self):
         """Updates the configuration from version 2 to version 3 (adding authors for output texts)"""
         logging.info("Update Custom CMD config from version 2 to version 3")
 
@@ -314,7 +314,7 @@ class Plugin(BasePlugin, name="Custom CMDs"):
         Config.save(self)
         logging.info("Converting finished.")
 
-    def update_config_from_1_to_2(self, old_config):
+    def _update_config_from_1_to_2(self, old_config):
         """
         Updates the configuration from version 1 (indicator: contains '_prefix') to version 2 (split Config/Storage)
 
@@ -342,7 +342,7 @@ class Plugin(BasePlugin, name="Custom CMDs"):
         Storage.save(self)
         logging.info("Converting finished.")
 
-    async def process_message(self, msg):
+    async def _process_message(self, msg):
         """Will be called from on_message listener to react for custom cmds"""
 
         # get cmd parts/args
@@ -384,10 +384,10 @@ class Plugin(BasePlugin, name="Custom CMDs"):
             await ctx.send(Lang.lang(self, 'invalid_prefix'))
         else:
             Config.get(self)['prefix'] = new_prefix
-            self.save()
+            self._save()
             await utils.add_reaction(ctx.message, Lang.CMDSUCCESS)
 
-    def format_cmd_list(self, full="", incl_prefix=False):
+    def _format_cmd_list(self, full="", incl_prefix=False):
         cmds = []
         suffix = Lang.lang(self, 'list_suffix') if full else ""
         prefix = self.prefix if incl_prefix else ""
@@ -415,12 +415,12 @@ class Plugin(BasePlugin, name="Custom CMDs"):
         if full in self.commands.keys():
             return await ctx.invoke(self.bot.get_command("cmd info"), full)
 
-        cmds = self.format_cmd_list(full=full)
+        cmds = self._format_cmd_list(full=full)
 
         for msg in cmds:
             await ctx.send(msg)
 
-    async def cmd_raw_single_page(self, ctx, cmd_name, index):
+    async def _cmd_raw_single_page(self, ctx, cmd_name, index):
         """
         Assumptions:
         * cmd_name in self.commands
@@ -476,7 +476,7 @@ class Plugin(BasePlugin, name="Custom CMDs"):
             return
 
         if single_page and not single_text:
-            await self.cmd_raw_single_page(ctx, cmd_name, index)
+            await self._cmd_raw_single_page(ctx, cmd_name, index)
 
         else:
             creator = converters.get_best_user(self.commands[cmd_name].creator_id)
@@ -553,14 +553,14 @@ class Plugin(BasePlugin, name="Custom CMDs"):
         if cmd_name in self.commands:
             self.commands[cmd_name].texts.extend(cmd_texts)
             self.commands[cmd_name].author_ids.extend(text_authors)
-            self.save()
+            self._save()
             await utils.add_reaction(ctx.message, Lang.CMDSUCCESS)
             await utils.write_mod_channel(Lang.lang(self, 'cmd_text_added', cmd_name, cmd_texts))
             await ctx.send(Lang.lang(self, "add_exists", cmd_name))
         else:
             self.commands[cmd_name] = Cmd(self, cmd_name, ctx.author.id, cmd_texts)
             self.bot.ignoring.add_additional_command(cmd_name)
-            self.save()
+            self._save()
             # await utils.log_to_admin_channel(ctx)
             await utils.add_reaction(ctx.message, Lang.CMDSUCCESS)
             await utils.write_mod_channel(Lang.lang(self, 'cmd_added', cmd_name,
@@ -631,6 +631,6 @@ class Plugin(BasePlugin, name="Custom CMDs"):
             del (cmd.texts[text_id])
             await utils.write_mod_channel(Lang.lang(self, 'cmd_text_removed', cmd_name, cmd_raw))
 
-        self.save()
+        self._save()
         # await utils.log_to_admin_channel(ctx)
         await utils.add_reaction(ctx.message, Lang.CMDSUCCESS)

@@ -122,17 +122,17 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
         self.bot.presence.deregister(self.presence)
 
     @commands.group(name="dsc")
-    async def dsc(self, ctx):
+    async def cmd_dsc(self, ctx):
         if ctx.invoked_subcommand is None:
             await ctx.invoke(self.bot.get_command('dsc info'))
 
-    @dsc.command(name="rules", aliases=["regeln"])
-    async def dsc_rules(self, ctx):
+    @cmd_dsc.command(name="rules", aliases=["regeln"])
+    async def cmd_dsc_rules(self, ctx):
         self._fill_rule_link()
         await ctx.send(f"<{Storage.get(self)['rule_link']}>")
 
-    @dsc.command(name="status")
-    async def dsc_status(self, ctx):
+    @cmd_dsc.command(name="status")
+    async def cmd_dsc_status(self, ctx):
         if Storage.get(self)['status']:
             status_msg = Lang.lang(self, 'status_base', Storage.get(self)['status'])
         else:
@@ -140,8 +140,8 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
 
         await ctx.send(status_msg)
 
-    @dsc.command(name="winners")
-    async def dsc_winners(self, ctx):
+    @cmd_dsc.command(name="winners")
+    async def cmd_dsc_winners(self, ctx):
         c = self.get_api_client()
         winners = c.get(Config.get(self)['winners_range'])
 
@@ -167,8 +167,8 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
         for m in paginate(w_msgs, Lang.lang(self, 'winner_prefix')):
             await ctx.send(m)
 
-    @dsc.command(name="info")
-    async def dsc_info(self, ctx):
+    @cmd_dsc.command(name="info")
+    async def cmd_dsc_info(self, ctx):
         date_out_str = Lang.lang(self, 'info_date_str', Storage.get(self)['date'].strftime('%d.%m.%Y, %H:%M'))
         if not Storage.get(self)['host_id']:
             await ctx.send(Lang.lang(self, 'must_set_host'))
@@ -202,9 +202,9 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
 
         await ctx.send(embed=embed)
 
-    @dsc.group(name="set", invoke_without_command=True)
+    @cmd_dsc.group(name="set", invoke_without_command=True)
     @dsc_set_checks()
-    async def dsc_set(self, ctx, *args):
+    async def cmd_dsc_set(self, ctx, *args):
         if len(args) > 2 and args[1] == "until":
             # !dsc set <signup|voting> until <date>
             await ctx.invoke(self.bot.get_command('dsc set state'), args[0])
@@ -213,8 +213,8 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
         elif ctx.invoked_subcommand is None:
             await self.bot.helpsys.cmd_help(ctx, self, ctx.command)
 
-    @dsc_set.command(name="host")
-    async def dsc_set_host(self, ctx, user: Union[discord.Member, discord.User]):
+    @cmd_dsc_set.command(name="host")
+    async def cmd_dsc_set_host(self, ctx, user: Union[discord.Member, discord.User]):
         Storage.get(self)['host_id'] = user.id
         Storage().save(self)
         await utils.add_reaction(ctx.message, Lang.CMDSUCCESS)
@@ -224,8 +224,8 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
         Storage().save(self)
         await utils.add_reaction(ctx.message, Lang.CMDSUCCESS)
 
-    @dsc_set.command(name="state")
-    async def dsc_set_state(self, ctx, state):
+    @cmd_dsc_set.command(name="state")
+    async def cmd_dsc_set_state(self, ctx, state):
         if state.lower() == "voting":
             await self._dsc_save_state(ctx, DscState.Voting)
             self.register_presence()
@@ -235,34 +235,34 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
         else:
             await ctx.send(Lang.lang(self, 'invalid_phase'))
 
-    @dsc_set.command(name="yt")
-    async def dsc_set_yt_link(self, ctx, link):
+    @cmd_dsc_set.command(name="yt")
+    async def cmd_dsc_set_yt_link(self, ctx, link):
         link = clear_link(link)
         Storage.get(self)['yt_link'] = link
         Storage().save(self)
         await utils.add_reaction(ctx.message, Lang.CMDSUCCESS)
 
-    @dsc_set.command(name="date")
-    async def dsc_set_date(self, ctx, *args):
+    @cmd_dsc_set.command(name="date")
+    async def cmd_dsc_set_date(self, ctx, *args):
         date = timeutils.parse_time_input(args, end_of_day=True)
         Storage.get(self)['date'] = date
         Storage().save(self)
         await utils.add_reaction(ctx.message, Lang.CMDSUCCESS)
 
-    @dsc_set.command(name="status")
-    async def dsc_set_status(self, ctx, *, message):
+    @cmd_dsc_set.command(name="status")
+    async def cmd_dsc_set_status(self, ctx, *, message):
         Storage.get(self)['status'] = message
         Storage().save(self)
         await utils.add_reaction(ctx.message, Lang.CMDSUCCESS)
 
-    @dsc_set.command(name="points")
-    async def dsc_set_points(self, ctx, *points):
+    @cmd_dsc_set.command(name="points")
+    async def cmd_dsc_set_points(self, ctx, *points):
         Storage.get(self)['points'] = "-".join(points)
         Storage().save(self)
         await utils.add_reaction(ctx.message, Lang.CMDSUCCESS)
 
-    @dsc_set.command(name="config")
-    async def dsc_set_config(self, ctx, key="", value=""):
+    @cmd_dsc_set.command(name="config")
+    async def cmd_dsc_set_config(self, ctx, key="", value=""):
         if not key and not value:
             msg = []
             for key in Config.get(self):

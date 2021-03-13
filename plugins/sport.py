@@ -48,7 +48,7 @@ class Plugin(BasePlugin, name="Sport"):
         return result
 
     @commands.command(name="kicker")
-    async def kicker_table(self, ctx):
+    async def cmd_kicker_table(self, ctx):
         now = datetime.now()
         if now.month < 3 or now.month > 7:
             at_values = "[{}]({})".format(Lang.lang(self, 'kicker_ATBL'), Lang.lang(self, 'kicker_ATBL_link'))
@@ -75,11 +75,11 @@ class Plugin(BasePlugin, name="Sport"):
 
     # todo: read directly from sheets
     @commands.command(name="tippspiel")
-    async def tippspiel(self, ctx):
+    async def cmd_tippspiel(self, ctx):
         await ctx.send(Lang.lang(self, 'tippspiel_output'))
 
     @commands.command(name="fußball", aliases=["fusselball"])
-    async def soccer_livescores(self, ctx, league, allmatches=None):
+    async def cmd_soccer_livescores(self, ctx, league, allmatches=None):
         if league not in Config().get(self)['leagues']:
             for leag, aliases in Config().get(self)['leagues'].items():
                 if league in aliases:
@@ -129,15 +129,15 @@ class Plugin(BasePlugin, name="Sport"):
         await ctx.send(embed=embed)
 
     @commands.command(name="buli")
-    async def buli_livescores(self, ctx, allmatches=None):
+    async def cmd_buli_livescores(self, ctx, allmatches=None):
         await ctx.invoke(self.bot.get_command('fußball'), 'bl1', allmatches)
 
     @commands.command(name="buli2")
-    async def buli2_livescores(self, ctx, allmatches=None):
+    async def cmd_buli2_livescores(self, ctx, allmatches=None):
         await ctx.invoke(self.bot.get_command('fußball'), 'bl2', allmatches)
 
     @commands.command(name="matches")
-    async def matches_24h(self, ctx):
+    async def cmd_matches_24h(self, ctx):
         async with ctx.typing():
             msg = ""
             for league in Config().get(self)['leagues'].keys():
@@ -165,7 +165,7 @@ class Plugin(BasePlugin, name="Sport"):
         await ctx.send(msg)
 
     @commands.command(name="liveticker")
-    async def liveticker(self, ctx):
+    async def cmd_liveticker(self, ctx):
         msg = []
         for league in Config().get(self)['liveticker_leagues']:
             liveticker_regs = self.bot.liveticker.search(plugin=self.get_name())

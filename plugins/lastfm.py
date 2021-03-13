@@ -326,7 +326,7 @@ class Plugin(BasePlugin, name="LastFM"):
         return time.clock_gettime(time.CLOCK_MONOTONIC)
 
     @commands.group(name="lastfm", invoke_without_command=True)
-    async def lastfm(self, ctx):
+    async def cmd_lastfm(self, ctx):
         self.perf_reset_timers()
         before = self.perf_timenow()
         try:
@@ -339,7 +339,7 @@ class Plugin(BasePlugin, name="LastFM"):
         self.perf_add_total_time(after - before)
 
     @commands.has_role(Config().BOT_ADMIN_ROLE_ID)
-    @lastfm.command(name="config", aliases=["set"], hidden=True)
+    @cmd_lastfm.command(name="config", aliases=["set"], hidden=True)
     async def cmd_config(self, ctx, key=None, value=None):
         # list
         if key is None and value is None:
@@ -367,7 +367,7 @@ class Plugin(BasePlugin, name="LastFM"):
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
         await ctx.send("Changed {} value from {} to {}".format(key, oldval, value))
 
-    @lastfm.command(name="register")
+    @cmd_lastfm.command(name="register")
     async def cmd_register(self, ctx, lfmuser: str):
         info = await self.get_user_info(lfmuser)
         if info is None:
@@ -383,7 +383,7 @@ class Plugin(BasePlugin, name="LastFM"):
         Storage.save(self)
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
-    @lastfm.command(name="deregister")
+    @cmd_lastfm.command(name="deregister")
     async def cmd_deregister(self, ctx):
         if ctx.author.id in Storage.get(self)["users"]:
             del Storage.get(self)["users"][ctx.author.id]
@@ -391,7 +391,7 @@ class Plugin(BasePlugin, name="LastFM"):
         else:
             await add_reaction(ctx.message, Lang.CMDNOCHANGE)
 
-    @lastfm.command(name="profile", usage="<User>")
+    @cmd_lastfm.command(name="profile", usage="<User>")
     async def cmd_profile(self, ctx, user: Union[discord.Member, discord.User, None]):
         sg3p = False
         if user is None:
@@ -405,7 +405,7 @@ class Plugin(BasePlugin, name="LastFM"):
             return
         await ctx.send("http://last.fm/user/{}".format(user))
 
-    @lastfm.command(name="performance", hidden=True)
+    @cmd_lastfm.command(name="performance", hidden=True)
     async def cmd_perf(self, ctx):
         decdigits = 3
         total = round(self.perf_total_time, decdigits)
@@ -413,7 +413,7 @@ class Plugin(BasePlugin, name="LastFM"):
         percent = int(round(lastfm * 100 / total))
         await ctx.send(Lang.lang(self, "performance", lastfm, total, percent, self.perf_request_count))
 
-    @lastfm.command(name="page", aliases=["history"], hidden=True)
+    @cmd_lastfm.command(name="page", aliases=["history"], hidden=True)
     async def cmd_history(self, ctx, page: int = 1):
         self.perf_reset_timers()
         before = self.perf_timenow()
@@ -513,7 +513,7 @@ class Plugin(BasePlugin, name="LastFM"):
         await questionnaire.user.send(Lang.lang(self, "quote_err_dmkill"))
         await add_reaction(msg, Lang.CMDERROR)
 
-    @lastfm.command(name="quote")
+    @cmd_lastfm.command(name="quote")
     async def cmd_quote(self, ctx):
         # Acquire last song for first questionnaire route
         try:
@@ -600,7 +600,7 @@ class Plugin(BasePlugin, name="LastFM"):
         quotes[get_new_key(quotes)] = quote
         Storage.save(self, container="quotes")
 
-    @lastfm.command(name="now", aliases=["listening"])
+    @cmd_lastfm.command(name="now", aliases=["listening"])
     async def cmd_now(self, ctx, user: Union[discord.Member, discord.User, str, None]):
         self.perf_reset_timers()
         before = self.perf_timenow()

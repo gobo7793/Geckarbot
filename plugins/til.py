@@ -42,22 +42,22 @@ class Plugin(BasePlugin, name="TIL"):
         return False
 
     @commands.group(name="til", invoke_without_command=True)
-    async def til(self, ctx):
+    async def cmd_til(self, ctx):
         if not Storage.get(self):
             await ctx.send(Lang.lang(self, "no_facts"))
             return
         ran_fact = random.choice(Storage.get(self))
         await ctx.send(ran_fact)
 
-    @til.command(name="add")
-    async def add(self, ctx, *, args):
+    @cmd_til.command(name="add")
+    async def cmd_add(self, ctx, *, args):
         if await self._manager_check(ctx):
             Storage.get(self).append(args)
             Storage.save(self)
             await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
-    @til.command(name="del")
-    async def remove(self, ctx, fact_id: int):
+    @cmd_til.command(name="del")
+    async def cmd_remove(self, ctx, fact_id: int):
         if await self._manager_check(ctx):
             fact_id -= 1
             if fact_id < 0 or fact_id >= len(Storage.get(self)):
@@ -68,8 +68,8 @@ class Plugin(BasePlugin, name="TIL"):
             Storage.save(self)
             await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
-    @til.command(name="info")
-    async def info(self, ctx):
+    @cmd_til.command(name="info")
+    async def cmd_info(self, ctx):
         facts = []
         if await self._manager_check(ctx, show_errors=False) and isinstance(ctx.channel, discord.DMChannel):
             for i in range(len(Storage.get(self))):
@@ -86,8 +86,8 @@ class Plugin(BasePlugin, name="TIL"):
         else:
             await ctx.send(prefix)
 
-    @til.command(name="manager")
-    async def set_manger(self, ctx, user: discord.User):
+    @cmd_til.command(name="manager")
+    async def cmd_set_manger(self, ctx, user: discord.User):
         if await self._manager_check(ctx):
             Config.get(self)['manager'] = user.id
             Config.save(self)
