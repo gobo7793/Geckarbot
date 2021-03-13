@@ -1,4 +1,4 @@
-name: Pylint
+name: Linting and analyze lang strings
 
 on: [push, pull_request]
 
