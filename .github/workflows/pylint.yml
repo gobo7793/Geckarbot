@@ -20,3 +20,4 @@ jobs:
     - name: Analysing the code with pylint
       run: |
         find . -type f -name "*.py" | xargs pylint
+        python tools/langdiff.py
