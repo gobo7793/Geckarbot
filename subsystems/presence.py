@@ -7,7 +7,7 @@ from typing import Optional, List, Dict
 import discord
 
 from base import BaseSubsystem
-from conf import Config, Storage
+from data import Config, Storage
 from subsystems.timers import Job, timedict
 
 """

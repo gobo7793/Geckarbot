@@ -19,7 +19,7 @@ from botutils.permchecks import check_mod_access
 from botutils.sheetsclient import CellRange, Cell
 from botutils.stringutils import paginate, format_andlist
 from botutils.utils import add_reaction
-from conf import Config, Storage, Lang
+from data import Config, Storage, Lang
 from plugins.spaetzle.subsystems import UserBridge, Observed, Trusted
 from plugins.spaetzle.utils import TeamnameDict, pointdiff_possible, determine_winner, MatchResult, match_status, \
     MatchStatus, get_user_league, get_user_cell, get_schedule, get_schedule_opponent, UserNotFound, \

@@ -6,7 +6,7 @@ import discord
 from discord.ext import commands
 
 from base import BasePlugin, NotFound
-from conf import Lang
+from data import Lang
 from subsystems import help
 
 

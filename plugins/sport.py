@@ -10,7 +10,7 @@ from botutils import restclient
 from botutils.stringutils import paginate
 from botutils.utils import add_reaction
 from subsystems.help import DefaultCategories
-from conf import Lang, Config
+from data import Lang, Config
 
 
 class Plugin(BasePlugin, name="Sport"):

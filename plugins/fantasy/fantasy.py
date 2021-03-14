@@ -14,7 +14,7 @@ from botutils.converters import get_best_username, get_best_user
 from botutils.permchecks import WrongChannel
 from botutils.stringutils import paginate
 from botutils.utils import add_reaction
-from conf import Config, Storage, Lang
+from data import Config, Storage, Lang
 from plugins.fantasy.league import FantasyLeague, deserialize_league, create_league
 from plugins.fantasy.utils import pos_alphabet, FantasyState, Platform, Match
 from subsystems import timers

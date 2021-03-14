@@ -11,7 +11,7 @@ from discord.errors import Forbidden
 from base import BasePlugin, NotFound
 from botutils.stringutils import format_andlist
 from botutils.utils import add_reaction
-from conf import Lang, Config
+from data import Lang, Config
 from botutils import utils, statemachine, stringutils
 from botutils.converters import get_best_username as gbu
 from subsystems import help, presence

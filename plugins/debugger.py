@@ -6,7 +6,7 @@ from discord.ext import commands
 
 from base import BasePlugin
 from botutils import utils, converters
-from conf import Config, Lang
+from data import Config, Lang
 from subsystems import help, timers
 from subsystems.ignoring import UserBlockedCommand
 from subsystems.presence import PresencePriority

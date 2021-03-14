@@ -7,7 +7,7 @@ from discord.ext import commands
 from discord.errors import HTTPException
 
 from base import BasePlugin, NotFound
-from conf import Storage, Lang
+from data import Storage, Lang
 from subsystems import help
 from botutils import permchecks
 from botutils.utils import sort_commands_helper, add_reaction

@@ -19,7 +19,7 @@ import injections
 import subsystems
 from base import BasePlugin, NotLoadable, ConfigurableType, PluginNotFound
 from botutils import utils, permchecks, converters, stringutils
-from conf import Config, Lang, Storage, ConfigurableData
+from data import Config, Lang, Storage, ConfigurableData
 from subsystems import timers, reactions, ignoring, dmlisteners, help, presence, liveticker
 
 

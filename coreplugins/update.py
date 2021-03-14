@@ -13,7 +13,7 @@ from base import BasePlugin, ConfigurableType, NotFound
 from botutils import restclient, utils, permchecks
 from botutils.stringutils import paginate
 from botutils.utils import sort_commands_helper, add_reaction
-from conf import Config, Lang
+from data import Config, Lang
 from subsystems import help
 
 # Assumed version numbering system:

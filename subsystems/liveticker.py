@@ -4,7 +4,7 @@ import logging
 from base import BaseSubsystem
 from botutils import restclient
 from botutils.converters import get_plugin_by_name
-from conf import Storage
+from data import Storage
 from subsystems import timers
 from subsystems.timers import Job
 

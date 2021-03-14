@@ -5,7 +5,7 @@ from discord.ext import commands
 
 from base import BaseSubsystem, NotFound, BasePlugin, ConfigurableType
 from botutils.utils import add_reaction
-from conf import Lang
+from data import Lang
 from botutils.stringutils import paginate
 
 

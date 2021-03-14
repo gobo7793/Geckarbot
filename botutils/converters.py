@@ -4,7 +4,7 @@ from typing import Optional, Union
 import discord
 from discord.ext import commands
 
-from conf import Config
+from data import Config
 
 _id_regex = re.compile(r'([0-9]{15,21})$')
 

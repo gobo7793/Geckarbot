@@ -11,7 +11,7 @@ from botutils.permchecks import is_botadmin
 from botutils.stringutils import paginate
 from botutils.converters import get_best_username as gbu
 from botutils.utils import add_reaction
-from conf import Storage, Config, Lang
+from data import Storage, Config, Lang
 from subsystems import help
 
 

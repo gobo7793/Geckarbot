@@ -10,7 +10,7 @@ from subsystems.reactions import ReactionRemovedEvent
 from subsystems import timers
 from botutils import statemachine
 from botutils.stringutils import format_andlist
-from conf import Storage, Lang
+from data import Storage, Lang
 
 from plugins.quiz.abc import BaseQuizController
 from plugins.quiz.base import Score, InvalidAnswer, Difficulty
