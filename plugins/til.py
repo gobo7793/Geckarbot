@@ -64,7 +64,7 @@ class Plugin(BasePlugin, name="TIL"):
                 await ctx.send(Lang.lang(self, "invalid_id"))
                 return
 
-            del (Storage.get(self)[fact_id])
+            del Storage.get(self)[fact_id]
             Storage.save(self)
             await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
