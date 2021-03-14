@@ -4,7 +4,7 @@ from enum import Enum
 from typing import Tuple
 
 from botutils.sheetsclient import Cell, CellRange
-from conf import Storage
+from data import Storage
 
 
 class LeagueNotFound(Exception):

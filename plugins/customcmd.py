@@ -7,7 +7,7 @@ import discord
 from discord.ext import commands
 
 from base import BasePlugin, NotFound
-from conf import Storage, Lang, Config
+from data import Storage, Lang, Config
 from botutils import utils, converters, permchecks
 from botutils.stringutils import paginate
 from subsystems.ignoring import UserBlockedCommand

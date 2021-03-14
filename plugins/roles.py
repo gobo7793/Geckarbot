@@ -8,7 +8,7 @@ from discord.ext import commands
 from base import BasePlugin, NotFound
 from botutils import utils, permchecks, converters, stringutils
 from botutils.utils import add_reaction
-from conf import Storage, Config, Lang
+from data import Storage, Config, Lang
 from subsystems import reactions, help
 
 
