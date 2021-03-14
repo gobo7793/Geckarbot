@@ -3,14 +3,13 @@ import random
 import logging
 import string
 from datetime import datetime, timezone, timedelta
-from decimal import Decimal
 
 import discord
 from discord.ext import commands
 
 import botutils.timeutils
 from botutils import restclient, utils
-from conf import Storage, Lang, Config
+from data import Storage, Lang, Config
 
 from base import BasePlugin, NotFound
 from subsystems import timers, help

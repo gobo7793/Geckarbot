@@ -5,7 +5,7 @@ import datetime
 import random
 import inspect
 
-from conf import Config
+from data import Config
 from botutils.converters import get_embed_str
 from botutils.timeutils import to_local_time
 from botutils.stringutils import paginate

@@ -3,7 +3,7 @@ import discord
 from botutils.converters import get_best_username
 from botutils.permchecks import check_mod_access
 from botutils.utils import add_reaction
-from conf import Storage, Config, Lang
+from data import Storage, Config, Lang
 from plugins.spaetzle.utils import get_user_cell, get_user_league, UserNotFound
 
 

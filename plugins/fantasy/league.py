@@ -13,7 +13,7 @@ from botutils.converters import get_best_user
 from botutils.jsonutils import Decoder
 from botutils.restclient import Client
 from botutils.timeutils import from_epoch_ms
-from conf import Storage, Config, Lang
+from data import Storage, Config, Lang
 from plugins.fantasy.utils import Activity, TeamStanding, Team, Player, Match, Platform
 
 

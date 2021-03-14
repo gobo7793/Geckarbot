@@ -8,7 +8,7 @@ from datetime import datetime
 from discord.ext.commands import DisabledCommand
 
 from base import BaseSubsystem
-from conf import Storage, Lang
+from data import Storage, Lang
 from botutils import utils
 from botutils.converters import get_best_username, get_best_user
 from subsystems import timers

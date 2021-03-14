@@ -12,7 +12,7 @@ import discord
 from discord.ext import commands
 
 from base import BasePlugin, NotLoadable, NotFound
-from conf import Config, Lang, Storage
+from data import Config, Lang, Storage
 from botutils.converters import get_best_username as gbu, get_best_user
 from botutils.timeutils import hr_roughly
 from botutils.stringutils import paginate
