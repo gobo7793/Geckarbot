@@ -731,12 +731,12 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                 embed.add_field(name=Lang.lang(self, 'title_league', i + 1), value=msg)
         await ctx.send(embed=embed)
 
-    @spaetzle.command(name="matches", aliases=["spiele"])
+    @spaetzle.command(name="matches", aliases=["spiele"], hidden=True)
     async def show_matches(self, ctx):
         async with ctx.typing():
             c = self.get_api_client()
             data = c.get("Aktuell!{}".format(Config().get(self)['matches_range']), formatted=False)
-            matchday = data[0][0]
+            matchday = data[0][0] if len(data) > 0 and len(data[0]) > 0 else "?"
             matches = data[2:]
 
             if len(matches) == 0:
