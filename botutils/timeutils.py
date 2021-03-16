@@ -57,12 +57,11 @@ def parse_time_input(*args, end_of_day=False):
 
         if arg.endswith("m"):
             return datetime.now() + timedelta(minutes=float(arg[:-1]))
-        elif arg.endswith("h"):
+        if arg.endswith("h"):
             return datetime.now() + timedelta(hours=float(arg[:-1]))
-        elif arg.endswith("d"):
+        if arg.endswith("d"):
             return datetime.now() + timedelta(days=float(arg[:-1]))
-        else:
-            return datetime.now() + timedelta(minutes=float(arg))
+        return datetime.now() + timedelta(minutes=float(arg))
     except ValueError:
         # the other possible formats
         for dt_format in ["%d.%m.%Y", "%d.%m.%Y%H:%M", "%d.%m.", "%d.%m.%H:%M", "%H:%M"]:
