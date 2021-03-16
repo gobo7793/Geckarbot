@@ -41,12 +41,6 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
     def get_configurable_type(self):
         return ConfigurableType.COREPLUGIN
 
-    def command_help_string(self, command):
-        return Lang.lang(self, "help_{}".format(command.qualified_name.replace(" ", "_")))
-
-    def command_description(self, command):
-        return Lang.lang(self, "desc_{}".format(command.qualified_name.replace(" ", "_")))
-
     """
     Misc commands
     """
@@ -313,7 +307,7 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
         await write_list(IgnoreType.Active_Usage, Lang.lang(self, 'list_active'))
         await write_list(IgnoreType.Passive_Usage, Lang.lang(self, 'list_passive'))
 
-    @cmd_commands.group(name="enable", invoke_without_command=True, aliases=["unignore", "unblock"],
+    @commands.group(name="enable", invoke_without_command=True, aliases=["unignore", "unblock"],
                     usage="[full command name]")
     async def cmd_enable(self, ctx, *, command=None):
         final_msg = None

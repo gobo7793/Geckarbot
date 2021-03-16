@@ -8,7 +8,7 @@ from discord.ext import commands
 from discord.ext.commands import TextChannelConverter, ChannelNotFound, RoleConverter, RoleNotFound
 
 import botutils.timeutils
-from base import BasePlugin, NotFound
+from base import BasePlugin
 from botutils import stringutils, permchecks
 from botutils.converters import get_best_username, get_best_user
 from botutils.permchecks import WrongChannel
@@ -19,7 +19,6 @@ from plugins.fantasy.league import FantasyLeague, deserialize_league, create_lea
 from plugins.fantasy.utils import pos_alphabet, FantasyState, Platform, Match
 from subsystems import timers
 from subsystems.help import DefaultCategories
-
 
 log = logging.getLogger(__name__)
 
@@ -95,27 +94,6 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
     async def shutdown(self):
         self._stop_score_timer()
         self.leagues.clear()
-
-    def command_help_string(self, command):
-        langstr = Lang.lang_no_failsafe(self, "help_{}".format(command.qualified_name.replace(" ", "_")))
-        if langstr is not None:
-            return langstr
-        else:
-            raise NotFound()
-
-    def command_description(self, command):
-        langstr = Lang.lang_no_failsafe(self, "help_desc_{}".format(command.qualified_name.replace(" ", "_")))
-        if langstr is not None:
-            return langstr
-        else:
-            raise NotFound()
-
-    def command_usage(self, command):
-        langstr = Lang.lang_no_failsafe(self, "help_usage_{}".format(command.qualified_name.replace(" ", "_")))
-        if langstr is not None:
-            return langstr
-        else:
-            raise NotFound()
 
     @property
     def year(self):

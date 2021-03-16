@@ -151,15 +151,13 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
         langstr = Lang.lang_no_failsafe(self, "help_{}".format(command.name))
         if langstr is not None:
             return langstr
-        else:
-            raise NotFound()
+        raise NotFound()
 
     def command_description(self, command):
         langstr = Lang.lang_no_failsafe(self, "desc_{}".format(command.name))
         if langstr is not None:
             return langstr
-        else:
-            raise NotFound()
+        raise NotFound()
 
     def sort_commands(self, ctx, cmd, subcommands):
         # category help

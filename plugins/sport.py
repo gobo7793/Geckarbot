@@ -33,16 +33,12 @@ class Plugin(BasePlugin, name="Sport"):
     def default_storage(self):
         return []
 
-    def command_help_string(self, command):
-        return Lang.lang(self, "help_{}".format("_".join(command.qualified_name.split())))
-
     def command_description(self, command):
         name = "_".join(command.qualified_name.split())
         lang_name = "description_{}".format(name)
         result = Lang.lang(self, lang_name)
-        if result != lang_name:
-            if name == "fußball":
-                result = Lang.lang(self, lang_name, ", ".join(Config().get(self)['leagues'].keys()))
+        if result != lang_name and name == "fußball":
+            result = Lang.lang(self, lang_name, ", ".join(Config().get(self)['leagues'].keys()))
         else:
             result = Lang.lang(self, "help_{}".format(name))
         return result

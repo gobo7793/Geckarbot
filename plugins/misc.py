@@ -52,26 +52,7 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
     def command_help_string(self, command):
         if command.name == keysmash_cmd_name:
             return _create_keysmash()
-
-        langstr = Lang.lang_no_failsafe(self, "help_{}".format(command.qualified_name.replace(" ", "_")))
-        if langstr is not None:
-            return langstr
-        else:
-            raise NotFound()
-
-    def command_description(self, command):
-        langstr = Lang.lang_no_failsafe(self, "help_desc_{}".format(command.qualified_name.replace(" ", "_")))
-        if langstr is not None:
-            return langstr
-        else:
-            raise NotFound()
-
-    def command_usage(self, command):
-        langstr = Lang.lang_no_failsafe(self, "help_usage_{}".format(command.qualified_name.replace(" ", "_")))
-        if langstr is not None:
-            return langstr
-        else:
-            raise NotFound()
+        return super().command_help_string(command)
 
     def get_new_reminder_id(self):
         """

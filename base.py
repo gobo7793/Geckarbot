@@ -14,6 +14,7 @@ class PluginClassNotFound(Exception):
     """
     Raised when there is no Plugin class.
     """
+
     def __init__(self, members):
         super().__init__("Plugin class not found.")
         self.members = members
@@ -88,6 +89,7 @@ class Configurable:
 
 class BaseSubsystem(Configurable):
     """The base class for all subsystems"""
+
     def __init__(self, bot):
         super().__init__(bot)
 
@@ -100,6 +102,7 @@ class BaseSubsystem(Configurable):
 
 class BasePlugin(Cog, Configurable):
     """The base class for all plugins"""
+
     def __init__(self, bot):
         Cog.__init__(self)
         Configurable.__init__(self, bot)
@@ -138,6 +141,10 @@ class BasePlugin(Cog, Configurable):
         :param command: Command that the help string is requested for.
         :return: Help string
         """
+        import data
+        langstr = data.Lang.lang_no_failsafe(self, "help_{}".format(command.qualified_name.replace(" ", "_")))
+        if langstr is not None:
+            return langstr
         raise NotFound()
 
     def command_description(self, command):
@@ -147,6 +154,10 @@ class BasePlugin(Cog, Configurable):
         :param command: Command that a description is requested for.
         :return: Description string
         """
+        import data
+        langstr = data.Lang.lang_no_failsafe(self, "desc_{}".format(command.qualified_name.replace(" ", "_")))
+        if langstr is not None:
+            return langstr
         raise NotFound()
 
     def command_usage(self, command):
@@ -156,6 +167,10 @@ class BasePlugin(Cog, Configurable):
         :param command: Command that a usage string is requested for.
         :return: Usage string
         """
+        import data
+        langstr = data.Lang.lang_no_failsafe(self, "usage_{}".format(command.qualified_name.replace(" ", "_")))
+        if langstr is not None:
+            return langstr
         raise NotFound()
 
     def sort_commands(self, ctx, command, subcommands):

@@ -103,9 +103,6 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
         elif container == 'forumposts':
             return []
 
-    def command_help_string(self, command):
-        return Lang.lang(self, "help_{}".format("_".join(command.qualified_name.split())))
-
     def command_description(self, command):
         name = "_".join(command.qualified_name.split())
         lang_name = "description_{}".format(name)

@@ -113,24 +113,6 @@ class Plugin(BasePlugin, name="Feedback"):
                 "version": 1,
             }
 
-    def command_help_string(self, command):
-        langstr = Lang.lang_no_failsafe(self, "help_{}".format(command.qualified_name.replace(" ", "_")))
-        if langstr is None:
-            raise NotFound()
-        return langstr
-
-    def command_description(self, command):
-        langstr = Lang.lang_no_failsafe(self, "desc_{}".format(command.qualified_name.replace(" ", "_")))
-        if langstr is None:
-            raise NotFound()
-        return langstr
-
-    def command_usage(self, command):
-        langstr = Lang.lang_no_failsafe(self, "usage_{}".format(command.qualified_name.replace(" ", "_")))
-        if langstr is None:
-            raise NotFound()
-        return langstr
-
     def reset_highest_id(self):
         self.highest_id = 0
         for el in self.complaints:

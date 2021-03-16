@@ -46,12 +46,12 @@
     "help_confirm": "Bestätigt ein !update",
     "help_update": "Update-Check und Update",
 
-    "description_news": "Zeigt die Release Notes zu einer ggf. übergebenen Version. Falls keine Version übergeben wurde, wird die momentane Version des Bots angenommen. Unterstützt \"latest\" als Versionsangabe für die aktuellste Version.",
-    "description_version": "Zeigt die aktuelle Version des Bots.",
-    "description_restart": "Startet den Bot neu. Nur für Botmaster.",
-    "description_shutdown": "Fährt den Bot herunter. Nur für Botmaster.",
-    "description_confirm": "Bestätigt ein Update-Kommando.",
-    "description_update": "Überprüft, ob auf GitHub eine neue Geckarbot-Version vorliegt. Falls das Kommando von einem Botmaster ausgeführt wurde, wird ein Update durchgeführt. Ohne Argumente wird auf die neueste Version upgedatet, mit Angabe der Version auf ebendiese. Erfordert eine nachfolgende Bestätigung via !replace.",
+    "desc_news": "Zeigt die Release Notes zu einer ggf. übergebenen Version. Falls keine Version übergeben wurde, wird die momentane Version des Bots angenommen. Unterstützt \"latest\" als Versionsangabe für die aktuellste Version.",
+    "desc_version": "Zeigt die aktuelle Version des Bots.",
+    "desc_restart": "Startet den Bot neu. Nur für Botmaster.",
+    "desc_shutdown": "Fährt den Bot herunter. Nur für Botmaster.",
+    "desc_confirm": "Bestätigt ein Update-Kommando.",
+    "desc_update": "Überprüft, ob auf GitHub eine neue Geckarbot-Version vorliegt. Falls das Kommando von einem Botmaster ausgeführt wurde, wird ein Update durchgeführt. Ohne Argumente wird auf die neueste Version upgedatet, mit Angabe der Version auf ebendiese. Erfordert eine nachfolgende Bestätigung via !replace.",
 
     "usage_news": "[<Version>]",
     "usage_version": "",

@@ -254,15 +254,7 @@ class Plugin(BasePlugin, name="LastFM"):
 
     def command_description(self, command):
         msg = Lang.lang(self, "desc_{}".format(command.name))
-        if command.name == "werbinich":
-            msg += Lang.lang(self, "options_werbinich")
         return msg
-
-    def command_usage(self, command):
-        if command.name == "werbinich":
-            return Lang.lang(self, "usage_{}".format(command.name))
-        else:
-            raise NotFound()
 
     def sort_commands(self, ctx, command, subcommands):
         if command is None:

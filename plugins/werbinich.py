@@ -155,8 +155,7 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
     def command_usage(self, command):
         if command.name == "werbinich":
             return Lang.lang(self, "usage_{}".format(command.name))
-        else:
-            raise NotFound()
+        raise NotFound()
 
     @commands.group(name="werbinich", invoke_without_command=True,
                     help=h_help, description=h_description, usage=h_usage)

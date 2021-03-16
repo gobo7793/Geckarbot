@@ -2,13 +2,13 @@
   "en": {
     "#0": "Help",
     "help_help": "Help message",
-    "description_help": "Lists all help categories or shows a help message about a command, a subcommand or a category.",
+    "desc_help": "Lists all help categories or shows a help message about a command, a subcommand or a category.",
     "usage_help": "[category | command | subcommand]",
     "help_usage": "Shows only the usage information of a command",
-    "description_usage": "Short help message about a command that only contains the usage information (argument structure).",
+    "desc_usage": "Short help message about a command that only contains the usage information (argument structure).",
     "usage_usage": "<command>",
     "help_helpall": "Lists all commands.",
-    "description_helpall": "Lists all commands in alphabetical order.",
+    "desc_helpall": "Lists all commands in alphabetical order.",
     "self_category_name": "Help",
 
     "help_categories_prefix": "!help <category> for help on a category.\n\nCategories:",
@@ -31,13 +31,13 @@
   "de": {
     "#0": "Help",
     "help_help": "Zu Hülfe!",
-    "description_help": "Listet alle Hilfe-Kategorien auf oder gibt eine Hilfe-Nachricht zu einem Kommando, einem Unterkommando oder einer Kategorie aus.",
+    "desc_help": "Listet alle Hilfe-Kategorien auf oder gibt eine Hilfe-Nachricht zu einem Kommando, einem Unterkommando oder einer Kategorie aus.",
     "usage_help": "[Kategorie | Kommando | Unterkommando]",
     "help_usage": "Kurzer Benutzungshinweis",
-    "description_usage": "Abgekürzte Hilfe-Nachricht zu einem Kommando, die nur die Benutzungsinformation (Information zur Argumentstruktur) enthält.",
+    "desc_usage": "Abgekürzte Hilfe-Nachricht zu einem Kommando, die nur die Benutzungsinformation (Information zur Argumentstruktur) enthält.",
     "usage_usage": "<Kommando>",
     "help_helpall": "Listet alle Kommandos auf",
-    "description_helpall": "Listet alle bekannten Kommandos in alphabetischer Reihenfolge auf.",
+    "desc_helpall": "Listet alle bekannten Kommandos in alphabetischer Reihenfolge auf.",
     "usage_helpall": "[debug]",
     "self_category_name": "Hilfe",
 

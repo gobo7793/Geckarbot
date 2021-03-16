@@ -263,19 +263,6 @@ class Plugin(BasePlugin, name="Bot updating system"):
             if cmd.name in to_add:
                 self.bot.helpsys.default_category(help.DefaultCategories.USER).add_command(cmd)
 
-    def command_help_string(self, command):
-        return Lang.lang(self, "help_{}".format(command.name))
-
-    def command_description(self, command):
-        return Lang.lang(self, "description_{}".format(command.name))
-
-    def command_usage(self, command):
-        r = Lang.lang_no_failsafe(self, "usage_{}".format(command.name))
-        if r:
-            return r
-        else:
-            raise NotFound()
-
     def sort_commands(self, ctx, command, subcommands):
         order = [
             "version",
