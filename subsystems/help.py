@@ -98,6 +98,7 @@ class HelpCategory:
     def add_plugin(self, plugin):
         """
         Adds a plugin to this HelpCategory.
+        
         :param plugin: BasePlugin instance to be added to the category
         """
         self.plugins.append(plugin)
@@ -154,7 +155,8 @@ class HelpCategory:
         r = []
         cmds = self.sort_commands(ctx, self.command_list())
         for command in cmds:
-            r.append("  {}".format(self.bot.helpsys.format_command_help_line(command.cog, command)))
+            if not command.hidden:
+                r.append("  {}".format(self.bot.helpsys.format_command_help_line(command.cog, command)))
         return r
 
     async def send_category_help(self, ctx):
@@ -477,8 +479,7 @@ class GeckiHelp(BaseSubsystem):
                 else:
                     middle.append(line)
 
-            lines = first + middle + last
-            for msg in paginate(lines,
+            for msg in paginate(first + middle + last,
                                 prefix=Lang.lang(self, "help_categories_prefix") + "\n",
                                 msg_prefix="```",
                                 msg_suffix="```"):
