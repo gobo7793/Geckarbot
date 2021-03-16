@@ -16,19 +16,6 @@ verbose = False
 version = "1.3"
 
 
-"""
-Changelog:
-1.3:
-    added URL params
-1.2:
-    changed url to remove trailing /
-1.1:
-    added parse_json flag to make_request
-1.0:
-    added basic auth
-"""
-
-
 def log(s):
     if verbose:
         print(s)
@@ -40,7 +27,7 @@ class AuthError(Exception):
 
 def maskprint(d, prefix=""):
     """
-    Prints the dictionary d but replaces any "password" values with ***
+    Prints the dictionary d but replaces any `"password"` values with `***`
     """
     found = []
     candidates = ["password", "pw", "Password", "passwort", "Passwort"]

@@ -64,7 +64,6 @@ class Configurable:
         """
         Override this to return the plugin's lang code. Raise NotFound, return None or return bot.LANGUAGE_CODE
         to use the same language as the rest of the bot.
-        :return:
         """
         raise NotFound()
 
@@ -126,6 +125,7 @@ class BasePlugin(Cog, Configurable):
     async def command_help(self, ctx, command):
         """
         Used to override the behavior of !help <command>. Raise NotFound to give control back to the help command.
+
         :param ctx: Context
         :param command: Command or Group instance
         """
@@ -134,6 +134,7 @@ class BasePlugin(Cog, Configurable):
     def command_help_string(self, command):
         """
         Override to return a help string that is determined at runtime. Overwrites command.help.
+
         :param command: Command that the help string is requested for.
         :return: Help string
         """
@@ -142,6 +143,7 @@ class BasePlugin(Cog, Configurable):
     def command_description(self, command):
         """
         Override to return a description that is determined at runtime. Supersedes command.description.
+
         :param command: Command that a description is requested for.
         :return: Description string
         """
@@ -150,6 +152,7 @@ class BasePlugin(Cog, Configurable):
     def command_usage(self, command):
         """
         Override to return a usage string that is determined at runtime. Supersedes command.usage.
+
         :param command: Command that a usage string is requested for.
         :return: Usage string
         """
@@ -158,6 +161,7 @@ class BasePlugin(Cog, Configurable):
     def sort_commands(self, ctx, command, subcommands):
         """
         Override to sort the subcommands of `command` yourself.
+
         :param ctx: Context
         :param command: Command whose subcommands are to be sorted
         :param subcommands: List of commands to be sorted

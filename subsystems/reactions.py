@@ -101,6 +101,7 @@ class ReactionListener(BaseSubsystem):
     def register(self, message, coro, data=None):
         """
         Registers a reaction event listener.
+
         :param message: Message that is observed
         :param coro: Callback coroutine that is called as await coro(event).
         :param data: Obaque object that will be part of the event object as event.data.

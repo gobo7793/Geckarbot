@@ -114,6 +114,7 @@ class HelpCategory:
     def remove_plugin(self, plugin):
         """
         Removes a plugin from this HelpCategory.
+
         :param plugin: BasePlugin instance to be added to the category
         """
         if plugin in self.plugins:
@@ -128,6 +129,7 @@ class HelpCategory:
     def add_command(self, command):
         """
         Adds a standalone command to this HelpCategory.
+
         :param command: Command that is to be added to the category
         """
         self.standalone_commands.append(command)
@@ -135,6 +137,7 @@ class HelpCategory:
     def remove_command(self, command):
         """
         Removes a standalone command from this HelpCategory.
+
         :param command: Command that is to be removed from the category
         """
         while command in self.standalone_commands:
@@ -173,6 +176,7 @@ class HelpCategory:
     async def send_category_help(self, ctx):
         """
         Sends a help message for this category.
+
         :param ctx: Context that the help message is to be sent to.
         """
         msg = self.format_commands(ctx)
@@ -256,6 +260,7 @@ class GeckiHelp(BaseSubsystem):
         """
         Registers a category with Help. If a DefaultCategory is parsed, nothing is registered,
         but the corresponding registered HelpCategory is returned.
+
         :param category: HelpCategory instance or DefaultCategory instance
         :return: The registered HelpCategory
         """
@@ -274,6 +279,7 @@ class GeckiHelp(BaseSubsystem):
     def deregister_category(self, category):
         """
         Deregisters a help category. If a DefaultCategory is parsed, nothing is deregistered.
+
         :param category: HelpCategory instance or DefaultCategory instance
         """
         if isinstance(category, DefaultCategories):
@@ -299,9 +305,10 @@ class GeckiHelp(BaseSubsystem):
     def find_command(self, args):
         """
         Finds the command that is resembled by `args`.
+
         :return: `(plugin, command)`.
-        `plugin` is the plugin where the found command `command` is registered in.
-        If nothing is found, returns None, None.
+            `plugin` is the plugin where the found command `command` is registered in.
+            If nothing is found, returns `(None, None)`.
         """
         plugins = [self.cog] + [el for el in self.bot.plugin_objects(plugins_only=True)]
 
@@ -362,6 +369,7 @@ class GeckiHelp(BaseSubsystem):
     def append_command_leaves(self, cmds, cmd):
         """
         Recursive helper function for `flattened_plugin_help()`.
+
         :param cmds: list to append the leaves to
         :param cmd: Command or Group
         """
@@ -377,6 +385,7 @@ class GeckiHelp(BaseSubsystem):
         """
         In the tree structure of existing commands and groups in a plugin, returns a list of all
         formatted leaf command help lines.
+
         :param plugin: Plugin to create a flattened command help for
         :return: Msg list to be consumed by utils.paginate()
         """
@@ -443,6 +452,7 @@ class GeckiHelp(BaseSubsystem):
     async def cmd_help(self, ctx, plugin, cmd):
         """
         Sends a help message for a command.
+
         :param ctx: Context to send the help message to
         :param plugin: Plugin that contains the command
         :param cmd: Command the help message concerns
@@ -475,6 +485,7 @@ class GeckiHelp(BaseSubsystem):
     async def helpcmd(self, ctx, *args):
         """
         Handles any help command.
+
         :param ctx: Context
         :param args: Arguments that the help command was called with
         """
@@ -533,6 +544,7 @@ class GeckiHelp(BaseSubsystem):
     async def usagecmd(self, ctx, *args):
         """
         Handles any usage command.
+
         :param ctx: Context
         :param args: Arguments that the usage command was called with
         """
@@ -547,6 +559,7 @@ class GeckiHelp(BaseSubsystem):
     async def listcmd(self, ctx, *args):
         """
         Handles any helpall command.
+
         :param ctx: Context
         """
         debug = False

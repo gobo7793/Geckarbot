@@ -76,6 +76,7 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
     def get_new_reminder_id(self):
         """
         Acquires a new reminder id
+
         :return: free id that can be used for a new timer
         """
         highest = 0
@@ -281,6 +282,7 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
                            reminder_id: int, text, is_restart: bool = False):
         """
         Registers a reminder
+
         :param channel_id: The id of the channel in which the reminder was set
         :param user_id: The id of the user who sets the reminder
         :param remind_time: The remind time
@@ -325,6 +327,7 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
     def _remove_reminder(self, reminder_id):
         """
         Removes the reminder if in config
+
         :param reminder_id: the reminder ID
         """
         if reminder_id in self.reminders:

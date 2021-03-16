@@ -52,15 +52,16 @@ class DMListener(BaseSubsystem):
     def register(self, user, coro, name, kill_coro=None, data=None, blocking=False):
         """
         Registers a listener on a direct message (DM) channel.
+
         :param user: User whose DM channel is observed.
         :param coro: Callback coroutine that is called as `await coro(registration, message)` with
-        `registration` a Registration object, message a discord.Message object.
+            `registration` a Registration object, message a discord.Message object.
         :param name: String that identifies the source of the registration (e.g. command name).
         :param kill_coro: Coroutine that is called when this registration is killed. Use this to avoid memory leaks.
-        Not passing this triggers a warning.
+            Not passing this triggers a warning.
         :param data: Obaque object that will be part of the registration object.
         :param blocking: If this is set to True, sole access on the DM channel is claimed. No other listener will
-        be able to be registered for this user's DM channel until this one is deregistered.
+            be able to be registered for this user's DM channel until this one is deregistered.
         :return: Registration object that can be used to deregister the listener.
         :raises: RuntimeError if there already is a blocking listener for `user`.
         :raises: KeyError if a blocking listener is to be registered but there already is a regular listener for `user`.
@@ -87,6 +88,7 @@ class DMListener(BaseSubsystem):
     def deregister(self, registration):
         """
         Removes a listener registration. Does nothing if the registration was not found.
+
         :param registration: Registration object that is to be unregistered
         """
         for key in self.registrations:

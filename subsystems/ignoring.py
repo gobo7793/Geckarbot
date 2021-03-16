@@ -195,7 +195,8 @@ class IgnoreDataset:
             User user_name will be ignored [for command command_name] until.../forever.
         Format for Command IgnoreType:
             Command command_name is disabled in channel channel_name until.../forever.
-        For other IgnoreTypes the raw message will be returned.
+
+        For other IgnoreTypes, the raw message will be returned.
 
         :return: The well formatted message
         """
