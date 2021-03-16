@@ -17,4 +17,3 @@ def post_injections(bot):
     # pylint: disable=unused-argument
     # as far as nothing is here
     # discord.ext.commands.help.DefaultHelpCommand.command_not_found = bot.helpsys.command_not_found
-    pass
