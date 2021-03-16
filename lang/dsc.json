@@ -1,5 +1,5 @@
 {
-    "en": {
+    "en_US": {
         "status_base": "Important message from the Songmasters: {}",
         "status_none": "Have fun and love Treecko, Mudkip and Oshawott!",
         "must_set_host": "You must set DSC host.",
@@ -56,7 +56,7 @@
         "desc_dsc_set_config": "Gets or sets general config values for the dsc plugin.\n\nIf neither key or value is given, the current config will returned.\nIf only the key is given, the value for the key will returned.\nIf key and value is given, the given key will be set to the given value.\n\nTo set the dsc channel, use the key 'channel_id' and give the channel as value.\nTo set the mod role, use the key 'mod_role_id' and give the role as value.",
         "usage_dsc_set_config": "[key] [value]"
         },
-    "de": {
+    "de_DE": {
         "status_base": "Eine wichtige Nachricht der Songmaster: {}",
         "status_none": "Habt Spaß und ♥ für Geckarbor, Hydropi und Ottaro!",
         "must_set_host": "Der Ausrichter muss gesetzt werden.",

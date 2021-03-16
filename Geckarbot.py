@@ -45,7 +45,7 @@ class Geckarbot(commands.Bot):
     CONFIG_DIR = "config"
     STORAGE_DIR = "storage"
     LANG_DIR = "lang"
-    DEFAULT_LANG = "en"
+    DEFAULT_LANG = "en_US"
     RESOURCE_DIR = "resource"
 
     """
@@ -129,7 +129,7 @@ class Geckarbot(commands.Bot):
         """
         Sets the localization settings to the LANGUAGE_CODE configuration
         """
-        locale.setlocale(locale.LC_ALL, self.LANGUAGE_CODE)
+        locale.setlocale(locale.LC_ALL, self.LANGUAGE_CODE + ".utf-8")
         logging.info(f"Localization set to '{locale.getlocale(locale.LC_ALL)}'")
 
     @property

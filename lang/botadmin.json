@@ -1,5 +1,5 @@
 {
-  "en": {
+  "en_US": {
     "#0": "Help",
 
     "#1": "dm reg",
@@ -9,7 +9,7 @@
     "dm_result_prefix": "DM registrations for user **{}**:",
     "dm_base_format": "**#{}**: Registered by `{}`; blocking: {}"
   },
-  "de": {
+  "de_DE": {
     "#0": "Help",
 
     "#1": "dm reg",
