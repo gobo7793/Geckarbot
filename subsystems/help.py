@@ -4,7 +4,7 @@ import logging
 from discord.ext import commands
 
 from base import BaseSubsystem, NotFound, BasePlugin, ConfigurableType
-from botutils.utils import add_reaction
+from botutils.utils import add_reaction, get_plugin_by_cmd
 from data import Lang
 from botutils.stringutils import paginate
 
@@ -78,6 +78,13 @@ class HelpCategory:
     def __str__(self):
         return "<help.HelpCategory; name: {}, order: {}>".format(self.name, self.order)
 
+    def __len__(self):
+        r = 0
+        for el in self.command_list():
+            if not el.hidden:
+                r += 1
+        return r
+
     @property
     def name(self):
         return self._name
@@ -113,7 +120,10 @@ class HelpCategory:
             self.plugins.remove(plugin)
 
         if self.is_empty() and not self.default:
-            self.bot.helpsys.deregister_category(self)
+            try:
+                self.bot.helpsys.deregister_category(self)
+            except CategoryNotFound:
+                pass
 
     def add_command(self, command):
         """
@@ -134,10 +144,10 @@ class HelpCategory:
         """
         :return: One-line string that represents this HelpCategory.
         """
+        r = self.name
         if self.description:
-            return "{} - {}".format(self.name, self.description)
-        else:
-            return self.name
+            r = "{} - {}".format(r, self.description)
+        return "{} ({})".format(r, len(self))
 
     def command_list(self):
         r = []
@@ -410,6 +420,20 @@ class GeckiHelp(BaseSubsystem):
         r = Lang.lang(self, "help_aliases", aliases) + "\n"
         return r
 
+    def format_usage(self, cmd, plugin=None):
+        if plugin is None:
+            plugin = get_plugin_by_cmd(cmd)
+
+        parent = self.bot.command_prefix + cmd.qualified_name
+        try:
+            usage = plugin.command_usage(cmd)
+        except NotFound:
+            if cmd.usage is None or not cmd.usage.strip():
+                usage = cmd.signature
+            else:
+                usage = cmd.usage
+        return "{} {}".format(parent, usage)
+
     """
     Output methods
     """
@@ -428,18 +452,9 @@ class GeckiHelp(BaseSubsystem):
             return
         except NotFound:
             pass
-        msg = []
 
         # Usage
-        parent = self.bot.command_prefix + cmd.qualified_name
-        try:
-            usage = plugin.command_usage(cmd) + "\n"
-        except NotFound:
-            if cmd.usage is None or not cmd.usage.strip():
-                usage = cmd.signature + "\n"
-            else:
-                usage = cmd.usage + "\n"
-        msg.append("{} {}".format(parent, usage))
+        msg = [self.format_usage(cmd, plugin=plugin) + "\n"]
 
         # Aliases
         if len(cmd.aliases) > 0:
@@ -527,11 +542,7 @@ class GeckiHelp(BaseSubsystem):
             await self.error(ctx, "cmd_not_found")
             return
 
-        parent = self.bot.command_prefix + cmd.qualified_name
-        usage = cmd.usage
-        if usage is None or not usage.strip():
-            usage = cmd.signature
-        await ctx.send("```{} {}```".format(parent, usage))
+        await ctx.send("```{}```".format(self.format_usage(cmd, plugin=plugin)))
 
     async def listcmd(self, ctx, *args):
         """

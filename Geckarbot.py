@@ -17,7 +17,7 @@ from discord.ext import commands
 
 import injections
 import subsystems
-from base import BasePlugin, NotLoadable, ConfigurableType, PluginNotFound
+from base import BasePlugin, NotLoadable, ConfigurableType, PluginClassNotFound
 from botutils import utils, permchecks, converters, stringutils
 from data import Config, Lang, Storage, ConfigurableData
 from subsystems import timers, reactions, ignoring, dmlisteners, help, presence, liveticker
@@ -83,7 +83,7 @@ class Geckarbot(commands.Bot):
         Config().bot = self
         Storage().bot = self
         self.load_config()
-        self._set_locale()
+        # self._set_locale()
 
         self.add_check(self.command_disabled)
 
@@ -258,7 +258,7 @@ class Geckarbot(commands.Bot):
                 found = True
                 obj(self)
         if not found:
-            raise PluginNotFound(members)
+            raise PluginClassNotFound(members)
 
     def load_plugin(self, plugin_dir, plugin_name):
         """Loads the given plugin_name in plugin_dir, returns True if plugin loaded successfully"""
@@ -273,7 +273,7 @@ class Geckarbot(commands.Bot):
             try:
                 self.import_plugin(to_import)
                 found = True
-            except PluginNotFound:
+            except PluginClassNotFound:
                 pass
             if not found:
                 to_import = "{}.{}.{}".format(plugin_dir, plugin_name, plugin_name)
@@ -284,7 +284,7 @@ class Geckarbot(commands.Bot):
             if plugin_instance is not None:
                 self.deregister(plugin_instance)
             return False
-        except PluginNotFound as e:
+        except PluginClassNotFound as e:
             logging.error("Unable to load plugin '{}': Plugin class not found".format(plugin_name))
             logging.debug("Members: {}".format(pprint.pformat(e.members)))
         except Exception as e:

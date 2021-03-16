@@ -10,7 +10,7 @@ class NotLoadable(Exception):
     pass
 
 
-class PluginNotFound(Exception):
+class PluginClassNotFound(Exception):
     """
     Raised when there is no Plugin class.
     """
