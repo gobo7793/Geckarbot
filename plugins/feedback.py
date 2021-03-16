@@ -47,6 +47,7 @@ class Complaint:
     def deserialize(cls, plugin, cid, d):
         """
         Constructs a Complaint object from a dict.
+
         :param plugin: Plugin reference
         :param cid: Complaint id
         :param d: dict made by serialize()
@@ -140,6 +141,7 @@ class Plugin(BasePlugin, name="Feedback"):
     def get_new_id(self, increment=True):
         """
         Acquires a new complaint id
+
         :return: free unique id that can be used for a new complaint
         """
         if increment:
@@ -312,6 +314,7 @@ class Plugin(BasePlugin, name="Feedback"):
     async def category_move(self, ctx, complaint_ids: list, category):
         """
         Moves complaints to a category.
+
         :param ctx: Context
         :param complaint_ids: List of IDs of (existing!) complaints to be moved
         :param category: New category; category will be removed from complaints if this is None
@@ -339,6 +342,7 @@ class Plugin(BasePlugin, name="Feedback"):
     async def category_show(self, ctx, category):
         """
         Shows the content of a category.
+
         :param ctx: Context
         :param category: Category that is to be shown
         """
@@ -361,6 +365,7 @@ class Plugin(BasePlugin, name="Feedback"):
     async def category_list(self, ctx):
         """
         Lists all categories.
+
         :param ctx: Context
         """
         cats = []

@@ -47,6 +47,7 @@ class Participant:
     def assign(self, p):
         """
         Assigns a participant. Can only be called once.
+
         :param p: Participant this one has to choose for
         """
         if self.assigned is not None:
@@ -57,7 +58,6 @@ class Participant:
     async def kill_cb(self):
         """
         The DM registration has been killed, so we're killing the whole game.
-        :return:
         """
         await self.plugin.kill(self)
 

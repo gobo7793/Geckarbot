@@ -17,8 +17,8 @@ class StateMachine:
         :param init_state: Initial state
         :param verbose: switch for verbosity
         :param cleanup: Cleanup callback function that is called when an exception occurs; signature:
-        f(e) with e being the exception. Can be coro, function or coroutine function. Is not called when
-        IllegalTransition is raised (fix your stuff instead :)).
+            `f(e)` with e being the exception. Can be coro, function or coroutine function. Is not called when
+            `IllegalTransition` is raised (fix your stuff instead :)).
         """
         self.msg = "statemachine " + str(id(self)) + ": "
         self.verbose = verbose
@@ -104,18 +104,19 @@ class StateMachine:
     def add_state(self, state, coro, allowed_sources=None, start=False, end=False):
         """
         Adds a state.
+
         :param state: Any object. Used as an identifier of the state that is set. If a state was already registered
-        before, a warning is logged.
+            before, a warning is logged.
         :param coro: Coroutine that is called. Can be None if nothing should happen when reaching this state.
-        A coroutine is expected to return the next state that the state machine is going to be in or None if the
-        statemachine is going to be ended.
+            A coroutine is expected to return the next state that the state machine is going to be in or None if the
+            statemachine is going to be ended.
         :param allowed_sources: List of states that are allowed to lead to this one (represent automaton edges).
-        Raises RuntimeError if this is violated. If None, sources are ignored.
+            Raises RuntimeError if this is violated. If None, sources are ignored.
         :param start: If True, this is registered as the state that the statemachine first transitions to.
-        If no start state is registered, the statemachine cannot start. There can only be one start state.
+            If no start state is registered, the statemachine cannot start. There can only be one start state.
         :param end: If True, this is registered as an end state. If at least one end state is registered and the
-        statemachine ends on a non-end state, IllegalTransition is raised. If no end state is registered, this
-        check is omitted.
+            statemachine ends on a non-end state, IllegalTransition is raised. If no end state is registered, this
+            check is omitted.
         """
         if start:
             self.start = state
@@ -136,7 +137,8 @@ class StateMachine:
         """
         Sets a cleanup coroutine that is called when an exception happens during state coro execution.
         After calling the cleanup coroutine, the exception will be raised further.
+
         :param coro: Awaitable coroutine with the signature `coro(exception)` with `exception` being the exception
-        that cause the cleanup coro execution.
+            that cause the cleanup coro execution.
         """
         self.cleanup = coro

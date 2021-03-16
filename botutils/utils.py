@@ -5,6 +5,7 @@ import datetime
 import random
 import inspect
 
+from base import NotFound
 from data import Config
 from botutils.converters import get_embed_str
 from botutils.timeutils import to_local_time
@@ -258,3 +259,11 @@ async def execute_anything(f, *args, **kwargs):
         return await f
     else:
         return f(*args, **kwargs)
+
+
+def get_plugin_by_cmd(cmd):
+    for plugin in Config().bot.plugins:
+        for el in plugin.get_commands():
+            if el == cmd:
+                return plugin
+    raise NotFound

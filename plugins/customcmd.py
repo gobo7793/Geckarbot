@@ -11,7 +11,7 @@ from data import Storage, Lang, Config
 from botutils import utils, converters, permchecks
 from botutils.stringutils import paginate
 from subsystems.ignoring import UserBlockedCommand
-from subsystems.help import HelpCategory
+from subsystems.help import DefaultCategories
 
 wildcard_user = "%u"
 wildcard_umention = "%um"
@@ -162,35 +162,12 @@ class Cmd:
         return ""
 
 
-class CustomCMDHelpCategory(HelpCategory):
-    def __init__(self, bot, plugin):
-        self.plugin = plugin
-        super().__init__(bot, "CustomCMD")
-
-    async def send_category_help(self, ctx):
-        # Command / category help
-        msg = [
-            Lang.lang(self.plugin, "help_cmd") + "\n",
-            Lang.lang(self.plugin, "help_cmd_list_prefix")
-        ]
-        msg += self.plugin.bot.helpsys.flattened_plugin_help(self.plugin)
-
-        # Custom command list
-        msg.append("\n" + Lang.lang(self.plugin, "desc_cmd") + "\n")
-        msg.append(Lang.lang(self.plugin, "help_custom_cmd_list_prefix"))
-        msg += self.plugin._format_cmd_list(incl_prefix=True)
-
-        for msg in paginate(msg, msg_prefix="```", msg_suffix="```"):
-            await ctx.send(msg)
-
-
 class Plugin(BasePlugin, name="Custom CMDs"):
     """Provides custom cmds"""
 
     def __init__(self, bot):
         super().__init__(bot)
-        self.help_category = CustomCMDHelpCategory(bot, self)
-        bot.register(self, self.help_category)
+        bot.register(self, DefaultCategories.USER)
 
         self.prefix = Config.get(self)['prefix']
         self.commands = {}
@@ -241,7 +218,20 @@ class Plugin(BasePlugin, name="Custom CMDs"):
     async def command_help(self, ctx, command):
         if not command.name == "cmd":
             raise NotFound
-        await self.help_category.send_category_help(ctx)
+
+        # Command / category help
+        msg = [
+            self.bot.helpsys.format_usage(command, plugin=self) + "\n",
+            Lang.lang(self, "desc_cmd") + "\n",
+        ]
+        msg += self.bot.helpsys.format_subcmds(ctx, self, command)
+
+        # Custom command list
+        msg.append("\n" + Lang.lang(self, "help_custom_cmd_list_prefix"))
+        msg += self._format_cmd_list(incl_prefix=True)
+
+        for msg in paginate(msg, msg_prefix="```", msg_suffix="```"):
+            await ctx.send(msg)
 
     def command_help_string(self, command):
         langstr = Lang.lang_no_failsafe(self, "help_{}".format(command.name.replace(" ", "_")))
@@ -307,7 +297,7 @@ class Plugin(BasePlugin, name="Custom CMDs"):
         logging.info("Update Custom CMD config from version 2 to version 3")
 
         for cmd in Storage.get(self).values():
-            cmd['authors'] = [0 for i in range(0, len(cmd['texts']))]
+            cmd['authors'] = [0 for _ in range(0, len(cmd['texts']))]
 
         Config.get(self)['cfgversion'] = 3
         Storage.save(self)
@@ -541,7 +531,7 @@ class Plugin(BasePlugin, name="Custom CMDs"):
 
         # TODO Process multiple output texts
         cmd_texts = [message]
-        text_authors = [ctx.author.id for i in range(0, len(cmd_texts))]
+        text_authors = [ctx.author.id for _ in range(0, len(cmd_texts))]
 
         # Process special discord /cmd
         for i in range(0, len(cmd_texts)):

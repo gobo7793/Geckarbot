@@ -18,6 +18,7 @@
     "help_no_desc": "This command does not have a description. You are on your own.",
 
     "default_category_misc": "Misc",
+    "default_category_user": "User",
     "default_category_admin": "Admin",
     "default_category_mod": "Mod",
     "default_category_games": "Games",
@@ -47,6 +48,7 @@
     "help_no_desc": "Dieses Kommando hat keine Beschreibung. Du bist auf dich allein gestellt. Viel Glück.",
 
     "default_category_misc": "Sonstiges",
+    "default_category_user": "Botuser",
     "default_category_admin": "Botadmin",
     "default_category_mod": "Mod",
     "default_category_games": "Spiele",
