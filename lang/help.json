@@ -1,5 +1,5 @@
 {
-  "en": {
+  "en_US": {
     "#0": "Help",
     "help_help": "Help message",
     "description_help": "Lists all help categories or shows a help message about a command, a subcommand or a category.",
@@ -28,7 +28,7 @@
     "cmd_not_found": "Command not found.",
     "cmd_cat_not_found": "Command or category not found."
   },
-  "de": {
+  "de_DE": {
     "#0": "Help",
     "help_help": "Zu Hülfe!",
     "description_help": "Listet alle Hilfe-Kategorien auf oder gibt eine Hilfe-Nachricht zu einem Kommando, einem Unterkommando oder einer Kategorie aus.",

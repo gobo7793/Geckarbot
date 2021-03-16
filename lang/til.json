@@ -1,5 +1,5 @@
 {
-    "en": {
+    "en_US": {
         "must_manager": "I won't let you do this until you're TIL manager.",
         "new_manager": "Oh my god, you're my new TIL manager now :scream:",
         "no_facts": "I'm a dumb Treecko and don't know any interest facts :frowning:",
@@ -12,7 +12,7 @@
         "help_info": "Show how many facts I have\nI tell you all in a DM, if you're TIL manager, admin or botmaster",
         "help_manager": "Set the fact manager"
     },
-    "de": {
+    "de_DE": {
         "must_manager": "Ich werd dich das erst machen lassen, wenn du TIL-Manager bist.",
         "new_manager": "Oh mein Gott, du bist jetzt mein neuer TIL-Manager :scream:",
         "no_facts": "Ich bin ein dummes Geckarbor und kenne keine interessanten Fakten :frowning:",

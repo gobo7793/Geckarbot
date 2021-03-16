@@ -1,5 +1,5 @@
 {
-    "en": {
+    "en_US": {
         "#0": "help",
         "help_kicker": "Returns frequently used links to kicker.de",
         "help_tippspiel": "Gives the link to the Tippspiel-Sheet",
@@ -46,7 +46,7 @@
         "tippspiel_output": "Hier ist der Link für die Stände (bitte auf den Spieltag achten!) sowie das Tippspiel-Archiv: https://docs.google.com/spreadsheets/d/1mSDrTqdcOSOuvR9Y9hMzuEx1X9puaUVuqs7yp6Ju6_M/ "
     },
 
-    "de": {
+    "de_DE": {
         "#0": "help",
         "help_kicker": "Übersicht mit häufig genutzten Links zu kicker.de",
         "help_tippspiel": "Link zum Tippspiel-Sheet",

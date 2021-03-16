@@ -1,5 +1,5 @@
 {
-    "en": {
+    "en_US": {
         "raw_doesnt_exist": "A command \"{}\" doesn't exists, but you can create it!",
         "del_doesnt_exist": "Command \"{}\" can't be deleted, because it doesn't exists...",
         "add_exists": "A command \"{}\" already exists, adding new output text.",
@@ -49,7 +49,7 @@
         "usage_del": "<cmd name> [text #]",
         "desc_del": "Deletes a custom command or one of its output texts. If the last output text was deleted, the whole command will be removed.\n\nIf an output text ID is given, only the text will be removed, otherwise the whole command. The IDs and creator can be get via '!cmd info <command>'.\n\nThe original command author and mods can delete the whole command and all texts, the output text authors only it's own texts."
     },
-    "de": {
+    "de_DE": {
         "add_exists": "Neuer Ausgabetext wird zum Benutzer-Kommando \"{}\" hinzugefügt.",
         "list_no_cmds": "Ich kenne keine Benutzer-Kommandos :frowning:",
         "cmd_added": "Benutzer-Kommando `{}` hinzugefügt: {}",

@@ -1,5 +1,5 @@
 {
-    "en": {
+    "en_US": {
         "help_spaetzle": "Commands for show or set many things related to the 'Spaetzle-Tippspiel'.",
         "help_spaetzle_danny": "Command for sending Danny predictions from some special people.",
         "help_spaetzle_duel": "Shows a single duel",
@@ -86,7 +86,7 @@
         "table_footer": "Yes this is live, gobo7793!",
         "error_wrong_matchday?": "Something went wrong, is the matchday correct?"
     },
-    "de": {
+    "de_DE": {
         "help_spaetzle": "Commands für das Zeigen und Verwalten des Spätzle(s)-Tippspiels",
         "help_spaetzle_danny": "Schickt Danny Bundesliga-Tipps in die DMs",
         "description_spaetzle_danny": "Schickt dem in der Config unter 'danny_id' angegebenen User (i.d.R. Danny) die aktuellen Tipps der in der Config unter 'danny_users' eingetragenen Spätzle-Teilnehmer. Die Auswahl kann alternativ auch durch die Angabe der gewünschten Teilnehmer (Spätzle-Namen) vorgenommen werden. Danny bzw der in der Config stehende User erhält die Tipps über private Nachrichten.\n\n\uD83D\uDD12 Dieses Kommando kann nur vom Spätzle-Manager bzw. Danny in Auftrag gegeben werden!",

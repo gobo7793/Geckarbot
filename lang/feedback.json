@@ -1,5 +1,5 @@
 {
-    "en": {
+    "en_US": {
         "too_many_args": "Too many arguments.",
         "redact_no_complaints": "No complaints.",
         "redact_del_args": "Unexpected argument structure; expected !redact del #",
@@ -48,7 +48,7 @@
         "desc_bugscore": "Shows the current bug score.\n\nFor Admins:\n  !bugscore <user> [increment] - Increases the users score\n  !bugscore del <user>         - Removes the user from the high score"
     },
 
-    "de": {
+    "de_DE": {
         "bugscore_title": "**Bug Score:**",
         "bugscore_args": "Zu viele Argumente.",
         "bugscore_user_not_found": "User nicht gefunden: {}",
