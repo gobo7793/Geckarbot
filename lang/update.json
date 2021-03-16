@@ -1,5 +1,5 @@
 {
-  "en": {
+  "en_US": {
     "version": "I am Geckarbot {}.",
     "no_new_version": "There is no new version. I seem to be up to date!",
     "version_not_found": "Version {} could not be found.",
@@ -19,7 +19,7 @@
     "err_different_user": "Sorry, someone else already requested an update.",
     "err_no_news_for_version": "Sorry, I couldn't find any news for version {}."
   },
-  "de": {
+  "de_DE": {
     "version": "Ich bin Geckarbot {}.",
     "no_new_version": "Es gibt keine neue Version, ich scheine aktuell zu sein!",
     "version_not_found": "Version {} nicht gefunden.",

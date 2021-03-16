@@ -1,5 +1,5 @@
 {
-    "en": {
+    "en_US": {
         "init_reaction": "Reaction: {}",
         "init_modrole": "Mod role: {}",
         "init_admin": "Only via Admins.",
@@ -46,7 +46,7 @@
         "help_msg": "Returns the jumplink to the init message",
         "help_desc_msg": "Returns the jumplink to the role management init message"
     },
-    "de": {
+    "de_DE": {
         "init_reaction": "{}",
         "init_modrole": "Modrolle: {}",
         "init_admin": "Nur via Admins.",

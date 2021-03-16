@@ -1,5 +1,5 @@
 {
-    "en": {
+    "en_US": {
         "#0": "Single lang strings",
         "geck_out": "arbor!",
         "mud_out": "kip!",
@@ -57,7 +57,7 @@
         "help_money": "Exchanges money!",
         "help_usage_money": "<currency> [other_currency] [amount]"
     },
-    "de": {
+    "de_DE": {
         "#1": "Stuff",
         "geck_error": "Beim Kommando `!geck` lief was schief. Gibt es die Datei {}?",
         "choose_sabaton": "NOCH EIN BIER! NOCH EIN BIER! Also Sabaton geht ja immer, aber...",

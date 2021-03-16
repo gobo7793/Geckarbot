@@ -1,5 +1,5 @@
 {
-    "en": {
+    "en_US": {
         "#0": "help textes",
         "help_about": "Print the credits",
         "help_disable": "Disable commands",
@@ -96,7 +96,7 @@
         "active_not_blocked": "{} can use command `{}` already.",
         "cant_block_yourself": "If you block yourself you can't unblock yourself. Why do you actually have mod rights for me at all if you don't want to use me?!"
     },
-    "de": {
+    "de_DE": {
         "#0": "help textes",
         "help_about": "Zeigt die Credits an",
         "help_disable": "Deaktiviert Kommandos",
