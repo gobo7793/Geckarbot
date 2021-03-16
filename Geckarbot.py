@@ -83,7 +83,7 @@ class Geckarbot(commands.Bot):
         Config().bot = self
         Storage().bot = self
         self.load_config()
-        # self._set_locale()
+        self._set_locale()
 
         self.add_check(self.command_disabled)
 
