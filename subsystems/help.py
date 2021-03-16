@@ -4,7 +4,7 @@ import logging
 from discord.ext import commands
 
 from base import BaseSubsystem, NotFound, BasePlugin, ConfigurableType
-from botutils.utils import add_reaction
+from botutils.utils import add_reaction, get_plugin_by_cmd
 from data import Lang
 from botutils.stringutils import paginate
 
@@ -22,8 +22,9 @@ class DefaultCategories(Enum):
     GAMES = 1
     SPORT = 2
     MISC = 3
-    MOD = 4
-    ADMIN = 5
+    USER = 4
+    MOD = 5
+    ADMIN = 6
 
 
 class CategoryOrder(Enum):
@@ -77,6 +78,13 @@ class HelpCategory:
     def __str__(self):
         return "<help.HelpCategory; name: {}, order: {}>".format(self.name, self.order)
 
+    def __len__(self):
+        r = 0
+        for el in self.command_list():
+            if not el.hidden:
+                r += 1
+        return r
+
     @property
     def name(self):
         return self._name
@@ -98,7 +106,7 @@ class HelpCategory:
     def add_plugin(self, plugin):
         """
         Adds a plugin to this HelpCategory.
-
+        
         :param plugin: BasePlugin instance to be added to the category
         """
         self.plugins.append(plugin)
@@ -113,7 +121,10 @@ class HelpCategory:
             self.plugins.remove(plugin)
 
         if self.is_empty() and not self.default:
-            self.bot.helpsys.deregister_category(self)
+            try:
+                self.bot.helpsys.deregister_category(self)
+            except CategoryNotFound:
+                pass
 
     def add_command(self, command):
         """
@@ -136,10 +147,10 @@ class HelpCategory:
         """
         :return: One-line string that represents this HelpCategory.
         """
+        r = self.name
         if self.description:
-            return "{} - {}".format(self.name, self.description)
-        else:
-            return self.name
+            r = "{} - {}".format(r, self.description)
+        return "{} ({})".format(r, len(self))
 
     def command_list(self):
         r = []
@@ -158,7 +169,8 @@ class HelpCategory:
         r = []
         cmds = self.sort_commands(ctx, self.command_list())
         for command in cmds:
-            r.append("  {}".format(self.bot.helpsys.format_command_help_line(command.cog, command)))
+            if not command.hidden:
+                r.append("  {}".format(self.bot.helpsys.format_command_help_line(command.cog, command)))
         return r
 
     async def send_category_help(self, ctx):
@@ -189,6 +201,8 @@ class GeckiHelp(BaseSubsystem):
             DefaultCategories.SPORT: HelpCategory(bot, Lang.lang(self, "default_category_sport"),
                                                   defaultcat=True),
             DefaultCategories.MISC: HelpCategory(bot, Lang.lang(self, "default_category_misc"),
+                                                 order=CategoryOrder.LAST, defaultcat=True),
+            DefaultCategories.USER: HelpCategory(bot, Lang.lang(self, "default_category_user"),
                                                  order=CategoryOrder.LAST, defaultcat=True),
             DefaultCategories.MOD: HelpCategory(bot, Lang.lang(self, "default_category_mod"),
                                                 order=CategoryOrder.LAST, defaultcat=True),
@@ -415,6 +429,20 @@ class GeckiHelp(BaseSubsystem):
         r = Lang.lang(self, "help_aliases", aliases) + "\n"
         return r
 
+    def format_usage(self, cmd, plugin=None):
+        if plugin is None:
+            plugin = get_plugin_by_cmd(cmd)
+
+        parent = self.bot.command_prefix + cmd.qualified_name
+        try:
+            usage = plugin.command_usage(cmd)
+        except NotFound:
+            if cmd.usage is None or not cmd.usage.strip():
+                usage = cmd.signature
+            else:
+                usage = cmd.usage
+        return "{} {}".format(parent, usage)
+
     """
     Output methods
     """
@@ -434,18 +462,9 @@ class GeckiHelp(BaseSubsystem):
             return
         except NotFound:
             pass
-        msg = []
 
         # Usage
-        parent = self.bot.command_prefix + cmd.qualified_name
-        try:
-            usage = plugin.command_usage(cmd) + "\n"
-        except NotFound:
-            if cmd.usage is None or not cmd.usage.strip():
-                usage = cmd.signature + "\n"
-            else:
-                usage = cmd.usage + "\n"
-        msg.append("{} {}".format(parent, usage))
+        msg = [self.format_usage(cmd, plugin=plugin) + "\n"]
 
         # Aliases
         if len(cmd.aliases) > 0:
@@ -489,8 +508,7 @@ class GeckiHelp(BaseSubsystem):
                 else:
                     middle.append(line)
 
-            lines = first + middle + last
-            for msg in paginate(lines,
+            for msg in paginate(first + middle + last,
                                 prefix=Lang.lang(self, "help_categories_prefix") + "\n",
                                 msg_prefix="```",
                                 msg_suffix="```"):
@@ -536,11 +554,7 @@ class GeckiHelp(BaseSubsystem):
             await self.error(ctx, "cmd_not_found")
             return
 
-        parent = self.bot.command_prefix + cmd.qualified_name
-        usage = cmd.usage
-        if usage is None or not usage.strip():
-            usage = cmd.signature
-        await ctx.send("```{} {}```".format(parent, usage))
+        await ctx.send("```{}```".format(self.format_usage(cmd, plugin=plugin)))
 
     async def listcmd(self, ctx, *args):
         """
