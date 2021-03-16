@@ -15,6 +15,7 @@ from subsystems import reactions, help
 async def add_user_role(member: discord.Member, role: discord.Role):
     """
     Adds a role to a server member
+
     :param member: the member
     :param role: the role to add
     :return: No exception in case of success
@@ -25,6 +26,7 @@ async def add_user_role(member: discord.Member, role: discord.Role):
 async def remove_user_role(member: discord.Member, role: discord.Role):
     """
     Removes a role from a server member
+
     :param member: the member
     :param role: the role to remove
     :return: No exception in case of success
@@ -35,6 +37,7 @@ async def remove_user_role(member: discord.Member, role: discord.Role):
 async def add_server_role(guild: discord.Guild, name, color: discord.Color = None, mentionable=True):
     """
     Creates a roll on the server
+
     :param guild: the server guild
     :param name: the role name
     :param color: the color for the role, if None Color.default()
@@ -49,6 +52,7 @@ async def add_server_role(guild: discord.Guild, name, color: discord.Color = Non
 async def remove_server_role(role: discord.Role):
     """
     Deletes a role on the server
+
     :param role: the role to delete
     :return: No exception in case of success
     """
@@ -130,6 +134,7 @@ class Plugin(BasePlugin, name="Role Management"):
         """
         Returns the message text for the role manage init message
         including the reactions and mod roles for the roles
+
         :param server_roles: the roles on the server
         :param ctx: The context of the used command to create the new message
         """
@@ -227,6 +232,7 @@ class Plugin(BasePlugin, name="Role Management"):
     async def update_reaction_based_user_role(self, event):
         """
         Updates the user roles based on the reaction events.
+
         :param event: The BaseReactionEvent data
         """
 

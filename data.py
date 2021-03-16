@@ -24,6 +24,7 @@ class ConfigurableData:
     def __init__(self, iodir, configurable):
         """
         Handles the data of a specific IODirectory-Configurable-combination.
+
         :param iodir: IODirectory
         :param configurable: Configurable
         """
@@ -45,6 +46,7 @@ class ConfigurableData:
     def _mkdir(self):
         """
         Creates the data directory if it does not exist.
+
         :raises: RuntimeError if the directory exists but is not a directory.
         """
         directory = self._filebase()
@@ -136,6 +138,7 @@ class IODirectory(metaclass=_Singleton):
     def directory(self):
         """
         To be overwritten.
+
         :return: Directory name that this class administers.
         """
         raise NotImplementedError
@@ -144,6 +147,7 @@ class IODirectory(metaclass=_Singleton):
     def get_default(cls, plugin, container=None):
         """
         To be overwritten.
+
         :param plugin: Plugin object whose default structure is to be retrieved
         :param container: Data container name
         :return: Default structure
@@ -174,6 +178,7 @@ class IODirectory(metaclass=_Singleton):
     def get(cls, plugin, container=None):
         """
         Returns the config of the given plugin.
+
         :param plugin: Plugin object
         :param container: Container name
         """
@@ -223,35 +228,35 @@ class Config(IODirectory):
 
     @property
     def ADMIN_CHAN_ID(self):
-        return self.bot.ADMIN_CHAN_ID
+        return self.bot.ADMIN_CHAN_ID if self.bot else None
 
     @property
     def DEBUG_CHAN_ID(self):
-        return self.bot.DEBUG_CHAN_ID
+        return self.bot.DEBUG_CHAN_ID if self.bot else None
 
     @property
     def MOD_CHAN_ID(self):
-        return self.bot.MOD_CHAN_ID
+        return self.bot.MOD_CHAN_ID if self.bot else None
 
     @property
     def BOT_ADMIN_ROLE_ID(self):
-        return self.bot.BOT_ADMIN_ROLE_ID
+        return self.bot.BOT_ADMIN_ROLE_ID if self.bot else None
 
     @property
     def SERVER_ADMIN_ROLE_ID(self):
-        return self.bot.SERVER_ADMIN_ROLE_ID
+        return self.bot.SERVER_ADMIN_ROLE_ID if self.bot else None
 
     @property
     def MOD_ROLE_ID(self):
-        return self.bot.MOD_ROLE_ID
+        return self.bot.MOD_ROLE_ID if self.bot else None
 
     @property
     def ADMIN_ROLES(self):
-        return self.bot.ADMIN_ROLES
+        return self.bot.ADMIN_ROLES if self.bot else []
 
     @property
     def MOD_ROLES(self):
-        return self.bot.MOD_ROLES
+        return self.bot.MOD_ROLES if self.bot else []
 
     @property
     def directory(self):
@@ -399,13 +404,13 @@ class Lang(metaclass=_Singleton):
     def lang_no_failsafe(cls, configurable, str_name, *args):
         """
         Returns the given string from configurable's lang file.
-        If language sett in Config().LANGUAGE_CODE is not supported, 'en' will be used.
+        If language set in `Config().LANGUAGE_CODE` is not supported, `'en'` will be used.
         If nothing is found, returns None.
 
         :param configurable: The Configurable instance
         :param str_name: The name of the returning string.
         :param args: The strings to insert into the returning string via format()
-        :return The most applicable lang string for the given configurable and str_name. None if nothing is found.
+        :return: The most applicable lang string for the given configurable and str_name. None if nothing is found.
         """
         lang = cls().read_from_cache(configurable)
         lang_code = None
@@ -427,14 +432,14 @@ class Lang(metaclass=_Singleton):
     def lang(cls, configurable, str_name, *args) -> str:
         """
         Returns the given string from configurable's lang file.
-        If language sett in Config().LANGUAGE_CODE is not supported, 'en' will be used.
+        If language set in `Config().LANGUAGE_CODE` is not supported, `'en'` will be used.
         If str_name or the configured language code cannot be found, str_name will be returned.
 
         :param configurable: The Configurable instance
         :param str_name: The name of the returning string.
             If not available for current language, an empty string will be returned.
         :param args: The strings to insert into the returning string via format()
-        :return The most applicable lang string for the given configurable and str_name. None if nothing is found.
+        :return: The most applicable lang string for the given configurable and str_name. None if nothing is found.
         """
         if len(args) == 0:
             args = [""]  # ugly lol

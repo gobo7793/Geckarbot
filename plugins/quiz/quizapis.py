@@ -119,7 +119,7 @@ class OpenTDBQuizAPI(BaseQuizAPI):
     async def size(cls, **kwargs):
         """
         :return: Returns how many questions there are in the database under the given constraints. Returns None
-        if the constraints are not supported (e.g. unknown category).
+            if the constraints are not supported (e.g. unknown category).
         """
         difficulty = kwargs["difficulty"] if "difficulty" in kwargs else Difficulty.ANY
         cat = kwargs["category"] if "category" in kwargs else None
@@ -168,7 +168,7 @@ class OpenTDBQuizAPI(BaseQuizAPI):
         """
         :param catarg: Argument that was passed that identifies a category
         :return: Opaque category identifier that can be used in initialization and for category_name.
-        Returns None if catarg is an unknown category.
+            Returns None if catarg is an unknown category.
         """
         if catarg is None:
             catarg = opentdb["default_cat"]
@@ -295,6 +295,7 @@ class MetaQuizAPI(BaseQuizAPI):
                  debug=False):
         """
         Pulls from all implemented quiz APIs.
+
         :param config: config dict
         :param channel: channel ID that this quiz was requested in
         :param category: Question topic / category. If None, it is chosen according to channel default mapping.
@@ -356,6 +357,7 @@ class MetaQuizAPI(BaseQuizAPI):
     def parse_category(self, cat):
         """
         Takes all available info to determine the correct category.
+
         :param cat: Category that was given by User. None if none was given.
         """
         if cat is not None:
@@ -378,7 +380,7 @@ class MetaQuizAPI(BaseQuizAPI):
         """
         :param catarg: Argument that was passed that identifies a
         :return: Opaque category identifier that can be used in initialization and for category_name.
-        Returns None if catarg is an unknown category.
+            Returns None if catarg is an unknown category.
         """
         r = {}
         for api in MetaQuizAPI.apis:

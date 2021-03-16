@@ -224,7 +224,6 @@ class PointsQuizController(BaseQuizController):
     async def eval(self):
         """
         Is called when the question is over. Evaluates scores and cancels the timer.
-        :return:
         """
         self.plugin.logger.debug("Ending question")
 
@@ -336,6 +335,7 @@ class PointsQuizController(BaseQuizController):
     def continue_event(self, event):
         """
         Gracefully continues after waiting for question answers
+
         :param event: Eval event that is to be set
         """
         if event == self.eval_event:
@@ -455,6 +455,7 @@ class PointsQuizController(BaseQuizController):
     async def register_command(self, msg, *args):
         """
         This is the callback for !kwiss register.
+
         :param msg: Message object
         :param args: Passed arguments, including "register"
         """

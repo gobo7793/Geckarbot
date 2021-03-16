@@ -99,6 +99,7 @@ def points(score: Tuple[int, int], pred: Tuple[int, int]):
     else:
         return 0
 
+
 def duel_points(pts, opp_pts):
     try:
         pts = int(pts)
@@ -109,6 +110,7 @@ def duel_points(pts, opp_pts):
     except (ValueError, TypeError):
         opp_pts = 0
     return 3 * (pts > opp_pts) + (pts == opp_pts)
+
 
 def pointdiff_possible(score: Tuple[int, int], pred1, pred2):
     """
@@ -154,6 +156,7 @@ def pointdiff_possible(score: Tuple[int, int], pred1, pred2):
 def determine_winner(points_h: str, points_a: str, diff_h: int, diff_a: int):
     """
     Determines the winner of a duel
+
     :param points_h: current points of user 1
     :param points_a: current points of user 2
     :param diff_h: maximum points user 1 can catch up
@@ -178,6 +181,7 @@ def determine_winner(points_h: str, points_a: str, diff_h: int, diff_a: int):
     else:
         return MatchResult.NONE
 
+
 def convert_to_datetime(day, time):
     if type(day) == int:
         day_ = datetime(1899, 12, 30) + timedelta(days=day)
@@ -198,6 +202,7 @@ def convert_to_datetime(day, time):
             time_ = datetime.now()
     return datetime.combine(day_.date(), time_.time())
 
+
 def match_status(day, time=None):
     """
     Checks the status of a match (Solely time-based)
@@ -205,7 +210,7 @@ def match_status(day, time=None):
     :param day: datetime or day of kick-off
     :param time: time of kick-off
     :return: CLOSED for finished matches, RUNNING for currently active matches (2 hours after kickoff) and UPCOMING
-    for matches not started. UNKNOWN if unable to read the date or time
+        for matches not started. UNKNOWN if unable to read the date or time
     """
     if type(day) == datetime:
         match_datetime = day
@@ -285,6 +290,7 @@ def get_schedule_opponent(plugin, participant, matchday: int):
     else:
         return None
 
+
 def get_participant_history(plugin, participant):
     c = plugin.get_api_client()
     cell = get_user_cell(plugin, participant)
@@ -298,6 +304,7 @@ def get_participant_history(plugin, participant):
         opp = v[1][1]
         data.append((title, pts, pts_opp, opp))
     return data
+
 
 class UserNotFound(Exception):
     def __init__(self, user):
