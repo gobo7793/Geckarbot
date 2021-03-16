@@ -1,16 +1,16 @@
 from typing import Union
 
-import discord
 import datetime
 import random
 import inspect
+import logging
+import discord
 
 from base import NotFound
 from data import Config
 from botutils.converters import get_embed_str
 from botutils.timeutils import to_local_time
 from botutils.stringutils import paginate
-import logging
 
 chan_logger = logging.getLogger(__name__)
 
@@ -59,7 +59,7 @@ async def _write_to_channel(channel_id: int = 0, message: Union[str, discord.Emb
     :param channel_type: The channel type or name for the logging output
     """
     log_msg = get_embed_str(message)
-    chan_logger.info(f"{channel_type} : {log_msg}")
+    chan_logger.info(f"%s : %s", channel_type, log_msg)
 
     channel = Config().bot.get_channel(channel_id)
     if not Config().bot.DEBUG_MODE and channel is not None and message is not None and message:
@@ -247,21 +247,24 @@ async def execute_anything(f, *args, **kwargs):
     if inspect.iscoroutinefunction(f):
         f = f(*args, **kwargs)
     if inspect.iscoroutine(f):
-        """
-        loop = asyncio.get_event_loop()
-        task = loop.create_task(f)
-        loop.run_until_complete(task)
-        e = task.exception()
-        if e is not None:
-            raise e
-        return task.result()
-        """
+        # loop = asyncio.get_event_loop()
+        # task = loop.create_task(f)
+        # loop.run_until_complete(task)
+        # e = task.exception()
+        # if e is not None:
+        #     raise e
+        # return task.result()
         return await f
-    else:
-        return f(*args, **kwargs)
+    return f(*args, **kwargs)
 
 
 def get_plugin_by_cmd(cmd):
+    """
+    Returns the plugin object which contains the given command
+
+    :param cmd: The command object
+    :return: The plugin which contains the command
+    """
     for plugin in Config().bot.plugins:
         for el in plugin.get_commands():
             if el == cmd:

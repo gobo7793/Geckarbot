@@ -5,7 +5,7 @@ import discord
 import emoji
 from discord.ext import commands
 
-from base import BasePlugin, NotFound
+from base import BasePlugin
 from botutils import utils, permchecks, converters, stringutils
 from botutils.utils import add_reaction
 from data import Storage, Config, Lang
@@ -106,8 +106,7 @@ class Plugin(BasePlugin, name="Role Management"):
         if self.has_init_msg_set:
             channel = self.bot.get_channel(Storage.get(self)['message']['channel_id'])
             return await channel.fetch_message(Storage.get(self)['message']['message_id'])
-        else:
-            return None
+        return None
 
     async def create_message_text(self, server_roles, ctx):
         """
@@ -162,7 +161,7 @@ class Plugin(BasePlugin, name="Role Management"):
         removed_roles = deepcopy(self.rc())
         for role_in_config in self.rc():
             if role_in_config in server_role_ids:
-                del (removed_roles[role_in_config])
+                del removed_roles[role_in_config]
                 # remove emojis and mod roles that aren't on server anymore
                 if self.rc()[role_in_config]['modrole'] not in server_role_ids:
                     self.rc()[role_in_config]['modrole'] = 0
@@ -175,7 +174,7 @@ class Plugin(BasePlugin, name="Role Management"):
                         self.rc()[role_in_config]['emoji'] = ""
 
         for role_to_remove in removed_roles:
-            del (self.rc()[role_to_remove])
+            del self.rc()[role_to_remove]
 
         # update message
         message_text = await self.create_message_text(current_server_roles, ctx)
@@ -331,7 +330,7 @@ class Plugin(BasePlugin, name="Role Management"):
     @cmd_role.command(name="untrack")
     @commands.has_any_role(*Config().MOD_ROLES)
     async def cmd_role_untrack(self, ctx, role: discord.Role):
-        del (self.rc()[role.id])
+        del self.rc()[role.id]
         await self.update_role_management(ctx)
         await ctx.send(Lang.lang(self, 'role_untrack', role.name))
         await utils.log_to_mod_channel(ctx)

@@ -2,6 +2,10 @@ from typing import List
 from enum import Enum
 from discord.ext.commands import Cog
 
+# pylint: disable=import-outside-toplevel
+# pylint: disable=no-self-use
+# pylint: disable=unused-argument
+
 
 class NotLoadable(Exception):
     """
@@ -29,8 +33,8 @@ class NotFound(Exception):
 
 class ConfigurableType(Enum):
     """The Type of a Configurable"""
-    SUBSYSTEM = 0,
-    COREPLUGIN = 1,
+    SUBSYSTEM = 0
+    COREPLUGIN = 1
     PLUGIN = 2
 
 
@@ -84,7 +88,7 @@ class Configurable:
         """
         Returns the ConfigurableType of self
         """
-        raise NotImplemented
+        raise NotImplementedError
 
 
 class BaseSubsystem(Configurable):
@@ -109,7 +113,7 @@ class BasePlugin(Cog, Configurable):
         self.resource_dir = None
 
         ptype = self.get_configurable_type()
-        if ptype == ConfigurableType.PLUGIN or ptype == ConfigurableType.COREPLUGIN:
+        if ptype in (ConfigurableType.PLUGIN, ConfigurableType.COREPLUGIN):
             self.resource_dir = "{}/{}".format(self.bot.RESOURCE_DIR, self.get_name())
 
     def get_configurable_type(self):
