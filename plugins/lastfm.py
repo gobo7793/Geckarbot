@@ -113,6 +113,7 @@ class Song:
     def quote(self, p=None):
         """
         Returns a random quote if there is one.
+
         :param p: Probability (defaults to config value quote_p)
         :return: quote
         """
@@ -311,6 +312,7 @@ class Plugin(BasePlugin, name="LastFM"):
     def get_quotes(self, artist, title):
         """
         Fetches the quotes for an artist-title-pair.
+
         :param artist: Artist
         :param title: Title
         :return: Returns a dict of the form {int i: {"author": userid, "quote": quotestring}}
@@ -446,6 +448,7 @@ class Plugin(BasePlugin, name="LastFM"):
     async def quote_so_far_helper(self, user, song):
         """
         Sends a list of current quotes to User `user`'s DM
+
         :param user: User
         :param song: Song instance
         """
@@ -465,6 +468,7 @@ class Plugin(BasePlugin, name="LastFM"):
     async def quote_cb(self, question, question_queue):
         """
         Is called when the answer for the question "scrobble or new?" comes in.
+
         :param question: Question object
         :param question_queue: list of Question objects that were to be posed after this
         :return: New question queue
@@ -486,6 +490,7 @@ class Plugin(BasePlugin, name="LastFM"):
     async def quote_new_song_cb(self, question, question_queue):
         """
         Is called when the answer for the question "Title?" comes in
+
         :param question:
         :param question_queue:
         :return:
@@ -645,6 +650,7 @@ class Plugin(BasePlugin, name="LastFM"):
     def listening_msg(self, user, song):
         """
         Builds a "x is listening to y" message string.
+
         :param user: User that is listening
         :param song: song dict
         :return: Message string that is ready to be sent
@@ -692,6 +698,7 @@ class Plugin(BasePlugin, name="LastFM"):
     def build_songs(self, response, append_to=None, first=True):
         """
         Builds song dicts out of a response.
+
         :param response: Response from the Last.fm API
         :param append_to: Append resulting songs to this list instead of building a new one.
         :param first: If False, removes a leading "nowplaying" song if existant.
@@ -738,14 +745,15 @@ class Plugin(BasePlugin, name="LastFM"):
         """
         Expands a streak on the first page to the longest it can find across multiple pages.
         Potentially downgrades the criterion layer if the lower layer has far more matches.
+
         :param lfmuser: Last.fm user name
         :param page_len: Last.fm request page length
         :param so_far: First page of songs
         :param criterion: MostInteresting instance
         :param example: Example song
         :return: `(count, out_of, criterion, repr)` with count being the amount of matches for criterion it found,
-        out_of being the amount of scrobbles that were looked at, criterion the (new, potentially downgraded) criterion
-        and repr the most recent representative song of criterion.
+            `out_of` being the amount of scrobbles that were looked at, `criterion` the (new, potentially downgraded)
+            criterion and `repr` the most recent representative song of criterion.
         """
         self.logger.debug("Expanding")
         page_index = 1
@@ -829,10 +837,10 @@ class Plugin(BasePlugin, name="LastFM"):
         """
         If multiple entries share the first place, decrease the score of all entries that are not the first
         to appear in the list of songs.
+
         :param scores: Scores entry dict as calculated by calc_scores
         :param songs: List of songs that the scores were calculated for
         :param mitype: MostInterestingType object that represents the criterion layer that is to be tie-broken
-        :return:
         """
         self.logger.debug("Scores to tiebreak: {}".format(pprint.pformat(scores)))
         s = sorted(scores.keys(), key=lambda x: scores[x]["count"], reverse=True)
@@ -857,6 +865,7 @@ class Plugin(BasePlugin, name="LastFM"):
     def calc_scores(self, songs, min_artist, min_album, min_title):
         """
         Counts the occurences of artists, songs and albums in a list of song dicts and assigns scores
+
         :param songs: list of songs
         :param min_artist: Amount of songs that have to have the same artist
         :param min_album: Amount of songs that have to have the same artist and album

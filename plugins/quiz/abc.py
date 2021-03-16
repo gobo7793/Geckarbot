@@ -56,7 +56,7 @@ class BaseQuizAPI(ABC):
         """
         :param catarg: Argument that was passed that identifies a category
         :return: Opaque category identifier that can be used in initialization and for category_name.
-        Returns None if catarg is an unknown category.
+            Returns None if catarg is an unknown category.
         """
         pass
 

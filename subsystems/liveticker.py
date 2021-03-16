@@ -291,6 +291,7 @@ class LeagueRegistration:
     async def update_periodic_coros(self, job: Job):
         """
         Regularly updates coros and checks if matches are still running.
+
         :param job:
         :return:
         """

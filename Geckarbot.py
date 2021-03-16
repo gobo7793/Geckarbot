@@ -233,6 +233,7 @@ class Geckarbot(commands.Bot):
             1. If LOAD_PLUGINS is empty: All available plugins will be loaded
             2. If LOAD_PLUGINS is not empty: Only the plugins in this list will be loaded
             3. From the plugins that should be loaded, the plugins listed in NOT_LOAD_PLUGINS won't be loaded
+
         Plugins are indicated by their names. These conditions don't apply to core plugins in CORE_PLUGIN_DIR.
 
         :return: Returns a list with the plugin names which should be loaded, but failed.
@@ -523,7 +524,6 @@ async def send_error_to_ctx(ctx: discord.ext.commands.Context,
     :param error: The error to send
     :param default: The default message
     :param message: The error dependent error message
-    :return:
     """
     if message:
         await ctx.send(message)

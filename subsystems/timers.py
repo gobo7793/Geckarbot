@@ -119,6 +119,7 @@ class Mothership(BaseSubsystem, Thread):
     def schedule(self, coro, td, data=None, repeat=True):
         """
         cron-like. Takes timedict elements as arguments.
+
         :param coro: Coroutine with the signature f(Cancellable).
         :param td: Timedict that specifies the execution schedule
         :param data: Opaque object that is set as job.data
@@ -206,6 +207,7 @@ def timedict(year=None, month=None, monthday=None, weekday=None, hour=None, minu
 def normalize_td(td):
     """
     Normalizes a timedict to consist of only lists. Also validates formats.
+
     :return: Normalized timedict;
     """
     ntd = {}
@@ -265,6 +267,7 @@ def nearest_element(me, haystack, ringstart, ringend):
 def ring_iterator(haystack, startel, ringstart, ringend, startperiod):
     """
     Iterates forever over all ring elements in haystack, beginning with startel. Assumes a ring of ringstart..ringend.
+
     :param haystack: The haystack with elements in the ring
     :param startel: haystack element to start the loop with; this is always the first element to be yielded
     :param ringstart: first element of the ring
@@ -299,10 +302,11 @@ def next_occurence(ntd, now=None, ignore_now=False):
     """
     Takes a normalized timedict and returns a datetime object that represents the next occurence of said timedict,
     taking now as starting point.
+
     :param ntd: normalized timedict
     :param now: datetime.datetime object from which to calculate; omit for current time
-    :param ignore_now: If True: If the next occurence would be right now, returns the next occurence instead.
-    :return datetime.datetime object that marks the next occurence; None if there is none
+    :param ignore_now: If `True`: If the next occurence would be right now, returns the next occurence instead.
+    :return: datetime.datetime object that marks the next occurence; `None` if there is none
     """
     logger = logging.getLogger(__name__)
     logger.debug("Called next_occurence with ntd {}; now: {}; ignore_now: {}".format(ntd, now, ignore_now))
