@@ -22,8 +22,9 @@ class DefaultCategories(Enum):
     GAMES = 1
     SPORT = 2
     MISC = 3
-    MOD = 4
-    ADMIN = 5
+    USER = 4
+    MOD = 5
+    ADMIN = 6
 
 
 class CategoryOrder(Enum):
@@ -186,6 +187,8 @@ class GeckiHelp(BaseSubsystem):
             DefaultCategories.SPORT: HelpCategory(bot, Lang.lang(self, "default_category_sport"),
                                                   defaultcat=True),
             DefaultCategories.MISC: HelpCategory(bot, Lang.lang(self, "default_category_misc"),
+                                                 order=CategoryOrder.LAST, defaultcat=True),
+            DefaultCategories.USER: HelpCategory(bot, Lang.lang(self, "default_category_user"),
                                                  order=CategoryOrder.LAST, defaultcat=True),
             DefaultCategories.MOD: HelpCategory(bot, Lang.lang(self, "default_category_mod"),
                                                 order=CategoryOrder.LAST, defaultcat=True),

@@ -257,6 +257,12 @@ class Plugin(BasePlugin, name="Bot updating system"):
         self.waiting_for_confirm = None
         bot.register(self, category=help.DefaultCategories.ADMIN)
 
+        # Add commands to help category 'user'
+        to_add = ("version", "news")
+        for cmd in self.get_commands():
+            if cmd.name in to_add:
+                self.bot.helpsys.default_category(help.DefaultCategories.USER).add_command(cmd)
+
     def command_help_string(self, command):
         return Lang.lang(self, "help_{}".format(command.name))
 
