@@ -14,7 +14,8 @@ from botutils.utils import add_reaction
 from data import Lang, Config
 from botutils import utils, statemachine, stringutils
 from botutils.converters import get_best_username as gbu
-from subsystems import help, presence
+from subsystems import presence
+from subsystems.help import DefaultCategories
 
 h_help = "Wer bin ich?"
 h_description = "Startet ein Wer bin ich?. Nach einer Registrierungsphase ordne ich jedem Spieler einen zufälligen " \
@@ -112,7 +113,7 @@ class Participant:
 class Plugin(BasePlugin, name="Wer bin ich?"):
     def __init__(self, bot):
         super().__init__(bot)
-        bot.register(self, help.DefaultCategories.GAMES)
+        bot.register(self, DefaultCategories.GAMES)
         self.logger = logging.getLogger(__name__)
 
         self.channel = None

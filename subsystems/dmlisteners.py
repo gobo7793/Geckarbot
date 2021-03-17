@@ -1,15 +1,17 @@
-import logging
-
-from base import BaseSubsystem
-from botutils.utils import execute_anything
-
 """
 This subsystem provides listeners for direct messages (DMs) to the bot.
 It is instantiated as `bot.dm_listener`.
 """
 
+import logging
+
+from base import BaseSubsystem
+from botutils.utils import execute_anything
+
 
 class Registration:
+    """The registration which will be returned using `DMListener.register()`"""
+
     def __init__(self, listener, user, coro, kill_coro, name, data, blocking):
         self.listener = listener
         self.coro = coro
@@ -20,10 +22,11 @@ class Registration:
         self._blocking = blocking
 
         if self.kill_coro is None:
-            logging.getLogger(__name__).warning("DM listener registered without kill_coro: {}. This is not advised."
-                                                .format(self))
+            logging.getLogger(__name__).warning("DM listener registered without kill_coro: %s. This is not advised.",
+                                                self)
 
     def deregister(self):
+        """Deregisters the DM listener registration"""
         self.listener.deregister(self)
 
     async def kill(self):
@@ -44,6 +47,8 @@ class Registration:
 
 
 class DMListener(BaseSubsystem):
+    """The DM Listener Subsystem"""
+
     def __init__(self, bot):
         super().__init__(bot)
         self.bot = bot
@@ -72,7 +77,7 @@ class DMListener(BaseSubsystem):
             if cb.user == user:
                 if cb.blocking:
                     raise RuntimeError("A blocking DM listener for user {} is already registered.".format(user))
-                elif blocking:
+                if blocking:
                     raise KeyError("There is already a listener registered for user {}, unable to register "
                                    "blocking listener.".format(user))
 
@@ -98,6 +103,8 @@ class DMListener(BaseSubsystem):
 
     def is_registered(self, user):
         """
+        Checks if the User has registered DM listeners
+
         :param user: User to be checked
         :return: Returns whether there is a registered DM listener for `user`.
         """
@@ -108,6 +115,8 @@ class DMListener(BaseSubsystem):
 
     def is_blocked(self, user):
         """
+        Checks if the User has a blocking listener
+
         :param user: User to be checked
         :return: Returns True if there is a blocking listener for `user`, False otherwise.
         """

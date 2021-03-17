@@ -1,6 +1,8 @@
 import json
 import datetime
 
+# pylint: disable=arguments-differ
+
 CONVERTERS = {
     'datetime': datetime.datetime.fromisoformat
 }

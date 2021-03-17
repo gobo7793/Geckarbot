@@ -7,7 +7,7 @@ from discord.ext import commands
 
 from base import BasePlugin, NotFound
 from data import Lang
-from subsystems import help
+from subsystems.help import DefaultCategories
 
 
 class ReturnCode(Enum):
@@ -33,7 +33,7 @@ class Plugin(BasePlugin, name="A simple number guessing game"):
         self.games_channel = {}
 
         super().__init__(bot)
-        bot.register(self, help.DefaultCategories.GAMES)
+        bot.register(self, DefaultCategories.GAMES)
 
     @commands.group(name="guess", help="Guess a number",
                     description="Start a game via '!guess start'")

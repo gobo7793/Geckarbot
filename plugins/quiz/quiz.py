@@ -8,9 +8,9 @@ from discord.errors import HTTPException
 
 from base import BasePlugin, NotFound
 from data import Storage, Lang
-from subsystems import help
 from botutils import permchecks
 from botutils.utils import sort_commands_helper, add_reaction
+from subsystems.help import DefaultCategories
 
 from plugins.quiz.controllers import RushQuizController, PointsQuizController
 from plugins.quiz.quizapis import quizapis, opentdb
@@ -127,7 +127,7 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
         self.register_subcommand(None, "info", self.cmd_info)
 
         super().__init__(bot)
-        bot.register(self, category=help.DefaultCategories.GAMES)
+        bot.register(self, category=DefaultCategories.GAMES)
 
         # Migrate data if necessary
         migration(self, self.logger)

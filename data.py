@@ -55,8 +55,7 @@ class ConfigurableData:
             if not os.path.isdir(directory):
                 raise RuntimeError("Failed creating directory {}: Not a directory".format(directory))
             return
-        else:
-            os.mkdir(directory)
+        os.mkdir(directory)
 
     def _write_file(self, config_data, container=None):
         """Writes the config to file_name.json and returns if successfull"""
@@ -67,7 +66,7 @@ class ConfigurableData:
                 json.dump(config_data, f, cls=jsonutils.Encoder, indent=4)
                 return True
         except (OSError, InterruptedError, OverflowError, ValueError, TypeError):
-            logging.error(f"Error writing config file %s", self._filepath(container=container))
+            logging.error("Error writing config file %s", self._filepath(container=container))
             return False
 
     def _read_file(self, container=None, silent=False):
@@ -80,7 +79,7 @@ class ConfigurableData:
                 return jsondata
         except (IsADirectoryError, OSError, InterruptedError, json.JSONDecodeError):
             if not silent:
-                logging.error(f"Error reading %s.json", self._filepath(container=container))
+                logging.error("Error reading %s.json", self._filepath(container=container))
             return None
 
     def load(self):
@@ -163,9 +162,7 @@ class IODirectory(metaclass=_Singleton):
 
     @classmethod
     def has_structure(cls, plugin):
-        if cls() not in plugin.iodirs or plugin.iodirs[cls()] is None:
-            return False
-        return True
+        return cls() in plugin.iodirs and plugin.iodirs[cls()] is not None
 
     #######
     # Save/Load/Get configurable data
@@ -325,6 +322,7 @@ class Storage(IODirectory):
 
 
 class Lang(metaclass=_Singleton):
+    """Providing multi-language support for Plugins"""
     # pylint: disable=protected-access
 
     # Random Emoji collection
@@ -392,6 +390,7 @@ class Lang(metaclass=_Singleton):
     @classmethod
     def read_from_cache(cls, configurable):
         """Reads the language data of the given configurable from cache, or builds it of not available"""
+        # pylint: disable=broad-except
         # Read from cache
         if configurable in cls()._cache:
             return cls()._cache[configurable]

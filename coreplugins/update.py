@@ -9,19 +9,19 @@ from enum import Enum
 from discord.ext import commands
 
 import Geckarbot
-from base import BasePlugin, ConfigurableType, NotFound
+from base import BasePlugin, ConfigurableType
+from data import Config, Lang
 from botutils import restclient, utils, permchecks
 from botutils.stringutils import paginate
 from botutils.utils import sort_commands_helper, add_reaction
-from data import Config, Lang
-from subsystems import help
+from subsystems.help import DefaultCategories
+from subsystems.presence import PresencePriority
 
 # Assumed version numbering system:
 # 2.3.1
 # 2.5-a
 
 # CONFIG
-from subsystems.presence import PresencePriority
 
 log = logging.getLogger(__name__)
 CONFIRMTIMEOUT = 10
@@ -255,13 +255,13 @@ class Plugin(BasePlugin, name="Bot updating system"):
 
         self.to_log = None
         self.waiting_for_confirm = None
-        bot.register(self, category=help.DefaultCategories.ADMIN)
+        bot.register(self, category=DefaultCategories.ADMIN)
 
         # Add commands to help category 'user'
         to_add = ("version", "news")
         for cmd in self.get_commands():
             if cmd.name in to_add:
-                self.bot.helpsys.default_category(help.DefaultCategories.USER).add_command(cmd)
+                self.bot.helpsys.default_category(DefaultCategories.USER).add_command(cmd)
 
     def sort_commands(self, ctx, command, subcommands):
         order = [

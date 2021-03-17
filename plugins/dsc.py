@@ -18,11 +18,12 @@ from data import Storage, Lang, Config
 class DscState(IntEnum):
     """DSC states"""
     NA = 0
-    Voting = 1
-    Sign_up = 2
+    VOTING = 1
+    SIGN_UP = 2
 
 
-def dsc_set_checks():
+def _dsc_set_checks():
+    """Checks if dsc set command can be executed"""
     def predicate(ctx):
         plugin = get_plugin_by_name(__name__.rsplit(".", 1)[1])
         if (not permchecks.check_mod_access(ctx.author)
@@ -45,7 +46,7 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
         self.log = logging.getLogger(__name__)
 
         self.presence = None
-        if Storage.get(self)["state"] == DscState.Voting:
+        if Storage.get(self)["state"] == DscState.VOTING:
             self.register_presence()
 
         self._fill_rule_link()
@@ -160,14 +161,14 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
         if Storage.get(self)['status']:
             embed.description = Storage.get(self)['status']
 
-        if Storage.get(self)['state'] == DscState.Sign_up:
+        if Storage.get(self)['state'] == DscState.SIGN_UP:
             date_out_str = Lang.lang(self, 'info_date_str', Storage.get(self)['date'].strftime('%d.%m.%Y')) \
                 if Storage.get(self)['date'] > datetime.now() \
                 else ""
             embed.title = Lang.lang(self, 'signup_phase_info', date_out_str)
             embed.add_field(name=Lang.lang(self, 'sign_up'), value=self._get_doc_link())
 
-        elif Storage.get(self)['state'] == DscState.Voting:
+        elif Storage.get(self)['state'] == DscState.VOTING:
             embed.title = Lang.lang(self, 'voting_phase_info', date_out_str)
             embed.add_field(name=Lang.lang(self, 'all_songs'), value=self._get_doc_link())
             embed.add_field(name=Lang.lang(self, 'yt_playlist'), value=Storage.get(self)['yt_link'])
@@ -182,7 +183,7 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
         await ctx.send(embed=embed)
 
     @cmd_dsc.group(name="set", invoke_without_command=True)
-    @dsc_set_checks()
+    @_dsc_set_checks()
     async def cmd_dsc_set(self, ctx, *args):
         if len(args) > 2 and args[1] == "until":
             # !dsc set <signup|voting> until <date>
@@ -206,10 +207,10 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
     @cmd_dsc_set.command(name="state")
     async def cmd_dsc_set_state(self, ctx, state):
         if state.lower() == "voting":
-            await self._dsc_save_state(ctx, DscState.Voting)
+            await self._dsc_save_state(ctx, DscState.VOTING)
             self.register_presence()
         elif state.lower() == "signup":
-            await self._dsc_save_state(ctx, DscState.Sign_up)
+            await self._dsc_save_state(ctx, DscState.SIGN_UP)
             self.deregister_presence()
         else:
             await ctx.send(Lang.lang(self, 'invalid_phase'))
@@ -270,8 +271,7 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
                 Lang.lang(self, 'channel_id')
                 await utils.add_reaction(ctx.message, Lang.CMDERROR)
                 return
-            else:
-                Config.get(self)[key] = channel.id
+            Config.get(self)[key] = channel.id
 
         elif key == "mod_role_id":
             try:
@@ -283,8 +283,7 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
                 Lang.lang(self, 'songmaster_id')
                 await utils.add_reaction(ctx.message, Lang.CMDERROR)
                 return
-            else:
-                Config.get(self)[key] = role.id
+            Config.get(self)[key] = role.id
 
         else:
             Config.get(self)[key] = value

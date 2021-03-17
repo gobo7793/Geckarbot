@@ -12,7 +12,7 @@ from botutils.converters import get_embed_str
 from botutils.timeutils import to_local_time
 from botutils.stringutils import paginate
 
-chan_logger = logging.getLogger(__name__)
+log = logging.getLogger(__name__)
 
 
 async def add_reaction(message: discord.Message, reaction):
@@ -59,7 +59,7 @@ async def _write_to_channel(channel_id: int = 0, message: Union[str, discord.Emb
     :param channel_type: The channel type or name for the logging output
     """
     log_msg = get_embed_str(message)
-    chan_logger.info(f"%s : %s", channel_type, log_msg)
+    log.info("%s : %s", channel_type, log_msg)
 
     channel = Config().bot.get_channel(channel_id)
     if not Config().bot.DEBUG_MODE and channel is not None and message is not None and message:

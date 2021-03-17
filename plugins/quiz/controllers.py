@@ -239,7 +239,7 @@ class PointsQuizController(BaseQuizController):
             await asyncio.sleep(1)
 
         if self.current_reaction_listener is not None:
-            self.current_reaction_listener.unregister()
+            self.current_reaction_listener.deregister()
 
         question = self.quizapi.current_question()
 

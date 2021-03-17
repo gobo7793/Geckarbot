@@ -11,7 +11,6 @@ class NotLoadable(Exception):
     """
     Raised by plugins to signal that it was unable to load correctly.
     """
-    pass
 
 
 class PluginClassNotFound(Exception):
@@ -28,7 +27,6 @@ class NotFound(Exception):
     """
     Raised by override methods to signal that the method was not overridden.
     """
-    pass
 
 
 class ConfigurableType(Enum):
@@ -94,9 +92,6 @@ class Configurable:
 class BaseSubsystem(Configurable):
     """The base class for all subsystems"""
 
-    def __init__(self, bot):
-        super().__init__(bot)
-
     def get_configurable_type(self):
         """
         Returns the ConfigurableType of self
@@ -127,7 +122,6 @@ class BasePlugin(Cog, Configurable):
         Is called when the bot is shutting down. If you have cleanup to do, do it here.
         Needs to be a coroutine (async).
         """
-        pass
 
     async def command_help(self, ctx, command):
         """

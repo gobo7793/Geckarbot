@@ -41,9 +41,9 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
     def get_configurable_type(self):
         return ConfigurableType.COREPLUGIN
 
-    """
-    Misc commands
-    """
+    #####
+    # Misc commands
+    #####
 
     @commands.command(name="about", aliases=["git", "github"])
     async def cmd_about(self, ctx):
@@ -68,9 +68,10 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
 
         await ctx.send(about_msg)
 
-    """
-    Plugin control
-    """
+    #####
+    # Plugin control
+    #####
+
     @commands.group(name="plugin", aliases=["plugins"], invoke_without_command=True)
     async def cmd_plugins(self, ctx):
         await ctx.invoke(self.bot.get_command("plugin list"))
@@ -154,9 +155,10 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
             await utils.add_reaction(ctx.message, Lang.CMDERROR)
             await ctx.send(Lang.lang(self, "errors_on_reload", name))
 
-    """
-    Presence subsystem
-    """
+    #####
+    # Presence Subsystem
+    #####
+
     @commands.group(name="presence", invoke_without_command=True)
     async def cmd_presence(self, ctx):
         await ctx.invoke(self.bot.get_command("presence list"))
@@ -199,9 +201,10 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
             await utils.add_reaction(ctx.message, Lang.CMDERROR)
             await ctx.send(Lang.lang(self, "presence_not_exists", entry_id))
 
-    """
-    Ignoring subsystem
-    """
+    #####
+    # Ignoring Subsystem
+    #####
+
     @commands.group(name="disable", invoke_without_command=True, aliases=["ignore", "block"],
                     usage="<full command name>")
     async def cmd_disable(self, ctx, *, command):
@@ -211,9 +214,9 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
         cmd = self._get_full_cmd_name(command)
 
         result = self.bot.ignoring.add_passive(ctx.author, cmd)
-        if result == IgnoreEditResult.Success:
+        if result == IgnoreEditResult.SUCCESS:
             await utils.add_reaction(ctx.message, Lang.CMDSUCCESS)
-        elif result == IgnoreEditResult.Already_in_list:
+        elif result == IgnoreEditResult.ALREADY_IN_LIST:
             await utils.add_reaction(ctx.message, Lang.CMDERROR)
             await ctx.send(Lang.lang(self, 'passive_already_blocked', cmd))
         await utils.log_to_mod_channel(ctx)
@@ -237,13 +240,13 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
         # disable command in current channel
         if user is None and command is not None:
             result = self.bot.ignoring.add_command(command, ctx.channel, until)
-            if result == IgnoreEditResult.Success:
+            if result == IgnoreEditResult.SUCCESS:
                 reaction = Lang.CMDSUCCESS
                 final_msg = Lang.lang(self, 'cmd_blocked', command, until_str)
-            elif result == IgnoreEditResult.Already_in_list:
+            elif result == IgnoreEditResult.ALREADY_IN_LIST:
                 reaction = Lang.CMDERROR
                 final_msg = Lang.lang(self, 'cmd_already_blocked', command)
-            elif result == IgnoreEditResult.Until_in_past:
+            elif result == IgnoreEditResult.UNTIL_IN_PAST:
                 reaction = Lang.CMDERROR
                 final_msg = Lang.lang(self, 'no_time_machine')
 
@@ -254,26 +257,26 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
                 final_msg = Lang.lang(self, 'cant_block_yourself')
             else:
                 result = self.bot.ignoring.add_user(user, until)
-                if result == IgnoreEditResult.Success:
+                if result == IgnoreEditResult.SUCCESS:
                     reaction = Lang.CMDSUCCESS
                     final_msg = Lang.lang(self, 'user_blocked', get_best_username(user), until_str)
-                elif result == IgnoreEditResult.Already_in_list:
+                elif result == IgnoreEditResult.ALREADY_IN_LIST:
                     reaction = Lang.CMDERROR
                     final_msg = Lang.lang(self, 'user_already_blocked', get_best_username(user))
-                elif result == IgnoreEditResult.Until_in_past:
+                elif result == IgnoreEditResult.UNTIL_IN_PAST:
                     reaction = Lang.CMDERROR
                     final_msg = Lang.lang(self, 'no_time_machine')
 
         # disable active command usage for user
         elif user is not None and command is not None:
             result = self.bot.ignoring.add_active(user, command, until)
-            if result == IgnoreEditResult.Success:
+            if result == IgnoreEditResult.SUCCESS:
                 reaction = Lang.CMDSUCCESS
                 final_msg = Lang.lang(self, 'active_usage_blocked', get_best_username(user), command, until_str)
-            elif result == IgnoreEditResult.Already_in_list:
+            elif result == IgnoreEditResult.ALREADY_IN_LIST:
                 reaction = Lang.CMDERROR
                 final_msg = Lang.lang(self, 'active_already_blocked', get_best_username(user), command)
-            elif result == IgnoreEditResult.Until_in_past:
+            elif result == IgnoreEditResult.UNTIL_IN_PAST:
                 reaction = Lang.CMDERROR
                 final_msg = Lang.lang(self, 'no_time_machine')
 
@@ -302,10 +305,10 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
             await ctx.send(Lang.lang(self, 'nothing_blocked'))
             return
 
-        await write_list(IgnoreType.User, Lang.lang(self, 'list_users'))
-        await write_list(IgnoreType.Command, Lang.lang(self, 'list_cmds'))
-        await write_list(IgnoreType.Active_Usage, Lang.lang(self, 'list_active'))
-        await write_list(IgnoreType.Passive_Usage, Lang.lang(self, 'list_passive'))
+        await write_list(IgnoreType.USER, Lang.lang(self, 'list_users'))
+        await write_list(IgnoreType.COMMAND, Lang.lang(self, 'list_cmds'))
+        await write_list(IgnoreType.ACTIVE_USAGE, Lang.lang(self, 'list_active'))
+        await write_list(IgnoreType.PASSIVE_USAGE, Lang.lang(self, 'list_passive'))
 
     @commands.group(name="enable", invoke_without_command=True, aliases=["unignore", "unblock"],
                     usage="[full command name]")
@@ -317,7 +320,7 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
         if command is None:
             all_entries = [entry
                            for entry
-                           in self.bot.ignoring.get_ignore_list(IgnoreType.Passive_Usage)
+                           in self.bot.ignoring.get_ignore_list(IgnoreType.PASSIVE_USAGE)
                            if entry.user == ctx.author]
 
             for entry in all_entries:
@@ -330,9 +333,9 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
         elif self._is_valid_command(command):
             cmd = self._get_full_cmd_name(command)
             result = self.bot.ignoring.remove_passive(ctx.author, cmd)
-            if result == IgnoreEditResult.Success:
+            if result == IgnoreEditResult.SUCCESS:
                 reaction = Lang.CMDSUCCESS
-            elif result == IgnoreEditResult.Not_in_list:
+            elif result == IgnoreEditResult.NOT_IN_LIST:
                 reaction = Lang.CMDERROR
                 final_msg = Lang.lang(self, 'passive_not_blocked', cmd)
 
@@ -349,7 +352,7 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
     @cmd_enable.command(name="mod", usage="[user|command]")
     @commands.has_any_role(*Config().MOD_ROLES)
     async def cmd_enable_mod(self, ctx, *args):
-        user, command, until = await self._parse_mod_args(ctx, *args)
+        user, command, _ = await self._parse_mod_args(ctx, *args)
 
         final_msg = None
         reaction = Lang.CMDERROR
@@ -357,30 +360,30 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
         # enable command in current channel
         if user is None and command is not None:
             result = self.bot.ignoring.remove_command(command, ctx.channel)
-            if result == IgnoreEditResult.Success:
+            if result == IgnoreEditResult.SUCCESS:
                 reaction = Lang.CMDSUCCESS
                 final_msg = Lang.lang(self, 'cmd_unblocked', command)
-            elif result == IgnoreEditResult.Not_in_list:
+            elif result == IgnoreEditResult.NOT_IN_LIST:
                 reaction = Lang.CMDERROR
                 final_msg = Lang.lang(self, 'cmd_not_blocked', command)
 
         # enable user completely
         elif user is not None and command is None:
             result = self.bot.ignoring.remove_user(user)
-            if result == IgnoreEditResult.Success:
+            if result == IgnoreEditResult.SUCCESS:
                 reaction = Lang.CMDSUCCESS
                 final_msg = Lang.lang(self, 'user_unblocked', get_best_username(user))
-            elif result == IgnoreEditResult.Not_in_list:
+            elif result == IgnoreEditResult.NOT_IN_LIST:
                 reaction = Lang.CMDERROR
                 final_msg = Lang.lang(self, 'user_not_blocked', get_best_username(user))
 
         # enable active command usage for user
         elif user is not None and command is not None:
             result = self.bot.ignoring.remove_active(user, command)
-            if result == IgnoreEditResult.Success:
+            if result == IgnoreEditResult.SUCCESS:
                 reaction = Lang.CMDSUCCESS
                 final_msg = Lang.lang(self, 'active_usage_unblocked', get_best_username(user), command)
-            elif result == IgnoreEditResult.Not_in_list:
+            elif result == IgnoreEditResult.NOT_IN_LIST:
                 reaction = Lang.CMDERROR
                 final_msg = Lang.lang(self, 'active_not_blocked', get_best_username(user), command)
 
@@ -405,8 +408,7 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
         native_cmd = self.bot.get_command(command)
         if native_cmd is not None:
             return native_cmd.qualified_name
-        else:
-            return command
+        return command
 
     def _is_valid_command(self, command):
         """

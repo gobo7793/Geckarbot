@@ -1,10 +1,9 @@
-from enum import Enum
-from base import BaseSubsystem
-
-
 """
 This subsystem provides listeners for reactions on messages.
 """
+
+from enum import Enum
+from base import BaseSubsystem
 
 
 class BaseReactionEvent:
@@ -56,8 +55,8 @@ class Callback:
         self.coro = coro
         self.data = data
 
-    def unregister(self):
-        self.listener.unregister(self)
+    def deregister(self):
+        self.listener.deregister(self)
 
     def __str__(self):
         return "<reactions.Callback; coro: {}; msg: {}>".format(self.coro, self.message)
@@ -71,6 +70,7 @@ class ReactionListener(BaseSubsystem):
         self.to_del = []
         self._checking = False
 
+        # pylint: disable=unused-variable
         @bot.listen()
         async def on_raw_reaction_add(payload):
             await self.check(payload, ReactionAction.ADD)
@@ -111,7 +111,13 @@ class ReactionListener(BaseSubsystem):
         self.callbacks.append(cb)
         return cb
 
-    def unregister(self, callback):
+    def deregister(self, callback):
+        """
+        Deregisters the reaction listener for the given callback
+
+        :param callback:
+        :return:
+        """
         if self._checking:
             self.to_del.append(callback)
         else:

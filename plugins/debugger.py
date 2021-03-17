@@ -7,7 +7,8 @@ from discord.ext import commands
 from base import BasePlugin
 from botutils import utils, converters
 from data import Config, Lang
-from subsystems import help, timers
+from subsystems import timers
+from subsystems.help import DefaultCategories
 from subsystems.ignoring import UserBlockedCommand
 from subsystems.presence import PresencePriority
 from typing import Union
@@ -19,7 +20,7 @@ class Plugin(BasePlugin, name="Testing and debug things"):
         self.bot = bot
         self.timers = {}
         super().__init__(bot)
-        bot.register(self, help.DefaultCategories.ADMIN)
+        bot.register(self, DefaultCategories.ADMIN)
         self.sleeper = None
         self.channel = None
 

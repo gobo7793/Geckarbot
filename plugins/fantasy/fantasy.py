@@ -270,7 +270,7 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
         if platform_name.lower() == "espn":
             return Platform.ESPN
         if platform_name.lower() == "sleeper":
-            return Platform.Sleeper
+            return Platform.SLEEPER
 
         if ctx is not None:
             await add_reaction(ctx.message, Lang.CMDERROR)
@@ -446,7 +446,7 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
                          or t.team_abbrev.lower() == team_name.lower()), None)
             if team is None:
                 return
-            if league.platform == Platform.Sleeper:
+            if league.platform == Platform.SLEEPER:
                 return Lang.lang(self, "no_boxscore_data", team.team_name, league.platform,
                                  league.get_boxscore_url(week, team.team_id))
             return await self._get_boxscore_embed(league, lweek, team=team)
@@ -591,19 +591,19 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
             embed.add_field(name=Lang.lang(self, "commish"), value=com)
 
             async with ctx.typing():
-                if self.state == FantasyState.Sign_up:
+                if self.state == FantasyState.SIGN_UP:
                     phase_lang = "signup_phase_info"
                     date_out_str = date_out_str if self.date > datetime.now() else ""
                     embed.add_field(name=Lang.lang(self, 'sign_up_at'), value=self.supercommish.mention)
 
-                elif self.state == FantasyState.Predraft:
+                elif self.state == FantasyState.PREDRAFT:
                     phase_lang = "predraft_phase_info"
                     embed.add_field(name=Lang.lang(self, 'player_database'), value=self.datalink)
 
-                elif self.state == FantasyState.Preseason:
+                elif self.state == FantasyState.PRESEASON:
                     phase_lang = "preseason_phase_info"
 
-                elif self.state == FantasyState.Regular:
+                elif self.state == FantasyState.REGULAR:
                     has_api_errors = False
                     phase_lang = "regular_phase_info"
                     season_str = Lang.lang(self, "curr_week", league.nfl_week, self.year, league.current_week)
@@ -646,10 +646,10 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
                         footer_str = " | ".join([footer_str, Lang.lang(self, "api_error_short")])
                     embed.set_footer(text=footer_str)
 
-                elif self.state == FantasyState.Postseason:
+                elif self.state == FantasyState.POSTSEASON:
                     phase_lang = "postseason_phase_info"
 
-                elif self.state == FantasyState.Finished:
+                elif self.state == FantasyState.FINISHED:
                     phase_lang = "finished_phase_info"
 
                 else:
@@ -751,17 +751,17 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
     @cmd_fantasy_set.command(name="state", aliases=["phase"])
     async def cmd_fantasy_set_state(self, ctx, state):
         if state.lower() == "signup":
-            await self._save_state(ctx, FantasyState.Sign_up)
+            await self._save_state(ctx, FantasyState.SIGN_UP)
         elif state.lower() == "predraft":
-            await self._save_state(ctx, FantasyState.Predraft)
+            await self._save_state(ctx, FantasyState.PREDRAFT)
         elif state.lower() == "preseason":
-            await self._save_state(ctx, FantasyState.Preseason)
+            await self._save_state(ctx, FantasyState.PRESEASON)
         elif state.lower() == "regular":
-            await self._save_state(ctx, FantasyState.Regular)
+            await self._save_state(ctx, FantasyState.REGULAR)
         elif state.lower() == "postseason":
-            await self._save_state(ctx, FantasyState.Postseason)
+            await self._save_state(ctx, FantasyState.POSTSEASON)
         elif state.lower() == "finished":
-            await self._save_state(ctx, FantasyState.Finished)
+            await self._save_state(ctx, FantasyState.FINISHED)
         else:
             await add_reaction(ctx.message, Lang.CMDERROR)
             await ctx.send(Lang.lang(self, 'invalid_phase'))

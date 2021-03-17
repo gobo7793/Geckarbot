@@ -169,8 +169,8 @@ class Plugin(BasePlugin, name="Sport"):
                 for reg in liveticker_regs[league]:
                     reg.deregister()
             reg_ = self.bot.liveticker.register(league=league, plugin=self,
-                                                coro=self.live_goals, coro_kickoff=self.live_kickoff,
-                                                coro_finished=self.live_finished, periodic=True)
+                                                coro=self._live_goals, coro_kickoff=self._live_kickoff,
+                                                coro_finished=self._live_finished, periodic=True)
             next_exec = reg_.next_execution()
             if next_exec:
                 next_exec = next_exec[0].strftime('%d.%m.%Y - %H:%M')
@@ -180,7 +180,7 @@ class Plugin(BasePlugin, name="Sport"):
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
         await ctx.send("\n".join(msg))
 
-    async def live_kickoff(self, match_dicts, league, time):
+    async def _live_kickoff(self, match_dicts, league, time):
         sport = Config().bot.get_channel(Config().get(self)['sport_chan'])
         match_msgs = []
         for match in match_dicts:
@@ -190,7 +190,7 @@ class Plugin(BasePlugin, name="Sport"):
         for msg in msgs:
             await sport.send(msg)
 
-    async def live_goals(self, new_goals, league, matchminute):
+    async def _live_goals(self, new_goals, league, matchminute):
         sport = Config().bot.get_channel(Config().get(self)['sport_chan'])
 
         matches_with_goals = [x for x in new_goals.values() if x['new_goals'] and not x['is_finished']]
@@ -214,7 +214,7 @@ class Plugin(BasePlugin, name="Sport"):
         else:
             await sport.send(Lang.lang(self, 'no_new_goals', league, matchminute))
 
-    async def live_finished(self, match_dicts, league):
+    async def _live_finished(self, match_dicts, league):
         sport = Config().bot.get_channel(Config().get(self)['sport_chan'])
         match_msgs = []
         for match in match_dicts:

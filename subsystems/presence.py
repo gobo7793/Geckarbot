@@ -1,3 +1,7 @@
+"""
+This subsystem provides changing presence messages for the user list on servers
+"""
+
 import asyncio
 import logging
 import random
@@ -10,12 +14,10 @@ from base import BaseSubsystem
 from data import Config, Storage
 from subsystems.timers import Job, timedict
 
-"""
-This subsystem provides changing presence messages for the user list on servers
-"""
-
 
 class PresencePriority(IntEnum):
+    """Priority enumeration for presence messages"""
+
     LOW = 0
     """
     Low priority for customized messages.
@@ -96,6 +98,7 @@ class Presence(BaseSubsystem):
         bot.plugins.append(self)
         self._load()
 
+        # pylint: disable=unused-variable
         @bot.listen()
         async def on_connect():
             if bot.DEBUG_MODE:
@@ -188,7 +191,7 @@ class Presence(BaseSubsystem):
             presence_msg = PresenceMessage.deserialize(self.bot, el)
             self.messages[presence_msg.presence_id] = presence_msg
 
-        self.log.info("Loaded {} messages".format(len(self.messages)))
+        self.log.info("Loaded %d messages", len(self.messages))
 
     def save(self):
         """Saves the current LOW priority (!) messages to json"""
@@ -218,7 +221,7 @@ class Presence(BaseSubsystem):
 
         self.save()
 
-        self.log.debug("Message registered, Priority: {}, ID {}: {}".format(priority, new_id, message))
+        self.log.debug("Message registered, Priority: %s, ID %d: %s", priority, new_id, message)
 
         if priority == PresencePriority.HIGH:
             self._execute_change()
@@ -248,10 +251,10 @@ class Presence(BaseSubsystem):
         if dataset.presence_id not in self.messages:
             return False
 
-        del (self.messages[dataset.presence_id])
+        del self.messages[dataset.presence_id]
         self.save()
-        self.log.debug("Message deregistered, Priority: {}, ID {}: {}".format(
-            dataset.priority, dataset.presence_id, dataset.message))
+        self.log.debug("Message deregistered, Priority: %s, ID %d: %s",
+                       dataset.priority, dataset.presence_id, dataset.message)
 
         self._execute_removing_change(dataset.presence_id)
 
@@ -264,7 +267,7 @@ class Presence(BaseSubsystem):
             return
 
         self.log.info("Start presence changing timer")
-        time_dict = timedict(minute=[i for i in range(0, 60, Config.get(self)["update_period_min"])])
+        time_dict = timedict(minute=(i for i in range(0, 60, Config.get(self)["update_period_min"])))
         self._timer_job = self.bot.timers.schedule(self._change_callback, time_dict, repeat=True)
         job_data = {
             "current_id": -1,
@@ -281,7 +284,7 @@ class Presence(BaseSubsystem):
 
     async def _set_presence(self, message):
         """Sets the presence message, based on discord.Game activity"""
-        self.log.debug("Change displayed message to: {}".format(message))
+        self.log.debug("Change displayed message to: %s", message)
         message = message.replace("\\\\\\", "\\")
         message = message.replace("\\\\", "\\")
         await self.bot.change_presence(activity=discord.Game(name=message))
