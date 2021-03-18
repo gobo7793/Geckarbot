@@ -12,7 +12,7 @@ from botutils import restclient, utils, timeutils
 from botutils.converters import get_best_username
 from data import Storage, Lang, Config
 from subsystems import timers
-from subsystems.help import DefaultCategories
+from subsystems.helpsys import DefaultCategories
 
 log = logging.getLogger(__name__)
 _keysmash_cmd_name = "keysmash"

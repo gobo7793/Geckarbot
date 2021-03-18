@@ -14,7 +14,7 @@ from data import Config, Lang
 from botutils import restclient, utils, permchecks
 from botutils.stringutils import paginate
 from botutils.utils import sort_commands_helper, add_reaction
-from subsystems.help import DefaultCategories
+from subsystems.helpsys import DefaultCategories
 from subsystems.presence import PresencePriority
 
 # Assumed version numbering system:

@@ -10,7 +10,7 @@ from botutils.converters import get_best_username, get_plugin_by_name
 from botutils.stringutils import paginate
 from botutils.timeutils import parse_time_input
 from data import Config, Lang
-from subsystems.help import DefaultCategories
+from subsystems.helpsys import DefaultCategories
 from subsystems.ignoring import IgnoreEditResult, IgnoreType
 from subsystems.presence import PresencePriority
 

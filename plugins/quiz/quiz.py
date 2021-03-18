@@ -10,7 +10,7 @@ from base import BasePlugin, NotFound
 from data import Storage, Lang
 from botutils import permchecks
 from botutils.utils import sort_commands_helper, add_reaction
-from subsystems.help import DefaultCategories
+from subsystems.helpsys import DefaultCategories
 
 from plugins.quiz.controllers import RushQuizController, PointsQuizController
 from plugins.quiz.quizapis import quizapis, opentdb

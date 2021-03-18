@@ -7,7 +7,7 @@ from discord.ext import commands
 
 from base import BasePlugin, NotFound
 from data import Lang
-from subsystems.help import DefaultCategories
+from subsystems.helpsys import DefaultCategories
 
 
 class ReturnCode(Enum):

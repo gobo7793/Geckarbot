@@ -18,7 +18,7 @@ from data import Config, Storage, Lang
 from plugins.fantasy.league import FantasyLeague, deserialize_league, create_league
 from plugins.fantasy.utils import pos_alphabet, FantasyState, Platform, Match
 from subsystems import timers
-from subsystems.help import DefaultCategories
+from subsystems.helpsys import DefaultCategories
 
 log = logging.getLogger(__name__)
 

@@ -8,7 +8,7 @@ from base import BasePlugin
 from botutils import utils, converters
 from data import Config, Lang
 from subsystems import timers
-from subsystems.help import DefaultCategories
+from subsystems.helpsys import DefaultCategories
 from subsystems.ignoring import UserBlockedCommand
 from subsystems.presence import PresencePriority
 from typing import Union

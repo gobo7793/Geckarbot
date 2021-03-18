@@ -9,7 +9,7 @@ from base import BasePlugin
 from botutils import restclient
 from botutils.stringutils import paginate
 from botutils.utils import add_reaction
-from subsystems.help import DefaultCategories
+from subsystems.helpsys import DefaultCategories
 from data import Lang, Config
 
 

@@ -11,7 +11,7 @@ from data import Storage, Lang, Config
 from botutils import utils, converters, permchecks
 from botutils.stringutils import paginate
 from subsystems.ignoring import UserBlockedCommand
-from subsystems.help import DefaultCategories
+from subsystems.helpsys import DefaultCategories
 
 wildcard_user = "%u"
 wildcard_umention = "%um"

@@ -12,7 +12,7 @@ from botutils.stringutils import paginate
 from botutils.converters import get_best_username as gbu
 from botutils.utils import add_reaction
 from data import Storage, Config, Lang
-from subsystems.help import DefaultCategories
+from subsystems.helpsys import DefaultCategories
 
 
 class Plugin(BasePlugin, name="Bot status commands for monitoring and debug purposes"):

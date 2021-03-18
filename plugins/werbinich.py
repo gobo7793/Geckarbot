@@ -15,7 +15,7 @@ from data import Lang, Config
 from botutils import utils, statemachine, stringutils
 from botutils.converters import get_best_username as gbu
 from subsystems import presence
-from subsystems.help import DefaultCategories
+from subsystems.helpsys import DefaultCategories
 
 h_help = "Wer bin ich?"
 h_description = "Startet ein Wer bin ich?. Nach einer Registrierungsphase ordne ich jedem Spieler einen zufälligen " \

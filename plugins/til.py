@@ -9,7 +9,7 @@ from botutils.permchecks import check_mod_access
 from botutils.utils import add_reaction
 from botutils.converters import get_best_username
 from botutils.stringutils import paginate
-from subsystems.help import DefaultCategories
+from subsystems.helpsys import DefaultCategories
 
 
 class Plugin(BasePlugin, name="TIL"):

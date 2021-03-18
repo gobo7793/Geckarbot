@@ -24,7 +24,7 @@ from plugins.spaetzle.subsystems import UserBridge, Observed, Trusted
 from plugins.spaetzle.utils import TeamnameDict, pointdiff_possible, determine_winner, MatchResult, match_status, \
     MatchStatus, get_user_league, get_user_cell, get_schedule, get_schedule_opponent, UserNotFound, \
     convert_to_datetime, get_participant_history, duel_points
-from subsystems.help import DefaultCategories
+from subsystems.helpsys import DefaultCategories
 
 
 class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):

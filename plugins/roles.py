@@ -10,7 +10,7 @@ from botutils import utils, permchecks, converters, stringutils
 from botutils.utils import add_reaction
 from data import Storage, Config, Lang
 from subsystems import reactions
-from subsystems.help import DefaultCategories
+from subsystems.helpsys import DefaultCategories
 
 
 async def add_user_role(member: discord.Member, role: discord.Role):
