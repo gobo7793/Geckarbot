@@ -1,3 +1,4 @@
+import calendar
 import inspect
 import json
 import logging
@@ -22,9 +23,10 @@ from botutils.utils import add_reaction
 from data import Config, Storage, Lang
 from plugins.spaetzle.subsystems import UserBridge, Observed, Trusted
 from plugins.spaetzle.utils import TeamnameDict, pointdiff_possible, determine_winner, MatchResult, match_status, \
-    MatchStatus, get_user_league, get_user_cell, get_schedule, get_schedule_opponent, UserNotFound, \
+    get_user_league, get_user_cell, get_schedule, get_schedule_opponent, UserNotFound, \
     convert_to_datetime, get_participant_history, duel_points
 from subsystems.help import DefaultCategories
+from subsystems.liveticker import LivetickerUpdate, MatchStatus
 
 
 class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
@@ -195,7 +197,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                     score2 = max(0, 0, *(g.get('ScoreTeam2', 0) for g in match.get('Goals', [])))
                 else:
                     score1, score2 = date_formula, date_formula
-                values.append([['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'][date_time.weekday()],
+                values.append([calendar.day_abbr[date_time.weekday()],
                                date_time.strftime("%d.%m.%Y"),
                                date_time.strftime("%H:%M"),
                                self.teamname_dict.get_long(match.get('Team1', {}).get('TeamName', 'n.a.')),
@@ -464,22 +466,25 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
     def start_liveticker(self):
         return self.bot.liveticker.register(league="bl1", plugin=self, coro=self.liveticker_coro, periodic=True)
 
-    async def liveticker_coro(self, matches, *_):
-        self.logger.debug("Spätzle score update started.")
-        c = self.get_api_client()
-        values = [[]] * 9
-
-        # Build values
-        for match_id, match in matches.items():
-            if match_id in Storage().get(self)['match_ids'] and match['kickoff_time'] and \
-                    match['kickoff_time'] < datetime.now() and not match['is_finished']:
-                values[Storage().get(self)['match_ids'].index(match_id)] = [*match['score']]
-
-        # Put scores into spreadsheet
-        c.update(range="Aktuell!{}".format(CellRange.from_a1(Config.get(self)['matches_range']).expand(top=-2, left=-4)
-                                           .rangename()),
-                 values=values)
-        self.logger.debug("Spätzle score update finished.")
+    async def liveticker_coro(self, event):
+        if type(event) != LivetickerUpdate:
+            return
+        # TODO Liveticker-Spaetzle
+        # self.logger.debug("Spätzle score update started.")
+        # c = self.get_api_client()
+        # values = [[]] * 9
+        #
+        # # Build values
+        # for match_id, match in matches.items():
+        #     if match_id in Storage().get(self)['match_ids'] and match['kickoff_time'] and \
+        #             match['kickoff_time'] < datetime.now() and not match['is_finished']:
+        #         values[Storage().get(self)['match_ids'].index(match_id)] = [*match['score']]
+        #
+        # # Put scores into spreadsheet
+        # c.update(range="Aktuell!{}".format(CellRange.from_a1(Config.get(self)['matches_range']).expand(top=-2, left=-4)
+        #                                    .rangename()),
+        #          values=values)
+        # self.logger.debug("Spätzle score update finished.")
 
     @spaetzle_set.command(name="config", help="Sets general config values for the plugin.",
                           usage="<path...> <value>")
@@ -613,7 +618,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             # Calculating possible point difference
             diff1, diff2 = 0, 0
             for i in range(len(matches)):
-                if match_status(matches[i][1], matches[i][2]) == MatchStatus.CLOSED:
+                if match_status(matches[i][1], matches[i][2]) == MatchStatus.COMPLETED:
                     continue
                 diff = pointdiff_possible(matches[i][4:6], preds_h[i], preds_a[i])
                 diff1 += diff[0]
@@ -726,12 +731,12 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                 embed.add_field(name=Lang.lang(self, 'title_league', i + 1), value=msg)
         await ctx.send(embed=embed)
 
-    @spaetzle.command(name="matches", aliases=["spiele"])
+    @spaetzle.command(name="matches", aliases=["spiele"], hidden=True)
     async def show_matches(self, ctx):
         async with ctx.typing():
             c = self.get_api_client()
             data = c.get("Aktuell!{}".format(Config().get(self)['matches_range']), formatted=False)
-            matchday = data[0][0]
+            matchday = data[0][0] if len(data) > 0 and len(data[0]) > 0 else "?"
             matches = data[2:]
 
             if len(matches) == 0:

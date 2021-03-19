@@ -152,11 +152,10 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
         else:
             amount = 1
             other_curr = "EUR"
-        rates = restclient.Client("https://api.exchangeratesapi.io").make_request("/latest")
+        rates = await restclient.Client("https://api.exchangeratesapi.io").request("/latest")
         rate1 = rates.get('rates', {}).get(currency) if currency != "EUR" else 1
         rate2 = rates.get('rates', {}).get(other_curr) if other_curr != "EUR" else 1
         if rate1 and rate2:
-            print(f"{amount:n}")
             other_amount = float(rate2) / float(rate1) * amount
             await ctx.send(Lang.lang(self, 'money_converted',
                                      locale.format_string('%.2f', amount, grouping=True), currency,
@@ -201,6 +200,10 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
     @commands.group(name="remindme", invoke_without_command=True)
     async def reminder(self, ctx, *args):
         self._remove_old_reminders()
+
+        if not args:
+            await ctx.send(Lang.lang(self, 'remind_noargs'))
+            return
 
         try:
             datetime.strptime(f"{args[0]} {args[1]}", "%d.%m.%Y %H:%M")

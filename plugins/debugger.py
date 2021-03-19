@@ -174,5 +174,5 @@ class Plugin(BasePlugin, name="Testing and debug things"):
         await utils.add_reaction(ctx.message, Lang.CMDSUCCESS)
 
     @commands.command(name="livetickersuche", hidden=True)
-    async def suche(self, ctx, plugin=None, league=None):
+    async def livetickersuche(self, ctx, plugin=None, league=None):
         await ctx.send(self.bot.liveticker.search(plugin, league))
