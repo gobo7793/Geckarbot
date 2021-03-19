@@ -297,6 +297,8 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
         self.logger.debug("Starting registering phase")
         self.eval_event = asyncio.Event()
         self.postgame = False
+        if self.spoiler_reaction_listener:
+            self.spoiler_reaction_listener.unregister()
         self.presence_message = self.bot.presence.register(Lang.lang(self, "presence", self.channel.name),
                                                            priority=presence.PresencePriority.HIGH)
         reaction = Lang.lang(self, "reaction_signup")
@@ -412,9 +414,13 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
             if self.statemachine.state == State.IDLE and self.participants \
                     and (event.user not in (x.user for x in self.participants) or self.postgame):
                 # send dm
-                for msg in stringutils.paginate(self.participants, prefix=Lang.lang(self, "participants_last_round"),
-                                                f=lambda x: x.to_msg()):
-                    await event.user.send(msg)
+                try:
+                    for msg in stringutils.paginate(self.participants,
+                                                    prefix=Lang.lang(self, "participants_last_round"),
+                                                    f=lambda x: x.to_msg()):
+                        await event.user.send(msg)
+                except Forbidden:
+                    await event.channel.send(Lang.lang(self, "blocked_spoiler", event.user.mention))
 
     async def delivering_phase(self):
         for target in self.participants:
@@ -432,7 +438,6 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
         done_msg = await self.channel.send(Lang.lang(self, "done"))
         await add_reaction(done_msg, Lang.lang(self, "reaction_spoiler"))
         self.spoiler_reaction_listener = self.bot.reaction_listener.register(done_msg, self.spoiler_dm, data=None)
-
         await self.cleanup()
         return None
 
@@ -447,7 +452,6 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
         for el in self.participants:
             el.cleanup()
         self.presence_message.deregister()
-        self.spoiler_reaction_listener.unregister()
         self.eval_event = None
         self.initiator = None
         self.reg_start_time = None
