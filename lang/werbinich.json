@@ -52,7 +52,7 @@
         "unknown_argument": "Unbekanntes Argument: {}",
         "postgame_unauthorized": "Dieses Kommando steht nur den Spielern der letzten Runde zur Verfügung.",
         "blocked_by_user": "Ich wurde leider von {} blockiert. Ich breche daher ab.",
-        "blocked_spoiler": "{}, bitte entblocke mich erst, bevor du den Spoiler erhalten möchtest!",
+        "blocked_spoiler": "{}, bitte entblocke mich erst!",
 
         "#5": "Spoiler",
         "participants_last_round": "Teilnehmer der letzten Runde:\n",

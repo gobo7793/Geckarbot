@@ -464,5 +464,6 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
         self.reg_start_time = None
         self.show_assignees = True
         self.reg_ts = None
+        self.spoilered_users = []
         if exception:
             raise exception
