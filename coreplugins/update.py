@@ -291,7 +291,7 @@ class Plugin(BasePlugin, name="Bot updating system"):
 
     async def do_update(self, channel, tag):
         self.state = State.UPDATING
-        self.bot.presence.register(Lang.lang("presence_update", tag), PresencePriority.HIGH)
+        self.bot.presence.register(Lang.lang(self, "presence_update", tag), PresencePriority.HIGH)
         await channel.send(Lang.lang(self, "doing_update", tag))
         for plugin in self.bot.plugin_objects(plugins_only=True):
             try:
