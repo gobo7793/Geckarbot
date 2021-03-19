@@ -10,7 +10,7 @@ from botutils import restclient
 from botutils.stringutils import paginate
 from botutils.utils import add_reaction
 from subsystems.help import DefaultCategories
-from subsystems.liveticker import LivetickerKickoff, LivetickerUpdate, LivetickerFinish, MatchStatus
+from subsystems.liveticker import LivetickerKickoff, LivetickerUpdate, LivetickerFinish
 from data import Lang, Config
 
 
