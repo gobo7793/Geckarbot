@@ -10,7 +10,6 @@ import discord
 from discord.ext import commands
 
 import botutils.timeutils
-from base import BasePlugin, NotFound
 from botutils import restclient, utils
 from botutils.converters import get_best_username
 from data import Storage, Lang, Config
@@ -312,7 +311,8 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
                     or self.reminders[el].next_execution() < datetime.now()):
                 old_reminders.append(el)
         for el in old_reminders:
-            asyncio.run_coroutine_threadsafe(self._reminder_callback(self.reminders[el]), self.bot.loop)
+            task = self.bot.loop.create_task(self._reminder_callback(self.reminders[el]))
+            self.bot.loop.run_until_complete(task)
 
     def _remove_reminder(self, reminder_id):
         """
