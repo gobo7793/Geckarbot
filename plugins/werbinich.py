@@ -125,6 +125,7 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
         self.eval_event = None
         self.reg_ts = None
         self.spoiler_reaction_listener = None
+        self.spoilered_users = []
 
         self.base_config = {
             "register_timeout": [int, 1],
@@ -297,6 +298,7 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
         self.logger.debug("Starting registering phase")
         self.eval_event = asyncio.Event()
         self.postgame = False
+        self.spoilered_users = []
         if self.spoiler_reaction_listener:
             self.spoiler_reaction_listener.unregister()
         self.presence_message = self.bot.presence.register(Lang.lang(self, "presence", self.channel.name),
@@ -413,6 +415,9 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
         if type(event) == ReactionAddedEvent and event.emoji.name == Lang.lang(self, "reaction_spoiler"):
             if self.statemachine.state == State.IDLE and self.participants \
                     and (event.user not in (x.user for x in self.participants) or self.postgame):
+                if event.user in self.spoilered_users:
+                    self.logger.debug(f"{event.user.name} already got the spoiler but tried again.")
+                    return
                 # send dm
                 try:
                     for msg in stringutils.paginate(self.participants,
@@ -421,6 +426,8 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
                         await event.user.send(msg)
                 except Forbidden:
                     await event.channel.send(Lang.lang(self, "blocked_spoiler", event.user.mention))
+                else:
+                    self.spoilered_users.append(event.user)
 
     async def delivering_phase(self):
         for target in self.participants:
