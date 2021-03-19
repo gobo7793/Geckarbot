@@ -311,8 +311,7 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
                     or self.reminders[el].next_execution() < datetime.now()):
                 old_reminders.append(el)
         for el in old_reminders:
-            task = self.bot.loop.create_task(self._reminder_callback(self.reminders[el]))
-            self.bot.loop.run_until_complete(task)
+            asyncio.run_coroutine_threadsafe(self._reminder_callback(self.reminders[el]), self.bot.loop)
 
     def _remove_reminder(self, reminder_id):
         """
