@@ -96,9 +96,16 @@ class Plugin(BasePlugin, name="Bot status commands for monitoring and debug purp
     async def dump(self, ctx, iodir, iodir_str, name, container=None):
         plugin = converters.get_plugin_by_name(name)
         if plugin is None:
-            await add_reaction(ctx.message, Lang.CMDERROR)
-            await ctx.send("Plugin {} not found.".format(name))
-            return
+            if name == "ignoring":
+                plugin = self.bot.ignoring
+            elif name == "liveticker":
+                plugin = self.bot.liveticker
+            elif name == "presence":
+                plugin = self.bot.presence
+            else:
+                await add_reaction(ctx.message, Lang.CMDERROR)
+                await ctx.send("Plugin {} not found.".format(name))
+                return
         if iodir is Config and not plugin.can_configdump:
             await add_reaction(ctx.message, Lang.CMDERROR)
             await ctx.send("Config of plugin {} can't be dumped.".format(name))
@@ -119,13 +126,16 @@ class Plugin(BasePlugin, name="Bot status commands for monitoring and debug purp
                 container = None
 
             origin = iodir.get(plugin, container=container)
-            dump = {}
-            has_not_shown_keys = False
-            for key in origin:
-                if key in plugin.dump_except_keys:
-                    has_not_shown_keys = True
-                else:
-                    dump[key] = origin[key]
+            if isinstance(origin, list):
+                dump = origin
+            else:
+                dump = {}
+                has_not_shown_keys = False
+                for key in origin:
+                    if key in plugin.dump_except_keys:
+                        has_not_shown_keys = True
+                    else:
+                        dump[key] = origin[key]
             dump = pprint.pformat(dump, indent=4).split("\n")
             # dump = pprint.pformat(iodir.get(plugin, container=container), indent=4).split("\n")
 

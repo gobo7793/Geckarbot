@@ -12,7 +12,7 @@ from botutils.timeutils import to_local_time
 from botutils.stringutils import paginate
 import logging
 
-chan_logger = logging.getLogger(__name__)
+chan_logger = logging.getLogger("channel-log")
 
 
 async def add_reaction(message: discord.Message, reaction):
