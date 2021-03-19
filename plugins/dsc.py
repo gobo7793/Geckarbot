@@ -12,7 +12,7 @@ from base import BasePlugin, NotFound
 from botutils import permchecks, sheetsclient, utils, timeutils
 from botutils.converters import get_best_user, get_plugin_by_name
 from botutils.stringutils import paginate, clear_link
-from conf import Storage, Lang, Config
+from data import Storage, Lang, Config
 
 
 class DscState(IntEnum):

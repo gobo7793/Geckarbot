@@ -5,7 +5,7 @@ from enum import Enum
 
 import discord
 
-from conf import Lang, Storage
+from data import Lang, Storage
 
 from plugins.quiz.utils import get_best_username
 

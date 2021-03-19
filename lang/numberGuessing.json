@@ -1,5 +1,5 @@
 {
-    "en": {
+    "en_US": {
         "channelgame_not_possible": "No channel game possible. Continuing with single game.",
         "error_msg": "Something went wrong. Nothing done.",
         "no_active_games": "currently no active games",
@@ -17,7 +17,7 @@
         "usage_guess": "[args...]",
         "desc_guess": "!guess [number]: Enters a guess.\n!guess start: Starts a new single game with range from 1 to 100 if no channel game is active.\n!guess start [channel|single]: Starts a new channel or single game with range from 1 to 100.\n!guess start [channel|single] [Range_From] [Range_To]: Starts a new channel or single game with range from and to. Range needs to be all positive without 0.\n!guess stop: Stops an active game.\n!guess status [all]: Shows the status of all currently active games.\n!guess status channel: Shows the status of a currently active channel game in that particular channel.\n!guess status channel all: Shows the status of all currently active channel games.\n!guess status single: Shows the status of a currently active single game of that particular user.\n!guess status single all: Shows the status of all currently active single games.\n\nIf a single game is active guesses will always count to that game, no matter if a channel game is active too. In order to participate in a channel game the single game needs to be finished first either through successfully finish guessing or stopping the game.\n\nChannel Games:\nFor playing a round together it is possible to start a channel game in order to enable all members in that channel to enter a guess.\n\nSingle Games:\nIn this game mode guessing is only possible for one user."
     },
-    "de": {
+    "de_DE": {
         "channelgame_not_possible": "Kein Channel-Spiel möglich; setze mit Einzelspiel fort.",
         "error_msg": "Etwas lief schief. Nix passiert.",
         "no_active_games": "Aktuell keine laufenden Spiele",

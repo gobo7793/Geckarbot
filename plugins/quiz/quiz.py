@@ -7,7 +7,7 @@ from discord.ext import commands
 from discord.errors import HTTPException
 
 from base import BasePlugin, NotFound
-from conf import Storage, Lang
+from data import Storage, Lang
 from subsystems import help
 from botutils import permchecks
 from botutils.utils import sort_commands_helper, add_reaction
@@ -402,10 +402,11 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
     def register_subcommand(self, channel, subcommand, callback):
         """
         Registers a subcommand. If the subcommand is found in a command, the callback coroutine is called.
+
         :param channel: Channel in which the registering quiz takes place. None for global.
         :param subcommand: subcommand string that is looked for in incoming commands. Case-insensitive.
-        :param callback: Coroutine of the type f(ctx, *args); is called with the context object and every arg, including
-        the subcommand itself and excluding the main command ("kwiss")
+        :param callback: Coroutine of the type `f(ctx, *args)`; is called with the context object and every arg,
+            including the subcommand itself and excluding the main command ("kwiss")
         """
         self.logger.debug("Subcommand registered: {}; callback: {}".format(subcommand, callback))
         subcommand = subcommand.lower()
@@ -426,6 +427,7 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
     def get_controller(self, channel):
         """
         Retrieves the running quiz controller in a channel.
+
         :param channel: Channel that is checked for.
         :return: BaseQuizController object that is running in channel. None if no quiz is running in channel.
         """
@@ -436,6 +438,7 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
     async def abort_quiz(self, channel, msg):
         """
         Called on !kwiss stop. It is assumed that there is a quiz in channel.
+
         :param channel: channel that the abort was requested in.
         :param msg: Message object
         """
@@ -445,6 +448,7 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
     def end_quiz(self, channel):
         """
         Cleans up the quiz.
+
         :param channel: channel that the quiz is taking place in
         :return: (End message, score embed)
         """
@@ -459,6 +463,7 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
     def args_combination_check(self, controller, args):
         """
         Checks for argument combination constraints.
+
         :param controller: Quiz controller class
         :param args: args dict
         :return: lang code for error msg, None if the arg combination is okay
@@ -480,6 +485,7 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
     def parse_args(self, channel, args, subcommands=True):
         """
         Parses the arguments given to the quiz command and fills in defaults if necessary.
+
         :param channel: Channel in which the command was issued
         :param args: argument list
         :param subcommands: Whether to fish for subcommands

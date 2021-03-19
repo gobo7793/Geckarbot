@@ -8,7 +8,7 @@ from datetime import datetime
 from discord.ext.commands import DisabledCommand
 
 from base import BaseSubsystem
-from conf import Storage, Lang
+from data import Storage, Lang
 from botutils import utils
 from botutils.converters import get_best_username, get_best_user
 from subsystems import timers
@@ -195,7 +195,8 @@ class IgnoreDataset:
             User user_name will be ignored [for command command_name] until.../forever.
         Format for Command IgnoreType:
             Command command_name is disabled in channel channel_name until.../forever.
-        For other IgnoreTypes the raw message will be returned.
+
+        For other IgnoreTypes, the raw message will be returned.
 
         :return: The well formatted message
         """

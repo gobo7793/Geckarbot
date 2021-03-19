@@ -9,7 +9,7 @@ from botutils import utils
 from botutils.converters import get_best_username, get_plugin_by_name
 from botutils.stringutils import paginate
 from botutils.timeutils import parse_time_input
-from conf import Config, Lang
+from data import Config, Lang
 from subsystems.help import DefaultCategories
 from subsystems.ignoring import IgnoreEditResult, IgnoreType
 from subsystems.presence import PresencePriority
@@ -23,10 +23,11 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
         self.can_reload = True
         bot.register(self, category=DefaultCategories.MOD)
 
-        # Add !presence to help category 'misc'
+        # Move commands to help category 'user'
         for cmd in self.get_commands():
-            if cmd.name == "presence":
-                self.bot.helpsys.default_category(DefaultCategories.MISC).add_command(cmd)
+            if cmd.name in ["presence", "about"]:
+                self.bot.helpsys.default_category(DefaultCategories.USER).add_command(cmd)
+                self.bot.helpsys.default_category(DefaultCategories.MOD).remove_command(cmd)
 
     def default_config(self):
         return {

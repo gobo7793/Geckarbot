@@ -13,7 +13,7 @@ from base import BasePlugin, ConfigurableType, NotFound
 from botutils import restclient, utils, permchecks
 from botutils.stringutils import paginate
 from botutils.utils import sort_commands_helper, add_reaction
-from conf import Config, Lang
+from data import Config, Lang
 from subsystems import help
 
 # Assumed version numbering system:
@@ -256,6 +256,12 @@ class Plugin(BasePlugin, name="Bot updating system"):
         self.to_log = None
         self.waiting_for_confirm = None
         bot.register(self, category=help.DefaultCategories.ADMIN)
+
+        # Add commands to help category 'user'
+        to_add = ("version", "news")
+        for cmd in self.get_commands():
+            if cmd.name in to_add:
+                self.bot.helpsys.default_category(help.DefaultCategories.USER).add_command(cmd)
 
     def command_help_string(self, command):
         return Lang.lang(self, "help_{}".format(command.name))

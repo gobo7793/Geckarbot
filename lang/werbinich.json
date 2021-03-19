@@ -1,11 +1,13 @@
 {
-    "en": {
-        "reaction_signup": "📋"
+    "en_US": {
+        "reaction_signup": "📋",
+        "reaction_spoiler": "\uD83D\uDC40"
     },
 
-    "de": {
+    "de_DE": {
         "#0": "Grammar",
         "reaction_signup": "📋",
+        "reaction_spoiler": "\uD83D\uDC40",
         "and": "und",
         "nobody": "niemanden",
         "minute_sg": "Minute",
@@ -30,7 +32,7 @@
         "#2": "Public",
         "registering": "Ein Wer bin ich? wurde gestartet! Um teilzunehmen, melde dich mit einer {}-Reaktion an. Ihr habt {} {} Zeit.",
         "list_participants": "Teilnehmer: {}",
-        "done": "Fertig.",
+        "done": "Fertig. Reagiere mit \uD83D\uDC40 um als Beobachter die Zuordnungen mitgeteilt zu bekommen!",
 
         "#3": "DM",
         "ask_for_entry": "Du darfst für {} eine zu erratende Person aussuchen. Wer darf's sein?",
@@ -50,6 +52,7 @@
         "unknown_argument": "Unbekanntes Argument: {}",
         "postgame_unauthorized": "Dieses Kommando steht nur den Spielern der letzten Runde zur Verfügung.",
         "blocked_by_user": "Ich wurde leider von {} blockiert. Ich breche daher ab.",
+        "blocked_spoiler": "{}, bitte entblocke mich erst!",
 
         "#5": "Spoiler",
         "participants_last_round": "Teilnehmer der letzten Runde:\n",

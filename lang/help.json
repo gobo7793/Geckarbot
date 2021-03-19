@@ -1,5 +1,5 @@
 {
-  "en": {
+  "en_US": {
     "#0": "Help",
     "help_help": "Help message",
     "description_help": "Lists all help categories or shows a help message about a command, a subcommand or a category.",
@@ -18,6 +18,7 @@
     "help_no_desc": "This command does not have a description. You are on your own.",
 
     "default_category_misc": "Misc",
+    "default_category_user": "User",
     "default_category_admin": "Admin",
     "default_category_mod": "Mod",
     "default_category_games": "Games",
@@ -27,7 +28,7 @@
     "cmd_not_found": "Command not found.",
     "cmd_cat_not_found": "Command or category not found."
   },
-  "de": {
+  "de_DE": {
     "#0": "Help",
     "help_help": "Zu Hülfe!",
     "description_help": "Listet alle Hilfe-Kategorien auf oder gibt eine Hilfe-Nachricht zu einem Kommando, einem Unterkommando oder einer Kategorie aus.",
@@ -47,6 +48,7 @@
     "help_no_desc": "Dieses Kommando hat keine Beschreibung. Du bist auf dich allein gestellt. Viel Glück.",
 
     "default_category_misc": "Sonstiges",
+    "default_category_user": "Botuser",
     "default_category_admin": "Botadmin",
     "default_category_mod": "Mod",
     "default_category_games": "Spiele",

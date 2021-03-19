@@ -4,7 +4,7 @@ import discord
 from discord.ext import commands
 from discord.ext.commands import CheckFailure
 
-from conf import Config
+from data import Config
 
 
 class WrongChannel(CheckFailure):
@@ -54,7 +54,7 @@ def _check_access(user: discord.User, roles):
 def check_admin_access(user: discord.User):
     """
     Checks if the user has admin access to bot commands. If you can, use
-    @commands.has_any_role(*Config().ADMIN_ROLES) instead.
+    `@commands.has_any_role(*Config().ADMIN_ROLES)` instead.
     """
     return _check_access(user, Config().ADMIN_ROLES)
 
@@ -62,7 +62,7 @@ def check_admin_access(user: discord.User):
 def check_mod_access(user: discord.User):
     """
     Checks if the user has mod access to bot commands. If you can, use
-    @commands.has_any_role(*Config().MOD_ROLES) instead.
+    `@commands.has_any_role(*Config().MOD_ROLES)` instead.
     """
     return _check_access(user, Config().MOD_ROLES)
 

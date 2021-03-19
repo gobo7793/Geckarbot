@@ -12,8 +12,8 @@ import discord
 from discord.ext import commands
 
 from base import BasePlugin, NotLoadable, NotFound
-from conf import Config, Lang, Storage
-from botutils.converters import get_best_username as gbu
+from data import Config, Lang, Storage
+from botutils.converters import get_best_username as gbu, get_best_user
 from botutils.timeutils import hr_roughly
 from botutils.stringutils import paginate
 from botutils.utils import write_debug_channel, add_reaction
@@ -112,6 +112,8 @@ class Song:
 
     def quote(self, p=None):
         """
+        Returns a random quote if there is one.
+
         :param p: Probability (defaults to config value quote_p)
         :return: quote
         """
@@ -126,6 +128,9 @@ class Song:
         return None
 
     def format_song(self):
+        """
+        :return: Nice readable representation of the song according to lang string
+        """
         r = Lang.lang(self.plugin, "listening_song_base", self.title, self.artist)
         if self.loved:
             r = "{} {}".format(Lang.lang(self.plugin, "loved"), r)
@@ -191,7 +196,8 @@ class Plugin(BasePlugin, name="LastFM"):
             "intro_howto_cancel": "",
             "result_rejected": Lang.lang(self, "quote_invalid"),
             "state_cancelled": Lang.lang(self, "quote_cancelled"),
-            "state_done": Lang.lang(self, "quote_done")
+            "state_done": Lang.lang(self, "quote_done"),
+            "answer_list_sc": Lang.lang(self, "quote_answer_list_sc"),
         }
         self.cmd_order = [
             "now",
@@ -304,6 +310,13 @@ class Plugin(BasePlugin, name="LastFM"):
         self.perf_request_count += 1
 
     def get_quotes(self, artist, title):
+        """
+        Fetches the quotes for an artist-title-pair.
+
+        :param artist: Artist
+        :param title: Title
+        :return: Returns a dict of the form {int i: {"author": userid, "quote": quotestring}}
+        """
         quotes = Storage.get(self, container="quotes").get("quotes", [])
         for el in quotes.keys():
             if quotes[el]["artist"].lower() == artist.lower() and quotes[el]["title"].lower() == title.lower():
@@ -432,20 +445,63 @@ class Plugin(BasePlugin, name="LastFM"):
         after = self.perf_timenow()
         self.perf_add_total_time(after - before)
 
-    def quote_cb(self, question, question_queue):
+    async def quote_so_far_helper(self, user, song):
+        """
+        Sends a list of current quotes to User `user`'s DM
+
+        :param user: User
+        :param song: Song instance
+        """
+        self.logger.debug("Sending current quotes for {} to {}".format(song, user))
+        msg = [Lang.lang(self, "quote_existing_quotes")]
+        quotes = self.get_quotes(song.artist, song.title)
+        for key in quotes:
+            author = get_best_user(quotes[key]["author"])
+            author = gbu(author) if author is not None else Lang.lang(self, "quote_unknown_user")
+            msg.append(Lang.lang(self, "quote_list_entry", quotes[key]["quote"], author))
+        if len(msg) == 1:
+            return
+
+        for msg in paginate(msg):
+            await user.send(msg)
+
+    async def quote_cb(self, question, question_queue):
+        """
+        Is called when the answer for the question "scrobble or new?" comes in.
+
+        :param question: Question object
+        :param question_queue: list of Question objects that were to be posed after this
+        :return: New question queue
+        """
         if question.answer == question.data["new"]:
             self.logger.debug("Got answer new")
             question.data["result_scrobble"] = False
-            return question_queue
+            r = question_queue
         elif question.answer == question.data["scrobble"]:
             self.logger.debug("Got answer scrobble")
             question.data["result_scrobble"] = True
-            return [question.data["q_quote"]]
-        assert False
+            r = [question.data["q_quote"]]
+            await self.quote_so_far_helper(question.data["user"], question.data["song"])
+        else:
+            assert False
+
+        return r
+
+    async def quote_new_song_cb(self, question, question_queue):
+        """
+        Is called when the answer for the question "Title?" comes in
+
+        :param question:
+        :param question_queue:
+        :return:
+        """
+        song = Song(self, question.data["q_artist"].answer, "", question.data["q_title"].answer)
+        question.data["song"] = song
+        await self.quote_so_far_helper(question.data["user"], song)
+        return question_queue
 
     async def quote_sanity_cb(self, question, question_queue):
         p = mention_p.search(question.answer)
-        print("re search: {}".format(p))
         if p:
             await add_reaction(question.answer_msg, Lang.CMDERROR)
             await question.answer_msg.channel.send(Lang.lang(self, "quote_err_no_mentions"))
@@ -486,19 +542,27 @@ class Plugin(BasePlugin, name="LastFM"):
             return
 
         # Build Questionnaire
-        q_artist = Question("Artist?", QuestionType.TEXT, lang=self.lang_question)
-        q_title = Question("Title?", QuestionType.TEXT, lang=self.lang_question)
-        q_quote = Question("Quote?", QuestionType.TEXT, lang=self.lang_question, callback=self.quote_sanity_cb)
-        data = {
+        q_artist = Question(Lang.lang(self, "quote_question_artist"), QuestionType.TEXT, lang=self.lang_question)
+        q_title = Question(Lang.lang(self, "quote_question_title"), QuestionType.TEXT, lang=self.lang_question,
+                           callback=self.quote_new_song_cb)
+        q_quote = Question(Lang.lang(self, "quote_question_quote"), QuestionType.TEXT,
+                           lang=self.lang_question, callback=self.quote_sanity_cb)
+        cargo = {
+            "user": ctx.author,
             "song": song,
             "q_quote": q_quote,
+            "q_artist": q_artist,
+            "q_title": q_title,
             "scrobble": Lang.lang(self, "quote_scrobble"),
             "new": Lang.lang(self, "quote_new"),
             "result_scrobble": None,
+            "result_artist": None,
+            "result_title": None,
         }
+        q_title.data = cargo
         answers = [Lang.lang(self, "quote_scrobble"), Lang.lang(self, "quote_new")]
         q_target = Question(Lang.lang(self, "quote_target", song.format_song()), QuestionType.SINGLECHOICE,
-                            answers=answers, callback=self.quote_cb, data=data)
+                            answers=answers, callback=self.quote_cb, data=cargo, lang=self.lang_question)
         questions = [q_target, q_artist, q_title, q_quote]
         questionnaire = Questionnaire(self.bot, ctx.author, questions, "lastfm quote", lang=self.lang_questionnaire)
         questionnaire.kill_coro = self.quote_dm_kill_cb(ctx.message, questionnaire)
@@ -513,8 +577,8 @@ class Plugin(BasePlugin, name="LastFM"):
             return
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
-        assert data["result_scrobble"] is not None
-        if data["result_scrobble"]:
+        assert cargo["result_scrobble"] is not None
+        if cargo["result_scrobble"]:
             artist = song.artist
             title = song.title
         else:
@@ -586,6 +650,7 @@ class Plugin(BasePlugin, name="LastFM"):
     def listening_msg(self, user, song):
         """
         Builds a "x is listening to y" message string.
+
         :param user: User that is listening
         :param song: song dict
         :return: Message string that is ready to be sent
@@ -633,6 +698,7 @@ class Plugin(BasePlugin, name="LastFM"):
     def build_songs(self, response, append_to=None, first=True):
         """
         Builds song dicts out of a response.
+
         :param response: Response from the Last.fm API
         :param append_to: Append resulting songs to this list instead of building a new one.
         :param first: If False, removes a leading "nowplaying" song if existant.
@@ -679,14 +745,15 @@ class Plugin(BasePlugin, name="LastFM"):
         """
         Expands a streak on the first page to the longest it can find across multiple pages.
         Potentially downgrades the criterion layer if the lower layer has far more matches.
+
         :param lfmuser: Last.fm user name
         :param page_len: Last.fm request page length
         :param so_far: First page of songs
         :param criterion: MostInteresting instance
         :param example: Example song
         :return: `(count, out_of, criterion, repr)` with count being the amount of matches for criterion it found,
-        out_of being the amount of scrobbles that were looked at, criterion the (new, potentially downgraded) criterion
-        and repr the most recent representative song of criterion.
+            `out_of` being the amount of scrobbles that were looked at, `criterion` the (new, potentially downgraded)
+            criterion and `repr` the most recent representative song of criterion.
         """
         self.logger.debug("Expanding")
         page_index = 1
@@ -770,10 +837,10 @@ class Plugin(BasePlugin, name="LastFM"):
         """
         If multiple entries share the first place, decrease the score of all entries that are not the first
         to appear in the list of songs.
+
         :param scores: Scores entry dict as calculated by calc_scores
         :param songs: List of songs that the scores were calculated for
         :param mitype: MostInterestingType object that represents the criterion layer that is to be tie-broken
-        :return:
         """
         self.logger.debug("Scores to tiebreak: {}".format(pprint.pformat(scores)))
         s = sorted(scores.keys(), key=lambda x: scores[x]["count"], reverse=True)
@@ -798,6 +865,7 @@ class Plugin(BasePlugin, name="LastFM"):
     def calc_scores(self, songs, min_artist, min_album, min_title):
         """
         Counts the occurences of artists, songs and albums in a list of song dicts and assigns scores
+
         :param songs: list of songs
         :param min_artist: Amount of songs that have to have the same artist
         :param min_album: Amount of songs that have to have the same artist and album

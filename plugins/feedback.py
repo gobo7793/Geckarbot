@@ -5,20 +5,9 @@ from discord.ext import commands
 
 from base import BasePlugin, NotFound
 from botutils.utils import add_reaction
-from conf import Storage, Config, Lang
+from data import Storage, Config, Lang
 from botutils import converters
 from botutils.stringutils import paginate, format_andlist
-
-
-h_usage = "[full]"
-h_search_usage = "[<search terms>]"
-h_del_usage = "#"
-h_cat_usage = "[<# ...> | <# ...> <category> | <category>]"
-h_cat_desc = "Manages complaint categories. Usage:\n" \
-             "  !redact category                    - lists all categories.\n" \
-             "  !redact category <category>         - lists all complaints in a category.\n" \
-             "  !redact category <# ...> <category> - adds complaints to a category.\n" \
-             "  !redact category <# ...>            - removes the categories from complaints.\n."
 
 
 class Complaint:
@@ -58,6 +47,7 @@ class Complaint:
     def deserialize(cls, plugin, cid, d):
         """
         Constructs a Complaint object from a dict.
+
         :param plugin: Plugin reference
         :param cid: Complaint id
         :param d: dict made by serialize()
@@ -69,6 +59,8 @@ class Complaint:
     @classmethod
     def from_message(cls, plugin, msg):
         content = msg.content[len("!complain"):].strip()  # todo check if necessary
+        if not content.strip():
+            return None
         return cls(plugin, plugin.get_new_id(), msg.author, msg.jump_url, content, None)
 
     def to_message(self, show_cat=True, include_url=True):
@@ -121,23 +113,23 @@ class Plugin(BasePlugin, name="Feedback"):
                 "version": 1,
             }
 
-    def command_usage(self, command):
-        if command.name == "complain":
-            return Lang.lang(self, "help_usage_complain")
-        else:
-            raise NotFound()
-
     def command_help_string(self, command):
-        if command.name == "complain":
-            return Lang.lang(self, "help_complain")
-        else:
+        langstr = Lang.lang_no_failsafe(self, "help_{}".format(command.qualified_name.replace(" ", "_")))
+        if langstr is None:
             raise NotFound()
+        return langstr
 
     def command_description(self, command):
-        if command.name == "complain":
-            return Lang.lang(self, "help_desc_complain")
-        else:
+        langstr = Lang.lang_no_failsafe(self, "desc_{}".format(command.qualified_name.replace(" ", "_")))
+        if langstr is None:
             raise NotFound()
+        return langstr
+
+    def command_usage(self, command):
+        langstr = Lang.lang_no_failsafe(self, "usage_{}".format(command.qualified_name.replace(" ", "_")))
+        if langstr is None:
+            raise NotFound()
+        return langstr
 
     def reset_highest_id(self):
         self.highest_id = 0
@@ -149,6 +141,7 @@ class Plugin(BasePlugin, name="Feedback"):
     def get_new_id(self, increment=True):
         """
         Acquires a new complaint id
+
         :return: free unique id that can be used for a new complaint
         """
         if increment:
@@ -187,11 +180,7 @@ class Plugin(BasePlugin, name="Feedback"):
         return ids, cats
 
     @commands.group(name="redact",
-                    invoke_without_command=True,
-                    help="Redacts the list of complaints (i.e. read and delete)",
-                    usage=h_usage,
-                    description="Returns the accumulated feedback. Use [del x] to delete feedback #x"
-                                "and [full] to include categorized complaints.")
+                    invoke_without_command=True)
     @commands.has_any_role(*Config().ADMIN_ROLES)
     async def redact(self, ctx, *args):
         aliases = ["all", "full"]
@@ -239,7 +228,7 @@ class Plugin(BasePlugin, name="Feedback"):
         for el in msgs:
             await ctx.send(el)
 
-    @redact.command(name="del", help="Deletes a complaint", usage=h_del_usage)
+    @redact.command(name="del")
     async def cmd_delete(self, ctx, *args):
         cids, _ = self.parse_args(args)
         cids = set(cids)
@@ -263,7 +252,7 @@ class Plugin(BasePlugin, name="Feedback"):
         self.reset_highest_id()
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
-    @redact.command(name="search", help="Finds all complaints that contain all search terms", usage=h_search_usage)
+    @redact.command(name="search")
     async def cmd_search(self, ctx, *args):
         if len(args) == 0:
             await add_reaction(ctx.message, Lang.CMDERROR)
@@ -293,7 +282,7 @@ class Plugin(BasePlugin, name="Feedback"):
         for el in msgs:
             await ctx.send(el)
 
-    @redact.command(name="count", help="Shows the amount of complaints that exist")
+    @redact.command(name="count")
     async def cmd_count(self, ctx):
         cats = set()
         uncategorized = 0
@@ -308,7 +297,7 @@ class Plugin(BasePlugin, name="Feedback"):
         total = uncategorized + categorized
         await ctx.send(Lang.lang(self, "redact_count", total, categorized, uncategorized, len(cats)))
 
-    @redact.command(name="flatten", hidden=True, help="Flattens the complaint IDs")
+    @redact.command(name="flatten", hidden=True)
     async def cmd_flatten(self, ctx):
         i = 0
         new = {}
@@ -324,7 +313,8 @@ class Plugin(BasePlugin, name="Feedback"):
 
     async def category_move(self, ctx, complaint_ids: list, category):
         """
-        Moves a complaint to a category.
+        Moves complaints to a category.
+
         :param ctx: Context
         :param complaint_ids: List of IDs of (existing!) complaints to be moved
         :param category: New category; category will be removed from complaints if this is None
@@ -352,6 +342,7 @@ class Plugin(BasePlugin, name="Feedback"):
     async def category_show(self, ctx, category):
         """
         Shows the content of a category.
+
         :param ctx: Context
         :param category: Category that is to be shown
         """
@@ -374,6 +365,7 @@ class Plugin(BasePlugin, name="Feedback"):
     async def category_list(self, ctx):
         """
         Lists all categories.
+
         :param ctx: Context
         """
         cats = []
@@ -389,11 +381,7 @@ class Plugin(BasePlugin, name="Feedback"):
             for msg in paginate(cats, prefix=Lang.lang(self, "redact_cat_list_prefix")):
                 await ctx.send(msg)
 
-    @redact.command(name="category",
-                    aliases=["cat"],
-                    help="Adds complaints to categories and lists categories.",
-                    description=h_cat_desc,
-                    usage=h_cat_usage)
+    @redact.command(name="category", aliases=["cat"])
     async def category(self, ctx, *args):
         ids, cats = self.parse_args(args)
 
@@ -404,7 +392,7 @@ class Plugin(BasePlugin, name="Feedback"):
         else:
             for cid in ids:
                 if cid not in self.complaints:
-                    error = Lang.lang(self, "redact_cat_complaint_not_found")
+                    error = Lang.lang(self, "redact_cat_complaint_not_found", cid)
                     break
         if error is not None:
             await ctx.send(error)
@@ -431,6 +419,9 @@ class Plugin(BasePlugin, name="Feedback"):
     async def complain(self, ctx, *args):
         msg = ctx.message
         complaint = Complaint.from_message(self, msg)
+        if complaint is None:
+            await self.bot.helpsys.cmd_help(ctx, self, ctx.command)
+            return
         self.complaints[complaint.id] = complaint
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
         self.write()
@@ -509,9 +500,7 @@ class Plugin(BasePlugin, name="Feedback"):
         Storage.save(self, container="bugscore")
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
-    @commands.command(name="bugscore", help="High score for users who found bugs",
-                      description="Shows the current bug score.\n\n"
-                                  "Admins:\n!bugscore <user> [increment]\n!bugscore del <user>")
+    @commands.command(name="bugscore")
     async def bugscore(self, ctx, *args):
         if len(args) == 0:
             await self.bugscore_show(ctx)

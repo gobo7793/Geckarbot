@@ -6,7 +6,7 @@ from discord.ext import commands
 
 from base import BasePlugin
 from botutils import utils, converters
-from conf import Config, Lang
+from data import Config, Lang
 from subsystems import help, timers
 from subsystems.ignoring import UserBlockedCommand
 from subsystems.presence import PresencePriority
@@ -34,13 +34,13 @@ class Plugin(BasePlugin, name="Testing and debug things"):
 
     # Maybe really useful debugging commands
 
-    @commands.command(name="getemojiid", help="Gets the emoji ids to use in strings")
+    @commands.command(name="getemojiid", help="Gets the emoji ids to use in strings", hidden=True)
     async def get_emoji_id(self, ctx, emoji: discord.Emoji):
         str_rep = str(emoji).replace("<", "`").replace(">", "`")
         msg = await ctx.send(str_rep)
         await utils.add_reaction(msg, emoji)
 
-    @commands.command(name="defaultstorage")
+    @commands.command(name="defaultstorage", hidden=True)
     async def defaultstorage(self, ctx, pluginname):
         plugin = converters.get_plugin_by_name(pluginname)
         if plugin is None:
@@ -50,7 +50,7 @@ class Plugin(BasePlugin, name="Testing and debug things"):
         await utils.add_reaction(ctx.message, Lang.CMDSUCCESS)
         await ctx.send("```{}```".format(plugin.default_storage()))
 
-    @commands.command(name="cmdplugin")
+    @commands.command(name="cmdplugin", hidden=True)
     async def cmdplugin(self, ctx, *args):
         for plugin in self.bot.plugins:
             if not isinstance(plugin.instance, BasePlugin):
@@ -67,7 +67,7 @@ class Plugin(BasePlugin, name="Testing and debug things"):
                 print("    brief: " + str(cmd.brief))
                 print("    usage: " + str(cmd.usage))
 
-    @commands.command(name="presenceadd", help="Adds presence messages")
+    @commands.command(name="presenceadd", help="Adds presence messages", hidden=True)
     async def add_presence(self, ctx, prio, *, message):
         if prio.lower() == "low":
             priority = PresencePriority.LOW
@@ -81,26 +81,26 @@ class Plugin(BasePlugin, name="Testing and debug things"):
         new_id = self.bot.presence.register(message, priority)
         await ctx.send("registered with result {}".format(new_id))
 
-    @commands.command(name="presencedel", help="Removes presence messages, with raw IDs")
+    @commands.command(name="presencedel", help="Removes presence messages, with raw IDs", hidden=True)
     async def del_presence(self, ctx, presence_id: int):
         result = self.bot.presence.deregister_id(presence_id)
         await ctx.send("deregistered with result {}".format(result))
 
-    @commands.command(name="presencestart", help="Starts the presence timer")
+    @commands.command(name="presencestart", help="Starts the presence timer", hidden=True)
     async def start_presence(self, ctx):
         if not self.bot.presence.is_timer_up:
             await self.bot.presence.start()
         else:
             await ctx.send("Timer already started")
 
-    @commands.command(name="presencestop", help="Stops the presence timer in debug mode")
+    @commands.command(name="presencestop", help="Stops the presence timer in debug mode", hidden=True)
     async def stop_presence(self, ctx):
         if self.bot.presence.is_timer_up:
             self.bot.presence.stop()
         else:
             await ctx.send("Timer not started")
 
-    @commands.command(name="presencenext", help="Sets the next presence message")
+    @commands.command(name="presencenext", help="Sets the next presence message", hidden=True)
     async def stop_presence(self, ctx):
         if self.bot.presence.is_timer_up:
             self.bot.presence._execute_change()
@@ -108,13 +108,13 @@ class Plugin(BasePlugin, name="Testing and debug things"):
         else:
             await ctx.send("Timer not started")
 
-    @commands.command(name="write")
+    @commands.command(name="write", hidden=True)
     async def write(self, ctx, *, args):
         await ctx.send(args)
 
     # Testing commands
 
-    @commands.command(name="mentionuser", help="Mentions a user, supports user cmd disabling.")
+    @commands.command(name="mentionuser", help="Mentions a user, supports user cmd disabling.", hidden=True)
     async def mentionuser(self, ctx, user: discord.Member):
         if self.bot.ignoring.check_passive_usage(user, ctx.command.qualified_name):
             raise UserBlockedCommand(user, ctx.command.qualified_name)
@@ -127,7 +127,7 @@ class Plugin(BasePlugin, name="Testing and debug things"):
         self.sleeper = self.bot.loop.call_later(sys.maxsize, print, "blub")
         await ctx.message.channel.send("Falling asleep.")
 
-    @commands.command(name="awake")
+    @commands.command(name="awake", hidden=True)
     async def awake(self, ctx):
         self.sleeper.cancel()
         await ctx.message.channel.send("I'm waking myself up.")
@@ -173,6 +173,6 @@ class Plugin(BasePlugin, name="Testing and debug things"):
             print(el)
         await utils.add_reaction(ctx.message, Lang.CMDSUCCESS)
 
-    @commands.command(name="livetickersuche")
-    async def suche(self, ctx, plugin=None, league=None):
+    @commands.command(name="livetickersuche", hidden=True)
+    async def livetickersuche(self, ctx, plugin=None, league=None):
         await ctx.send(self.bot.liveticker.search(plugin, league))

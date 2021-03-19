@@ -11,10 +11,11 @@ from discord.errors import Forbidden
 from base import BasePlugin, NotFound
 from botutils.stringutils import format_andlist
 from botutils.utils import add_reaction
-from conf import Lang, Config
+from data import Lang, Config
 from botutils import utils, statemachine, stringutils
 from botutils.converters import get_best_username as gbu
 from subsystems import help, presence
+from subsystems.reactions import ReactionAddedEvent
 
 h_help = "Wer bin ich?"
 h_description = "Startet ein Wer bin ich?. Nach einer Registrierungsphase ordne ich jedem Spieler einen zufälligen " \
@@ -47,6 +48,7 @@ class Participant:
     def assign(self, p):
         """
         Assigns a participant. Can only be called once.
+
         :param p: Participant this one has to choose for
         """
         if self.assigned is not None:
@@ -57,7 +59,6 @@ class Participant:
     async def kill_cb(self):
         """
         The DM registration has been killed, so we're killing the whole game.
-        :return:
         """
         await self.plugin.kill(self)
 
@@ -119,10 +120,12 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
         self.initiator = None
         self.show_assignees = True
         self.postgame = False
-        self.presence_messsage = None
+        self.presence_message = None
         self.participants = []
         self.eval_event = None
         self.reg_ts = None
+        self.spoiler_reaction_listener = None
+        self.spoilered_users = []
 
         self.base_config = {
             "register_timeout": [int, 1],
@@ -295,8 +298,11 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
         self.logger.debug("Starting registering phase")
         self.eval_event = asyncio.Event()
         self.postgame = False
-        self.presence_messsage = self.bot.presence.register(Lang.lang(self, "presence", self.channel.name),
-                                                            priority=presence.PresencePriority.HIGH)
+        self.spoilered_users = []
+        if self.spoiler_reaction_listener:
+            self.spoiler_reaction_listener.unregister()
+        self.presence_message = self.bot.presence.register(Lang.lang(self, "presence", self.channel.name),
+                                                           priority=presence.PresencePriority.HIGH)
         reaction = Lang.lang(self, "reaction_signup")
         to = self.get_config("register_timeout")
         self.reg_ts = datetime.now()
@@ -405,6 +411,24 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
                 return
         self.eval_event.set()
 
+    async def spoiler_dm(self, event):
+        if type(event) == ReactionAddedEvent and event.emoji.name == Lang.lang(self, "reaction_spoiler"):
+            if self.statemachine.state == State.IDLE and self.participants \
+                    and (event.user not in (x.user for x in self.participants) or self.postgame):
+                if event.user in self.spoilered_users:
+                    self.logger.debug(f"{event.user.name} already got the spoiler but tried again.")
+                    return
+                # send dm
+                try:
+                    for msg in stringutils.paginate(self.participants,
+                                                    prefix=Lang.lang(self, "participants_last_round"),
+                                                    f=lambda x: x.to_msg()):
+                        await event.user.send(msg)
+                except Forbidden:
+                    await event.channel.send(Lang.lang(self, "blocked_spoiler", event.user.mention))
+                else:
+                    self.spoilered_users.append(event.user)
+
     async def delivering_phase(self):
         for target in self.participants:
             todo = []
@@ -418,7 +442,9 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
 
             for msg in stringutils.paginate(todo, prefix=Lang.lang(self, "list_title")):
                 await target.send(msg)
-        await self.channel.send(Lang.lang(self, "done"))
+        done_msg = await self.channel.send(Lang.lang(self, "done"))
+        await add_reaction(done_msg, Lang.lang(self, "reaction_spoiler"))
+        self.spoiler_reaction_listener = self.bot.reaction_listener.register(done_msg, self.spoiler_dm, data=None)
         await self.cleanup()
         return None
 
@@ -428,13 +454,16 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
     async def abort(self):
         await self.cleanup()
 
-    async def cleanup(self):
+    async def cleanup(self, exception=None):
         self.logger.debug("Cleaning up")
         for el in self.participants:
             el.cleanup()
-        self.presence_messsage.deregister()
+        self.presence_message.deregister()
         self.eval_event = None
         self.initiator = None
         self.reg_start_time = None
         self.show_assignees = True
         self.reg_ts = None
+        self.spoilered_users = []
+        if exception:
+            raise exception

@@ -17,9 +17,9 @@ from discord.ext import commands
 
 import injections
 import subsystems
-from base import BasePlugin, NotLoadable, ConfigurableType, PluginNotFound
+from base import BasePlugin, NotLoadable, ConfigurableType, PluginClassNotFound
 from botutils import utils, permchecks, converters, stringutils
-from conf import Config, Lang, Storage, ConfigurableData
+from data import Config, Lang, Storage, ConfigurableData
 from subsystems import timers, reactions, ignoring, dmlisteners, help, presence, liveticker
 
 
@@ -45,7 +45,7 @@ class Geckarbot(commands.Bot):
     CONFIG_DIR = "config"
     STORAGE_DIR = "storage"
     LANG_DIR = "lang"
-    DEFAULT_LANG = "en"
+    DEFAULT_LANG = "en_US"
     RESOURCE_DIR = "resource"
 
     """
@@ -129,7 +129,7 @@ class Geckarbot(commands.Bot):
         """
         Sets the localization settings to the LANGUAGE_CODE configuration
         """
-        locale.setlocale(locale.LC_ALL, self.LANGUAGE_CODE)
+        locale.setlocale(locale.LC_ALL, self.LANGUAGE_CODE + ".utf-8")
         logging.info(f"Localization set to '{locale.getlocale(locale.LC_ALL)}'")
 
     @property
@@ -233,6 +233,7 @@ class Geckarbot(commands.Bot):
             1. If LOAD_PLUGINS is empty: All available plugins will be loaded
             2. If LOAD_PLUGINS is not empty: Only the plugins in this list will be loaded
             3. From the plugins that should be loaded, the plugins listed in NOT_LOAD_PLUGINS won't be loaded
+
         Plugins are indicated by their names. These conditions don't apply to core plugins in CORE_PLUGIN_DIR.
 
         :return: Returns a list with the plugin names which should be loaded, but failed.
@@ -258,7 +259,7 @@ class Geckarbot(commands.Bot):
                 found = True
                 obj(self)
         if not found:
-            raise PluginNotFound(members)
+            raise PluginClassNotFound(members)
 
     def load_plugin(self, plugin_dir, plugin_name):
         """Loads the given plugin_name in plugin_dir, returns True if plugin loaded successfully"""
@@ -273,7 +274,7 @@ class Geckarbot(commands.Bot):
             try:
                 self.import_plugin(to_import)
                 found = True
-            except PluginNotFound:
+            except PluginClassNotFound:
                 pass
             if not found:
                 to_import = "{}.{}.{}".format(plugin_dir, plugin_name, plugin_name)
@@ -284,7 +285,7 @@ class Geckarbot(commands.Bot):
             if plugin_instance is not None:
                 self.deregister(plugin_instance)
             return False
-        except PluginNotFound as e:
+        except PluginClassNotFound as e:
             logging.error("Unable to load plugin '{}': Plugin class not found".format(plugin_name))
             logging.debug("Members: {}".format(pprint.pformat(e.members)))
         except Exception as e:
@@ -523,7 +524,6 @@ async def send_error_to_ctx(ctx: discord.ext.commands.Context,
     :param error: The error to send
     :param default: The default message
     :param message: The error dependent error message
-    :return:
     """
     if message:
         await ctx.send(message)

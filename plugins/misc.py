@@ -13,7 +13,8 @@ import botutils.timeutils
 from base import BasePlugin, NotFound
 from botutils import restclient, utils
 from botutils.converters import get_best_username
-from conf import Storage, Lang, Config
+from data import Storage, Lang, Config
+from base import BasePlugin, NotFound
 from subsystems import timers, help
 
 log = logging.getLogger(__name__)
@@ -42,6 +43,7 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
         for cmd in self.get_commands():
             if cmd.name in to_add:
                 self.bot.helpsys.default_category(help.DefaultCategories.UTILS).add_command(cmd)
+                self.bot.helpsys.default_category(help.DefaultCategories.MISC).remove_command(cmd)
 
     def default_storage(self):
         return {'reminders': {}}
@@ -137,11 +139,10 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
         else:
             amount = 1
             other_curr = "EUR"
-        rates = restclient.Client("https://api.exchangeratesapi.io").make_request("/latest")
+        rates = await restclient.Client("https://api.exchangeratesapi.io").request("/latest")
         rate1 = rates.get('rates', {}).get(currency) if currency != "EUR" else 1
         rate2 = rates.get('rates', {}).get(other_curr) if other_curr != "EUR" else 1
         if rate1 and rate2:
-            print(f"{amount:n}")
             other_amount = float(rate2) / float(rate1) * amount
             await ctx.send(Lang.lang(self, 'money_converted',
                                      locale.format_string('%.2f', amount, grouping=True), currency,
@@ -186,6 +187,10 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
     @commands.group(name="remindme", invoke_without_command=True)
     async def reminder(self, ctx, *args):
         self._remove_old_reminders()
+
+        if not args:
+            await ctx.send(Lang.lang(self, 'remind_noargs'))
+            return
 
         try:
             datetime.strptime(f"{args[0]} {args[1]}", "%d.%m.%Y %H:%M")
@@ -267,6 +272,7 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
                            reminder_id: int, text, is_restart: bool = False):
         """
         Registers a reminder
+
         :param channel_id: The id of the channel in which the reminder was set
         :param user_id: The id of the user who sets the reminder
         :param remind_time: The remind time
@@ -311,6 +317,7 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
     def _remove_reminder(self, reminder_id):
         """
         Removes the reminder if in config
+
         :param reminder_id: the reminder ID
         """
         if reminder_id in self.reminders:

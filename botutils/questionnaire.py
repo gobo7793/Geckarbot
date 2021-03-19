@@ -5,7 +5,7 @@ from typing import List, Callable, Union
 
 from discord import User
 
-from conf import Lang
+from data import Lang
 from botutils.stringutils import paginate, format_andlist as ellist
 from botutils.utils import execute_anything, add_reaction
 
@@ -33,7 +33,10 @@ baselang = {
 
 
 def get_lang(lang_dict, key):
-    return lang_dict.get(key, baselang[key])
+    r = lang_dict.get(key, baselang[key])
+    if r is None:
+        r = ""
+    return r
 
 
 class Cancelled(Exception):
@@ -119,7 +122,8 @@ class Question:
             msg.append(get_lang(self.lang, "answer_list_sc").format(answers))
 
         for msg in paginate(msg):
-            self.question_msg = await user.send(msg)
+            if msg:
+                self.question_msg = await user.send(msg)
 
     def handle_answer(self, answer_msg) -> Result:
         """
