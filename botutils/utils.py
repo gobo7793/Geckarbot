@@ -35,7 +35,7 @@ def paginate_embed(embed: discord.Embed):
     If the Embeds exceed after that 6000 chars an Exception is thrown.
 
     :param embed: The embed to paginate
-    :return: The paginated embed
+    :exception Exception: If embed is still to long
     """
     # Limit overview see https://discordjs.guide/popular-topics/embeds.html#notes
     if len(embed.title) > 256:
