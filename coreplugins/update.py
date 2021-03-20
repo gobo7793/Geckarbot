@@ -40,6 +40,7 @@ ERRORCODE = "FAILURE"
 def sanitize_version_s(s):
     """
     Removes leading "version", "v" etc; returns a stripped, lowercased version string.
+
     :param s: version string to be sanitized
     :return: sanitized version string
     """
@@ -56,11 +57,17 @@ def consume_digits(s):
     """
     Splits arg in 3 parts. The first part is the longest substring beginning at the start that has digits, the second
     part is everything that is not a letter, the third part is the rest. Everything is converted to lowercase. Examples:
+
     "123abc" -> ("123", "", "abc")
+
     "123-Abc4" -> ("123", "-", "abc4")
+
     "-123" -> ("", "-", "123")
+
     "abc4" -> ("", "", "abc4")
+
     "123" -> ("123", "", "")
+
     :param s: string to be split
     :return: (digitsubstring, nonlettersubstring, rest)
     """
@@ -92,18 +99,17 @@ def consume_digits(s):
 
 
 def is_equal(vstring1, vstring2):
+    """Checks if the both version strings are the same version"""
     vs1 = sanitize_version_s(vstring1)
     vs2 = sanitize_version_s(vstring2)
     vs1 = vs1.split(".")
     vs2 = vs2.split(".")
     if len(vs2) > len(vs1):
-        swap = vs1
-        vs1 = vs2
-        vs2 = swap
+        vs1, vs2 = vs2, vs1
 
     # fish for letters at the end
-    vd1, vnl1, vl1 = consume_digits(vs1[-1])
-    vd2, vnl2, vl2 = consume_digits(vs2[-1])
+    vd1, _, vl1 = consume_digits(vs1[-1])
+    vd2, _, vl2 = consume_digits(vs2[-1])
     if vl1 != vl2:
         return False
     if len(vl1) > 1 or len(vl2) > 1:
@@ -139,17 +145,29 @@ def is_equal(vstring1, vstring2):
 def is_newer(vstring1, vstring2):
     """
     Compares 2 version strings. Assumes sanitized version strings as of sanitize_version_s(). Examples:
+
     1.2.1 is newer than 1.2.0
+
     1.1.0 is newer than 1.1.0a
+
     1.1.0 is not newer than 1.1
+
     1.1.0 is not newer than 1.1.0
+
     1.1.0a vs. 1.1.0 is undecidable
+
     1.1.0a vs 1.1.0b is undecidable (cba)
+
     1.1.0ab vs 1.1.0a is undecidable
+
     1.1.a is undecidable
+
     1.1a.0 is undecidable
+
     Anything non-ascii is undecidable
+
     There is no difference between 1.1.0-a and 1.1.0a
+
     :return: True if vstring is newer than vstrin2, False if not (especially if it is undecidable).
     """
     vs1 = vstring1.lower()
@@ -159,8 +177,8 @@ def is_newer(vstring1, vstring2):
     vs2 = vs2.split(".")
 
     # fish for letters at the end
-    vd1, vnl1, vl1 = consume_digits(vs1[-1])
-    vd2, vnl2, vl2 = consume_digits(vs2[-1])
+    vd1, _, vl1 = consume_digits(vs1[-1])
+    vd2, _, vl2 = consume_digits(vs2[-1])
     if len(vl1) > 1 or len(vl2) > 1:
         return False
 
@@ -191,57 +209,31 @@ def is_newer(vstring1, vstring2):
 
         if vs1[i] > vs2[i]:
             return True
-        elif vs1[i] < vs2[i]:
+        if vs1[i] < vs2[i]:
             return False
         # ==; check for letters or compare further
-        elif i == len(vs1) - 1:
+        if i == len(vs1) - 1:
             if vl2:
-                if not vl1:
-                    return True
-                else:
-                    return False
-        else:
-            continue
+                return not vl1
+        continue
 
     # Completely the same it seems
     return False
 
 
-def testthesethings():
-    assert consume_digits("123abc") == ("123", "", "abc")
-    assert consume_digits("123-Abc4") == ("123", "-", "abc4")
-    assert consume_digits("-123") == ("", "-", "123")
-    assert consume_digits("abc4") == ("", "", "abc4")
-    assert consume_digits("123") == ("123", "", "")
-
-    assert is_newer("1.2.1", "1.2.0")
-    assert is_newer("1.1.0", "1.1.0a")
-    assert is_newer("1.2.a", "1.1.0")
-    assert not is_newer("1.1.0", "1.1")
-    assert not is_newer("1.1.0", "1.1.0")
-    assert not is_newer("1.1.0a", "1.1.0")
-    assert not is_newer("1.1.0a", "1.1.0b")
-    assert not is_newer("1.1.0ab", "1.1.0a")
-    assert not is_newer("1.1.a", "1.1.0")
-    assert not is_newer("1.1a.0", "1.1.0")
-
-    assert is_equal("1.2.3", "1.2.3")
-    assert is_equal("1.2.0", "1.2")
-    assert is_equal("1.2", "1.2.0")
-    assert is_equal("1.1-a", "1.1a")
-    assert is_equal("1.a", "1.a")
-    assert is_equal("foo", "foo")
-    assert not is_equal("1.1.0", "1.2.0")
-    assert not is_equal("1.1.0", "1.1.1")
-    assert not is_equal("1.1.1-a", "1.1.1")
-
-
 class State(Enum):
+    """State of the Updater"""
+
     IDLE = 0
+    """Does nothing"""
     CHECKING = 1
+    """Checking for updates"""
     WAITINGFORCONFIRM = 2
+    """Waiting to confirm the update"""
     CONFIRMED = 3
+    """Update is confirmed, pending to perform"""
     UPDATING = 4
+    """Performs the pending update"""
 
 
 class Plugin(BasePlugin, name="Bot updating system"):
@@ -277,6 +269,13 @@ class Plugin(BasePlugin, name="Bot updating system"):
         return ConfigurableType.COREPLUGIN
 
     async def do_update(self, channel, tag):
+        """
+        Performs an pending update
+
+        :param channel: The channel for the info message that a update is performed
+        :param tag: The version tag to update to
+        """
+        # pylint: disable=broad-except
         self.state = State.UPDATING
         self.bot.presence.register(Lang.lang("presence_update", tag), PresencePriority.HIGH)
         await channel.send(Lang.lang(self, "doing_update", tag))
@@ -296,12 +295,14 @@ class Plugin(BasePlugin, name="Bot updating system"):
         await self.bot.shutdown(Geckarbot.Exitcodes.UPDATE)  # This signals the runscript
 
     async def get_releases(self):
+        """Get all published releases from Github"""
         r = await self.client.request(ENDPOINT)
         return r
 
     async def check_release(self, version=None):
         """
         Checks GitHub if there is a new release. Assumes that the GitHub releases are ordered by release date.
+
         :return: Tag of the newest release that is newer than the current version, None if there is none.
         """
         # find newest release with tag (all the others are worthless anyway)
@@ -324,6 +325,7 @@ class Plugin(BasePlugin, name="Bot updating system"):
     async def update_news(self, channel, version=None):
         """
         Sends release notes to channel.
+
         :param channel: Channel to send the release notes to.
         :param version: Release version that the news should be about.
         """
@@ -335,7 +337,7 @@ class Plugin(BasePlugin, name="Bot updating system"):
         body = None
         for el in await self.get_releases():
             ver = sanitize_version_s(el["tag_name"])
-            log.debug("Comparing versions: {} and {}".format(self.bot.VERSION, ver))
+            log.debug("Comparing versions: %s and %s", self.bot.VERSION, ver)
             if is_equal(sanitize_version_s(version), ver):
                 body = el["body"]
                 break
@@ -360,6 +362,7 @@ class Plugin(BasePlugin, name="Bot updating system"):
         """
         Checks if there was an !update before the bot launch. Does cleanup and message sending.
         Does not delete TAGFILE if it had unexpected content.
+
         :return: True if there was a successful update, False if not
         """
         try:
@@ -368,27 +371,27 @@ class Plugin(BasePlugin, name="Bot updating system"):
             log.debug("I was not !update'd.")
             return False
         except IsADirectoryError:
-            log.error("{} is a directory, I expected a file or nothing. Please clean this up.".format(TAGFILE))
+            log.error("%s is a directory, I expected a file or nothing. Please clean this up.", TAGFILE)
             return False
 
         lines = f.readlines()
         if len(lines) > 1:
-            log.error("{} has more than 1 line. This should not happen.".format(TAGFILE))
+            log.error("%s has more than 1 line. This should not happen.", TAGFILE)
             return False
         if len(lines) == 0 or lines[0].strip() == "":
-            log.error("{} is empty. This should not happen.".format(TAGFILE))
+            log.error("%s is empty. This should not happen.", TAGFILE)
             return False
 
         if lines[0].strip() == ERRORCODE:
             await utils.write_debug_channel("The update failed. I have no idea why. Sorry, master!")
             os.remove(TAGFILE)
             return False
-        else:
-            log.debug("I was !update'd! Yay!.")
-            await utils.write_debug_channel(
-                "I updated successfully! One step closer towards world dominance!")
-            os.remove(TAGFILE)
-            return True
+
+        log.debug("I was !update'd! Yay!")
+        await utils.write_debug_channel(
+            "I updated successfully! One step closer towards world dominance!")
+        os.remove(TAGFILE)
+        return True
 
     @commands.command(name="news", help="Presents the latest update notes.")
     async def cmd_news(self, ctx, *args):
@@ -492,10 +495,10 @@ class Plugin(BasePlugin, name="Bot updating system"):
             return
 
         # Confirmation came in
-        elif self.state == State.CONFIRMED:
+        if self.state == State.CONFIRMED:
             await self.do_update(ctx.message.channel, release)
             return
-        else:
-            log.error("{}: PANIC! I am on {}, this should not happen!".format(self.get_name(), self.state))
-            self.state = State.IDLE
-            self.waiting_for_confirm = None
+
+        log.error("%s: PANIC! I am on %s, this should not happen!", self.get_name(), self.state)
+        self.state = State.IDLE
+        self.waiting_for_confirm = None

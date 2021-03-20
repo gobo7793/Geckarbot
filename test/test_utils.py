@@ -6,7 +6,10 @@ from botutils import permchecks, timeutils
 
 
 class TestUtils(unittest.TestCase):
+    """Test various bot utils"""
+
     def test_analyze_time_input(self):
+        """Tests `botutils.timeutils.parse_time_input()`"""
         now = datetime.datetime.now()
         d = timeutils.parse_time_input("4")
         self.assertEqual(now + datetime.timedelta(minutes=4), d)
@@ -43,7 +46,8 @@ class TestUtils(unittest.TestCase):
         d = timeutils.parse_time_input(arg_list, end_of_day=True)
         self.assertEqual(datetime.datetime(now.year, 7, 11, now.time().max.hour, now.time().max.minute), d)
 
-    def test_whitelist_check(self):
+    def test_debug_user_check(self):
+        """Tests the debug user detection of the bot"""
         bot = Geckarbot
         bot.DEBUG_MODE = False
         bot.DEBUG_USERS = [1, 2, 3]
