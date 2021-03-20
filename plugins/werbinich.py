@@ -16,6 +16,7 @@ from botutils import utils, statemachine, stringutils
 from botutils.converters import get_best_username as gbu
 from subsystems import presence
 from subsystems.helpsys import DefaultCategories
+from subsystems.reactions import ReactionAddedEvent
 
 h_help = "Wer bin ich?"
 h_description = "Startet ein Wer bin ich?. Nach einer Registrierungsphase ordne ich jedem Spieler einen zufälligen " \
@@ -120,10 +121,12 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
         self.initiator = None
         self.show_assignees = True
         self.postgame = False
-        self.presence_messsage = None
+        self.presence_message = None
         self.participants = []
         self.eval_event = None
         self.reg_ts = None
+        self.spoiler_reaction_listener = None
+        self.spoilered_users = []
 
         self.base_config = {
             "register_timeout": [int, 1],
@@ -180,7 +183,7 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
         await self.statemachine.run()
 
     @cmd_werbinich.command(name="status")
-    async def cmd_statuscmd(self, ctx):
+    async def cmd_status(self, ctx):
         if self.statemachine.state == State.IDLE:
             # Post-game and game in mem
             if self.channel is not None and self.postgame:
@@ -221,7 +224,7 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
         await ctx.send(Lang.lang(self, "waiting_for", wf))
 
     @cmd_werbinich.command(name="stop")
-    async def cmd_stopcmd(self, ctx):
+    async def cmd_stop(self, ctx):
         if self.statemachine.state == State.IDLE:
             await add_reaction(ctx.message, Lang.CMDERROR)
             await ctx.send(Lang.lang(self, "not_running"))
@@ -232,7 +235,7 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
         # await self.cleanup()
 
     @cmd_werbinich.command(name="spoiler", help=h_spoiler)
-    async def cmd_spoilercmd(self, ctx):
+    async def cmd_spoiler(self, ctx):
         # State check
         error = None
         if self.statemachine.state != State.IDLE:
@@ -255,7 +258,7 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
             await ctx.author.send(msg)
 
     @cmd_werbinich.command(name="fertig", help=h_postgame)
-    async def cmd_postgamecmd(self, ctx):
+    async def cmd_postgame(self, ctx):
         error = None
         if ctx.channel != self.channel:
             error = "wrong_channel"
@@ -279,7 +282,7 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
     @cmd_werbinich.command(name="del", help=h_clear)
-    async def cmd_delcmd(self, ctx):
+    async def cmd_del(self, ctx):
         if not self.participants:
             await add_reaction(ctx.message, Lang.CMDERROR)
             return
@@ -295,8 +298,11 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
         self.logger.debug("Starting registering phase")
         self.eval_event = asyncio.Event()
         self.postgame = False
-        self.presence_messsage = self.bot.presence.register(Lang.lang(self, "presence", self.channel.name),
-                                                            priority=presence.PresencePriority.HIGH)
+        self.spoilered_users = []
+        if self.spoiler_reaction_listener:
+            self.spoiler_reaction_listener.unregister()
+        self.presence_message = self.bot.presence.register(Lang.lang(self, "presence", self.channel.name),
+                                                           priority=presence.PresencePriority.HIGH)
         reaction = Lang.lang(self, "reaction_signup")
         to = self.get_config("register_timeout")
         self.reg_ts = datetime.now()
@@ -405,6 +411,24 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
                 return
         self.eval_event.set()
 
+    async def spoiler_dm(self, event):
+        if type(event) == ReactionAddedEvent and event.emoji.name == Lang.lang(self, "reaction_spoiler"):
+            if self.statemachine.state == State.IDLE and self.participants \
+                    and (event.user not in (x.user for x in self.participants) or self.postgame):
+                if event.user in self.spoilered_users:
+                    self.logger.debug(f"{event.user.name} already got the spoiler but tried again.")
+                    return
+                # send dm
+                try:
+                    for msg in stringutils.paginate(self.participants,
+                                                    prefix=Lang.lang(self, "participants_last_round"),
+                                                    f=lambda x: x.to_msg()):
+                        await event.user.send(msg)
+                except Forbidden:
+                    await event.channel.send(Lang.lang(self, "blocked_spoiler", event.user.mention))
+                else:
+                    self.spoilered_users.append(event.user)
+
     async def delivering_phase(self):
         for target in self.participants:
             todo = []
@@ -418,7 +442,9 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
 
             for msg in stringutils.paginate(todo, prefix=Lang.lang(self, "list_title")):
                 await target.send(msg)
-        await self.channel.send(Lang.lang(self, "done"))
+        done_msg = await self.channel.send(Lang.lang(self, "done"))
+        await add_reaction(done_msg, Lang.lang(self, "reaction_spoiler"))
+        self.spoiler_reaction_listener = self.bot.reaction_listener.register(done_msg, self.spoiler_dm, data=None)
         await self.cleanup()
         return None
 
@@ -432,11 +458,12 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
         self.logger.debug("Cleaning up")
         for el in self.participants:
             el.cleanup()
-        self.presence_messsage.deregister()
+        self.presence_message.deregister()
         self.eval_event = None
         self.initiator = None
         self.reg_start_time = None
         self.show_assignees = True
         self.reg_ts = None
+        self.spoilered_users = []
         if exception:
             raise exception

@@ -32,48 +32,63 @@ def parse_time_input(*args, end_of_day=False):
 
     [#|#m|#h|#d|[DD.MM.[YYYY]] [HH:MM]]
 
-    :param args: The command args for duration/date/time
+    :param args: The command args for duration/date/time. Can also contain other leading or trailing
+        args than time args, e.g. "be 14:00", which will be parsed to 2pm or today.
     :param end_of_day: Use the end of the day (time 23:59) instead of current time if time is missing
-    :returns: The datetime object with the given date and time or datetime.max
+    :returns: The datetime object with the given date and time, or datetime.max if no datetime can be parsed.
     """
 
     def unpack_tuple(t):
-        arg_list = ""
+        arg_list = []
         if isinstance(t, (tuple, list)):
             for el in t:
                 arg_list += unpack_tuple(el)
         else:
-            return "".join(t)
+            return t.split(" ")
         return arg_list
+
+    def parse_time(t):
+        try:
+            parsed = datetime.strptime(t, dt_format)
+            return datetime(parsed.year if '%Y' in dt_format else today.year,
+                            parsed.month if '%m' in dt_format else today.month,
+                            parsed.day if '%d' in dt_format else today.day,
+                            parsed.hour if '%H' in dt_format else fill_time.hour,
+                            parsed.minute if '%M' in dt_format else fill_time.minute)
+        except ValueError:
+            pass
 
     today = date.today()
     fill_time = time.max if end_of_day else datetime.now().time()
-    arg = unpack_tuple(args).replace(" ", "")
+    unpacked = unpack_tuple(args)
 
-    try:
-        # duration: #|#m|#h|#d (possible with . and , as comma separator)
-        if "," in arg:
-            arg = arg.replace(",", ".")
+    for i in range(len(unpacked)):
+        arg = unpacked[i]
+        try:
+            # duration: #|#m|#h|#d (possible with . and , as comma separator)
+            darg = arg.replace(",", ".") if "," in arg else arg
 
-        if arg.endswith("m"):
-            return datetime.now() + timedelta(minutes=float(arg[:-1]))
-        if arg.endswith("h"):
-            return datetime.now() + timedelta(hours=float(arg[:-1]))
-        if arg.endswith("d"):
-            return datetime.now() + timedelta(days=float(arg[:-1]))
-        return datetime.now() + timedelta(minutes=float(arg))
-    except ValueError:
-        # the other possible formats
-        for dt_format in ["%d.%m.%Y", "%d.%m.%Y%H:%M", "%d.%m.", "%d.%m.%H:%M", "%H:%M"]:
-            try:
-                parsed = datetime.strptime(arg, dt_format)
-                return datetime(parsed.year if '%Y' in dt_format else today.year,
-                                parsed.month if '%m' in dt_format else today.month,
-                                parsed.day if '%d' in dt_format else today.day,
-                                parsed.hour if '%H' in dt_format else fill_time.hour,
-                                parsed.minute if '%M' in dt_format else fill_time.minute)
-            except ValueError:
-                pass
+            if darg.endswith("m"):
+                return datetime.now() + timedelta(minutes=float(darg[:-1]))
+            if darg.endswith("h"):
+                return datetime.now() + timedelta(hours=float(darg[:-1]))
+            if darg.endswith("d"):
+                return datetime.now() + timedelta(days=float(darg[:-1]))
+            return datetime.now() + timedelta(minutes=float(darg))
+        except ValueError:
+            # the other possible formats
+            darg = unpacked[i]
+            if i < (len(unpacked) - 1):
+                darg = " ".join(unpacked[i:i+2])
+            for dt_format in ["%d.%m.%Y %H:%M", "%d.%m. %H:%M"]:
+                pvalue = parse_time(darg)
+                if pvalue is not None:
+                    return pvalue
+
+            for dt_format in ["%d.%m.%Y", "%d.%m.", "%H:%M"]:
+                pvalue = parse_time(arg)
+                if pvalue is not None:
+                    return pvalue
 
     # No valid time input
     return datetime.max

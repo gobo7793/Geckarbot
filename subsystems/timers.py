@@ -111,6 +111,10 @@ class Mothership(BaseSubsystem, Thread):
         nexto = job.next_execution()
         found = False
         for i in range(len(self.jobs)):
+            if nexto is None:  # workaround for some cases in which nexto is None
+                self.logger.error("An error occured during inserting job {}. THIS SHOULD NOT HAPPEN! "
+                                  "Job will be inserted at last position.".format(str(job)))
+                break
             next_execution = self.jobs[i].next_execution()
             if next_execution is not None and next_execution > nexto:
                 found = True

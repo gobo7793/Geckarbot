@@ -277,7 +277,7 @@ class Plugin(BasePlugin, name="Bot updating system"):
         """
         # pylint: disable=broad-except
         self.state = State.UPDATING
-        self.bot.presence.register(Lang.lang("presence_update", tag), PresencePriority.HIGH)
+        self.bot.presence.register(Lang.lang(self, "presence_update", tag), PresencePriority.HIGH)
         await channel.send(Lang.lang(self, "doing_update", tag))
         for plugin in self.bot.plugin_objects(plugins_only=True):
             try:
@@ -414,14 +414,14 @@ class Plugin(BasePlugin, name="Bot updating system"):
     @commands.command(name="restart", help="Restarts the bot.")
     @commands.has_any_role(Config().BOT_ADMIN_ROLE_ID)
     async def cmd_restart(self, ctx):
-        self.bot.presence.register(Lang.lang("presence_restart"), PresencePriority.HIGH)
+        self.bot.presence.register(Lang.lang(self, "presence_restart"), PresencePriority.HIGH)
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
         await self.bot.shutdown(Geckarbot.Exitcodes.RESTART)  # This signals the runscript
 
     @commands.command(name="shutdown", help="Stops the bot.")
     @commands.has_any_role(Config().BOT_ADMIN_ROLE_ID)
     async def cmd_shutdowncmd(self, ctx):
-        self.bot.presence.register(Lang.lang("presence_shutdown"), PresencePriority.HIGH)
+        self.bot.presence.register(Lang.lang(self, "presence_shutdown"), PresencePriority.HIGH)
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
         await self.bot.shutdown(Geckarbot.Exitcodes.SUCCESS)  # This signals the runscript
 

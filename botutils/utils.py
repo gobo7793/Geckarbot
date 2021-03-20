@@ -33,6 +33,7 @@ def paginate_embed(embed: discord.Embed):
     """
     Paginates/Cuts to long embed contents in title and description of the embed.
     If the Embeds exceed after that 6000 chars an Exception is thrown.
+
     :param embed: The embed to paginate
     :return: The paginated embed
     """
@@ -203,6 +204,7 @@ def sort_commands_helper(commands, order):
     """
     Sorts a list of commands in place according to a list of command names. If a command has no corresponding
     command name in `order`, it is removed from the list.
+
     :param commands: List of commands that is to be ordered
     :param order: Ordered list of command names
     :return: Sorted command list
@@ -219,6 +221,7 @@ def sort_commands_helper(commands, order):
 def trueshuffle(p):
     """
     Shuffles a list in place so that no element is at the index where it was before. Fails on lists of length < 2.
+
     :param p: List to shuffle
     """
     orig = p.copy()
@@ -239,6 +242,7 @@ def trueshuffle(p):
 async def execute_anything(f, *args, **kwargs):
     """
     Executes functions, coroutine functions and coroutines, returns their return values and raises their exceptions.
+
     :param f: Function, coroutine function or coroutine to execute / schedule
     :param args: args to pass to f
     :param kwargs: kwargs to pass to f
