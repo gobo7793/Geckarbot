@@ -167,6 +167,7 @@ class Client:
         headers = self._build_headers(headers)
         url = self.url(endpoint=endpoint, appendix=appendix, params=params)
         data = self.parse_request_data(data)
+        self._maskprint(data, prefix="data: ")
 
         if method == "GET":
             f = self.aiosession.get
@@ -185,8 +186,10 @@ class Client:
         else:
             raise RuntimeError("Unknown HTTP method: {}".format(method))
 
+        self.logger.debug("Doing async http request to %s", url)
         async with f(url, headers=headers, data=data) as response:
             response = await response.text()
+        self.logger.debug("Response: %s", response)
         if parse_json:
             response = json.loads(response)
         return response
@@ -208,17 +211,14 @@ class Client:
         if data is not None:
             data = self.parse_request_data(data)
             data = data.encode("utf-8")
-            self._maskprint(self.decoder.decode(data.decode("utf-8")), prefix="data: ")
-        else:
-            self.logger.debug("data: ")
+        self._maskprint(self.decoder.decode(data.decode("utf-8")), prefix="data: ")
 
         headers = self._build_headers(headers)
         url = self.url(endpoint=endpoint, appendix=appendix, params=params)
         request = urllib.request.Request(url,
                                          data=data, headers=headers, method=method)
-        self.logger.debug("url: %s", url)
 
-        self.logger.debug("doing request")
+        self.logger.debug("Doing sync http request to %s", url)
         response = urllib.request.urlopen(request).read().decode("utf-8")
         self.logger.debug("Response: %s", response)
 
