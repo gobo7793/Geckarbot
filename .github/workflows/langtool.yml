@@ -1,4 +1,4 @@
-name: Linting and analyze lang strings
+name: Analysing missing lang strings
 
 on: [pull_request]
 
