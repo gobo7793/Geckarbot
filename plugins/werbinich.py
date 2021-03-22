@@ -9,11 +9,11 @@ from discord.http import HTTPException
 from discord.errors import Forbidden
 
 from base import BasePlugin, NotFound
-from botutils.stringutils import format_andlist
-from botutils.utils import add_reaction
 from data import Lang, Config
 from botutils import utils, statemachine, stringutils
 from botutils.converters import get_best_username as gbu
+from botutils.stringutils import format_andlist
+from botutils.utils import add_reaction
 from subsystems import presence
 from subsystems.helpsys import DefaultCategories
 from subsystems.reactions import ReactionAddedEvent
@@ -29,6 +29,9 @@ h_clear = "Entfernt das letzte Spiel, sodass !werbinich spoiler nichts zurückgi
 
 
 class State(Enum):
+    """
+    States for statemachine
+    """
     IDLE = 0  # no whoami running
     REGISTER = 1  # registering phase
     COLLECT = 2  # messaging everyone and waiting for entries from participants
@@ -37,6 +40,9 @@ class State(Enum):
 
 
 class Participant:
+    """
+    Represents a werbinich participant
+    """
     def __init__(self, plugin, user):
         self.plugin = plugin
         self.user = user
@@ -51,6 +57,7 @@ class Participant:
         Assigns a participant. Can only be called once.
 
         :param p: Participant this one has to choose for
+        :raises RuntimeError: Assignment algorithm assigned twice (bug)
         """
         if self.assigned is not None:
             raise RuntimeError("This participant already has an assigned participant")
@@ -64,11 +71,20 @@ class Participant:
         await self.plugin.kill(self)
 
     async def init_dm(self):
+        """
+        Sends the initiation DM to the participant which explains things and asks for an entry.
+        """
         self.plugin.logger.debug("Sending init DM to {}".format(self.user))
         await self.send(Lang.lang(self.plugin, "ask_for_entry", gbu(self.assigned.user)))
 
     async def dm_callback(self, reg, message):
-        self.plugin.logger.debug("Incoming message from {}: {}".format(self.user, message.content))
+        """
+        DM callback method; handles any incoming DMs
+
+        :param reg: Registration object
+        :param message: Message content
+        """
+        self.plugin.logger.debug("Incoming message from %s: %s; reg: %s", str(self.user), message.content, str(reg))
         if message.content.strip() == "":
             # you never know
             return
@@ -91,10 +107,20 @@ class Participant:
         self.plugin.assigned()
 
     async def send(self, msg):
+        """
+        Sends a DM to this user and logs it to debug.
+
+        :param msg: Message content
+        :return: return value of user.send()
+        """
         self.plugin.logger.debug("Sending DM to {}: {}".format(self.user, msg))
         return await self.user.send(msg)
 
     def to_msg(self, show_assignees=True):
+        """
+        :param show_assignees: Flag that determines whether the assignee is to be shown
+        :return: String that contains info about this participant and his assignment
+        """
         if show_assignees:
             key = "result_with_assignees"
         else:
@@ -102,6 +128,9 @@ class Participant:
         return Lang.lang(self.plugin, key, gbu(self.assigned.user), self.chosen, gbu(self.user))
 
     def cleanup(self):
+        """
+        Deregisters the DM channel for this user.
+        """
         self.plugin.logger.debug("Cleaning up participant {}".format(self.user))
         if self.registration is not None:
             self.registration.deregister()
@@ -161,8 +190,7 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
             return Lang.lang(self, "usage_{}".format(command.name))
         raise NotFound()
 
-    @commands.group(name="werbinich", invoke_without_command=True,
-                    help=h_help, description=h_description, usage=h_usage)
+    @commands.group(name="werbinich", invoke_without_command=True)
     async def cmd_werbinich(self, ctx, *args):
         # Argument parsing
         for arg in args:
@@ -203,14 +231,14 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
 
             await ctx.send(msg)
             return
-        elif self.statemachine.state == State.REGISTER:
+        if self.statemachine.state == State.REGISTER:
             sec = self.get_config("register_timeout") * 60 - int((datetime.now() - self.reg_ts).total_seconds())
             await ctx.send(Lang.lang(self, "status_registering", sec))
             return
-        elif self.statemachine.state == State.DELIVER:
+        if self.statemachine.state == State.DELIVER:
             await ctx.send(Lang.lang(self, "status_delivering"))
             return
-        elif self.statemachine.state == State.ABORT:
+        if self.statemachine.state == State.ABORT:
             await ctx.send(Lang.lang(self, "status_aborting"))
             return
 
@@ -234,7 +262,7 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
         # await add_reaction(ctx.message, Lang.CMDSUCCESS)
         # await self.cleanup()
 
-    @cmd_werbinich.command(name="spoiler", help=h_spoiler)
+    @cmd_werbinich.command(name="spoiler")
     async def cmd_spoiler(self, ctx):
         # State check
         error = None
@@ -257,7 +285,7 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
                                         f=lambda x: x.to_msg()):
             await ctx.author.send(msg)
 
-    @cmd_werbinich.command(name="fertig", help=h_postgame)
+    @cmd_werbinich.command(name="fertig")
     async def cmd_postgame(self, ctx):
         error = None
         if ctx.channel != self.channel:
@@ -281,7 +309,7 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
         self.postgame = True
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
-    @cmd_werbinich.command(name="del", help=h_clear)
+    @cmd_werbinich.command(name="del")
     async def cmd_del(self, ctx):
         if not self.participants:
             await add_reaction(ctx.message, Lang.CMDERROR)
@@ -290,11 +318,16 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
         self.channel = None
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
-    """
-    Transitions
-    """
+    ###
+    # Transitions
+    ###
 
     async def registering_phase(self):
+        """
+        Transition REGISTER -> [COLLECT, ABORT]
+
+        :return: new state
+        """
         self.logger.debug("Starting registering phase")
         self.eval_event = asyncio.Event()
         self.postgame = False
@@ -364,6 +397,11 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
             return State.COLLECT
 
     async def collecting_phase(self):
+        """
+        Transition COLLECT -> [DELIVER, ABORT]
+
+        :return: new state
+        """
         assert len(self.participants) > 1
 
         msg = sorted([gbu(el.user) for el in self.participants], key=str.casefold)
@@ -412,11 +450,16 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
         self.eval_event.set()
 
     async def spoiler_dm(self, event):
-        if type(event) == ReactionAddedEvent and event.emoji.name == Lang.lang(self, "reaction_spoiler"):
+        """
+        Callback for reaction listener that sends a spoiler DM.
+
+        :param event: Reaction event
+        """
+        if isinstance(event, ReactionAddedEvent) and event.emoji.name == Lang.lang(self, "reaction_spoiler"):
             if self.statemachine.state == State.IDLE and self.participants \
                     and (event.user not in (x.user for x in self.participants) or self.postgame):
                 if event.user in self.spoilered_users:
-                    self.logger.debug(f"{event.user.name} already got the spoiler but tried again.")
+                    self.logger.debug("%s already got the spoiler but tried again.", event.user.name)
                     return
                 # send dm
                 try:
@@ -430,6 +473,11 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
                     self.spoilered_users.append(event.user)
 
     async def delivering_phase(self):
+        """
+        Transition DELIVER -> None
+
+        :return: None
+        """
         for target in self.participants:
             todo = []
             if self.show_assignees:
@@ -449,12 +497,26 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
         return None
 
     async def kill(self, participant):
+        """
+        Notifies the participant about a DM channel kill.
+
+        :param participant: Participant whose DM channel was killed
+        """
         await self.channel.send("Cancelling werbinich, {}'s DM registration was killed.".format(gbu(participant.user)))
 
     async def abort(self):
+        """
+        ABORT state; calls cleanup()
+        """
         await self.cleanup()
 
     async def cleanup(self, exception=None):
+        """
+        Deregisters registrations, resets state and resets variables.
+
+        :param exception: Exception; optional for when we are cleaning up because of an exception
+        :raises Exception: When we are cleaning up because of an exception; simply raises `exception`
+        """
         self.logger.debug("Cleaning up")
         for el in self.participants:
             el.cleanup()
@@ -466,4 +528,4 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
         self.reg_ts = None
         self.spoilered_users = []
         if exception:
-            raise exception
+            raise exception from exception
