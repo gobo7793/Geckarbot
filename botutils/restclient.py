@@ -211,7 +211,7 @@ class Client:
         if data is not None:
             data = self.parse_request_data(data)
             data = data.encode("utf-8")
-        self._maskprint(self.decoder.decode(data.decode("utf-8")), prefix="data: ")
+            self._maskprint(self.decoder.decode(data.decode("utf-8")), prefix="data: ")
 
         headers = self._build_headers(headers)
         url = self.url(endpoint=endpoint, appendix=appendix, params=params)
