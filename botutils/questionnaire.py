@@ -32,7 +32,7 @@ baselang = {
 }
 
 
-def get_lang(lang_dict, key):
+def get_lang(lang_dict: dict, key: str) -> str:
     """
     Returns a lang string; handles fallbck to default lang
 
