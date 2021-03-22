@@ -50,7 +50,6 @@ class Cancelled(Exception):
     """
     Raised when user has cancelled the questionnaire
     """
-    pass
 
 
 class QuestionType(Enum):
@@ -148,7 +147,7 @@ class Question:
             if msg:
                 self.question_msg = await user.send(msg)
 
-    def handle_answer(self, answer_msg: Message) -> Result:
+    def handle_answer(self, answer_msg: Message) -> Union[Result, None]:
         """
         Handles an answer according to the question type.
         :param answer_msg: submitted answer message
@@ -165,13 +164,13 @@ class Question:
             self.answer = answer
             return Result.DONE
 
-        elif self.type == QuestionType.SINGLECHOICE:
+        if self.type == QuestionType.SINGLECHOICE:
             if answer in self.answers:
                 self.answer = answer
                 return Result.DONE
             return Result.REJECTED
 
-        elif self.type == QuestionType.MULTIPLECHOICE:
+        if self.type == QuestionType.MULTIPLECHOICE:
             if answer == self.lang.get("answer_mc_done", baselang["answer_mc_done"]):
                 if not self.answer:
                     return Result.EMPTY
