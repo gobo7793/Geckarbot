@@ -82,7 +82,7 @@ class Song:
         :param plugin: reference to Plugin
         :param element: part of a response that represents a song
         :return: Song object that represents `element`
-        :raises: KeyError when necessary information is missing in `element`
+        :raises KeyError: Necessary information is missing in `element`
         """
         plugin.logger.debug("Building song from {}".format(pprint.pformat(element)))
         title = element["name"]
@@ -308,7 +308,7 @@ class Plugin(BasePlugin, name="LastFM"):
         """
         :param user: discord user
         :return: Corresponding last.fm user
-        :raises: `NotRegistered` if `user` did not register his last.fm username
+        :raises NotRegistered: `user` did not register their last.fm username
         """
         r = Storage.get(self)["users"].get(user.id, None)
         if r is None:
@@ -323,16 +323,15 @@ class Plugin(BasePlugin, name="LastFM"):
         self.perf_total_time = 0.0
         self.perf_request_count = 0
 
-    def perf_add_lastfm_time(self, t):
+    def perf_add_lastfm_time(self, t: float):
         """
         Adds time that was spent waiting for last.fm API for performance measuring.
 
         :param t: time to add
-        :return:
         """
         self.perf_lastfm_time += t
 
-    def perf_add_total_time(self, t):
+    def perf_add_total_time(self, t: float):
         """
         Adds time that was spent executing things for performance measuring.
 
@@ -741,7 +740,7 @@ class Plugin(BasePlugin, name="LastFM"):
         :param append_to: Append resulting songs to this list instead of building a new one.
         :param first: If False, removes a leading "nowplaying" song if existant.
         :return: List of song dicts that have the keys `artist`, `title`, `album`, `nowplaying`
-        :raises: UnexpectedResponse if the last.fm response is missing necessary information
+        :raises UnexpectedResponse: The last.fm response is missing necessary information
         """
         try:
             tracks = response["recenttracks"]["track"]
@@ -775,6 +774,8 @@ class Plugin(BasePlugin, name="LastFM"):
 
         if criterion == MostInterestingType.TITLE:
             return song["artist"] == example["artist"] and song["title"] == example["title"]
+
+        return None
 
     @staticmethod
     def expand_formula(top_index, top_matches, current_index, current_matches):
@@ -890,7 +891,7 @@ class Plugin(BasePlugin, name="LastFM"):
         :param songs: List of songs that the scores were calculated for
         :param mitype: MostInterestingType object that represents the criterion layer that is to be tie-broken
         """
-        self.logger.debug("Scores to tiebreak: {}".format(pprint.pformat(scores)))
+        self.logger.debug("Scores to tiebreak: %s", pprint.pformat(scores))
         s = sorted(scores.keys(), key=lambda x: scores[x]["count"], reverse=True)
         first = [el for el in s if scores[el] == scores[s[0]]]
         found = False
@@ -968,6 +969,7 @@ class Plugin(BasePlugin, name="LastFM"):
 
         :param ctx: Context
         :param user: User that whose history we are interested in
+        :raises RuntimeError: Unexpected error (bug)
         """
         pagelen = 10
         min_album = self.get_config("min_album") * pagelen
