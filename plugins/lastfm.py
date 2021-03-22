@@ -82,6 +82,7 @@ class Song:
         :param plugin: reference to Plugin
         :param element: part of a response that represents a song
         :return: Song object that represents `element`
+        :raises: KeyError when necessary information is missing in `element`
         """
         plugin.logger.debug("Building song from {}".format(pprint.pformat(element)))
         title = element["name"]
@@ -273,7 +274,7 @@ class Plugin(BasePlugin, name="LastFM"):
     def sort_commands(self, ctx, command, subcommands):
         if command is None:
             return subcommands
-        
+
         if command.name != "lastfm":
             return super().sort_commands(ctx, command, subcommands)
         r = []
@@ -284,6 +285,13 @@ class Plugin(BasePlugin, name="LastFM"):
         return r
 
     async def request(self, params, method="GET"):
+        """
+        Does a request to last.fm API and parses the reponse to a dict.
+
+        :param params: URL parameters
+        :param method: HTTP method
+        :return: Response dict
+        """
         params["format"] = "json"
         params["api_key"] = self.conf["apikey"]
         headers = {
@@ -297,20 +305,39 @@ class Plugin(BasePlugin, name="LastFM"):
         return r
 
     def get_lastfm_user(self, user: discord.User):
+        """
+        :param user: discord user
+        :return: Corresponding last.fm user
+        :raises: `NotRegistered` if `user` did not register his last.fm username
+        """
         r = Storage.get(self)["users"].get(user.id, None)
         if r is None:
             raise NotRegistered(self)
         return r
 
     def perf_reset_timers(self):
+        """
+        Resets the performance timers.
+        """
         self.perf_lastfm_time = 0.0
         self.perf_total_time = 0.0
         self.perf_request_count = 0
 
     def perf_add_lastfm_time(self, t):
+        """
+        Adds time that was spent waiting for last.fm API for performance measuring.
+
+        :param t: time to add
+        :return:
+        """
         self.perf_lastfm_time += t
 
     def perf_add_total_time(self, t):
+        """
+        Adds time that was spent executing things for performance measuring.
+
+        :param t: time to add
+        """
         self.perf_total_time += t
         self.perf_request_count += 1
 
@@ -351,8 +378,8 @@ class Plugin(BasePlugin, name="LastFM"):
         # list
         if key is None and value is None:
             msg = []
-            for key in self.base_config:
-                msg.append("{}: {}".format(key, self.get_config(key)))
+            for el in self.base_config:
+                msg.append("{}: {}".format(el, self.get_config(el)))
             for msg in paginate(msg, msg_prefix="```", msg_suffix="```"):
                 await ctx.send(msg)
             return
@@ -506,6 +533,12 @@ class Plugin(BasePlugin, name="LastFM"):
         return question_queue
 
     async def quote_sanity_cb(self, question, question_queue):
+        """
+        Callback for quote sanity check
+
+        :param question: Question object
+        :param question_queue: list of question objects
+        """
         p = mention_p.search(question.answer)
         if p:
             await add_reaction(question.answer_msg, Lang.CMDERROR)
@@ -520,6 +553,12 @@ class Plugin(BasePlugin, name="LastFM"):
         return question_queue
 
     async def quote_dm_kill_cb(self, msg, questionnaire):
+        """
+        Callback for when the DM registration is killed
+
+        :param msg: message string
+        :param questionnaire: Questionnare object
+        """
         await questionnaire.user.send(Lang.lang(self, "quote_err_dmkill"))
         await add_reaction(msg, Lang.CMDERROR)
 
@@ -600,7 +639,7 @@ class Plugin(BasePlugin, name="LastFM"):
             }
             allquotes = Storage.get(self, container="quotes")["quotes"]
             allquotes[get_new_key(allquotes)] = ta
-        self.logger.debug("Adding quote: {} to {}".format(q_quote.answer, quotes))
+        self.logger.debug("Adding quote: %s to %s", str(q_quote.answer), str(quotes))
         quote = {
             "author": ctx.author.id,
             "quote": q_quote.answer,
@@ -675,6 +714,12 @@ class Plugin(BasePlugin, name="LastFM"):
         return msg
 
     async def get_user_info(self, lfmuser):
+        """
+        Fetches info about a last.fm user
+
+        :param lfmuser: last.fm username
+        :return: userinfo dict
+        """
         params = {
             "method": "user.getInfo",
             "user": lfmuser
@@ -687,18 +732,6 @@ class Plugin(BasePlugin, name="LastFM"):
         if "error" in userinfo:
             return None
         return userinfo
-
-    def get_by_path(self, structure, path, default=None, strict=False):
-        result = structure
-        for el in path:
-            try:
-                result = result[el]
-            except (TypeError, KeyError, IndexError) as e:
-                if strict:
-                    raise UnexpectedResponse("{} not found in structure".format(el),
-                                             Lang.lang(self, "error")) from e
-                return default
-        return result
 
     def build_songs(self, response, append_to=None, first=True):
         """
@@ -726,6 +759,14 @@ class Plugin(BasePlugin, name="LastFM"):
 
     @staticmethod
     def interest_match(song, criterion, example):
+        """
+        Checks whether a song is in the same mi type criterion category as another.
+
+        :param song: Song object
+        :param criterion: MostInterestingType object
+        :param example:
+        :return: True if `song` and `example` have matching categories according to `criterion`
+        """
         if criterion == MostInterestingType.ARTIST:
             return song["artist"] == example["artist"]
 
@@ -737,6 +778,15 @@ class Plugin(BasePlugin, name="LastFM"):
 
     @staticmethod
     def expand_formula(top_index, top_matches, current_index, current_matches):
+        """
+        Contains the decision process for expansion.
+
+        :param top_index: Index of last song that had a positive expand result
+        :param top_matches: Amount of matches of the last positive expand result
+        :param current_index: Index of the current song
+        :param current_matches: Amount of matches so far
+        :return: `True` if expansion is to be done, `False` otherwise
+        """
         return current_matches / current_index > (top_matches - 2) / top_index
 
     async def expand(self, lfmuser, page_len, so_far, criterion, example):
@@ -913,6 +963,12 @@ class Plugin(BasePlugin, name="LastFM"):
         return r
 
     async def most_interesting(self, ctx, user):
+        """
+        Finds the most current, most interesting facts in a user's history and sends them to ctx.
+
+        :param ctx: Context
+        :param user: User that whose history we are interested in
+        """
         pagelen = 10
         min_album = self.get_config("min_album") * pagelen
         min_title = self.get_config("min_title") * pagelen
@@ -1008,6 +1064,10 @@ class Plugin(BasePlugin, name="LastFM"):
 
 
 def get_new_key(d):
+    """
+    :param d: dict
+    :return: Largest key in dict `d` + 1
+    """
     i = 1
     for key in d.keys():
         b = int(key)
