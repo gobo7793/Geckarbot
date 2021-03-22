@@ -393,8 +393,7 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
         if players <= 1:
             await self.channel.send(Lang.lang(self, "no_participants"))
             return State.ABORT
-        else:
-            return State.COLLECT
+        return State.COLLECT
 
     async def collecting_phase(self):
         """
