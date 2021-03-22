@@ -21,11 +21,14 @@ from botutils.questionnaire import Questionnaire, Question, QuestionType, Cancel
 from botutils.restclient import Client
 
 
-baseurl = "https://ws.audioscrobbler.com/2.0/"
+BASEURL = "https://ws.audioscrobbler.com/2.0/"
 mention_p = re.compile(r"<@[^>]+>")
 
 
 class NotRegistered(Exception):
+    """
+    Raised when information is requested that concerns a user that has not registered his Last.fm name.
+    """
     def __init__(self, plugin):
         self.plugin = plugin
         super().__init__()
@@ -39,7 +42,10 @@ class NotRegistered(Exception):
         await ctx.send(Lang.lang(self.plugin, msg))
 
 
-class UnknownResponse(Exception):
+class UnexpectedResponse(Exception):
+    """
+    Returned when last.fm returns an unexpected response.
+    """
     def __init__(self, msg, usermsg):
         self.user_message = usermsg
         super().__init__(msg)
@@ -70,6 +76,13 @@ class Song:
 
     @classmethod
     def from_response(cls, plugin, element):
+        """
+        Builds a song from a dict as returned by last.fm API.
+
+        :param plugin: reference to Plugin
+        :param element: part of a response that represents a song
+        :return: Song object that represents `element`
+        """
         plugin.logger.debug("Building song from {}".format(pprint.pformat(element)))
         title = element["name"]
         album = element["album"]["#text"]
@@ -110,7 +123,7 @@ class Song:
 
         return cls(plugin, artist, album, title, nowplaying=nowplaying, timestamp=ts, loved=loved)
 
-    def quote(self, p=None):
+    def quote(self, p: float = None):
         """
         Returns a random quote if there is one.
 
@@ -122,7 +135,7 @@ class Song:
 
         quotes = self.plugin.get_quotes(self.artist, self.title)
         if quotes:
-            qkey = random.choice([key for key in quotes.keys()])
+            qkey = random.choice(list(quotes.keys()))
             if p is not None and random.choices([True, False], weights=[p, 1 - p])[0]:
                 return quotes[qkey]["quote"]
         return None
@@ -139,13 +152,13 @@ class Song:
     def __getitem__(self, key):
         if key == "artist":
             return self.artist
-        elif key == "album":
+        if key == "album":
             return self.album
-        elif key == "title":
+        if key == "title":
             return self.title
-        elif key == "nowplaying":
+        if key == "nowplaying":
             return self.nowplaying
-        elif key == "loved":
+        if key == "loved":
             return self.loved
         raise KeyError
 
@@ -162,7 +175,7 @@ class Plugin(BasePlugin, name="LastFM"):
 
         self.logger = logging.getLogger(__name__)
         self.migrate()
-        self.client = Client(baseurl)
+        self.client = Client(BASEURL)
         self.conf = Config.get(self)
         if not self.conf.get("apikey", ""):
             raise NotLoadable("API Key not found")
@@ -208,7 +221,9 @@ class Plugin(BasePlugin, name="LastFM"):
         ]
 
     def migrate(self):
-        # Migrate Quotes 1 -> 2
+        """
+        Migrate quotes from version 1 to version 2
+        """
         struc = Storage.get(self, container="quotes")
         if struc["version"] == 1:
             quoteslist = struc.get("quotes", [])
@@ -241,13 +256,12 @@ class Plugin(BasePlugin, name="LastFM"):
             return {
                 "users": {}
             }
-        elif container == "quotes":
+        if container == "quotes":
             return {
                 "version": 2,
                 "quotes": {}
             }
-        else:
-            raise RuntimeError
+        raise RuntimeError("unknown storage container {}".format(container))
 
     def command_help_string(self, command):
         return Lang.lang(self, "help_{}".format(command.name))
@@ -286,8 +300,7 @@ class Plugin(BasePlugin, name="LastFM"):
         r = Storage.get(self)["users"].get(user.id, None)
         if r is None:
             raise NotRegistered(self)
-        else:
-            return r
+        return r
 
     def perf_reset_timers(self):
         self.perf_lastfm_time = 0.0
@@ -326,7 +339,7 @@ class Plugin(BasePlugin, name="LastFM"):
         try:
             async with ctx.typing():
                 await self.most_interesting(ctx, ctx.author)
-        except (NotRegistered, UnknownResponse) as e:
+        except (NotRegistered, UnexpectedResponse) as e:
             await e.default(ctx)
             return
         after = self.perf_timenow()
@@ -425,7 +438,7 @@ class Plugin(BasePlugin, name="LastFM"):
         }
         try:
             songs = self.build_songs(await self.request(params))
-        except UnknownResponse as e:
+        except UnexpectedResponse as e:
             await e.default(ctx)
             return
 
@@ -444,7 +457,7 @@ class Plugin(BasePlugin, name="LastFM"):
         :param user: User
         :param song: Song instance
         """
-        self.logger.debug("Sending current quotes for {} to {}".format(song, user))
+        self.logger.debug("Sending current quotes for %s to %s", str(song), str(user))
         msg = [Lang.lang(self, "quote_existing_quotes")]
         quotes = self.get_quotes(song.artist, song.title)
         for key in quotes:
@@ -529,7 +542,7 @@ class Plugin(BasePlugin, name="LastFM"):
 
         try:
             song = self.build_songs(response)[0]
-        except UnknownResponse as e:
+        except UnexpectedResponse as e:
             await e.default(ctx)
             return
 
@@ -606,7 +619,7 @@ class Plugin(BasePlugin, name="LastFM"):
         if user is None:
             sg3p = True
             user = ctx.author
-        if isinstance(user, discord.Member) or isinstance(user, discord.User):
+        if isinstance(user, (discord.Member, discord.User)):
             try:
                 lfmuser = self.get_lastfm_user(user)
             except NotRegistered as e:
@@ -631,7 +644,7 @@ class Plugin(BasePlugin, name="LastFM"):
             response = await self.request(params)
             try:
                 song = self.build_songs(response)[0]
-            except UnknownResponse as e:
+            except UnexpectedResponse as e:
                 await e.default(ctx)
                 return
 
@@ -680,10 +693,10 @@ class Plugin(BasePlugin, name="LastFM"):
         for el in path:
             try:
                 result = result[el]
-            except (TypeError, KeyError, IndexError):
+            except (TypeError, KeyError, IndexError) as e:
                 if strict:
-                    raise UnknownResponse("{} not found in structure".format(el),
-                                          Lang.lang(self, "error"))
+                    raise UnexpectedResponse("{} not found in structure".format(el),
+                                             Lang.lang(self, "error")) from e
                 return default
         return result
 
@@ -695,11 +708,12 @@ class Plugin(BasePlugin, name="LastFM"):
         :param append_to: Append resulting songs to this list instead of building a new one.
         :param first: If False, removes a leading "nowplaying" song if existant.
         :return: List of song dicts that have the keys `artist`, `title`, `album`, `nowplaying`
+        :raises: UnexpectedResponse if the last.fm response is missing necessary information
         """
         try:
             tracks = response["recenttracks"]["track"]
-        except KeyError:
-            raise UnknownResponse("\"recenttracks\" not in response", Lang.lang(self, "api_error"))
+        except KeyError as e:
+            raise UnexpectedResponse("\"recenttracks\" not in response", Lang.lang(self, "api_error")) from e
         r = [] if append_to is None else append_to
         done = False
         for el in tracks:
@@ -713,21 +727,13 @@ class Plugin(BasePlugin, name="LastFM"):
     @staticmethod
     def interest_match(song, criterion, example):
         if criterion == MostInterestingType.ARTIST:
-            if song["artist"] == example["artist"]:
-                return True
-            else:
-                return False
+            return song["artist"] == example["artist"]
+
         if criterion == MostInterestingType.ALBUM:
-            if song["artist"] == example["artist"] and song["album"] == example["album"]:
-                return True
-            else:
-                return False
+            return song["artist"] == example["artist"] and song["album"] == example["album"]
 
         if criterion == MostInterestingType.TITLE:
-            if song["artist"] == example["artist"] and song["title"] == example["title"]:
-                return True
-            else:
-                return False
+            return song["artist"] == example["artist"] and song["title"] == example["title"]
 
     @staticmethod
     def expand_formula(top_index, top_matches, current_index, current_matches):
@@ -781,10 +787,10 @@ class Plugin(BasePlugin, name="LastFM"):
 
                         # Calc matches
                         c["current_matches"] += 1
-                        logging.debug("Comparison: {} > {} on song {}"
-                                      .format(c["current_matches"] / current_index,
-                                              (c["top_matches"] - 2) / c["top_index"],
-                                              current_index))
+                        logging.debug("Comparison: %f > %f on song %s",
+                                      c["current_matches"] / current_index,
+                                      (c["top_matches"] - 2) / c["top_index"],
+                                      str(current_index))
                         # This match improves our overall situation
                         if self.expand_formula(c["top_index"], c["top_matches"],
                                                current_index, c["current_matches"]):
@@ -792,7 +798,7 @@ class Plugin(BasePlugin, name="LastFM"):
                             c["top_index"] = current_index
                             c["top_matches"] = c["current_matches"]
 
-            self.logger.debug("Expand: Iteration done; counters: {}".format(pprint.pformat(counters)))
+            self.logger.debug("Expand: Iteration done; counters: %s", pprint.pformat(counters))
 
             if not improved and page_index > 1:
                 self.logger.debug("Expand: Done")
@@ -804,20 +810,20 @@ class Plugin(BasePlugin, name="LastFM"):
                 break
             params["limit"] = page_len
             params["page"] = page_index
-            self.logger.debug("Expand: Fetching page {}".format(page_index))
+            self.logger.debug("Expand: Fetching page %i", page_index)
             current_page = self.build_songs(await self.request(params), first=False)
 
-        self.logger.debug("counters: {}".format(counters))
+        self.logger.debug("counters: %s", str(counters))
 
         # Downgrade if necessary
         top_index = counters[criterion]["top_index"]
         top_matches = counters[criterion]["top_matches"]
         for el in [MostInterestingType.ALBUM, MostInterestingType.ARTIST]:
             downgrade_value = counters[el]["top_matches"] / self.get_config("mi_downgrade")
-            self.logger.debug("Checking downgrade from {} to {}".format(criterion, el))
-            self.logger.debug("Downgrade values: {}, {}".format(top_matches, downgrade_value))
+            self.logger.debug("Checking downgrade from %s to %s", str(criterion), str(el))
+            self.logger.debug("Downgrade values: %s, %s", str(top_matches), str(downgrade_value))
             if top_matches <= downgrade_value:
-                self.logger.debug("mi downgrade from {} to {}".format(criterion, el))
+                self.logger.debug("mi downgrade from %s to %s", str(criterion), str(el))
                 criterion = el
                 example = counters[el]["repr"]
                 top_index = counters[el]["top_index"]
@@ -935,19 +941,19 @@ class Plugin(BasePlugin, name="LastFM"):
 
         # Decide what is of the most interest
         mi = None
-        mi_score = 0
+        # mi_score = 0
         mi_example = None
         if best_artist_count >= min_artist:
             mi = MostInterestingType.ARTIST
-            mi_score = best_artist_count
+            # mi_score = best_artist_count
             mi_example = best_artist
         if best_album_count >= min_album:
             mi = MostInterestingType.ALBUM
-            mi_score = best_album_count
+            # mi_score = best_album_count
             mi_example = best_album
         if best_title_count >= min_title:
             mi = MostInterestingType.TITLE
-            mi_score = best_title_count
+            # mi_score = best_title_count
             mi_example = best_title
         if mi is None:
             # Nothing interesting found, send single song msg
