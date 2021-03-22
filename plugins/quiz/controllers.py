@@ -5,10 +5,10 @@ from datetime import datetime
 
 import discord
 
-from botutils.utils import add_reaction
 from subsystems.reactions import ReactionRemovedEvent
 from subsystems import timers
 from botutils import statemachine
+from botutils.utils import add_reaction
 from botutils.stringutils import format_andlist
 from data import Storage, Lang
 
@@ -25,6 +25,9 @@ class QuizEnded(Exception):
 
 
 class Phases(Enum):
+    """
+    Quiz phases for statemachine
+    """
     INIT = 0
     REGISTERING = 1
     ABOUTTOSTART = 2
@@ -99,12 +102,13 @@ class PointsQuizController(BaseQuizController):
     def register_participant(self, user):
         self.registered_participants[user] = []
 
-    """
-    Transitions
-    """
+    ###
+    # Transitions
+    ###
     async def registering_phase(self):
         """
-        REGISTERING -> ABOUTTOSTART; REGISTERING -> ABORT
+        REGISTERING -> [ABOUTTOSTART, ABORT]
+        :return: Phases.ABOUTTOSTART or Phases.ABORT
         """
         self.plugin.logger.debug("Starting PointsQuizController")
         reaction = Lang.lang(self.plugin, "reaction_signup")
@@ -152,37 +156,36 @@ class PointsQuizController(BaseQuizController):
         if players == 0 or (self.ranked and players < self.config["ranked_min_players"] and not self.debug):
             await self.channel.send(Lang.lang(self.plugin, "quiz_no_players"))
             return Phases.ABORT
-        else:
-            return Phases.ABOUTTOSTART
+        return Phases.ABOUTTOSTART
 
     async def about_to_start(self):
         """
         ABOUTTOSTART -> QUESTION; ABOUTTOSTART -> ABORT
+        :return: Phases.QUESTION
         """
         self.plugin.logger.debug("Ending the registering phase")
 
-        abort = False
         if len(self.registered_participants) == 0:
-            abort = True
-        if abort:
+            # abort
             embed, msg = self.plugin.end_quiz(self.channel)
             self.channel.send(msg, embed=embed)
             return
-        else:
-            for user in self.registered_participants:
-                self.score.add_participant(user)
-            embed = discord.Embed(title=Lang.lang(self.plugin, "quiz_phase"))
-            value = "\n".join([get_best_username(Storage().get(self.plugin), el, mention=True)
-                               for el in self.registered_participants])
-            embed.add_field(name="Participants:", value=value)
-            await self.channel.send(embed=embed)
+
+        for user in self.registered_participants:
+            self.score.add_participant(user)
+        embed = discord.Embed(title=Lang.lang(self.plugin, "quiz_phase"))
+        value = "\n".join([get_best_username(Storage().get(self.plugin), el, mention=True)
+                           for el in self.registered_participants])
+        embed.add_field(name="Participants:", value=value)
+        await self.channel.send(embed=embed)
 
         await asyncio.sleep(10)
         return Phases.QUESTION
 
     async def pose_question(self):
         """
-        QUESTION -> EVAL; QUESTION -> END
+        QUESTION -> [EVAL, END]
+        :return: Phases.EVAL or Phases.END
         """
         self.plugin.logger.debug("Posing next question.")
         try:
@@ -223,7 +226,9 @@ class PointsQuizController(BaseQuizController):
 
     async def eval(self):
         """
+        EVAL -> QUESTION
         Is called when the question is over. Evaluates scores and cancels the timer.
+        :return: Phases.QUESTION
         """
         self.plugin.logger.debug("Ending question")
 
@@ -280,6 +285,9 @@ class PointsQuizController(BaseQuizController):
         return Phases.QUESTION
 
     async def end(self):
+        """
+        Called when the quiz ends
+        """
         self.plugin.logger.debug("Ending quiz")
         embed = self.score.embed()
         winners = [get_best_username(Storage().get(self.plugin), x) for x in self.score.winners()]
@@ -312,6 +320,9 @@ class PointsQuizController(BaseQuizController):
         self.plugin.end_quiz(self.channel)
 
     async def abortphase(self):
+        """
+        Called when the quiz is aborted
+        """
         self.plugin.logger.debug("Aborting quiz")
         self.plugin.end_quiz(self.channel)
         if self.current_question_timer is not None:
@@ -326,9 +337,9 @@ class PointsQuizController(BaseQuizController):
         else:
             await self.channel.send(Lang.lang(self.plugin, "quiz_abort"))
 
-    """
-    Callbacks
-    """
+    ###
+    # Callbacks
+    ###
     async def on_message(self, msg):
         return
 
@@ -388,9 +399,9 @@ class PointsQuizController(BaseQuizController):
             self.plugin.logger.debug("Everyone has answered, continuing")
             self.continue_event(self.eval_event)
 
-    """
-    Timers stuff; these functions are scheduled by timers only
-    """
+    ###
+    # Timers stuff; these functions are scheduled by timers only
+    ###
     async def timeout_warning(self, event):
         """
         :param event: Eval event that is to be set after the timeout
@@ -435,9 +446,9 @@ class PointsQuizController(BaseQuizController):
         await self.channel.send(msg)
         self.continue_event(event)
 
-    """
-    Commands
-    """
+    ###
+    # Commands
+    ###
     async def start(self, msg):
         """
         Called when the start command is invoked.
@@ -610,9 +621,9 @@ class RushQuizController(BaseQuizController):
         self.quizapi = quizapi
         self._score = Score(self.plugin, self.config, self.question_count)
 
-    """
-    Transitions
-    """
+    ###
+    # Transitions
+    ###
     async def about_to_start(self):
         await self.channel.send(Lang.lang(self.plugin, "quiz_phase"))
         await asyncio.sleep(10)
@@ -622,7 +633,8 @@ class RushQuizController(BaseQuizController):
 
     async def pose_question(self):
         """
-        QUESTION -> EVAL
+        QUESTION -> [EVAL, ABORT, END]
+        :return: EVAL, ABORT or END
         """
         self.eval_event = asyncio.Event()
         self.last_author = None
@@ -638,13 +650,13 @@ class RushQuizController(BaseQuizController):
         self.eval_event = None
         if self.statemachine.cancelled():
             return Phases.ABORT
-        else:
-            return Phases.EVAL
+        return Phases.EVAL
 
     async def eval(self):
         """
+        EVAL -> QUESTION
         Is called when the question is over. Evaluates scores and cancels the timer.
-        :return:
+        :return: Phases.QUESTION
         """
         self.plugin.logger.debug("Ending question")
 
@@ -660,6 +672,9 @@ class RushQuizController(BaseQuizController):
         return Phases.QUESTION
 
     async def end(self):
+        """
+        Is called when the quiz is over.
+        """
 
         embed = self.score.embed()
         winners = [get_best_username(Storage().get(self.plugin), x) for x in self.score.winners()]
@@ -720,9 +735,9 @@ class RushQuizController(BaseQuizController):
         await self.channel.send("The quiz was aborted.")
         self.plugin.end_quiz(self.channel)
 
-    """
-    Commands
-    """
+    ###
+    # Commands
+    ###
     async def start(self, msg):
         self.quizapi = self.quizapi(self.config, self.channel,
                                     category=self.category, question_count=self.question_count,
@@ -770,9 +785,6 @@ class RushQuizController(BaseQuizController):
         self.statemachine.cancel()
         await add_reaction(msg, Lang.CMDSUCCESS)
 
-    """
-    Utils
-    """
     @property
     def state(self):
         return self.statemachine.state

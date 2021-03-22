@@ -75,6 +75,7 @@ class OpenTDBQuizAPI(BaseQuizAPI):
 
         self.client = restclient.Client(opentdb["base_url"])
         self.current_question_i = -1
+        self.is_running = True
 
         self.category = category
         self.questions = []
