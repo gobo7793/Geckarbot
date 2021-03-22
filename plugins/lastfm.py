@@ -524,7 +524,7 @@ class Plugin(BasePlugin, name="LastFM"):
 
         :param question:
         :param question_queue:
-        :return:
+        :return: question_queue
         """
         song = Song(self, question.data["q_artist"].answer, "", question.data["q_title"].answer)
         question.data["song"] = song
@@ -537,6 +537,7 @@ class Plugin(BasePlugin, name="LastFM"):
 
         :param question: Question object
         :param question_queue: list of question objects
+        :return: new question queue
         """
         p = mention_p.search(question.answer)
         if p:
