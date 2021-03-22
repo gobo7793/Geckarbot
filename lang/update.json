@@ -17,7 +17,28 @@
     "err_different_channel": "Sorry, there is already an update request running in a different channel.",
     "err_already_updating": "There is already an update in progress. Be patient.",
     "err_different_user": "Sorry, someone else already requested an update.",
-    "err_no_news_for_version": "Sorry, I couldn't find any news for version {}."
+    "err_no_news_for_version": "Sorry, I couldn't find any news for version {}.",
+
+    "help_news": "Shows the release notes of a version",
+    "help_version": "Shows the version",
+    "help_restart": "Restarts the bot",
+    "help_shutdown": "Terminates the bot",
+    "help_confirm": "Confirms a !update",
+    "help_update": "Update check and update",
+
+    "desc_news": "Shows the release notes of a version. If no version was given, assumes the version that is currently running. Supports \"latest\" for the most recent version.",
+    "desc_version": "Shows the bot version that is currently running.",
+    "desc_restart": "Restarts the bot. Botmasters only.",
+    "desc_shutdown": "Terminates the bot. Botmasters only.",
+    "desc_confirm": "Confirms an update command.",
+    "desc_update": "Checks if there is a new Geckarbot version on GitHub. If the command was executed by a botmaster, the update process is initiated. Without arguments updates to the latest version; if a version is passed we update to that one. Requires a confirmation via !replace.",
+
+    "usage_news": "[<Version>]",
+    "usage_version": "",
+    "usage_restart": "",
+    "usage_shutdown": "",
+    "usage_confirm": "",
+    "usage_update": "[<Version>]"
   },
   "de_DE": {
     "version": "Ich bin Geckarbot {}.",

@@ -9,6 +9,7 @@
     "usage_usage": "<command>",
     "help_helpall": "Lists all commands.",
     "desc_helpall": "Lists all commands in alphabetical order.",
+    "usage_helpall": "[debug]",
     "self_category_name": "Help",
 
     "help_categories_prefix": "!help <category> for help on a category.\n\nCategories:",
