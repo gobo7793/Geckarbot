@@ -443,6 +443,9 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
         return State.DELIVER
 
     def assigned(self):
+        """
+        Sets eval_event.
+        """
         for el in self.participants:
             if el.chosen is None:
                 return
