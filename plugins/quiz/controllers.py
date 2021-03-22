@@ -557,18 +557,15 @@ class PointsQuizController(BaseQuizController):
         """
         return self._score
 
-    """
-    Utils
-    """
+    ###
+    # Utils
+    ###
     @property
     def state(self):
         return self.statemachine.state
 
     def has_everyone_answered(self):
-        if self.havent_answered_hr():
-            return False
-        else:
-            return True
+        return not self.havent_answered_hr()
 
     def havent_answered_hr(self):
         return [get_best_username(Storage().get(self.plugin), el)
