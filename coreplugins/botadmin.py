@@ -12,14 +12,14 @@ from botutils.stringutils import paginate
 from botutils.converters import get_best_username as gbu
 from botutils.utils import add_reaction
 from data import Storage, Config, Lang
-from subsystems import help
+from subsystems.helpsys import DefaultCategories
 
 
 class Plugin(BasePlugin, name="Bot status commands for monitoring and debug purposes"):
     def __init__(self, bot):
         self.bot = bot
         super().__init__(bot)
-        bot.register(self, help.DefaultCategories.ADMIN)
+        bot.register(self, DefaultCategories.ADMIN)
 
     def get_configurable_type(self):
         return ConfigurableType.COREPLUGIN
@@ -34,7 +34,7 @@ class Plugin(BasePlugin, name="Bot status commands for monitoring and debug purp
                                   "only registrations for this subsystem will be shown.",
                       usage="[dmlisteners|ignoring|liveticker|presence|reactions|timers]")
     @commands.has_any_role(Config().BOT_ADMIN_ROLE_ID)
-    async def subsys(self, ctx, subsystem=""):
+    async def cmd_subsys(self, ctx, subsystem=""):
         if not subsystem or subsystem == "reactions":
             reaction_prefix = "**{} Reactions registrations:**\n".format(len(self.bot.reaction_listener.callbacks))
             for msg in paginate(self.bot.reaction_listener.callbacks,
@@ -58,7 +58,7 @@ class Plugin(BasePlugin, name="Bot status commands for monitoring and debug purp
             if not dmregs:
                 dmregs = {0: "None"}
             dm_prefix = "**{} DM Listeners:**\n".format(len(self.bot.dm_listener.registrations))
-            for msg in paginate([x for x in dmregs.keys()],
+            for msg in paginate((x for x in dmregs.keys()),
                                 prefix=dm_prefix,
                                 suffix="\n",
                                 f=lambda x: dmregs[x]):
@@ -93,7 +93,7 @@ class Plugin(BasePlugin, name="Bot status commands for monitoring and debug purp
                                 if_empty="None"):
                 await ctx.send(msg)
 
-    async def dump(self, ctx, iodir, iodir_str, name, container=None):
+    async def _dump(self, ctx, iodir, iodir_str, name, container=None):
         plugin = converters.get_plugin_by_name(name)
         if plugin is None:
             if name == "ignoring":
@@ -121,8 +121,8 @@ class Plugin(BasePlugin, name="Bot status commands for monitoring and debug purp
                     prefix += "Available containers: {}\n".format(containers)
 
             if not iodir.data(plugin).has_structure(container):
-                prefix += "**Warning: plugin {} does not have the {} structure {}.** " \
-                          "This is the main {}.\n".format(name, iodir_str, container, iodir_str)
+                prefix += "**Warning: plugin {0} does not have the {1} structure {2}.** " \
+                          "This is the main {1}.\n".format(name, iodir_str, container)
                 container = None
 
             origin = iodir.get(plugin, container=container)
@@ -157,31 +157,30 @@ class Plugin(BasePlugin, name="Bot status commands for monitoring and debug purp
 
     @commands.command(name="storagedump", help="Dumps plugin storage", usage="<plugin name> [container]")
     @commands.has_any_role(Config().BOT_ADMIN_ROLE_ID)
-    async def storagedump(self, ctx, name, container=None):
-        await self.dump(ctx, Storage, "storage", name, container=container)
+    async def cmd_storagedump(self, ctx, name, container=None):
+        await self._dump(ctx, Storage, "storage", name, container=container)
 
-    # Disabled for security reasons, we have API keys, passwords etc in these files
     @commands.command(name="configdump", help="Dumps plugin config", usage="<plugin name> [container]")
     @commands.has_any_role(Config().BOT_ADMIN_ROLE_ID)
-    async def configdump(self, ctx, name, container=None):
-        await self.dump(ctx, Config, "config", name, container=container)
+    async def cmd_configdump(self, ctx, name, container=None):
+        await self._dump(ctx, Config, "config", name, container=container)
 
     @commands.command(name="date", help="Current date and time")
-    async def date(self, ctx):
+    async def cmd_date(self, ctx):
         now = datetime.now()
         await ctx.send(now.strftime('%d.%m.%Y %H:%M:%S.%f'))
 
     @commands.command(name="debug", help="Print or change debug mode at runtime", usage="[true|on|off|false|toggle]")
     @commands.has_any_role(Config().BOT_ADMIN_ROLE_ID)
-    async def debug(self, ctx, arg=None):
+    async def cmd_debug(self, ctx, arg=None):
         toggle = None
         if arg is not None:
             arg = arg.lower()
         if arg == "toggle":
             toggle = not self.bot.DEBUG_MODE
-        elif arg == "on" or arg == "true" or arg == "set":
+        elif arg in ('on', 'true', 'set'):
             toggle = True
-        elif arg == "off" or arg == "false":
+        elif arg in ('off', 'false'):
             toggle = False
 
         if toggle is None:
@@ -195,7 +194,7 @@ class Plugin(BasePlugin, name="Bot status commands for monitoring and debug purp
 
     @commands.command(name="livetickerkill", help="Kills all liveticker registrations")
     @commands.has_any_role(Config().BOT_ADMIN_ROLE_ID)
-    async def liveticker_kill(self, ctx):
+    async def cmd_liveticker_kill(self, ctx):
         for reg in list(self.bot.liveticker.registrations.values()):
             reg.deregister()
         await add_reaction(ctx.message, Lang.CMDSUCCESS)

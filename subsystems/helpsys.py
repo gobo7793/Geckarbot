@@ -55,15 +55,6 @@ class HelpCog(BasePlugin):
     async def listcmd(self, ctx, *args):
         await self.bot.helpsys.listcmd(ctx, *args)
 
-    def command_help_string(self, command):
-        return Lang.lang(self, "help_{}".format(command.name))
-
-    def command_description(self, command):
-        return Lang.lang(self, "description_{}".format(command.name))
-
-    def command_usage(self, command):
-        return Lang.lang(self, "usage_{}".format(command.name))
-
 
 class HelpCategory:
     def __init__(self, bot, name, description="", order=CategoryOrder.MIDDLE, defaultcat=False):

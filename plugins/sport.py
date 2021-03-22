@@ -6,12 +6,12 @@ import discord
 from discord.ext import commands
 
 from base import BasePlugin
+from data import Lang, Config
 from botutils import restclient
 from botutils.stringutils import paginate
 from botutils.utils import add_reaction
-from subsystems.help import DefaultCategories
+from subsystems.helpsys import DefaultCategories
 from subsystems.liveticker import LivetickerKickoff, LivetickerUpdate, LivetickerFinish
-from data import Lang, Config
 
 
 class Plugin(BasePlugin, name="Sport"):
@@ -34,22 +34,18 @@ class Plugin(BasePlugin, name="Sport"):
     def default_storage(self):
         return []
 
-    def command_help_string(self, command):
-        return Lang.lang(self, "help_{}".format("_".join(command.qualified_name.split())))
-
     def command_description(self, command):
         name = "_".join(command.qualified_name.split())
         lang_name = "description_{}".format(name)
         result = Lang.lang(self, lang_name)
-        if result != lang_name:
-            if name == "fußball":
-                result = Lang.lang(self, lang_name, ", ".join(Config().get(self)['leagues'].keys()))
+        if result != lang_name and name == "fußball":
+            result = Lang.lang(self, lang_name, ", ".join(Config().get(self)['leagues'].keys()))
         else:
             result = Lang.lang(self, "help_{}".format(name))
         return result
 
     @commands.command(name="kicker")
-    async def kicker_table(self, ctx):
+    async def cmd_kicker_table(self, ctx):
         now = datetime.now()
         if now.month < 3 or now.month > 7:
             at_values = "[{}]({})".format(Lang.lang(self, 'kicker_ATBL'), Lang.lang(self, 'kicker_ATBL_link'))
@@ -76,11 +72,11 @@ class Plugin(BasePlugin, name="Sport"):
 
     # todo: read directly from sheets
     @commands.command(name="tippspiel")
-    async def tippspiel(self, ctx):
+    async def cmd_tippspiel(self, ctx):
         await ctx.send(Lang.lang(self, 'tippspiel_output'))
 
     @commands.command(name="fußball", aliases=["fusselball"])
-    async def soccer_livescores(self, ctx, league, allmatches=None):
+    async def cmd_soccer_livescores(self, ctx, league, allmatches=None):
         if league not in Config().get(self)['leagues']:
             for leag, aliases in Config().get(self)['leagues'].items():
                 if league in aliases:
@@ -130,15 +126,15 @@ class Plugin(BasePlugin, name="Sport"):
         await ctx.send(embed=embed)
 
     @commands.command(name="buli")
-    async def buli_livescores(self, ctx, allmatches=None):
+    async def cmd_buli_livescores(self, ctx, allmatches=None):
         await ctx.invoke(self.bot.get_command('fußball'), 'bl1', allmatches)
 
     @commands.command(name="buli2")
-    async def buli2_livescores(self, ctx, allmatches=None):
+    async def cmd_buli2_livescores(self, ctx, allmatches=None):
         await ctx.invoke(self.bot.get_command('fußball'), 'bl2', allmatches)
 
     @commands.command(name="matches")
-    async def matches_24h(self, ctx):
+    async def cmd_matches_24h(self, ctx):
         async with ctx.typing():
             msg = ""
             for league in Config().get(self)['leagues'].keys():
@@ -166,7 +162,7 @@ class Plugin(BasePlugin, name="Sport"):
         await ctx.send(msg)
 
     @commands.command(name="liveticker")
-    async def liveticker(self, ctx):
+    async def cmd_liveticker(self, ctx):
         msg = []
         liveticker_regs = self.bot.liveticker.search(plugin=self.get_name())
         for src, leagues in Config().get(self)['liveticker_leagues'].items():
@@ -174,7 +170,7 @@ class Plugin(BasePlugin, name="Sport"):
                 for reg in liveticker_regs.get(league, []):
                     reg.deregister()
                 reg_ = self.bot.liveticker.register(league=league, raw_source=src, plugin=self,
-                                                    coro=self.live_coro, periodic=True)
+                                                    coro=self._live_coro, periodic=True)
                 next_exec = reg_.next_execution()
                 if next_exec:
                     next_exec = next_exec[0].strftime('%d.%m.%Y - %H:%M')
@@ -184,7 +180,7 @@ class Plugin(BasePlugin, name="Sport"):
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
         await ctx.send("\n".join(msg))
 
-    async def live_coro(self, event):
+    async def _live_coro(self, event):
         sport = Config().bot.get_channel(Config().get(self)['sport_chan'])
         if type(event) == LivetickerKickoff:
             # Kickoff-Event

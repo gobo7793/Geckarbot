@@ -4,6 +4,7 @@ from typing import Optional, Union
 import discord
 from discord.ext import commands
 
+from base import BasePlugin
 from data import Config
 
 _id_regex = re.compile(r'([0-9]{15,21})$')
@@ -22,7 +23,7 @@ def _get_from_guilds(bot, getter, argument):
     return result
 
 
-def get_best_username(user):
+def get_best_username(user: Union[discord.User, discord.Member]) -> str:
     """
     Gets the best username for the given user or the str representation of the given object.
     :param user: User (Member or User instance) that is to be identified
@@ -33,7 +34,7 @@ def get_best_username(user):
     return str(user)
 
 
-def get_best_user(uid) -> Union[discord.Member, discord.User, None]:
+def get_best_user(uid: int) -> Union[discord.Member, discord.User, None]:
     """
     Gets the member object of the given user id, or if member not found, the user object, or None of nothing found.
 
@@ -46,7 +47,7 @@ def get_best_user(uid) -> Union[discord.Member, discord.User, None]:
     return result
 
 
-def get_username_from_id(uid) -> Optional[str]:
+def get_username_from_id(uid: int) -> Optional[str]:
     """
     Gets the best username from the given user id, or None if user id not found.
     Short: Calls get_best_user() and then get_best_username()
@@ -66,6 +67,7 @@ def convert_member(argument) -> Optional[discord.Member]:
 
     :param argument: The argument to convert
     :return: The Member or None
+    :raise commands.BadArgument: If argument is no valid Member
     """
     match = argument if isinstance(argument, int) else _get_id_match(argument) or re.match(r'<@!?([0-9]+)>$', argument)
     guild = Config().bot.guild
@@ -87,7 +89,7 @@ def convert_member(argument) -> Optional[discord.Member]:
     return result
 
 
-def get_plugin_by_name(name):
+def get_plugin_by_name(name: str) -> Optional[BasePlugin]:
     """
     :param name: Name of the plugin that is to be returned.
     :return: Configurable object of the plugin with name `name`. Returns None if no such plugin is found.
@@ -98,7 +100,7 @@ def get_plugin_by_name(name):
     return None
 
 
-def get_embed_str(embed):
+def get_embed_str(embed: Union[discord.Embed, str]) -> Union[discord.Embed, str]:
     """
     Returns the given embed contents as loggable string.
     If embed is no embed object, the str of the object will be returned.

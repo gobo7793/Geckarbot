@@ -8,7 +8,7 @@ from discord.ext import commands
 from discord.ext.commands import TextChannelConverter, ChannelNotFound, RoleConverter, RoleNotFound
 
 import botutils.timeutils
-from base import BasePlugin, NotFound
+from base import BasePlugin
 from botutils import stringutils, permchecks
 from botutils.converters import get_best_username, get_best_user
 from botutils.permchecks import WrongChannel
@@ -18,8 +18,7 @@ from data import Config, Storage, Lang
 from plugins.fantasy.league import FantasyLeague, deserialize_league, create_league
 from plugins.fantasy.utils import pos_alphabet, FantasyState, Platform, Match
 from subsystems import timers
-from subsystems.help import DefaultCategories
-
+from subsystems.helpsys import DefaultCategories
 
 log = logging.getLogger(__name__)
 
@@ -95,27 +94,6 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
     async def shutdown(self):
         self._stop_score_timer()
         self.leagues.clear()
-
-    def command_help_string(self, command):
-        langstr = Lang.lang_no_failsafe(self, "help_{}".format(command.qualified_name.replace(" ", "_")))
-        if langstr is not None:
-            return langstr
-        else:
-            raise NotFound()
-
-    def command_description(self, command):
-        langstr = Lang.lang_no_failsafe(self, "help_desc_{}".format(command.qualified_name.replace(" ", "_")))
-        if langstr is not None:
-            return langstr
-        else:
-            raise NotFound()
-
-    def command_usage(self, command):
-        langstr = Lang.lang_no_failsafe(self, "help_usage_{}".format(command.qualified_name.replace(" ", "_")))
-        if langstr is not None:
-            return langstr
-        else:
-            raise NotFound()
 
     @property
     def year(self):
@@ -292,7 +270,7 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
         if platform_name.lower() == "espn":
             return Platform.ESPN
         if platform_name.lower() == "sleeper":
-            return Platform.Sleeper
+            return Platform.SLEEPER
 
         if ctx is not None:
             await add_reaction(ctx.message, Lang.CMDERROR)
@@ -311,7 +289,7 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
         return False
 
     @commands.group(name="fantasy")
-    async def fantasy(self, ctx):
+    async def cmd_fantasy(self, ctx):
         if Config.get(self)['channel_id'] != 0 and Config.get(self)['channel_id'] != ctx.channel.id:
             await add_reaction(ctx.message, Lang.CMDNOPERMISSIONS)
             raise WrongChannel(Config.get(self)['channel_id'])
@@ -319,8 +297,8 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
         if ctx.invoked_subcommand is None:
             await ctx.invoke(self.bot.get_command('fantasy info'))
 
-    @fantasy.command(name="scores", aliases=["score", "matchup", "matchups", "boxscore", "boxscores"])
-    async def scores(self, ctx, *args):
+    @cmd_fantasy.command(name="scores", aliases=["score", "matchup", "matchups", "boxscore", "boxscores"])
+    async def cmd_scores(self, ctx, *args):
         # Base cmd syntax: !fantasy scores week team_name... league_name
         week = 0
         team_name = None
@@ -468,7 +446,7 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
                          or t.team_abbrev.lower() == team_name.lower()), None)
             if team is None:
                 return
-            if league.platform == Platform.Sleeper:
+            if league.platform == Platform.SLEEPER:
                 return Lang.lang(self, "no_boxscore_data", team.team_name, league.platform,
                                  league.get_boxscore_url(week, team.team_id))
             return await self._get_boxscore_embed(league, lweek, team=team)
@@ -562,8 +540,8 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
             embed.set_footer(text=Lang.lang(self, "box_footer", opp_name, opp_score, opp_proj))
         return embed
 
-    @fantasy.command(name="standings", aliases=["standing"])
-    async def standings(self, ctx, league_name=None):
+    @cmd_fantasy.command(name="standings", aliases=["standing"])
+    async def cmd_standings(self, ctx, league_name=None):
         if not self.leagues:
             await ctx.send(Lang.lang(self, "no_leagues"))
             return
@@ -591,8 +569,8 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
             except (IndexError, ValueError):
                 await ctx.send(Lang.lang(self, "api_error", self.leagues[k].name))
 
-    @fantasy.command(name="info")
-    async def info(self, ctx, league_name=None):
+    @cmd_fantasy.command(name="info")
+    async def cmd_info(self, ctx, league_name=None):
         if self.supercommish is None or not self.leagues:
             await add_reaction(ctx.message, Lang.CMDERROR)
             await ctx.send(Lang.lang(self, "need_supercommish_leagues"))
@@ -613,19 +591,19 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
             embed.add_field(name=Lang.lang(self, "commish"), value=com)
 
             async with ctx.typing():
-                if self.state == FantasyState.Sign_up:
+                if self.state == FantasyState.SIGN_UP:
                     phase_lang = "signup_phase_info"
                     date_out_str = date_out_str if self.date > datetime.now() else ""
                     embed.add_field(name=Lang.lang(self, 'sign_up_at'), value=self.supercommish.mention)
 
-                elif self.state == FantasyState.Predraft:
+                elif self.state == FantasyState.PREDRAFT:
                     phase_lang = "predraft_phase_info"
                     embed.add_field(name=Lang.lang(self, 'player_database'), value=self.datalink)
 
-                elif self.state == FantasyState.Preseason:
+                elif self.state == FantasyState.PRESEASON:
                     phase_lang = "preseason_phase_info"
 
-                elif self.state == FantasyState.Regular:
+                elif self.state == FantasyState.REGULAR:
                     has_api_errors = False
                     phase_lang = "regular_phase_info"
                     season_str = Lang.lang(self, "curr_week", league.nfl_week, self.year, league.current_week)
@@ -668,10 +646,10 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
                         footer_str = " | ".join([footer_str, Lang.lang(self, "api_error_short")])
                     embed.set_footer(text=footer_str)
 
-                elif self.state == FantasyState.Postseason:
+                elif self.state == FantasyState.POSTSEASON:
                     phase_lang = "postseason_phase_info"
 
-                elif self.state == FantasyState.Finished:
+                elif self.state == FantasyState.FINISHED:
                     phase_lang = "finished_phase_info"
 
                 else:
@@ -683,8 +661,8 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
 
             await ctx.send(embed=embed)
 
-    @fantasy.command(name="reload")
-    async def fantasy_reload(self, ctx):
+    @cmd_fantasy.command(name="reload")
+    async def cmd_fantasy_reload(self, ctx):
         has_errors = False
         async with ctx.typing():
             for k in self.leagues:
@@ -698,8 +676,8 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
         else:
             await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
-    @fantasy.group(name="set")
-    async def fantasy_set(self, ctx):
+    @cmd_fantasy.group(name="set")
+    async def cmd_fantasy_set(self, ctx):
         def check_mod_perms():
             if permchecks.check_mod_access(ctx.author):
                 return True
@@ -723,38 +701,39 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
         if ctx.invoked_subcommand is None:
             await self.bot.helpsys.cmd_help(ctx, self, ctx.command)
 
-    @fantasy_set.command(name="datalink")
-    async def set_datalink(self, ctx, link):
+    @cmd_fantasy_set.command(name="datalink")
+    async def cmd_set_datalink(self, ctx, link):
         link = stringutils.clear_link(link)
         self.datalink = link
         self.save()
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
-    @fantasy_set.command(name="start")
-    async def set_start(self, ctx, *args):
+    @cmd_fantasy_set.command(name="start")
+    async def cmd_set_start(self, ctx, *args):
         date = botutils.timeutils.parse_time_input(args, end_of_day=True)
         self.start_date = date
         self.save()
         self._start_score_timer()
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
-    @fantasy_set.command(name="end")
-    async def set_end(self, ctx, *args):
+    @cmd_fantasy_set.command(name="end")
+    async def cmd_set_end(self, ctx, *args):
         date = botutils.timeutils.parse_time_input(args, end_of_day=True)
         self.end_date = date
         self.save()
         self._start_score_timer()
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
-    @fantasy_set.command(name="orga", aliases=["organisator"])
-    async def set_orga(self, ctx, organisator: Union[discord.Member, discord.User]):
+    @cmd_fantasy_set.command(name="orga", aliases=["organisator"])
+    async def cmd_set_orga(self, ctx, organisator: Union[discord.Member, discord.User]):
         self.supercommish = organisator
         self.save()
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
-    # @fantasy_set.command(name="timers", help="Enables or disables the timers to auto-send scores to fantasy channels",
+    # @cmd_fantasy_set.command(name="timers",
+    # help="Enables or disables the timers to auto-send scores to fantasy channels",
     #                      usage="<on|enable|off|disable>")
-    # async def set_timers(self, ctx, arg):
+    # async def cmd_set_timers(self, ctx, arg):
     #     if arg == "on" or arg == "enable":
     #         self.use_timers = True
     #         self._start_score_timer()
@@ -769,46 +748,46 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
         self.save()
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
-    @fantasy_set.command(name="state", aliases=["phase"])
-    async def fantasy_set_state(self, ctx, state):
+    @cmd_fantasy_set.command(name="state", aliases=["phase"])
+    async def cmd_fantasy_set_state(self, ctx, state):
         if state.lower() == "signup":
-            await self._save_state(ctx, FantasyState.Sign_up)
+            await self._save_state(ctx, FantasyState.SIGN_UP)
         elif state.lower() == "predraft":
-            await self._save_state(ctx, FantasyState.Predraft)
+            await self._save_state(ctx, FantasyState.PREDRAFT)
         elif state.lower() == "preseason":
-            await self._save_state(ctx, FantasyState.Preseason)
+            await self._save_state(ctx, FantasyState.PRESEASON)
         elif state.lower() == "regular":
-            await self._save_state(ctx, FantasyState.Regular)
+            await self._save_state(ctx, FantasyState.REGULAR)
         elif state.lower() == "postseason":
-            await self._save_state(ctx, FantasyState.Postseason)
+            await self._save_state(ctx, FantasyState.POSTSEASON)
         elif state.lower() == "finished":
-            await self._save_state(ctx, FantasyState.Finished)
+            await self._save_state(ctx, FantasyState.FINISHED)
         else:
             await add_reaction(ctx.message, Lang.CMDERROR)
             await ctx.send(Lang.lang(self, 'invalid_phase'))
 
-    @fantasy_set.command(name="date")
-    async def set_date(self, ctx, *args):
+    @cmd_fantasy_set.command(name="date")
+    async def cmd_set_date(self, ctx, *args):
         date = botutils.timeutils.parse_time_input(args, end_of_day=True)
         self.date = date
         self.save()
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
-    @fantasy_set.command(name="status")
-    async def set_status(self, ctx, *, message):
+    @cmd_fantasy_set.command(name="status")
+    async def cmd_set_status(self, ctx, *, message):
         self.status = message
         self.save()
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
-    @fantasy_set.command(name="credentials")
-    async def set_api_credentials(self, ctx, swid, espn_s2):
+    @cmd_fantasy_set.command(name="credentials")
+    async def cmd_set_api_credentials(self, ctx, swid, espn_s2):
         Config.get(self)["espn_credentials"]["swid"] = swid
         Config.get(self)["espn_credentials"]["espn_s2"] = espn_s2
         self.save()
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
-    @fantasy_set.command(name="config", help="Gets or sets general config values for the plugin")
-    async def set_config(self, ctx, key="", value=""):
+    @cmd_fantasy_set.command(name="config", help="Gets or sets general config values for the plugin")
+    async def cmd_set_config(self, ctx, key="", value=""):
         if not key and not value:
             msg = []
             for key in Config.get(self):
@@ -864,8 +843,8 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
         Config.save(self)
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
-    @fantasy_set.command(name="default")
-    async def set_default(self, ctx, platform_name, league_id: int = None):
+    @cmd_fantasy_set.command(name="default")
+    async def cmd_set_default(self, ctx, platform_name, league_id: int = None):
         if platform_name.lower() == "del":
             self.default_league = -1
             self.save()
@@ -886,8 +865,8 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
             await add_reaction(ctx.message, Lang.CMDERROR)
             await ctx.send(Lang.lang(self, "league_id_not_found", league_id))
 
-    @fantasy_set.command(name="add")
-    async def set_add(self, ctx, platform_name, league_id: int,
+    @cmd_fantasy_set.command(name="add")
+    async def cmd_set_add(self, ctx, platform_name, league_id: int,
                       commish: Union[discord.Member, discord.User, str] = None):
         platform = await self.parse_platform(platform_name, ctx)
         if platform is None:
@@ -918,8 +897,8 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
             com = Lang.lang(self, "nobody") if commish is None or not commish else get_best_username(commish)
             await ctx.send(Lang.lang(self, "league_added", get_best_username(com), league.name))
 
-    @fantasy_set.command(name="del")
-    async def set_del(self, ctx, league_id: int, platform_name: Platform = None):
+    @cmd_fantasy_set.command(name="del")
+    async def cmd_set_del(self, ctx, league_id: int, platform_name: Platform = None):
         platform = await self.parse_platform(platform_name, ctx)
         to_remove_key = None
         to_remove_league = None

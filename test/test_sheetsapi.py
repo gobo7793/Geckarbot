@@ -5,6 +5,7 @@ from botutils import sheetsclient
 
 
 class SheetsApiTestCase(unittest.TestCase):
+    """Tests for the sheets client"""
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.bot = Geckarbot.Geckarbot()
@@ -13,6 +14,7 @@ class SheetsApiTestCase(unittest.TestCase):
         Geckarbot.logging_setup()
 
     def test_get(self):
+        """Tests getting cell data from sheet"""
         # only for current state of sheets as of 2020-07-18 12:00 pm
         c = sheetsclient.Client(self.bot, "1mSDrTqdcOSOuvR9Y9hMzuEx1X9puaUVuqs7yp6Ju6_M")
         v = c.get("Archiv!C6")

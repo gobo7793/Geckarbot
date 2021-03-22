@@ -70,12 +70,11 @@ def parse_time_input(*args, end_of_day=False):
 
             if darg.endswith("m"):
                 return datetime.now() + timedelta(minutes=float(darg[:-1]))
-            elif darg.endswith("h"):
+            if darg.endswith("h"):
                 return datetime.now() + timedelta(hours=float(darg[:-1]))
-            elif darg.endswith("d"):
+            if darg.endswith("d"):
                 return datetime.now() + timedelta(days=float(darg[:-1]))
-            else:
-                return datetime.now() + timedelta(minutes=float(darg))
+            return datetime.now() + timedelta(minutes=float(darg))
         except ValueError:
             # the other possible formats
             darg = unpacked[i]

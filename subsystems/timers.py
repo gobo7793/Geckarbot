@@ -1,3 +1,8 @@
+"""
+This subsystem provides cron-like timers whose execution are scheduled to run at a specific time in the future,
+periodically or only once.
+"""
+
 from copy import deepcopy
 from calendar import monthrange
 from threading import Thread, Lock
@@ -13,12 +18,6 @@ from base import BaseSubsystem
 from botutils.utils import write_debug_channel
 
 
-"""
-This subsystem provides cron-like timers whose execution are scheduled to run at a specific time in the future,
-periodically or only once.
-"""
-
-
 timedictformat = ["year", "month", "monthday", "weekday", "hour", "minute"]
 
 
@@ -30,6 +29,13 @@ class LastExecution(Exception):
 
 
 class Mothership(BaseSubsystem, Thread):
+    """
+    The timer subsystem allows for a periodic or singular coroutine to be scheduled based
+     on a time distance or a calendar-oriented schedule.
+
+    Timers do not survive bot restarts.
+    """
+
     def __init__(self, bot, launch_immediately=True):
         BaseSubsystem.__init__(self, bot)
         Thread.__init__(self)
@@ -47,14 +53,14 @@ class Mothership(BaseSubsystem, Thread):
     def run(self):
         while True:
             try:
-                self.loop()
+                self._loop()
             except Exception as e:
                 msg = "Timer Mothership crashed: {}; Traceback:```\n{}\n```".format(e, traceback.format_exc())
                 self.logger.error(msg)
                 asyncio.run_coroutine_threadsafe(write_debug_channel(msg), self.bot.loop)
                 sleep(60)
 
-    def loop(self):
+    def _loop(self):
         while True:
             if self._shutdown is not None:
                 self.logger.info("Shutting down timer thread.")
@@ -78,7 +84,7 @@ class Mothership(BaseSubsystem, Thread):
                 todel = []
                 for el in self.jobs:
                     if (el.next_execution() - now).total_seconds() < 10:  # with this, it should always be < 0
-                        self.logger.debug("About to execute {}".format(el))
+                        self.logger.debug("About to execute %s", el)
                         try:
                             el.execute()
                             executed.append(el)
@@ -87,11 +93,11 @@ class Mothership(BaseSubsystem, Thread):
                     else:
                         break
                 for el in executed:
-                    self.logger.debug("Executed job {}; scheduling re-execution".format(el))
+                    self.logger.debug("Executed job %s; scheduling re-execution", el)
                     self.jobs.remove(el)
                     self._to_register.append(el)
                 for el in todel:
-                    self.logger.debug("Executed job {}; this was the last execution".format(el))
+                    self.logger.debug("Executed job %s; this was the last execution", el)
                     self.jobs.remove(el)
 
             tts = 60 - datetime.datetime.now().second + 1
@@ -101,7 +107,7 @@ class Mothership(BaseSubsystem, Thread):
         """
         Inserts a job at the correct position in the job list.
         """
-        self.logger.debug("Inserting job {} in job list".format(job))
+        self.logger.debug("Inserting job %s in job list", job)
         nexto = job.next_execution()
         found = False
         for i in range(len(self.jobs)):
@@ -130,7 +136,7 @@ class Mothership(BaseSubsystem, Thread):
         :param repeat: If set to False, the job runs only once.
         """
         job = Job(self, td, coro, data=data, repeat=repeat)
-        self.logger.info("Scheduling {}".format(job))
+        self.logger.info("Scheduling %s", job)
         self._to_register.append(job)
         return job
 
@@ -140,6 +146,7 @@ class Mothership(BaseSubsystem, Thread):
 
 
 class Job:
+    """The scheduled Job representation"""
     def __init__(self, mothership, td, coro, data=None, repeat=True):
         self._mothership = mothership
         self._timedict = normalize_td(td)
@@ -148,20 +155,27 @@ class Job:
         self._repeat = repeat
 
         self.data = data
+        """
+        Opaque value guaranteed to never be overwritten.
+        It can be used to store arbitrary information to be used by the coroutine.
+        """
 
         self._cached_next_exec = next_occurence(self._timedict)
         self._last_exec = None
 
     @property
     def timedict(self):
+        """Copy of the timedict you passed to the registering function"""
         return deepcopy(self._timedict)
 
     @property
     def cancelled(self):
+        """Gets if the job was cancelled"""
         return self._cancelled
 
     def cancel(self):
-        self._mothership.logger.info("Cancelling {}".format(self))
+        """Removes the job from the schedule, effectively cancelling it"""
+        self._mothership.logger.info("Cancelling %s", self)
         self._cancelled = True
         self._mothership.cancel(self)
 
@@ -178,7 +192,7 @@ class Job:
             return
 
         self._last_exec = self.next_execution()
-        self._mothership.logger.info("Executing {} at {}".format(self, self._last_exec))
+        self._mothership.logger.info("Executing %s at %s", self, self._last_exec)
         self._cached_next_exec = next_occurence(self._timedict, ignore_now=True)
         asyncio.run_coroutine_threadsafe(self._coro(self), self._mothership.bot.loop)
 
@@ -187,10 +201,16 @@ class Job:
             raise LastExecution  # alternatively
 
     def next_execution(self):
+        """
+        Returns a `datetime.datetime` object specifying the next execution of the job coroutine.
+        Returns None if there is no future execution.
+
+        :return: The datetime object of the next execution or None if no future execution.
+        """
         if self._cached_next_exec is None:
             self._mothership.logger.debug("No cached next occurence")
             self._cached_next_exec = next_occurence(self._timedict)
-        self._mothership.logger.debug("Next execution: {}".format(self._cached_next_exec))
+        self._mothership.logger.debug("Next execution: %s", self._cached_next_exec)
         return self._cached_next_exec
 
     def __str__(self):
@@ -198,6 +218,7 @@ class Job:
 
 
 def timedict(year=None, month=None, monthday=None, weekday=None, hour=None, minute=None):
+    """Creates a timedict object for scheduling a job"""
     return {
         "year": year,
         "month": month,
@@ -246,8 +267,7 @@ def ringdistance(a, b, ringstart, ringend):
 
     if a <= b:
         return b - a
-    else:
-        return ringend - a + b - (ringstart - 1)
+    return ringend - a + b - (ringstart - 1)
 
 
 def nearest_element(me, haystack, ringstart, ringend):
@@ -313,7 +333,7 @@ def next_occurence(ntd, now=None, ignore_now=False):
     :return: datetime.datetime object that marks the next occurence; `None` if there is none
     """
     logger = logging.getLogger(__name__)
-    logger.debug("Called next_occurence with ntd {}; now: {}; ignore_now: {}".format(ntd, now, ignore_now))
+    logger.debug("Called next_occurence with ntd %s; now: %s; ignore_now: %s", ntd, now, ignore_now)
     if now is None:
         now = datetime.datetime.now()
 
@@ -330,11 +350,11 @@ def next_occurence(ntd, now=None, ignore_now=False):
     if startmonth == now.month:
         startday = now.day
     for month, year in ring_iterator(ntd["month"], startmonth, 1, 12, now.year):
-        logger.debug("Checking {}-{}".format(year, month))
+        logger.debug("Checking %d-%d", year, month)
 
         # Check if this year is in the years list and if there even is a year in the future to be had
         if ntd["year"] is not None and year not in ntd["year"]:
-            logger.debug("year: {}; ntd[year]: {}".format(year, ntd["year"]))
+            logger.debug("year: %d; ntd[year]: %s", year, ntd["year"])
             found = False
             for el in ntd["year"]:
                 if el > year:
@@ -342,13 +362,12 @@ def next_occurence(ntd, now=None, ignore_now=False):
                     break
             if found:
                 continue  # Wait for better years
-            else:
-                logger.debug("No future occurence found")
-                return None  # No future occurence found
+            logger.debug("No future occurence found")
+            return None  # No future occurence found
 
         # Find day in month
         for day in range(startday, monthrange(year, month)[1] + 1):
-            logger.debug("Checking day {}".format(day))
+            logger.debug("Checking day %d", day)
             # Not our day of week
             if not datetime.date(year, month, day).weekday() + 1 in weekdays:
                 continue
@@ -371,7 +390,7 @@ def next_occurence(ntd, now=None, ignore_now=False):
             minute = None
             next_hour = nearest_element(starthour, ntd["hour"], 0, 23)
             for hour, day_d in ring_iterator(ntd["hour"], next_hour, 0, 23, 0):
-                logger.debug("Checking hour {}".format(hour))
+                logger.debug("Checking hour %d", hour)
                 # day wraparound
                 if day_d > 0:
                     logger.debug("Next day (wraparound)")
@@ -383,27 +402,26 @@ def next_occurence(ntd, now=None, ignore_now=False):
                     startminute = now.minute
 
                 minute = nearest_element(startminute, ntd["minute"], 0, 59)
-                logger.debug("Checking minute {}".format(minute))
+                logger.debug("Checking minute %d", minute)
                 if minute < startminute:
-                    logger.debug("minute {} < startminute {}".format(minute, startminute))
+                    logger.debug("minute %d < startminute %d", minute, startminute)
                     startminute = 0
                     continue
-                logger.debug("Correct minute found: {}".format(minute))
+                logger.debug("Correct minute found: %d", minute)
                 break  # correct minute found
 
             if onthisday:
                 return datetime.datetime(year, month, day, hour, minute)
-            else:
-                # Nothing found on this day of the month
-                continue
+            # Nothing found on this day of the month
+            continue
 
         # Month is over
         startday = 1
 
 
-"""
-Old AsyncTimer; TODO slowly merge into Mothership
-"""
+#######
+# Old AsyncTimer; TODO slowly merge into Mothership
+#######
 
 
 class HasAlreadyRun(Exception):
@@ -417,6 +435,7 @@ class HasAlreadyRun(Exception):
 
 # todo move to subsystems.timers and slowly merge into it
 class AsyncTimer(Thread):
+    """Deprecated: Old async timer"""
     def __init__(self, bot, t, callback, *args, **kwargs):
         warnings.warn("utils.AsyncTimer is deprecated.")
         self.logger = logging.getLogger(__name__)
@@ -435,15 +454,15 @@ class AsyncTimer(Thread):
         self.start()
 
     def run(self):
-        self.logger.debug("Running timer, will be back in {} seconds (callback: {})".format(self.t, self.callback))
+        self.logger.debug("Running timer, will be back in %s seconds (callback: %s)", self.t, self.callback)
         sleep(self.t)
 
         with self.cancel_lock:
             if self.cancelled:
-                self.logger.debug("Timer was cancelled (callback: {})".format(self.callback))
+                self.logger.debug("Timer was cancelled (callback: %s)", self.callback)
                 return
             self.has_run = True
-            self.logger.debug("Timer over, running callback {}".format(self.callback))
+            self.logger.debug("Timer over, running callback %s", self.callback)
 
             try:
                 asyncio.run_coroutine_threadsafe(self.callback(*self.args, **self.kwargs), self.loop)

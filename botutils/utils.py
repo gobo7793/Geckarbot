@@ -1,18 +1,18 @@
 from typing import Union
 
-import discord
 import datetime
 import random
 import inspect
+import logging
+import discord
 
 from base import NotFound
 from data import Config
 from botutils.converters import get_embed_str
 from botutils.timeutils import to_local_time
 from botutils.stringutils import paginate
-import logging
 
-chan_logger = logging.getLogger("channel-log")
+log = logging.getLogger(__name__)
 
 
 async def add_reaction(message: discord.Message, reaction):
@@ -33,8 +33,9 @@ def paginate_embed(embed: discord.Embed):
     """
     Paginates/Cuts to long embed contents in title and description of the embed.
     If the Embeds exceed after that 6000 chars an Exception is thrown.
+
     :param embed: The embed to paginate
-    :return: The paginated embed
+    :exception Exception: If embed is still to long
     """
     # Limit overview see https://discordjs.guide/popular-topics/embeds.html#notes
     if len(embed.title) > 256:
@@ -59,7 +60,7 @@ async def _write_to_channel(channel_id: int = 0, message: Union[str, discord.Emb
     :param channel_type: The channel type or name for the logging output
     """
     log_msg = get_embed_str(message)
-    chan_logger.info(f"{channel_type} : {log_msg}")
+    log.info("%s : %s", channel_type, log_msg)
 
     channel = Config().bot.get_channel(channel_id)
     if not Config().bot.DEBUG_MODE and channel is not None and message is not None and message:
@@ -203,6 +204,7 @@ def sort_commands_helper(commands, order):
     """
     Sorts a list of commands in place according to a list of command names. If a command has no corresponding
     command name in `order`, it is removed from the list.
+
     :param commands: List of commands that is to be ordered
     :param order: Ordered list of command names
     :return: Sorted command list
@@ -219,6 +221,7 @@ def sort_commands_helper(commands, order):
 def trueshuffle(p):
     """
     Shuffles a list in place so that no element is at the index where it was before. Fails on lists of length < 2.
+
     :param p: List to shuffle
     """
     orig = p.copy()
@@ -239,6 +242,7 @@ def trueshuffle(p):
 async def execute_anything(f, *args, **kwargs):
     """
     Executes functions, coroutine functions and coroutines, returns their return values and raises their exceptions.
+
     :param f: Function, coroutine function or coroutine to execute / schedule
     :param args: args to pass to f
     :param kwargs: kwargs to pass to f
@@ -247,21 +251,24 @@ async def execute_anything(f, *args, **kwargs):
     if inspect.iscoroutinefunction(f):
         f = f(*args, **kwargs)
     if inspect.iscoroutine(f):
-        """
-        loop = asyncio.get_event_loop()
-        task = loop.create_task(f)
-        loop.run_until_complete(task)
-        e = task.exception()
-        if e is not None:
-            raise e
-        return task.result()
-        """
+        # loop = asyncio.get_event_loop()
+        # task = loop.create_task(f)
+        # loop.run_until_complete(task)
+        # e = task.exception()
+        # if e is not None:
+        #     raise e
+        # return task.result()
         return await f
-    else:
-        return f(*args, **kwargs)
+    return f(*args, **kwargs)
 
 
 def get_plugin_by_cmd(cmd):
+    """
+    Returns the plugin object which contains the given command
+
+    :param cmd: The command object
+    :return: The plugin which contains the command
+    """
     for plugin in Config().bot.plugins:
         for el in plugin.get_commands():
             if el == cmd:

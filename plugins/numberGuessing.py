@@ -7,7 +7,7 @@ from discord.ext import commands
 
 from base import BasePlugin, NotFound
 from data import Lang
-from subsystems import help
+from subsystems.helpsys import DefaultCategories
 
 
 class ReturnCode(Enum):
@@ -33,29 +33,11 @@ class Plugin(BasePlugin, name="A simple number guessing game"):
         self.games_channel = {}
 
         super().__init__(bot)
-        bot.register(self, help.DefaultCategories.GAMES)
-
-    def command_help_string(self, command):
-        langstr = Lang.lang_no_failsafe(self, "help_{}".format(command.qualified_name.replace(" ", "_")))
-        if langstr is None:
-            raise NotFound()
-        return langstr
-
-    def command_description(self, command):
-        langstr = Lang.lang_no_failsafe(self, "desc_{}".format(command.qualified_name.replace(" ", "_")))
-        if langstr is None:
-            raise NotFound()
-        return langstr
-
-    def command_usage(self, command):
-        langstr = Lang.lang_no_failsafe(self, "usage_{}".format(command.qualified_name.replace(" ", "_")))
-        if langstr is None:
-            raise NotFound()
-        return langstr
+        bot.register(self, DefaultCategories.GAMES)
 
     @commands.group(name="guess", help="Guess a number",
                     description="Start a game via '!guess start'")
-    async def guess(self, ctx, guess=None, arg1=None, arg2=None, arg3=None):
+    async def cmd_guess(self, ctx, guess=None, arg1=None, arg2=None, arg3=None):
         await ctx.trigger_typing()
 
         # TODO ermöglichen des startens und spielens von einzel- und kanalspielen parallel
