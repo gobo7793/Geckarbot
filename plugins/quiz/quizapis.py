@@ -2,6 +2,7 @@ import logging
 from urllib.parse import unquote
 import random
 import json
+from typing import Union
 
 import aiohttp
 import discord
@@ -50,7 +51,9 @@ opentdb = {
 
 
 class OpenTDBQuizAPI(BaseQuizAPI):
-
+    """
+    Uses OpenTDB as a question resource
+    """
     def __init__(self, config, channel,
                  category=None, question_count=None, difficulty=Difficulty.EASY,
                  debug=False):
@@ -96,7 +99,7 @@ class OpenTDBQuizAPI(BaseQuizAPI):
             params["difficulty"] = self.difficulty.value
 
         # Acquire questions
-        logging.getLogger(__name__).debug("Fetching questions; params: {}".format(params))
+        logging.getLogger(__name__).debug("Fetching questions; params: %s", str(params))
         questions_raw = self.client.make_request(opentdb["api_route"], params=params)["results"]
         for i in range(len(questions_raw)):
             el = questions_raw[i]
@@ -113,6 +116,9 @@ class OpenTDBQuizAPI(BaseQuizAPI):
         pass
 
     def current_question_index(self):
+        """
+        :return: Index of the current question
+        """
         return self.current_question_i
 
     @classmethod
@@ -154,7 +160,7 @@ class OpenTDBQuizAPI(BaseQuizAPI):
         return "Question count: {}".format(cls.size(**kwargs))
 
     @staticmethod
-    def category_name(catkey):
+    def category_name(catkey) -> str:
         """
         :return: Human-readable representation of the quiz category
         """
@@ -164,11 +170,12 @@ class OpenTDBQuizAPI(BaseQuizAPI):
         return name
 
     @staticmethod
-    def category_key(catarg):
+    def category_key(catarg: Union[str, None]) -> CategoryKey:
         """
         :param catarg: Argument that was passed that identifies a category
         :return: Opaque category identifier that can be used in initialization and for category_name.
             Returns None if catarg is an unknown category.
+        :raises RuntimeError: Unexpected error
         """
         if catarg is None:
             catarg = opentdb["default_cat"]
@@ -178,18 +185,7 @@ class OpenTDBQuizAPI(BaseQuizAPI):
                     catkey = CategoryKey()
                     catkey.add_key(OpenTDBQuizAPI, mapping["id"], mapping["names"][0])
                     return catkey
-        return None
-
-    def cat_count(self, cat):
-        found = None
-        for el in opentdb["cat_mapping"]:
-            if cat in opentdb["cat_mapping"][el]:
-                found = el
-                break
-        if found == -1:
-            return -1
-        params = {"category": cat}
-        self.client.make_request("api_count.php", params=params)
+        raise RuntimeError
 
     def next_question(self):
         """
@@ -212,6 +208,9 @@ class OpenTDBQuizAPI(BaseQuizAPI):
 
 
 class Pastebin(BaseQuizAPI):
+    """
+    Uses a list of questions on Pastebin.
+    """
     URL = "https://pastebin.com/raw/QRGzxxEy"
     CATEGORIES = ["any", "default", "none", "general"]
     CATKEY = 0
@@ -221,6 +220,8 @@ class Pastebin(BaseQuizAPI):
         self.current_question_i = -1
         self.question_count = question_count if question_count is not None else config["questions_default"]
         self.channel = channel
+        self.difficulty = difficulty
+        self.debug = debug
 
         if category != self.CATKEY:
             raise RuntimeError("Unknown category: {}".format(category))
@@ -263,15 +264,13 @@ class Pastebin(BaseQuizAPI):
     def category_name(catkey):
         if catkey == Pastebin.CATKEY:
             return "Any"
-        else:
-            return "Unknown"
+        return "Unknown"
 
     @staticmethod
     def category_key(catarg):
         if catarg is None or catarg.lower() in Pastebin.CATEGORIES:
             return Pastebin.CATKEY
-        else:
-            return None
+        return None
 
     @classmethod
     async def size(cls, **kwargs):
@@ -317,6 +316,7 @@ class MetaQuizAPI(BaseQuizAPI):
         self.category = None
         self.parse_category(category)
         self.questions = []
+        self.is_running = True
 
         # Meta stuff
         self.spacesize = 0
@@ -352,6 +352,9 @@ class MetaQuizAPI(BaseQuizAPI):
             self.questions.append(apis[question_seq[i]].next_question())
 
     def current_question_index(self):
+        """
+        :return: Index of the current question
+        """
         return self.current_question_i
 
     def parse_category(self, cat):
@@ -368,7 +371,7 @@ class MetaQuizAPI(BaseQuizAPI):
             self.category = self.config["default_category"]
 
     @staticmethod
-    def category_name(catkey):
+    def category_name(catkey) -> str:
         """
         :return: Human-readable representation of the quiz category
         """
@@ -376,9 +379,9 @@ class MetaQuizAPI(BaseQuizAPI):
             return api.category_name(catkey[api])
 
     @staticmethod
-    def category_key(catarg):
+    def category_key(catarg: str) -> object:
         """
-        :param catarg: Argument that was passed that identifies a
+        :param catarg: Argument that was passed that identifies a category
         :return: Opaque category identifier that can be used in initialization and for category_name.
             Returns None if catarg is an unknown category.
         """
@@ -404,17 +407,6 @@ class MetaQuizAPI(BaseQuizAPI):
     @classmethod
     async def info(cls, **kwargs):
         return "Question count: {}".format(await cls.size(**kwargs))
-
-    def cat_count(self, cat):
-        found = None
-        for el in opentdb["cat_mapping"]:
-            if cat in opentdb["cat_mapping"][el]:
-                found = el
-                break
-        if found == -1:
-            return -1
-        params = {"category": cat}
-        self.client.make_request("api_count.php", params=params)
 
     def next_question(self):
         """

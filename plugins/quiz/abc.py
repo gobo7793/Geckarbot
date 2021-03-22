@@ -35,7 +35,7 @@ class BaseQuizAPI(ABC):
         pass
 
     @abstractmethod
-    def info(self, **kwargs):
+    async def info(self, **kwargs):
         """
         :param kwargs:
         :return: Returns an info string under the given constraints.

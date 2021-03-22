@@ -245,8 +245,8 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
     async def cmd_dsc_set_config(self, ctx, key="", value=""):
         if not key and not value:
             msg = []
-            for key in Config.get(self):
-                msg.append("{}: {}".format(key, Config.get(self)[key]))
+            for el in Config.get(self):
+                msg.append("{}: {}".format(el, Config.get(self)[el]))
             for msg in paginate(msg, msg_prefix="```", msg_suffix="```"):
                 await ctx.send(msg)
             return
