@@ -1,11 +1,77 @@
 {
-    "en": {
-        "reaction_signup": "📋"
-    },
-
-    "de": {
+    "en_US": {
         "#0": "Grammar",
         "reaction_signup": "📋",
+        "reaction_spoiler": "\uD83D\uDC40",
+        "and": "and",
+        "nobody": "nobody",
+        "minute_sg": "minute",
+        "minute_pl": "minutes",
+
+        "#1": "Help",
+        "help_werbinich": "Who am I?",
+        "help_status": "Status of Who am I?",
+        "help_stop": "Stops a Who am I?",
+        "help_spoiler": "Spectate",
+        "help_fertig": "Release result for all participants",
+        "help_del": "Deletes the last game from memory",
+        "description_werbinich": "Starts a Who am I?. After a registration phase, I assign every player a random other player to whom they may assign a name. The (spoiler-free) result is distributed to every participant.",
+        "description_status": "Shows the current phase of Who am I?. This contains information about which participants did not submit their assignments yet.",
+        "description_stop": "Stops a running game.",
+        "description_spoiler": "Shows the assignments to spectators.",
+        "description_fertig": "Declares the end of a game. This makes the results available for participants",
+        "description_del": "Deletes the last game and its results from memory.",
+        "usage_werbinich": "[geheim]",
+        "options_werbinich": "\n\nOptionen:\n  geheim - The participants do not know which participant assigned which assignment.",
+
+        "#2": "Public",
+        "registering": "A Who am I? wa started! To participate, register with a {} reaction. You have {} {}.",
+        "list_participants": "Participants: {}",
+        "done": "Done. React with \uD83D\uDC40 to spectate.",
+
+        "#3": "DM",
+        "ask_for_entry": "You may select a name for {}. Which one is it going to be?",
+        "entry_done": "Alright, {} now has to guess {}.",
+        "entry_change": "You changed your selection to {}.",
+        "entry_too_late": "Too late.",
+        "list_title": "All participants are done. They submitted the following:\n",
+        "user_assignee": "**{}** assigned for you.",
+        "result_with_assignees": "**{}**: {} (by {})",
+        "result_without_assignees": "**{}**: {}",
+
+        "#4": "Errors",
+        "no_participants": "Not enough participants (min. 2), ending game.",
+        "already_running": "There already is a game running.",
+        "dm_blocked": "One of my functions blocks the DM channel of {}. Unfortunately, I cannot begin the game.",
+        "wrong_channel": "Wrong channel.",
+        "unknown_argument": "Invalid argument: {}",
+        "postgame_unauthorized": "This command is only available for participants of the last game.",
+        "blocked_by_user": "I am blocked by {}. Aborting.",
+        "blocked_spoiler": "{} please unblock me first.",
+
+        "#5": "Spoiler",
+        "participants_last_round": "Participants of the last game:\n",
+        "no_spoiler": "I'm not going to spoiler you.",
+        "show_running": "There is a game running, please be patient.",
+        "show_not_found": "There was no game so far.",
+
+        "#6": "Status",
+        "not_running": "There is no game running.",
+        "past_game_in_mem": "The last game took place in {}.",
+        "post_game_status": "Ended.",
+        "status_registering": "I am still waiting for registrations ({} seconds remaining).",
+        "status_delivering": "I am currently distributing the results.",
+        "status_aborting": "I am currently aborting a game.",
+        "waiting_for": "We are waiting for {}.",
+
+        "#7": "Presence",
+        "presence": "Who am I? in #{}"
+    },
+
+    "de_DE": {
+        "#0": "Grammar",
+        "reaction_signup": "📋",
+        "reaction_spoiler": "\uD83D\uDC40",
         "and": "und",
         "nobody": "niemanden",
         "minute_sg": "Minute",
@@ -30,7 +96,7 @@
         "#2": "Public",
         "registering": "Ein Wer bin ich? wurde gestartet! Um teilzunehmen, melde dich mit einer {}-Reaktion an. Ihr habt {} {} Zeit.",
         "list_participants": "Teilnehmer: {}",
-        "done": "Fertig.",
+        "done": "Fertig. Reagiere mit \uD83D\uDC40 um als Beobachter die Zuordnungen mitgeteilt zu bekommen!",
 
         "#3": "DM",
         "ask_for_entry": "Du darfst für {} eine zu erratende Person aussuchen. Wer darf's sein?",
@@ -50,6 +116,7 @@
         "unknown_argument": "Unbekanntes Argument: {}",
         "postgame_unauthorized": "Dieses Kommando steht nur den Spielern der letzten Runde zur Verfügung.",
         "blocked_by_user": "Ich wurde leider von {} blockiert. Ich breche daher ab.",
+        "blocked_spoiler": "{}, bitte entblocke mich erst!",
 
         "#5": "Spoiler",
         "participants_last_round": "Teilnehmer der letzten Runde:\n",

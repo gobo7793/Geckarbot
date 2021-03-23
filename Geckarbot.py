@@ -1,26 +1,28 @@
 #!/usr/bin/env python3
+# pylint: disable=invalid-name,broad-except,unused-import
+
+import datetime
+import inspect
 import locale
 import logging
 import pkgutil
+import pprint
 import sys
 import traceback
-import inspect
-import datetime
-import pprint
 from enum import Enum
 from logging import handlers
 from pathlib import Path
-from typing import List
+from typing import List, Union
 
 import discord
 from discord.ext import commands
 
 import injections
 import subsystems
-from base import BasePlugin, NotLoadable, ConfigurableType, PluginNotFound
+from base import BasePlugin, NotLoadable, ConfigurableType, PluginClassNotFound
 from botutils import utils, permchecks, converters, stringutils
-from conf import Config, Lang, Storage, ConfigurableData
-from subsystems import timers, reactions, ignoring, dmlisteners, help, presence, liveticker
+from data import Config, Lang, Storage, ConfigurableData
+from subsystems import timers, reactions, ignoring, dmlisteners, helpsys, presence, liveticker
 
 
 class Exitcodes(Enum):
@@ -39,13 +41,13 @@ class Geckarbot(commands.Bot):
     Basic bot info
     """
     NAME = "Geckarbot"
-    VERSION = "2.8.0"
+    VERSION = "2.9.1"
     PLUGIN_DIR = "plugins"
     CORE_PLUGIN_DIR = "coreplugins"
     CONFIG_DIR = "config"
     STORAGE_DIR = "storage"
     LANG_DIR = "lang"
-    DEFAULT_LANG = "en"
+    DEFAULT_LANG = "en_US"
     RESOURCE_DIR = "resource"
 
     """
@@ -73,7 +75,7 @@ class Geckarbot(commands.Bot):
     NOT_LOAD_PLUGINS = None
 
     def __init__(self, *args, **kwargs):
-        logging.info("Starting {} {}".format(self.NAME, self.VERSION))
+        logging.info("Starting %s %s", self.NAME, self.VERSION)
         self.guild = None
         self._plugins = []
 
@@ -91,7 +93,7 @@ class Geckarbot(commands.Bot):
         self.dm_listener = dmlisteners.DMListener(self)
         self.timers = timers.Mothership(self)
         self.ignoring = ignoring.Ignoring(self)
-        self.helpsys = help.GeckiHelp(self)
+        self.helpsys = helpsys.GeckiHelp(self)
         self.presence = presence.Presence(self)
         self.liveticker = liveticker.Liveticker(self)
 
@@ -123,14 +125,16 @@ class Geckarbot(commands.Bot):
         self.NOT_LOAD_PLUGINS = self.PLUGINS.get('not_load', [])
 
     def get_default(self, container=None):
+        # pylint: disable=no-self-use
+        # config/geckarbot.json must be provided or the bot can't start
         raise RuntimeError("Config file missing")
 
     def _set_locale(self):
         """
         Sets the localization settings to the LANGUAGE_CODE configuration
         """
-        locale.setlocale(locale.LC_ALL, self.LANGUAGE_CODE)
-        logging.getLogger("").info(f"Localization set to '{locale.getlocale(locale.LC_ALL)}'")
+        locale.setlocale(locale.LC_ALL, self.LANGUAGE_CODE + ".utf-8")
+        logging.info("Localization set to '%s'", locale.getlocale(locale.LC_ALL))
 
     @property
     def plugins(self) -> List[BasePlugin]:
@@ -172,12 +176,32 @@ class Geckarbot(commands.Bot):
 
     @staticmethod
     def configure(plugin):
+        """
+        Loads Config, Storage and Lang data for given plugin
+
+        :param plugin: The plugin to load
+        """
         Config().load(plugin)
         Storage().load(plugin)
         Lang().remove_from_cache(plugin)
 
-    def register(self, plugin_class, category=None, category_desc=None):
-        """Registers the given plugin class or instance"""
+    def register(self, plugin_class,
+                 category: Union[str, helpsys.DefaultCategories, helpsys.HelpCategory, None] = None,
+                 category_desc: str = None):
+        """
+        Registers a plugin
+
+        :param plugin_class: The plugin instance inherited by `base.BasePlugin` to be registered
+        :param category: The help category for the commands of the plugins.
+            If none, the Help Subsystem creates one based on the plugin name.
+        :param category_desc: The description of the help category.
+        :returns: `True` if plugin is registered successfully or `False` if Plugin is no valid plugin class
+        """
+        if not isinstance(plugin_class, BasePlugin):
+            logging.debug("Attempt plugin register for plugin object %s, but it doesn't inherit from BasePlugin!",
+                          plugin_class)
+            return False
+
         # Add Cog
         if isinstance(plugin_class, commands.Cog):
             plugin_object = plugin_class
@@ -194,7 +218,7 @@ class Geckarbot(commands.Bot):
         if isinstance(category, str) and category:
             if category_desc is None:
                 category_desc = ""
-            category = help.HelpCategory(self, category, description=category_desc)
+            category = helpsys.HelpCategory(self, category, description=category_desc)
         if category is None:
             cat = self.helpsys.register_category_by_name(plugin_object.get_name())
             cat.add_plugin(plugin_object)
@@ -202,21 +226,27 @@ class Geckarbot(commands.Bot):
             cat = self.helpsys.register_category(category)
             cat.add_plugin(plugin_object)
 
-        logging.debug("Registered plugin {}".format(plugin_object.get_name()))
+        logging.debug("Registered plugin %s", plugin_object.get_name())
+        return True
 
     def deregister(self, plugin: BasePlugin):
-        """Deregisters the given plugin instance"""
+        """
+        Deregisters a plugin
+
+        :param plugin: The plugin instance to deregister
+        :returns: `True` if plugin successfully deregistered or `False` if plugin is not registered.
+        """
         self.remove_cog(plugin.qualified_name)
 
         if plugin not in self.plugins:
-            logging.debug("Tried deregistering plugin {}, but plugin is not registered".
-                          format(plugin.get_name()))
-            return
+            logging.debug("Tried deregistering plugin %s, but plugin is not registered", plugin.get_name())
+            return False
 
         self.helpsys.purge_plugin(plugin)
         self.plugins.remove(plugin)
 
-        logging.debug("Deregistered plugin {}".format(plugin.get_name()))
+        logging.debug("Deregistered plugin %s", plugin.get_name())
+        return True
 
     def plugin_objects(self, plugins_only=False):
         """
@@ -233,6 +263,7 @@ class Geckarbot(commands.Bot):
             1. If LOAD_PLUGINS is empty: All available plugins will be loaded
             2. If LOAD_PLUGINS is not empty: Only the plugins in this list will be loaded
             3. From the plugins that should be loaded, the plugins listed in NOT_LOAD_PLUGINS won't be loaded
+
         Plugins are indicated by their names. These conditions don't apply to core plugins in CORE_PLUGIN_DIR.
 
         :return: Returns a list with the plugin names which should be loaded, but failed.
@@ -249,7 +280,12 @@ class Geckarbot(commands.Bot):
                 failed_list.append(el[1])
         return failed_list
 
-    def import_plugin(self, module_name):
+    def _import_plugin(self, module_name):
+        """
+        Imports a plugin module
+
+        :param module_name: The full qualified plugin module name to imported
+        """
         module = pkgutil.importlib.import_module(module_name)
         members = inspect.getmembers(module)
         found = False
@@ -258,65 +294,86 @@ class Geckarbot(commands.Bot):
                 found = True
                 obj(self)
         if not found:
-            raise PluginNotFound(members)
+            raise PluginClassNotFound(members)
 
     def load_plugin(self, plugin_dir, plugin_name):
-        """Loads the given plugin_name in plugin_dir, returns True if plugin loaded successfully"""
+        """
+        Loads a plugin and performs instantiating and registering of the plugin
+
+        :param plugin_dir: The directory from which the plugin will be loaded
+        :param plugin_name: The name of the plugin module
+        :return: `True` if plugin is loaded successfully, `False` on errors or `None` if plugin already loaded.
+        """
         for pl in self.plugins:
             if pl.get_name() == plugin_name:
-                logging.info("A Plugin called {} already loaded, skipping loading.".format(plugin_name))
-                return
+                logging.info("A Plugin called %s already loaded, skipping loading.", plugin_name)
+                return None
 
         try:
             to_import = "{}.{}".format(plugin_dir, plugin_name)
-            found = False
             try:
-                self.import_plugin(to_import)
-                found = True
-            except PluginNotFound:
-                pass
-            if not found:
-                to_import = "{}.{}.{}".format(plugin_dir, plugin_name, plugin_name)
-                self.import_plugin(to_import)
+                self._import_plugin(to_import)
+            except PluginClassNotFound:
+                to_import = "{0}.{1}.{1}".format(plugin_dir, plugin_name)
+                self._import_plugin(to_import)
+
         except NotLoadable as e:
-            logging.warning("Plugin {} could not be loaded: {}".format(plugin_name, e))
+            logging.warning("Plugin %s could not be loaded: %s", plugin_name, e)
             plugin_instance = converters.get_plugin_by_name(plugin_name)
             if plugin_instance is not None:
                 self.deregister(plugin_instance)
             return False
-        except PluginNotFound as e:
-            logging.error("Unable to load plugin '{}': Plugin class not found".format(plugin_name))
-            logging.debug("Members: {}".format(pprint.pformat(e.members)))
-        except Exception as e:
-            logging.error("Unable to load plugin '{}':\n{}".format(plugin_name, traceback.format_exc()))
+
+        except PluginClassNotFound as e:
+            logging.error("Unable to load plugin '%s': Plugin class not found", plugin_name)
+            logging.debug("Members: %s", pprint.pformat(e.members))
+            return False
+
+        except (TypeError, Exception):
+            logging.error("Unable to load plugin '%s':\n%s", plugin_name, traceback.format_exc())
             plugin_instance = converters.get_plugin_by_name(plugin_name)
             if plugin_instance is not None:
                 self.deregister(plugin_instance)
             return False
-        else:
-            logging.info("Loaded plugin {}".format(plugin_name))
-            return True
+
+        logging.info("Loaded plugin %s", plugin_name)
+        if self.liveticker.restored:
+            self.liveticker.restore([plugin_name])
+        return True
 
     def unload_plugin(self, plugin_name, save_config=True):
-        """Unloads the plugin with the given plugin_name, returns True if plugin unloaded successfully"""
+        """
+        Unloads a plugin and performs plugin cleanup and saving the config and storage data
+
+        :param plugin_name: The plugin name to be unloaded
+        :param save_config: If `True` the plugin config and storage will be saved, on `False` not.
+        :return: `True` if plugin was unloaded successfully, `False` on errors and `None` if plugin is not laoded.
+        """
         try:
             plugin = converters.get_plugin_by_name(plugin_name)
             if plugin is None:
-                return
+                return None
+
             self.loop.create_task(plugin.shutdown())
             if save_config:
                 Config.save(plugin)
                 Storage.save(plugin)
+            self.liveticker.unload_plugin(plugin_name)
 
             self.deregister(plugin)
-        except Exception as e:
-            logging.error("Unable to unload plugin: {}:\n{}".format(plugin_name, traceback.format_exc()))
-            return False
-        else:
-            logging.info("Unloaded plugin {}".format(plugin_name))
-            return True
 
-    def set_debug_mode(self, mode):
+        except (TypeError, Exception):
+            logging.error("Unable to unload plugin: %s:\n%s", plugin_name, traceback.format_exc())
+            return False
+        logging.info("Unloaded plugin %s", plugin_name)
+        return True
+
+    def set_debug_mode(self, mode: bool):
+        """
+        Enables or disables the debug mode
+
+        :param mode: `True` to enable, `False` to disable debug mode
+        """
         if mode == self.DEBUG_MODE:
             return
 
@@ -324,22 +381,36 @@ class Geckarbot(commands.Bot):
             self.DEBUG_MODE = True
         else:
             self.DEBUG_MODE = False
+
+        logging.info("Debug mode set to %s", self.DEBUG_MODE)
         logging_setup(debug=mode)
 
     async def shutdown(self, status):
+        """
+        Shutting down the bot to handle the exit code by the runscript, e.g. for updating
+
+        :param status: The exit status or exit code
+        """
         try:
             status = status.value
         except AttributeError:
             pass
         self.timers.shutdown(status)
         logging.info("Shutting down.")
-        logging.debug("Exit code: {}".format(status))
+        logging.debug("Exit code: %s", status)
         sys.exit(status)
 
-    async def on_error(self, event, *args, **kwargs):
-        """On bot errors print error state in debug channel"""
+    async def on_error(self, event_method, *args, **kwargs):
+        """
+        Handles general errors occurring during execution and prints the exception data into the debug channel.
+        In debug mode the exception will be handled by discord.py own on_error event method.
+
+        :param event_method: The name of the event that raised the exception
+        :param args: The positional arguments for the event that raised the exception
+        :param kwargs: The keyword arguments for the event that raised the exception
+        """
         if self.DEBUG_MODE:
-            return await super().on_error(event, *args, **kwargs)
+            return await super().on_error(event_method, *args, **kwargs)
 
         exc_type, exc_value, exc_traceback = sys.exc_info()
 
@@ -349,7 +420,7 @@ class Geckarbot(commands.Bot):
 
         embed = discord.Embed(title=':x: Error', colour=0xe74c3c)  # Red
         embed.add_field(name='Error', value=exc_type)
-        embed.add_field(name='Event', value=event)
+        embed.add_field(name='Event', value=event_method)
         embed.timestamp = datetime.datetime.utcnow()
 
         ex_tb = "".join(traceback.format_exception(exc_type, exc_value, exc_traceback))
@@ -365,58 +436,68 @@ class Geckarbot(commands.Bot):
             for msg in ex_tb:
                 await utils.write_debug_channel(msg)
 
-    async def on_command_error(self, ctx, error):
-        """Error handling for bot commands"""
+    async def on_command_error(self, context, exception):
+        """
+        Handles error occurring during execution of commands and prints the exception data into debug channel.
+        In debug mode the exception will be handled by discord.py own on_command_error event method.
+
+        :param context: The invocation context
+        :param exception: The error that was raised
+        """
         if self.DEBUG_MODE:
-            return await super().on_command_error(ctx, error)
+            return await super().on_command_error(context, exception)
 
         # No command or ignoring list handling
-        if isinstance(error, ignoring.UserBlockedCommand):
-            await send_error_to_ctx(ctx, error, message="{} has blocked the command `{}`.".
-                                    format(converters.get_best_username(error.user), error.command))
-        if isinstance(error, (commands.CommandNotFound, commands.DisabledCommand)):
+        if isinstance(exception, ignoring.UserBlockedCommand):
+            await send_error_to_ctx(context, exception, default="{} has blocked the command `{}`.".
+                                    format(converters.get_best_username(exception.user), exception.command))
+        if isinstance(exception, (commands.CommandNotFound, commands.DisabledCommand)):
             return
 
         # Check Failures
-        elif isinstance(error, (commands.MissingRole, commands.MissingAnyRole)):
-            await send_error_to_ctx(ctx, error, default="You don't have the correct role for this command.")
-        elif isinstance(error, permchecks.WrongChannel):
-            await send_error_to_ctx(ctx, error,
-                                    message="Command can only be executed in channel {}".format(error.channel))
-        elif isinstance(error, commands.NoPrivateMessage):
-            await send_error_to_ctx(ctx, error, default="Command can't be executed in private messages.")
-        elif isinstance(error, commands.CheckFailure):
-            await send_error_to_ctx(ctx, error, default="Permission error.")
+        if isinstance(exception, (commands.MissingRole, commands.MissingAnyRole)):
+            await send_error_to_ctx(context, exception, default="You don't have the required role for this command.")
+        elif isinstance(exception, permchecks.WrongChannel):
+            await send_error_to_ctx(context, exception,
+                                    default="Command can only be used in channel {}".
+                                    format(exception.channel))
+        elif isinstance(exception, commands.NoPrivateMessage):
+            await send_error_to_ctx(context, exception, default="Command can't be used in private messages.")
+        elif isinstance(exception, commands.CheckFailure):
+            await send_error_to_ctx(context, exception, default="Permission error.")
 
         # User input errors
-        elif isinstance(error, commands.MissingRequiredArgument):
-            await send_error_to_ctx(ctx, error, default="Required argument missing: {}".format(error.param))
-        elif isinstance(error, commands.TooManyArguments):
-            await send_error_to_ctx(ctx, error, default="Too many arguments given.")
-        elif isinstance(error, commands.BadArgument):
-            await send_error_to_ctx(ctx, error, default="Error on given argument: {}".format(error))
-        elif isinstance(error, commands.UserInputError):
-            await send_error_to_ctx(ctx, error, default="Wrong user input format: {}".format(error))
+        elif isinstance(exception, commands.MissingRequiredArgument):
+            await send_error_to_ctx(context, exception, default="Required argument missing: {}".
+                                    format(exception.param))
+        elif isinstance(exception, commands.TooManyArguments):
+            await send_error_to_ctx(context, exception, default="Too many arguments given.")
+        elif isinstance(exception, commands.BadArgument):
+            await send_error_to_ctx(context, exception, default="Argument don't have the required format: {}".
+                                    format(exception))
+        elif isinstance(exception, commands.UserInputError):
+            await send_error_to_ctx(context, exception, default="Argument error for argument: {}".
+                                    format(exception))
 
         # Other errors
         else:
             # error handling
             embed = discord.Embed(title=':x: Command Error', colour=0xe74c3c)  # Red
-            embed.add_field(name='Error', value=error)
-            embed.add_field(name='Command', value=ctx.command)
-            embed.add_field(name='Message', value=ctx.message.clean_content)
-            if isinstance(ctx.channel, discord.TextChannel):
-                embed.add_field(name='Channel', value=ctx.channel.name)
-            if isinstance(ctx.channel, discord.DMChannel):
-                embed.add_field(name='Channel', value=ctx.channel.recipient)
-            if isinstance(ctx.channel, discord.GroupChannel):
-                embed.add_field(name='Channel', value=ctx.channel.recipients)
-            embed.add_field(name='Author', value=ctx.author.display_name)
-            embed.url = ctx.message.jump_url
+            embed.add_field(name='Error', value=exception)
+            embed.add_field(name='Command', value=context.command)
+            embed.add_field(name='Message', value=context.message.clean_content)
+            if isinstance(context.channel, discord.TextChannel):
+                embed.add_field(name='Channel', value=context.channel.name)
+            if isinstance(context.channel, discord.DMChannel):
+                embed.add_field(name='Channel', value=context.channel.recipient)
+            if isinstance(context.channel, discord.GroupChannel):
+                embed.add_field(name='Channel', value=context.channel.recipients)
+            embed.add_field(name='Author', value=context.author.display_name)
+            embed.url = context.message.jump_url
             embed.timestamp = datetime.datetime.utcnow()
 
             # gather traceback
-            ex_tb = "".join(traceback.TracebackException.from_exception(error).format())
+            ex_tb = "".join(traceback.TracebackException.from_exception(exception).format())
             is_tb_own_msg = len(ex_tb) > 2000
             if is_tb_own_msg:
                 embed.description = "Exception Traceback see next message."
@@ -429,11 +510,15 @@ class Geckarbot(commands.Bot):
             if is_tb_own_msg:
                 for msg in ex_tb:
                     await utils.write_debug_channel(msg)
-            await utils.add_reaction(ctx.message, Lang.CMDERROR)
-            await send_error_to_ctx(ctx, error, default="Unknown error while executing command.")
+            await utils.add_reaction(context.message, Lang.CMDERROR)
+            await send_error_to_ctx(context, exception, default="Unknown error while executing command.")
 
     async def on_message(self, message):
-        """Basic message and ignore list handling"""
+        """
+        Basic message and ignore list handling
+
+        :param message: The message which was written
+        """
 
         # DM handling
         if message.guild is None:
@@ -454,6 +539,9 @@ class Geckarbot(commands.Bot):
         """
         Checks if a command is disabled or blocked for user.
         This check will be executed before other command checks.
+
+        :param ctx: The command context
+        :returns: True if command can be executed, otherwise the `discord.ext.commands.DisabledCommand` exception
         """
         if self.ignoring.check_command(ctx):
             raise commands.DisabledCommand()
@@ -465,6 +553,7 @@ class Geckarbot(commands.Bot):
 
 
 def intent_setup():
+    """Sets the intent settings to work correctly with the Discord API"""
     intents = discord.Intents.default()
     intents.members = True
     return intents
@@ -472,8 +561,11 @@ def intent_setup():
 
 def logging_setup(debug=False):
     """
-    Put all debug loggers on info and everything else on info/debug, depending on config
+    Sets the logging level
+
+    :param debug: If `True` the logging level will be set to `logging.DEBUG`, else to `logging.INFO`
     """
+
     level = logging.INFO
     if debug:
         level = logging.DEBUG
@@ -496,12 +588,12 @@ def logging_setup(debug=False):
         logger = logging.root.manager.loggerDict[el]
         if isinstance(logger, logging.PlaceHolder):
             continue
-        elif logger.name.startswith("discord."):
+        if logger.name.startswith("discord."):
             logger.setLevel(logging.INFO)  # set discord.py logger always to info
         else:
             logger.setLevel(level)
 
-    logging.getLogger('').log(level, f"Logging level set to {level}")
+    logging.log(level, "Logging level set to %s", level)
 
 
 async def send_error_to_ctx(ctx: discord.ext.commands.Context,
@@ -518,7 +610,6 @@ async def send_error_to_ctx(ctx: discord.ext.commands.Context,
     :param error: The error to send
     :param default: The default message
     :param message: The error dependent error message
-    :return:
     """
     if message:
         await ctx.send(message)
@@ -531,15 +622,17 @@ async def send_error_to_ctx(ctx: discord.ext.commands.Context,
 
 
 def main():
+    """Starts the Geckarbot"""
+
     injections.pre_injections()
     logging_setup()
-    logging.getLogger(__name__).debug("Debug mode: on")
     intents = intent_setup()
     bot = Geckarbot(command_prefix='!', intents=intents, case_insensitive=True)
     injections.post_injections(bot)
     logging.info("Loading core plugins")
     failed_plugins = bot.load_plugins(bot.CORE_PLUGIN_DIR)
 
+    # pylint: disable=unused-variable
     @bot.event
     async def on_ready():
         """Loads plugins and prints on server that bot is ready"""
@@ -552,14 +645,13 @@ def main():
         if not bot.DEBUG_MODE:
             await bot.presence.start()
 
-        logging.info(f"{bot.user} is connected to the following server: "
-                     f"{guild.name} (id: {guild.id})")
+        logging.info("%s is connected to the following server: %s (id: %d)", bot.user, guild.name, guild.id)
 
         members = "\n - ".join([member.name for member in guild.members])
-        logging.info(f"Server Members:\n - {members}")
+        logging.info("Server Members:\n - %s", members)
 
-        await utils.write_debug_channel(f"Geckarbot {bot.VERSION} connected on "
-                                        f"{guild.name} with {len(guild.members)} users.")
+        await utils.write_debug_channel("Geckarbot {} connected on {} with {} users.".
+                                        format(bot.VERSION, guild.name, len(guild.members)))
         subsys = bot.get_subsystem_list()
         await utils.write_debug_channel(f"Loaded {len(subsys)} subsystems: {', '.join(subsys)}")
         core_p = bot.get_coreplugins()
@@ -574,137 +666,6 @@ def main():
         if len(unloaded) > 0:
             await utils.write_debug_channel("{} additional plugins available: {}".format(len(unloaded),
                                                                                          ', '.join(unloaded)))
-
-    # @bot.event
-    # async def on_error(event, *args, **kwargs):
-    #     """On bot errors print error state in debug channel"""
-    #     if bot.DEBUG_MODE:
-    #         return await bot.super().on_error(event, *args, **kwargs)
-    #
-    #     exc_type, exc_value, exc_traceback = sys.exc_info()
-    #
-    #     if (exc_type is commands.CommandNotFound
-    #             or exc_type is commands.DisabledCommand):
-    #         return
-    #
-    #     embed = discord.Embed(title=':x: Error', colour=0xe74c3c)  # Red
-    #     embed.add_field(name='Error', value=exc_type)
-    #     embed.add_field(name='Event', value=event)
-    #     embed.timestamp = datetime.datetime.utcnow()
-    #
-    #     ex_tb = "".join(traceback.format_exception(exc_type, exc_value, exc_traceback))
-    #     is_tb_own_msg = len(ex_tb) > 2000
-    #     if is_tb_own_msg:
-    #         embed.description = "Exception Traceback see next message."
-    #         ex_tb = stringutils.paginate(ex_tb.split("\n"), msg_prefix="```python\n", msg_suffix="```")
-    #     else:
-    #         embed.description = f"```python\n{ex_tb}```"
-    #
-    #     await utils.write_debug_channel(embed)
-    #     if is_tb_own_msg:
-    #         for msg in ex_tb:
-    #             await utils.write_debug_channel(msg)
-    #
-    # @bot.event
-    # async def on_command_error(ctx, error):
-    #     """Error handling for bot commands"""
-    #     if bot.DEBUG_MODE:
-    #         return await bot.on_command_error(ctx, error)
-    #
-    #     # No command or ignoring list handling
-    #     if isinstance(error, ignoring.UserBlockedCommand):
-    #         await send_error_to_ctx(ctx, error, message="{} has blocked the command `{}`.".
-    #                                 format(converters.get_best_username(error.user), error.command))
-    #     if isinstance(error, (commands.CommandNotFound, commands.DisabledCommand)):
-    #         return
-    #
-    #     # Check Failures
-    #     elif isinstance(error, (commands.MissingRole, commands.MissingAnyRole)):
-    #         await send_error_to_ctx(ctx, error, default="You don't have the correct role for this command.")
-    #     elif isinstance(error, permchecks.WrongChannel):
-    #         await send_error_to_ctx(ctx, error,
-    #                                 message="Command can only be executed in channel {}".format(error.channel))
-    #     elif isinstance(error, commands.NoPrivateMessage):
-    #         await send_error_to_ctx(ctx, error, default="Command can't be executed in private messages.")
-    #     elif isinstance(error, commands.CheckFailure):
-    #         await send_error_to_ctx(ctx, error, default="Permission error.")
-    #
-    #     # User input errors
-    #     elif isinstance(error, commands.MissingRequiredArgument):
-    #         await send_error_to_ctx(ctx, error, default="Required argument missing: {}".format(error.param))
-    #     elif isinstance(error, commands.TooManyArguments):
-    #         await send_error_to_ctx(ctx, error, default="Too many arguments given.")
-    #     elif isinstance(error, commands.BadArgument):
-    #         await send_error_to_ctx(ctx, error, default="Error on given argument: {}".format(error))
-    #     elif isinstance(error, commands.UserInputError):
-    #         await send_error_to_ctx(ctx, error, default="Wrong user input format: {}".format(error))
-    #
-    #     # Other errors
-    #     else:
-    #         # error handling
-    #         embed = discord.Embed(title=':x: Command Error', colour=0xe74c3c)  # Red
-    #         embed.add_field(name='Error', value=error)
-    #         embed.add_field(name='Command', value=ctx.command)
-    #         embed.add_field(name='Message', value=ctx.message.clean_content)
-    #         if isinstance(ctx.channel, discord.TextChannel):
-    #             embed.add_field(name='Channel', value=ctx.channel.name)
-    #         if isinstance(ctx.channel, discord.DMChannel):
-    #             embed.add_field(name='Channel', value=ctx.channel.recipient)
-    #         if isinstance(ctx.channel, discord.GroupChannel):
-    #             embed.add_field(name='Channel', value=ctx.channel.recipients)
-    #         embed.add_field(name='Author', value=ctx.author.display_name)
-    #         embed.url = ctx.message.jump_url
-    #         embed.timestamp = datetime.datetime.utcnow()
-    #
-    #         # gather traceback
-    #         ex_tb = "".join(traceback.TracebackException.from_exception(error).format())
-    #         is_tb_own_msg = len(ex_tb) > 2000
-    #         if is_tb_own_msg:
-    #             embed.description = "Exception Traceback see next message."
-    #             ex_tb = stringutils.paginate(ex_tb.split("\n"), msg_prefix="```python\n", msg_suffix="```")
-    #         else:
-    #             embed.description = f"```python\n{ex_tb}```"
-    #
-    #         # send messages
-    #         await utils.write_debug_channel(embed)
-    #         if is_tb_own_msg:
-    #             for msg in ex_tb:
-    #                 await utils.write_debug_channel(msg)
-    #         await utils.add_reaction(ctx.message, Lang.CMDERROR)
-    #         await send_error_to_ctx(ctx, error, default="Unknown error while executing command.")
-    #
-    # @bot.event
-    # async def on_message(message):
-    #     """Basic message and ignore list handling"""
-    #
-    #     # DM handling
-    #     if message.guild is None:
-    #         if await bot.dm_listener.handle_dm(message):
-    #             return
-    #
-    #     # user on ignore list
-    #     if bot.ignoring.check_user(message.author):
-    #         return
-    #
-    #     # debug mode whitelist
-    #     if not permchecks.debug_user_check(message.author):
-    #         return
-    #
-    #     await bot.process_commands(message)
-    #
-    # @bot.check
-    # async def command_disabled(ctx):
-    #     """
-    #     Checks if a command is disabled or blocked for user.
-    #     This check will be executed before other command checks.
-    #     """
-    #     if bot.ignoring.check_command(ctx):
-    #         raise commands.DisabledCommand()
-    #     if bot.ignoring.check_active_usage(ctx.author, ctx.command.qualified_name):
-    #         raise commands.DisabledCommand()
-    #     if bot.ignoring.check_passive_usage(ctx.author, ctx.command.qualified_name):
-    #         raise commands.DisabledCommand()
-    #     return True
 
     bot.run(bot.TOKEN)
 

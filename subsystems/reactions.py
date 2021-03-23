@@ -1,37 +1,46 @@
-from enum import Enum
-from base import BaseSubsystem
-
-
 """
 This subsystem provides listeners for reactions on messages.
 """
 
+from enum import Enum
+from base import BaseSubsystem
+
 
 class BaseReactionEvent:
+    """The object that carries information about the reaction event."""
+
     def __init__(self, callback, data, user, member, channel, message, emoji):
         self.callback = callback
+        """A reference to the callback coroutine."""
         self.data = data
+        """Opaque object that the user specified in the registration process."""
         self.user = user
+        """User that did the reaction."""
         self.member = member
+        """Member that did the reaction. If the user is not a member, this is None."""
         self.channel = channel
+        """The channel of the message."""
         self.message = message
+        """Message that the reaction was added or removed on."""
         self.emoji = emoji
+        """ The reaction emoji."""
 
 
 class ReactionRemovedEvent(BaseReactionEvent):
-    pass
+    """Event data after a reaction was removed from a message."""
 
 
 class ReactionAddedEvent(BaseReactionEvent):
-    pass
+    """Event data after a reaction was added to a message."""
 
 
 class ReactionAction(Enum):
+    """The action type of the reaction event"""
     ADD = 0
     REMOVE = 1
 
 
-async def build_reaction_event(bot, callback, payload, data, action, message=None):
+async def _build_reaction_event(bot, callback, payload, data, action, message=None):
     # Figure out event class
     if action == ReactionAction.ADD:
         eventclass = ReactionAddedEvent
@@ -50,20 +59,23 @@ async def build_reaction_event(bot, callback, payload, data, action, message=Non
 
 
 class Callback:
+    """The callback which represents a reaction listener registration"""
     def __init__(self, listener, msg, coro, data):
         self.listener = listener
         self.message = msg
         self.coro = coro
         self.data = data
 
-    def unregister(self):
-        self.listener.unregister(self)
+    def deregister(self):
+        """Deregisters the reaction listener"""
+        self.listener.deregister(self)
 
     def __str__(self):
         return "<reactions.Callback; coro: {}; msg: {}>".format(self.coro, self.message)
 
 
 class ReactionListener(BaseSubsystem):
+    """Reaction listener subsystem"""
     def __init__(self, bot):
         super().__init__(bot)
         self.callbacks = []
@@ -71,15 +83,16 @@ class ReactionListener(BaseSubsystem):
         self.to_del = []
         self._checking = False
 
+        # pylint: disable=unused-variable
         @bot.listen()
         async def on_raw_reaction_add(payload):
-            await self.check(payload, ReactionAction.ADD)
+            await self._check(payload, ReactionAction.ADD)
 
         @bot.listen()
         async def on_raw_reaction_remove(payload):
-            await self.check(payload, ReactionAction.REMOVE)
+            await self._check(payload, ReactionAction.REMOVE)
 
-    async def check(self, payload, action: ReactionAction):
+    async def _check(self, payload, action: ReactionAction):
         for el in self.to_del:
             if el in self.callbacks:
                 self.callbacks.remove(el)
@@ -93,7 +106,7 @@ class ReactionListener(BaseSubsystem):
 
         if found:
             for el in found:
-                event = await build_reaction_event(self.bot, el, payload, el.data, action)
+                event = await _build_reaction_event(self.bot, el, payload, el.data, action)
                 await el.coro(event)
 
         self._checking = False
@@ -101,6 +114,7 @@ class ReactionListener(BaseSubsystem):
     def register(self, message, coro, data=None):
         """
         Registers a reaction event listener.
+
         :param message: Message that is observed
         :param coro: Callback coroutine that is called as await coro(event).
         :param data: Obaque object that will be part of the event object as event.data.
@@ -110,7 +124,12 @@ class ReactionListener(BaseSubsystem):
         self.callbacks.append(cb)
         return cb
 
-    def unregister(self, callback):
+    def deregister(self, callback):
+        """
+        Deregisters the reaction listener for the given callback
+
+        :param callback: The callback object of the registration
+        """
         if self._checking:
             self.to_del.append(callback)
         else:

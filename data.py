@@ -21,9 +21,12 @@ class _Singleton(type):
 
 
 class ConfigurableData:
+    """Handles the data of a specific IODirectory-Configurable-combination."""
+
     def __init__(self, iodir, configurable):
         """
         Handles the data of a specific IODirectory-Configurable-combination.
+
         :param iodir: IODirectory
         :param configurable: Configurable
         """
@@ -39,22 +42,20 @@ class ConfigurableData:
         base = self._filebase()
         if container is None:
             return f"{base}.json"
-        else:
-            return f"{base}/{container}.json"
+        return f"{base}/{container}.json"
 
     def _mkdir(self):
         """
         Creates the data directory if it does not exist.
+
         :raises: RuntimeError if the directory exists but is not a directory.
         """
         directory = self._filebase()
         if os.path.exists(directory):
             if not os.path.isdir(directory):
                 raise RuntimeError("Failed creating directory {}: Not a directory".format(directory))
-            else:
-                return
-        else:
-            os.mkdir(directory)
+            return
+        os.mkdir(directory)
 
     def _write_file(self, config_data, container=None):
         """Writes the config to file_name.json and returns if successfull"""
@@ -65,24 +66,24 @@ class ConfigurableData:
                 json.dump(config_data, f, cls=jsonutils.Encoder, indent=4)
                 return True
         except (OSError, InterruptedError, OverflowError, ValueError, TypeError):
-            logging.error(f"Error writing config file {self._filepath(container=container)}")
+            logging.error("Error writing config file %s", self._filepath(container=container))
             return False
 
     def _read_file(self, container=None, silent=False):
         """Reads the file_name.json and returns the content or None if errors"""
         if not os.path.exists(self._filepath(container=container)):
             return None
-        else:
-            try:
-                with open(self._filepath(container=container), "r", encoding="utf-8") as f:
-                    jsondata = json.load(f, cls=jsonutils.Decoder)
-                    return jsondata
-            except (IsADirectoryError, OSError, InterruptedError, json.JSONDecodeError):
-                if not silent:
-                    logging.error(f"Error reading {self._filepath(container=container)}.json.")
-                return None
+        try:
+            with open(self._filepath(container=container), "r", encoding="utf-8") as f:
+                jsondata = json.load(f, cls=jsonutils.Decoder)
+                return jsondata
+        except (IsADirectoryError, OSError, InterruptedError, json.JSONDecodeError):
+            if not silent:
+                logging.error("Error reading %s.json", self._filepath(container=container))
+            return None
 
     def load(self):
+        """Loads the saved data of the configurable from json"""
         # Load default
         if os.path.exists(self._filepath()):
             self._structures[None] = self._read_file()
@@ -103,20 +104,23 @@ class ConfigurableData:
         return self._structures.keys()
 
     def has_structure(self, container=None):
-        if container in self._structures:
-            return True
-        else:
-            return False
+        return container in self._structures
 
     def get(self, container=None):
+        """
+        Returns the general data or from the given container
+
+        :param container: The container to return the data from
+        :return: The saved data
+        """
         if container in self._structures:
             return self._structures[container]
-        else:
-            r = self._read_file(container=container)
-            if r is None:
-                r = self.iodir.get_default(self.configurable, container=container)
-            self.set(r, container=container)
-            return r
+
+        r = self._read_file(container=container)
+        if r is None:
+            r = self.iodir.get_default(self.configurable, container=container)
+        self.set(r, container=container)
+        return r
 
     def set(self, data, container=None):
         self._structures[container] = data
@@ -136,6 +140,7 @@ class IODirectory(metaclass=_Singleton):
     def directory(self):
         """
         To be overwritten.
+
         :return: Directory name that this class administers.
         """
         raise NotImplementedError
@@ -144,6 +149,7 @@ class IODirectory(metaclass=_Singleton):
     def get_default(cls, plugin, container=None):
         """
         To be overwritten.
+
         :param plugin: Plugin object whose default structure is to be retrieved
         :param container: Data container name
         :return: Default structure
@@ -156,16 +162,20 @@ class IODirectory(metaclass=_Singleton):
 
     @classmethod
     def has_structure(cls, plugin):
-        if cls() not in plugin.iodirs or plugin.iodirs[cls()] is None:
-            return False
-        else:
-            return True
+        return cls() in plugin.iodirs and plugin.iodirs[cls()] is not None
 
-    """
-    Save/Load/Get configurable data
-    """
+    #######
+    # Save/Load/Get configurable data
+    #######
     @classmethod
     def data(cls, plugin):
+        """
+        Returns the ConfigurableData object for given plugin
+
+        :param plugin: The plugin object
+        :return: The ConfigurableData object which holds the data
+        """
+        # pylint: disable=protected-access
         if plugin not in cls()._configurabledata:
             cls()._configurabledata[plugin] = ConfigurableData(cls, plugin)
         return cls()._configurabledata[plugin]
@@ -174,6 +184,7 @@ class IODirectory(metaclass=_Singleton):
     def get(cls, plugin, container=None):
         """
         Returns the config of the given plugin.
+
         :param plugin: Plugin object
         :param container: Container name
         """
@@ -207,6 +218,9 @@ class IODirectory(metaclass=_Singleton):
 
 
 class Config(IODirectory):
+    """Provides a managed storage for general plugin configurations"""
+    # pylint: disable=invalid-name
+
     def __init__(self):
         super().__init__()
         self._bot = None
@@ -223,35 +237,35 @@ class Config(IODirectory):
 
     @property
     def ADMIN_CHAN_ID(self):
-        return self.bot.ADMIN_CHAN_ID
+        return self.bot.ADMIN_CHAN_ID if self.bot else None
 
     @property
     def DEBUG_CHAN_ID(self):
-        return self.bot.DEBUG_CHAN_ID
+        return self.bot.DEBUG_CHAN_ID if self.bot else None
 
     @property
     def MOD_CHAN_ID(self):
-        return self.bot.MOD_CHAN_ID
+        return self.bot.MOD_CHAN_ID if self.bot else None
 
     @property
     def BOT_ADMIN_ROLE_ID(self):
-        return self.bot.BOT_ADMIN_ROLE_ID
+        return self.bot.BOT_ADMIN_ROLE_ID if self.bot else None
 
     @property
     def SERVER_ADMIN_ROLE_ID(self):
-        return self.bot.SERVER_ADMIN_ROLE_ID
+        return self.bot.SERVER_ADMIN_ROLE_ID if self.bot else None
 
     @property
     def MOD_ROLE_ID(self):
-        return self.bot.MOD_ROLE_ID
+        return self.bot.MOD_ROLE_ID if self.bot else None
 
     @property
     def ADMIN_ROLES(self):
-        return self.bot.ADMIN_ROLES
+        return self.bot.ADMIN_ROLES if self.bot else []
 
     @property
     def MOD_ROLES(self):
-        return self.bot.MOD_ROLES
+        return self.bot.MOD_ROLES if self.bot else []
 
     @property
     def directory(self):
@@ -267,16 +281,17 @@ class Config(IODirectory):
 
     @classmethod
     def get_default(cls, plugin, container=None):
+        """Gets the default config of the given plugin and container"""
         try:
             return plugin.default_config(container=container)
         except TypeError:
             if container is None:
                 return plugin.default_config()
-            else:
-                raise
+            raise
 
 
 class Storage(IODirectory):
+    """Provides a managed storage for data which will be created by plugins during runtime"""
     def __init__(self):
         super().__init__()
         self._bot = None
@@ -297,16 +312,19 @@ class Storage(IODirectory):
 
     @classmethod
     def get_default(cls, plugin, container=None):
+        """Gets the default storage of the given plugin and container"""
         try:
             return plugin.default_storage(container=container)
         except TypeError:
             if container is None:
                 return plugin.default_storage()
-            else:
-                raise
+            raise
 
 
 class Lang(metaclass=_Singleton):
+    """Providing multi-language support for Plugins"""
+    # pylint: disable=protected-access
+
     # Random Emoji collection
     EMOJI = {
         "success": "✅",
@@ -371,6 +389,8 @@ class Lang(metaclass=_Singleton):
 
     @classmethod
     def read_from_cache(cls, configurable):
+        """Reads the language data of the given configurable from cache, or builds it of not available"""
+        # pylint: disable=broad-except
         # Read from cache
         if configurable in cls()._cache:
             return cls()._cache[configurable]
@@ -385,13 +405,13 @@ class Lang(metaclass=_Singleton):
                 with open(f"{cls().directory}/{configurable.get_name()}.json", encoding="utf-8") as f:
                     lang = json.load(f)
             except (IsADirectoryError, FileNotFoundError, PermissionError, OSError):
-                logging.warning("Language file not found or unable to open for plugin {}"
-                                .format(configurable.get_name()))
+                logging.warning("Language file not found or unable to open for plugin %s",
+                                configurable.get_name())
                 lang = {}
             except Exception as e:
                 lang = {}
-                logging.error("Uncaught exception while loading lang file from plugin {}: {}"
-                              .format(configurable.get_name(), e))
+                logging.error("Uncaught exception while loading lang file from plugin %s: %s",
+                              configurable.get_name, e)
         cls()._cache[configurable] = lang
         return lang
 
@@ -399,13 +419,13 @@ class Lang(metaclass=_Singleton):
     def lang_no_failsafe(cls, configurable, str_name, *args):
         """
         Returns the given string from configurable's lang file.
-        If language sett in Config().LANGUAGE_CODE is not supported, 'en' will be used.
+        If language set in `Config().LANGUAGE_CODE` is not supported, `bot.DEFAULT_LANG` will be used.
         If nothing is found, returns None.
 
         :param configurable: The Configurable instance
         :param str_name: The name of the returning string.
         :param args: The strings to insert into the returning string via format()
-        :return The most applicable lang string for the given configurable and str_name. None if nothing is found.
+        :return: The most applicable lang string for the given configurable and str_name. None if nothing is found.
         """
         lang = cls().read_from_cache(configurable)
         lang_code = None
@@ -427,14 +447,14 @@ class Lang(metaclass=_Singleton):
     def lang(cls, configurable, str_name, *args) -> str:
         """
         Returns the given string from configurable's lang file.
-        If language sett in Config().LANGUAGE_CODE is not supported, 'en' will be used.
+        If language set in `Config().LANGUAGE_CODE` is not supported, `bot.DEFAULT_LANG` will be used.
         If str_name or the configured language code cannot be found, str_name will be returned.
 
         :param configurable: The Configurable instance
         :param str_name: The name of the returning string.
             If not available for current language, an empty string will be returned.
         :param args: The strings to insert into the returning string via format()
-        :return The most applicable lang string for the given configurable and str_name. None if nothing is found.
+        :return: The most applicable lang string for the given configurable and str_name. str_name if nothing is found.
         """
         if len(args) == 0:
             args = [""]  # ugly lol

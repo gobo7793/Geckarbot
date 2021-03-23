@@ -1,15 +1,17 @@
-import logging
-
-from base import BaseSubsystem
-from botutils.utils import execute_anything
-
 """
 This subsystem provides listeners for direct messages (DMs) to the bot.
 It is instantiated as `bot.dm_listener`.
 """
 
+import logging
+
+from base import BaseSubsystem
+from botutils.utils import execute_anything
+
 
 class Registration:
+    """The registration which will be returned using `DMListener.register()`"""
+
     def __init__(self, listener, user, coro, kill_coro, name, data, blocking):
         self.listener = listener
         self.coro = coro
@@ -20,10 +22,11 @@ class Registration:
         self._blocking = blocking
 
         if self.kill_coro is None:
-            logging.getLogger(__name__).warning("DM listener registered without kill_coro: {}. This is not advised."
-                                                .format(self))
+            logging.getLogger(__name__).warning("DM listener registered without kill_coro: %s. This is not advised.",
+                                                self)
 
     def deregister(self):
+        """Deregisters the DM listener registration"""
         self.listener.deregister(self)
 
     async def kill(self):
@@ -44,6 +47,8 @@ class Registration:
 
 
 class DMListener(BaseSubsystem):
+    """The DM Listener Subsystem"""
+
     def __init__(self, bot):
         super().__init__(bot)
         self.bot = bot
@@ -52,15 +57,16 @@ class DMListener(BaseSubsystem):
     def register(self, user, coro, name, kill_coro=None, data=None, blocking=False):
         """
         Registers a listener on a direct message (DM) channel.
+
         :param user: User whose DM channel is observed.
         :param coro: Callback coroutine that is called as `await coro(registration, message)` with
-        `registration` a Registration object, message a discord.Message object.
+            `registration` a Registration object, message a discord.Message object.
         :param name: String that identifies the source of the registration (e.g. command name).
         :param kill_coro: Coroutine that is called when this registration is killed. Use this to avoid memory leaks.
-        Not passing this triggers a warning.
+            Not passing this triggers a warning.
         :param data: Obaque object that will be part of the registration object.
         :param blocking: If this is set to True, sole access on the DM channel is claimed. No other listener will
-        be able to be registered for this user's DM channel until this one is deregistered.
+            be able to be registered for this user's DM channel until this one is deregistered.
         :return: Registration object that can be used to deregister the listener.
         :raises: RuntimeError if there already is a blocking listener for `user`.
         :raises: KeyError if a blocking listener is to be registered but there already is a regular listener for `user`.
@@ -71,7 +77,7 @@ class DMListener(BaseSubsystem):
             if cb.user == user:
                 if cb.blocking:
                     raise RuntimeError("A blocking DM listener for user {} is already registered.".format(user))
-                elif blocking:
+                if blocking:
                     raise KeyError("There is already a listener registered for user {}, unable to register "
                                    "blocking listener.".format(user))
 
@@ -87,6 +93,7 @@ class DMListener(BaseSubsystem):
     def deregister(self, registration):
         """
         Removes a listener registration. Does nothing if the registration was not found.
+
         :param registration: Registration object that is to be unregistered
         """
         for key in self.registrations:
@@ -96,6 +103,8 @@ class DMListener(BaseSubsystem):
 
     def is_registered(self, user):
         """
+        Checks if the User has registered DM listeners
+
         :param user: User to be checked
         :return: Returns whether there is a registered DM listener for `user`.
         """
@@ -106,6 +115,8 @@ class DMListener(BaseSubsystem):
 
     def is_blocked(self, user):
         """
+        Checks if the User has a blocking listener
+
         :param user: User to be checked
         :return: Returns True if there is a blocking listener for `user`, False otherwise.
         """

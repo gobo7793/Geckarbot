@@ -6,11 +6,11 @@ from discord.ext.commands import MemberConverter, UserConverter
 
 from base import BasePlugin, ConfigurableType
 from botutils import utils
-from botutils.converters import get_best_username, convert_member, get_plugin_by_name
+from botutils.converters import get_best_username, get_plugin_by_name
 from botutils.stringutils import paginate
 from botutils.timeutils import parse_time_input
-from conf import Config, Lang
-from subsystems.help import DefaultCategories
+from data import Config, Lang
+from subsystems.helpsys import DefaultCategories
 from subsystems.ignoring import IgnoreEditResult, IgnoreType
 from subsystems.presence import PresencePriority
 
@@ -23,10 +23,11 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
         self.can_reload = True
         bot.register(self, category=DefaultCategories.MOD)
 
-        # Add !presence to help category 'misc'
+        # Move commands to help category 'user'
         for cmd in self.get_commands():
-            if cmd.name == "presence":
-                self.bot.helpsys.default_category(DefaultCategories.MISC).add_command(cmd)
+            if cmd.name in ["presence", "about"]:
+                self.bot.helpsys.default_category(DefaultCategories.USER).add_command(cmd)
+                self.bot.helpsys.default_category(DefaultCategories.MOD).remove_command(cmd)
 
     def default_config(self):
         return {
@@ -40,18 +41,12 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
     def get_configurable_type(self):
         return ConfigurableType.COREPLUGIN
 
-    def command_help_string(self, command):
-        return Lang.lang(self, "help_{}".format(command.qualified_name.replace(" ", "_")))
-
-    def command_description(self, command):
-        return Lang.lang(self, "desc_{}".format(command.qualified_name.replace(" ", "_")))
-
-    """
-    Misc commands
-    """
+    #####
+    # Misc commands
+    #####
 
     @commands.command(name="about", aliases=["git", "github"])
-    async def about(self, ctx):
+    async def cmd_about(self, ctx):
         about_msg = Lang.lang(self, 'about_version', self.bot.VERSION, self.bot.guild.name,
                               platform.system(), platform.release(), platform.version())
 
@@ -73,15 +68,16 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
 
         await ctx.send(about_msg)
 
-    """
-    Plugin control
-    """
+    #####
+    # Plugin control
+    #####
+
     @commands.group(name="plugin", aliases=["plugins"], invoke_without_command=True)
-    async def plugins(self, ctx):
+    async def cmd_plugins(self, ctx):
         await ctx.invoke(self.bot.get_command("plugin list"))
 
-    @plugins.command(name="list")
-    async def plugins_list(self, ctx):
+    @cmd_plugins.command(name="list")
+    async def cmd_plugins_list(self, ctx):
         coreplugins = self.bot.get_coreplugins()
         plugins = self.bot.get_normalplugins()
         subsys = self.bot.get_subsystem_list()
@@ -95,8 +91,8 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
         for msg in paginate(msgs, delimiter="\n\n"):
             await ctx.send(msg)
 
-    @plugins.command(name="available", aliases=["unloaded", "disabled"])
-    async def plugins_avail(self, ctx):
+    @cmd_plugins.command(name="available", aliases=["unloaded", "disabled"])
+    async def cmd_plugins_avail(self, ctx):
         avail = self.bot.get_unloaded_plugins()
 
         if avail:
@@ -104,9 +100,9 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
         else:
             await ctx.send(Lang.lang(self, 'no_plugin_avail'))
 
-    @plugins.command(name="unload", aliases=["disable"])
+    @cmd_plugins.command(name="unload", aliases=["disable"])
     @commands.has_any_role(*Config().MOD_ROLES)
-    async def plugins_unload(self, ctx, name):
+    async def cmd_plugins_unload(self, ctx, name):
         instance = get_plugin_by_name(name)
         if instance is None:
             await utils.add_reaction(ctx.message, Lang.CMDERROR)
@@ -124,9 +120,9 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
             await utils.add_reaction(ctx.message, Lang.CMDERROR)
             await ctx.send(Lang.lang(self, "plugin_not_unloadable", name))
 
-    @plugins.command(name="load", aliases=["enable"])
+    @cmd_plugins.command(name="load", aliases=["enable"])
     @commands.has_any_role(*Config().MOD_ROLES)
-    async def plugins_load(self, ctx, name):
+    async def cmd_plugins_load(self, ctx, name):
         instance = get_plugin_by_name(name)
         if instance is not None:
             await utils.add_reaction(ctx.message, Lang.CMDERROR)
@@ -139,9 +135,9 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
             await utils.add_reaction(ctx.message, Lang.CMDERROR)
             await ctx.send(Lang.lang(self, "plugin_not_loadable", name))
 
-    @plugins.command(name="reload")
+    @cmd_plugins.command(name="reload")
     @commands.has_any_role(*Config().MOD_ROLES)
-    async def plugins_reload(self, ctx, name):
+    async def cmd_plugins_reload(self, ctx, name):
         instance = get_plugin_by_name(name)
         if instance is None:
             await utils.add_reaction(ctx.message, Lang.CMDERROR)
@@ -159,30 +155,31 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
             await utils.add_reaction(ctx.message, Lang.CMDERROR)
             await ctx.send(Lang.lang(self, "errors_on_reload", name))
 
-    """
-    Presence subsystem
-    """
+    #####
+    # Presence Subsystem
+    #####
+
     @commands.group(name="presence", invoke_without_command=True)
-    async def presence(self, ctx):
+    async def cmd_presence(self, ctx):
         await ctx.invoke(self.bot.get_command("presence list"))
 
-    @presence.command(name="list")
-    async def presence_list(self, ctx):
+    @cmd_presence.command(name="list")
+    async def cmd_presence_list(self, ctx):
         def get_message(item):
-            return Lang.lang(self, "presence_entry", item.presence_id + 1, item.message)
+            return Lang.lang(self, "presence_entry", item.presence_id, item.message)
 
         entries = self.bot.presence.filter_messages_list(PresencePriority.LOW)
         if not entries:
             await ctx.send(Lang.lang(self, "no_presences"))
         else:
             for msg in paginate(entries,
-                                prefix=Lang.lang(self, "presence_prefix"),
+                                prefix=Lang.lang(self, "presence_prefix", len(entries)),
                                 f=get_message):
                 await ctx.send(msg)
 
-    @presence.command(name="add")
+    @cmd_presence.command(name="add")
     # @commands.has_any_role(*Config().MOD_ROLES)
-    async def presence_add(self, ctx, *, message):
+    async def cmd_presence_add(self, ctx, *, message):
         if self.bot.presence.register(message, PresencePriority.LOW) is not None:
             await utils.add_reaction(ctx.message, Lang.CMDSUCCESS)
             await utils.write_mod_channel(Lang.lang(self, "presence_added_debug", message))
@@ -190,10 +187,9 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
             await utils.add_reaction(ctx.message, Lang.CMDERROR)
             await ctx.send(Lang.lang(self, "presence_unknown_error"))
 
-    @presence.command(name="del", usage="<id>")
+    @cmd_presence.command(name="del", usage="<id>")
     # @commands.has_any_role(*Config().MOD_ROLES)
-    async def presence_del(self, ctx, entry_id: int):
-        entry_id -= 1
+    async def cmd_presence_del(self, ctx, entry_id: int):
         presence_message = "PANIC"
         if entry_id in self.bot.presence.messages:
             presence_message = self.bot.presence.messages[entry_id].message
@@ -205,28 +201,29 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
             await utils.add_reaction(ctx.message, Lang.CMDERROR)
             await ctx.send(Lang.lang(self, "presence_not_exists", entry_id))
 
-    """
-    Ignoring subsystem
-    """
+    #####
+    # Ignoring Subsystem
+    #####
+
     @commands.group(name="disable", invoke_without_command=True, aliases=["ignore", "block"],
                     usage="<full command name>")
-    async def disable(self, ctx, *, command):
+    async def cmd_disable(self, ctx, *, command):
         if not await self._pre_cmd_checks(ctx.message, command):
             return
 
         cmd = self._get_full_cmd_name(command)
 
         result = self.bot.ignoring.add_passive(ctx.author, cmd)
-        if result == IgnoreEditResult.Success:
-            await ctx.message.add_reaction(Lang.CMDSUCCESS)
-        elif result == IgnoreEditResult.Already_in_list:
-            await ctx.message.add_reaction(Lang.CMDERROR)
+        if result == IgnoreEditResult.SUCCESS:
+            await utils.add_reaction(ctx.message, Lang.CMDSUCCESS)
+        elif result == IgnoreEditResult.ALREADY_IN_LIST:
+            await utils.add_reaction(ctx.message, Lang.CMDERROR)
             await ctx.send(Lang.lang(self, 'passive_already_blocked', cmd))
         await utils.log_to_mod_channel(ctx)
 
-    @disable.command(name="mod", usage="[user|command|until]")
+    @cmd_disable.command(name="mod", usage="[user|command|until]")
     @commands.has_any_role(*Config().MOD_ROLES)
-    async def disable_mod(self, ctx, *args):
+    async def cmd_disable_mod(self, ctx, *args):
         user, command, until = await self._parse_mod_args(ctx, *args)
         if user == -1 or command == -1 or until == -1:
             return
@@ -243,13 +240,13 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
         # disable command in current channel
         if user is None and command is not None:
             result = self.bot.ignoring.add_command(command, ctx.channel, until)
-            if result == IgnoreEditResult.Success:
+            if result == IgnoreEditResult.SUCCESS:
                 reaction = Lang.CMDSUCCESS
                 final_msg = Lang.lang(self, 'cmd_blocked', command, until_str)
-            elif result == IgnoreEditResult.Already_in_list:
+            elif result == IgnoreEditResult.ALREADY_IN_LIST:
                 reaction = Lang.CMDERROR
                 final_msg = Lang.lang(self, 'cmd_already_blocked', command)
-            elif result == IgnoreEditResult.Until_in_past:
+            elif result == IgnoreEditResult.UNTIL_IN_PAST:
                 reaction = Lang.CMDERROR
                 final_msg = Lang.lang(self, 'no_time_machine')
 
@@ -260,26 +257,26 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
                 final_msg = Lang.lang(self, 'cant_block_yourself')
             else:
                 result = self.bot.ignoring.add_user(user, until)
-                if result == IgnoreEditResult.Success:
+                if result == IgnoreEditResult.SUCCESS:
                     reaction = Lang.CMDSUCCESS
                     final_msg = Lang.lang(self, 'user_blocked', get_best_username(user), until_str)
-                elif result == IgnoreEditResult.Already_in_list:
+                elif result == IgnoreEditResult.ALREADY_IN_LIST:
                     reaction = Lang.CMDERROR
                     final_msg = Lang.lang(self, 'user_already_blocked', get_best_username(user))
-                elif result == IgnoreEditResult.Until_in_past:
+                elif result == IgnoreEditResult.UNTIL_IN_PAST:
                     reaction = Lang.CMDERROR
                     final_msg = Lang.lang(self, 'no_time_machine')
 
         # disable active command usage for user
         elif user is not None and command is not None:
             result = self.bot.ignoring.add_active(user, command, until)
-            if result == IgnoreEditResult.Success:
+            if result == IgnoreEditResult.SUCCESS:
                 reaction = Lang.CMDSUCCESS
                 final_msg = Lang.lang(self, 'active_usage_blocked', get_best_username(user), command, until_str)
-            elif result == IgnoreEditResult.Already_in_list:
+            elif result == IgnoreEditResult.ALREADY_IN_LIST:
                 reaction = Lang.CMDERROR
                 final_msg = Lang.lang(self, 'active_already_blocked', get_best_username(user), command)
-            elif result == IgnoreEditResult.Until_in_past:
+            elif result == IgnoreEditResult.UNTIL_IN_PAST:
                 reaction = Lang.CMDERROR
                 final_msg = Lang.lang(self, 'no_time_machine')
 
@@ -289,12 +286,12 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
             final_msg = Lang.lang(self, 'member_or_time_not_found')
 
         await utils.log_to_mod_channel(ctx)
-        await ctx.message.add_reaction(reaction)
+        await utils.add_reaction(ctx.message, reaction)
         if final_msg is not None:
             await ctx.send(final_msg)
 
-    @disable.command(name="list")
-    async def disable_list(self, ctx):
+    @cmd_disable.command(name="list")
+    async def cmd_disable_list(self, ctx):
         def get_item_msg(item):
             return item.to_message()
 
@@ -308,14 +305,14 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
             await ctx.send(Lang.lang(self, 'nothing_blocked'))
             return
 
-        await write_list(IgnoreType.User, Lang.lang(self, 'list_users'))
-        await write_list(IgnoreType.Command, Lang.lang(self, 'list_cmds'))
-        await write_list(IgnoreType.Active_Usage, Lang.lang(self, 'list_active'))
-        await write_list(IgnoreType.Passive_Usage, Lang.lang(self, 'list_passive'))
+        await write_list(IgnoreType.USER, Lang.lang(self, 'list_users'))
+        await write_list(IgnoreType.COMMAND, Lang.lang(self, 'list_cmds'))
+        await write_list(IgnoreType.ACTIVE_USAGE, Lang.lang(self, 'list_active'))
+        await write_list(IgnoreType.PASSIVE_USAGE, Lang.lang(self, 'list_passive'))
 
     @commands.group(name="enable", invoke_without_command=True, aliases=["unignore", "unblock"],
                     usage="[full command name]")
-    async def enable(self, ctx, *, command=None):
+    async def cmd_enable(self, ctx, *, command=None):
         final_msg = None
         reaction = Lang.CMDERROR
 
@@ -323,7 +320,7 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
         if command is None:
             all_entries = [entry
                            for entry
-                           in self.bot.ignoring.get_ignore_list(IgnoreType.Passive_Usage)
+                           in self.bot.ignoring.get_ignore_list(IgnoreType.PASSIVE_USAGE)
                            if entry.user == ctx.author]
 
             for entry in all_entries:
@@ -336,9 +333,9 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
         elif self._is_valid_command(command):
             cmd = self._get_full_cmd_name(command)
             result = self.bot.ignoring.remove_passive(ctx.author, cmd)
-            if result == IgnoreEditResult.Success:
+            if result == IgnoreEditResult.SUCCESS:
                 reaction = Lang.CMDSUCCESS
-            elif result == IgnoreEditResult.Not_in_list:
+            elif result == IgnoreEditResult.NOT_IN_LIST:
                 reaction = Lang.CMDERROR
                 final_msg = Lang.lang(self, 'passive_not_blocked', cmd)
 
@@ -348,14 +345,14 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
             final_msg = Lang.lang(self, 'cmd_not_found', command)
 
         await utils.log_to_mod_channel(ctx)
-        await ctx.message.add_reaction(reaction)
+        await utils.add_reaction(ctx.message, reaction)
         if final_msg is not None:
             await ctx.send(final_msg)
 
-    @enable.command(name="mod", usage="[user|command]")
+    @cmd_enable.command(name="mod", usage="[user|command]")
     @commands.has_any_role(*Config().MOD_ROLES)
-    async def enable_mod(self, ctx, *args):
-        user, command, until = await self._parse_mod_args(ctx, *args)
+    async def cmd_enable_mod(self, ctx, *args):
+        user, command, _ = await self._parse_mod_args(ctx, *args)
 
         final_msg = None
         reaction = Lang.CMDERROR
@@ -363,30 +360,30 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
         # enable command in current channel
         if user is None and command is not None:
             result = self.bot.ignoring.remove_command(command, ctx.channel)
-            if result == IgnoreEditResult.Success:
+            if result == IgnoreEditResult.SUCCESS:
                 reaction = Lang.CMDSUCCESS
                 final_msg = Lang.lang(self, 'cmd_unblocked', command)
-            elif result == IgnoreEditResult.Not_in_list:
+            elif result == IgnoreEditResult.NOT_IN_LIST:
                 reaction = Lang.CMDERROR
                 final_msg = Lang.lang(self, 'cmd_not_blocked', command)
 
         # enable user completely
         elif user is not None and command is None:
             result = self.bot.ignoring.remove_user(user)
-            if result == IgnoreEditResult.Success:
+            if result == IgnoreEditResult.SUCCESS:
                 reaction = Lang.CMDSUCCESS
                 final_msg = Lang.lang(self, 'user_unblocked', get_best_username(user))
-            elif result == IgnoreEditResult.Not_in_list:
+            elif result == IgnoreEditResult.NOT_IN_LIST:
                 reaction = Lang.CMDERROR
                 final_msg = Lang.lang(self, 'user_not_blocked', get_best_username(user))
 
         # enable active command usage for user
         elif user is not None and command is not None:
             result = self.bot.ignoring.remove_active(user, command)
-            if result == IgnoreEditResult.Success:
+            if result == IgnoreEditResult.SUCCESS:
                 reaction = Lang.CMDSUCCESS
                 final_msg = Lang.lang(self, 'active_usage_unblocked', get_best_username(user), command)
-            elif result == IgnoreEditResult.Not_in_list:
+            elif result == IgnoreEditResult.NOT_IN_LIST:
                 reaction = Lang.CMDERROR
                 final_msg = Lang.lang(self, 'active_not_blocked', get_best_username(user), command)
 
@@ -396,7 +393,7 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
             final_msg = Lang.lang(self, 'member_or_time_not_found')
 
         await utils.log_to_mod_channel(ctx)
-        await ctx.message.add_reaction(reaction)
+        await utils.add_reaction(ctx.message, reaction)
         if final_msg is not None:
             await ctx.send(final_msg)
 
@@ -411,8 +408,7 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
         native_cmd = self.bot.get_command(command)
         if native_cmd is not None:
             return native_cmd.qualified_name
-        else:
-            return command
+        return command
 
     def _is_valid_command(self, command):
         """

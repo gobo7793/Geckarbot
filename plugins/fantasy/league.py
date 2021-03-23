@@ -1,8 +1,7 @@
-import asyncio
+import logging
 import operator
 from abc import ABC, abstractmethod
 from datetime import datetime
-from threading import Thread
 from typing import List, Dict, Optional
 
 import discord
@@ -12,17 +11,19 @@ from botutils.converters import get_best_user
 from botutils.jsonutils import Decoder
 from botutils.restclient import Client
 from botutils.timeutils import from_epoch_ms
-from conf import Storage, Config, Lang
-from plugins.fantasy.utils import Activity, TeamStanding, Team, Player, Match, Platform, log
+from data import Storage, Config, Lang
+from plugins.fantasy.utils import Activity, TeamStanding, Team, Player, Match, Platform
+
+log = logging.getLogger(__name__)
 
 
-def set_flex_pos_name(slot_position_old):
+def _set_flex_pos_name(slot_position_old):
     if "RB/WR".lower() in slot_position_old.lower():
         return "FLEX"
     return slot_position_old
 
 
-def create_league(plugin, platform: Platform, league_id: int, commish: discord.User = None, init=False):
+async def create_league(plugin, platform: Platform, league_id: int, commish: discord.User = None, init=False):
     """
     Creates a FantasyLeague object based on the given platform
 
@@ -34,12 +35,12 @@ def create_league(plugin, platform: Platform, league_id: int, commish: discord.U
     :return: The created FantasyLeague object for the given platform
     """
     if platform == Platform.ESPN:
-        return EspnLeague(plugin, league_id, commish, init)
-    if platform == Platform.Sleeper:
-        return SleeperLeague(plugin, league_id, commish, init)
+        return await EspnLeague.create(plugin, league_id, commish, init)
+    if platform == Platform.SLEEPER:
+        return await SleeperLeague.create(plugin, league_id, commish, init)
 
 
-def deserialize_league(plugin, d: dict):
+async def deserialize_league(plugin, d: dict):
     """
     Constructs a FantasyLeague object based on the platform saved in the dict.
 
@@ -47,13 +48,19 @@ def deserialize_league(plugin, d: dict):
     :param d: dict made by FantasyLeague.serialize()
     :return: FantasyLeague object
     """
-    return create_league(plugin, d["platform"], d['league_id'], get_best_user(d['commish']), init=True)
+    return await create_league(plugin, d["platform"], d['league_id'], get_best_user(d['commish']), init=True)
 
 
 class FantasyLeague(ABC):
     """Fatasy Football League dataset"""
 
-    def __init__(self, plugin, league_id: int, commish: discord.User = None, init=False):
+    def __init__(self):
+        self.plugin = None
+        self.league_id = None  # type: Optional[int]
+        self.commish = None  # type: Optional[discord.User]
+
+    @classmethod
+    async def create(cls, plugin, league_id: int, commish: discord.User = None, init=False):
         """
         Creates a new FantasyLeague dataset instance
 
@@ -61,28 +68,29 @@ class FantasyLeague(ABC):
         :param league_id: The league ID on the platform
         :param commish: The commissioner
         :param init: True if league is loading from Storage
+        :returns: The created league object
         """
+        league = cls()
 
-        async def loading_league_data_wrapper():
-            await self._load_league_data()
+        # def loading_coro_wrapper():
+        #     asyncio.run_coroutine_threadsafe(league._load_league_data(), league.plugin.bot.loop)
 
-        def loading_coro_wrapper():
-            asyncio.run_coroutine_threadsafe(loading_league_data_wrapper(), self.plugin.bot.loop)
+        league.plugin = plugin
+        league.league_id = league_id
+        league.commish = commish
 
-        self.plugin = plugin
-        self.league_id = league_id
-        self.commish = commish
+        # if init:
+        #     # connect_thread = Thread(target=loading_coro_wrapper())
+        #     # connect_thread.start()
+        #     asyncio.create_task(league._load_league_data())
+        # else:
+        await league._load_league_data()
 
-        if init:
-            connect_thread = Thread(target=loading_coro_wrapper())
-            connect_thread.start()
-        else:
-            loading_league_data_wrapper()
+        return league
 
     @abstractmethod
     async def _load_league_data(self):
         """Login and load league data from hosting platform"""
-        pass
 
     def __str__(self):
         return "<fantasy.FantasyLeague; league_id: {}, commish: {}, platform: {}>".format(
@@ -91,37 +99,31 @@ class FantasyLeague(ABC):
     @abstractmethod
     async def reload(self):
         """Reloads cached league data from host platform"""
-        pass
 
     @property
     @abstractmethod
     def platform(self) -> Platform:
         """Gets the league name"""
-        pass
 
     @property
     @abstractmethod
     def name(self) -> str:
         """Gets the league name"""
-        pass
 
     @property
     @abstractmethod
     def year(self) -> int:
         """Gets the current fantasy football year"""
-        pass
 
     @property
     @abstractmethod
     def current_week(self) -> int:
         """Gets the current fantasy football week"""
-        pass
 
     @property
     @abstractmethod
     def nfl_week(self) -> int:
         """Gets the current NFL week"""
-        pass
 
     @property
     @abstractmethod
@@ -133,24 +135,20 @@ class FantasyLeague(ABC):
     @abstractmethod
     def league_url(self) -> str:
         """Gets the home page url for the league"""
-        pass
 
     @property
     @abstractmethod
     def scoreboard_url(self) -> str:
         """Gets the scoreboard page url"""
-        pass
 
     @property
     @abstractmethod
     def standings_url(self) -> str:
         """Gets the standings page url"""
-        pass
 
     @abstractmethod
     def get_boxscore_url(self, week=0, teamid=0) -> str:
         """Gets the boxscore page url for given week and team id"""
-        pass
 
     @abstractmethod
     def get_teams(self) -> List[Team]:
@@ -159,7 +157,6 @@ class FantasyLeague(ABC):
 
         :return: A list with Team tuples
         """
-        pass
 
     @abstractmethod
     async def get_boxscores(self, week, match_id=-1) -> List[Match]:
@@ -170,7 +167,6 @@ class FantasyLeague(ABC):
         :param match_id: The match ID of the match, or -1 for all matches
         :return: The Boxscores as List of Match tuples
         """
-        pass
 
     @abstractmethod
     async def get_overall_standings(self) -> List[TeamStanding]:
@@ -179,7 +175,6 @@ class FantasyLeague(ABC):
 
         :return: A list with TeamStanding tuples for the overall standing
         """
-        pass
 
     @abstractmethod
     async def get_divisional_standings(self) -> Dict[str, List[TeamStanding]]:
@@ -188,7 +183,6 @@ class FantasyLeague(ABC):
 
         :return: The divisional standings with a list of TeamStanding tuples for each division
         """
-        pass
 
     @abstractmethod
     async def get_most_recent_activity(self):
@@ -197,33 +191,32 @@ class FantasyLeague(ABC):
 
         :return: An Activity tuple or None if platform doesn't support recent activities
         """
-        pass
 
     def serialize(self):
         """
         Serializes the league dataset to a dict
 
-        :return: A dict with the espn_id and commish
+        :return: A dict with the platform, league id and commish user id
         """
         return {
             'platform': self.platform,
             'league_id': self.league_id,
-            'commish': self.commish.id
+            'commish': self.commish.id if self.commish is not None else 0
         }
 
 
 class EspnLeague(FantasyLeague):
+    """Fantasy League on the ESPN Platform"""
 
-    def __init__(self, plugin, league_id: int, commish: discord.User = None, init=False):
+    def __init__(self):
+        super().__init__()
         self._espn = None  # type: Optional[League]
-
-        FantasyLeague.__init__(self, plugin, league_id, commish, init)
 
     async def _load_league_data(self):
         self._espn = League(year=self.plugin.year, league_id=self.league_id,
                             espn_s2=Config.get(self.plugin)["espn_credentials"]["espn_s2"],
                             swid=Config.get(self.plugin)["espn_credentials"]["swid"])
-        log.info("League {}, ID {} on platform ESPN connected".format(self.name, self.league_id))
+        log.info("League %s, ID %d on platform ESPN connected", self.name, self.league_id)
 
     async def reload(self):
         self._espn.refresh()
@@ -294,10 +287,10 @@ class EspnLeague(FantasyLeague):
                 away_team = Team(score.away_team.team_name, score.away_team.team_abbrev, score.away_team.team_id, 0)
 
             for hp in score.home_lineup:
-                home_lineup.append(Player(set_flex_pos_name(hp.slot_position), hp.name, hp.proTeam,
+                home_lineup.append(Player(_set_flex_pos_name(hp.slot_position), hp.name, hp.proTeam,
                                           hp.projected_points, hp.points))
             for al in score.away_lineup:
-                away_lineup.append(Player(set_flex_pos_name(al.slot_position), al.name, al.proTeam,
+                away_lineup.append(Player(_set_flex_pos_name(al.slot_position), al.name, al.proTeam,
                                           al.projected_points, al.points))
 
             matches.append(Match(home_team, score.home_score, home_lineup,
@@ -336,23 +329,24 @@ class EspnLeague(FantasyLeague):
 
 
 class SleeperLeague(FantasyLeague):
-    player_db_key = "sleeper_players"
-    last_db_call_key = "_last_call"
+    """Fantasy League on the Sleeper Platform"""
 
-    def __init__(self, plugin, league_id: int, commish: discord.User = None, init=False):
+    _player_db_key = "sleeper_players"
+    _last_player_db_call_key = "_last_call"
+
+    def __init__(self):
+        super().__init__()
         self._client = Client("https://api.sleeper.app/v1/")
         self._league_data = {}
         self._teams = []
 
-        FantasyLeague.__init__(self, plugin, league_id, commish, init)
-
     async def _load_league_data(self):
         await self.reload()
-        log.info("League {}, ID {} on platform Sleeper connected".format(self.name, self.league_id, self.platform))
+        log.info("League %s, ID %d on platform Sleeper connected", self.name, self.league_id)
 
     async def _load_player_db(self):
-        last_call = Storage.get(self.plugin, self.player_db_key) \
-            .get(self.last_db_call_key, datetime.min)
+        last_call = Storage.get(self.plugin, self._player_db_key) \
+            .get(self._last_player_db_call_key, datetime.min)
         if last_call.date() >= datetime.now().date():
             log.debug("Sleepers player database shouldn't downloaded more than once per day.")
             return
@@ -360,9 +354,9 @@ class SleeperLeague(FantasyLeague):
         log.info("Getting Sleepers player database. This shouldn't be done more than once per day!")
         players_json = await self._client.request(endpoint="players/nfl", parse_json=False)
         players = Decoder().decode(players_json)
-        players[self.last_db_call_key] = datetime.now()
-        Storage.set(self.plugin, players, self.player_db_key)
-        Storage.save(self.plugin, self.player_db_key)
+        players[self._last_player_db_call_key] = datetime.now()
+        Storage.set(self.plugin, players, self._player_db_key)
+        Storage.save(self.plugin, self._player_db_key)
 
     async def reload(self):
         self._league_data = await self._client.request(endpoint="league/{}".format(self.league_id))
@@ -384,7 +378,7 @@ class SleeperLeague(FantasyLeague):
 
     @property
     def platform(self) -> Platform:
-        return Platform.Sleeper
+        return Platform.SLEEPER
 
     @property
     def name(self) -> str:
@@ -486,7 +480,7 @@ class SleeperLeague(FantasyLeague):
             player_id = list(action["adds"].keys())[0] \
                 if act_type == "ADD" else list(action["drops"].keys())[0]
             act_team = next(t for t in self.get_teams() if t.team_id == act_roster_id)
-            playerlist = Storage.get(self.plugin, self.player_db_key)
+            playerlist = Storage.get(self.plugin, self._player_db_key)
             act_player = playerlist.get(player_id, playerlist.get(int(player_id)))
             player_name = act_player["full_name"]
 

@@ -1,5 +1,5 @@
 {
-    "en": {
+    "en_US": {
         "too_many_args": "Too many arguments.",
         "redact_no_complaints": "No complaints.",
         "redact_del_args": "Unexpected argument structure; expected !redact del #",
@@ -29,20 +29,71 @@
         "bugscore_nan": "{} is not a number.",
         "bugscore_empty": "Nobody has found any bugs yet :(",
 
-        "help_desc_complain": "Delivers a feedback message. The admins and botmasters can then read the accumulated feedback via !redact. The bot saves the feedback author, the message and a link to the message for context.",
         "help_complain": "Takes a complaint and stores it.",
-        "help_usage_complain": "<complaint>"
+        "usage_complain": "<complaint>",
+        "desc_complain": "Delivers a feedback message. The admins and botmasters can then read the accumulated feedback via !redact. The bot saves the feedback author, the message and a link to the message for context.",
+        "help_redact": "Redacts the list of complaints (i.e. read and delete)",
+        "usage_redact": "[full]",
+        "desc_redact": "Returns the accumulated feedback. Use [del x] to delete feedback #x and [full] to include categorized complaints.",
+        "help_redact_del": "Deletes a complaint",
+        "usage_redact_del": "#",
+        "help_redact_search": "Finds all complaints that contain all search terms",
+        "usage_redact_search": "[search terms]",
+        "help_redact_count": "Shows the amount of complaints that exist",
+        "help_redact_flatten": "Flattens the complaint IDs",
+        "help_redact_category": "Adds complaints to categories and lists categories",
+        "usage_redact_category": "[<# ...> | <# ...> <category> | <category>]",
+        "desc_redact_category": "Manages complaint categories. Usage:\n  !redact category                    - lists all categories.\n  !redact category <category>         - lists all complaints in a category.\n  !redact category <# ...> <category> - adds complaints to a category.\n  !redact category <# ...>            - removes the categories from complaints.\n.",
+        "help_bugscore": "High score for users who found bugs",
+        "desc_bugscore": "Shows the current bug score.\n\nFor Admins:\n  !bugscore <user> [increment] - Increases the users score\n  !bugscore del <user>         - Removes the user from the high score"
     },
 
-    "de": {
+    "de_DE": {
+        "too_many_args": "Zu viele Argumente.",
+        "redact_no_complaints": "Keine Beschwerden.",
+        "redact_del_args": "Inkorrekte Argumentstruktur; erwartet: !redact del #",
+        "redact_del_not_found": "Beschwerde(n) {} nicht gefunden.",
+        "redact_search_args": "Keine Suchbegriffe angegeben.",
+        "redact_search_not_found": "Keine Beschwerden gefunden.",
+        "redact_title": "**Beschwerden** ({}):\n",
+        "redact_title_uncat": "{} ohne Kategorie, {} kategorisiert (nicht angezeigt)",
+        "redact_title_full": "{} total, {} kategorisiert, {} ohne Kategorie",
+        "redact_title_partial": "{} total, {} angezeigt",
+        "redact_search_title": "**Suchergebnisse:**\n",
+        "redact_count": "Es gibt {} Beschwerden ({} kategorisiert, {} ohne Kategorie) und {} Kategorien.",
+        "redact_cat_appendix": "Kategorie: {}",
+
+        "redact_cat_show_prefix": "**Die Kategorie *{}* enthält die folgenden Beschwerden:**\n",
+        "redact_cat_list_prefix": "**Kategorien:**\n",
+        "redact_cat_list_empty": "Es gibt keine Kategorien.",
+        "redact_cat_moved": "Beschwerde **#{}** von Kategorie **{}** zu Kategorie **{}** verschoben.",
+        "redact_cat_removed": "Beschwerde **#{}** aus Kategorie **{}** entfernt.",
+        "redact_cat_not_found": "Die Kategorie **{}** gibt es nicht.",
+        "redact_cat_invalid_id": "Unbekannte Beschwerde-ID: {}",
+        "redact_cat_complaint_not_found": "Beschwerde **#{}** nicht gefunden.",
+
         "bugscore_title": "**Bug Score:**",
         "bugscore_args": "Zu viele Argumente.",
         "bugscore_user_not_found": "User nicht gefunden: {}",
         "bugscore_nan": "{} ist keine Zahl.",
         "bugscore_empty": "Niemand hat bisher Bugs gefunden :(",
 
-        "help_desc_complain": "Überbringt eine Feedback-Nachricht. Die Admins und Botmaster können die angesammelten Feedback-Nachrichten via !redact lesen. Es werden der Autor, die Nachricht selbst und ein Link zur Nachricht (für Kontext) gespeichert.",
         "help_complain": "Nimmt eine Beschwerde entgegen und speichert sie.",
-        "help_usage_complain": "<Beschwerde>"
+        "usage_complain": "<Beschwerde>",
+        "desc_complain": "Überbringt eine Feedback-Nachricht. Die Admins und Botmaster können die angesammelten Feedback-Nachrichten via !redact lesen. Es werden der Autor, die Nachricht selbst und ein Link zur Nachricht (für Kontext) gespeichert.",
+        "help_redact": "Bearbeitet die Liste der Beschwerden (z.B. lesen/löschen)",
+        "usage_redact": "[full]",
+        "desc_redact": "Gibt das angesammelte Feedback zurück. Mithilfe von [full] werden auch kategorisierte Beschwerden angezeigt.",
+        "help_redact_del": "Löscht eine Beschwerde",
+        "usage_redact_del": "#",
+        "help_redact_search": "Findet alle Beschwerden, die die Suchbegriffe enthalten",
+        "usage_redact_search": "[Suchbegriffe]",
+        "help_redact_count": "Zeigt die Anzahl der aktuellen Beschwerden",
+        "help_redact_flatten": "Vergibt die Beschwerden-IDs neu",
+        "help_redact_category": "Fügt Beschwerden einer Kategorie hinzu und gibt Kategorien aus",
+        "usage_redact_category": "[<# ...> | <# ...> <Kategorie> | <Kategorie>]",
+        "desc_redact_category": "Verwaltet Beschwerde-Kategorien. Nutzung:\n  !redact category                    - Zeigt alle Kategorien an.\n  !redact category <category>         - Zeigt alle Beschwerden einer Kategorie.\n  !redact category <# ...> <category> - Fügt Beschwerden einer Kategorie hinzu.\n  !redact category <# ...>            - Entfernt die Kategorie einer Beschwerde.",
+        "help_bugscore": "Highscore für User, die Bugs finden",
+        "desc_bugscore": "Zeigt den aktuellen Bugscore an.\n\nFür Admins:\n  !bugscore <user> [increment] - Erhöht den Score des Users\n  !bugscore del <user>         - Entfernt den User aus dem Highscore"
     }
 }

@@ -1,5 +1,5 @@
 {
-    "en": {
+    "en_US": {
         "channelgame_not_possible": "No channel game possible. Continuing with single game.",
         "error_msg": "Something went wrong. Nothing done.",
         "no_active_games": "currently no active games",
@@ -11,9 +11,13 @@
         "guess_cannot_stop": "No game found.",
         "guess_won": "Great job! You guessed the number **{}** in only **{}** tries!",
         "guess_too_big": "**{}** is too big",
-        "guess_too_low": "**{}** is too low"
+        "guess_too_low": "**{}** is too low",
+
+        "help_guess": "Starts a guessing game",
+        "usage_guess": "[args...]",
+        "desc_guess": "!guess [number]: Enters a guess.\n!guess start: Starts a new single game with range from 1 to 100 if no channel game is active.\n!guess start [channel|single]: Starts a new channel or single game with range from 1 to 100.\n!guess start [channel|single] [Range_From] [Range_To]: Starts a new channel or single game with range from and to. Range needs to be all positive without 0.\n!guess stop: Stops an active game.\n!guess status [all]: Shows the status of all currently active games.\n!guess status channel: Shows the status of a currently active channel game in that particular channel.\n!guess status channel all: Shows the status of all currently active channel games.\n!guess status single: Shows the status of a currently active single game of that particular user.\n!guess status single all: Shows the status of all currently active single games.\n\nIf a single game is active guesses will always count to that game, no matter if a channel game is active too. In order to participate in a channel game the single game needs to be finished first either through successfully finish guessing or stopping the game.\n\nChannel Games:\nFor playing a round together it is possible to start a channel game in order to enable all members in that channel to enter a guess.\n\nSingle Games:\nIn this game mode guessing is only possible for one user."
     },
-    "de": {
+    "de_DE": {
         "channelgame_not_possible": "Kein Channel-Spiel möglich; setze mit Einzelspiel fort.",
         "error_msg": "Etwas lief schief. Nix passiert.",
         "no_active_games": "Aktuell keine laufenden Spiele",
@@ -25,6 +29,10 @@
         "guess_cannot_stop": "Es gibt kein Spiel, das ich beenden könnte.",
         "guess_won": "Großartig! Du hast die Zahl **{}** mit nur **{}** Versuchen erraten!",
         "guess_too_big": "**{}** ist zu groß",
-        "guess_too_low": "**{}** ist zu klein"
+        "guess_too_low": "**{}** ist zu klein",
+
+        "help_guess": "Startet ein Ratespiel",
+        "usage_guess": "[args...]",
+        "desc_guess": "!guess [zahl]: Gibt einen Tipp ab.\n!guess start: Startet ein neues Einzelspiel im Bereich von 1 bis 100, sofern kein Channelspiel läuft.\n!guess start [channel|single]: Startet ein neues Channel- oder Einzelspiel im Bereich von 1 bis 100.\n!guess start [channel|single] [von] [bis]: Startet ein neues Channel- oder Einzelspiel im angegebenen Bereich. Der Bereich muss positiv und nicht 0 sein.\n!guess stop: Beendet ein aktives Spiel.\n!guess status [all]: Zeigt den Status aller derzeit aktiven Spiele.\n!guess status channel: Zeigt den Status der im aktuellen Channel aktiven Spiele.\n!guess status channel all: Zeigt den Status aller derzeit aktiven Channelspiele.\n!guess status single: Zeigt den Status der derzeit aktiven Einzelspiele für den User an.\n!guess status single all: Zeigt den Status aller derzeit aktiven Einzelspiele.\n\nWenn ein Einzelspiel aktiv ist zählen Tippabgaben immer dafür, auch wenn ein Channelspiel aktiv ist. Um an einem Channelspiel teilnehmen zu können, müssen aktive Einzelspiele beendet sein.\n\nChannelspiele:\nUm gemeinsam zu raten kann ein Channelspiel gestartet werden, bei dem jeder im Channel Tipps abgeben kann.\n\nEinzelspiele:\nNur der startende User kann Tipps abgeben."
     }
 }

@@ -3,12 +3,11 @@ import logging
 from enum import Enum
 from typing import List, Callable, Union
 
-from discord import User
+from discord import User, Message
 
-from conf import Lang
+from data import Lang
 from botutils.stringutils import paginate, format_andlist as ellist
-from botutils.utils import execute_anything
-
+from botutils.utils import execute_anything, add_reaction
 
 baselang = {
     "intro": "This is a questionnaire. I will ask questions and you may answer them.",
@@ -33,21 +32,39 @@ baselang = {
 }
 
 
-def get_lang(lang_dict, key):
-    return lang_dict.get(key, baselang[key])
+def get_lang(lang_dict: dict, key: str) -> str:
+    """
+    Returns a lang string; handles fallbck to default lang
+
+    :param lang_dict: lang dict to use
+    :param key: lang key
+    :return: lang string
+    """
+    r = lang_dict.get(key, baselang[key])
+    if r is None:
+        r = ""
+    return r
 
 
 class Cancelled(Exception):
-    pass
+    """
+    Raised when user has cancelled the questionnaire
+    """
 
 
 class QuestionType(Enum):
+    """
+    Type of question
+    """
     TEXT = 0
     SINGLECHOICE = 1
     MULTIPLECHOICE = 2
 
 
 class Result(Enum):
+    """
+    Result of a question
+    """
     DONE = 0  # question is done (accepted final answer)
     ACCEPTED = 1  # accepted answer, but not done yet (used in multiple choice)
     REJECTED = 2  # invalid answer
@@ -56,6 +73,9 @@ class Result(Enum):
 
 
 class State(Enum):
+    """
+    State for statemachine
+    """
     INIT = 0
     QUESTION = 1
     ANSWER = 2
@@ -63,6 +83,9 @@ class State(Enum):
 
 
 class Question:
+    """
+    Represents a question.
+    """
     def __init__(self, question: str,
                  qtype: QuestionType,
                  answers: List[str] = None,
@@ -74,22 +97,23 @@ class Question:
         :param qtype: Question type
         :param answers: Possible answers
         :param callback: Callback function that is called after this question was answered. Signature
-        is expected to be `callback(question, question_queue)` with `question` being this Question object
-        and `question_queue` being the list of questions that are planned to be posed after this.
-        The answer(s) that were given will be stored in this object's `answer` attribute.
-        The callback function is expected to return a new question queue.
+            is expected to be `callback(question, question_queue)` with `question` being this Question object
+            and `question_queue` being the list of questions that are planned to be posed after this.
+            The answer(s) that were given will be stored in this object's `answer` attribute.
+            The callback function is expected to return a new question queue.
         :param data: Opaque object that is set as this object's `data` object. Useful for callback.
         :param lang: Custom lang dict with the following keys:
-        "and": "and" string that is used when formatting multiple choice answers.
-        "or": "or" string that is used when formatting single choice answers.
-        "answer_cancel": Answer that can be used at any point in the questionnaire to cancel it.
-        "answer_mc_done": Answer that is used to finish multiple choice answers. Usually something like "done".
-        "answer_unknown": Questionnaire response when the submitted answer is invalid. Used in choice questions.
-        Currently not used in favor of "result_rejected" (not sure why).
-        "answer_list_mc": 1-spot format string that takes the list of possible answers in multiple choice questions.
-        Used to explain how to answer a multiple choice question.
-        "answer_list_sc": 1-spot format string that takes the list of possible answers in single choice questions.
-        Used to explain how to answer a single choice question.
+            "and": "and" string that is used when formatting multiple choice answers.
+            "or": "or" string that is used when formatting single choice answers.
+            "answer_cancel": Answer that can be used at any point in the questionnaire to cancel it.
+            "answer_mc_done": Answer that is used to finish multiple choice answers. Usually something like "done".
+            "answer_unknown": Questionnaire response when the submitted answer is invalid. Used in choice questions.
+            Currently not used in favor of "result_rejected" (not sure why).
+            "answer_list_mc": 1-spot format string that takes the list of possible answers in multiple choice questions.
+            Used to explain how to answer a multiple choice question.
+            "answer_list_sc": 1-spot format string that takes the list of possible answers in single choice questions.
+            Used to explain how to answer a single choice question.
+        :raises RuntimeError: No answers were given but question type is not `QuestionType.TEXT`
         """
         self.logger = logging.getLogger(__name__)
         self.question = question
@@ -120,15 +144,16 @@ class Question:
             msg.append(get_lang(self.lang, "answer_list_sc").format(answers))
 
         for msg in paginate(msg):
-            self.question_msg = await user.send(msg)
+            if msg:
+                self.question_msg = await user.send(msg)
 
-    def handle_answer(self, answer_msg) -> Result:
+    def handle_answer(self, answer_msg: Message) -> Union[Result, None]:
         """
         Handles an answer according to the question type.
         :param answer_msg: submitted answer message
         :return: The resulting new State
         """
-        self.logger.debug("Handling answer {} on {}".format(answer_msg.content, self))
+        self.logger.debug("Handling answer %s on %s", answer_msg.content, str(self))
         if answer_msg.content.lower() == self.lang.get("answer_cancel", baselang["answer_cancel"]):
             return Result.CANCELLED
 
@@ -139,19 +164,17 @@ class Question:
             self.answer = answer
             return Result.DONE
 
-        elif self.type == QuestionType.SINGLECHOICE:
+        if self.type == QuestionType.SINGLECHOICE:
             if answer in self.answers:
                 self.answer = answer
                 return Result.DONE
-            else:
-                return Result.REJECTED
+            return Result.REJECTED
 
-        elif self.type == QuestionType.MULTIPLECHOICE:
+        if self.type == QuestionType.MULTIPLECHOICE:
             if answer == self.lang.get("answer_mc_done", baselang["answer_mc_done"]):
                 if not self.answer:
                     return Result.EMPTY
-                else:
-                    return Result.DONE
+                return Result.DONE
             if answer in self.answers:
                 # Create or append to answer list
                 if self.answer is not None:
@@ -160,8 +183,9 @@ class Question:
                 else:
                     self.answer = [answer]
                 return Result.ACCEPTED
-            else:
-                return Result.REJECTED
+            return Result.REJECTED
+
+        return None
 
     def __str__(self):
         return "<questionnaire.Question object; question: {}>".format(self.question)
@@ -171,6 +195,9 @@ class Question:
 
 
 class Questionnaire:
+    """
+    Questionnaire to interrogate a user via DM. Supports multiple variants of question types.
+    """
     def __init__(self, bot, target_user: User, questions: List[Question], name: str, kill_coro=None, lang: dict = None):
         """
         :param bot: bot reference
@@ -217,8 +244,14 @@ class Questionnaire:
                 el.callback = callback
 
     async def dm_callback(self, reg, msg):
+        """
+        Handler for incoming DMs
+
+        :param reg: DM Registration
+        :param msg: Message
+        """
         if not self.state == State.ANSWER:
-            await msg.add_reaction(Lang.CMDERROR)
+            await add_reaction(msg, Lang.CMDERROR)
             return
 
         result = self.current_question.handle_answer(msg)
@@ -231,14 +264,14 @@ class Questionnaire:
             self.question_answered_event.set()
 
         elif result == Result.ACCEPTED:
-            await msg.add_reaction(Lang.CMDSUCCESS)
+            await add_reaction(msg, Lang.CMDSUCCESS)
 
         elif result == Result.EMPTY:
-            await msg.add_reaction(Lang.CMDERROR)
+            await add_reaction(msg, Lang.CMDERROR)
             await self.user.send(get_lang(self.lang, "no_answers"))
 
         elif result == Result.REJECTED:
-            await msg.add_reaction(Lang.CMDERROR)
+            await add_reaction(msg, Lang.CMDERROR)
             await self.user.send(get_lang(self.lang, "result_rejected"))
 
     async def interrogate(self) -> Union[List[Question], None]:
@@ -247,11 +280,12 @@ class Questionnaire:
         is raised (see DM subsys).
         :return: List of questions that were posed. The question objects contain the given answers. None if the
         questionnaire was cancelled.
+        :raises Cancelled: questionnaire was cancelled by the user
         """
         # Setup
         self.dm_registration = self.bot.dm_listener.register(self.user, self.dm_callback, self.name,
                                                              kill_coro=self.kill_coro, blocking=True)
-        self.logger.debug("Interrogating {}".format(self.user))
+        self.logger.debug("Interrogating %s", str(self.user))
 
         # Intro
         msg = [
@@ -268,14 +302,14 @@ class Questionnaire:
         while True:
             self.state = State.QUESTION
             self.current_question = await self.get_next_question(self.current_question)
-            self.logger.debug("Next question: {}".format(self.current_question))
+            self.logger.debug("Next question: %s", str(self.current_question))
             if self.current_question is None:
                 self.state = State.DONE
                 break
 
             # Pose question
-            self.logger.debug("Posing question {}: {}".format(self.current_question_index,
-                                                              self.current_question.question))
+            self.logger.debug("Posing question %i: %s", self.current_question_index,
+                              str(self.current_question.question))
             self.state = State.ANSWER
             self.question_answered_event.clear()
             await self.current_question.pose(self.user)
@@ -302,10 +336,12 @@ class Questionnaire:
             r = self.question_queue.pop(0)
             self.question_history.append(r)
             return r
-        else:
-            return None
+        return None
 
     def teardown(self):
+        """
+        Cleanup method
+        """
         self.state = State.DONE
         if not self.question_answered_event.is_set():
             self.question_answered_event.set()

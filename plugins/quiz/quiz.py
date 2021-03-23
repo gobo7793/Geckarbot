@@ -7,10 +7,10 @@ from discord.ext import commands
 from discord.errors import HTTPException
 
 from base import BasePlugin, NotFound
-from conf import Storage, Lang
-from subsystems import help
+from data import Storage, Lang
 from botutils import permchecks
-from botutils.utils import sort_commands_helper
+from botutils.utils import sort_commands_helper, add_reaction
+from subsystems.helpsys import DefaultCategories
 
 from plugins.quiz.controllers import RushQuizController, PointsQuizController
 from plugins.quiz.quizapis import quizapis, opentdb
@@ -127,7 +127,7 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
         self.register_subcommand(None, "info", self.cmd_info)
 
         super().__init__(bot)
-        bot.register(self, category=help.DefaultCategories.GAMES)
+        bot.register(self, category=DefaultCategories.GAMES)
 
         # Migrate data if necessary
         migration(self, self.logger)
@@ -151,15 +151,13 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
         langstr = Lang.lang_no_failsafe(self, "help_{}".format(command.name))
         if langstr is not None:
             return langstr
-        else:
-            raise NotFound()
+        raise NotFound()
 
     def command_description(self, command):
         langstr = Lang.lang_no_failsafe(self, "desc_{}".format(command.name))
         if langstr is not None:
             return langstr
-        else:
-            raise NotFound()
+        raise NotFound()
 
     def sort_commands(self, ctx, cmd, subcommands):
         # category help
@@ -213,19 +211,19 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
                 args = (self.config["ranked_min_participants"],)
             if err == "ranked_questioncount":
                 args = (self.config["ranked_min_questions"],)
-            await ctx.message.add_reaction(Lang.CMDERROR)
+            await add_reaction(ctx.message, Lang.CMDERROR)
             await ctx.send(Lang.lang(self, err, *args))
             return
 
         # Look for existing quiz
         method = args["method"]
         if method == Methods.START and self.get_controller(channel):
-            await ctx.message.add_reaction(Lang.CMDERROR)
+            await add_reaction(ctx.message, Lang.CMDERROR)
             raise QuizInitError(self, "existing_quiz")
 
         # Starting a new quiz
         assert method == Methods.START
-        await ctx.message.add_reaction(Lang.EMOJI["success"])
+        await add_reaction(ctx.message, Lang.EMOJI["success"])
         async with ctx.typing():
             quiz_controller = controller_class(self,
                                                self.config,
@@ -247,7 +245,7 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
     async def cmd_status(self, ctx):
         controller = self.get_controller(ctx.channel)
         if controller is None:
-            await ctx.message.add_reaction(Lang.CMDERROR)
+            await add_reaction(ctx.message, Lang.CMDERROR)
             await ctx.send(Lang.lang(self, "status_no_quiz"))
         else:
             await controller.status(ctx.message)
@@ -256,7 +254,7 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
     async def cmd_score(self, ctx):
         controller = self.get_controller(ctx.channel)
         if controller is None:
-            await ctx.message.add_reaction(Lang.CMDERROR)
+            await add_reaction(ctx.message, Lang.CMDERROR)
         else:
             await ctx.send(embed=controller.score.embed())
 
@@ -264,11 +262,11 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
     async def cmd_stop(self, ctx):
         controller = self.get_controller(ctx.channel)
         if controller is None:
-            await ctx.message.add_reaction(Lang.CMDERROR)
+            await add_reaction(ctx.message, Lang.CMDERROR)
         elif permchecks.check_mod_access(ctx.message.author) or controller.requester == ctx.message.author:
             await self.abort_quiz(ctx.channel, ctx.message)
         else:
-            await ctx.message.add_reaction(Lang.CMDNOPERMISSIONS)
+            await add_reaction(ctx.message, Lang.CMDNOPERMISSIONS)
 
     @kwiss.command(name="emoji")
     async def cmd_emoji(self, ctx, *args):
@@ -276,27 +274,27 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
         if len(args) == 0:
             if ctx.message.author.id in Storage().get(self)["emoji"]:
                 del Storage().get(self)["emoji"][ctx.message.author.id]
-                await ctx.message.add_reaction(Lang.CMDSUCCESS)
+                await add_reaction(ctx.message, Lang.CMDSUCCESS)
                 Storage().save(self)
             else:
-                await ctx.message.add_reaction(Lang.CMDNOCHANGE)
+                await add_reaction(ctx.message, Lang.CMDNOCHANGE)
             return
 
         # Too many arguments
         if len(args) != 1:
-            await ctx.message.add_reaction(Lang.CMDERROR)
+            await add_reaction(ctx.message, Lang.CMDERROR)
             return
 
         emoji = args[0]
         try:
-            await ctx.message.add_reaction(emoji)
+            await add_reaction(ctx.message, emoji)
         except HTTPException:
-            await ctx.message.add_reaction(Lang.CMDERROR)
+            await add_reaction(ctx.message, Lang.CMDERROR)
             return
 
         Storage().get(self)["emoji"][ctx.message.author.id] = emoji
         Storage().save(self)
-        await ctx.message.add_reaction(Lang.CMDSUCCESS)
+        await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
     @kwiss.command(name="ladder")
     async def cmd_ladder(self, ctx):
@@ -342,36 +340,36 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
     @kwiss.command(name="del", usage="<user>")
     async def cmd_del(self, ctx, *args):
         if len(args) != 1:
-            await ctx.message.add_reaction(Lang.CMDERROR)
+            await add_reaction(ctx.message, Lang.CMDERROR)
             return
         if not permchecks.check_mod_access(ctx.message.author):
-            await ctx.message.add_reaction(Lang.CMDERROR)
+            await add_reaction(ctx.message, Lang.CMDERROR)
             return
 
         try:
             user = await commands.MemberConverter().convert(ctx, args[0])
         except (commands.CommandError, IndexError):
-            await ctx.message.add_reaction(Lang.CMDERROR)
+            await add_reaction(ctx.message, Lang.CMDERROR)
             return
 
         ladder = Storage().get(self)["ladder"]
         if user.id in ladder:
             del ladder[user.id]
             Storage().save(self)
-            await ctx.message.add_reaction(Lang.CMDSUCCESS)
+            await add_reaction(ctx.message, Lang.CMDSUCCESS)
         else:
-            await ctx.message.add_reaction(Lang.CMDNOCHANGE)
+            await add_reaction(ctx.message, Lang.CMDNOCHANGE)
 
     @kwiss.command(name="question")
     async def cmd_question(self, ctx, *args):
         if len(args) != 0:
-            await ctx.message.add_reaction(Lang.CMDERROR)
+            await add_reaction(ctx.message, Lang.CMDERROR)
             await ctx.send("Too many arguments")
             return
 
         controller = self.get_controller(ctx.channel)
         if controller is None:
-            await ctx.message.add_reaction(Lang.CMDERROR)
+            await add_reaction(ctx.message, Lang.CMDERROR)
             await ctx.send("No kwiss running")
             return
 
@@ -402,10 +400,11 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
     def register_subcommand(self, channel, subcommand, callback):
         """
         Registers a subcommand. If the subcommand is found in a command, the callback coroutine is called.
+
         :param channel: Channel in which the registering quiz takes place. None for global.
         :param subcommand: subcommand string that is looked for in incoming commands. Case-insensitive.
-        :param callback: Coroutine of the type f(ctx, *args); is called with the context object and every arg, including
-        the subcommand itself and excluding the main command ("kwiss")
+        :param callback: Coroutine of the type `f(ctx, *args)`; is called with the context object and every arg,
+            including the subcommand itself and excluding the main command ("kwiss")
         """
         self.logger.debug("Subcommand registered: {}; callback: {}".format(subcommand, callback))
         subcommand = subcommand.lower()
@@ -426,6 +425,7 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
     def get_controller(self, channel):
         """
         Retrieves the running quiz controller in a channel.
+
         :param channel: Channel that is checked for.
         :return: BaseQuizController object that is running in channel. None if no quiz is running in channel.
         """
@@ -436,6 +436,7 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
     async def abort_quiz(self, channel, msg):
         """
         Called on !kwiss stop. It is assumed that there is a quiz in channel.
+
         :param channel: channel that the abort was requested in.
         :param msg: Message object
         """
@@ -445,6 +446,7 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
     def end_quiz(self, channel):
         """
         Cleans up the quiz.
+
         :param channel: channel that the quiz is taking place in
         :return: (End message, score embed)
         """
@@ -459,6 +461,7 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
     def args_combination_check(self, controller, args):
         """
         Checks for argument combination constraints.
+
         :param controller: Quiz controller class
         :param args: args dict
         :return: lang code for error msg, None if the arg combination is okay
@@ -480,6 +483,7 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
     def parse_args(self, channel, args, subcommands=True):
         """
         Parses the arguments given to the quiz command and fills in defaults if necessary.
+
         :param channel: Channel in which the command was issued
         :param args: argument list
         :param subcommands: Whether to fish for subcommands

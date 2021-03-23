@@ -24,7 +24,7 @@ class Plugin(BasePlugin):
         self.bot.register(self)
 
     @commands.command(name="blub")
-    async def poll(self, ctx):
+    async def cmd_poll(self, ctx):
         self.logger.debug("Caught poll cmd")
         questions = [Question(question, qtype, answers=answers) for question, qtype, answers in protoquestions]
         questionnaire = Questionnaire(self.bot, ctx.message.author, questions, "poll demo")
@@ -37,7 +37,7 @@ class Plugin(BasePlugin):
             return
 
     @commands.command(name="results")
-    async def results(self, ctx):
+    async def cmd_results(self, ctx):
         for el in self.answers:
             msg = [element.answer for element in el]
             await ctx.send(str(msg))

@@ -1,21 +1,20 @@
-import enum
-import logging
-
-import discord
-from discord.ext import commands
-from datetime import datetime
-
-from discord.ext.commands import DisabledCommand
-
-from base import BaseSubsystem
-from conf import Storage, Lang
-from botutils import utils
-from botutils.converters import get_best_username, get_best_user
-from subsystems import timers
-
 """
 This subsystem provides the possibility to block certain commands, users or active and passive command usage.
 """
+
+import enum
+import logging
+from datetime import datetime
+
+import discord
+from discord.ext import commands
+from discord.ext.commands import DisabledCommand
+
+from base import BaseSubsystem
+from data import Storage, Lang
+from botutils import utils
+from botutils.converters import get_best_username, get_best_user
+from subsystems import timers
 
 
 class UserBlockedCommand(DisabledCommand):
@@ -38,25 +37,25 @@ class IgnoreType(enum.IntEnum):
     Not defined
     """
 
-    User = 1
+    USER = 1
     """
     Blocks any interactions between user and bot.
     Disables command_name and channel arguments in IgnoreDataset.
     """
 
-    Command = 2
+    COMMAND = 2
     """
     Disables command usage in specific channel.
     Disables user argument in IgnoreDataset.
     """
 
-    Passive_Usage = 3
+    PASSIVE_USAGE = 3
     """
     Blocks any active and passive usage of the command for a specific user.
     Disables channel argument in IgnoreDataset.
     """
 
-    Active_Usage = 4
+    ACTIVE_USAGE = 4
     """
     Blocks any active (not passive) usage of the command for a specific user.
     Disables channel argument in IgnoreDataset.
@@ -66,13 +65,13 @@ class IgnoreType(enum.IntEnum):
 class IgnoreEditResult(enum.Enum):
     """Return codes for adding and removing datasets to ignore list."""
 
-    Success = 0
+    SUCCESS = 0
     """Successfully added/removed to ignore list"""
-    Already_in_list = 1
+    ALREADY_IN_LIST = 1
     """Dataset is already in list."""
-    Not_in_list = 2
+    NOT_IN_LIST = 2
     """Dataset is not in list."""
-    Until_in_past = 3
+    UNTIL_IN_PAST = 3
     """Until datetime for auto-remove is in past, dataset was not added to ignore list."""
 
 
@@ -100,25 +99,25 @@ class IgnoreDataset:
         :param job: The timer subsystem job for auto-remove
         :param ignoring_instance: The instance of the ignoring subsystem. Only necessary for to_message().
         """
-        if (ignore_type == IgnoreType.User
+        if (ignore_type == IgnoreType.USER
                 and (user is None
                      or command_name
                      or channel is not None)):
             raise ValueError("User blocking accepts the user argument only.")
-        elif (ignore_type == IgnoreType.Command
-              and (user is not None
-                   or not command_name
-                   or channel is None)):
+        if (ignore_type == IgnoreType.COMMAND
+                and (user is not None
+                     or not command_name
+                     or channel is None)):
             raise ValueError("Command disabling needs both of command_name and channel arguments only.")
-        elif (ignore_type == IgnoreType.Passive_Usage
-              and (user is None
-                   or not command_name
-                   or channel is not None)):
+        if (ignore_type == IgnoreType.PASSIVE_USAGE
+                and (user is None
+                     or not command_name
+                     or channel is not None)):
             raise ValueError("Blocking active and passive usage needs both of user and command_name arguments only.")
-        elif (ignore_type == IgnoreType.Active_Usage
-              and (user is None
-                   or not command_name
-                   or channel is not None)):
+        if (ignore_type == IgnoreType.ACTIVE_USAGE
+                and (user is None
+                     or not command_name
+                     or channel is not None)):
             raise ValueError("Blocking active usage needs both of user and command_name arguments only.")
 
         self.ignore_type = ignore_type
@@ -144,8 +143,7 @@ class IgnoreDataset:
         """__eq__ helper method"""
         if self is not None and other is not None:
             return self == other
-        else:
-            return self is None and other is None
+        return self is None and other is None
 
     def __str__(self):
         return "<ignoring.IgnoreDataset; {}, user: {}, command: {}, channel: {}, until: {}>".format(
@@ -195,7 +193,8 @@ class IgnoreDataset:
             User user_name will be ignored [for command command_name] until.../forever.
         Format for Command IgnoreType:
             Command command_name is disabled in channel channel_name until.../forever.
-        For other IgnoreTypes the raw message will be returned.
+
+        For other IgnoreTypes, the raw message will be returned.
 
         :return: The well formatted message
         """
@@ -208,17 +207,17 @@ class IgnoreDataset:
             dt = Lang.lang(self.ignoring_instance, 'until',
                            self.until.strftime(Lang.lang(self.ignoring_instance, 'until_strf')))
 
-        if self.ignore_type == IgnoreType.User:
+        if self.ignore_type == IgnoreType.USER:
             m = Lang.lang(self.ignoring_instance, 'user_ignore_msg', self.user.display_name, dt)
 
-        elif self.ignore_type == IgnoreType.Command:
+        elif self.ignore_type == IgnoreType.COMMAND:
             m = Lang.lang(self.ignoring_instance, 'cmd_ignore_msg', self.command_name, self.channel.name, dt)
 
-        elif self.ignore_type == IgnoreType.Passive_Usage:
+        elif self.ignore_type == IgnoreType.PASSIVE_USAGE:
             m = Lang.lang(self.ignoring_instance, 'user_cmd_ignore_msg',
                           self.user.display_name, self.command_name, dt)
 
-        elif self.ignore_type == IgnoreType.Active_Usage:
+        elif self.ignore_type == IgnoreType.ACTIVE_USAGE:
             m = Lang.lang(self.ignoring_instance, 'user_cmd_ignore_msg',
                           self.user.display_name, self.command_name, dt)
 
@@ -234,7 +233,7 @@ class Ignoring(BaseSubsystem):
     def __init__(self, bot):
         super().__init__(bot)
         bot.plugins.append(self)
-        self.log = logging.getLogger("ignoring")
+        self.log = logging.getLogger(__name__)
 
         self.additional_cmds = []
 
@@ -243,19 +242,20 @@ class Ignoring(BaseSubsystem):
         self.passive = []
         self.active = []
 
+        # pylint: disable=unused-variable
         @bot.listen()
         async def on_ready():
             self._load()
 
     def get_ignore_list(self, ignore_type: IgnoreType):
         """Gets the list for the given IgnoreType or None if for the type is no list available."""
-        if ignore_type == IgnoreType.User:
+        if ignore_type == IgnoreType.USER:
             return self.users
-        if ignore_type == IgnoreType.Command:
+        if ignore_type == IgnoreType.COMMAND:
             return self.cmds
-        if ignore_type == IgnoreType.Passive_Usage:
+        if ignore_type == IgnoreType.PASSIVE_USAGE:
             return self.passive
-        if ignore_type == IgnoreType.Active_Usage:
+        if ignore_type == IgnoreType.ACTIVE_USAGE:
             return self.active
         return None
 
@@ -318,9 +318,9 @@ class Ignoring(BaseSubsystem):
         :return: Code based on IgnoreEditResult
         """
         if dataset in self.get_ignore_list(dataset.ignore_type):
-            return IgnoreEditResult.Already_in_list
+            return IgnoreEditResult.ALREADY_IN_LIST
         if dataset.until < datetime.now():
-            return IgnoreEditResult.Until_in_past
+            return IgnoreEditResult.UNTIL_IN_PAST
 
         if dataset.until < datetime.max:
             timedict = timers.timedict(year=dataset.until.year, month=dataset.until.month,
@@ -334,8 +334,8 @@ class Ignoring(BaseSubsystem):
         ignore_list.append(dataset)
         if not disable_save_file:
             self.save()
-        self.log.info("Added to ignore list: {}".format(dataset))
-        return IgnoreEditResult.Success
+        self.log.info("Added to ignore list: %s", dataset)
+        return IgnoreEditResult.SUCCESS
 
     def add_user(self, user: discord.User, until: datetime = datetime.max):
         """
@@ -345,7 +345,7 @@ class Ignoring(BaseSubsystem):
         :param until: The datetime to auto-remove the user from ignore list
         :return: Code based on IgnoreEditResult
         """
-        dataset = IgnoreDataset(IgnoreType.User, user=user, until=until, ignoring_instance=self)
+        dataset = IgnoreDataset(IgnoreType.USER, user=user, until=until, ignoring_instance=self)
         return self.add(dataset)
 
     def add_user_id(self, user_id: int, until: datetime = datetime.max):
@@ -368,7 +368,7 @@ class Ignoring(BaseSubsystem):
         :param until: The datetime to auto-remove the command from ignore list
         :return: Code based on IgnoreEditResult
         """
-        dataset = IgnoreDataset(IgnoreType.Command, command_name=command_name,
+        dataset = IgnoreDataset(IgnoreType.COMMAND, command_name=command_name,
                                 channel=channel, until=until, ignoring_instance=self)
         return self.add(dataset)
 
@@ -395,7 +395,7 @@ class Ignoring(BaseSubsystem):
         :param until: The datetime to auto-remove the command from ignore list
         :return: Code based on IgnoreEditResult
         """
-        dataset = IgnoreDataset(IgnoreType.Passive_Usage, user=user,
+        dataset = IgnoreDataset(IgnoreType.PASSIVE_USAGE, user=user,
                                 command_name=command_name, until=until, ignoring_instance=self)
         return self.add(dataset)
 
@@ -423,7 +423,7 @@ class Ignoring(BaseSubsystem):
         :param until: The datetime to auto-remove the command from ignore list
         :return: Code based on IgnoreEditResult
         """
-        dataset = IgnoreDataset(IgnoreType.Active_Usage, user=user,
+        dataset = IgnoreDataset(IgnoreType.ACTIVE_USAGE, user=user,
                                 command_name=command_name, until=until, ignoring_instance=self)
         return self.add(dataset)
 
@@ -452,7 +452,7 @@ class Ignoring(BaseSubsystem):
         :return: Code based on IgnoreEditResult
         """
         if dataset not in self.get_ignore_list(dataset.ignore_type):
-            return IgnoreEditResult.Not_in_list
+            return IgnoreEditResult.NOT_IN_LIST
 
         dataset_index = self.get_ignore_list(dataset.ignore_type).index(dataset)
         listed_dataset = self.get_ignore_list(dataset.ignore_type)[dataset_index]
@@ -461,8 +461,8 @@ class Ignoring(BaseSubsystem):
 
         self.get_ignore_list(dataset.ignore_type).remove(listed_dataset)
         self.save()
-        self.log.info("Removed from ignore list: {}".format(listed_dataset))
-        return IgnoreEditResult.Success
+        self.log.info("Removed from ignore list: %s", listed_dataset)
+        return IgnoreEditResult.SUCCESS
 
     async def _auto_remove_callback(self, job):
         """
@@ -481,7 +481,7 @@ class Ignoring(BaseSubsystem):
         :param user: The user to re-enable
         :return: Code based on IgnoreEditResult
         """
-        dataset = IgnoreDataset(IgnoreType.User, user=user)
+        dataset = IgnoreDataset(IgnoreType.USER, user=user)
         return self.remove(dataset)
 
     def remove_user_id(self, user_id: int):
@@ -502,7 +502,7 @@ class Ignoring(BaseSubsystem):
         :param channel: The channel in which the command will be re-enabled
         :return: Code based on IgnoreEditResult
         """
-        dataset = IgnoreDataset(IgnoreType.Command, command_name=command_name, channel=channel)
+        dataset = IgnoreDataset(IgnoreType.COMMAND, command_name=command_name, channel=channel)
         return self.remove(dataset)
 
     def remove_command_id(self, command_name: str, channel_id: int):
@@ -526,7 +526,7 @@ class Ignoring(BaseSubsystem):
             command name. Depending on the checking implementation for the specific command.
         :return: Code based on IgnoreEditResult
         """
-        dataset = IgnoreDataset(IgnoreType.Passive_Usage, user=user, command_name=command_name)
+        dataset = IgnoreDataset(IgnoreType.PASSIVE_USAGE, user=user, command_name=command_name)
         return self.remove(dataset)
 
     def remove_passive_uid(self, user_id: int, command_name: str):
@@ -551,7 +551,7 @@ class Ignoring(BaseSubsystem):
         :param command_name: The command to block for the user, must be the full qualified command name (eg. 'dsc set')
         :return: Code based on IgnoreEditResult
         """
-        dataset = IgnoreDataset(IgnoreType.Active_Usage, user=user, command_name=command_name)
+        dataset = IgnoreDataset(IgnoreType.ACTIVE_USAGE, user=user, command_name=command_name)
         return self.remove(dataset)
 
     def remove_active_uid(self, user_id: int, command_name: str):
@@ -588,7 +588,7 @@ class Ignoring(BaseSubsystem):
         :param user_check_func: The function with the user check will be performed, must be func(discord.User)
         :return: True if user interactions should be blocked, otherwise False
         """
-        ignore_list_user = self.get_ignore_list(IgnoreType.User)
+        ignore_list_user = self.get_ignore_list(IgnoreType.USER)
         for el in ignore_list_user:
             if user_check_func(el.user) == user_to_check:
                 return True
@@ -629,7 +629,7 @@ class Ignoring(BaseSubsystem):
         :param channel: The channel
         :return: True if command is blocked in channel otherwise False
         """
-        ignore_list = self.get_ignore_list(IgnoreType.Command)
+        ignore_list = self.get_ignore_list(IgnoreType.COMMAND)
         for el in ignore_list:
             if el.command_name == command_name and el.channel == channel:
                 return True
@@ -657,7 +657,7 @@ class Ignoring(BaseSubsystem):
         """
         if self._check_user(user_to_check, user_check_func):
             return True
-        ignore_list_user_cmd = self.get_ignore_list(IgnoreType.Passive_Usage)
+        ignore_list_user_cmd = self.get_ignore_list(IgnoreType.PASSIVE_USAGE)
         for el in ignore_list_user_cmd:
             if user_check_func(el.user) == user_to_check and el.command_name == command_name:
                 return True
@@ -706,7 +706,7 @@ class Ignoring(BaseSubsystem):
         """
         if self._check_user(user_to_check, user_check_func):
             return True
-        ignore_list_user_cmd = self.get_ignore_list(IgnoreType.Active_Usage)
+        ignore_list_user_cmd = self.get_ignore_list(IgnoreType.ACTIVE_USAGE)
         for el in ignore_list_user_cmd:
             if user_check_func(el.user) == user_to_check and el.command_name == command_name:
                 return True

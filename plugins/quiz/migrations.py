@@ -1,7 +1,12 @@
-from conf import Storage
+from data import Storage
 
 
 def migrate_0_to_1(plugin):
+    """
+    Migrates the storage from version 0 to 1
+
+    :param plugin: Plugin reference
+    """
     structure = Storage.get(plugin)
     for uid in structure["ladder"]:
         points = structure["ladder"][uid]
@@ -14,6 +19,12 @@ def migrate_0_to_1(plugin):
 
 
 def migration(plugin, logger):
+    """
+    Does all necessary storage migrations
+
+    :param plugin: Plugin reference
+    :param logger: logger reference
+    """
     migrations = {
         0: migrate_0_to_1
     }

@@ -6,57 +6,17 @@ import urllib.error
 from urllib.parse import urlencode
 import base64
 import logging
-import aiohttp
 import asyncio
-
-# Config #######
-verbose = False
-################
-
-version = "1.3"
-
-
-"""
-Changelog:
-1.3:
-    added URL params
-1.2:
-    changed url to remove trailing /
-1.1:
-    added parse_json flag to make_request
-1.0:
-    added basic auth
-"""
-
-
-def log(s):
-    if verbose:
-        print(s)
+import aiohttp
 
 
 class AuthError(Exception):
-    pass
-
-
-def maskprint(d, prefix=""):
-    """
-    Prints the dictionary d but replaces any "password" values with ***
-    """
-    found = []
-    candidates = ["password", "pw", "Password", "passwort", "Passwort"]
-    for el in candidates:
-        if el in d:
-            found.append(el)
-
-    if found:
-        d = d.copy()
-        for el in found:
-            d[el] = "***"
-
-    log(prefix + str(d))
+    """Raisen on authentication errors"""
 
 
 class Client:
+    """Client for HTTP requests, e.g. for REST APIs"""
+
     def __init__(self, url):
         self.credentials = {}
 
@@ -101,6 +61,7 @@ class Client:
     def set_url_appendix(self, s):
         """
         Sets an appendix for the host URL (useful for things that don't change like authentication)
+
         :param s: appendix
         :return: None
         """
@@ -109,6 +70,7 @@ class Client:
     def parse_response(self, response):
         """
         Parses a json response from the API.
+
         :param response: response to parse
         :return: representation of the json response
         """
@@ -117,6 +79,7 @@ class Client:
     def parse_request_data(self, data):
         """
         Parses a dict to urlencoded json
+
         :param data: the dict that is to be urlencoded
         :return:
         """
@@ -127,6 +90,7 @@ class Client:
     def url(self, endpoint="", appendix=None, params=None):
         """
         Build the URL with url, appendix and endpoint
+
         :param endpoint: endpoint, defaults to ""
         :param appendix: URL appendix, overrides the one set with set_url_appendix()
         :param params: URL params as a dict
@@ -151,6 +115,7 @@ class Client:
     def auth_basic(self, username, password):
         """
         Sets authentication header for basic authentication.
+
         :param username: Username
         :param password: Password
         :return: None
@@ -160,10 +125,10 @@ class Client:
         self.auth = "basic"
 
     @staticmethod
-    def build_session_cookie(session):
+    def _build_session_cookie(session):
         return {"cookie": session["name"] + "=" + session["value"]}
 
-    def build_headers(self, headers):
+    def _build_headers(self, headers):
         if not headers:
             headers = {}
         headers_to_add = {}
@@ -188,7 +153,8 @@ class Client:
     async def request(self, endpoint, appendix=None, params=None, data=None,
                       headers=None, method="GET", parse_json=True):
         """
-        does the http and json part
+        Sends a http request.
+
         :param endpoint: REST resource / end point
         :param appendix: URL appendix for this request. Overrides the one set with set_appendix().
         :param params: URL parameters as a dict
@@ -198,9 +164,10 @@ class Client:
         :param parse_json: Treat response as json and parse it
         :return: parsed response
         """
-        headers = self.build_headers(headers)
+        headers = self._build_headers(headers)
         url = self.url(endpoint=endpoint, appendix=appendix, params=params)
         data = self.parse_request_data(data)
+        self._maskprint(data, prefix="data: ")
 
         if method == "GET":
             f = self.aiosession.get
@@ -219,8 +186,10 @@ class Client:
         else:
             raise RuntimeError("Unknown HTTP method: {}".format(method))
 
+        self.logger.debug("Doing async http request to %s", url)
         async with f(url, headers=headers, data=data) as response:
             response = await response.text()
+        self.logger.debug("Response: %s", response)
         if parse_json:
             response = json.loads(response)
         return response
@@ -228,7 +197,8 @@ class Client:
     def make_request(self, endpoint, appendix=None, params=None, data=None,
                      headers=None, method="GET", parse_json=True):
         """
-        does the http and json part
+        Sends a http request.
+
         :param endpoint: REST resource / end point
         :param appendix: URL appendix for this request. Overrides the one set with set_appendix().
         :param params: URL parameters as a dict
@@ -241,19 +211,16 @@ class Client:
         if data is not None:
             data = self.parse_request_data(data)
             data = data.encode("utf-8")
-            maskprint(self.decoder.decode(data.decode("utf-8")), prefix="data: ")
-        else:
-            self.logger.debug("data: ")
+            self._maskprint(self.decoder.decode(data.decode("utf-8")), prefix="data: ")
 
-        headers = self.build_headers(headers)
+        headers = self._build_headers(headers)
         url = self.url(endpoint=endpoint, appendix=appendix, params=params)
         request = urllib.request.Request(url,
                                          data=data, headers=headers, method=method)
-        self.logger.debug("url: {}".format(url))
 
-        self.logger.debug("doing request")
+        self.logger.debug("Doing sync http request to %s", url)
         response = urllib.request.urlopen(request).read().decode("utf-8")
-        self.logger.debug("Response: {}".format(response))
+        self.logger.debug("Response: %s", response)
 
         if parse_json:
             response = self.parse_response(response)
@@ -261,3 +228,20 @@ class Client:
 
     def __del__(self):
         asyncio.create_task(self.aiosession.close())
+
+    def _maskprint(self, d, prefix=""):
+        """
+        Prints the dictionary d but replaces any `"password"` values with `***`
+        """
+        found = []
+        candidates = ["password", "pw", "Password", "passwort", "Passwort"]
+        for el in candidates:
+            if el in d:
+                found.append(el)
+
+        if found:
+            d = d.copy()
+            for el in found:
+                d[el] = "***"
+
+        self.logger.debug("%s%s", prefix, str(d))

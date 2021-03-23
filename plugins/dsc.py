@@ -8,18 +8,33 @@ import discord
 from discord.ext import commands
 from discord.ext.commands import ChannelNotFound, TextChannelConverter, RoleConverter, RoleNotFound
 
-from base import BasePlugin, NotFound
+from base import BasePlugin
 from botutils import permchecks, sheetsclient, utils, timeutils
 from botutils.converters import get_best_user, get_plugin_by_name
 from botutils.stringutils import paginate, clear_link
-from conf import Storage, Lang, Config
+from data import Storage, Lang, Config
 
 
 class DscState(IntEnum):
     """DSC states"""
     NA = 0
-    Voting = 1
-    Sign_up = 2
+    VOTING = 1
+    SIGN_UP = 2
+
+
+def _dsc_set_checks():
+    """Checks if dsc set command can be executed"""
+    def predicate(ctx):
+        plugin = get_plugin_by_name(__name__.rsplit(".", 1)[1])
+        if (not permchecks.check_mod_access(ctx.author)
+                and Config.get(plugin)['mod_role_id'] != 0
+                and Config.get(plugin)['mod_role_id'] not in [role.id for role in ctx.author.roles]):
+            raise commands.BotMissingAnyRole([*Config().MOD_ROLES, Config.get(plugin)['mod_role_id']])
+        if Config.get(plugin)['channel_id'] != 0 and Config.get(plugin)['channel_id'] != ctx.channel.id:
+            raise commands.CheckFailure()
+        return True
+
+    return commands.check(predicate)
 
 
 class Plugin(BasePlugin, name="Discord Song Contest"):
@@ -28,10 +43,10 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
     def __init__(self, bot):
         super().__init__(bot)
         bot.register(self, category="DSC")
-        self.log = logging.getLogger("dsc")
+        self.log = logging.getLogger(__name__)
 
         self.presence = None
-        if Storage.get(self)["state"] == DscState.Voting:
+        if Storage.get(self)["state"] == DscState.VOTING:
             self.register_presence()
 
         self._fill_rule_link()
@@ -56,27 +71,6 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
             'date': datetime.now(),
             'status': None
         }
-
-    def command_help_string(self, command):
-        langstr = Lang.lang_no_failsafe(self, "help_{}".format(command.qualified_name.replace(" ", "_")))
-        if langstr is not None:
-            return langstr
-        else:
-            raise NotFound()
-
-    def command_description(self, command):
-        langstr = Lang.lang_no_failsafe(self, "help_desc_{}".format(command.qualified_name.replace(" ", "_")))
-        if langstr is not None:
-            return langstr
-        else:
-            raise NotFound()
-
-    def command_usage(self, command):
-        langstr = Lang.lang_no_failsafe(self, "help_usage_{}".format(command.qualified_name.replace(" ", "_")))
-        if langstr is not None:
-            return langstr
-        else:
-            raise NotFound()
 
     def get_api_client(self):
         """Returns a client to access Google Sheets API for the dsc contestdoc sheet"""
@@ -108,17 +102,17 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
         self.bot.presence.deregister(self.presence)
 
     @commands.group(name="dsc")
-    async def dsc(self, ctx):
+    async def cmd_dsc(self, ctx):
         if ctx.invoked_subcommand is None:
             await ctx.invoke(self.bot.get_command('dsc info'))
 
-    @dsc.command(name="rules", aliases=["regeln"])
-    async def dsc_rules(self, ctx):
+    @cmd_dsc.command(name="rules", aliases=["regeln"])
+    async def cmd_dsc_rules(self, ctx):
         self._fill_rule_link()
         await ctx.send(f"<{Storage.get(self)['rule_link']}>")
 
-    @dsc.command(name="status")
-    async def dsc_status(self, ctx):
+    @cmd_dsc.command(name="status")
+    async def cmd_dsc_status(self, ctx):
         if Storage.get(self)['status']:
             status_msg = Lang.lang(self, 'status_base', Storage.get(self)['status'])
         else:
@@ -126,8 +120,8 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
 
         await ctx.send(status_msg)
 
-    @dsc.command(name="winners")
-    async def dsc_winners(self, ctx):
+    @cmd_dsc.command(name="winners")
+    async def cmd_dsc_winners(self, ctx):
         c = self.get_api_client()
         winners = c.get(Config.get(self)['winners_range'])
 
@@ -153,8 +147,8 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
         for m in paginate(w_msgs, Lang.lang(self, 'winner_prefix')):
             await ctx.send(m)
 
-    @dsc.command(name="info")
-    async def dsc_info(self, ctx):
+    @cmd_dsc.command(name="info")
+    async def cmd_dsc_info(self, ctx):
         date_out_str = Lang.lang(self, 'info_date_str', Storage.get(self)['date'].strftime('%d.%m.%Y, %H:%M'))
         if not Storage.get(self)['host_id']:
             await ctx.send(Lang.lang(self, 'must_set_host'))
@@ -167,14 +161,14 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
         if Storage.get(self)['status']:
             embed.description = Storage.get(self)['status']
 
-        if Storage.get(self)['state'] == DscState.Sign_up:
+        if Storage.get(self)['state'] == DscState.SIGN_UP:
             date_out_str = Lang.lang(self, 'info_date_str', Storage.get(self)['date'].strftime('%d.%m.%Y')) \
                 if Storage.get(self)['date'] > datetime.now() \
                 else ""
             embed.title = Lang.lang(self, 'signup_phase_info', date_out_str)
             embed.add_field(name=Lang.lang(self, 'sign_up'), value=self._get_doc_link())
 
-        elif Storage.get(self)['state'] == DscState.Voting:
+        elif Storage.get(self)['state'] == DscState.VOTING:
             embed.title = Lang.lang(self, 'voting_phase_info', date_out_str)
             embed.add_field(name=Lang.lang(self, 'all_songs'), value=self._get_doc_link())
             embed.add_field(name=Lang.lang(self, 'yt_playlist'), value=Storage.get(self)['yt_link'])
@@ -188,20 +182,19 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
 
         await ctx.send(embed=embed)
 
-    @dsc.group(name="set")
-    async def dsc_set(self, ctx):
-        if (not permchecks.check_mod_access(ctx.author)
-                and Config.get(self)['mod_role_id'] != 0
-                and Config.get(self)['mod_role_id'] not in [role.id for role in ctx.author.roles]):
-            raise commands.BotMissingAnyRole([*Config().MOD_ROLES, Config.get(self)['mod_role_id']])
-        if Config.get(self)['channel_id'] != 0 and Config.get(self)['channel_id'] != ctx.channel.id:
-            raise commands.CheckFailure()
+    @cmd_dsc.group(name="set", invoke_without_command=True)
+    @_dsc_set_checks()
+    async def cmd_dsc_set(self, ctx, *args):
+        if len(args) > 2 and args[1] == "until":
+            # !dsc set <signup|voting> until <date>
+            await ctx.invoke(self.bot.get_command('dsc set state'), args[0])
+            await ctx.invoke(self.bot.get_command('dsc set date'), args[2:])
 
-        if ctx.invoked_subcommand is None:
+        elif ctx.invoked_subcommand is None:
             await self.bot.helpsys.cmd_help(ctx, self, ctx.command)
 
-    @dsc_set.command(name="host")
-    async def dsc_set_host(self, ctx, user: Union[discord.Member, discord.User]):
+    @cmd_dsc_set.command(name="host")
+    async def cmd_dsc_set_host(self, ctx, user: Union[discord.Member, discord.User]):
         Storage.get(self)['host_id'] = user.id
         Storage().save(self)
         await utils.add_reaction(ctx.message, Lang.CMDSUCCESS)
@@ -211,49 +204,49 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
         Storage().save(self)
         await utils.add_reaction(ctx.message, Lang.CMDSUCCESS)
 
-    @dsc_set.command(name="state")
-    async def dsc_set_state(self, ctx, state):
+    @cmd_dsc_set.command(name="state")
+    async def cmd_dsc_set_state(self, ctx, state):
         if state.lower() == "voting":
-            await self._dsc_save_state(ctx, DscState.Voting)
+            await self._dsc_save_state(ctx, DscState.VOTING)
             self.register_presence()
         elif state.lower() == "signup":
-            await self._dsc_save_state(ctx, DscState.Sign_up)
+            await self._dsc_save_state(ctx, DscState.SIGN_UP)
             self.deregister_presence()
         else:
             await ctx.send(Lang.lang(self, 'invalid_phase'))
 
-    @dsc_set.command(name="yt")
-    async def dsc_set_yt_link(self, ctx, link):
+    @cmd_dsc_set.command(name="yt")
+    async def cmd_dsc_set_yt_link(self, ctx, link):
         link = clear_link(link)
         Storage.get(self)['yt_link'] = link
         Storage().save(self)
         await utils.add_reaction(ctx.message, Lang.CMDSUCCESS)
 
-    @dsc_set.command(name="date")
-    async def dsc_set_date(self, ctx, *args):
+    @cmd_dsc_set.command(name="date")
+    async def cmd_dsc_set_date(self, ctx, *args):
         date = timeutils.parse_time_input(args, end_of_day=True)
         Storage.get(self)['date'] = date
         Storage().save(self)
         await utils.add_reaction(ctx.message, Lang.CMDSUCCESS)
 
-    @dsc_set.command(name="status")
-    async def dsc_set_status(self, ctx, *, message):
+    @cmd_dsc_set.command(name="status")
+    async def cmd_dsc_set_status(self, ctx, *, message):
         Storage.get(self)['status'] = message
         Storage().save(self)
         await utils.add_reaction(ctx.message, Lang.CMDSUCCESS)
 
-    @dsc_set.command(name="points")
-    async def dsc_set_points(self, ctx, *points):
+    @cmd_dsc_set.command(name="points")
+    async def cmd_dsc_set_points(self, ctx, *points):
         Storage.get(self)['points'] = "-".join(points)
         Storage().save(self)
         await utils.add_reaction(ctx.message, Lang.CMDSUCCESS)
 
-    @dsc_set.command(name="config")
-    async def dsc_set_config(self, ctx, key="", value=""):
+    @cmd_dsc_set.command(name="config")
+    async def cmd_dsc_set_config(self, ctx, key="", value=""):
         if not key and not value:
             msg = []
-            for key in Config.get(self):
-                msg.append("{}: {}".format(key, Config.get(self)[key]))
+            for el in Config.get(self):
+                msg.append("{}: {}".format(el, Config.get(self)[el]))
             for msg in paginate(msg, msg_prefix="```", msg_suffix="```"):
                 await ctx.send(msg)
             return
@@ -278,8 +271,7 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
                 Lang.lang(self, 'channel_id')
                 await utils.add_reaction(ctx.message, Lang.CMDERROR)
                 return
-            else:
-                Config.get(self)[key] = channel.id
+            Config.get(self)[key] = channel.id
 
         elif key == "mod_role_id":
             try:
@@ -291,8 +283,7 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
                 Lang.lang(self, 'songmaster_id')
                 await utils.add_reaction(ctx.message, Lang.CMDERROR)
                 return
-            else:
-                Config.get(self)[key] = role.id
+            Config.get(self)[key] = role.id
 
         else:
             Config.get(self)[key] = value

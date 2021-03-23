@@ -5,9 +5,9 @@ from enum import Enum
 import discord
 from discord.ext import commands
 
-from base import BasePlugin
-from conf import Lang
-from subsystems import help
+from base import BasePlugin, NotFound
+from data import Lang
+from subsystems.helpsys import DefaultCategories
 
 
 class ReturnCode(Enum):
@@ -33,14 +33,11 @@ class Plugin(BasePlugin, name="A simple number guessing game"):
         self.games_channel = {}
 
         super().__init__(bot)
-        bot.register(self, help.DefaultCategories.GAMES)
-
-    def default_storage(self):
-        return {}
+        bot.register(self, DefaultCategories.GAMES)
 
     @commands.group(name="guess", help="Guess a number",
                     description="Start a game via '!guess start'")
-    async def guess(self, ctx, guess=None, arg1=None, arg2=None, arg3=None):
+    async def cmd_guess(self, ctx, guess=None, arg1=None, arg2=None, arg3=None):
         await ctx.trigger_typing()
 
         # TODO ermöglichen des startens und spielens von einzel- und kanalspielen parallel

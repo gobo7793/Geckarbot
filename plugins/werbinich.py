@@ -9,11 +9,14 @@ from discord.http import HTTPException
 from discord.errors import Forbidden
 
 from base import BasePlugin, NotFound
-from botutils.stringutils import format_andlist
-from conf import Lang, Config
+from data import Lang, Config
 from botutils import utils, statemachine, stringutils
 from botutils.converters import get_best_username as gbu
-from subsystems import help, presence
+from botutils.stringutils import format_andlist
+from botutils.utils import add_reaction
+from subsystems import presence
+from subsystems.helpsys import DefaultCategories
+from subsystems.reactions import ReactionAddedEvent
 
 h_help = "Wer bin ich?"
 h_description = "Startet ein Wer bin ich?. Nach einer Registrierungsphase ordne ich jedem Spieler einen zufälligen " \
@@ -26,6 +29,9 @@ h_clear = "Entfernt das letzte Spiel, sodass !werbinich spoiler nichts zurückgi
 
 
 class State(Enum):
+    """
+    States for statemachine
+    """
     IDLE = 0  # no whoami running
     REGISTER = 1  # registering phase
     COLLECT = 2  # messaging everyone and waiting for entries from participants
@@ -34,6 +40,9 @@ class State(Enum):
 
 
 class Participant:
+    """
+    Represents a werbinich participant
+    """
     def __init__(self, plugin, user):
         self.plugin = plugin
         self.user = user
@@ -46,7 +55,9 @@ class Participant:
     def assign(self, p):
         """
         Assigns a participant. Can only be called once.
+
         :param p: Participant this one has to choose for
+        :raises RuntimeError: Assignment algorithm assigned twice (bug)
         """
         if self.assigned is not None:
             raise RuntimeError("This participant already has an assigned participant")
@@ -56,16 +67,24 @@ class Participant:
     async def kill_cb(self):
         """
         The DM registration has been killed, so we're killing the whole game.
-        :return:
         """
         await self.plugin.kill(self)
 
     async def init_dm(self):
+        """
+        Sends the initiation DM to the participant which explains things and asks for an entry.
+        """
         self.plugin.logger.debug("Sending init DM to {}".format(self.user))
         await self.send(Lang.lang(self.plugin, "ask_for_entry", gbu(self.assigned.user)))
 
     async def dm_callback(self, reg, message):
-        self.plugin.logger.debug("Incoming message from {}: {}".format(self.user, message.content))
+        """
+        DM callback method; handles any incoming DMs
+
+        :param reg: Registration object
+        :param message: Message content
+        """
+        self.plugin.logger.debug("Incoming message from %s: %s; reg: %s", str(self.user), message.content, str(reg))
         if message.content.strip() == "":
             # you never know
             return
@@ -88,10 +107,20 @@ class Participant:
         self.plugin.assigned()
 
     async def send(self, msg):
+        """
+        Sends a DM to this user and logs it to debug.
+
+        :param msg: Message content
+        :return: return value of user.send()
+        """
         self.plugin.logger.debug("Sending DM to {}: {}".format(self.user, msg))
         return await self.user.send(msg)
 
     def to_msg(self, show_assignees=True):
+        """
+        :param show_assignees: Flag that determines whether the assignee is to be shown
+        :return: String that contains info about this participant and his assignment
+        """
         if show_assignees:
             key = "result_with_assignees"
         else:
@@ -99,6 +128,9 @@ class Participant:
         return Lang.lang(self.plugin, key, gbu(self.assigned.user), self.chosen, gbu(self.user))
 
     def cleanup(self):
+        """
+        Deregisters the DM channel for this user.
+        """
         self.plugin.logger.debug("Cleaning up participant {}".format(self.user))
         if self.registration is not None:
             self.registration.deregister()
@@ -111,17 +143,19 @@ class Participant:
 class Plugin(BasePlugin, name="Wer bin ich?"):
     def __init__(self, bot):
         super().__init__(bot)
-        bot.register(self, help.DefaultCategories.GAMES)
+        bot.register(self, DefaultCategories.GAMES)
         self.logger = logging.getLogger(__name__)
 
         self.channel = None
         self.initiator = None
         self.show_assignees = True
         self.postgame = False
-        self.presence_messsage = None
+        self.presence_message = None
         self.participants = []
         self.eval_event = None
         self.reg_ts = None
+        self.spoiler_reaction_listener = None
+        self.spoilered_users = []
 
         self.base_config = {
             "register_timeout": [int, 1],
@@ -154,12 +188,10 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
     def command_usage(self, command):
         if command.name == "werbinich":
             return Lang.lang(self, "usage_{}".format(command.name))
-        else:
-            raise NotFound()
+        raise NotFound()
 
-    @commands.group(name="werbinich", invoke_without_command=True,
-                    help=h_help, description=h_description, usage=h_usage)
-    async def werbinich(self, ctx, *args):
+    @commands.group(name="werbinich", invoke_without_command=True)
+    async def cmd_werbinich(self, ctx, *args):
         # Argument parsing
         for arg in args:
             if arg == "geheim":
@@ -178,8 +210,8 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
         self.initiator = ctx.message.author
         await self.statemachine.run()
 
-    @werbinich.command(name="status")
-    async def statuscmd(self, ctx):
+    @cmd_werbinich.command(name="status")
+    async def cmd_status(self, ctx):
         if self.statemachine.state == State.IDLE:
             # Post-game and game in mem
             if self.channel is not None and self.postgame:
@@ -199,14 +231,14 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
 
             await ctx.send(msg)
             return
-        elif self.statemachine.state == State.REGISTER:
+        if self.statemachine.state == State.REGISTER:
             sec = self.get_config("register_timeout") * 60 - int((datetime.now() - self.reg_ts).total_seconds())
             await ctx.send(Lang.lang(self, "status_registering", sec))
             return
-        elif self.statemachine.state == State.DELIVER:
+        if self.statemachine.state == State.DELIVER:
             await ctx.send(Lang.lang(self, "status_delivering"))
             return
-        elif self.statemachine.state == State.ABORT:
+        if self.statemachine.state == State.ABORT:
             await ctx.send(Lang.lang(self, "status_aborting"))
             return
 
@@ -219,19 +251,19 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
         wf = stringutils.format_andlist(waitingfor, ands=Lang.lang(self, "and"), emptylist=Lang.lang(self, "nobody"))
         await ctx.send(Lang.lang(self, "waiting_for", wf))
 
-    @werbinich.command(name="stop")
-    async def stopcmd(self, ctx):
+    @cmd_werbinich.command(name="stop")
+    async def cmd_stop(self, ctx):
         if self.statemachine.state == State.IDLE:
-            await ctx.message.add_reaction(Lang.CMDERROR)
+            await add_reaction(ctx.message, Lang.CMDERROR)
             await ctx.send(Lang.lang(self, "not_running"))
             return
         await ctx.send("Sorry, das tut momentan nicht")
-        await ctx.message.add_reaction(Lang.CMDERROR)
-        # await ctx.message.add_reaction(Lang.CMDSUCCESS)
+        await add_reaction(ctx.message, Lang.CMDERROR)
+        # await add_reaction(ctx.message, Lang.CMDSUCCESS)
         # await self.cleanup()
 
-    @werbinich.command(name="spoiler", help=h_spoiler)
-    async def spoilercmd(self, ctx):
+    @cmd_werbinich.command(name="spoiler")
+    async def cmd_spoiler(self, ctx):
         # State check
         error = None
         if self.statemachine.state != State.IDLE:
@@ -244,17 +276,17 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
             error = "no_spoiler"
 
         if error is not None:
-            await ctx.message.add_reaction(Lang.CMDERROR)
+            await add_reaction(ctx.message, Lang.CMDERROR)
             await ctx.send(Lang.lang(self, error))
             return
 
-        await ctx.message.add_reaction(Lang.CMDSUCCESS)
+        await add_reaction(ctx.message, Lang.CMDSUCCESS)
         for msg in stringutils.paginate(self.participants, prefix=Lang.lang(self, "participants_last_round"),
                                         f=lambda x: x.to_msg()):
             await ctx.author.send(msg)
 
-    @werbinich.command(name="fertig", help=h_postgame)
-    async def postgamecmd(self, ctx):
+    @cmd_werbinich.command(name="fertig")
+    async def cmd_postgame(self, ctx):
         error = None
         if ctx.channel != self.channel:
             error = "wrong_channel"
@@ -269,33 +301,41 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
                 error = "postgame_unauthorized"
 
         if error is not None:
-            await ctx.message.add_reaction(Lang.CMDERROR)
+            await add_reaction(ctx.message, Lang.CMDERROR)
             await ctx.send(Lang.lang(self, error))
             return
 
         # Actual cmd
         self.postgame = True
-        await ctx.message.add_reaction(Lang.CMDSUCCESS)
+        await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
-    @werbinich.command(name="del", help=h_clear)
-    async def delcmd(self, ctx):
+    @cmd_werbinich.command(name="del")
+    async def cmd_del(self, ctx):
         if not self.participants:
-            await ctx.message.add_reaction(Lang.CMDERROR)
+            await add_reaction(ctx.message, Lang.CMDERROR)
             return
         self.participants = []
         self.channel = None
-        await ctx.message.add_reaction(Lang.CMDSUCCESS)
+        await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
-    """
-    Transitions
-    """
+    ###
+    # Transitions
+    ###
 
     async def registering_phase(self):
+        """
+        Transition REGISTER -> [COLLECT, ABORT]
+
+        :return: new state
+        """
         self.logger.debug("Starting registering phase")
         self.eval_event = asyncio.Event()
         self.postgame = False
-        self.presence_messsage = self.bot.presence.register(Lang.lang(self, "presence", self.channel.name),
-                                                            priority=presence.PresencePriority.HIGH)
+        self.spoilered_users = []
+        if self.spoiler_reaction_listener:
+            self.spoiler_reaction_listener.unregister()
+        self.presence_message = self.bot.presence.register(Lang.lang(self, "presence", self.channel.name),
+                                                           priority=presence.PresencePriority.HIGH)
         reaction = Lang.lang(self, "reaction_signup")
         to = self.get_config("register_timeout")
         self.reg_ts = datetime.now()
@@ -304,7 +344,7 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
         msg = await self.channel.send(msg)
 
         try:
-            await msg.add_reaction(Lang.lang(self, "reaction_signup"))
+            await add_reaction(msg, Lang.lang(self, "reaction_signup"))
         except HTTPException:
             # Unable to add reaction, therefore unable to begin the game
             await self.channel.send("PANIC")
@@ -346,17 +386,21 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
             try:
                 self.participants.append(Participant(self, el))
             except RuntimeError:
-                await msg.add_reaction(Lang.CMDERROR)
+                await add_reaction(msg, Lang.CMDERROR)
                 return State.ABORT
 
         players = len(self.participants)
         if players <= 1:
             await self.channel.send(Lang.lang(self, "no_participants"))
             return State.ABORT
-        else:
-            return State.COLLECT
+        return State.COLLECT
 
     async def collecting_phase(self):
+        """
+        Transition COLLECT -> [DELIVER, ABORT]
+
+        :return: new state
+        """
         assert len(self.participants) > 1
 
         msg = sorted([gbu(el.user) for el in self.participants], key=str.casefold)
@@ -399,12 +443,43 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
         return State.DELIVER
 
     def assigned(self):
+        """
+        Sets eval_event.
+        """
         for el in self.participants:
             if el.chosen is None:
                 return
         self.eval_event.set()
 
+    async def spoiler_dm(self, event):
+        """
+        Callback for reaction listener that sends a spoiler DM.
+
+        :param event: Reaction event
+        """
+        if isinstance(event, ReactionAddedEvent) and event.emoji.name == Lang.lang(self, "reaction_spoiler"):
+            if self.statemachine.state == State.IDLE and self.participants \
+                    and (event.user not in (x.user for x in self.participants) or self.postgame):
+                if event.user in self.spoilered_users:
+                    self.logger.debug("%s already got the spoiler but tried again.", event.user.name)
+                    return
+                # send dm
+                try:
+                    for msg in stringutils.paginate(self.participants,
+                                                    prefix=Lang.lang(self, "participants_last_round"),
+                                                    f=lambda x: x.to_msg()):
+                        await event.user.send(msg)
+                except Forbidden:
+                    await event.channel.send(Lang.lang(self, "blocked_spoiler", event.user.mention))
+                else:
+                    self.spoilered_users.append(event.user)
+
     async def delivering_phase(self):
+        """
+        Transition DELIVER -> None
+
+        :return: None
+        """
         for target in self.participants:
             todo = []
             if self.show_assignees:
@@ -417,23 +492,42 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
 
             for msg in stringutils.paginate(todo, prefix=Lang.lang(self, "list_title")):
                 await target.send(msg)
-        await self.channel.send(Lang.lang(self, "done"))
+        done_msg = await self.channel.send(Lang.lang(self, "done"))
+        await add_reaction(done_msg, Lang.lang(self, "reaction_spoiler"))
+        self.spoiler_reaction_listener = self.bot.reaction_listener.register(done_msg, self.spoiler_dm, data=None)
         await self.cleanup()
         return None
 
     async def kill(self, participant):
+        """
+        Notifies the participant about a DM channel kill.
+
+        :param participant: Participant whose DM channel was killed
+        """
         await self.channel.send("Cancelling werbinich, {}'s DM registration was killed.".format(gbu(participant.user)))
 
     async def abort(self):
+        """
+        ABORT state; calls cleanup()
+        """
         await self.cleanup()
 
-    async def cleanup(self):
+    async def cleanup(self, exception=None):
+        """
+        Deregisters registrations, resets state and resets variables.
+
+        :param exception: Exception; optional for when we are cleaning up because of an exception
+        :raises Exception: When we are cleaning up because of an exception; simply raises `exception`
+        """
         self.logger.debug("Cleaning up")
         for el in self.participants:
             el.cleanup()
-        self.presence_messsage.deregister()
+        self.presence_message.deregister()
         self.eval_event = None
         self.initiator = None
         self.reg_start_time = None
         self.show_assignees = True
         self.reg_ts = None
+        self.spoilered_users = []
+        if exception:
+            raise exception from exception

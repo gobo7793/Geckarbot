@@ -1,5 +1,5 @@
 {
-    "en": {
+    "en_US": {
         "help_spaetzle": "Commands for show or set many things related to the 'Spaetzle-Tippspiel'.",
         "help_spaetzle_danny": "Command for sending Danny predictions from some special people.",
         "help_spaetzle_duel": "Shows a single duel",
@@ -15,6 +15,7 @@
         "help_spaetzle_observe_add": "tba",
         "help_spaetzle_observe_del": "tba",
         "help_spaetzle_observe_list": "tba",
+        "help_spaetzle_purge": "Removes a participant from the predictions game",
         "help_spaetzle_rawpost": "tba",
         "help_spaetzle_set": "tba",
         "help_spaetzle_set_archive": "tba",
@@ -80,10 +81,12 @@
         "danny_done": "{} now got the predictions of {}!",
         "danny_done_notfound": "{} now got the predictions of {}!\nThese users I cant remember: {}",
         "danny_empty": "Sorry, but didnt you set the matches?!",
+        "danny_and": "and",
+        "danny_nobody": "nobody",
         "table_footer": "Yes this is live, gobo7793!",
         "error_wrong_matchday?": "Something went wrong, is the matchday correct?"
     },
-    "de": {
+    "de_DE": {
         "help_spaetzle": "Commands für das Zeigen und Verwalten des Spätzle(s)-Tippspiels",
         "help_spaetzle_danny": "Schickt Danny Bundesliga-Tipps in die DMs",
         "description_spaetzle_danny": "Schickt dem in der Config unter 'danny_id' angegebenen User (i.d.R. Danny) die aktuellen Tipps der in der Config unter 'danny_users' eingetragenen Spätzle-Teilnehmer. Die Auswahl kann alternativ auch durch die Angabe der gewünschten Teilnehmer (Spätzle-Namen) vorgenommen werden. Danny bzw der in der Config stehende User erhält die Tipps über private Nachrichten.\n\n\uD83D\uDD12 Dieses Kommando kann nur vom Spätzle-Manager bzw. Danny in Auftrag gegeben werden!",
@@ -91,6 +94,7 @@
         "help_spaetzle_duels": "Beobachtete Duelle bzw Duelle einer Liga",
         "description_spaetzle_duels": "1. Ist keine Liga angegeben, werden die Duelle der beobachteten Teilnehmer sowie deren aktueller Stand aufgelistet.\n2. Ist eine Liga angegeben, werden die Duelle dieser Liga aufgelistet inklusive deren aktueller Stände.\n3. Mit dem Zusatz 'all' können die Duelle aller Ligen angezeigt werden, dies ist jedoch nicht sehr übersichtlich.",
         "help_spaetzle_fixtures": "Spielplan eines Teilnehmers",
+        "help_spaetzle_history": "Zeigt die bisherigen Ergebnisse eines Teilnehmers an",
         "help_spaetzle_info": "Info und Links",
         "help_spaetzle_link": "Link zum Spreadsheet",
         "help_spaetzle_manager": "Hinzufügen/Entfernen der Manager-Rolle",
@@ -102,6 +106,8 @@
         "help_spaetzle_observe_add": "Beobachten eines Teilnehmers",
         "help_spaetzle_observe_del": "Beendigung der Beobachtung",
         "help_spaetzle_observe_list": "Auflistung aller beobachteten Teilnehmer",
+        "help_spaetzle_purge": "Rauswurf eines Teilnehmers",
+        "description_spaetzle_purge": "Wenn ein Teilnehmer durch zu häufiges Nichttippen ausscheidet oder anderweitig aussteigt, berechnet dieses Kommando alles nötige um die Tabelle anzupassen.",
         "help_spaetzle_rawpost": "Suche nach Forumposts eines Users",
         "help_spaetzle_set": "Verwaltung des Tippspiels",
         "help_spaetzle_set_archive": "Archiviert Spieltag im Spreadsheet",
@@ -166,6 +172,8 @@
         "danny_done": "{} hat nun die Tipps von {} erhalten!",
         "danny_done_notfound": "{} hat nun die Tipps von {} erhalten!\n{} kenne ich aber gar nicht.",
         "danny_empty": "Ist der Spieltag noch nicht gesetzt oder warum finde ich nix? :face_with_raised_eyebrow:",
+        "danny_and": "und",
+        "danny_nobody": "niemandem",
         "table_footer": "@gobo: möglicherweise live-stände",
         "error_wrong_matchday?": "Irgendwas konnte ich nicht finden. Fehlt ein Spieltag?!"
     }

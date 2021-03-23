@@ -2,6 +2,10 @@ from abc import ABC, abstractmethod
 
 
 class BaseQuizAPI(ABC):
+    """
+    Interface for question resources
+    """
+
     @abstractmethod
     async def fetch(self):
         """
@@ -35,7 +39,7 @@ class BaseQuizAPI(ABC):
         pass
 
     @abstractmethod
-    def info(self, **kwargs):
+    async def info(self, **kwargs):
         """
         :param kwargs:
         :return: Returns an info string under the given constraints.
@@ -46,17 +50,18 @@ class BaseQuizAPI(ABC):
     @abstractmethod
     def category_name(catkey):
         """
+        :param catkey: Opaque category key object that was previously returned by category_key()
         :return: Human-readable representation of the quiz category
         """
         pass
 
     @staticmethod
     @abstractmethod
-    def category_key(catarg):
+    def category_key(catarg: str):
         """
         :param catarg: Argument that was passed that identifies a category
         :return: Opaque category identifier that can be used in initialization and for category_name.
-        Returns None if catarg is an unknown category.
+            Returns None if catarg is an unknown category.
         """
         pass
 
@@ -75,6 +80,9 @@ class BaseQuizAPI(ABC):
 
 
 class BaseQuizController(ABC):
+    """
+    Interface for a quiz controller for a specific game mode
+    """
     @abstractmethod
     def __init__(self, plugin, config, quizapi, channel, requester, **kwargs):
         pass
@@ -108,6 +116,7 @@ class BaseQuizController(ABC):
         """
         raise NotImplementedError
 
+    @property
     @abstractmethod
     def score(self):
         """
@@ -120,7 +129,7 @@ class BaseQuizController(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def abort(self, msg):
+    async def abort(self, msg):
         """
         Called when the quiz is aborted.
         """

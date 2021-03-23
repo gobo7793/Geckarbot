@@ -17,14 +17,15 @@ from botutils import sheetsclient, restclient
 from botutils.converters import get_best_user, get_best_username
 from botutils.permchecks import check_mod_access
 from botutils.sheetsclient import CellRange, Cell
-from botutils.stringutils import paginate
+from botutils.stringutils import paginate, format_andlist
 from botutils.utils import add_reaction
-from conf import Config, Storage, Lang
+from data import Config, Storage, Lang
 from plugins.spaetzle.subsystems import UserBridge, Observed, Trusted
 from plugins.spaetzle.utils import TeamnameDict, pointdiff_possible, determine_winner, MatchResult, match_status, \
-    MatchStatus, get_user_league, get_user_cell, get_schedule, get_schedule_opponent, UserNotFound, \
+    get_user_league, get_user_cell, get_schedule, get_schedule_opponent, UserNotFound, \
     convert_to_datetime, get_participant_history, duel_points
-from subsystems.help import DefaultCategories
+from subsystems.helpsys import DefaultCategories
+from subsystems.liveticker import LivetickerUpdate, MatchStatus
 
 
 class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
@@ -37,7 +38,6 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
         self.logger = logging.getLogger(__name__)
         self.teamname_dict = TeamnameDict(self)
         self.userbridge = UserBridge(self)
-        self.liveticker_reg = None
 
     def default_config(self):
         return {
@@ -173,12 +173,14 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             if matchday:
                 match_list = restclient.Client("https://www.openligadb.de/api").make_request(
                     "/getmatchdata/bl1/2020/{}".format(str(matchday)))
-                if self.liveticker_reg:
-                    self.liveticker_reg.deregister()
+                regs = self.bot.liveticker.search(plugin=self.get_name())
+                for leag in regs.values():
+                    for reg in leag:
+                        reg.deregister()
             else:
-                self.start_liveticker()
-                matchday = self.liveticker_reg.league_reg.matchday()
-                match_list = self.liveticker_reg.league_reg.matches
+                reg = self.start_liveticker()
+                matchday = reg.league_reg.matchday()
+                match_list = reg.league_reg.matches
 
             # Extract matches
             c = self.get_api_client()
@@ -461,8 +463,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
     def start_liveticker(self):
-        self.liveticker_reg = self.bot.liveticker.register(league="bl1", plugin=self, coro=self.liveticker_coro,
-                                                           periodic=True)
+        return self.bot.liveticker.register(league="bl1", plugin=self, coro=self.liveticker_coro, periodic=True)
 
     async def liveticker_coro(self, matches, *_):
         self.logger.debug("Spätzle score update started.")
@@ -766,14 +767,14 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                 try:
                     league = int(get_user_league(self, user_or_league))
                 except (ValueError, UserNotFound):
-                    ctx.send(Lang.lang(self, 'user_not_found', user_or_league))
+                    await ctx.send(Lang.lang(self, 'user_not_found', user_or_league))
                     return
 
-            data_range = "Aktuell!{}".format(Config().get(self)['table_ranges'].get(league))
-            if data_range is None:
+            table_range = Config().get(self)['table_ranges'].get(league)
+            if table_range is None:
                 await ctx.send(Lang.lang(self, 'invalid_league'))
                 return
-            result = c.get(data_range)
+            result = c.get("Aktuell!{}".format(table_range))
 
             if not user_or_league.isnumeric():
                 # Restrict the view to users area
@@ -785,8 +786,9 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
 
             msg = ""
             for line in result:
+                line.extend([''] * (11 - len(line)))
                 msg += "{0}{1} | {4} | {7}:{9} {10} | {11}{0}\n".format("**" if line[3].lower() ==
-                                                                                user_or_league.lower() else "", *line)
+                                                                        user_or_league.lower() else "", *line)
             embed = discord.Embed(title=Lang.lang(self, 'title_table', league), description=msg)
             embed.set_footer(text=Lang.lang(self, 'table_footer'))
         await ctx.send(embed=embed)
@@ -877,8 +879,8 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                 await ctx.send(embed=discord.Embed(title=participant, description="\n".join(msg)))
                 # TODO automatic correction in spreadsheet
 
-    @spaetzle.command(name="danny", help="Sends Danny the predictions of the participants who also take part in his"
-                                         "Bundesliga prediction game.")
+    @spaetzle.command(name="danny", help="Sends Danny (or whoever manage it) the predictions of the participants "
+                                         "who also take part in his Bundesliga prediction game.")
     async def danny_dm(self, ctx, *users):
         danny_id = Config().get(self)['danny_id']
         not_found_users = []
@@ -929,10 +931,15 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             for embed in embeds:
                 await danny.send(embed=embed)
             if not_found_users:
-                await ctx.send(Lang.lang(self, 'danny_done_notfound', get_best_username(danny), ", ".join(users),
-                                         ", ".join(not_found_users)))
+                await ctx.send(Lang.lang(self, 'danny_done_notfound', get_best_username(danny),
+                                         format_andlist(users, Lang.lang(self, 'danny_and'),
+                                                        Lang.lang(self, 'danny_nobody')),
+                                         format_andlist(not_found_users, Lang.lang(self, 'danny_and'),
+                                                        Lang.lang(self, 'danny_nobody'))))
             else:
-                await ctx.send(Lang.lang(self, 'danny_done', get_best_username(danny), ", ".join(users)))
+                await ctx.send(Lang.lang(self, 'danny_done', get_best_username(danny),
+                                         format_andlist(users, Lang.lang(self, 'danny_and'),
+                                                        Lang.lang(self, 'danny_nobody'))))
 
     @spaetzle.group(name="trusted", help="Configures which users are trusted for help")
     async def trusted(self, ctx):
