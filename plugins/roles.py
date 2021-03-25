@@ -80,8 +80,8 @@ class Plugin(BasePlugin, name="Role Management"):
             if self.has_init_msg_set:
                 bot.reaction_listener.register(await self.get_init_msg(), self.update_reaction_based_user_role)
 
-        asyncio.run_coroutine_threadsafe(get_init_msg_data(), self.bot.loop)
-        # asyncio.get_event_loop().create_task(get_init_msg_data())
+        # asyncio.run_coroutine_threadsafe(get_init_msg_data(), self.bot.loop)
+        asyncio.get_event_loop().create_task(get_init_msg_data())
 
     def default_storage(self):
         return {
@@ -289,7 +289,7 @@ class Plugin(BasePlugin, name="Role Management"):
                 try:
                     color = await commands.ColourConverter().convert(ctx, emoji_or_modrole)
                 except (commands.CommandError, IndexError):
-                    color = discord.Color.default()
+                    color = discord.Color.random()
 
             try:
                 existing_role = await commands.RoleConverter().convert(ctx, role_name)
