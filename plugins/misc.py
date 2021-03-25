@@ -25,16 +25,16 @@ def _create_keysmash():
 
 
 class Plugin(BasePlugin, name="Funny/Misc Commands"):
-
     def __init__(self, bot):
         super().__init__(bot)
         bot.register(self, DefaultCategories.MISC)
+        self.migrate()
 
         self.reminders = {}  # type: Dict[int, timers.Job]
         for reminder_id in Storage().get(self)['reminders']:
             reminder = Storage().get(self)['reminders'][reminder_id]
             self._register_reminder(reminder['chan'], reminder['user'], reminder['time'],
-                                    reminder_id, reminder['text'], True)
+                                    reminder_id, reminder['text'], reminder['link'], True)
         self._remove_old_reminders()
 
         # Add commands to help category 'utils'
@@ -44,8 +44,22 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
                 self.bot.helpsys.default_category(DefaultCategories.UTILS).add_command(cmd)
                 self.bot.helpsys.default_category(DefaultCategories.MISC).remove_command(cmd)
 
+    def migrate(self):
+        """
+        Migrates storage to current version:
+            None -> 0: inserts jump link placeholders
+        """
+        if 'version' not in Storage().get(self):
+            Storage().get(self)['version'] = 0
+            for rid in Storage().get(self)['reminders'].keys():
+                Storage().get(self)['reminders'][rid]['link'] = "Link not found (reminder made on old version)"
+            Storage().save(self)
+
     def default_storage(self):
-        return {'reminders': {}}
+        return {
+            'version': 0,
+            'reminders': {}
+        }
 
     def command_help_string(self, command):
         if command.name == _KEYSMASH_CMD_NAME:
@@ -196,7 +210,8 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
             await ctx.send(Lang.lang(self, 'remind_past'))
             return
 
-        if self._register_reminder(ctx.channel.id, ctx.author.id, remind_time, reminder_id, rtext):
+        rlink = ctx.message.jump_url
+        if self._register_reminder(ctx.channel.id, ctx.author.id, remind_time, reminder_id, rtext, rlink):
             await ctx.send(Lang.lang(self, 'remind_set', remind_time.strftime('%d.%m.%Y %H:%M'), reminder_id))
         else:
             await utils.add_reaction(ctx.message, Lang.CMDERROR)
@@ -249,7 +264,7 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
         await utils.add_reaction(ctx.message, Lang.CMDSUCCESS)
 
     def _register_reminder(self, channel_id: int, user_id: int, remind_time: datetime,
-                           reminder_id: int, text, is_restart: bool = False) -> bool:
+                           reminder_id: int, text, link: str, is_restart: bool = False):
         """
         Registers a reminder
 
@@ -258,6 +273,7 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
         :param remind_time: The remind time
         :param reminder_id: The reminder ID
         :param text: The reminder message text
+        :param link: The reminder message jump link (or placeholder text)
         :param is_restart: True if reminder is restarting after bot (re)start
         :returns: True if reminder is registered, otherwise False
         """
@@ -268,7 +284,14 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
         log.info("Adding reminder %d for user with id %d at %s: %s",
                  reminder_id, user_id, remind_time, text)
 
-        job_data = {'chan': channel_id, 'user': user_id, 'time': remind_time, 'text': text, 'id': reminder_id}
+        job_data = {
+            'chan': channel_id,
+            'user': user_id,
+            'time': remind_time,
+            'text': text,
+            'link': link,
+            'id': reminder_id
+        }
 
         timedict = timers.timedict(year=remind_time.year, month=remind_time.month, monthday=remind_time.day,
                                    hour=remind_time.hour, minute=remind_time.minute)
