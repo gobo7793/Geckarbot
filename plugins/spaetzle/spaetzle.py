@@ -542,14 +542,14 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                     row = data[i]
                     if len(row) >= 7:
                         if row[3] == name:
-                            values = [goals if goals else row[4] + 1 if row[4] else 1,
-                                      goals_other if goals_other else row[5] if row[5] else 0]
+                            values = [goals if goals is not None else row[4] + 1 if row[4] else 1,
+                                      goals_other if goals_other is not None else row[5] if row[5] else 0]
                             await ctx.send("{} [**{}**:{}] {}".format(row[3], *values, row[6]))
                             index = i
                             break
                         if row[6] == name:
-                            values = [goals_other if goals_other else row[4] if row[4] else 0,
-                                      goals if goals else row[5] + 1 if row[5] else 1]
+                            values = [goals_other if goals_other is not None else row[4] if row[4] else 0,
+                                      goals if goals is not None else row[5] + 1 if row[5] else 1]
                             await ctx.send("{} [{}:**{}**] {}".format(row[3], *values, row[6]))
                             index = i
                             break
