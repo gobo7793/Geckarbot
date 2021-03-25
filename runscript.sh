@@ -16,7 +16,7 @@ while [[ ${exitcode} -ne 0 ]]; do
     # update
     if [[ ${exitcode} -eq ${UPDATECODE} ]]; then
         if [[ ${SIMULATE} -ne 0 ]]; then
-            git fetch origin release --tags
+            git fetch origin release --tags --force
             git checkout tags/$(cat ${TAGFILE})
         else
             echo "Simulating update to $(cat ${TAGFILE})"
@@ -33,4 +33,7 @@ while [[ ${exitcode} -ne 0 ]]; do
     if [[ ${exitcode} -ne 0 ]]; then
         echo "Unexpected Bot exit code: ${exitcode}"
     fi
+
+    # give ctrl+c a chance
+    sleep 1
 done
