@@ -3,7 +3,7 @@ from datetime import date, timedelta
 from typing import List, Optional
 
 from base import BasePlugin
-from conf import Config, Storage
+from data import Config, Storage
 from subsystems.presence import PresenceMessage, PresencePriority
 from subsystems.timers import Job, timedict
 
@@ -45,23 +45,23 @@ class Plugin(BasePlugin):
                 3: "https://tenor.com/view/your-move-obi-wan-kenobi-star-wars-jedi-master-gif-15824683",
                 4: "https://i.redd.it/aozydy26hki61.jpg",
                 5: "https://cdn.discordapp.com/attachments/706129811382337566/818086156679118858/FB_IMG_1615117281039.jpg",
-                6: "",
+                6: "6",
                 7: "https://i.redd.it/84gafcvrjcl61.png",
-                8: "",
+                8: "8",
                 9: "https://i.redd.it/zf3b2i3y4hi61.jpg",
-                10: "",
-                11: "",
-                12: "",
+                10: "10",
+                11: "https://i.imgur.com/P7q17T5.jpg",
+                12: "12",
                 13: "https://i.redd.it/003i3tinfel61.jpg",
-                14: "",
-                15: "",
+                14: "14",
+                15: "15",
                 16: "https://tenor.com/view/impeachment-love-democracy-ilove-democracy-gif-15723806",
-                17: "",
-                18: "",
-                19: "",
-                20: "",
+                17: "17",
+                18: "https://cdn.discordapp.com/attachments/337680937770942466/820358789533270076/FB_IMG_1615659157536.jpg",
+                19: "https://i.redd.it/3s41lcn2kso61.jpg",
+                20: "20",
                 21: "https://i.redd.it/a520dfy1bbl61.png",
-                22: "",
+                22: "22",
                 23: "https://tenor.com/view/general-grievous-abandon-ship-funny-abort-evacuate-gif-10721574",
             }
         }
