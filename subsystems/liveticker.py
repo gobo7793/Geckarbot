@@ -3,7 +3,7 @@ import logging
 import time
 from enum import Enum
 
-from base import BaseSubsystem
+from base import BaseSubsystem, BasePlugin
 from botutils import restclient
 from botutils.converters import get_plugin_by_name
 from data import Storage
@@ -572,7 +572,7 @@ class Liveticker(BaseSubsystem):
         super().__init__(bot)
         self.bot = bot
         self.logger = logging.getLogger(__name__)
-        self.registrations = {}
+        self.registrations = {x: {} for x in LTSource}
         self.restored = False
 
         @bot.listen()
@@ -599,46 +599,58 @@ class Liveticker(BaseSubsystem):
         :return: CoroRegistration
         """
         source = LTSource(raw_source)
-        if league not in self.registrations:
-            self.registrations[league] = LeagueRegistration(self, league, source)
+        if league not in self.registrations[source]:
+            self.registrations[source][league] = LeagueRegistration(self, league, source)
         if league not in Storage().get(self)[source.value]:
             Storage().get(self)[source.value][league] = []
             Storage().save(self)
-        coro_reg = self.registrations[league].register(plugin, coro, periodic)
+        coro_reg = self.registrations[source][league].register(plugin, coro, periodic)
         return coro_reg
 
     def deregister(self, reg: LeagueRegistration):
-        if reg.league in self.registrations:
-            self.registrations.pop(reg.league)
+        if reg.league in self.registrations[reg.source]:
+            self.registrations[reg.source].pop(reg.league)
         if reg.league in Storage().get(self)[reg.source.value]:
             Storage().get(self)[reg.source.value].pop(reg.league)
             Storage().save(self)
 
     def unload(self, reg: LeagueRegistration):
-        if reg.league in self.registrations:
-            self.registrations.pop(reg.league)
+        if reg.league in self.registrations[reg.source]:
+            self.registrations[reg.source].pop(reg.league)
 
-    def search(self, plugin=None, league=None) -> dict:
+    def search(self, plugin=None, source=None, league=None) -> dict:
         """
         Searches all CoroRegistrations fulfilling the requirements
 
-        :param plugin: plugin name
+        :param plugin: plugin or plugin name
+        :param source: data source (LTSource)
         :param league: league key
-        :return: Dictionary with a list of all matching registrations per league
+        :return: Dictionary with a list of all matching registrations per (league, source)
         """
-        if league:
-            league_reg = self.registrations.get(league)
-            if league_reg:
-                coro_regs = [(league, self.registrations[league].registrations)]
-            else:
-                return {}
+        if type(plugin) == BasePlugin:
+            plugin = plugin.get_name()
+        if type(source) == str:
+            source = LTSource(source)
+        # Filter source
+        if source:
+            coro_regs = {source: self.registrations[source]}
         else:
-            coro_regs = [(leag.league, leag.registrations) for leag in self.registrations.values()]
+            coro_regs = self.registrations.copy()
+        # Filter league
+        if league:
+            for src, regs in list(coro_regs.items()):
+                if league in regs.keys():
+                    coro_regs[src] = {league: regs[league]}
+                else:
+                    coro_regs.pop(src)
+        # Filter plugin
+        if not plugin:
+            return coro_regs
         coro_dict = {}
-        for leag, regs in coro_regs:
-            r = [i for i in regs if plugin is None or i.plugin_name == plugin]
-            if r:
-                coro_dict[leag] = r
+        for src, league_regs in coro_regs.items():
+            coro_dict[src] = {}
+            for league, reg in league_regs.items():
+                coro_dict[src][league] = [i for i in reg.registrations if plugin == i.plugin_name]
         return coro_dict
 
     def restore(self, plugins: list):

@@ -206,8 +206,8 @@ class Plugin(BasePlugin, name="Testing and debug things"):
         await utils.add_reaction(ctx.message, Lang.CMDSUCCESS)
 
     @commands.command(name="livetickersuche", hidden=True)
-    async def cmd_livetickersuche(self, ctx, plugin=None, league=None):
-        await ctx.send(self.bot.liveticker.search(plugin, league))
+    async def cmd_livetickersuche(self, ctx, plugin=None, source=None, league=None):
+        await ctx.send(self.bot.liveticker.search(plugin=plugin, league=league, source=source))
 
     @staticmethod
     async def incr(ctx, i):
