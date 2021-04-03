@@ -6,7 +6,7 @@ from enum import Enum
 from base import BaseSubsystem, BasePlugin
 from botutils import restclient
 from botutils.converters import get_plugin_by_name
-from data import Storage
+from data import Storage, Lang
 from subsystems import timers
 from subsystems.timers import Job
 
@@ -190,7 +190,14 @@ class Goal(PlayerEvent):
         return goal
 
     def display(self):
-        return ":soccer: {}:{} {} ({})".format(*list(self.score.values())[0:2], self.player, self.minute)
+        if self.is_owngoal:
+            return ":soccer: {}:{} {} ({}, {})".format(*list(self.score.values())[0:2], self.player, self.minute,
+                                                       Lang.lang(self, 'owngoal'))
+        elif self.is_penalty:
+            return ":soccer: {}:{} {} ({}, {})".format(*list(self.score.values())[0:2], self.player, self.minute,
+                                                       Lang.lang(self, 'penalty'))
+        else:
+            return ":soccer: {}:{} {} ({})".format(*list(self.score.values())[0:2], self.player, self.minute)
 
 
 class YellowCard(PlayerEvent):
