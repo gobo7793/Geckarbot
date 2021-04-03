@@ -1,5 +1,6 @@
 import datetime
 import logging
+import time
 from enum import Enum
 
 from base import BaseSubsystem
@@ -421,6 +422,10 @@ class LeagueRegistration:
                     self._update_matches_oldb(matchday=md + 1)
 
     def _update_matches_espn(self):
+        # call ESPN two times to reload server cache
+        raw = restclient.Client("http://site.api.espn.com/apis/site/v2/sports").make_request(
+            f"/soccer/{self.league}/scoreboard")
+        time.sleep(10)
         raw = restclient.Client("http://site.api.espn.com/apis/site/v2/sports").make_request(
             f"/soccer/{self.league}/scoreboard")
         self.matches = [Match.from_espn(m) for m in raw.get('events', [])]
