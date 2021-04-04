@@ -113,12 +113,14 @@ class Plugin(BasePlugin):
         for presence_str in presence_strings:
             self.presences.append(self.bot.presence.register(presence_str, PresencePriority.HIGH))
         mtd = timedict(year=date.today().year, month=month, monthday=monthday,
-                       minute=(i for i in range(0, 60, Config.get(self)["mtimer_min"])))
+                       minute=[i for i in range(0, 60, Config.get(self)["mtimer_min"])])
         self.meme_timer = self.bot.timers.schedule(self._mtimer_callback, mtd, repeat=True)
 
         finish_date = date(year=date.today().year, month=month, day=monthday + 1)
         otd = timedict(year=finish_date.year, month=finish_date.month, monthday=finish_date.day)
         self.orga_timer = self.bot.timers.schedule(self._stop, otd, repeat=False)
+
+        self.channel = self.bot.guild.get_channel(Config.get(self)["channel_id"])
 
         Config.get(self)["is_running"] = True
         Config.save(self)
@@ -136,4 +138,4 @@ class Plugin(BasePlugin):
         if self.channel is None:
             return
         Config.get(self)["last_meme_index"] += 1
-        self.channel.send(Storage.get(self)["memes"][Config.get(self)["last_meme_index"]])
+        await self.channel.send(Storage.get(self)["memes"][Config.get(self)["last_meme_index"]])
