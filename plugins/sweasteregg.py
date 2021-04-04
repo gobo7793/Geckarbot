@@ -1,6 +1,9 @@
 from datetime import date
 from typing import List, Optional
 
+from discord import TextChannel
+from discord.ext import commands
+
 from base import BasePlugin
 from data import Config, Storage
 from subsystems import helpsys
@@ -95,6 +98,11 @@ class Plugin(BasePlugin):
                 ]
             }
         }
+
+    @commands.command(name="swe_channel", hidden=True, help="Sets the channel for the SW Easteregg")
+    def cmd_set_channel(self, ctx, channel: TextChannel):
+        Config.get(self)["channel_id"] = channel.id
+        Config.save(self)
 
     def _prepare(self):
         """Prepares the easteregg"""
