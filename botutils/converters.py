@@ -23,7 +23,7 @@ def _get_from_guilds(bot, getter, argument):
     return result
 
 
-def get_best_username(user: Union[discord.User, discord.Member]) -> str:
+def get_best_username(user: Union[discord.User, discord.Member, str]) -> str:
     """
     Gets the best username for the given user or the str representation of the given object.
     :param user: User (Member or User instance) that is to be identified
