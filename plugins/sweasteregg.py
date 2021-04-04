@@ -1,5 +1,4 @@
-import asyncio
-from datetime import date, timedelta
+from datetime import date
 from typing import List, Optional
 
 from base import BasePlugin
@@ -20,7 +19,7 @@ class Plugin(BasePlugin):
         self.channel = self.bot.guild.get_channel(Config.get(self)["channel_id"])
 
         if Config.get(self)["is_running"]:
-            asyncio.run_coroutine_threadsafe(self._start(), self.bot.loop)
+            self.bot.loop.create_task(self._start())
         else:
             self._prepare()
 
@@ -29,8 +28,6 @@ class Plugin(BasePlugin):
             "version": 1,
             "mtimer_min": 60,  # in minutes per hour
             "channel_id": 0,
-            "month": 5,
-            "monthday": 4,
             # ints of storage IDs of the memes
             "meme_order": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23],
             "last_meme_index": -1,  # index of the last showed meme in meme_order
@@ -65,7 +62,7 @@ class Plugin(BasePlugin):
                 20: "20",
                 21: "https://i.redd.it/a520dfy1bbl61.png",
                 22: "22",
-                23: "https://tenor.com/view/general-grievous-abandon-ship-funny-abort-evacuate-gif-10721574",
+                23: "https://tenor.com/view/general-grievous-abandon-ship-funny-abort-evacuate-gif-10721574"
             }
         }
 
@@ -101,18 +98,16 @@ class Plugin(BasePlugin):
 
     def _prepare(self):
         """Prepares the easteregg"""
-        month = Config.get(self)["month"]
-        monthday = Config.get(self)["monthday"]
-        start_date = date(year=date.today().year, month=month, day=monthday) - timedelta(days=1)
+        start_date = date(year=date.today().year, month=5, day=3)
         otd = timedict(year=start_date.year, month=start_date.month, monthday=start_date.day,
-                       hour=23, minute=30)
-        self.orga_timer = self.bot.timers.schedule(self._stop, otd, repeat=False)
+                       hour=23, minute=0)
+        self.orga_timer = self.bot.timers.schedule(self._start, otd, repeat=False)
         Config.get(self)["last_meme_index"] = -1
 
     async def _start(self, _job=None):
         """Starts the easteregg"""
-        month = Config.get(self)["month"]
-        monthday = Config.get(self)["monthday"]
+        month = 5
+        monthday = 4
 
         presence_strings = self.get_lang().get(self.bot.LANGUAGE_CODE, "en_US")["presences"]
         for presence_str in presence_strings:
@@ -121,7 +116,7 @@ class Plugin(BasePlugin):
                        minute=(i for i in range(0, 60, Config.get(self)["mtimer_min"])))
         self.meme_timer = self.bot.timers.schedule(self._mtimer_callback, mtd, repeat=True)
 
-        finish_date = date(year=date.today().year, month=month, day=monthday) + timedelta(days=1)
+        finish_date = date(year=date.today().year, month=month, day=monthday + 1)
         otd = timedict(year=finish_date.year, month=finish_date.month, monthday=finish_date.day)
         self.orga_timer = self.bot.timers.schedule(self._stop, otd, repeat=False)
 
