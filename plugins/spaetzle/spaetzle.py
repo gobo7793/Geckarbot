@@ -101,8 +101,9 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                     "VfB Stuttgart": {'short_name': "VFB", 'other': ["Stuttgart", "STU"]}
                 }
             }
-        elif container == 'forumposts':
+        if container == 'forumposts':
             return []
+        return {}
 
     def command_help_string(self, command):
         return Lang.lang(self, "help_{}".format("_".join(command.qualified_name.split())))
@@ -545,7 +546,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                             await ctx.send("{} [**{}**:{}] {}".format(row[3], *values, row[6]))
                             index = i
                             break
-                        elif row[6] == name:
+                        if row[6] == name:
                             values = [goals_other if goals_other else row[4] if row[4] else 0,
                                       goals if goals else row[5] + 1 if row[5] else 1]
                             await ctx.send("{} [{}:**{}**] {}".format(row[3], *values, row[6]))

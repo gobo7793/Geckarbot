@@ -3,6 +3,7 @@ from copy import deepcopy
 
 import discord
 import emoji
+from discord import Role
 from discord.ext import commands
 
 from base import BasePlugin
@@ -35,7 +36,7 @@ async def remove_user_role(member: discord.Member, role: discord.Role):
     await member.remove_roles(role)
 
 
-async def add_server_role(guild: discord.Guild, name, color: discord.Color = None, mentionable=True):
+async def add_server_role(guild: discord.Guild, name, color: discord.Color = None, mentionable=True) -> Role:
     """
     Creates a roll on the server
 
@@ -109,13 +110,14 @@ class Plugin(BasePlugin, name="Role Management"):
             return await channel.fetch_message(Storage.get(self)['message']['message_id'])
         return None
 
-    async def create_message_text(self, server_roles, ctx):
+    async def create_message_text(self, server_roles, ctx) -> str:
         """
         Returns the message text for the role manage init message
         including the reactions and mod roles for the roles
 
         :param server_roles: the roles on the server
         :param ctx: The context of the used command to create the new message
+        :returns: The message text
         """
         msg = "{}\n".format(Storage.get(self)['message']['content'])
 

@@ -1,5 +1,6 @@
 import sys
 import asyncio
+from typing import Union
 
 import discord
 from discord.ext import commands
@@ -11,7 +12,6 @@ from subsystems import timers
 from subsystems.helpsys import DefaultCategories
 from subsystems.ignoring import UserBlockedCommand
 from subsystems.presence import PresencePriority
-from typing import Union
 
 
 class Plugin(BasePlugin, name="Testing and debug things"):
@@ -102,9 +102,9 @@ class Plugin(BasePlugin, name="Testing and debug things"):
             await ctx.send("Timer not started")
 
     @commands.command(name="presencenext", help="Sets the next presence message", hidden=True)
-    async def cmd_stop_presence(self, ctx):
+    async def cmd_next_presence(self, ctx):
         if self.bot.presence.is_timer_up:
-            self.bot.presence._execute_change()
+            self.bot.presence.execute_change()
             await utils.add_reaction(ctx.message, Lang.CMDSUCCESS)
         else:
             await ctx.send("Timer not started")
@@ -119,8 +119,7 @@ class Plugin(BasePlugin, name="Testing and debug things"):
     async def cmd_mentionuser(self, ctx, user: discord.Member):
         if self.bot.ignoring.check_passive_usage(user, ctx.command.qualified_name):
             raise UserBlockedCommand(user, ctx.command.qualified_name)
-        else:
-            await ctx.send(user.mention)
+        await ctx.send(user.mention)
 
     @commands.command(name="sleep", hidden=True)
     async def cmd_sleep(self, ctx):
@@ -154,7 +153,7 @@ class Plugin(BasePlugin, name="Testing and debug things"):
 
     @commands.command(name="pingme", hidden=True)
     async def cmd_pingme(self, ctx, user: Union[discord.Member, discord.User, str]):
-        if isinstance(user, discord.User) or isinstance(user, discord.Member):
+        if isinstance(user, (discord.User, discord.Member)):
             await ctx.send("{}".format(user.mention))
         else:
             await ctx.send("Sorry, no user found for {}".format(user))

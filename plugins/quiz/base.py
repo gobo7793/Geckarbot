@@ -139,7 +139,7 @@ class Score:
         for el in self.ladder():
             if self._score[el] == 0:
                 break
-            elif lastscore is None:
+            if lastscore is None:
                 r.append(el)
                 lastscore = self._score[el]
             elif lastscore == self._score[el]:
@@ -224,7 +224,7 @@ class Question:
         :param index: no idea
         :param info: Not sure, seems to be used as embed fields in the question info cmd
         """
-        logging.debug("Question({}, {}, {})".format(question, correct_answer, incorrect_answers))
+        logging.debug("Question(%s, %s, %s)", question, correct_answer, incorrect_answers)
         self.index = index
         self.source = quizapi
         self.info = info
@@ -274,8 +274,7 @@ class Question:
         if not reverse:
             if emoji:
                 return self.emoji_map[index]
-            else:
-                return string.ascii_uppercase[index]
+            return string.ascii_uppercase[index]
 
         # Reverse
         if emoji:
@@ -290,7 +289,7 @@ class Question:
         return None
 
     async def pose(self, channel, emoji=False):
-        logging.getLogger(__name__).debug("Posing question #{}: {}".format(self.index, self.question))
+        logging.getLogger(__name__).debug("Posing question #%s: %s", self.index, self.question)
         msg = await channel.send(embed=self.embed(emoji=emoji))
         if emoji:
             for i in range(len(self.all_answers)):
@@ -343,10 +342,9 @@ class Question:
 
         if i is None:
             raise InvalidAnswer()
-        elif self.all_answers[i] == self.correct_answer:
+        if self.all_answers[i] == self.correct_answer:
             return True
-        else:
-            return False
+        return False
 
     @property
     def emoji_map(self):
@@ -380,8 +378,7 @@ class CategoryKey:
             entry = self._entries[quizapi]
             if key != entry["key"] or name != entry["name"]:
                 raise KeyError("{} already exists and is different".format(quizapi))
-            else:
-                return
+            return
         self._entries[quizapi] = {"key": key, "name": name}
 
     def name(self):
@@ -426,7 +423,4 @@ class CategoryKey:
             self.add_key(quizapi, *self.get(quizapi))
 
     def is_empty(self):
-        if not self._entries:
-            return True
-        else:
-            return False
+        return not self._entries

@@ -85,13 +85,12 @@ def points(score: Tuple[int, int], pred: Tuple[int, int]):
     score, pred = (int(score[0]), int(score[1])), (int(pred[0]), int(pred[1]))
     if score == pred:
         return 4
-    elif (score[0] - score[1]) == (pred[0] - pred[1]):
+    if (score[0] - score[1]) == (pred[0] - pred[1]):
         return 3
-    elif ((score[0] - score[1]) > 0) - ((score[0] - score[1]) < 0) \
+    if ((score[0] - score[1]) > 0) - ((score[0] - score[1]) < 0) \
             == ((pred[0] - pred[1]) > 0) - ((pred[0] - pred[1]) < 0):
         return 2
-    else:
-        return 0
+    return 0
 
 
 def duel_points(pts, opp_pts):
@@ -168,16 +167,15 @@ def determine_winner(points_h: str, points_a: str, diff_h: int, diff_a: int):
 
     if points_h > (points_a + diff_a):
         return MatchResult.HOME
-    elif points_a > (points_h + diff_h):
+    if points_a > (points_h + diff_h):
         return MatchResult.AWAY
-    elif points_h == points_a and diff_h == 0 and diff_a == 0:
+    if points_h == points_a and diff_h == 0 and diff_a == 0:
         return MatchResult.DRAW
-    else:
-        return MatchResult.NONE
+    return MatchResult.NONE
 
 
 def convert_to_datetime(day, time):
-    if type(day) == int:
+    if isinstance(day, int):
         day_ = datetime(1899, 12, 30) + timedelta(days=day)
     else:
         try:
@@ -187,7 +185,7 @@ def convert_to_datetime(day, time):
             day_ = datetime(*date[::-1])
         except (TypeError, ValueError):
             day_ = datetime.today()
-    if type(time) == float:
+    if isinstance(time, float):
         time_ = datetime(1, 1, 1) + timedelta(days=time)
     else:
         try:
@@ -206,7 +204,7 @@ def match_status(day, time=None):
     :return: CLOSED for finished matches, RUNNING for currently active matches (2 hours after kickoff) and UPCOMING
         for matches not started. UNKNOWN if unable to read the date or time
     """
-    if type(day) == datetime:
+    if isinstance(day, datetime):
         match_datetime = day
     else:
         match_datetime = convert_to_datetime(day, time)
@@ -216,10 +214,9 @@ def match_status(day, time=None):
         timediff = (now - match_datetime).total_seconds()
         if timediff < 0:
             return MatchStatus.UPCOMING
-        elif timediff < 7200:
+        if timediff < 7200:
             return MatchStatus.RUNNING
-        else:
-            return MatchStatus.COMPLETED
+        return MatchStatus.COMPLETED
     except ValueError:
         return MatchStatus.UNKNOWN
 
@@ -281,8 +278,7 @@ def get_schedule_opponent(plugin, participant, matchday: int):
             return away
         if away == participant:
             return home
-    else:
-        return None
+    return None
 
 
 def get_participant_history(plugin, participant):
