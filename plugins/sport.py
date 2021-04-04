@@ -227,6 +227,9 @@ class Plugin(BasePlugin, name="Sport"):
 
     @cmd_liveticker.command(name="toggle")
     async def cmd_liveticker_toggle(self, ctx, event: str):
+        if event == "list":
+            await self.cmd_liveticker_toggle_list(ctx)
+            return
         event = event.upper()
         if event in Config().get(self)['liveticker']['tracked_events']:
             Config().get(self)['liveticker']['tracked_events'].remove(event)
@@ -240,6 +243,15 @@ class Plugin(BasePlugin, name="Sport"):
             await add_reaction(ctx.message, Lang.CMDSUCCESS)
         else:
             await add_reaction(ctx.message, Lang.CMDERROR)
+
+    async def cmd_liveticker_toggle_list(self, ctx):
+        events = []
+        for event in PlayerEventEnum.__members__.keys():
+            if event in Config().get(self)['liveticker']['tracked_events']:
+                events.append(f"{Lang.EMOJI['unmute']} {event}")
+            else:
+                events.append(f"{Lang.EMOJI['mute']} {event}")
+        await ctx.send("\n".join(events))
 
     async def _live_coro(self, event):
         sport = Config().bot.get_channel(Config().get(self)['sport_chan'])

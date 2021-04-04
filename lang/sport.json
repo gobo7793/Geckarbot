@@ -63,6 +63,8 @@
         "help_liveticker_add": "Fügt eine Liga zum Liveticker hinzu",
         "help_liveticker_del": "Entfernt eine Liga aus dem Liveticker",
         "help_liveticker_list": "Listet alle Ligen auf, die über !liveticker gestartet werden.",
+        "help_liveticker_toggle": "Kontrolliert die Ereignistypen, die im Liveticker angezeigt werden.",
+        "description_liveticker_toggle": "Kontrolliert die Ereignistypen, die im Liveticker angezeigt werden. `!liveticker toggle list` für Übersicht.",
         "help_livegoals": "Updatet den Liveticker manuell.",
 
         "soccer_title": "Fußball - {} - Live",
