@@ -23,34 +23,6 @@ def _set_flex_pos_name(slot_position_old):
     return slot_position_old
 
 
-async def create_league(plugin, platform: Platform, league_id: int, commish: discord.User = None, init=False):
-    """
-    Creates a FantasyLeague object based on the given platform
-
-    :param plugin: The fantasy plugin instance
-    :param platform: The Platform on which the league is hosted
-    :param league_id: The league ID on the platform
-    :param commish: The commissioner
-    :param init: True if league is loading from Storage
-    :return: The created FantasyLeague object for the given platform
-    """
-    if platform == Platform.ESPN:
-        return await EspnLeague.create(plugin, league_id, commish, init)
-    if platform == Platform.SLEEPER:
-        return await SleeperLeague.create(plugin, league_id, commish, init)
-
-
-async def deserialize_league(plugin, d: dict):
-    """
-    Constructs a FantasyLeague object based on the platform saved in the dict.
-
-    :param plugin: The plugin instance
-    :param d: dict made by FantasyLeague.serialize()
-    :return: FantasyLeague object
-    """
-    return await create_league(plugin, d["platform"], d['league_id'], get_best_user(d['commish']), init=True)
-
-
 class FantasyLeague(ABC):
     """Fatasy Football League dataset"""
 
@@ -69,6 +41,7 @@ class FantasyLeague(ABC):
         :param commish: The commissioner
         :param init: True if league is loading from Storage
         :returns: The created league object
+        :rtype: class:`FantasyLeague`
         """
         league = cls()
 
@@ -84,12 +57,12 @@ class FantasyLeague(ABC):
         #     # connect_thread.start()
         #     asyncio.create_task(league._load_league_data())
         # else:
-        await league._load_league_data()
+        await league.load_league_data()
 
         return league
 
     @abstractmethod
-    async def _load_league_data(self):
+    async def load_league_data(self):
         """Login and load league data from hosting platform"""
 
     def __str__(self):
@@ -192,7 +165,7 @@ class FantasyLeague(ABC):
         :return: An Activity tuple or None if platform doesn't support recent activities
         """
 
-    def serialize(self):
+    def serialize(self) -> dict:
         """
         Serializes the league dataset to a dict
 
@@ -205,6 +178,36 @@ class FantasyLeague(ABC):
         }
 
 
+async def create_league(plugin, platform: Platform, league_id: int, commish: discord.User = None, init=False)\
+        -> FantasyLeague:
+    """
+    Creates a FantasyLeague object based on the given platform
+
+    :param plugin: The fantasy plugin instance
+    :param platform: The Platform on which the league is hosted
+    :param league_id: The league ID on the platform
+    :param commish: The commissioner
+    :param init: True if league is loading from Storage
+    :return: The created FantasyLeague object for the given platform
+    """
+    if platform == Platform.ESPN:
+        return await EspnLeague.create(plugin, league_id, commish, init)
+    if platform == Platform.SLEEPER:
+        return await SleeperLeague.create(plugin, league_id, commish, init)
+
+
+async def deserialize_league(plugin, d: dict) -> FantasyLeague:
+    """
+    Constructs a FantasyLeague object based on the platform saved in the dict.
+
+    :param plugin: The plugin instance
+    :type plugin: class:`plugins.fantasy.fantasy.Plugin`
+    :param d: dict made by FantasyLeague.serialize()
+    :return: FantasyLeague object
+    """
+    return await create_league(plugin, d["platform"], d['league_id'], get_best_user(d['commish']), init=True)
+
+
 class EspnLeague(FantasyLeague):
     """Fantasy League on the ESPN Platform"""
 
@@ -212,7 +215,7 @@ class EspnLeague(FantasyLeague):
         super().__init__()
         self._espn = None  # type: Optional[League]
 
-    async def _load_league_data(self):
+    async def load_league_data(self):
         self._espn = League(year=self.plugin.year, league_id=self.league_id,
                             espn_s2=Config.get(self.plugin)["espn_credentials"]["espn_s2"],
                             swid=Config.get(self.plugin)["espn_credentials"]["swid"])
@@ -340,7 +343,7 @@ class SleeperLeague(FantasyLeague):
         self._league_data = {}
         self._teams = []
 
-    async def _load_league_data(self):
+    async def load_league_data(self):
         await self.reload()
         log.info("League %s, ID %d on platform Sleeper connected", self.name, self.league_id)
 

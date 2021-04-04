@@ -1,11 +1,11 @@
 import logging
 from asyncio import create_task
 from datetime import datetime, timedelta
-from typing import Union, List, Dict
+from typing import Union, List, Dict, Optional
 
 import discord
 from discord.ext import commands
-from discord.ext.commands import TextChannelConverter, ChannelNotFound, RoleConverter, RoleNotFound
+from discord.ext.commands import TextChannelConverter, ChannelNotFound, RoleConverter, RoleNotFound, Context
 
 import botutils.timeutils
 from base import BasePlugin
@@ -16,7 +16,8 @@ from botutils.stringutils import paginate
 from botutils.utils import add_reaction
 from data import Config, Storage, Lang
 from plugins.fantasy.league import FantasyLeague, deserialize_league, create_league
-from plugins.fantasy.utils import pos_alphabet, FantasyState, Platform, Match
+from plugins.fantasy.migrations import _2_to_3, _3_to_4, _4_to_5, _5_to_6, _6_to_7
+from plugins.fantasy.utils import pos_alphabet, FantasyState, Platform, Match, parse_platform
 from subsystems import timers
 from subsystems.helpsys import DefaultCategories
 
@@ -76,6 +77,7 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
         }
 
     def default_storage(self, container=None):
+        # pylint: disable=arguments-differ
         if container is None:
             return {
                 "supercommish": 0,
@@ -102,15 +104,15 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
     async def _load(self):
         """Loads the league settings from Storage"""
         if Config.get(self)["version"] == 2:
-            self._update_config_from_2_to_3()
+            _2_to_3(self)
         if Config.get(self)["version"] == 3:
-            self._update_config_from_3_to_4()
+            _3_to_4(self)
         if Config.get(self)["version"] == 4:
-            self._update_config_from_4_to_5()
+            _4_to_5(self)
         if Config.get(self)["version"] == 5:
-            self._update_config_from_5_to_6()
+            _5_to_6(self)
         if Config.get(self)["version"] == 6:
-            self._update_config_from_6_to_7()
+            _6_to_7(self)
 
         self.supercommish = get_best_user(Storage.get(self)["supercommish"])
         self.state = Storage.get(self)["state"]
@@ -141,85 +143,6 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
         Storage.set(self, storage_d)
         Storage.save(self)
         Config.save(self)
-
-    def _update_config_from_6_to_7(self):
-        log.info("Migrating config from version 6 to version 7")
-
-        Config.get(self)["espn_credentials"] = {
-            "swid": Storage.get(self)["espn_credentials"]["swid"],
-            "espn_s2": Storage.get(self)["espn_credentials"]["espn_s2"]
-        }
-        del (Storage.get(self)["espn_credentials"])
-
-        Config.get(self)["version"] = 7
-        Storage.save(self)
-        Config.save(self)
-
-        log.info("Update finished")
-
-    def _update_config_from_5_to_6(self):
-        log.info("Migrating config from version 5 to version 6")
-
-        leagues_data = Storage.get(self)["leagues"]
-        Storage.get(self)["leagues"] = {k: v for k, v in enumerate(leagues_data)}
-        def_data = Storage.get(self)["def_league"]
-        for k in Storage.get(self)["leagues"]:
-            league = Storage.get(self)["leagues"][k]
-            if def_data and league["league_id"] == def_data[0] and league["platform"] == def_data[1]:
-                Storage.get(self)["def_league"] = k
-                break
-        else:
-            Storage.get(self)["def_league"] = -1
-
-        Config.get(self)["version"] = 6
-        Storage.save(self)
-        Config.save(self)
-
-        log.info("Update finished")
-
-    def _update_config_from_4_to_5(self):
-        log.info("Migrating config from version 4 to version 5")
-
-        Storage.get(self)["def_league"] = []
-
-        Config.get(self)["version"] = 5
-        Storage.save(self)
-        Config.save(self)
-
-        log.info("Update finished")
-
-    def _update_config_from_3_to_4(self):
-        log.info("Migrating config from version 3 to version 4")
-
-        for league in Storage.get(self)["leagues"]:
-            league['platform'] = Platform.ESPN
-            league['league_id'] = league['espn_id']
-            del (league['espn_id'])
-        Storage.get(self)["espn_credentials"] = Storage.get(self)["api"]
-
-        new_cfg = self.default_config()
-        new_cfg["channel_id"] = Config.get(self)["channel_id"]
-        new_cfg["mod_role_id"] = Config.get(self)["mod_role_id"]
-        new_cfg["espn"]["url_base_league"] = Config.get(self)["url_base_league"] + "{}"
-        new_cfg["espn"]["url_base_scoreboard"] = Config.get(self)["url_base_scoreboard"] + "{}"
-        new_cfg["espn"]["url_base_standings"] = Config.get(self)["url_base_standings"] + "{}"
-        new_cfg["espn"]["url_base_boxscore"] = Config.get(self)["url_base_boxscore"]
-        new_cfg["version"] = 4
-
-        Config.set(self, new_cfg)
-        Storage.save(self)
-        Config.save(self)
-
-        log.info("Update finished")
-
-    def _update_config_from_2_to_3(self):
-        log.info("Migrating config from version 2 to version 3")
-
-        Config.get(self)["url_base_boxscore"] = self.default_config()["espn"]["url_base_boxscore"]
-        Config.get(self)["version"] = 3
-        Config.save(self)
-
-        log.info("Update finished")
 
     def _start_score_timer(self):
         """
@@ -257,20 +180,18 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
         for job in self._score_timer_jobs:
             job.cancel()
 
-    async def parse_platform(self, platform_name: str = None, ctx=None):
+    async def parse_platform(self, platform_name: str = None, ctx: Context = None) -> Optional[Platform]:
         """
         Parses the given platform string to the Platform enum type
+        and writes a error message if platform is not supported
 
         :param platform_name: The platform name
         :param ctx: returns a message if platform is not supported to the given context
         :return: the Platform enum type or None if not supported
         """
-        if platform_name is None:
-            return None
-        if platform_name.lower() == "espn":
-            return Platform.ESPN
-        if platform_name.lower() == "sleeper":
-            return Platform.SLEEPER
+        platform = parse_platform(platform_name)
+        if platform is not None:
+            return platform
 
         if ctx is not None:
             await add_reaction(ctx.message, Lang.CMDERROR)
@@ -468,7 +389,7 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
                 bye_team = match.away_team.team_name
                 bye_pts = match.away_score
                 continue
-            elif match.away_team is None or match.away_team == 0 or not match.away_team:
+            if match.away_team is None or match.away_team == 0 or not match.away_team:
                 bye_team = match.home_team.team_name
                 bye_pts = match.home_score
                 continue
@@ -790,9 +711,9 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
     async def cmd_set_config(self, ctx, key="", value=""):
         if not key and not value:
             msg = []
-            for key in Config.get(self):
-                if key != "espn_credentials":
-                    msg.append("{}: {}".format(key, Config.get(self)[key]))
+            for k in Config.get(self):
+                if k != "espn_credentials":
+                    msg.append("{}: {}".format(k, Config.get(self)[k]))
             for msg in paginate(msg, msg_prefix="```", msg_suffix="```"):
                 await ctx.send(msg)
             return
@@ -817,8 +738,7 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
                 Lang.lang(self, 'channel_id')
                 await add_reaction(ctx.message, Lang.CMDERROR)
                 return
-            else:
-                Config.get(self)[key] = channel.id
+            Config.get(self)[key] = channel.id
 
         elif key == "mod_role_id":
             try:
@@ -830,8 +750,7 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
                 Lang.lang(self, 'mod_role_id')
                 await add_reaction(ctx.message, Lang.CMDERROR)
                 return
-            else:
-                Config.get(self)[key] = role.id
+            Config.get(self)[key] = role.id
 
         elif key == "version":
             await add_reaction(ctx.message, Lang.CMDERROR)
@@ -867,7 +786,7 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
 
     @cmd_fantasy_set.command(name="add")
     async def cmd_set_add(self, ctx, platform_name, league_id: int,
-                      commish: Union[discord.Member, discord.User, str] = None):
+                          commish: Union[discord.Member, discord.User, str] = None):
         platform = await self.parse_platform(platform_name, ctx)
         if platform is None:
             return
@@ -916,7 +835,7 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
             await add_reaction(ctx.message, Lang.CMDERROR)
             await ctx.send(Lang.lang(self, "league_id_not_found", league_id))
         else:
-            del (self.leagues[to_remove_key])
+            del self.leagues[to_remove_key]
             if self.default_league == to_remove_key:
                 self.default_league = -1
             self.save()
