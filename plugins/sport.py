@@ -11,7 +11,7 @@ from botutils import restclient
 from botutils.stringutils import paginate
 from botutils.utils import add_reaction
 from subsystems.helpsys import DefaultCategories
-from subsystems.liveticker import LivetickerKickoff, LivetickerUpdate, LivetickerFinish, LTSource
+from subsystems.liveticker import LivetickerKickoff, LivetickerUpdate, LivetickerFinish, LTSource, PlayerEventEnum
 
 
 class Plugin(BasePlugin, name="Sport"):
@@ -22,13 +22,17 @@ class Plugin(BasePlugin, name="Sport"):
         bot.register(self, category=DefaultCategories.SPORT)
         self.logger = logging.getLogger(__name__)
         self.can_reload = True
-        Config().save(self)
+        self._update_config()
 
     def default_config(self):
         return {
+            'cfg_version': 1,
             'sport_chan': 0,
             'leagues': {"bl1": ["bl", "1bl", "buli"], "bl2": ["2bl"], "bl3": ["3fl"], "uefanl": []},
-            'liveticker_leagues': {"oldb": [], "espn": []}
+            'liveticker': {
+                'leagues': {"oldb": [], "espn": []},
+                'tracked_events': ['GOAL', 'YELLOWCARD', 'REDCARD']
+            }
         }
 
     def default_storage(self):
@@ -162,17 +166,17 @@ class Plugin(BasePlugin, name="Sport"):
         await ctx.send(msg)
 
     @commands.group(name="liveticker")
-    async def liveticker(self, ctx):
+    async def cmd_liveticker(self, ctx):
         if ctx.invoked_subcommand is None:
             msg = []
             liveticker_regs = self.bot.liveticker.search(plugin=self)
-            for source, leagues in Config().get(self)['liveticker_leagues'].items():
+            for source, leagues in Config().get(self)['liveticker']['leagues'].items():
                 for league in leagues:
                     for src in liveticker_regs.values():
                         for reg in src.get(league, []):
                             reg.deregister()
                     reg_ = self.bot.liveticker.register(league=league, raw_source=source, plugin=self,
-                                                        coro=self.live_coro, periodic=True)
+                                                        coro=self._live_coro, periodic=True)
                     next_exec = reg_.next_execution()
                     if next_exec:
                         next_exec = next_exec[0].strftime('%d.%m.%Y - %H:%M')
@@ -182,8 +186,8 @@ class Plugin(BasePlugin, name="Sport"):
             await add_reaction(ctx.message, Lang.CMDSUCCESS)
             await ctx.send("\n".join(msg))
 
-    @liveticker.command(name="add")
-    async def liveticker_add(self, ctx, source, league):
+    @cmd_liveticker.command(name="add")
+    async def cmd_liveticker_add(self, ctx, source, league):
         try:
             LTSource(source)
         except ValueError:
@@ -197,8 +201,8 @@ class Plugin(BasePlugin, name="Sport"):
                 Config().save(self)
             await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
-    @liveticker.command(name="del")
-    async def liveticker_del(self, ctx, source, league):
+    @cmd_liveticker.command(name="del")
+    async def cmd_liveticker_del(self, ctx, source, league):
         if source in Config().get(self)['liveticker_leagues'] and \
                 league in Config().get(self)['liveticker_leagues'][source]:
             Config().get(self)['liveticker_leagues'][source].remove(league)
@@ -212,14 +216,30 @@ class Plugin(BasePlugin, name="Sport"):
         else:
             await add_reaction(ctx.message, Lang.CMDNOCHANGE)
 
-    @liveticker.command(name="list")
-    async def liveticker_list(self, ctx):
+    @cmd_liveticker.command(name="list")
+    async def cmd_liveticker_list(self, ctx):
         msgs = []
         for source, leagues in Config().get(self)['liveticker_leagues'].items():
             leagues_str = " / ".join(leagues)
             msgs.append(f"{source} ({len(leagues)}) | {leagues_str}")
         for msg in paginate(msgs, prefix="**Liveticker**\n", if_empty="-"):
             await ctx.send(msg)
+
+    @cmd_liveticker.command(name="toggle")
+    async def cmd_liveticker_toggle(self, ctx, event: str):
+        event = event.upper()
+        if event in Config().get(self)['liveticker']['tracked_events']:
+            Config().get(self)['liveticker']['tracked_events'].remove(event)
+            Config().save(self)
+            await add_reaction(ctx.message, Lang.EMOJI['mute'])
+            await add_reaction(ctx.message, Lang.CMDSUCCESS)
+        elif event in PlayerEventEnum.__members__:
+            Config().get(self)['liveticker']['tracked_events'].append(event)
+            Config().save(self)
+            await add_reaction(ctx.message, Lang.EMOJI['unmute'])
+            await add_reaction(ctx.message, Lang.CMDSUCCESS)
+        else:
+            await add_reaction(ctx.message, Lang.CMDERROR)
 
     async def _live_coro(self, event):
         sport = Config().bot.get_channel(Config().get(self)['sport_chan'])
@@ -245,7 +265,8 @@ class Plugin(BasePlugin, name="Sport"):
                         "**{} - {} | {}:{}**".format(match.home_team, match.away_team, *match.score.values()))
                     match_events = []
                     for e in match.new_events:
-                        match_events.append(e.display())
+                        if PlayerEventEnum(type(e)).name in Config().get(self)['liveticker']['tracked_events']:
+                            match_events.append(e.display())
                     match_msgs.append(" / ".join(match_events))
                 msgs = paginate(match_msgs, prefix=Lang.lang(self, 'liveticker_prefix', event.league,
                                                              event.matches[0].minute))
@@ -262,3 +283,11 @@ class Plugin(BasePlugin, name="Sport"):
                             prefix=Lang.lang(self, 'liveticker_prefix_finished', event.league))
             for msg in msgs:
                 await sport.send(msg)
+
+    def _update_config(self):
+        if Config().get(self).get('cfg_version', 0) < 1:
+            Config().get(self)['liveticker'] = {'leagues': Config().get(self)['liveticker_leagues'],
+                                                'tracked_events': ['GOAL', 'YELLOWCARD', 'REDCARD']}
+            del Config().get(self)['liveticker_leagues']
+            Config().get(self)['cfg_version'] = 1
+        Config().save(self)

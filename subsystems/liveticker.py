@@ -81,7 +81,7 @@ class Match:
         if new_events is None:
             new_events = []
         try:
-            kickoff = datetime.datetime.strptime(m.get('MatchDateTimeUTC'), "%Y-%m-%dT%H:%M:%SZ")\
+            kickoff = datetime.datetime.strptime(m.get('MatchDateTimeUTC'), "%Y-%m-%dT%H:%M:%SZ") \
                 .replace(tzinfo=datetime.timezone.utc).astimezone().replace(tzinfo=None)
         except (ValueError, TypeError):
             kickoff = None
@@ -116,7 +116,7 @@ class Match:
     def from_espn(cls, m, new_events=None):
         # Extract kickoff into datetime object
         try:
-            kickoff = datetime.datetime.strptime(m.get('date'), "%Y-%m-%dT%H:%MZ")\
+            kickoff = datetime.datetime.strptime(m.get('date'), "%Y-%m-%dT%H:%MZ") \
                 .replace(tzinfo=datetime.timezone.utc).astimezone().replace(tzinfo=None)
         except (ValueError, TypeError):
             kickoff = None
@@ -146,6 +146,7 @@ class Match:
                     raw_events=m.get('competitions', [{}])[0].get('details'),
                     status=MatchStatus.match_status_espn(m))
         return match
+
 
 class PlayerEvent:
     def __init__(self, event_id, player, minute):
@@ -194,8 +195,7 @@ class Goal(PlayerEvent):
             return ":soccer: {}:{} {} ({}, {})".format(*list(self.score.values())[0:2], self.player, self.minute,
                                                        Lang.lang(self, 'owngoal'))
         elif self.is_penalty:
-            return ":soccer: {}:{} {} ({}, {})".format(*list(self.score.values())[0:2], self.player, self.minute,
-                                                       Lang.lang(self, 'penalty'))
+            return ":soccer::goal: {}:{} {} ({})".format(*list(self.score.values())[0:2], self.player, self.minute)
         else:
             return ":soccer: {}:{} {} ({})".format(*list(self.score.values())[0:2], self.player, self.minute)
 
@@ -228,13 +228,20 @@ class RedCard(PlayerEvent):
     def display(self):
         return ":red_square: {} ({})".format(self.player, self.minute)
 
-def build_player_event(event, score):
-    if event.get('scoringPlay'):
-        return Goal.from_espn(event, score)
-    elif event.get('type', {}).get('id') == "93":
-        return RedCard.from_espn(event)
-    elif event.get('type', {}).get('id') == "94":
-        return YellowCard.from_espn(event)
+
+class PlayerEventEnum(Enum):
+    GOAL = Goal
+    YELLOWCARD = YellowCard
+    REDCARD = RedCard
+
+    @staticmethod
+    def build_player_event(event, score):
+        if event.get('scoringPlay'):
+            return Goal.from_espn(event, score)
+        elif event.get('type', {}).get('id') == "93":
+            return RedCard.from_espn(event)
+        elif event.get('type', {}).get('id') == "94":
+            return YellowCard.from_espn(event)
 
 
 class LivetickerEvent:
@@ -310,7 +317,7 @@ class CoroRegistration:
             elif self.league_reg.source == LTSource.ESPN:
                 tmp_score = {m.home_team_id: 0, m.away_team_id: 0}
                 for e in m.raw_events:
-                    event = build_player_event(e, tmp_score.copy())
+                    event = PlayerEventEnum.build_player_event(e, tmp_score.copy())
                     if type(event) == Goal:
                         tmp_score = event.score
                     if event.event_id not in self.last_events[m.match_id]:
@@ -661,20 +668,23 @@ class Liveticker(BaseSubsystem):
         return coro_dict
 
     def restore(self, plugins: list):
-        i = 0
+        i, j = 0, 0
         for src, registrations in Storage().get(self).items():
             for league in registrations:
                 for reg in registrations[league]:
                     if reg['plugin'] in plugins:
-                        i += 1
-                        coro = getattr(get_plugin_by_name(reg['plugin']),
-                                       reg['coro']) if reg['coro'] else None
-                        self.register(plugin=get_plugin_by_name(reg['plugin']),
-                                      league=league,
-                                      raw_source=src,
-                                      coro=coro,
-                                      periodic=reg['periodic'])
-        self.logger.debug(f'{i} Liveticker registrations restored.')
+                        try:
+                            coro = getattr(get_plugin_by_name(reg['plugin']), reg['coro']) if reg['coro'] else None
+                        except AttributeError:
+                            j += 1
+                        else:
+                            i += 1
+                            self.register(plugin=get_plugin_by_name(reg['plugin']),
+                                          league=league,
+                                          raw_source=src,
+                                          coro=coro,
+                                          periodic=reg['periodic'])
+        self.logger.debug(f'{i} Liveticker registrations restored. {j} failed.')
 
     def unload_plugin(self, plugin_name):
         coro_dict = self.search(plugin=plugin_name)
