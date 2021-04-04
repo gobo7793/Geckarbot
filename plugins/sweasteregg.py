@@ -4,6 +4,7 @@ from typing import List, Optional
 
 from base import BasePlugin
 from data import Config, Storage
+from subsystems import helpsys
 from subsystems.presence import PresenceMessage, PresencePriority
 from subsystems.timers import Job, timedict
 
@@ -11,7 +12,7 @@ from subsystems.timers import Job, timedict
 class Plugin(BasePlugin):
     def __init__(self, bot):
         super().__init__(bot)
-        bot.register(self, help.DefaultCategories.MISC)
+        bot.register(self, helpsys.DefaultCategories.MISC)
 
         self.presences = []  # type: List[PresenceMessage]
         self.orga_timer = None  # type: Optional[Job]
@@ -44,7 +45,8 @@ class Plugin(BasePlugin):
                 2: "https://tenor.com/view/general-kenobi-kenobi-general-hello-there-star-wars-gif-13723705",
                 3: "https://tenor.com/view/your-move-obi-wan-kenobi-star-wars-jedi-master-gif-15824683",
                 4: "https://i.redd.it/aozydy26hki61.jpg",
-                5: "https://cdn.discordapp.com/attachments/706129811382337566/818086156679118858/FB_IMG_1615117281039.jpg",
+                5: "https://cdn.discordapp.com/attachments/706129811382337566/818086156679118858/"
+                   "FB_IMG_1615117281039.jpg",
                 6: "6",
                 7: "https://i.redd.it/84gafcvrjcl61.png",
                 8: "8",
@@ -57,7 +59,8 @@ class Plugin(BasePlugin):
                 15: "15",
                 16: "https://tenor.com/view/impeachment-love-democracy-ilove-democracy-gif-15723806",
                 17: "17",
-                18: "https://cdn.discordapp.com/attachments/337680937770942466/820358789533270076/FB_IMG_1615659157536.jpg",
+                18: "https://cdn.discordapp.com/attachments/337680937770942466/820358789533270076/"
+                    "FB_IMG_1615659157536.jpg",
                 19: "https://i.redd.it/3s41lcn2kso61.jpg",
                 20: "20",
                 21: "https://i.redd.it/a520dfy1bbl61.png",
@@ -68,7 +71,7 @@ class Plugin(BasePlugin):
 
     def get_lang(self):
         return {
-            "en": {
+            "en_US": {
                 "presences": [
                     "with his light saber",
                     "cleaning up the Jedi temple",
@@ -81,7 +84,7 @@ class Plugin(BasePlugin):
                     "Emperor"
                 ]
             },
-            "de": {
+            "de_DE": {
                 "presences": [
                     "mit seinem Lichtschwert",
                     "Jedi-Tempel säubern",
@@ -106,16 +109,16 @@ class Plugin(BasePlugin):
         self.orga_timer = self.bot.timers.schedule(self._stop, otd, repeat=False)
         Config.get(self)["last_meme_index"] = -1
 
-    async def _start(self, job=None):
+    async def _start(self, _job=None):
         """Starts the easteregg"""
         month = Config.get(self)["month"]
         monthday = Config.get(self)["monthday"]
 
-        presence_strings = self.get_lang().get(self.bot.LANGUAGE_CODE, "en")["presences"]
+        presence_strings = self.get_lang().get(self.bot.LANGUAGE_CODE, "en_US")["presences"]
         for presence_str in presence_strings:
             self.presences.append(self.bot.presence.register(presence_str, PresencePriority.HIGH))
         mtd = timedict(year=date.today().year, month=month, monthday=monthday,
-                       minute=[i for i in range(0, 60, Config.get(self)["mtimer_min"])])
+                       minute=(i for i in range(0, 60, Config.get(self)["mtimer_min"])))
         self.meme_timer = self.bot.timers.schedule(self._mtimer_callback, mtd, repeat=True)
 
         finish_date = date(year=date.today().year, month=month, day=monthday) + timedelta(days=1)
@@ -125,7 +128,7 @@ class Plugin(BasePlugin):
         Config.get(self)["is_running"] = True
         Config.save(self)
 
-    async def _stop(self, job):
+    async def _stop(self, _job):
         """Stops the easteregg"""
         for presence in self.presences:
             presence.deregister()
@@ -133,7 +136,7 @@ class Plugin(BasePlugin):
         Config.get(self)["is_running"] = False
         Config.save(self)
 
-    async def _mtimer_callback(self, job):
+    async def _mtimer_callback(self, _job):
         """The callback for the meme_timer"""
         if self.channel is None:
             return
