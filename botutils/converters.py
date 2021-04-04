@@ -62,6 +62,7 @@ def get_username_from_id(uid: int) -> Optional[str]:
 
 
 def convert_member(argument) -> Optional[discord.Member]:
+    # pylint: disable=useless-param-doc
     """
     Tries to convert the given argument to a discord Member object like the Member converter, but w/o context.
 

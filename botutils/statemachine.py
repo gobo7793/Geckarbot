@@ -51,8 +51,8 @@ class StateMachine:
             except Exception as e:
                 if self.cleanup:
                     await execute_anything(self.cleanup, e)
-            self.logger.debug("Old state: {}".format(source))
-            self.logger.debug("New state: {}".format(self._state))
+            self.logger.debug("Old state: %s", source)
+            self.logger.debug("New state: %s", self._state)
 
             # Cancel
             if self._cancelled:
@@ -66,8 +66,7 @@ class StateMachine:
                     if source in self.ends:
                         self.end()
                         break
-                    else:
-                        raise IllegalTransition("{} is not registered as an end state but did not return a new state"
+                    raise IllegalTransition("{} is not registered as an end state but did not return a new state"
                                                 .format(source))
                 # No end state registered
                 else:
@@ -125,9 +124,9 @@ class StateMachine:
             if coro is None:
                 self.logger.warning("Start state defined without a callback")
         if state in self.states:
-            self.logger.warning("Statemachine: State added more than once: {}".format(state))
+            self.logger.warning("Statemachine: State added more than once: %s", state)
         if self.verbose:
-            self.logger.debug("{} state added: {}; handler: {}".format(self.msg, state, coro))
+            self.logger.debug("%s state added: %s; handler: %s", self.msg, state, coro)
         if end:
             self.ends.append(state)
 

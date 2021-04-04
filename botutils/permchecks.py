@@ -74,7 +74,7 @@ def is_botadmin(user: discord.User):
     return _check_access(user, [Config().BOT_ADMIN_ROLE_ID])
 
 
-def debug_user_check_id(user_id: int):
+def debug_user_check_id(user_id: int) -> bool:
     """
     Checks if the given user can use the bot based on the debug users list.
     Note: The debug users list is active only if the list is not empty and debug mode is enabled.
@@ -89,7 +89,7 @@ def debug_user_check_id(user_id: int):
     return True
 
 
-def debug_user_check(user: discord.User):
+def debug_user_check(user: discord.User) -> bool:
     """
     Checks if the given user can use the bot based on the debug users list.
     Note: The debug users list is active only if debug mode is enabled.
