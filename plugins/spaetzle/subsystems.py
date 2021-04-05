@@ -15,8 +15,7 @@ class UserBridge:
     def get_user(self, ctx):
         if ctx.author.id in Storage().get(self.plugin)['discord_user_bridge']:
             return Storage().get(self.plugin)['discord_user_bridge'][ctx.author.id]
-        else:
-            return None
+        return None
 
     def cut_bridge(self, ctx):
         user = ctx.author.id
@@ -24,8 +23,7 @@ class UserBridge:
             del Storage().get(self.plugin)["discord_user_bridge"][user]
             Storage().save(self.plugin)
             return True
-        else:
-            return False
+        return False
 
     def add_bridge(self, ctx, user):
         try:
@@ -60,8 +58,7 @@ class Observed:
             self.users.remove(user)
             Storage().save(self.plugin)
             return True
-        else:
-            return False
+        return False
 
     def get_all(self):
         return Storage().get(self.plugin)['observed_users']
@@ -89,20 +86,18 @@ class Trusted:
     async def is_manager(self, ctx, show_error=True):
         if ctx.author.id in self.manager:
             return True
-        else:
-            if show_error:
-                await add_reaction(ctx.message, Lang.CMDNOPERMISSIONS)
-                await ctx.send(Lang.lang(self.plugin, 'not_trusted'))
-            return False
+        if show_error:
+            await add_reaction(ctx.message, Lang.CMDNOPERMISSIONS)
+            await ctx.send(Lang.lang(self.plugin, 'not_trusted'))
+        return False
 
     async def is_trusted(self, ctx, show_error=True):
         if ctx.author.id in self.trusted + self.manager:
             return True
-        else:
-            if show_error:
-                await add_reaction(ctx.message, Lang.CMDNOPERMISSIONS)
-                await ctx.send(Lang.lang(self.plugin, 'not_trusted'))
-            return False
+        if show_error:
+            await add_reaction(ctx.message, Lang.CMDNOPERMISSIONS)
+            await ctx.send(Lang.lang(self.plugin, 'not_trusted'))
+        return False
 
     async def add(self, role: list, ctx, user: discord.User):
         if await self.is_manager(ctx, show_error=False) or check_mod_access(ctx.author):

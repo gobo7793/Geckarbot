@@ -5,7 +5,7 @@ from enum import Enum
 import discord
 from discord.ext import commands
 
-from base import BasePlugin, NotFound
+from base import BasePlugin
 from data import Lang
 from subsystems.helpsys import DefaultCategories
 
@@ -26,7 +26,7 @@ class Plugin(BasePlugin, name="A simple number guessing game"):
     def __init__(self, bot):
         self.bot = bot
         self.player = None
-        self.isPlaying = False
+        self.is_playing = False
         self.number: int = 0
         self.guess_count: int = 0
         self.games_user = {}
@@ -156,7 +156,7 @@ class Plugin(BasePlugin, name="A simple number guessing game"):
         text = ["**Channel games**"]
 
         if channel_id is None:
-            for channel_id in self.games_channel.keys():
+            for channel_id in self.games_channel:
                 name = str(self.bot.get_channel(channel_id))
                 game = self.games_channel[channel_id]
                 text.append(self.format_line(name, game, ind))
@@ -210,7 +210,7 @@ class NumberGuessing:
     def __init__(self, plugin, gamemode):
         self.plugin = plugin
         self.player = None
-        self.isPlaying = False
+        self.is_playing = False
         self.number: int = 0
         self.guess_count: int = 0
         self.gamemode = gamemode
@@ -225,7 +225,7 @@ class NumberGuessing:
         if guess is None:
             await self.start()
             return ReturnCode.CONTINUING
-        elif guess == "start":
+        if guess == "start":
             try:
                 if arg1 and arg2:
                     await self.start(int(arg1), int(arg2))
@@ -244,7 +244,7 @@ class NumberGuessing:
                 await self.send_message(Lang.lang(self.plugin, 'invalid_number'))
                 return
 
-            if self.isPlaying is False:
+            if self.is_playing is False:
                 await self.start()
 
             if guess < 1:
@@ -256,33 +256,32 @@ class NumberGuessing:
                         Lang.lang(self.plugin, 'guess_won', self.number, self.guess_count))
                     self.reset()  # sets the variables back to start a new game
                     return ReturnCode.STOPPED
+                if guess < self.number:
+                    await self.send_message(Lang.lang(self.plugin, 'guess_too_low', guess))
                 else:
-                    if guess < self.number:
-                        await self.send_message(Lang.lang(self.plugin, 'guess_too_low', guess))
-                    else:
-                        await self.send_message(Lang.lang(self.plugin, 'guess_too_big', guess))
+                    await self.send_message(Lang.lang(self.plugin, 'guess_too_big', guess))
                 return ReturnCode.CONTINUING
             return ReturnCode.ERROR
 
     # @guess.command(name="start", help="Starts a game if not already running")
     async def start(self, range_from: int = 1, range_to: int = 100):
-        if self.isPlaying is False:
+        if self.is_playing is False:
             if range_from <= 1:
                 range_from = 1
             if range_to < range_from:
                 range_to = range_from
             self.number = random.choice(range(range_from, range_to + 1))
-            self.isPlaying = True
+            self.is_playing = True
             self.min = range_from
             self.max = range_to
             await self.send_message(Lang.lang(self.plugin, 'guess_started', range_from, range_to))
-            logging.info("Identifier: {} Number: {}".format(self.msg.author.name, self.number))
+            logging.info("Identifier: %s Number: %d", self.msg.author.name, self.number)
         else:
             await self.send_message(Lang.lang(self.plugin, 'guess_already_started'))
 
     # @guess.command(name="stop", help="Stops a game and shows the number that should have been guessed")
     async def stop(self):
-        if self.isPlaying is True:
+        if self.is_playing is True:
             await self.send_message(
                 Lang.lang(self.plugin, 'guess_stopped', self.number, self.guess_count))
             self.reset()  # sets the variables back to start a new game
@@ -292,7 +291,7 @@ class NumberGuessing:
     def reset(self):
         self.number = 0
         self.guess_count = 0
-        self.isPlaying = False
+        self.is_playing = False
 
     async def send_message(self, content: str):
         if self.gamemode == Gamemode.SINGLE:

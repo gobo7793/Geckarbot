@@ -2,25 +2,27 @@ from datetime import timezone, date, datetime, time, timedelta
 from botutils.stringutils import sg_pl
 
 
-def to_local_time(timestamp):
+def to_local_time(timestamp: datetime) -> datetime:
     """
     Converts the given timestamp from UTC to local time
+
     :param timestamp: The datetime instance of the timestamp
+    :return: The timestamp w/o timezone information for local time
     """
     return timestamp.replace(tzinfo=timezone.utc).astimezone(tz=None)
 
 
-def from_epoch_ms(timestamp):
+def from_epoch_ms(timestamp: int) -> datetime:
     """
     Converts the given timestamp from linux epoch in milliseconds to datetime object
 
     :param timestamp: linux epoch in ms
-    :return: datetime object
+    :return: datetime object from linux epoch time
     """
     return datetime.fromtimestamp(timestamp / 1000)
 
 
-def parse_time_input(*args, end_of_day=False):
+def parse_time_input(*args, end_of_day: bool = False) -> datetime:
     """
     Analyzes the given command args for following syntax and returns a datetime object after duration or on given
     date and/or time. If no duration unit (trailing m, h, d), minutes will be used.
@@ -56,7 +58,7 @@ def parse_time_input(*args, end_of_day=False):
                             parsed.hour if '%H' in dt_format else fill_time.hour,
                             parsed.minute if '%M' in dt_format else fill_time.minute)
         except ValueError:
-            pass
+            return None
 
     today = date.today()
     fill_time = time.max if end_of_day else datetime.now().time()
@@ -79,7 +81,7 @@ def parse_time_input(*args, end_of_day=False):
             # the other possible formats
             darg = unpacked[i]
             if i < (len(unpacked) - 1):
-                darg = " ".join(unpacked[i:i+2])
+                darg = " ".join(unpacked[i:i + 2])
             for dt_format in ["%d.%m.%Y %H:%M", "%d.%m. %H:%M"]:
                 pvalue = parse_time(darg)
                 if pvalue is not None:
@@ -95,11 +97,14 @@ def parse_time_input(*args, end_of_day=False):
 
 
 def hr_roughly(timestamp: datetime, now: datetime = None,
-               fstring="{} {} ago", yesterday="yesterday", seconds="seconds", seconds_sg="second", minutes="minutes",
-               minutes_sg="minute", hours="hours", hours_sg="hour", days="days", days_sg="day", weeks="weeks",
-               weeks_sg="week", months="months", months_sg="month", years="years", years_sg="year"):
+               fstring: str = "{} {} ago", yesterday: str = "yesterday", seconds: str = "seconds",
+               seconds_sg: str = "second", minutes: str = "minutes", minutes_sg: str = "minute", hours: str = "hours",
+               hours_sg: str = "hour", days: str = "days", days_sg: str = "day", weeks: str = "weeks",
+               weeks_sg: str = "week", months: str = "months", months_sg: str = "month", years: str = "years",
+               years_sg: str = "year") -> str:
     """
     Builds a human-readable version of a rough approximation of a timedelta into the past, such as "2 minutes ago".
+
     :param timestamp: end timestamp of the measured distance
     :param now: start timestamp of the measured distance
     :param fstring: format string with two places for amount and time units
@@ -119,6 +124,7 @@ def hr_roughly(timestamp: datetime, now: datetime = None,
     :param years: Localized variant of "years"
     :param years_sg: Localized variant of "year"
     :return: human-readable approximation of the time distance between timestamp and now
+    :raises RuntimeError: If timestamp is not in past
     """
     if now is None:
         now = datetime.now()

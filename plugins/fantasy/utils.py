@@ -1,6 +1,6 @@
 from collections import namedtuple
 from enum import IntEnum
-
+from typing import Optional
 
 pos_alphabet = {"Q": 0, "R": 1, "W": 2, "T": 3, "F": 4, "D": 5, "K": 6, "B": 7}
 Activity = namedtuple("Activity", "date team_name type player_name")
@@ -27,3 +27,17 @@ class Platform(IntEnum):
     SLEEPER = 1
     # If a platform will be added, add it to Plugin.parse_platform and
     # add it in the league submodule functions and add a new FantasyLeague subclass for it!
+
+
+def parse_platform(platform_name: str = None) -> Optional[Platform]:
+    """
+    Parses the given platform string to class:`Platform`
+
+    :param platform_name: The platform name
+    :return: the Platform enum type or None if not supported or found
+    """
+    if platform_name.lower() == "espn":
+        return Platform.ESPN
+    if platform_name.lower() == "sleeper":
+        return Platform.SLEEPER
+    return None

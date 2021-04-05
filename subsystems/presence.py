@@ -224,7 +224,7 @@ class Presence(BaseSubsystem):
         self.log.debug("Message registered, Priority: %s, ID %d: %s", priority, new_id, message)
 
         if priority == PresencePriority.HIGH:
-            self._execute_change()
+            self.execute_change()
 
         return presence
 
@@ -293,9 +293,9 @@ class Presence(BaseSubsystem):
         """Executes _change_callback() w/o awaiting with special handling for removed presence messages"""
         if self.is_timer_up and (self._timer_job.data["last_prio"] == PresencePriority.HIGH
                                  or self._timer_job.data["current_id"] == removed_id):
-            self._execute_change()
+            self.execute_change()
 
-    def _execute_change(self):
+    def execute_change(self):
         """Executes _change_callback() w/o awaiting (every time this method is called)"""
         if self.is_timer_up:
             asyncio.run_coroutine_threadsafe(self._change_callback(self._timer_job), self.bot.loop)

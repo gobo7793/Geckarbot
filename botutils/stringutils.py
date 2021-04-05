@@ -1,12 +1,17 @@
+import typing
+from typing import Optional
+
 import emoji
 from discord.ext import commands
 
 
-def paginate(items, prefix="", suffix="", msg_prefix="", msg_suffix="", delimiter="\n", f=lambda x: x,
-             if_empty=None, prefix_within_msg_prefix=True):
+def paginate(items: list, prefix: str = "", suffix: str = "", msg_prefix: str = "", msg_suffix: str = "",
+             delimiter: str = "\n", f: typing.Callable = lambda x: x,
+             if_empty: typing.Any = None, prefix_within_msg_prefix: bool = True) -> str:
     """
     Generator for pagination. Compiles the entries in `items` into strings that are shorter than 2000 (discord max
     message length). If a single item is longer than 2000, it is put into its own message.
+
     :param items: List of items that are to be put into message strings
     :param prefix: The first message has this prefix.
     :param suffix: The last message has this suffix.
@@ -18,7 +23,8 @@ def paginate(items, prefix="", suffix="", msg_prefix="", msg_suffix="", delimite
     If not, `prefix` comes before `msg_prefix` in the first message.
     :param if_empty: If the list of items is empty, this one is inserted as the only item. Caution: f is executed
     on this.
-    :return:
+    :return: The paginated string to send in discord messages
+    :raises RuntimeError: If `items` is a string
     """
     if isinstance(items, str):
         raise RuntimeError("Pagination does not work on strings")
@@ -82,9 +88,11 @@ def paginate(items, prefix="", suffix="", msg_prefix="", msg_suffix="", delimite
         i += 1
 
 
-def format_andlist(andlist, ands="and", emptylist="nobody", fulllist="everyone", fulllen=None):
+def format_andlist(andlist: list, ands: str = "and", emptylist: str = "nobody", fulllist: str = "everyone",
+                   fulllen: Optional[int] = None) -> str:
     """
     Builds a string such as "a, b, c and d".
+
     :param andlist: List of elements to be formatted in a string.
     :param ands: "and"-string that sits between the last two users.
     :param emptylist: Returned if andlist is empty.
@@ -105,15 +113,24 @@ def format_andlist(andlist, ands="and", emptylist="nobody", fulllist="everyone",
     return "{} {} {}".format(s, ands, andlist[-1])
 
 
-def sg_pl(number, singular, plural):
+def sg_pl(number: int, singular: str, plural: str) -> str:
+    """
+    Returns the singular or plural term based on the number
+
+    :param number: The number to determine
+    :param singular: The singular term
+    :param plural: The plural term
+    :return: The correct term for the given number
+    """
     if number == 1:
         return singular
     return plural
 
 
-async def emojize(demote_str, ctx):
+async def emojize(demote_str: str, ctx: commands.Context) -> str:
     """
     Converts the demojized str represantation of the emoji back to an emoji string
+
     :param demote_str: The string representation of the emoji
     :param ctx: The command context for the discord.py emoji converters
     :return: The emojized string
@@ -125,9 +142,10 @@ async def emojize(demote_str, ctx):
     return str(emote)
 
 
-async def demojize(emote, ctx):
+async def demojize(emote: str, ctx: commands.Context) -> str:
     """
     Converts the emojized str of the emoji to its demojized str representation
+
     :param emote: The msg with the emoji (only the emoji)
     :param ctx: The command context for the discord.py emoji converters
     :return: The demojized string or an empty string if no emoji found
@@ -139,8 +157,13 @@ async def demojize(emote, ctx):
     return str(converted)
 
 
-def clear_link(link):
-    """Removes trailing and leading < and > from links"""
+def clear_link(link: str) -> str:
+    """
+    Removes trailing and leading < and > from links
+
+    :param link: The link
+    :return: The cleared link
+    """
     if link.startswith('<'):
         link = link[1:]
     if link.endswith('>'):

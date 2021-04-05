@@ -182,7 +182,7 @@ class Plugin(BasePlugin, name="Sport"):
 
     async def _live_coro(self, event):
         sport = Config().bot.get_channel(Config().get(self)['sport_chan'])
-        if type(event) == LivetickerKickoff:
+        if isinstance(event, LivetickerKickoff):
             # Kickoff-Event
             match_msgs = []
             for match in event.matches:
@@ -192,7 +192,7 @@ class Plugin(BasePlugin, name="Sport"):
                                              event.kickoff.strftime('%H:%M')))
             for msg in msgs:
                 await sport.send(msg)
-        elif type(event) == LivetickerUpdate:
+        elif isinstance(event, LivetickerUpdate):
             # Intermediate-Event
             if not event.matches:
                 return
@@ -212,7 +212,7 @@ class Plugin(BasePlugin, name="Sport"):
                     await sport.send(msg)
             else:
                 await sport.send(Lang.lang(self, 'no_new_goals', event.league, event.matches[0].minute))
-        elif type(event) == LivetickerFinish:
+        elif isinstance(event, LivetickerFinish):
             # Finished-Event
             match_msgs = []
             for match in event.matches:
