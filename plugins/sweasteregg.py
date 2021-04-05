@@ -5,7 +5,8 @@ from discord import TextChannel
 from discord.ext import commands
 
 from base import BasePlugin
-from data import Config, Storage
+from botutils.utils import add_reaction
+from data import Config, Storage, Lang
 from subsystems import helpsys
 from subsystems.presence import PresenceMessage, PresencePriority
 from subsystems.timers import Job, timedict
@@ -100,13 +101,15 @@ class Plugin(BasePlugin):
         }
 
     @commands.command(name="swe_channel", hidden=True, help="Sets the channel for the SW Easteregg")
-    def cmd_set_channel(self, ctx, channel: TextChannel):
+    @commands.has_any_role(Config().MOD_ROLES)
+    async def cmd_set_channel(self, ctx, channel: TextChannel):
         Config.get(self)["channel_id"] = channel.id
         Config.save(self)
+        await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
     def _prepare(self):
         """Prepares the easteregg"""
-        start_date = date(year=date.today().year, month=5, day=3)
+        start_date = date(year=date.today().year, month=5, day=4)
         otd = timedict(year=start_date.year, month=start_date.month, monthday=start_date.day,
                        hour=23, minute=0)
         self.orga_timer = self.bot.timers.schedule(self._start, otd, repeat=False)
@@ -124,8 +127,7 @@ class Plugin(BasePlugin):
                        minute=[i for i in range(0, 60, Config.get(self)["mtimer_min"])])
         self.meme_timer = self.bot.timers.schedule(self._mtimer_callback, mtd, repeat=True)
 
-        finish_date = date(year=date.today().year, month=month, day=monthday + 1)
-        otd = timedict(year=finish_date.year, month=finish_date.month, monthday=finish_date.day)
+        otd = timedict(year=date.today().year, month=month, monthday=monthday, hour=13, minute=30)
         self.orga_timer = self.bot.timers.schedule(self._stop, otd, repeat=False)
 
         self.channel = self.bot.guild.get_channel(Config.get(self)["channel_id"])
@@ -146,4 +148,8 @@ class Plugin(BasePlugin):
         if self.channel is None:
             return
         Config.get(self)["last_meme_index"] += 1
-        await self.channel.send(Storage.get(self)["memes"][Config.get(self)["last_meme_index"]])
+        if Config.get(self)["last_meme_index"] > len(Storage.get(self)["memes"]):
+            Config.get(self)["last_meme_index"] = 0
+        # await self.channel.send(Storage.get(self)["memes"][Config.get(self)["last_meme_index"]])
+        await self.channel.send(Config.get(self)["last_meme_index"])
+        Config.save(self)
