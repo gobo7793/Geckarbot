@@ -54,7 +54,7 @@ class Plugin(BasePlugin):
                 9: "https://i.redd.it/zf3b2i3y4hi61.jpg",
                 10: "10",
                 11: "https://i.imgur.com/P7q17T5.jpg",
-                12: "12",
+                12: "https://cdn.shopify.com/s/files/1/1140/8354/files/star-wars-meme-15_480x480.jpg?v=1613780820",
                 13: "https://i.redd.it/003i3tinfel61.jpg",
                 14: "14",
                 15: "15",
