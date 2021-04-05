@@ -5,6 +5,7 @@ import random
 import inspect
 import logging
 import discord
+from discord.ext.commands import Command
 
 from base import NotFound
 from data import Config
@@ -200,7 +201,7 @@ async def log_to_mod_channel(context):
     await _log_to_channel(context, write_mod_channel)
 
 
-def sort_commands_helper(commands, order):
+def sort_commands_helper(commands, order) -> list:
     """
     Sorts a list of commands in place according to a list of command names. If a command has no corresponding
     command name in `order`, it is removed from the list.
@@ -218,7 +219,7 @@ def sort_commands_helper(commands, order):
     return r
 
 
-def trueshuffle(p):
+def trueshuffle(p: list):
     """
     Shuffles a list in place so that no element is at the index where it was before. Fails on lists of length < 2.
 
@@ -262,12 +263,13 @@ async def execute_anything(f, *args, **kwargs):
     return f(*args, **kwargs)
 
 
-def get_plugin_by_cmd(cmd):
+def get_plugin_by_cmd(cmd: Command):
     """
     Returns the plugin object which contains the given command
 
     :param cmd: The command object
     :return: The plugin which contains the command
+    :raises NotFound: If no plugin contains the given command
     """
     for plugin in Config().bot.plugins:
         for el in plugin.get_commands():

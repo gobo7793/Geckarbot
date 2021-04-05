@@ -200,7 +200,7 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
 
         # Subcommand
         except SubCommandEncountered as subcmd:
-            self.logger.debug("Calling subcommand: {}, {}".format(subcmd.callback, subcmd.args))
+            self.logger.debug("Calling subcommand: %s, %s", subcmd.callback, subcmd.args)
             await subcmd.callback(ctx, *subcmd.args)
             return
 
@@ -237,7 +237,7 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
                                                ranked=args["ranked"],
                                                gecki=args["gecki"])
             self.controllers[channel] = quiz_controller
-            self.logger.debug("Registered quiz controller {} in channel {}".format(quiz_controller, ctx.channel))
+            self.logger.debug("Registered quiz controller %s in channel %s", quiz_controller, ctx.channel)
             await quiz_controller.status(ctx.message)
             await quiz_controller.start(ctx.message)
 
@@ -406,14 +406,14 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
         :param callback: Coroutine of the type `f(ctx, *args)`; is called with the context object and every arg,
             including the subcommand itself and excluding the main command ("kwiss")
         """
-        self.logger.debug("Subcommand registered: {}; callback: {}".format(subcommand, callback))
+        self.logger.debug("Subcommand registered: %s; callback: %s", subcommand, callback)
         subcommand = subcommand.lower()
         found = False
         for el in self.registered_subcommands:
             if el == channel:
                 found = True
                 if subcommand in self.registered_subcommands[channel]:
-                    warnings.warn(RuntimeWarning("Subcommand was registered twice: {}".format(subcommand)))
+                    warnings.warn(RuntimeWarning("Subcommand was registered twice: %s", subcommand))
                 self.registered_subcommands[channel][subcommand] = callback
                 break
 
@@ -450,7 +450,7 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
         :param channel: channel that the quiz is taking place in
         :return: (End message, score embed)
         """
-        self.logger.debug("Cleaning up quiz in channel {}.".format(channel))
+        self.logger.debug("Cleaning up quiz in channel %s.", channel)
         if channel not in self.controllers:
             assert False, "Channel not in controller list"
         del self.controllers[channel]
@@ -489,7 +489,7 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
         :param subcommands: Whether to fish for subcommands
         :return: Dict with the parsed arguments
         """
-        self.logger.debug("Parsing args: {}".format(args))
+        self.logger.debug("Parsing args: %s", args)
         found = {el: False for el in self.defaults}
         parsed = self.defaults.copy()
         controller = self.default_controller
@@ -620,5 +620,5 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
                 assert apiname is not None
                 raise QuizInitError(self, "category_not_supported", apiname, parsed["category"])
 
-        self.logger.debug("Parsed kwiss args: {}".format(parsed))
+        self.logger.debug("Parsed kwiss args: %s", parsed)
         return controller, parsed

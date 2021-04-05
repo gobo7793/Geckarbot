@@ -17,7 +17,7 @@ from subsystems import timers
 from subsystems.helpsys import DefaultCategories
 
 log = logging.getLogger(__name__)
-_keysmash_cmd_name = "keysmash"
+_KEYSMASH_CMD_NAME = "keysmash"
 
 
 def _create_keysmash():
@@ -48,7 +48,7 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
         return {'reminders': {}}
 
     def command_help_string(self, command):
-        if command.name == _keysmash_cmd_name:
+        if command.name == _KEYSMASH_CMD_NAME:
             return _create_keysmash()
         return super().command_help_string(command)
 
@@ -142,7 +142,7 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
                 return
         await ctx.send(Lang.lang(self, 'geck_out'), file=file)
 
-    @commands.command(name=_keysmash_cmd_name)
+    @commands.command(name=_KEYSMASH_CMD_NAME)
     async def cmd_keysmash(self, ctx):
         msg = _create_keysmash()
         await ctx.send(msg)
@@ -249,7 +249,7 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
         await utils.add_reaction(ctx.message, Lang.CMDSUCCESS)
 
     def _register_reminder(self, channel_id: int, user_id: int, remind_time: datetime,
-                           reminder_id: int, text, is_restart: bool = False):
+                           reminder_id: int, text, is_restart: bool = False) -> bool:
         """
         Registers a reminder
 
@@ -309,7 +309,7 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
         log.info("Reminder %d removed", reminder_id)
 
     async def _reminder_callback(self, job):
-        log.info("Executing reminder {}".format(job.data['id']))
+        log.info("Executing reminder %d", job.data['id'])
 
         channel = self.bot.get_channel(job.data['chan'])
         user = self.bot.get_user(job.data['user'])

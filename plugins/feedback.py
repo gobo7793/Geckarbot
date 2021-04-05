@@ -3,10 +3,10 @@ import logging
 import discord.utils
 from discord.ext import commands
 
-from base import BasePlugin, NotFound
-from botutils.utils import add_reaction
+from base import BasePlugin
 from data import Storage, Config, Lang
 from botutils import converters
+from botutils.utils import add_reaction
 from botutils.stringutils import paginate, format_andlist
 
 
@@ -107,7 +107,7 @@ class Plugin(BasePlugin, name="Feedback"):
                 "complaints": {},
                 "version": 1,
             }
-        elif container == "bugscore":
+        if container == "bugscore":
             return {
                 "bugscore": {},
                 "version": 1,
@@ -166,7 +166,7 @@ class Plugin(BasePlugin, name="Feedback"):
     @commands.has_any_role(*Config().ADMIN_ROLES)
     async def cmd_redact(self, ctx, *args):
         aliases = ["all", "full"]
-        full = True if len(args) > 0 and args[0] in aliases else False
+        full = len(args) > 0 and args[0] in aliases
 
         # Build complaints list and calculate sums
         ids, cats = self.parse_args(args, ignore=aliases)
@@ -386,9 +386,8 @@ class Plugin(BasePlugin, name="Feedback"):
             if len(cats) == 0:
                 await self.category_list(ctx)
                 return
-            else:
-                await self.category_show(ctx, cats[0])
-                return
+            await self.category_show(ctx, cats[0])
+            return
 
         # Move
         else:
@@ -408,9 +407,9 @@ class Plugin(BasePlugin, name="Feedback"):
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
         self.write()
 
-    """
-    Bugscore
-    """
+    #####
+    # Bugscore
+    #####
     async def bugscore_show(self, ctx):
         users = sorted(
             sorted(

@@ -46,8 +46,7 @@ class Cell:
             column = sum((x*y for x, y in zip([26**i for i in range(len(groupdict['col']))][::-1],
                                               (ord(b) - 64 for b in groupdict['col']))))
             return cls(column, int(groupdict['row']))
-        else:
-            raise ValueError
+        raise ValueError
 
     def cellname(self) -> str:
         """Returns cell in A1-notation"""
@@ -98,8 +97,7 @@ class CellRange:
         if extract:
             groupdict = extract.groupdict()
             return cls.from_cells(Cell.from_a1(groupdict['cell1']), Cell.from_a1(groupdict['cell2']))
-        else:
-            raise ValueError
+        raise ValueError
 
     @classmethod
     def from_cells(cls, start_cell: Cell, end_cell: Cell):
@@ -131,8 +129,7 @@ class CellRange:
         """
         if self.column <= left or self.row <= top or left + right <= -self.width or top + bottom <= -self.height:
             raise ValueError
-        else:
-            return CellRange(start_cell=Cell(column=self.column - left, row=self.row - top),
+        return CellRange(start_cell=Cell(column=self.column - left, row=self.row - top),
                              width=self.width + left + right,
                              height=self.height + top + bottom)
 
@@ -174,7 +171,7 @@ class Client(restclient.Client):
         self.spreadsheet_id = spreadsheet_id
 
         self.logger = logging.getLogger(__name__)
-        self.logger.debug("Building Sheets API Client for spreadsheet {}".format(self.spreadsheet_id))
+        self.logger.debug("Building Sheets API Client for spreadsheet %s", self.spreadsheet_id)
 
     def _params_add_api_key(self, params=None):
         """
@@ -220,8 +217,7 @@ class Client(restclient.Client):
         """Converts the title of a sheet into the coresponding sheet id"""
         if type(sheet) == int:
             return sheet
-        else:
-            return self.get_sheet_properties(sheet).get('sheetId')
+        return self.get_sheet_properties(sheet).get('sheetId')
 
     def get(self, range, formatted: bool = True) -> list:
         """
@@ -237,7 +233,7 @@ class Client(restclient.Client):
         else:
             response = get_service().spreadsheets().values().get(
                 spreadsheetId=self.spreadsheet_id, range=range, valueRenderOption=value_render_option).execute()
-            self.logger.debug("Response: {}".format(response))
+            self.logger.debug("Response: %s", response)
 
         values = response.get('values', [])
         return values
@@ -260,7 +256,7 @@ class Client(restclient.Client):
         else:
             response = get_service().spreadsheets().values().batchGet(
                 spreadsheetId=self.spreadsheet_id, ranges=ranges, valueRenderOption=value_render_option).execute()
-            self.logger.debug("Response: {}".format(response))
+            self.logger.debug("Response: %s", response)
 
         value_ranges = response.get('valueRanges', [])
         values = []
@@ -283,7 +279,7 @@ class Client(restclient.Client):
         value_input_option = 'RAW' if raw else 'USER_ENTERED'
         response = get_service().spreadsheets().values().update(
             spreadsheetId=self.spreadsheet_id, range=range, valueInputOption=value_input_option, body=data).execute()
-        self.logger.debug("Response: {}".format(response))
+        self.logger.debug("Response: %s", response)
         return response
 
     def update_multiple(self, data_dict: dict, raw: bool = True) -> dict:
@@ -309,7 +305,7 @@ class Client(restclient.Client):
         }
         response = get_service().spreadsheets().values().batchUpdate(
             spreadsheetId=self.spreadsheet_id, body=body).execute()
-        self.logger.debug("Response: {}".format(response))
+        self.logger.debug("Response: %s", response)
         return response
 
     def append(self, range, values, raw: bool = True) -> dict:
@@ -327,7 +323,7 @@ class Client(restclient.Client):
         value_input_option = 'RAW' if raw else 'USER_ENTERED'
         response = get_service().spreadsheets().values().append(
             spreadsheetId=self.spreadsheet_id, range=range, valueInputOption=value_input_option, body=data).execute()
-        self.logger.debug("Response: {}".format(response))
+        self.logger.debug("Response: %s", response)
         return response.get('updates', {})
 
     def clear(self, range) -> dict:

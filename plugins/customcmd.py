@@ -13,12 +13,12 @@ from botutils.stringutils import paginate
 from subsystems.ignoring import UserBlockedCommand
 from subsystems.helpsys import DefaultCategories
 
-wildcard_user = "%u"
-wildcard_umention = "%um"
-wildcard_all_args = "%a"
+WILDCARD_USER = "%u"
+WILDCARD_UMENTION = "%um"
+WILDCARD_ALL_ARGS = "%a"
 
-quotation_signs = "\"‘‚‛“„‟⹂「」『』〝〞﹁﹂﹃﹄＂｢｣«»‹›《》〈〉"
-cmd_re = re.compile(rf"\+?([{quotation_signs}]([^{quotation_signs}]*)[{quotation_signs}]|\S+)")
+QUOTATION_SIGNS = "\"‘‚‛“„‟⹂「」『』〝〞﹁﹂﹃﹄＂｢｣«»‹›《》〈〉"
+cmd_re = re.compile(rf"\+?([{QUOTATION_SIGNS}]([^{QUOTATION_SIGNS}]*)[{QUOTATION_SIGNS}]|\S+)")
 arg_list_re = re.compile(r"(%(\d)(\*?))")
 mention_re = re.compile(r"<[@!#&]{0,2}\d+>")
 
@@ -56,7 +56,7 @@ class Cmd:
         self.author_ids = [author_ids[i] if author_ids is not None else creator_id for i in range(0, len(*texts))]
         self.texts = list(*texts)
 
-    def serialize(self):
+    def serialize(self) -> dict:
         """
         Serializes the cmd data to a dict
 
@@ -69,14 +69,16 @@ class Cmd:
         }
 
     @classmethod
-    def deserialize(cls, plugin, name, d: dict):
+    def deserialize(cls, plugin, name: str, d: dict):
         """
         Constructs a Cmd object from a dict.
 
         :param plugin: The plugin instance
+        :type plugin: Plugin
         :param name: The command name
         :param d: dict made by serialize()
         :return: Cmd object
+        :rtype: Cmd
         """
         return Cmd(plugin, name, d['creator'], d['texts'], author_ids=d.get('authors', []))
 
@@ -91,26 +93,27 @@ class Cmd:
         """Returns all raw texts of the cmd as formatted string, beginning with index"""
         return [self.get_raw_text(i) for i in range(index, len(self.texts))]
 
-    def get_formatted_text(self, bot, text_id: int, msg: discord.Message, cmd_args: list):
+    def get_formatted_text(self, bot, text_id: int, msg: discord.Message, cmd_args: list) -> str:
         """
         Formats and replaces the wildcards of a given text id of the cmd for using it as custom cmd.
-        If a mentioned user has the command on its ignore list, a UserBlockedCommand error will be raised.
 
         :param bot: The bot
+        :type bot: class:`Geckarbot.Geckarbot`
         :param text_id: The text id
         :param msg: The original message
         :param cmd_args: The used command arguments
         :returns: The formatted command text
+        :raises UserBlockedCommand: If a mentioned user has the command on its ignore list
         """
 
         cmd_content = self.texts[text_id]
 
         # general replaces
-        cmd_content = cmd_content.replace(wildcard_umention, msg.author.mention)
-        cmd_content = cmd_content.replace(wildcard_user, converters.get_best_username(msg.author))
+        cmd_content = cmd_content.replace(WILDCARD_UMENTION, msg.author.mention)
+        cmd_content = cmd_content.replace(WILDCARD_USER, converters.get_best_username(msg.author))
 
-        if wildcard_all_args in cmd_content:
-            cmd_content = cmd_content.replace(wildcard_all_args, _get_all_arg_str(0, cmd_args))
+        if WILDCARD_ALL_ARGS in cmd_content:
+            cmd_content = cmd_content.replace(WILDCARD_ALL_ARGS, _get_all_arg_str(0, cmd_args))
 
         all_args_positions = arg_list_re.findall(cmd_content)
 
@@ -144,12 +147,13 @@ class Cmd:
 
         return cmd_content
 
-    def get_ran_formatted_text(self, bot, msg: discord.Message, cmd_args: list):
+    def get_ran_formatted_text(self, bot, msg: discord.Message, cmd_args: list) -> str:
         """
         Formats and replaces the wildcards of a random text of the cmd for using it as custom cmd.
         If a mentioned user has the command on its ignore list, a UserBlockedCommand error will be raised.
 
         :param bot: The bot
+        :type bot: class:`Geckarbot.Geckarbot`
         :param msg: The original message
         :param cmd_args: The used command arguments
         :returns: The formatted command text
@@ -315,7 +319,7 @@ class Plugin(BasePlugin, name="Custom CMDs"):
         new_config = self.default_config()
         new_config['prefix'] = old_config['_prefix']
 
-        logging.info(f"Converting {len(old_config) - 1} custom commands...")
+        logging.info("Converting %d custom commands...", len(old_config) - 1)
         new_cmds = {}
         for cmd in old_config.keys():
             if cmd == '_prefix':
@@ -344,8 +348,8 @@ class Plugin(BasePlugin, name="Custom CMDs"):
         cmd_args = msg_args[1:]
         if cmd_name not in self.commands:
             return
-        elif (self.bot.ignoring.check_command_name(cmd_name, msg.channel)
-              or self.bot.ignoring.check_passive_usage(msg.author, cmd_name)):
+        if (self.bot.ignoring.check_command_name(cmd_name, msg.channel)
+                or self.bot.ignoring.check_passive_usage(msg.author, cmd_name)):
             raise commands.DisabledCommand()
 
         cmd_content = self.commands[cmd_name].get_ran_formatted_text(self.bot, msg, cmd_args)
@@ -382,7 +386,7 @@ class Plugin(BasePlugin, name="Custom CMDs"):
         suffix = Lang.lang(self, 'list_suffix') if full else ""
         prefix = self.prefix if incl_prefix else ""
 
-        for k in self.commands.keys():
+        for k in self.commands:
             if full:
                 arg_lens = []
                 for t in self.commands[k].texts:
@@ -461,7 +465,7 @@ class Plugin(BasePlugin, name="Custom CMDs"):
         if cmd_name not in self.commands:
             await ctx.send(Lang.lang(self, "raw_doesnt_exist", cmd_name))
             return
-        elif index < 0 or index >= len(self.commands[cmd_name].texts):
+        if index < 0 or index >= len(self.commands[cmd_name].texts):
             await ctx.send(Lang.lang(self, "text_id_not_found"))
             return
 
@@ -569,11 +573,11 @@ class Plugin(BasePlugin, name="Custom CMDs"):
 
         arg_text = " ".join(args)
         if text_id is None:
-            await ctx.invoke(self.bot.get_command(f"cmd del"), cmd_name)
-            await ctx.invoke(self.bot.get_command(f"cmd add"), cmd_name, arg_text)
+            await ctx.invoke(self.bot.get_command("cmd del"), cmd_name)
+            await ctx.invoke(self.bot.get_command("cmd add"), cmd_name, arg_text)
         else:
-            await ctx.invoke(self.bot.get_command(f"cmd del"), cmd_name, text_id)
-            await ctx.invoke(self.bot.get_command(f"cmd add"), cmd_name, arg_text)
+            await ctx.invoke(self.bot.get_command("cmd del"), cmd_name, text_id)
+            await ctx.invoke(self.bot.get_command("cmd add"), cmd_name, arg_text)
 
     @cmd.command(name="del")
     async def cmd_del(self, ctx, cmd_name, text_id: int = None):
@@ -610,15 +614,15 @@ class Plugin(BasePlugin, name="Custom CMDs"):
         if text_id is None:
             # Remove command
             cmd_raw = cmd.get_raw_texts()
-            del (self.commands[cmd_name])
+            del self.commands[cmd_name]
             for msg in paginate(cmd_raw, prefix=Lang.lang(self, 'cmd_removed', cmd_name)):
                 await utils.write_mod_channel(msg)
 
         else:
             # remove text
             cmd_raw = cmd.get_raw_text(text_id)
-            del (cmd.author_ids[text_id])
-            del (cmd.texts[text_id])
+            del cmd.author_ids[text_id]
+            del cmd.texts[text_id]
             await utils.write_mod_channel(Lang.lang(self, 'cmd_text_removed', cmd_name, cmd_raw))
 
         self._save()
