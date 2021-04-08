@@ -526,6 +526,8 @@ class LeagueRegistration:
                                                         data={'start': kickoff, 'matches': job.data})
         self.intermediate_timers.append(match_timer)
         await self.update_kickoff_coros(match_timer)
+        if match_timer.next_execution() <= datetime.datetime.now():
+            match_timer.execute()
 
     def schedule_kickoffs(self):
         """
@@ -759,6 +761,7 @@ class Liveticker(BaseSubsystem):
         self.logger.debug(f'Liveticker for plugin {plugin_name} unloaded')
 
     async def _semiweekly_timer(self, job):
+        self.logger.debug("Semi-Weekly timer schedules matches.")
         until = self.current_timer.next_execution() - datetime.timedelta(days=1)
         for league_reg in self.registrations[LTSource.ESPN].values():
             await league_reg.schedule_kickoffs_espn(until)
