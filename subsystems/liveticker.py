@@ -25,6 +25,11 @@ class MatchStatus(Enum):
 
     @staticmethod
     def match_status_espn(m):
+        """
+        Returns the MatchStatus of the match
+
+        :param m: raw espn match data
+        """
         status = m.get('status', {}).get('type', {}).get('state')
         if status == "pre":
             return MatchStatus.UPCOMING
@@ -39,6 +44,11 @@ class MatchStatus(Enum):
 
     @staticmethod
     def match_status_oldb(m):
+        """
+        Returns the MatchStatus of the match
+
+        :param m: raw OpenLigaDB match data
+        """
         if m.get('MatchIsFinished'):
             return MatchStatus.COMPLETED
         else:
@@ -466,6 +476,57 @@ class LeagueRegistration:
         else:
             return None
 
+    async def schedule_kickoffs_espn(self, until: datetime):
+        """
+        Schedules timers for the kickoffs of the matches until the specified date
+
+        :param until: datetime of the day before the next semi-weekly execution
+        :return: List of new timer jobs with a list of matches as job.data
+        """
+        jobs = []
+        raw_kickoffs = {}
+        dates = "{}-{}".format(datetime.datetime.now().strftime("%Y%m%d"), until.strftime("%Y%m%d"))
+        data = await restclient.Client("http://site.api.espn.com/apis/site/v2/sports")\
+            .request(f"/soccer/{self.league}/scoreboard", params={'dates': dates})
+        now = datetime.datetime.now()
+        for match in data['events']:
+            if MatchStatus.match_status_espn(match) in [MatchStatus.COMPLETED, MatchStatus.POSTPONED]:
+                continue
+            if match['date'] not in raw_kickoffs:
+                raw_kickoffs[match['date']] = []
+            raw_kickoffs[match['date']].append(match['name'])
+        for kickoff, matches in raw_kickoffs.items():
+            time = datetime.datetime.strptime(kickoff, "%Y-%m-%dT%H:%MZ")\
+                .replace(tzinfo=datetime.timezone.utc).astimezone().replace(tzinfo=None)
+            if time > now:
+                jobs.append(self.listener.bot.timers.schedule(
+                    coro=self._schedule_match_timer,
+                    td=timers.timedict(year=time.year, month=time.month, monthday=time.day, hour=time.hour,
+                                       minute=time.minute),
+                    data=matches))
+            else:
+                await self._schedule_match_timer(time=time)
+
+        self.kickoff_timers.extend(jobs)
+        return jobs
+
+    async def _schedule_match_timer(self, job=None, time=None):
+        """Schedules the timer for the match updates"""
+        if job:
+            kickoff = datetime.datetime.now().replace(second=0, microsecond=0)
+        elif time:
+            kickoff = time
+        else:
+            return
+
+        interval = 15
+        offset = kickoff.minute % interval
+        td = timers.timedict(minute=[x + offset for x in range(0, 60, interval)])
+        match_timer = self.listener.bot.timers.schedule(coro=self.update_periodic_coros, td=td,
+                                                        data={'start': kickoff, 'matches': job.data})
+        self.intermediate_timers.append(match_timer)
+        await self.update_kickoff_coros(match_timer)
+
     def schedule_kickoffs(self):
         """
         Schedules timers for the kickoffs of all matches
@@ -588,12 +649,16 @@ class Liveticker(BaseSubsystem):
         self.logger = logging.getLogger(__name__)
         self.registrations = {x: {} for x in LTSource}
         self.restored = False
+        self.current_timer = None
 
         @bot.listen()
         async def on_ready():
             plugins = self.bot.get_normalplugins()
             self.restore(plugins)
             self.restored = True
+            timedict = timers.timedict(weekday=[2, 5], hour=[4], minute=[0])
+            self.current_timer = self.bot.timers.schedule(coro=self._semiweekly_timer, td=timedict)
+            self.current_timer.execute()
 
     def default_storage(self):
         regs = {}
@@ -692,3 +757,8 @@ class Liveticker(BaseSubsystem):
             for reg in leag:
                 reg.unload()
         self.logger.debug(f'Liveticker for plugin {plugin_name} unloaded')
+
+    async def _semiweekly_timer(self, job):
+        until = self.current_timer.next_execution() - datetime.timedelta(days=1)
+        for league_reg in self.registrations[LTSource.ESPN].values():
+            await league_reg.schedule_kickoffs_espn(until)
