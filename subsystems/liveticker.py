@@ -381,8 +381,8 @@ class LeagueRegistration:
         if reg not in self.registrations:
             self.registrations.append(reg)
             reg_storage = reg.storage()
-            if reg_storage not in Storage().get(self.listener)[self.source.value][self.league]:
-                Storage().get(self.listener)[self.source.value][self.league].append(reg_storage)
+            if reg_storage not in Storage().get(self.listener)['registrations'][self.source.value][self.league]:
+                Storage().get(self.listener)['registrations'][self.source.value][self.league].append(reg_storage)
                 Storage().save(self.listener)
         return reg
 
@@ -403,8 +403,8 @@ class LeagueRegistration:
 
     def deregister_coro(self, coro: CoroRegistration):
         reg_storage = coro.storage()
-        if reg_storage in Storage().get(self.listener)[self.source.value].get(self.league, []):
-            Storage().get(self.listener)[self.source.value][self.league].remove(reg_storage)
+        if reg_storage in Storage().get(self.listener)['registrations'][self.source.value].get(self.league, []):
+            Storage().get(self.listener)['registrations'][self.source.value][self.league].remove(reg_storage)
             Storage().save(self.listener)
         if coro in self.registrations:
             self.registrations.remove(coro)
@@ -511,7 +511,12 @@ class LeagueRegistration:
         return jobs
 
     async def _schedule_match_timer(self, job=None, time=None):
-        """Schedules the timer for the match updates"""
+        """
+        Schedules the timer for the match updates
+
+        :param job: is used if this method is called by the timer
+        :param time: is used if the match is actually running
+        """
         if job:
             kickoff = datetime.datetime.now().replace(second=0, microsecond=0)
         elif time:
@@ -663,10 +668,13 @@ class Liveticker(BaseSubsystem):
             self.current_timer.execute()
 
     def default_storage(self):
-        regs = {}
+        storage = {
+            'registrations': {},
+            'next_semiweekly': None
+        }
         for src in LTSource.__members__.values():
-            regs[src.value] = {}
-        return regs
+            storage['registrations'][src.value] = {}
+        return storage
 
     def register(self, league, raw_source, plugin, coro, periodic: bool = True):
         """
@@ -682,8 +690,8 @@ class Liveticker(BaseSubsystem):
         source = LTSource(raw_source)
         if league not in self.registrations[source]:
             self.registrations[source][league] = LeagueRegistration(self, league, source)
-        if league not in Storage().get(self)[source.value]:
-            Storage().get(self)[source.value][league] = []
+        if league not in Storage().get(self)['registrations'][source.value]:
+            Storage().get(self)['registrations'][source.value][league] = []
             Storage().save(self)
         coro_reg = self.registrations[source][league].register(plugin, coro, periodic)
         return coro_reg
@@ -691,8 +699,8 @@ class Liveticker(BaseSubsystem):
     def deregister(self, reg: LeagueRegistration):
         if reg.league in self.registrations[reg.source]:
             self.registrations[reg.source].pop(reg.league)
-        if reg.league in Storage().get(self)[reg.source.value]:
-            Storage().get(self)[reg.source.value].pop(reg.league)
+        if reg.league in Storage().get(self)['registrations'][reg.source.value]:
+            Storage().get(self)['registrations'][reg.source.value].pop(reg.league)
             Storage().save(self)
 
     def unload(self, reg: LeagueRegistration):
@@ -736,7 +744,7 @@ class Liveticker(BaseSubsystem):
 
     def restore(self, plugins: list):
         i, j = 0, 0
-        for src, registrations in Storage().get(self).items():
+        for src, registrations in Storage().get(self)['registrations'].items():
             for league in registrations:
                 for reg in registrations[league]:
                     if reg['plugin'] in plugins:
