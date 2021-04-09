@@ -182,7 +182,7 @@ class Plugin(BasePlugin, name="LastFM"):
             raise NotLoadable("API Key not found")
         self.dump_except_keys = ["username", "password", "apikey", "sharedsecret"]
 
-        bot.register(self)
+        bot.register(self, category_desc=Lang.lang(self, "cat_desc"))
 
         self.perf_total_time = None
         self.perf_lastfm_time = None

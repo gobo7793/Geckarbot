@@ -18,6 +18,9 @@ class CategoryExists(Exception):
 
 
 class DefaultCategories(Enum):
+    """
+    Default categories that plugins can be sorted into if desirable.
+    """
     UTILS = 0
     GAMES = 1
     SPORT = 2
@@ -28,16 +31,22 @@ class DefaultCategories(Enum):
 
 
 class CategoryOrder(Enum):
+    """
+    Classes that help categories are ordered by when listing them.
+    """
     FIRST = 0
     MIDDLE = 1
     LAST = 2
 
 
 class HelpCog(BasePlugin):
+    """
+    Cog for help commands
+    """
     def __init__(self, bot):
         self.bot = bot
         super().__init__(bot)
-        self.category = HelpCategory(bot, Lang.lang(self, "self_category_name"))
+        self.category = HelpCategory(bot, Lang.lang(self, "self_category_name"), desc=Lang.lang(self, "cat_desc_help"))
         self.category.add_plugin(self)
 
     def get_configurable_type(self):
@@ -55,11 +64,18 @@ class HelpCog(BasePlugin):
     async def listcmd(self, ctx, *args):
         await self.bot.helpsys.listcmd(ctx, *args)
 
+    @commands.command(name="locate")
+    async def locatecmd(self, ctx, *args):
+        await self.bot.helpsys.locatecmd(ctx, *args)
+
 
 class HelpCategory:
-    def __init__(self, bot, name, description="", order=CategoryOrder.MIDDLE, defaultcat=False):
+    """
+    Represents a help category.
+    """
+    def __init__(self, bot, name, desc="", order=CategoryOrder.MIDDLE, defaultcat=False):
         self._name = name[0].upper() + name[1:]
-        self.description = description
+        self.description = desc
         self.plugins = []
         self.standalone_commands = []
         self.order = order
@@ -97,7 +113,7 @@ class HelpCategory:
     def add_plugin(self, plugin):
         """
         Adds a plugin to this HelpCategory.
-        
+
         :param plugin: BasePlugin instance to be added to the category
         """
         self.plugins.append(plugin)
@@ -151,6 +167,7 @@ class HelpCategory:
         return r + self.standalone_commands
 
     def sort_commands(self, ctx, cmds):
+        # pylint: disable=no-self-use
         return sorted(cmds, key=lambda x: x.name)
 
     def format_commands(self, ctx):
@@ -179,6 +196,9 @@ class HelpCategory:
 
 
 class GeckiHelp(BaseSubsystem):
+    """
+    Subsystem that handles the bot's `!help` command.
+    """
     def __init__(self, bot):
         self.bot = bot
         super().__init__(self.bot)
@@ -186,18 +206,25 @@ class GeckiHelp(BaseSubsystem):
 
         self.default_categories = {
             DefaultCategories.UTILS: HelpCategory(bot, Lang.lang(self, "default_category_utils"),
+                                                  desc=Lang.lang(self, "cat_desc_utils"),
                                                   order=CategoryOrder.FIRST, defaultcat=True),
             DefaultCategories.GAMES: HelpCategory(bot, Lang.lang(self, "default_category_games"),
+                                                  desc=Lang.lang(self, "cat_desc_games"),
                                                   defaultcat=True),
             DefaultCategories.SPORT: HelpCategory(bot, Lang.lang(self, "default_category_sport"),
+                                                  desc=Lang.lang(self, "cat_desc_sport"),
                                                   defaultcat=True),
             DefaultCategories.MISC: HelpCategory(bot, Lang.lang(self, "default_category_misc"),
+                                                 desc=Lang.lang(self, "cat_desc_misc"),
                                                  order=CategoryOrder.LAST, defaultcat=True),
             DefaultCategories.USER: HelpCategory(bot, Lang.lang(self, "default_category_user"),
+                                                 desc=Lang.lang(self, "cat_desc_user"),
                                                  order=CategoryOrder.LAST, defaultcat=True),
             DefaultCategories.MOD: HelpCategory(bot, Lang.lang(self, "default_category_mod"),
+                                                desc=Lang.lang(self, "cat_desc_mod"),
                                                 order=CategoryOrder.LAST, defaultcat=True),
             DefaultCategories.ADMIN: HelpCategory(bot, Lang.lang(self, "default_category_admin"),
+                                                  desc=Lang.lang(self, "cat_desc_admin"),
                                                   order=CategoryOrder.LAST, defaultcat=True),
         }
 
@@ -209,9 +236,9 @@ class GeckiHelp(BaseSubsystem):
         self.bot.add_cog(self.cog)
         self.register_category(self.cog.category)
 
-    """
-    Housekeeping methods
-    """
+    ######
+    # Housekeeping methods
+    ######
     def default_category(self, const):
         """
         :param const: One out of DefaultCategories
@@ -241,9 +268,16 @@ class GeckiHelp(BaseSubsystem):
         return r
 
     def register_category_by_name(self, name, description=""):
+        """
+        Creates and registers a help category by name only.
+
+        :param name: Help category name
+        :param description: Help category description
+        :return: HelpCategory that was created and registered
+        """
         cat = self.category(name)
         if cat is None:
-            cat = HelpCategory(self.bot, name, description=description)
+            cat = HelpCategory(self.bot, name, desc=description)
             self.register_category(cat)
         return cat
 
@@ -254,6 +288,7 @@ class GeckiHelp(BaseSubsystem):
 
         :param category: HelpCategory instance or DefaultCategory instance
         :return: The registered HelpCategory
+        :raises CategoryExists: Raised if `category` is already registered.
         """
         # Catch default category
         if isinstance(category, DefaultCategories):
@@ -272,6 +307,7 @@ class GeckiHelp(BaseSubsystem):
         Deregisters a help category. If a DefaultCategory is parsed, nothing is deregistered.
 
         :param category: HelpCategory instance or DefaultCategory instance
+        :raises CategoryNotFound: Raised if `category` was not registered.
         """
         if isinstance(category, DefaultCategories):
             return
@@ -283,6 +319,11 @@ class GeckiHelp(BaseSubsystem):
         self._categories.remove(category)
 
     def purge_plugin(self, plugin):
+        """
+        Removes a plugin and its commands from all help categories.
+
+        :param plugin: Plugin to remove
+        """
         cats = self.categories_by_plugin(plugin)
         for cat in cats:
             cat.remove_plugin(plugin)
@@ -290,9 +331,9 @@ class GeckiHelp(BaseSubsystem):
             for cat in self._categories:
                 cat.remove_command(cmd)
 
-    """
-    Parsing methods
-    """
+    #######
+    # Parsing methods
+    #######
     def find_command(self, args):
         """
         Finds the command that is resembled by `args`.
@@ -301,6 +342,7 @@ class GeckiHelp(BaseSubsystem):
             `plugin` is the plugin where the found command `command` is registered in.
             If nothing is found, returns `(None, None)`.
         """
+        # pylint: disable=unnecessary-comprehension
         plugins = [self.cog] + [el for el in self.bot.plugin_objects(plugins_only=True)]
 
         # find plugin
@@ -324,12 +366,11 @@ class GeckiHelp(BaseSubsystem):
                 return None, None
         if cmd is not None:
             return plugin, cmd
-        else:
-            return None, None
+        return None, None
 
-    """
-    Evaluation methods
-    """
+    #####
+    # Evaluation methods
+    #####
     @staticmethod
     def get_command_help(plugin, cmd):
         r = None
@@ -354,9 +395,9 @@ class GeckiHelp(BaseSubsystem):
 
         return desc + "\n"
 
-    """
-    Format methods
-    """
+    #####
+    # Format methods
+    #####
     def append_command_leaves(self, cmds, cmd):
         """
         Recursive helper function for `flattened_plugin_help()`.
@@ -401,8 +442,7 @@ class GeckiHelp(BaseSubsystem):
             helpstr = command.help
         if helpstr is not None and helpstr.strip():
             return "{}{} - {}".format(self.bot.command_prefix, command.qualified_name, helpstr)
-        else:
-            return "{}{}".format(self.bot.command_prefix, command.qualified_name)
+        return "{}{}".format(self.bot.command_prefix, command.qualified_name)
 
     def format_subcmds(self, ctx, plugin, command):
         r = []
@@ -434,9 +474,9 @@ class GeckiHelp(BaseSubsystem):
                 usage = cmd.usage
         return "{} {}".format(parent, usage)
 
-    """
-    Output methods
-    """
+    ######
+    # Output methods
+    ######
     async def error(self, ctx, error):
         await ctx.send(Lang.lang(self, error))
 
@@ -470,9 +510,9 @@ class GeckiHelp(BaseSubsystem):
         for msg in paginate(msg, msg_prefix="```", msg_suffix="```"):
             await ctx.send(msg)
 
-    """
-    Commands
-    """
+    ######
+    # Commands
+    ######
     async def helpcmd(self, ctx, *args):
         """
         Handles any help command.
@@ -488,7 +528,7 @@ class GeckiHelp(BaseSubsystem):
             last = []
             for cat in self._categories:
                 if cat.is_empty():
-                    self.logger.debug("Ignoring category {} as it is empty".format(cat.name))
+                    self.logger.debug("Ignoring category %s as it is empty", cat.name)
                     continue
 
                 line = "  {}".format(cat.single_line())
@@ -507,30 +547,29 @@ class GeckiHelp(BaseSubsystem):
             return
 
         # !help args
-        else:
-            # find command
-            plugin, cmd = self.find_command(args)
-            if cmd is not None:
-                await self.cmd_help(ctx, plugin, cmd)
-                return
+        # find command
+        plugin, cmd = self.find_command(args)
+        if cmd is not None:
+            await self.cmd_help(ctx, plugin, cmd)
+            return
 
-            # find category
-            if len(args) != 1:
-                # no category
-                await add_reaction(ctx.message, Lang.CMDERROR)
-                await self.error(ctx, "cmd_not_found")
-                return
-            cat = None
-            for el in self._categories:
-                if el.match_name(args[0]):
-                    cat = el
-                    break
-            if cat is not None and not cat.is_empty():
-                await cat.send_category_help(ctx)
-                return
-
+        # find category
+        if len(args) != 1:
+            # no category
             await add_reaction(ctx.message, Lang.CMDERROR)
-            await self.error(ctx, "cmd_cat_not_found")
+            await self.error(ctx, "cmd_not_found")
+            return
+        cat = None
+        for el in self._categories:
+            if el.match_name(args[0]):
+                cat = el
+                break
+        if cat is not None and not cat.is_empty():
+            await cat.send_category_help(ctx)
+            return
+
+        await add_reaction(ctx.message, Lang.CMDERROR)
+        await self.error(ctx, "cmd_cat_not_found")
 
     async def usagecmd(self, ctx, *args):
         """
@@ -539,6 +578,10 @@ class GeckiHelp(BaseSubsystem):
         :param ctx: Context
         :param args: Arguments that the usage command was called with
         """
+        if not args:
+            await self.bot.helpsys.cmd_help(ctx, self.cog, ctx.command)
+            return
+
         plugin, cmd = self.find_command(args)
         if cmd is None:
             await add_reaction(ctx.message, Lang.CMDERROR)
@@ -568,3 +611,22 @@ class GeckiHelp(BaseSubsystem):
         cmds = sorted(cmds)
         for msg in paginate(cmds, msg_prefix="```", msg_suffix="```"):
             await ctx.send(msg)
+
+    async def locatecmd(self, ctx, *args):
+        """
+        Prints the plugin name that a given cmd belongs to.
+
+        :param ctx: Context
+        :param args: Arguments that the locate command was called with
+        """
+        if not args:
+            await self.bot.helpsys.cmd_help(ctx, self.cog, ctx.command)
+            return
+
+        plugin, cmd = self.find_command(args)
+        if cmd is None:
+            await add_reaction(ctx.message, Lang.CMDERROR)
+            await self.error(ctx, "cmd_not_found")
+            return
+
+        await ctx.send(Lang.lang(self.cog, "locate", plugin.get_name()))

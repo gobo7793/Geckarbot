@@ -10,6 +10,9 @@
     "help_helpall": "Lists all commands.",
     "desc_helpall": "Lists all commands in alphabetical order.",
     "usage_helpall": "[debug]",
+    "help_locate": "Finds the corresponding plugin to a command",
+    "desc_locate": "Shows the name of the plugin that the given command belongs to.",
+    "usage_locate": "<Command>",
     "self_category_name": "Help",
 
     "help_categories_prefix": "!help <category> for help on a category.\n\nCategories:",
@@ -18,6 +21,8 @@
     "help_aliases": "Aliases: {}",
     "help_no_desc": "This command does not have a description. You are on your own.",
 
+    "locate": "The command belongs to the plugin **{}**.",
+
     "default_category_misc": "Misc",
     "default_category_user": "User",
     "default_category_admin": "Admin",
@@ -25,6 +30,15 @@
     "default_category_games": "Games",
     "default_category_utils": "Utilities",
     "default_category_sport": "Sport",
+
+    "cat_desc_misc": "Miscellaneous commands",
+    "cat_desc_user": "Bot control commands for users",
+    "cat_desc_admin": "Bot control commands for admins",
+    "cat_desc_mod": "Bot control commands for mods",
+    "cat_desc_games": "Something to play with",
+    "cat_desc_utils": "Useful in general",
+    "cat_desc_sport": "API commands for misc sports",
+    "cat_desc_help": "Explains things",
 
     "cmd_not_found": "Command not found.",
     "cmd_cat_not_found": "Command or category not found."
@@ -40,6 +54,9 @@
     "help_helpall": "Listet alle Kommandos auf",
     "desc_helpall": "Listet alle bekannten Kommandos in alphabetischer Reihenfolge auf.",
     "usage_helpall": "[debug]",
+    "help_locate": "Findet das Plugin zu einem Kommando",
+    "desc_locate": "Zeigt den Namen des Plugins, in dem das übergebene Kommando zu finden ist.",
+    "usage_locate": "<Kommando>",
     "self_category_name": "Hilfe",
 
     "help_categories_prefix": "!help <Kategorie> für Hilfe zu einer Kategorie.\n\nKategorien:",
@@ -48,6 +65,8 @@
     "help_aliases": "Alias: {}",
     "help_no_desc": "Dieses Kommando hat keine Beschreibung. Du bist auf dich allein gestellt. Viel Glück.",
 
+    "locate": "Das Kommando ist im Plugin **{}**.",
+
     "default_category_misc": "Sonstiges",
     "default_category_user": "Botuser",
     "default_category_admin": "Botadmin",
@@ -55,6 +74,15 @@
     "default_category_games": "Spiele",
     "default_category_utils": "Tools",
     "default_category_sport": "Sport",
+
+    "cat_desc_misc": "Diverses Gerümpel",
+    "cat_desc_user": "Bot-Steuerung für User",
+    "cat_desc_admin": "Bot-Steuerung für Bot-Admins",
+    "cat_desc_mod": "Bot-Steuerung für Mods",
+    "cat_desc_games": "Spaß und Spiel für die ganze Familie",
+    "cat_desc_utils": "Allgemein nützliche Kommandos",
+    "cat_desc_sport": "König Fußball und seine Untertanen",
+    "cat_desc_help": "Erläutert die Bot-Bedienung",
 
     "cmd_not_found": "Kommando nicht gefunden.",
     "cmd_cat_not_found": "Kategorie oder Kommando nicht gefunden."

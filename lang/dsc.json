@@ -22,6 +22,7 @@
         "key_not_exist": "A key `{}` doesn't exist.",
         "presence_voting": "DSC voting started",
 
+        "cat_desc": "Discord Song Contest",
         "help_dsc": "Gets data about current/next DSC",
         "desc_dsc": "Get and manage data about current or next DSC. If no subcommand is used, '!dsc info' will be executed.",
         "help_dsc_rules": "Gets the link to the DSC rules",
@@ -79,6 +80,7 @@
         "key_not_exist": "Es gibt keinen Key `{}`.",
         "presence_voting": "DSC-Voting läuft",
 
+        "cat_desc": "Discord Song Contest",
         "help_dsc": "Generelle Infos zum DSC",
         "desc_dsc": "Gibt Daten zum aktuellen oder nächsten DSC aus oder verwaltet diese. Wenn kein Unterkommando genutzt wird, wird '!dsc info' ausgeführt.",
         "help_dsc_rules": "Link zu den DSC-Regeln",

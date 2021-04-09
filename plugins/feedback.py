@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime
 
 import discord.utils
 from discord.ext import commands
@@ -11,7 +12,10 @@ from botutils.stringutils import paginate, format_andlist
 
 
 class Complaint:
-    def __init__(self, plugin, complaint_id, author, msg_link, content, category):
+    """
+    Represents a complaint.
+    """
+    def __init__(self, plugin, complaint_id, author, msg_link, content, category, timestamp):
         """
         :param plugin: Plugin object
         :param complaint_id: unique complaint id
@@ -19,6 +23,7 @@ class Complaint:
         :param msg_link: URL to message
         :param content: Complaint message content
         :param category: Category, can be None
+        :param timestamp: datetime.datetime timestamp
         """
         self.plugin = plugin
         self.id = complaint_id
@@ -26,6 +31,7 @@ class Complaint:
         self.msg_link = msg_link
         self.content = content
         self.category = category
+        self.timestamp = timestamp
 
     def serialize(self):
         """
@@ -41,6 +47,7 @@ class Complaint:
             "msglink": self.msg_link,
             "content": self.content,
             "category": self.category,
+            "timestamp": self.timestamp,
         }
 
     @classmethod
@@ -54,20 +61,22 @@ class Complaint:
         :return: Complaint object
         """
         author = discord.utils.get(plugin.bot.guild.members, id=d["authorid"])
-        return cls(plugin, cid, author, d["msglink"], d["content"], d["category"])
+        return cls(plugin, cid, author, d["msglink"], d["content"], d["category"], d["timestamp"])
 
     @classmethod
     def from_message(cls, plugin, msg):
         content = msg.content[len("!complain"):].strip()  # todo check if necessary
         if not content.strip():
             return None
-        return cls(plugin, plugin.get_new_id(), msg.author, msg.jump_url, content, None)
+        return cls(plugin, plugin.get_new_id(), msg.author, msg.jump_url, content, None, datetime.now())
 
-    def to_message(self, show_cat=True, include_url=True):
+    def to_message(self, show_cat=True, show_ts=True, include_url=True):
         authorname = "Not found"
         if self.author is not None:
             authorname = converters.get_best_username(self.author)
         r = "**#{}**: {}: {}".format(self.id, authorname, self.content)
+        if self.timestamp is not None and show_ts:
+            r += "\n{}".format(self.timestamp.strftime("%d.%m.%Y %H:%M"))
         if include_url and self.msg_link is not None:
             r += "\n{}".format(self.msg_link)
         if show_cat and self.category is not None:
@@ -82,17 +91,14 @@ def to_msg(el: Complaint):
 class Plugin(BasePlugin, name="Feedback"):
     def __init__(self, bot):
         super().__init__(bot)
-        bot.register(self)
+        bot.register(self, category_desc=Lang.lang(self, "cat_desc"))
 
         self.logger = logging.getLogger(__name__)
         self.storage = Storage.get(self)
         self.bugscore = Storage.get(self, container="bugscore")["bugscore"]
+        self.migrate()
         self.complaints = {}
         self.highest_id = None
-
-        if "version" not in self.storage:
-            self.storage["version"] = 1
-            Storage.save(self)
         self.complaints_version = self.storage["version"]
 
         for cid in self.storage["complaints"]:
@@ -112,6 +118,21 @@ class Plugin(BasePlugin, name="Feedback"):
                 "bugscore": {},
                 "version": 1,
             }
+        raise RuntimeError("unknown container {}".format(container))
+
+    def migrate(self):
+        # 0 -> 1
+        if "version" not in self.storage:
+            self.storage["version"] = 1
+            Storage.save(self)
+
+        # 1 -> 2
+        if self.storage["version"] == 1:
+            self.storage["version"] = 2
+            for k in self.storage["complaints"]:
+                c = self.storage["complaints"][k]
+                c["timestamp"] = None
+            Storage.save(self)
 
     def reset_highest_id(self):
         self.highest_id = 0
@@ -339,7 +360,7 @@ class Plugin(BasePlugin, name="Feedback"):
             return
 
         for msg in paginate(msgs,
-                            prefix=Lang.lang(self, "redact_cat_show_prefix", category),
+                            prefix=Lang.lang(self, "redact_cat_show_prefix", category, len(msgs)),
                             delimiter="\n\n",
                             msg_prefix="_ _\n"):
             await ctx.send(msg)
@@ -350,17 +371,24 @@ class Plugin(BasePlugin, name="Feedback"):
 
         :param ctx: Context
         """
-        cats = []
+        cats = {}
+        cats_sorted = []
         for el in self.complaints:
             cat = self.complaints[el].category
-            if cat is not None and cat not in cats:
-                cats.append(cat)
-        cats = sorted(cats, key=lambda x: x.lower())
+            if cat is not None:
+                if cat in cats:
+                    cats[cat] += 1
+                else:
+                    cats_sorted.append(cat)
+                    cats[cat] = 1
+        cats_sorted = sorted(cats_sorted, key=lambda x: x.lower())
+        for i in range(len(cats_sorted)):
+            cats_sorted[i] = "{} ({})".format(cats_sorted[i], cats[cats_sorted[i]])
 
         if not cats:
             await ctx.send(Lang.lang(self, "redact_cat_list_empty"))
         else:
-            for msg in paginate(cats, prefix=Lang.lang(self, "redact_cat_list_prefix")):
+            for msg in paginate(cats_sorted, prefix=Lang.lang(self, "redact_cat_list_prefix")):
                 await ctx.send(msg)
 
     @cmd_redact.command(name="category", aliases=["cat"])
@@ -390,11 +418,10 @@ class Plugin(BasePlugin, name="Feedback"):
             return
 
         # Move
-        else:
-            cat = None
-            if len(cats) > 0:
-                cat = cats[0]
-            await self.category_move(ctx, ids, cat)
+        cat = None
+        if len(cats) > 0:
+            cat = cats[0]
+        await self.category_move(ctx, ids, cat)
 
     @commands.command(name="complain")
     async def cmd_complain(self, ctx, *args):

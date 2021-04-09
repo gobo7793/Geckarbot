@@ -176,3 +176,40 @@ class Plugin(BasePlugin, name="Testing and debug things"):
     @commands.command(name="livetickersuche", hidden=True)
     async def cmd_livetickersuche(self, ctx, plugin=None, league=None):
         await ctx.send(self.bot.liveticker.search(plugin, league))
+
+    @staticmethod
+    async def incr(ctx, i):
+        await ctx.send(str(i + 1))
+        return i + 1
+
+    @staticmethod
+    def increment(i):
+        return i + 1
+
+    @commands.command(name="exec", hidden=True)
+    async def cmd_execute_anything(self, ctx):
+        i = 0
+        await ctx.send("coro function")
+        i = await utils.execute_anything(self.incr, ctx, i)
+
+        await ctx.send("coro")
+        i = await utils.execute_anything(self.incr(ctx, i))
+
+        await ctx.send("function")
+        i = await utils.execute_anything(self.increment, i)
+        await ctx.send(str(i))
+
+    @commands.command(name="syncexec", hidden=True)
+    async def cmd_execute_anything_sync(self, ctx):
+        i = 0
+        await ctx.send("coro function")
+        utils.execute_anything_sync(self.incr, ctx, i)
+        i += 1
+
+        await ctx.send("coro")
+        utils.execute_anything_sync(self.incr(ctx, i))
+        i += 1
+
+        await ctx.send("function")
+        i = utils.execute_anything_sync(self.increment, i)
+        await ctx.send(str(i))

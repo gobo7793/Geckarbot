@@ -116,7 +116,7 @@ class Plugin(BasePlugin, name="Sport"):
         running_msg = "\n".join(match_msg(m) for m in running)
         if running_msg:
             embed.description = "\n".join(match_msg(m) for m in running)
-        if allmatches == "all" or not running_msg:
+        if allmatches in ["all", "full"] or not running_msg:
             finished_msg = "\n".join(match_msg(m) for m in finished)
             upcoming_msg = "\n".join(match_msg(m) for m in upcoming)
             if finished_msg:

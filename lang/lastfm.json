@@ -1,6 +1,7 @@
 {
   "de_DE": {
     "#0": "Help",
+    "cat_desc": "Anbindung an Last.fm",
     "help_lastfm": "Last.fm-Anbindung",
     "desc_lastfm": "Gibt die interessanteste Häufung in den letzten Scrobbles aus.",
     "help_register": "Registriert dein last.fm-Profil",

@@ -215,12 +215,12 @@ class Geckarbot(commands.Bot):
         self.configure(plugin_object)
 
         # Set HelpCategory
+        if category_desc is None:
+            category_desc = ""
         if isinstance(category, str) and category:
-            if category_desc is None:
-                category_desc = ""
-            category = helpsys.HelpCategory(self, category, description=category_desc)
+            category = helpsys.HelpCategory(self, category, desc=category_desc)
         if category is None:
-            cat = self.helpsys.register_category_by_name(plugin_object.get_name())
+            cat = self.helpsys.register_category_by_name(plugin_object.get_name(), description=category_desc)
             cat.add_plugin(plugin_object)
         else:
             cat = self.helpsys.register_category(category)
