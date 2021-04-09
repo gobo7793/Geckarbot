@@ -37,7 +37,7 @@ class HelpCog(BasePlugin):
     def __init__(self, bot):
         self.bot = bot
         super().__init__(bot)
-        self.category = HelpCategory(bot, Lang.lang(self, "self_category_name"))
+        self.category = HelpCategory(bot, Lang.lang(self, "self_category_name"), desc=Lang.lang(self, "cat_desc_help"))
         self.category.add_plugin(self)
 
     def get_configurable_type(self):
@@ -61,9 +61,9 @@ class HelpCog(BasePlugin):
 
 
 class HelpCategory:
-    def __init__(self, bot, name, description="", order=CategoryOrder.MIDDLE, defaultcat=False):
+    def __init__(self, bot, name, desc="", order=CategoryOrder.MIDDLE, defaultcat=False):
         self._name = name[0].upper() + name[1:]
-        self.description = description
+        self.description = desc
         self.plugins = []
         self.standalone_commands = []
         self.order = order
@@ -190,18 +190,25 @@ class GeckiHelp(BaseSubsystem):
 
         self.default_categories = {
             DefaultCategories.UTILS: HelpCategory(bot, Lang.lang(self, "default_category_utils"),
+                                                  desc=Lang.lang(self, "cat_desc_utils"),
                                                   order=CategoryOrder.FIRST, defaultcat=True),
             DefaultCategories.GAMES: HelpCategory(bot, Lang.lang(self, "default_category_games"),
+                                                  desc=Lang.lang(self, "cat_desc_games"),
                                                   defaultcat=True),
             DefaultCategories.SPORT: HelpCategory(bot, Lang.lang(self, "default_category_sport"),
+                                                  desc=Lang.lang(self, "cat_desc_sport"),
                                                   defaultcat=True),
             DefaultCategories.MISC: HelpCategory(bot, Lang.lang(self, "default_category_misc"),
+                                                 desc=Lang.lang(self, "cat_desc_misc"),
                                                  order=CategoryOrder.LAST, defaultcat=True),
             DefaultCategories.USER: HelpCategory(bot, Lang.lang(self, "default_category_user"),
+                                                 desc=Lang.lang(self, "cat_desc_user"),
                                                  order=CategoryOrder.LAST, defaultcat=True),
             DefaultCategories.MOD: HelpCategory(bot, Lang.lang(self, "default_category_mod"),
+                                                desc=Lang.lang(self, "cat_desc_mod"),
                                                 order=CategoryOrder.LAST, defaultcat=True),
             DefaultCategories.ADMIN: HelpCategory(bot, Lang.lang(self, "default_category_admin"),
+                                                  desc=Lang.lang(self, "cat_desc_admin"),
                                                   order=CategoryOrder.LAST, defaultcat=True),
         }
 
@@ -247,7 +254,7 @@ class GeckiHelp(BaseSubsystem):
     def register_category_by_name(self, name, description=""):
         cat = self.category(name)
         if cat is None:
-            cat = HelpCategory(self.bot, name, description=description)
+            cat = HelpCategory(self.bot, name, desc=description)
             self.register_category(cat)
         return cat
 

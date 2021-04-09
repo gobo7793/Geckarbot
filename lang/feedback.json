@@ -29,6 +29,7 @@
         "bugscore_nan": "{} is not a number.",
         "bugscore_empty": "Nobody has found any bugs yet :(",
 
+        "cat_desc": "Complaints and their management",
         "help_complain": "Takes a complaint and stores it.",
         "usage_complain": "<complaint>",
         "desc_complain": "Delivers a feedback message. The admins and botmasters can then read the accumulated feedback via !redact. The bot saves the feedback author, the message and a link to the message for context.",
@@ -78,6 +79,7 @@
         "bugscore_nan": "{} ist keine Zahl.",
         "bugscore_empty": "Niemand hat bisher Bugs gefunden :(",
 
+        "cat_desc": "Kommandos für Beschwerden",
         "help_complain": "Nimmt eine Beschwerde entgegen und speichert sie.",
         "usage_complain": "<Beschwerde>",
         "desc_complain": "Überbringt eine Feedback-Nachricht. Die Admins und Botmaster können die angesammelten Feedback-Nachrichten via !redact lesen. Es werden der Autor, die Nachricht selbst und ein Link zur Nachricht (für Kontext) gespeichert.",
