@@ -658,6 +658,14 @@ class Liveticker(BaseSubsystem):
         self.restored = False
         self.current_timer = None
 
+        # Update storage
+        if not Storage().get(self).get('storage_version'):
+            self.logger.debug("default storage set")
+            regs = Storage().get(self)
+            Storage().set(self, self.default_storage())
+            Storage().get(self)['registrations'] = regs
+            Storage().save(self)
+
         @bot.listen()
         async def on_ready():
             plugins = self.bot.get_normalplugins()
@@ -665,10 +673,12 @@ class Liveticker(BaseSubsystem):
             self.restored = True
             timedict = timers.timedict(weekday=[2, 5], hour=[4], minute=[0])
             self.current_timer = self.bot.timers.schedule(coro=self._semiweekly_timer, td=timedict)
-            self.current_timer.execute()
+            if Storage().get(self).get('next_semiweekly') is None:
+                self.current_timer.execute()
 
     def default_storage(self):
         storage = {
+            'storage_version': 1,
             'registrations': {},
             'next_semiweekly': None
         }
@@ -773,3 +783,5 @@ class Liveticker(BaseSubsystem):
         until = self.current_timer.next_execution() - datetime.timedelta(days=1)
         for league_reg in self.registrations[LTSource.ESPN].values():
             await league_reg.schedule_kickoffs_espn(until)
+        Storage().get(self)['next_semiweekly'] = self.current_timer.next_execution()
+        Storage().save(self)
