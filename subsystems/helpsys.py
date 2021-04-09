@@ -544,7 +544,7 @@ class GeckiHelp(BaseSubsystem):
         :param args: Arguments that the usage command was called with
         """
         if not args:
-            await self.bot.helpsys.cmd_help(ctx, self, ctx.command)
+            await self.bot.helpsys.cmd_help(ctx, self.cog, ctx.command)
             return
 
         plugin, cmd = self.find_command(args)
@@ -585,7 +585,7 @@ class GeckiHelp(BaseSubsystem):
         :param args: Arguments that the locate command was called with
         """
         if not args:
-            await self.bot.helpsys.cmd_help(ctx, self, ctx.command)
+            await self.bot.helpsys.cmd_help(ctx, self.cog, ctx.command)
             return
 
         plugin, cmd = self.find_command(args)
