@@ -12,6 +12,9 @@ from botutils.stringutils import paginate, format_andlist
 
 
 class Complaint:
+    """
+    Represents a complaint.
+    """
     def __init__(self, plugin, complaint_id, author, msg_link, content, category, timestamp):
         """
         :param plugin: Plugin object
@@ -115,6 +118,7 @@ class Plugin(BasePlugin, name="Feedback"):
                 "bugscore": {},
                 "version": 1,
             }
+        raise RuntimeError("unknown container {}".format(container))
 
     def migrate(self):
         # 0 -> 2
@@ -407,11 +411,10 @@ class Plugin(BasePlugin, name="Feedback"):
             return
 
         # Move
-        else:
-            cat = None
-            if len(cats) > 0:
-                cat = cats[0]
-            await self.category_move(ctx, ids, cat)
+        cat = None
+        if len(cats) > 0:
+            cat = cats[0]
+        await self.category_move(ctx, ids, cat)
 
     @commands.command(name="complain")
     async def cmd_complain(self, ctx, *args):
