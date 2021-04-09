@@ -447,7 +447,7 @@ class LeagueRegistration:
 
     def _update_matches_espn(self):
         # call ESPN two times to reload server cache
-        raw = restclient.Client("http://site.api.espn.com/apis/site/v2/sports").make_request(
+        _ = restclient.Client("http://site.api.espn.com/apis/site/v2/sports").make_request(
             f"/soccer/{self.league}/scoreboard")
         time.sleep(10)
         raw = restclient.Client("http://site.api.espn.com/apis/site/v2/sports").make_request(
@@ -496,32 +496,30 @@ class LeagueRegistration:
                 raw_kickoffs[match['date']] = []
             raw_kickoffs[match['date']].append(match['name'])
         for kickoff, matches in raw_kickoffs.items():
-            time = datetime.datetime.strptime(kickoff, "%Y-%m-%dT%H:%MZ")\
+            time_kickoff = datetime.datetime.strptime(kickoff, "%Y-%m-%dT%H:%MZ")\
                 .replace(tzinfo=datetime.timezone.utc).astimezone().replace(tzinfo=None)
-            if time > now:
+            if time_kickoff > now:
                 jobs.append(self.listener.bot.timers.schedule(
                     coro=self._schedule_match_timer,
-                    td=timers.timedict(year=time.year, month=time.month, monthday=time.day, hour=time.hour,
-                                       minute=time.minute),
+                    td=timers.timedict(year=time_kickoff.year, month=time_kickoff.month, monthday=time_kickoff.day,
+                                       hour=time_kickoff.hour, minute=time_kickoff.minute),
                     data=matches))
             else:
-                await self._schedule_match_timer(time=time)
+                await self._schedule_match_timer(kickoff=time_kickoff)
 
         self.kickoff_timers.extend(jobs)
         return jobs
 
-    async def _schedule_match_timer(self, job=None, time=None):
+    async def _schedule_match_timer(self, job=None, kickoff=None):
         """
         Schedules the timer for the match updates
 
         :param job: is used if this method is called by the timer
-        :param time: is used if the match is actually running
+        :param kickoff: is used if the match is actually running
         """
         if job:
             kickoff = datetime.datetime.now().replace(second=0, microsecond=0)
-        elif time:
-            kickoff = time
-        else:
+        if not kickoff:
             return
 
         interval = 15
@@ -543,16 +541,16 @@ class LeagueRegistration:
         jobs = []
         kickoffs = self.extract_kickoffs_with_matches()
         now = datetime.datetime.now()
-        for time in kickoffs:
-            if time > now:
+        for t in kickoffs:
+            if t > now:
                 # Upcoming match
                 jobs.append(self.listener.bot.timers.schedule(coro=self.schedule_match_timers, td=timers.timedict(
-                    year=time.year, month=time.month, monthday=time.day, hour=time.hour, minute=time.minute)))
+                    year=t.year, month=t.month, monthday=t.day, hour=t.hour, minute=t.minute)))
             else:
                 # Running match
-                self.schedule_timers(start=time)
+                self.schedule_timers(start=t)
                 tmp_job = self.listener.bot.timers.schedule(coro=self.update_kickoff_coros, td=timers.timedict(),
-                                                            data={'start': time, 'matches': kickoffs[time]})
+                                                            data={'start': t, 'matches': kickoffs[t]})
                 tmp_job.execute()
         self.kickoff_timers.extend(jobs)
         return jobs
