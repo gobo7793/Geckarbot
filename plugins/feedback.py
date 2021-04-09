@@ -121,7 +121,7 @@ class Plugin(BasePlugin, name="Feedback"):
         raise RuntimeError("unknown container {}".format(container))
 
     def migrate(self):
-        # 0 -> 2
+        # 0 -> 1
         if "version" not in self.storage:
             self.storage["version"] = 1
             Storage.save(self)
@@ -371,17 +371,24 @@ class Plugin(BasePlugin, name="Feedback"):
 
         :param ctx: Context
         """
-        cats = []
+        cats = {}
+        cats_sorted = []
         for el in self.complaints:
             cat = self.complaints[el].category
-            if cat is not None and cat not in cats:
-                cats.append(cat)
-        cats = sorted(cats, key=lambda x: x.lower())
+            if cat is not None:
+                if cat in cats:
+                    cats[cat] += 1
+                else:
+                    cats_sorted.append(cat)
+                    cats[cat] = 1
+        cats_sorted = sorted(cats_sorted, key=lambda x: x.lower())
+        for i in range(len(cats_sorted)):
+            cats_sorted[i] = "{} ({})".format(cats_sorted[i], cats[cats_sorted[i]])
 
         if not cats:
             await ctx.send(Lang.lang(self, "redact_cat_list_empty"))
         else:
-            for msg in paginate(cats, prefix=Lang.lang(self, "redact_cat_list_prefix")):
+            for msg in paginate(cats_sorted, prefix=Lang.lang(self, "redact_cat_list_prefix")):
                 await ctx.send(msg)
 
     @cmd_redact.command(name="category", aliases=["cat"])
