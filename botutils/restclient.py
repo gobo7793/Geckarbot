@@ -233,6 +233,9 @@ class Client:
         """
         Prints the dictionary d but replaces any `"password"` values with `***`
         """
+        if d is None:
+            return
+
         found = []
         candidates = ["password", "pw", "Password", "passwort", "Passwort"]
         for el in candidates:

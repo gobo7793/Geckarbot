@@ -58,7 +58,7 @@ class Plugin(BasePlugin, name="Bot status commands for monitoring and debug purp
             if not dmregs:
                 dmregs = {0: "None"}
             dm_prefix = "**{} DM Listeners:**\n".format(len(self.bot.dm_listener.registrations))
-            for msg in paginate((x for x in dmregs.keys()),
+            for msg in paginate([x for x in dmregs],
                                 prefix=dm_prefix,
                                 suffix="\n",
                                 f=lambda x: dmregs[x]):

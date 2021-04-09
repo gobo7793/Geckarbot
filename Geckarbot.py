@@ -124,7 +124,7 @@ class Geckarbot(commands.Bot):
         self.LOAD_PLUGINS = self.PLUGINS.get('load', [])
         self.NOT_LOAD_PLUGINS = self.PLUGINS.get('not_load', [])
 
-    def get_default(self, container=None):
+    def default_config(self, container=None):
         # pylint: disable=no-self-use
         # config/geckarbot.json must be provided or the bot can't start
         raise RuntimeError("Config file missing")

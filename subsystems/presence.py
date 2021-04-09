@@ -267,7 +267,7 @@ class Presence(BaseSubsystem):
             return
 
         self.log.info("Start presence changing timer")
-        time_dict = timedict(minute=(i for i in range(0, 60, Config.get(self)["update_period_min"])))
+        time_dict = timedict(minute=[i for i in range(0, 60, Config.get(self)["update_period_min"])])
         self._timer_job = self.bot.timers.schedule(self._change_callback, time_dict, repeat=True)
         job_data = {
             "current_id": -1,
