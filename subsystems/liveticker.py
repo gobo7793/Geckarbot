@@ -476,7 +476,7 @@ class LeagueRegistration:
         else:
             return None
 
-    async def schedule_kickoffs_espn(self, until: datetime):
+    async def schedule_kickoffs_espn(self, until):
         """
         Schedules timers for the kickoffs of the matches until the specified date
 
@@ -673,7 +673,9 @@ class Liveticker(BaseSubsystem):
             self.restored = True
             timedict = timers.timedict(weekday=[2, 5], hour=[4], minute=[0])
             self.current_timer = self.bot.timers.schedule(coro=self._semiweekly_timer, td=timedict)
-            if Storage().get(self).get('next_semiweekly') is None:
+            if Storage().get(self).get('next_semiweekly') is None or \
+                    datetime.datetime.strptime(Storage().get(self)['next_semiweekly'], "%Y-%m-%d %H:%M") \
+                    < datetime.datetime.now():
                 self.current_timer.execute()
 
     def default_storage(self):
@@ -783,5 +785,5 @@ class Liveticker(BaseSubsystem):
         until = self.current_timer.next_execution() - datetime.timedelta(days=1)
         for league_reg in self.registrations[LTSource.ESPN].values():
             await league_reg.schedule_kickoffs_espn(until)
-        Storage().get(self)['next_semiweekly'] = self.current_timer.next_execution()
+        Storage().get(self)['next_semiweekly'] = self.current_timer.next_execution().strftime("%Y-%m-%d %H:%M")
         Storage().save(self)
