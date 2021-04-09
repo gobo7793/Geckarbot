@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime
 
 import discord.utils
 from discord.ext import commands
@@ -11,7 +12,7 @@ from botutils.stringutils import paginate, format_andlist
 
 
 class Complaint:
-    def __init__(self, plugin, complaint_id, author, msg_link, content, category):
+    def __init__(self, plugin, complaint_id, author, msg_link, content, category, timestamp):
         """
         :param plugin: Plugin object
         :param complaint_id: unique complaint id
@@ -19,6 +20,7 @@ class Complaint:
         :param msg_link: URL to message
         :param content: Complaint message content
         :param category: Category, can be None
+        :param timestamp: datetime.datetime timestamp
         """
         self.plugin = plugin
         self.id = complaint_id
@@ -26,6 +28,7 @@ class Complaint:
         self.msg_link = msg_link
         self.content = content
         self.category = category
+        self.timestamp = timestamp
 
     def serialize(self):
         """
@@ -41,6 +44,7 @@ class Complaint:
             "msglink": self.msg_link,
             "content": self.content,
             "category": self.category,
+            "timestamp": self.timestamp,
         }
 
     @classmethod
@@ -54,20 +58,22 @@ class Complaint:
         :return: Complaint object
         """
         author = discord.utils.get(plugin.bot.guild.members, id=d["authorid"])
-        return cls(plugin, cid, author, d["msglink"], d["content"], d["category"])
+        return cls(plugin, cid, author, d["msglink"], d["content"], d["category"], d["timestamp"])
 
     @classmethod
     def from_message(cls, plugin, msg):
         content = msg.content[len("!complain"):].strip()  # todo check if necessary
         if not content.strip():
             return None
-        return cls(plugin, plugin.get_new_id(), msg.author, msg.jump_url, content, None)
+        return cls(plugin, plugin.get_new_id(), msg.author, msg.jump_url, content, None, datetime.now())
 
-    def to_message(self, show_cat=True, include_url=True):
+    def to_message(self, show_cat=True, show_ts=True, include_url=True):
         authorname = "Not found"
         if self.author is not None:
             authorname = converters.get_best_username(self.author)
         r = "**#{}**: {}: {}".format(self.id, authorname, self.content)
+        if self.timestamp is not None and show_ts:
+            r += "\n{}".format(self.timestamp.strftime("%d.%m.%Y %H:%M"))
         if include_url and self.msg_link is not None:
             r += "\n{}".format(self.msg_link)
         if show_cat and self.category is not None:
@@ -87,12 +93,9 @@ class Plugin(BasePlugin, name="Feedback"):
         self.logger = logging.getLogger(__name__)
         self.storage = Storage.get(self)
         self.bugscore = Storage.get(self, container="bugscore")["bugscore"]
+        self.migrate()
         self.complaints = {}
         self.highest_id = None
-
-        if "version" not in self.storage:
-            self.storage["version"] = 1
-            Storage.save(self)
         self.complaints_version = self.storage["version"]
 
         for cid in self.storage["complaints"]:
@@ -112,6 +115,20 @@ class Plugin(BasePlugin, name="Feedback"):
                 "bugscore": {},
                 "version": 1,
             }
+
+    def migrate(self):
+        # 0 -> 2
+        if "version" not in self.storage:
+            self.storage["version"] = 1
+            Storage.save(self)
+
+        # 1 -> 2
+        if self.storage["version"] == 1:
+            self.storage["version"] = 2
+            for k in self.storage["complaints"]:
+                c = self.storage["complaints"][k]
+                c["timestamp"] = None
+            Storage.save(self)
 
     def reset_highest_id(self):
         self.highest_id = 0
