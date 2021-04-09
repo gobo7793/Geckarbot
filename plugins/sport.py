@@ -194,18 +194,18 @@ class Plugin(BasePlugin, name="Sport"):
             await add_reaction(ctx.message, Lang.CMDERROR)
             await ctx.send(Lang.lang(self, "err_invalid_src"))
         else:
-            if league not in Config().get(self)['liveticker_leagues'].get(source, []):
-                if not Config().get(self)['liveticker_leagues'].get(source):
-                    Config().get(self)['liveticker_leagues'][source] = []
-                Config().get(self)['liveticker_leagues'][source].append(league)
+            if league not in Config().get(self)['liveticker']['leagues'].get(source, []):
+                if not Config().get(self)['liveticker']['leagues'].get(source):
+                    Config().get(self)['liveticker']['leagues'][source] = []
+                Config().get(self)['liveticker']['leagues'][source].append(league)
                 Config().save(self)
             await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
     @cmd_liveticker.command(name="del")
     async def cmd_liveticker_del(self, ctx, source, league):
-        if source in Config().get(self)['liveticker_leagues'] and \
-                league in Config().get(self)['liveticker_leagues'][source]:
-            Config().get(self)['liveticker_leagues'][source].remove(league)
+        if source in Config().get(self)['liveticker']['leagues'] and \
+                league in Config().get(self)['liveticker']['leagues'][source]:
+            Config().get(self)['liveticker']['leagues'][source].remove(league)
             Config().save(self)
             league_list = self.bot.liveticker.search(self, league=league, source=source)
             for src in league_list.values():
@@ -219,7 +219,7 @@ class Plugin(BasePlugin, name="Sport"):
     @cmd_liveticker.command(name="list")
     async def cmd_liveticker_list(self, ctx):
         msgs = []
-        for source, leagues in Config().get(self)['liveticker_leagues'].items():
+        for source, leagues in Config().get(self)['liveticker']['leagues'].items():
             leagues_str = " / ".join(leagues)
             msgs.append(f"{source} ({len(leagues)}) | {leagues_str}")
         for msg in paginate(msgs, prefix="**Liveticker**\n", if_empty="-"):

@@ -372,8 +372,8 @@ class LeagueRegistration:
         self.matches = []
         self.finished = []
 
-        self.update_matches()
-        self.schedule_kickoffs()
+        # self.update_matches()
+        # self.schedule_kickoffs()
 
     def register(self, plugin, coro, periodic: bool):
         """Registers a CoroReg for this league"""
@@ -486,7 +486,7 @@ class LeagueRegistration:
         jobs = []
         raw_kickoffs = {}
         dates = "{}-{}".format(datetime.datetime.now().strftime("%Y%m%d"), until.strftime("%Y%m%d"))
-        data = await restclient.Client("http://site.api.espn.com/apis/site/v2/sports")\
+        data = await restclient.Client("http://site.api.espn.com/apis/site/v2/sports") \
             .request(f"/soccer/{self.league}/scoreboard", params={'dates': dates})
         now = datetime.datetime.now()
         for match in data['events']:
@@ -790,15 +790,17 @@ class Liveticker(BaseSubsystem):
                 reg.unload()
         self.logger.debug(f'Liveticker for plugin {plugin_name} unloaded')
 
-    async def _semiweekly_timer(self, job):
+    async def _semiweekly_timer(self, _job):
         """
         Coroutine used by the semi-weekly timer for the scheduling of matches
 
-        :param job: timer job
+        :param _job: timer job
         :return: None
         """
         self.logger.debug("Semi-Weekly timer schedules matches.")
         until = self.current_timer.next_execution() - datetime.timedelta(days=1)
+        if until < datetime.datetime.now():
+            until = datetime.datetime.now()
         for league_reg in self.registrations[LTSource.ESPN].values():
             await league_reg.schedule_kickoffs_espn(until)
         Storage().get(self)['next_semiweekly'] = self.current_timer.next_execution().strftime("%Y-%m-%d %H:%M")
