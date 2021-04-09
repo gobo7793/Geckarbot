@@ -14,7 +14,7 @@
         "redact_count": "There are {} complaints ({} categorized, {} uncategorized) and {} categories.",
         "redact_cat_appendix": "Category: {}",
 
-        "redact_cat_show_prefix": "**Category *{}* contains the following complaints:**\n",
+        "redact_cat_show_prefix": "**Category *{}* contains the following {} complaints:**\n",
         "redact_cat_list_prefix": "**Categories:**\n",
         "redact_cat_list_empty": "There are no categories.",
         "redact_cat_moved": "Moved complaint **#{}** from category **{}** to category **{}**.",
@@ -63,7 +63,7 @@
         "redact_count": "Es gibt {} Beschwerden ({} kategorisiert, {} ohne Kategorie) und {} Kategorien.",
         "redact_cat_appendix": "Kategorie: {}",
 
-        "redact_cat_show_prefix": "**Die Kategorie *{}* enthält die folgenden Beschwerden:**\n",
+        "redact_cat_show_prefix": "**Die Kategorie *{}* enthält die folgenden {} Beschwerden:**\n",
         "redact_cat_list_prefix": "**Kategorien:**\n",
         "redact_cat_list_empty": "Es gibt keine Kategorien.",
         "redact_cat_moved": "Beschwerde **#{}** von Kategorie **{}** zu Kategorie **{}** verschoben.",

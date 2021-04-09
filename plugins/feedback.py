@@ -356,7 +356,7 @@ class Plugin(BasePlugin, name="Feedback"):
             return
 
         for msg in paginate(msgs,
-                            prefix=Lang.lang(self, "redact_cat_show_prefix", category),
+                            prefix=Lang.lang(self, "redact_cat_show_prefix", category, len(msgs)),
                             delimiter="\n\n",
                             msg_prefix="_ _\n"):
             await ctx.send(msg)
