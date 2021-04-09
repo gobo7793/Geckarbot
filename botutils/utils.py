@@ -270,7 +270,6 @@ async def execute_anything(f, *args, **kwargs):
         f = f(*args, **kwargs)
     if inspect.iscoroutine(f):
         return await f
-
     return f(*args, **kwargs)
 
 
