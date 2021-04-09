@@ -18,6 +18,9 @@ class CategoryExists(Exception):
 
 
 class DefaultCategories(Enum):
+    """
+    Default categories that plugins can be sorted into if desirable.
+    """
     UTILS = 0
     GAMES = 1
     SPORT = 2
@@ -28,12 +31,18 @@ class DefaultCategories(Enum):
 
 
 class CategoryOrder(Enum):
+    """
+    Classes that help categories are ordered by when listing them.
+    """
     FIRST = 0
     MIDDLE = 1
     LAST = 2
 
 
 class HelpCog(BasePlugin):
+    """
+    Cog for help commands
+    """
     def __init__(self, bot):
         self.bot = bot
         super().__init__(bot)
@@ -61,6 +70,9 @@ class HelpCog(BasePlugin):
 
 
 class HelpCategory:
+    """
+    Represents a help category.
+    """
     def __init__(self, bot, name, desc="", order=CategoryOrder.MIDDLE, defaultcat=False):
         self._name = name[0].upper() + name[1:]
         self.description = desc
@@ -155,6 +167,7 @@ class HelpCategory:
         return r + self.standalone_commands
 
     def sort_commands(self, ctx, cmds):
+        # pylint: disable=no-self-use
         return sorted(cmds, key=lambda x: x.name)
 
     def format_commands(self, ctx):
@@ -183,6 +196,9 @@ class HelpCategory:
 
 
 class GeckiHelp(BaseSubsystem):
+    """
+    Subsystem that handles the bot's `!help` command.
+    """
     def __init__(self, bot):
         self.bot = bot
         super().__init__(self.bot)
@@ -303,6 +319,11 @@ class GeckiHelp(BaseSubsystem):
         self._categories.remove(category)
 
     def purge_plugin(self, plugin):
+        """
+        Removes a plugin and its commands from all help categories.
+
+        :param plugin: Plugin to remove
+        """
         cats = self.categories_by_plugin(plugin)
         for cat in cats:
             cat.remove_plugin(plugin)
@@ -321,6 +342,7 @@ class GeckiHelp(BaseSubsystem):
             `plugin` is the plugin where the found command `command` is registered in.
             If nothing is found, returns `(None, None)`.
         """
+        # pylint: disable=unnecessary-comprehension
         plugins = [self.cog] + [el for el in self.bot.plugin_objects(plugins_only=True)]
 
         # find plugin
@@ -346,9 +368,9 @@ class GeckiHelp(BaseSubsystem):
             return plugin, cmd
         return None, None
 
-    """
-    Evaluation methods
-    """
+    #####
+    # Evaluation methods
+    #####
     @staticmethod
     def get_command_help(plugin, cmd):
         r = None
@@ -373,9 +395,9 @@ class GeckiHelp(BaseSubsystem):
 
         return desc + "\n"
 
-    """
-    Format methods
-    """
+    #####
+    # Format methods
+    #####
     def append_command_leaves(self, cmds, cmd):
         """
         Recursive helper function for `flattened_plugin_help()`.
@@ -506,7 +528,7 @@ class GeckiHelp(BaseSubsystem):
             last = []
             for cat in self._categories:
                 if cat.is_empty():
-                    self.logger.debug("Ignoring category {} as it is empty".format(cat.name))
+                    self.logger.debug("Ignoring category %s as it is empty", cat.name)
                     continue
 
                 line = "  {}".format(cat.single_line())
