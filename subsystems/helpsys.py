@@ -101,7 +101,7 @@ class HelpCategory:
     def add_plugin(self, plugin):
         """
         Adds a plugin to this HelpCategory.
-        
+
         :param plugin: BasePlugin instance to be added to the category
         """
         self.plugins.append(plugin)
@@ -220,9 +220,9 @@ class GeckiHelp(BaseSubsystem):
         self.bot.add_cog(self.cog)
         self.register_category(self.cog.category)
 
-    """
-    Housekeeping methods
-    """
+    ######
+    # Housekeeping methods
+    ######
     def default_category(self, const):
         """
         :param const: One out of DefaultCategories
@@ -252,6 +252,13 @@ class GeckiHelp(BaseSubsystem):
         return r
 
     def register_category_by_name(self, name, description=""):
+        """
+        Creates and registers a help category by name only.
+
+        :param name: Help category name
+        :param description: Help category description
+        :return: HelpCategory that was created and registered
+        """
         cat = self.category(name)
         if cat is None:
             cat = HelpCategory(self.bot, name, desc=description)
@@ -265,6 +272,7 @@ class GeckiHelp(BaseSubsystem):
 
         :param category: HelpCategory instance or DefaultCategory instance
         :return: The registered HelpCategory
+        :raises CategoryExists: Raised if `category` is already registered.
         """
         # Catch default category
         if isinstance(category, DefaultCategories):
@@ -283,6 +291,7 @@ class GeckiHelp(BaseSubsystem):
         Deregisters a help category. If a DefaultCategory is parsed, nothing is deregistered.
 
         :param category: HelpCategory instance or DefaultCategory instance
+        :raises CategoryNotFound: Raised if `category` was not registered.
         """
         if isinstance(category, DefaultCategories):
             return
@@ -301,9 +310,9 @@ class GeckiHelp(BaseSubsystem):
             for cat in self._categories:
                 cat.remove_command(cmd)
 
-    """
-    Parsing methods
-    """
+    #######
+    # Parsing methods
+    #######
     def find_command(self, args):
         """
         Finds the command that is resembled by `args`.
@@ -335,8 +344,7 @@ class GeckiHelp(BaseSubsystem):
                 return None, None
         if cmd is not None:
             return plugin, cmd
-        else:
-            return None, None
+        return None, None
 
     """
     Evaluation methods
@@ -412,8 +420,7 @@ class GeckiHelp(BaseSubsystem):
             helpstr = command.help
         if helpstr is not None and helpstr.strip():
             return "{}{} - {}".format(self.bot.command_prefix, command.qualified_name, helpstr)
-        else:
-            return "{}{}".format(self.bot.command_prefix, command.qualified_name)
+        return "{}{}".format(self.bot.command_prefix, command.qualified_name)
 
     def format_subcmds(self, ctx, plugin, command):
         r = []
@@ -445,9 +452,9 @@ class GeckiHelp(BaseSubsystem):
                 usage = cmd.usage
         return "{} {}".format(parent, usage)
 
-    """
-    Output methods
-    """
+    ######
+    # Output methods
+    ######
     async def error(self, ctx, error):
         await ctx.send(Lang.lang(self, error))
 
@@ -481,9 +488,9 @@ class GeckiHelp(BaseSubsystem):
         for msg in paginate(msg, msg_prefix="```", msg_suffix="```"):
             await ctx.send(msg)
 
-    """
-    Commands
-    """
+    ######
+    # Commands
+    ######
     async def helpcmd(self, ctx, *args):
         """
         Handles any help command.
@@ -518,30 +525,29 @@ class GeckiHelp(BaseSubsystem):
             return
 
         # !help args
-        else:
-            # find command
-            plugin, cmd = self.find_command(args)
-            if cmd is not None:
-                await self.cmd_help(ctx, plugin, cmd)
-                return
+        # find command
+        plugin, cmd = self.find_command(args)
+        if cmd is not None:
+            await self.cmd_help(ctx, plugin, cmd)
+            return
 
-            # find category
-            if len(args) != 1:
-                # no category
-                await add_reaction(ctx.message, Lang.CMDERROR)
-                await self.error(ctx, "cmd_not_found")
-                return
-            cat = None
-            for el in self._categories:
-                if el.match_name(args[0]):
-                    cat = el
-                    break
-            if cat is not None and not cat.is_empty():
-                await cat.send_category_help(ctx)
-                return
-
+        # find category
+        if len(args) != 1:
+            # no category
             await add_reaction(ctx.message, Lang.CMDERROR)
-            await self.error(ctx, "cmd_cat_not_found")
+            await self.error(ctx, "cmd_not_found")
+            return
+        cat = None
+        for el in self._categories:
+            if el.match_name(args[0]):
+                cat = el
+                break
+        if cat is not None and not cat.is_empty():
+            await cat.send_category_help(ctx)
+            return
+
+        await add_reaction(ctx.message, Lang.CMDERROR)
+        await self.error(ctx, "cmd_cat_not_found")
 
     async def usagecmd(self, ctx, *args):
         """
