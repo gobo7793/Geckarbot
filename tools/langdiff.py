@@ -23,7 +23,7 @@ class Found:
             langcode: {
                 langstring: [not_found_in_these_langcodes ...]
             }
-        } 
+        }
         """
 
     def __len__(self):
@@ -33,7 +33,7 @@ class Found:
                 r += len(self.found[langcode][langstring])
         return r
 
-    def append(self, langcode, langstring, not_found_in):
+    def append(self, langcode: str, langstring: str, not_found_in: str):
         """
         Appends a violation
 
@@ -49,11 +49,12 @@ class Found:
 
         self.found[langcode][langstring].append(not_found_in)
 
-    def to_messages(self, prefix=""):
+    def to_messages(self, prefix: str = "") -> str:
         """
         Generator for messages
 
         :param prefix: indentation prefix
+        :return: Iterator for messages that represent all found violations
         """
         for langcode in self.found:
             yield "{}{}:".format(prefix, langcode)
@@ -61,7 +62,7 @@ class Found:
                 yield "  {}{} not found in {}".format(prefix, langstring, ", ".join(self.found[langcode][langstring]))
 
 
-def diff(filename):
+def diff(filename: str) -> bool:
     """
     Does the diff for a specific file, also does the output
 
@@ -92,13 +93,14 @@ def diff(filename):
     return True
 
 
-def main():
+def main() -> int:
     """
     main()
 
     :return: 1 in case of unhandled exceptions (I think). Otherwise works like a bitmask: +2 for I/O errors, +4 for
         found violations
     """
+    # pylint: disable=broad-except
 
     errors = {}
     r = 0
