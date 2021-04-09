@@ -10,6 +10,9 @@
     "help_helpall": "Lists all commands.",
     "desc_helpall": "Lists all commands in alphabetical order.",
     "usage_helpall": "[debug]",
+    "help_locate": "Finds the corresponding plugin to a command",
+    "desc_locate": "Shows the name of the plugin that the given command belongs to.",
+    "usage_locate": "<Command>",
     "self_category_name": "Help",
 
     "help_categories_prefix": "!help <category> for help on a category.\n\nCategories:",
@@ -17,6 +20,8 @@
     "help_subcommands_prefix": "Subcommands:",
     "help_aliases": "Aliases: {}",
     "help_no_desc": "This command does not have a description. You are on your own.",
+
+    "locate": "The command belongs to the plugin **{}**.",
 
     "default_category_misc": "Misc",
     "default_category_user": "User",
@@ -40,6 +45,9 @@
     "help_helpall": "Listet alle Kommandos auf",
     "desc_helpall": "Listet alle bekannten Kommandos in alphabetischer Reihenfolge auf.",
     "usage_helpall": "[debug]",
+    "help_locate": "Findet das Plugin zu einem Kommando",
+    "desc_locate": "Zeigt den Namen des Plugins, in dem das übergebene Kommando zu finden ist.",
+    "usage_locate": "<Kommando>",
     "self_category_name": "Hilfe",
 
     "help_categories_prefix": "!help <Kategorie> für Hilfe zu einer Kategorie.\n\nKategorien:",
@@ -47,6 +55,8 @@
     "help_subcommands_prefix": "Unterkommandos:",
     "help_aliases": "Alias: {}",
     "help_no_desc": "Dieses Kommando hat keine Beschreibung. Du bist auf dich allein gestellt. Viel Glück.",
+
+    "locate": "Das Kommando ist im Plugin **{}**.",
 
     "default_category_misc": "Sonstiges",
     "default_category_user": "Botuser",

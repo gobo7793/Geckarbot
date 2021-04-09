@@ -55,6 +55,10 @@ class HelpCog(BasePlugin):
     async def listcmd(self, ctx, *args):
         await self.bot.helpsys.listcmd(ctx, *args)
 
+    @commands.command(name="locate")
+    async def locatecmd(self, ctx, *args):
+        await self.bot.helpsys.locatecmd(ctx, *args)
+
 
 class HelpCategory:
     def __init__(self, bot, name, description="", order=CategoryOrder.MIDDLE, defaultcat=False):
@@ -539,6 +543,10 @@ class GeckiHelp(BaseSubsystem):
         :param ctx: Context
         :param args: Arguments that the usage command was called with
         """
+        if not args:
+            await self.bot.helpsys.cmd_help(ctx, self, ctx.command)
+            return
+
         plugin, cmd = self.find_command(args)
         if cmd is None:
             await add_reaction(ctx.message, Lang.CMDERROR)
@@ -568,3 +576,22 @@ class GeckiHelp(BaseSubsystem):
         cmds = sorted(cmds)
         for msg in paginate(cmds, msg_prefix="```", msg_suffix="```"):
             await ctx.send(msg)
+
+    async def locatecmd(self, ctx, *args):
+        """
+        Prints the plugin name that a given cmd belongs to.
+
+        :param ctx: Context
+        :param args: Arguments that the locate command was called with
+        """
+        if not args:
+            await self.bot.helpsys.cmd_help(ctx, self, ctx.command)
+            return
+
+        plugin, cmd = self.find_command(args)
+        if cmd is None:
+            await add_reaction(ctx.message, Lang.CMDERROR)
+            await self.error(ctx, "cmd_not_found")
+            return
+
+        await ctx.send(Lang.lang(self.cog, "locate", plugin.get_name()))
