@@ -755,6 +755,12 @@ class Liveticker(BaseSubsystem):
         return coro_dict
 
     def restore(self, plugins: list):
+        """
+        Restores saved registrations from the storage
+
+        :param plugins: List of all active plugins
+        :return: None
+        """
         i, j = 0, 0
         for src, registrations in Storage().get(self)['registrations'].items():
             for league in registrations:
@@ -774,6 +780,12 @@ class Liveticker(BaseSubsystem):
         self.logger.debug(f'{i} Liveticker registrations restored. {j} failed.')
 
     def unload_plugin(self, plugin_name):
+        """
+        Unloads all active registrations belonging to the specified plugin
+
+        :param plugin_name: name of the plugin
+        :return: None
+        """
         coro_dict = self.search(plugin=plugin_name)
         for leag in coro_dict.values():
             for reg in leag:
@@ -781,6 +793,12 @@ class Liveticker(BaseSubsystem):
         self.logger.debug(f'Liveticker for plugin {plugin_name} unloaded')
 
     async def _semiweekly_timer(self, job):
+        """
+        Coroutine used by the semi-weekly timer for the scheduling of matches
+
+        :param job: timer job
+        :return: None
+        """
         self.logger.debug("Semi-Weekly timer schedules matches.")
         until = self.current_timer.next_execution() - datetime.timedelta(days=1)
         for league_reg in self.registrations[LTSource.ESPN].values():
