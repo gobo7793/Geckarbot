@@ -1,3 +1,5 @@
+from enum import Enum
+
 from data import Config, Lang
 from botutils.utils import paginate, add_reaction
 
@@ -7,6 +9,12 @@ baselang = {
     "set_success": "Changed {} value from {} to {}",
     "set_success_default": "Changed {} value from {} to the default value {}"
 }
+
+
+class Result(Enum):
+    NEWVAL = 0
+    DEFAULT = 1
+    TOGGLE = 2
 
 
 class ConfigSetter:
@@ -30,11 +38,87 @@ class ConfigSetter:
         self.base_config = whitelist
         self.desc = desc if desc is not None else {}
         self.lang = lang if lang is not None else {}
+        self.switches = []
+
+    def add_switch(self, keys):
+        """
+        Adds a switch. A switch is a set of config keys with bool values where exactly one value is True at any time.
+        If a second value is set to True, every other value is set to False. This only applies if the set / set_cmd
+        methods are used.
+
+        :param keys: List of keys that constitute the switch
+        :raises RuntimeError: Raised if a switch condition is violated. These are:
+            Key already present in another switch
+            Value is not of type bool
+            Default value of more than one key is True
+            No key with default value True found
+            Unknown key (key not in whitelist)
+        """
+        # check conditions
+        for switch in self.switches:
+            for key in keys:
+                if key in switch:
+                    raise RuntimeError("Key already present in another switch: {}".format(key))
+
+        true_found = False
+        for key in keys:
+            try:
+                valtype, valdefault = self.base_config[key]
+            except KeyError:
+                raise RuntimeError("Unknown key: {}".format(key))
+
+            if valtype is not bool:
+                raise RuntimeError("Type of {} value is not bool but {}".format(key, valtype))
+
+            if valdefault:
+                if true_found:
+                    raise RuntimeError("Default value of more than one key is True")
+                true_found = True
+        if not true_found:
+            raise RuntimeError("No key with default value True found")
+
+        self.switches.append(keys.copy())
+
+    def _process_switches(self, key, value):
+        """
+        Sets a boolean value and processes switches. Assumes correct typing in config and value.
+
+        :param key: Config key 
+        :param value: Config value
+        """
+        switch = None
+        for el in self.switches:
+            if key in el:
+                switch = el
+                break
+
+        config = Config.get(self.plugin)
+        oldval = config[key]
+        config[key] = value
+        if switch is None:
+            return
+
+        # Toggle to False => set default if necessary
+        if not value:
+            if not oldval:
+                return
+
+            # find default and set it
+            for el in switch:
+                if self.base_config[1]:
+                    config[el] = True
+            return
+
+        # Toggle to True -> set everything else to False
+        for el in switch:
+            if el == key:
+                continue
+            config[el] = False
 
     def get_config(self, key):
         return Config.get(self.plugin).get(key, self.base_config[key][1])
 
-    async def send(self, ctx, key, *args):
+    async def _send(self, ctx, key, *args):
         """
         Sends a lang string denoted by `key`.
 
@@ -62,7 +146,37 @@ class ConfigSetter:
         for msg in paginate(msg, msg_prefix="```", msg_suffix="```"):
             await ctx.send(msg)
 
-    async def set(self, ctx, key, value=None):
+    def set(self, key, value=None):
+        """
+        Sets a value.
+
+        :param key: Config key
+        :param value: value to be set; None for default or bool toggle
+        :return: Result instance
+        :raises KeyError: Raised if `key` is not in the whitelist.
+        :raises ValueError: Raised if `value` could not be typecasted correctly.
+        """
+        if key not in self.base_config:
+            raise KeyError
+
+        r = Result.NEWVAL
+        if value is None:
+            r = Result.DEFAULT
+            valtype, value = self.base_config[key]
+            if valtype is bool:
+                self._process_switches(key, value)
+                r = Result.TOGGLE
+        else:
+            try:
+                value = self.base_config[key][0](value)
+            except (TypeError, ValueError) as e:
+                raise TypeError from e
+
+        Config.get(self.plugin)[key] = value
+        Config.save(self.plugin)
+        return r
+
+    async def set_cmd(self, ctx, key, value=None):
         """
         Sets the config value with the key `key` to `value` and sends an error/success report to ctx.
 
@@ -70,24 +184,22 @@ class ConfigSetter:
         :param key: Config key from whitelist
         :param value: Config value. If None, default value is set.
         """
-        if key not in self.base_config:
+        oldval = self.get_config(key)
+        try:
+            result = self.set(key, value)
+        except KeyError:
             await add_reaction(ctx.message, Lang.CMDERROR)
-            await self.send(ctx, "invalid_key")
+            await self._send(ctx, "invalid_key")
+            return
+        except ValueError:
+            await add_reaction(ctx.message, Lang.CMDERROR)
+            await self._send(ctx, "invalid_value")
             return
 
-        successlang = "set_success"
-        if value is None:
+        successlang = None
+        if result in (Result.NEWVAL, Result.TOGGLE):
+            successlang = "set_success"
+        elif result == Result.DEFAULT:
             successlang = "set_success_default"
-            value = self.base_config[key][1]
-        else:
-            try:
-                value = self.base_config[key][0](value)
-            except (TypeError, ValueError):
-                await add_reaction(ctx.message, Lang.CMDERROR)
-                await self.send(ctx, "invalid_value")
-                return
-        oldval = self.get_config(key)
-        Config.get(self.plugin)[key] = value
-        Config.save(self.plugin)
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
-        await self.send(ctx, successlang, key, oldval, value)
+        await self._send(ctx, successlang, key, oldval, value)
