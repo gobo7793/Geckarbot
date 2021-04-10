@@ -74,8 +74,8 @@ class ConfigSetter:
         for key in keys:
             try:
                 valtype, valdefault = self.base_config[key]
-            except KeyError:
-                raise RuntimeError("Unknown key: {}".format(key))
+            except KeyError as e:
+                raise RuntimeError("Unknown key: {}".format(key)) from e
 
             if valtype is not bool:
                 raise RuntimeError("Type of {} value is not bool but {}".format(key, valtype))
@@ -91,10 +91,16 @@ class ConfigSetter:
 
     @staticmethod
     def parse_bool_str(s):
+        """
+        Accepts strings like "True" or "false" and returns the corresponding boolean value.
+
+        :param s: input string
+        :return: bool that corresponds to the semantic understanding of s
+        """
         c = s.lower().strip()
         if c == "true":
             return True
-        elif c == "false":
+        if c == "false":
             return False
         raise ValueError("Could not parse {} to a boolean value", s)
 
@@ -207,15 +213,15 @@ class ConfigSetter:
         for msg in paginate(with_desc + switches + without_desc, msg_prefix="```", msg_suffix="```"):
             await ctx.send(msg)
 
-    def set(self, key, value=None):
+    def set(self, key, value=None) -> Result:
         """
         Sets a value.
 
         :param key: Config key
         :param value: value to be set; None for default or bool toggle
         :return: Result instance
-        :raises KeyError: Raised if `key` is not in the whitelist.
-        :raises ValueError: Raised if `value` could not be typecasted correctly.
+        :raises InvalidKey: Raised if `key` is not in the whitelist.
+        :raises InvalidValue: Raised if `value` could not be typecasted correctly.
         """
         if key not in self.base_config:
             raise InvalidKey
