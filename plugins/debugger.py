@@ -6,7 +6,7 @@ import discord
 from discord.ext import commands
 
 from base import BasePlugin
-from botutils import utils, converters
+from botutils import utils, converters, setter
 from data import Config, Lang
 from subsystems import timers
 from subsystems.helpsys import DefaultCategories
@@ -24,8 +24,36 @@ class Plugin(BasePlugin, name="Testing and debug things"):
         self.sleeper = None
         self.channel = None
 
+        whitelist = {
+            "switch1_a": [bool, True],
+            "switch1_b": [bool, False],
+            "switch1_c": [bool, False],
+            "switch2_a": [bool, False],
+            "switch2_b": [bool, True],
+            "p": [int, 4],
+            "msg": [str, "foo"]
+        }
+        desc = {
+            "msg": "Message thingy",
+            "switch2_b": "Switch!"
+        }
+        self.setter = setter.ConfigSetter(self, whitelist, desc)
+        self.setter.add_switch(["switch1_a", "switch1_b", "switch1_c"])
+        self.setter.add_switch(("switch2_a", "switch2_b"))
+
     def default_storage(self):
         return {}
+
+    def default_config(self):
+        return {
+            "version": 1,
+            "switch1_a": True,
+            "switch1_b": False,
+            "switch1_c": False,
+            "switch2_a": False,
+            "switch2_b": True,
+            "p": 4,
+        }
 
     def cog_check(self, ctx):
         role = discord.utils.get(ctx.author.roles, id=Config().BOT_ADMIN_ROLE_ID)
@@ -213,3 +241,11 @@ class Plugin(BasePlugin, name="Testing and debug things"):
         await ctx.send("function")
         i = utils.execute_anything_sync(self.increment, i)
         await ctx.send(str(i))
+
+    @commands.command(name="listdemo", hidden=True)
+    async def cmd_list(self, ctx):
+        await self.setter.list(ctx)
+
+    @commands.command(name="setdemo", hidden=True)
+    async def cmd_set(self, ctx, key, value=None):
+        await self.setter.set_cmd(ctx, key, value)

@@ -1,3 +1,4 @@
+import logging
 from enum import Enum
 
 from data import Config, Lang
@@ -9,6 +10,14 @@ baselang = {
     "set_success": "Changed {} value from {} to {}",
     "set_success_default": "Changed {} value from {} to the default value {}"
 }
+
+
+class InvalidKey(Exception):
+    pass
+
+
+class InvalidValue(Exception):
+    pass
 
 
 class Result(Enum):
@@ -34,6 +43,7 @@ class ConfigSetter:
             to `None` to suppress the message entirely. Example:
             {"invalid_key": "config_invalid_key", "set_success": None}
         """
+        self.logger = logging.getLogger(__name__)
         self.plugin = plugin
         self.base_config = whitelist
         self.desc = desc if desc is not None else {}
@@ -77,11 +87,20 @@ class ConfigSetter:
         if not true_found:
             raise RuntimeError("No key with default value True found")
 
-        self.switches.append(keys.copy())
+        self.switches.append(tuple(keys))
+
+    @staticmethod
+    def parse_bool_str(s):
+        c = s.lower().strip()
+        if c == "true":
+            return True
+        elif c == "false":
+            return False
+        raise ValueError("Could not parse {} to a boolean value", s)
 
     def _process_switches(self, key, value):
         """
-        Sets a boolean value and processes switches. Assumes correct typing in config and value.
+        Sets a boolean value and processes switches. Assumes correct typing in config and value. Does not call save.
 
         :param key: Config key
         :param value: Config value
@@ -100,12 +119,13 @@ class ConfigSetter:
 
         # Toggle to False => set default if necessary
         if not value:
+            # new value == old value
             if not oldval:
                 return
 
             # find default and set it
             for el in switch:
-                if self.base_config[1]:
+                if self.base_config[el][1]:
                     config[el] = True
             return
 
@@ -148,6 +168,7 @@ class ConfigSetter:
 
         :param ctx: Context
         """
+        self.logger.debug("Listing config of plugin %s", self.plugin.get_name())
         done = {key: False for key in self.base_config}
 
         # Process switches
@@ -197,22 +218,35 @@ class ConfigSetter:
         :raises ValueError: Raised if `value` could not be typecasted correctly.
         """
         if key not in self.base_config:
-            raise KeyError
-
+            raise InvalidKey
+        valtype, default = self.base_config[key]
         r = Result.NEWVAL
-        if value is None:
-            r = Result.DEFAULT
-            valtype, value = self.base_config[key]
-            if valtype is bool:
-                self._process_switches(key, value)
-                r = Result.TOGGLE
-        else:
-            try:
-                value = self.base_config[key][0](value)
-            except (TypeError, ValueError) as e:
-                raise TypeError from e
 
-        Config.get(self.plugin)[key] = value
+        # Special handling of bools for switch reasons
+        if valtype is bool:
+            if value is None:
+                r = Result.TOGGLE
+                value = default
+            else:
+                try:
+                    value = self.parse_bool_str(value)
+                except ValueError as e:
+                    raise InvalidValue from e
+
+            self._process_switches(key, value)
+
+        else:
+            if value is None:
+                r = Result.DEFAULT
+                value = default
+            else:
+                try:
+                    value = valtype(value)
+                except (TypeError, ValueError) as e:
+                    raise InvalidValue from e
+            Config.get(self.plugin)[key] = value
+
+        self.logger.debug("Plugin %s: setting %s to %s", self.plugin.get_name(), key, str(value))
         Config.save(self.plugin)
         return r
 
@@ -227,11 +261,11 @@ class ConfigSetter:
         oldval = self.get_config(key)
         try:
             result = self.set(key, value)
-        except KeyError:
+        except InvalidKey:
             await add_reaction(ctx.message, Lang.CMDERROR)
             await self._send(ctx, "invalid_key")
             return
-        except ValueError:
+        except InvalidValue:
             await add_reaction(ctx.message, Lang.CMDERROR)
             await self._send(ctx, "invalid_value")
             return
@@ -242,4 +276,4 @@ class ConfigSetter:
         elif result == Result.DEFAULT:
             successlang = "set_success_default"
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
-        await self._send(ctx, successlang, key, oldval, value)
+        await self._send(ctx, successlang, key, oldval, self.get_config(key))
