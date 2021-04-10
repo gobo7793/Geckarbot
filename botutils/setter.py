@@ -83,7 +83,7 @@ class ConfigSetter:
         """
         Sets a boolean value and processes switches. Assumes correct typing in config and value.
 
-        :param key: Config key 
+        :param key: Config key
         :param value: Config value
         """
         switch = None
@@ -93,7 +93,7 @@ class ConfigSetter:
                 break
 
         config = Config.get(self.plugin)
-        oldval = config[key]
+        oldval = self.get_config(key)
         config[key] = value
         if switch is None:
             return
@@ -120,7 +120,7 @@ class ConfigSetter:
 
     async def _send(self, ctx, key, *args):
         """
-        Sends a lang string denoted by `key`.
+        Sends the lang string that is identified by `key`.
 
         :param ctx: Context to send to
         :param key: lang key
@@ -134,16 +134,56 @@ class ConfigSetter:
         if msg is not None:
             await ctx.send(msg)
 
+    def _format_entry(self, key):
+        msg = "{}: {}".format(key, self.get_config(key))
+        desc = False
+        if key in self.desc:
+            msg = "{}\n  {}".format(msg, self.desc[key])
+            desc = True
+        return msg, desc
+
     async def list(self, ctx):
         """
         Lists the current config values to ctx.
 
         :param ctx: Context
         """
-        msg = []
-        for el in self.base_config:
-            msg.append("{}: {}".format(el, self.get_config(el)))
-        for msg in paginate(msg, msg_prefix="```", msg_suffix="```"):
+        done = {key: False for key in self.base_config}
+
+        # Process switches
+        switches = []
+        for i in range(len(self.switches)):
+            switch = self.switches[i]
+            last = i + 1 == len(self.switches)
+
+            for key in switch:
+                msg, _ = self._format_entry(key)
+                switches.append(msg)
+                done[key] = True
+            if not last:
+                switches.append("")
+
+        # Process the rest
+        with_desc = []
+        without_desc = []
+        for key in done:
+            if done[key]:
+                continue
+            done[key] = True
+
+            msg, desc = self._format_entry(key)
+            if desc:
+                with_desc.append(msg)
+            else:
+                without_desc.append(msg)
+
+        # Dividers
+        if with_desc and switches:
+            switches.insert(0, "")
+        if (switches or with_desc) and without_desc:
+            without_desc.insert(0, "")
+
+        for msg in paginate(with_desc + switches + without_desc, msg_prefix="```", msg_suffix="```"):
             await ctx.send(msg)
 
     def set(self, key, value=None):

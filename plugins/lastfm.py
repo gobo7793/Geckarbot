@@ -380,7 +380,7 @@ class Plugin(BasePlugin, name="LastFM"):
         if key is None:
             await self.config_setter.list(ctx)
             return
-        await self.config_setter.set(ctx, key, value)
+        await self.config_setter.set_cmd(ctx, key, value)
 
     @cmd_lastfm.command(name="register")
     async def cmd_register(self, ctx, lfmuser: str):
