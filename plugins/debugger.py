@@ -31,7 +31,11 @@ class Plugin(BasePlugin, name="Testing and debug things"):
             "switch2_a": [bool, False],
             "switch2_b": [bool, True],
             "p": [int, 4],
-            "msg": [str, "foo"]
+            "msg": [str, "foo"],
+            "channelid": [discord.TextChannel, None],
+            "memberid": [discord.Member, None],
+            "userid": [discord.User, None],
+            "roleid": [discord.Role, None],
         }
         desc = {
             "msg": "Message thingy",

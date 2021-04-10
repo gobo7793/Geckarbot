@@ -1,6 +1,10 @@
 import logging
 from enum import Enum
 
+from discord import TextChannel, Member, User, Role
+from discord.ext.commands.converter import TextChannelConverter, UserConverter, MemberConverter, RoleConverter
+from discord.ext.commands.errors import ChannelNotFound, UserNotFound, MemberNotFound, RoleNotFound
+
 from data import Config, Lang
 from botutils.utils import paginate, add_reaction
 
@@ -9,6 +13,14 @@ baselang = {
     "invalid_value": "Invalid value",
     "set_success": "Changed {} value from {} to {}",
     "set_success_default": "Changed {} value from {} to the default value {}"
+}
+
+
+convmap = {
+    TextChannel: TextChannelConverter,
+    User: UserConverter,
+    Member: MemberConverter,
+    Role: RoleConverter,
 }
 
 
@@ -37,6 +49,7 @@ class ConfigSetter:
         :param whitelist: dict that maps value information to config keys. Format:
             {key: [type, default_value]} ; e.g. {"limit": [int, 5]}
             type is a callable that converts strings to the respective type.
+            Discord types are supported and converted to their respective ids.
         :param desc: dict that maps descriptions to config keys. Desriptions are optional. Example:
             {"limit": "API request limit"}
         :param lang: dict to replace message strings; maps baselang keys to Lang.lang keys of the plugin. Set values
@@ -214,23 +227,41 @@ class ConfigSetter:
         for msg in paginate(with_desc + switches + without_desc, msg_prefix="```", msg_suffix="```"):
             await ctx.send(msg)
 
-    def set(self, key, value=None) -> Result:
+    async def set(self, key, value=None, ctx=None) -> Result:
         """
         Sets a value.
 
         :param key: Config key
         :param value: value to be set; None for default or bool toggle
+        :param ctx: Context, only needed for discord types (such as TextChannel or User)
         :return: Result instance
         :raises InvalidKey: Raised if `key` is not in the whitelist.
         :raises InvalidValue: Raised if `value` could not be typecasted correctly.
+        :raises RuntimeError: Raised if discord types are set and ctx is None
         """
         if key not in self.base_config:
             raise InvalidKey
         valtype, default = self.base_config[key]
         r = Result.NEWVAL
 
+        # Convert discord types
+        if value is None and valtype in (TextChannel, User, Member, Role):
+            r = Result.DEFAULT
+            Config.get(self.plugin)[key] = default
+
+        elif valtype in (TextChannel, User, Member, Role):
+            if ctx is None:
+                raise RuntimeError("Cannot convert discord types without ctx")
+
+            try:
+                value = await convmap[valtype]().convert(ctx, value)
+            except (ChannelNotFound, UserNotFound, MemberNotFound, RoleNotFound) as e:
+                raise InvalidValue from e
+
+            Config.get(self.plugin)[key] = value.id
+
         # Special handling of bools for switch reasons
-        if valtype is bool:
+        elif valtype is bool:
             if value is None:
                 r = Result.TOGGLE
                 value = default
@@ -267,7 +298,7 @@ class ConfigSetter:
         """
         oldval = self.get_config(key)
         try:
-            result = self.set(key, value)
+            result = await self.set(key, value=value, ctx=ctx)
         except InvalidKey:
             await add_reaction(ctx.message, Lang.CMDERROR)
             await self._send(ctx, "invalid_key")
