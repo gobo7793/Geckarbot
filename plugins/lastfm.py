@@ -19,6 +19,7 @@ from botutils.stringutils import paginate
 from botutils.utils import write_debug_channel, add_reaction
 from botutils.questionnaire import Questionnaire, Question, QuestionType, Cancelled
 from botutils.restclient import Client
+from botutils.setter import ConfigSetter
 
 
 BASEURL = "https://ws.audioscrobbler.com/2.0/"
@@ -189,6 +190,7 @@ class Plugin(BasePlugin, name="LastFM"):
         self.perf_request_count = 0
         self.perf_reset_timers()
 
+        # Config setter
         self.base_config = {
             "limit": [int, 5],
             "min_artist": [float, 0.5],
@@ -198,6 +200,7 @@ class Plugin(BasePlugin, name="LastFM"):
             "quote_p": [float, 0.5],
             "max_quote_length": [int, 100],
         }
+        self.config_setter = ConfigSetter(self, self.base_config)
 
         # Quote lang dicts
         self.lang_question = {
@@ -374,31 +377,10 @@ class Plugin(BasePlugin, name="LastFM"):
     @commands.has_role(Config().BOT_ADMIN_ROLE_ID)
     @cmd_lastfm.command(name="config", aliases=["set"], hidden=True)
     async def cmd_config(self, ctx, key=None, value=None):
-        # list
-        if key is None and value is None:
-            msg = []
-            for el in self.base_config:
-                msg.append("{}: {}".format(el, self.get_config(el)))
-            for msg in paginate(msg, msg_prefix="```", msg_suffix="```"):
-                await ctx.send(msg)
+        if key is None:
+            await self.config_setter.list(ctx)
             return
-
-        # set
-        if key not in self.base_config:
-            await add_reaction(ctx.message, Lang.CMDERROR)
-            await ctx.send("Invalid config key")
-            return
-        try:
-            value = self.base_config[key][0](value)
-        except (TypeError, ValueError):
-            await add_reaction(ctx.message, Lang.CMDERROR)
-            await ctx.send("Invalid value")
-            return
-        oldval = self.get_config(key)
-        Config.get(self)[key] = value
-        Config.save(self)
-        await add_reaction(ctx.message, Lang.CMDSUCCESS)
-        await ctx.send("Changed {} value from {} to {}".format(key, oldval, value))
+        await self.config_setter.set_cmd(ctx, key, value)
 
     @cmd_lastfm.command(name="register")
     async def cmd_register(self, ctx, lfmuser: str):
