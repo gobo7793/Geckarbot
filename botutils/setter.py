@@ -96,13 +96,14 @@ class ConfigSetter:
 
         :param s: input string
         :return: bool that corresponds to the semantic understanding of s
+        :raises ValueError: Raised if the resulting boolean value could not be determined.
         """
         c = s.lower().strip()
         if c == "true":
             return True
         if c == "false":
             return False
-        raise ValueError("Could not parse {} to a boolean value", s)
+        raise ValueError("Could not parse {} to a boolean value".format(s))
 
     def _process_switches(self, key, value):
         """
