@@ -264,7 +264,7 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
         await utils.add_reaction(ctx.message, Lang.CMDSUCCESS)
 
     def _register_reminder(self, channel_id: int, user_id: int, remind_time: datetime,
-                           reminder_id: int, text, link: str, is_restart: bool = False):
+                           reminder_id: int, text, link: str, is_restart: bool = False) -> bool:
         """
         Registers a reminder
 
