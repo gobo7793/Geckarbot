@@ -69,26 +69,26 @@ class MatchStatus(Enum):
 
 
 class Match:
+    """
+    Soccer match
+
+    :param match_id: id of the match
+    :param kickoff: kickoff datetime
+    :param minute: current minute
+    :param home_team: name of the home team
+    :param home_team_id: id of the home team
+    :param away_team: name of the away team
+    :param away_team_id: id of the away team
+    :param is_completed: if the game is completed
+    :param status: current status of the game
+    :param raw_events: list of all events
+    :param score: current score
+    :param new_events: list of new events in comparison to the last execution
+    :param matchday: current matchday
+    """
     def __init__(self, match_id: str, kickoff: datetime.datetime, minute: str, home_team: str, home_team_id: str,
                  away_team: str, away_team_id: str, is_completed: bool, status: MatchStatus, raw_events: list,
                  score: dict = None, new_events: list = None, matchday: int = None):
-        """
-        Soccer match
-
-        :param match_id: id of the match
-        :param kickoff: kickoff datetime
-        :param minute: current minute
-        :param home_team: name of the home team
-        :param home_team_id: id of the home team
-        :param away_team: name of the away team
-        :param away_team_id: id of the away team
-        :param is_completed: if the game is completed
-        :param status: current status of the game
-        :param raw_events: list of all events
-        :param score: current score
-        :param new_events: list of new events in comparison to the last execution
-        :param matchday: current matchday
-        """
         if new_events is None:
             new_events = []
         self.match_id = match_id
@@ -116,6 +116,7 @@ class Match:
         :param m: match data
         :param new_events: list of new events
         :return: Match object
+        :rtype: Match
         """
         # Extract kickoff into datetime object
         if new_events is None:
@@ -160,6 +161,7 @@ class Match:
         :param m: match data
         :param new_events: list of new events
         :return: Match object
+        :rtype: Match
         """
         # Extract kickoff into datetime object
         try:
@@ -204,12 +206,20 @@ class PlayerEvent:
 
     def display(self) -> str:
         """Returns display string"""
-        return ""
+        return "<PlayerEvent {} ({})>".format(self.player, self.minute)
 
 
 class Goal(PlayerEvent):
+    """
+    PlayerEvent for a goal
+    :param event_id: id of the goal
+    :param player: goalgetter
+    :param minute: match minute the goal was scored
+    :param score: score of the match at the time of the goal
+    :param is_owngoal: whether goal was scored by the defending team
+    :param is_penalty: whether goal was scored as a penalty
+    """
     def __init__(self, event_id, player, minute, score: dict, is_owngoal: bool, is_penalty: bool):
-        """PlayerEvent for a goal"""
         super().__init__(event_id, player, minute)
         self.score = score
         self.is_owngoal = is_owngoal
@@ -217,7 +227,7 @@ class Goal(PlayerEvent):
         self.is_overtime = False
 
     @classmethod
-    def from_openligadb(cls, g: dict, home_id, away_id):
+    def from_openligadb(cls, g: dict, home_id: str, away_id: str):
         """
         Builds the Goal object from a OpenLigaDB source
 
@@ -225,6 +235,7 @@ class Goal(PlayerEvent):
         :param home_id: id of the home team
         :param away_id: id of the away team
         :return: Goal object
+        :rtype: Goal
         """
         goal = cls(event_id=g.get('GoalID'),
                    player=g.get('GoalGetterName'),
@@ -244,6 +255,7 @@ class Goal(PlayerEvent):
         :param g: goal data
         :param score: current score
         :return: Goal object
+        :rtype: Goal
         """
         score[g.get('team', {}).get('id')] += g.get('scoreValue')
         goal = cls(event_id="{}/{}/{}".format(g.get('type', {}).get('id'),
@@ -274,6 +286,7 @@ class YellowCard(PlayerEvent):
 
         :param yc: event data
         :return: YellowCard
+        :rtype: YellowCard
         """
         return cls(event_id="{}/{}/{}".format(yc.get('type', {}).get('id'),
                                               yc.get('clock', {}).get('value'),
@@ -294,6 +307,7 @@ class RedCard(PlayerEvent):
 
         :param rc: event data
         :return: RedCard
+        :rtype: RedCard
         """
         return cls(event_id="{}/{}/{}".format(rc.get('type', {}).get('id'),
                                               rc.get('clock', {}).get('value'),
@@ -319,6 +333,7 @@ class PlayerEventEnum(Enum):
         :param event: event data dictionary
         :param score: current score
         :return: Goal/RedCard/YellowCard
+        :raises ValueError: when event type does not match with the expected values
         """
         if event.get('scoringPlay'):
             return Goal.from_espn(event, score)
@@ -364,16 +379,13 @@ class LivetickerFinish(LivetickerEvent):
 
 class CoroRegistration:
     """Registration for a single Coroutine. Liveticker updates for the specified league will be transmitted to the
-    specified coro"""
-    def __init__(self, league_reg, plugin, coro, periodic: bool = False):
-        """
-        Registration for a single Coroutine
+    specified coro
 
-        :param league_reg:
-        :type league_reg: LeagueRegistration
-        :param coro:
-        :param periodic:
-        """
+    :param league_reg: Registration of the corresponding league
+    :type league_reg: LeagueRegistration
+    :param coro: Coroutine which receives the LivetickerEvents
+    :param periodic: whether the registration should receive mid-game updates"""
+    def __init__(self, league_reg, plugin, coro, periodic: bool = False):
         self.league_reg = league_reg
         self.plugin_name = plugin.get_name()
         self.coro = coro
@@ -448,15 +460,15 @@ class CoroRegistration:
 
 
 class LeagueRegistration:
-    def __init__(self, listener, league: str, source: LTSource):
-        """
-        Registration for a league. Manages central data collection and scheduling of timers.
+    """
+    Registration for a league. Manages central data collection and scheduling of timers.
 
-        :type listener: Liveticker
-        :param listener: central Liveticker node
-        :param league: league key
-        :param source: data source
-        """
+    :type listener: Liveticker
+    :param listener: central Liveticker node
+    :param league: league key
+    :param source: data source
+    """
+    def __init__(self, listener, league: str, source: LTSource):
         self.listener = listener
         self.league = league
         self.source = source
