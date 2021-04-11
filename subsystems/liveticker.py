@@ -358,14 +358,14 @@ class LivetickerKickoff(LivetickerEvent):
 
 
 class LivetickerUpdate(LivetickerEvent):
-    def __init__(self, league: str, matches: list, new_events: dict):
-        """
-        LivetickerEvent for the mid-game updates
+    """
+    LivetickerEvent for the mid-game update
 
-        :param league: league of the Registration
-        :param matches: current matches
-        :param new_events: dictionary of the new events per match
-        """
+    :param league: league of the Registration
+    :param matches: current matches
+    :param new_events: dictionary of the new events per match
+    """
+    def __init__(self, league: str, matches: list, new_events: dict):
         m_list = []
         for m in matches:
             m.new_events = new_events.get(m.match_id)
