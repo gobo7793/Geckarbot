@@ -302,14 +302,12 @@ def ring_iterator(haystack, startel, ringstart, ringend, startperiod):
     logging.getLogger(__name__).debug("Called ringiterator({}, {}, {}, {}, {})"
                                       .format(haystack, startel, ringstart, ringend, startperiod))
     if haystack is None:
-        haystack = [i for i in range(ringstart, ringend + 1)]
+        haystack = range(ringstart, ringend + 1)
 
     # Check if startel is actually in haystack
-    i = None
-    for k in range(len(haystack)):
-        if haystack[k] == startel:
-            i = k
-    if i is None:
+    try:
+        i = haystack.index(startel)
+    except ValueError:
         raise RuntimeError("{} is not in haystack".format(startel))
 
     # Actual generator
@@ -342,7 +340,7 @@ def next_occurence(ntd, now=None, ignore_now=False):
 
     weekdays = ntd["weekday"]
     if not weekdays:
-        weekdays = [i for i in range(1, 8)]
+        weekdays = list(range(1, 8))
 
     # Find date
     startmonth = nearest_element(now.month, ntd["month"], 1, 12)
@@ -355,15 +353,13 @@ def next_occurence(ntd, now=None, ignore_now=False):
         # Check if this year is in the years list and if there even is a year in the future to be had
         if ntd["year"] is not None and year not in ntd["year"]:
             logger.debug("year: %d; ntd[year]: %s", year, ntd["year"])
-            found = False
             for el in ntd["year"]:
                 if el > year:
-                    found = True
-                    break
-            if found:
-                continue  # Wait for better years
-            logger.debug("No future occurence found")
-            return None  # No future occurence found
+                    break  # Wait for better years
+            else:
+                logger.debug("No future occurence found")
+                return None  # No future occurence found
+            continue
 
         # Find day in month
         for day in range(startday, monthrange(year, month)[1] + 1):
@@ -389,6 +385,9 @@ def next_occurence(ntd, now=None, ignore_now=False):
             hour = None
             minute = None
             next_hour = nearest_element(starthour, ntd["hour"], 0, 23)
+            if next_hour < starthour:
+                logger.debug("next_hour %d < starthour %d", next_hour, starthour)
+                continue
             for hour, day_d in ring_iterator(ntd["hour"], next_hour, 0, 23, 0):
                 logger.debug("Checking hour %d", hour)
                 # day wraparound
