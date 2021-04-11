@@ -25,7 +25,7 @@ from plugins.spaetzle.utils import TeamnameDict, pointdiff_possible, determine_w
     get_user_league, get_user_cell, get_schedule, get_schedule_opponent, UserNotFound, \
     convert_to_datetime, get_participant_history, duel_points
 from subsystems.helpsys import DefaultCategories
-from subsystems.liveticker import LivetickerUpdate, MatchStatus
+from subsystems.liveticker import MatchStatus
 
 
 class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
