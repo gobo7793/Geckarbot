@@ -44,8 +44,9 @@ class Plugin(BasePlugin, name="Testing and debug things"):
         self.setter = setter.ConfigSetter(self, whitelist, desc)
         self.setter.add_switch(["switch1_a", "switch1_b", "switch1_c"])
         self.setter.add_switch(("switch2_a", "switch2_b"))
+        self.sleeptask = None
 
-    def default_storage(self):
+    def default_storage(self, container=None):
         return {}
 
     def default_config(self):
@@ -155,14 +156,46 @@ class Plugin(BasePlugin, name="Testing and debug things"):
 
     @commands.command(name="sleep", hidden=True)
     async def cmd_sleep(self, ctx):
+        if self.sleeptask is not None and not self.sleeptask.cancelled() and not self.sleeptask.done():
+            await ctx.send("Already sleeping. Sorry, there is only one bed.")
+            return
+
         self.channel = ctx.channel
-        self.sleeper = self.bot.loop.call_later(sys.maxsize, print, "blub")
-        await ctx.message.channel.send("Falling asleep.")
+        self.sleeper = asyncio.Lock()
+        self.sleeptask = asyncio.current_task()
+        await self.sleeper.acquire()
+        await ctx.send("Falling asleep.")
+        async with self.sleeper:
+            await ctx.send("Waking up! Yay!")
+
+        # cleanup
+        self.sleeper = None
 
     @commands.command(name="awake", hidden=True)
     async def cmd_awake(self, ctx):
-        self.sleeper.cancel()
+        if self.sleeper is None:
+            await ctx.send("Nothing to wake up.")
+            return
         await ctx.message.channel.send("I'm waking myself up.")
+        self.sleeper.release()
+        self.sleeper = None
+
+    @commands.command(name="sleepkill", hidden=True)
+    async def cmd_sleepkill(self, ctx):
+        if self.sleeptask is None:
+            await ctx.send("Nothing to kill yet.")
+            return
+        if self.sleeptask.cancelled():
+            await ctx.send("Sleeper task was killed. Nothing to do.")
+            if self.sleeptask.done():
+                await ctx.send("Also done btw.")
+            return
+        if self.sleeptask.done():
+            await ctx.send("Sleeper task is done. Nothing to do.")
+            return
+        self.sleeptask.cancel()
+        self.sleeper = None
+        await ctx.send("Sleeper was killed in cold blood.")
 
     @commands.command(name="identify", help="calls converters.get_best_username", hidden=True)
     async def cmd_identify(self, ctx, *args):
