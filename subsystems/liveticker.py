@@ -488,8 +488,9 @@ class LeagueRegistration:
         if reg not in self.registrations:
             self.registrations.append(reg)
             reg_storage = reg.storage()
-            if reg_storage not in Storage().get(self.listener)['registrations'][self.source.value][self.league]:
-                Storage().get(self.listener)['registrations'][self.source.value][self.league].append(reg_storage)
+            league_reg = Storage().get(self.listener)['registrations'][self.source.value][self.league]
+            if reg_storage not in league_reg['coro_regs']:
+                league_reg['coro_regs'].append(reg_storage)
                 Storage().save(self.listener)
         return reg
 
@@ -512,8 +513,9 @@ class LeagueRegistration:
     def deregister_coro(self, coro: CoroRegistration):
         """Finishes the deregistration of a CoroRegistration"""
         reg_storage = coro.storage()
-        if reg_storage in Storage().get(self.listener)['registrations'][self.source.value].get(self.league, []):
-            Storage().get(self.listener)['registrations'][self.source.value][self.league].remove(reg_storage)
+        leag_reg = Storage().get(self.listener)['registrations'][self.source.value][self.league]
+        if reg_storage in leag_reg['coro_regs']:
+            leag_reg['coro_regs'].remove(reg_storage)
             Storage().save(self.listener)
         if coro in self.registrations:
             self.registrations.remove(coro)
@@ -781,10 +783,16 @@ class Liveticker(BaseSubsystem):
         if not Storage().get(self).get('storage_version'):
             self.logger.debug("default storage set")
             regs = Storage().get(self)
-            Storage().set(self, self.default_storage())
-            Storage().get(self)['registrations'] = regs
+            for src, l_regs in regs.items():
+                for league, c_regs in l_regs.items():
+                    regs[src][league] = {
+                        'kickoffs': {},
+                        'coro_regs': c_regs
+                    }
+            Storage().set(self, {'storage_version': 1, 'registrations': regs, 'next_semiweekly': None})
             Storage().save(self)
 
+        # pylint: disable=unused-variable
         @bot.listen()
         async def on_ready():
             plugins = self.bot.get_normalplugins()
@@ -824,7 +832,7 @@ class Liveticker(BaseSubsystem):
         if league not in self.registrations[source]:
             self.registrations[source][league] = LeagueRegistration(self, league, source)
         if league not in Storage().get(self)['registrations'][source.value]:
-            Storage().get(self)['registrations'][source.value][league] = []
+            Storage().get(self)['registrations'][source.value][league] = {'kickoffs': {}, 'coro_regs': []}
             Storage().save(self)
         coro_reg = self.registrations[source][league].register(plugin, coro, periodic)
         return coro_reg
@@ -890,19 +898,20 @@ class Liveticker(BaseSubsystem):
         i, j = 0, 0
         for src, registrations in Storage().get(self)['registrations'].items():
             for league in registrations:
-                for reg in registrations[league]:
-                    if reg['plugin'] in plugins:
+                for c_reg in registrations[league]['coro_regs']:
+                    if c_reg['plugin'] in plugins:
                         try:
-                            coro = getattr(get_plugin_by_name(reg['plugin']), reg['coro']) if reg['coro'] else None
+                            coro = getattr(get_plugin_by_name(c_reg['plugin']),
+                                           c_reg['coro']) if c_reg['coro'] else None
                         except AttributeError:
                             j += 1
                         else:
                             i += 1
-                            self.register(plugin=get_plugin_by_name(reg['plugin']),
+                            self.register(plugin=get_plugin_by_name(c_reg['plugin']),
                                           league=league,
                                           raw_source=src,
                                           coro=coro,
-                                          periodic=reg['periodic'])
+                                          periodic=c_reg['periodic'])
         self.logger.debug('%d Liveticker registrations restored. %d failed.', i, j)
 
     def unload_plugin(self, plugin_name: str):
