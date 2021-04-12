@@ -73,6 +73,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
         }
 
     def default_storage(self, container=None):
+        # pylint: disable=arguments-differ
         if container is None:
             return {
                 'matchday': 0,
@@ -1019,7 +1020,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                     else:
                         raise MissingRequiredArgument(inspect.Parameter("user", inspect.Parameter.POSITIONAL_ONLY))
                 else:
-                    await self.cmd_observe_add(ctx, *args)
+                    await self.cmd_observe_add(ctx, args[0], *args[1:])
             else:
                 await ctx.invoke(self.bot.get_command('spaetzle observe list'))
 
@@ -1035,9 +1036,9 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
     @cmd_observe.command(name="add")
     async def cmd_observe_add(self, ctx, user: str, *other: list):
         """Adds one or multiple participants to observation"""
-        for user in (user,) + other:
-            if not Observed(self).append(user):
-                await ctx.send(Lang.lang(self, 'user_not_found', user))
+        for u in (user,) + other:
+            if not Observed(self).append(u):
+                await ctx.send(Lang.lang(self, 'user_not_found', u))
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
     @cmd_observe.command(name="del")
