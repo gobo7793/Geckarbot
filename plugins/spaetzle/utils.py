@@ -5,6 +5,7 @@ from typing import Tuple, Union, Optional
 
 from botutils.sheetsclient import Cell, CellRange
 from data import Storage
+from plugins.spaetzle.spaetzle import Plugin
 from subsystems.liveticker import MatchStatus
 
 
@@ -67,7 +68,7 @@ class TeamnameDict:
 
     @staticmethod
     def is_teamname_abbr(team: Optional[str]) -> bool:
-        """"""
+        """whether the given name classifies as a abbrevation"""
         return team is not None and len(team) <= 3
 
 
@@ -215,7 +216,7 @@ def convert_to_datetime(day: Union[int, str], time: Union[float, str]) -> dateti
     return datetime.combine(day_.date(), time_.time())
 
 
-def match_status(day: Union[datetime, int, str], time: Union[float, str] = None):
+def match_status(day: Union[datetime, int, str], time: Union[float, str] = None) -> MatchStatus:
     """
     Checks the status of a match (Solely time-based)
 
@@ -241,7 +242,7 @@ def match_status(day: Union[datetime, int, str], time: Union[float, str] = None)
         return MatchStatus.UNKNOWN
 
 
-def get_user_league(plugin, user: str) -> str:
+def get_user_league(plugin: Plugin, user: str) -> str:
     """
     Returns the league of the user
 
@@ -256,7 +257,7 @@ def get_user_league(plugin, user: str) -> str:
     raise UserNotFound(user)
 
 
-def get_user_cell(plugin, user: str) -> Cell:
+def get_user_cell(plugin: Plugin, user: str) -> Cell:
     """
     Returns the position of the user's title cell in the 'Tipps' section
 
@@ -272,7 +273,7 @@ def get_user_cell(plugin, user: str) -> Cell:
     raise UserNotFound(user)
 
 
-def get_schedule(plugin, league: str, matchday: int) -> list:
+def get_schedule(plugin: Plugin, league: str, matchday: int) -> list:
     """
     Returns the duels for a given Spaetzle league and matchday
 
@@ -280,6 +281,7 @@ def get_schedule(plugin, league: str, matchday: int) -> list:
     :param league: Spaetzle league
     :param matchday: matchday
     :return: list of duels
+    :raises LeagueNotFound: if league is not valid
     """
     matchday = [2, 11, 0, 8, 6, 16, 10, 14, 15, 4, 3, 9, 12, 1, 5, 13, 7][matchday - 1]  # "Randomize" input
     participants = Storage().get(plugin)['participants'].get(league)
@@ -302,7 +304,7 @@ def get_schedule(plugin, league: str, matchday: int) -> list:
     return schedule
 
 
-def get_schedule_opponent(plugin, participant: str, matchday: int):
+def get_schedule_opponent(plugin: Plugin, participant: str, matchday: int) -> Optional[str]:
     """
     Returns participants opponent on given matchday
 
@@ -321,7 +323,7 @@ def get_schedule_opponent(plugin, participant: str, matchday: int):
     return None
 
 
-def get_participant_history(plugin, participant: str) -> list:
+def get_participant_history(plugin: Plugin, participant: str) -> list:
     """
     Returns a summary of the completed duels
 
