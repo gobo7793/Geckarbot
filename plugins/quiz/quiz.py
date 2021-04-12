@@ -411,7 +411,8 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
         :param msg: Message object
         """
         controller = self.controllers[channel]
-        await controller.abort(msg)
+        controller.cancel()
+        controller.cleanup()
 
     def end_quiz(self, channel):
         """

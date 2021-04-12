@@ -2,6 +2,7 @@ import string
 import random
 import logging
 from enum import Enum
+from abc import ABC, abstractmethod
 
 import discord
 
@@ -12,6 +13,149 @@ from plugins.quiz.utils import get_best_username
 
 class InvalidAnswer(Exception):
     pass
+
+
+class BaseQuizAPI(ABC):
+    """
+    Interface for question resources
+    """
+
+    @abstractmethod
+    async def fetch(self):
+        """
+        Called before accessing questions. Used to e.g. asynchronously fetch questions.
+        """
+        pass
+
+    @abstractmethod
+    def current_question(self):
+        """
+        Retrieves the current question.
+        :return: Question object
+        """
+        pass
+
+    @abstractmethod
+    def next_question(self):
+        """
+        Retrieves a new question.
+        :raise: controllers.QuizEnded when there is no next question
+        :return: Question object
+        """
+        pass
+
+    @abstractmethod
+    async def size(self, **kwargs):
+        """
+        Calculates the question space size for the given constraints (such as category and difficulty).
+        :return: int
+        """
+        pass
+
+    @abstractmethod
+    async def info(self, **kwargs):
+        """
+        :param kwargs:
+        :return: Returns an info string under the given constraints.
+        """
+        pass
+
+    @staticmethod
+    @abstractmethod
+    def category_name(catkey):
+        """
+        :param catkey: Opaque category key object that was previously returned by category_key()
+        :return: Human-readable representation of the quiz category
+        """
+        pass
+
+    @staticmethod
+    @abstractmethod
+    def category_key(catarg: str):
+        """
+        :param catarg: Argument that was passed that identifies a category
+        :return: Opaque category identifier that can be used in initialization and for category_name.
+            Returns None if catarg is an unknown category.
+        """
+        pass
+
+    def __len__(self):
+        """
+        :return: Returns the amount of questions.
+        """
+        pass
+
+    @abstractmethod
+    def __del__(self):
+        """
+        Called when the quiz is stopped.
+        """
+        pass
+
+
+class BaseQuizController(ABC):
+    """
+    Interface for a quiz controller for a specific game mode
+    """
+    def __init__(self, plugin, config, quizapi, channel, requester, **kwargs):
+        self.task = None
+
+    @abstractmethod
+    async def start(self, msg):
+        """
+        Called when the start command is invoked.
+        This is usually expected to call fetch() on the QuizAPI object (if used).
+        """
+        pass
+
+    @abstractmethod
+    async def pause(self, msg):
+        """
+        Called when the pause command is invoked.
+        """
+        pass
+
+    @abstractmethod
+    async def resume(self, msg):
+        """
+        Called when the resume command is invoked.
+        """
+        pass
+
+    @abstractmethod
+    async def status(self, msg):
+        """
+        Called when the status command is invoked.
+        """
+        pass
+
+    @property
+    @abstractmethod
+    def score(self):
+        """
+        :return: Score object
+        """
+        pass
+
+    @abstractmethod
+    async def on_message(self, msg):
+        pass
+
+    @abstractmethod
+    def cleanup(self):
+        """
+        Cleanup method.
+        """
+        pass
+
+    def cancel(self):
+        """
+        Called when the quiz controller is to be cancelled, e.g. with a cancel cmd.
+        """
+        if self.task is not None:
+            self.task.cancel()
+            self.task = None
+        self.cleanup()
 
 
 class Difficulty(Enum):

@@ -9,9 +9,8 @@ import discord
 
 from botutils import restclient
 
-from plugins.quiz.abc import BaseQuizAPI
 from plugins.quiz.controllers import QuizEnded
-from plugins.quiz.base import Difficulty, Question, CategoryKey
+from plugins.quiz.base import BaseQuizAPI, Difficulty, Question, CategoryKey
 
 opentdb = {
     "base_url": "https://opentdb.com",

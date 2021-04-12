@@ -12,8 +12,7 @@ from botutils.utils import add_reaction
 from botutils.stringutils import format_andlist
 from data import Storage, Lang
 
-from plugins.quiz.abc import BaseQuizController
-from plugins.quiz.base import Score, InvalidAnswer, Difficulty
+from plugins.quiz.base import BaseQuizController, Score, InvalidAnswer, Difficulty
 from plugins.quiz.utils import get_best_username
 
 
@@ -337,6 +336,13 @@ class PointsQuizController(BaseQuizController):
         else:
             await self.channel.send(Lang.lang(self.plugin, "quiz_abort"))
 
+    def cleanup(self):
+        if self.current_question_timer is not None:
+            try:
+                self.current_question_timer.cancel()
+            except timers.HasAlreadyRun:
+                pass
+
     ###
     # Callbacks
     ###
@@ -591,6 +597,7 @@ class RushQuizController(BaseQuizController):
         self.plugin = plugin
         self.channel = channel
         self.requester = requester
+        self.task = asyncio.current_task()
 
         # QuizAPI config
         self.category = None
@@ -775,11 +782,11 @@ class RushQuizController(BaseQuizController):
     def score(self):
         return self._score
 
-    def stop(self):
-        pass
+    def cleanup(self):
+        self.statemachine.cancel()
 
     async def abort(self, msg):
-        self.statemachine.cancel()
+        self.cleanup()
         await add_reaction(msg, Lang.CMDSUCCESS)
 
     @property
