@@ -1,5 +1,6 @@
 from typing import List
 from enum import Enum
+
 from discord.ext.commands import Cog
 
 # pylint: disable=import-outside-toplevel
@@ -57,9 +58,11 @@ class Configurable:
         """
         return {}
 
-    def default_storage(self):
+    def default_storage(self, container=None):
         """
         Returns an empty default storage
+
+        :param container: storage container name
         """
         return {}
 

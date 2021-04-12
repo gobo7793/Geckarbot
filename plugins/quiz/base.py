@@ -15,6 +15,9 @@ class InvalidAnswer(Exception):
 
 
 class Difficulty(Enum):
+    """
+    Represents the difficulty of a question.
+    """
     ANY = "any"
     EASY = "easy"
     MEDIUM = "medium"
@@ -22,6 +25,13 @@ class Difficulty(Enum):
 
     @staticmethod
     def human_readable(el):
+        """
+        Converts a Difficulty object to a hr string.
+
+        :param el: Difficulty object
+        :return: hr string
+        :raises RuntimeError: If el is not a Difficulty object
+        """
         if el == Difficulty.ANY:
             return "Any"
         if el == Difficulty.EASY:
@@ -30,10 +40,17 @@ class Difficulty(Enum):
             return "Medium"
         if el == Difficulty.HARD:
             return "Hard"
+        raise RuntimeError
 
 
 class Score:
     def __init__(self, plugin, config, question_count):
+        """
+
+        :param plugin: Plugin reference
+        :param config: config dict
+        :param question_count: Amount of questions
+        """
         self._score = {}
         self._points = {}
         self.plugin = plugin
@@ -47,6 +64,13 @@ class Score:
 
     @staticmethod
     def divdiff(x, f):
+        """
+        Divided differences as used for interpolation polynomial
+
+        :param x: list of x values
+        :param f: list of f(x) values with f the function to interpolate
+        :return: Divided differences in a triangle matrix
+        """
         r = []
         for _ in range(len(x)):
             r.append([0] * len(x))
@@ -215,6 +239,9 @@ class Score:
 
 
 class Question:
+    """
+    Represents a question and its answers
+    """
     def __init__(self, quizapi, question, correct_answer, incorrect_answers, index=None, info=None):
         """
         :param quizapi: QuizAPI object
@@ -254,6 +281,9 @@ class Question:
                 break
 
     def shuffle_answers(self):
+        """
+        Re-orders the answers.
+        """
         # Try int sort
         isint = True
         answers = []
@@ -264,13 +294,21 @@ class Question:
                 isint = False
                 break
         if isint:
-            self.all_answers = sorted(self.all_answers, key=lambda x: int(x))
+            self.all_answers = sorted(self.all_answers, key=int)
             return
 
         # Regular shuffling
         random.shuffle(self.all_answers)
 
     def letter_mapping(self, index, emoji=False, reverse=False):
+        """
+        Maps an answer index to the corresponding letter or letter emoji.
+
+        :param index: Map index
+        :param emoji: Switches map from ascii letters to emoji letters
+        :param reverse: Reverses the mapping direction
+        :return:
+        """
         if not reverse:
             if emoji:
                 return self.emoji_map[index]
@@ -289,6 +327,13 @@ class Question:
         return None
 
     async def pose(self, channel, emoji=False):
+        """
+        Poses a question to a channel.
+
+        :param channel: Channel object
+        :param emoji: Flag that determines whether letter emojis are used to identify the answers
+        :return: message that was sent to `channel`
+        """
         logging.getLogger(__name__).debug("Posing question #%s: %s", self.index, self.question)
         msg = await channel.send(embed=self.embed(emoji=emoji))
         if emoji:
@@ -307,7 +352,7 @@ class Question:
         if self.index is not None:
             title = "#{}: {}".format(self.index+1, title)
         embed = discord.Embed(title=title)
-        value = "\n".join([el for el in self.answers_mc(emoji=emoji)])
+        value = "\n".join(self.answers_mc(emoji=emoji))
         embed.add_field(name="Possible answers:", value=value)
 
         if info:
@@ -373,6 +418,7 @@ class CategoryKey:
         :param quizapi: QuizAPI class that understands key
         :param key: category key that is understood by QuizAPI
         :param name: human-readable name
+        :raises KeyError: Raised if the category key already exists
         """
         if quizapi in self._entries:
             entry = self._entries[quizapi]
