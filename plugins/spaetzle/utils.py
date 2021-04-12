@@ -5,7 +5,6 @@ from typing import Tuple, Union, Optional
 
 from botutils.sheetsclient import Cell, CellRange
 from data import Storage
-from plugins.spaetzle.spaetzle import Plugin
 from subsystems.liveticker import MatchStatus
 
 
@@ -242,11 +241,12 @@ def match_status(day: Union[datetime, int, str], time: Union[float, str] = None)
         return MatchStatus.UNKNOWN
 
 
-def get_user_league(plugin: Plugin, user: str) -> str:
+def get_user_league(plugin, user: str) -> str:
     """
     Returns the league of the user
 
     :param plugin: Spaetzle plugin
+    :type plugin: plugins.spaetzle.spaetzle.Plugin
     :param user: Spaetzle participant
     :return: number of the league
     :raises UserNotFound: if the user is not a valid participant
@@ -257,11 +257,12 @@ def get_user_league(plugin: Plugin, user: str) -> str:
     raise UserNotFound(user)
 
 
-def get_user_cell(plugin: Plugin, user: str) -> Cell:
+def get_user_cell(plugin, user: str) -> Cell:
     """
     Returns the position of the user's title cell in the 'Tipps' section
 
     :param plugin: Spaetzle plugin
+    :type plugin: plugins.spaetzle.spaetzle.Plugin
     :param user: Spaetzle participant
     :return: users Cell
     :raises UserNotFound: if the user is not a valid participant
@@ -273,11 +274,12 @@ def get_user_cell(plugin: Plugin, user: str) -> Cell:
     raise UserNotFound(user)
 
 
-def get_schedule(plugin: Plugin, league: str, matchday: int) -> list:
+def get_schedule(plugin, league: str, matchday: int) -> list:
     """
     Returns the duels for a given Spaetzle league and matchday
 
     :param plugin: Spaetzle plugin
+    :type plugin: plugins.spaetzle.spaetzle.Plugin
     :param league: Spaetzle league
     :param matchday: matchday
     :return: list of duels
@@ -304,11 +306,12 @@ def get_schedule(plugin: Plugin, league: str, matchday: int) -> list:
     return schedule
 
 
-def get_schedule_opponent(plugin: Plugin, participant: str, matchday: int) -> Optional[str]:
+def get_schedule_opponent(plugin, participant: str, matchday: int) -> Optional[str]:
     """
     Returns participants opponent on given matchday
 
     :param plugin: Spaetzle plugin
+    :type plugin: plugins.spaetzle.spaetzle.Plugin
     :param participant: name of the Spaetzle participant
     :param matchday: matchday
     :return: name of the opponent
@@ -323,11 +326,12 @@ def get_schedule_opponent(plugin: Plugin, participant: str, matchday: int) -> Op
     return None
 
 
-def get_participant_history(plugin: Plugin, participant: str) -> list:
+def get_participant_history(plugin, participant: str) -> list:
     """
     Returns a summary of the completed duels
 
     :param plugin: Spaetzle plugin
+    :type plugin: plugins.spaetzle.spaetzle.Plugin
     :param participant: name of the Spaetzle participant
     :return: (title, pts, pts_opp, opp)-tuple list
     """
