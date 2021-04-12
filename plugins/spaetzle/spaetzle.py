@@ -616,7 +616,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             # Calculating possible point difference
             diff1, diff2 = 0, 0
             for i in range(len(matches)):
-                if match_status(matches[i][1], matches[i][2]) == MatchStatus.CLOSED:
+                if match_status(matches[i][1], matches[i][2]) == MatchStatus.COMPLETED:
                     continue
                 diff = pointdiff_possible(matches[i][4:6], preds_h[i], preds_a[i])
                 diff1 += diff[0]

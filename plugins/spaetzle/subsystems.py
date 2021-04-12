@@ -55,11 +55,13 @@ class Observed:
         self.plugin = plugin
         self.users = Storage().get(plugin)['observed_users']
 
-    def append(self, user):
+    def append(self, user: str) -> bool:
         """
         Adds the user to observation
 
         :param user: Spaetzle participant
+        :return: success
+        :raises UserNotFound: if the user is not a valid participant
         """
         try:
             get_user_league(self.plugin, user)
@@ -71,11 +73,12 @@ class Observed:
             Storage().save(self.plugin)
         return True
 
-    def remove(self, user) -> bool:
+    def remove(self, user: str) -> bool:
         """
         Removes the user from observation
 
         :param user: Spaetzle participant
+        :return: success
         """
         if user in self.users:
             self.users.remove(user)
