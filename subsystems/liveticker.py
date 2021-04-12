@@ -552,7 +552,7 @@ class LeagueRegistration:
                 self._update_matches_oldb(matchday=self.matchday())
             else:
                 self._update_matches_oldb(matchday=self.matchday() + 1)
-                self.schedule_kickoffs()
+                self.schedule_kickoffs_oooooooold()
         else:
             raw_matches = restclient.Client("https://www.openligadb.de/api").make_request(
                 "/getmatchdata/{}".format(self.league))
@@ -599,36 +599,65 @@ class LeagueRegistration:
                     return md
         return None
 
-    async def schedule_kickoffs_espn(self, until: datetime.datetime) -> list:
+    async def schedule_kickoffs(self, until: datetime.datetime) -> list:
         """
         Schedules timers for the kickoffs of the matches until the specified date
 
         :param until: datetime of the day before the next semi-weekly execution
         :return: List of new timer jobs with a list of matches as job.data
+        :raises ValueError: if source does not provide support scheduling of kickoffs
         """
         jobs = []
-        raw_kickoffs = {}
-        dates = "{}-{}".format(datetime.datetime.now().strftime("%Y%m%d"), until.strftime("%Y%m%d"))
-        data = await restclient.Client("http://site.api.espn.com/apis/site/v2/sports") \
-            .request(f"/soccer/{self.league}/scoreboard", params={'dates': dates})
+        kickoffs = {}
         now = datetime.datetime.now()
-        for match in data['events']:
-            if MatchStatus.match_status_espn(match) in [MatchStatus.COMPLETED, MatchStatus.POSTPONED]:
-                continue
-            if match['date'] not in raw_kickoffs:
-                raw_kickoffs[match['date']] = []
-            raw_kickoffs[match['date']].append(match['name'])
-        for kickoff, matches in raw_kickoffs.items():
-            time_kickoff = datetime.datetime.strptime(kickoff, "%Y-%m-%dT%H:%MZ")\
-                .replace(tzinfo=datetime.timezone.utc).astimezone().replace(tzinfo=None)
-            if time_kickoff > now:
+
+        if self.source == LTSource.ESPN:
+            # Match collection for ESPN
+            dates = "{}-{}".format(datetime.datetime.now().strftime("%Y%m%d"), until.strftime("%Y%m%d"))
+            data = await restclient.Client("http://site.api.espn.com/apis/site/v2/sports") \
+                .request(f"/soccer/{self.league}/scoreboard", params={'dates': dates})
+            for match in data['events']:
+                if MatchStatus.match_status_espn(match) in [MatchStatus.COMPLETED, MatchStatus.POSTPONED]:
+                    continue
+                time_kickoff = datetime.datetime.strptime(match['date'], "%Y-%m-%dT%H:%MZ")\
+                    .replace(tzinfo=datetime.timezone.utc).astimezone().replace(tzinfo=None)
+                if time_kickoff not in kickoffs:
+                    kickoffs[match['date']] = []
+                kickoffs[match['date']].append(match['name'])
+        elif self.source == LTSource.OPENLIGADB:
+            # Match collection for OpenLigaDB
+            matches = []
+            data = await restclient.Client("https://www.openligadb.de/api").request(f"/getmatchdata/{self.league}")
+            if not data:
+                return []
+            matches.extend(data)
+            md = data[0]['Group']['GroupOrderID']
+            season = now.year
+            if now.month < 7:
+                season -= 1
+            data = await restclient.Client("https://www.openligadb.de/api").request(f"/getmatchdata/"
+                                                                                    f"{self.league}/{season}/{md}")
+            matches.extend(data)
+            for match in matches:
+                if MatchStatus.match_status_oldb(match) == MatchStatus.COMPLETED:
+                    continue
+                time_kickoff = datetime.datetime.strptime(match['MatchDateTimeUTC'], "%Y-%m-%dT%H:%M:%SZ") \
+                    .replace(tzinfo=datetime.timezone.utc).astimezone().replace(tzinfo=None)
+                if time_kickoff not in kickoffs:
+                    kickoffs[match['date']] = []
+                kickoffs[match['date']].append(match['name'])
+        else:
+            raise ValueError("Source {} is not supported.".format(self.source))
+
+        for time_kickoff_, matches in kickoffs.items():
+            if time_kickoff_ > now:
                 jobs.append(self.listener.bot.timers.schedule(
                     coro=self._schedule_match_timer,
-                    td=timers.timedict(year=time_kickoff.year, month=time_kickoff.month, monthday=time_kickoff.day,
-                                       hour=time_kickoff.hour, minute=time_kickoff.minute),
+                    td=timers.timedict(year=time_kickoff_.year, month=time_kickoff_.month, monthday=time_kickoff_.day,
+                                       hour=time_kickoff_.hour, minute=time_kickoff_.minute),
                     data=matches))
             else:
-                await self._schedule_match_timer(kickoff=time_kickoff)
+                await self._schedule_match_timer(kickoff=time_kickoff_)
 
         self.kickoff_timers.extend(jobs)
         return jobs
@@ -655,7 +684,7 @@ class LeagueRegistration:
         if match_timer.next_execution() <= datetime.datetime.now():
             match_timer.execute()
 
-    def schedule_kickoffs(self) -> list:
+    def schedule_kickoffs_oooooooold(self) -> list:
         """
         Schedules timers for the kickoffs of all matches
 
@@ -938,6 +967,6 @@ class Liveticker(BaseSubsystem):
         if until < datetime.datetime.now():
             until = datetime.datetime.now()
         for league_reg in self.registrations[LTSource.ESPN].values():
-            await league_reg.schedule_kickoffs_espn(until)
+            await league_reg.schedule_kickoffs(until)
         Storage().get(self)['next_semiweekly'] = self.current_timer.next_execution().strftime("%Y-%m-%d %H:%M")
         Storage().save(self)
