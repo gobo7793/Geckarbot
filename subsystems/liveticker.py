@@ -35,6 +35,7 @@ class MatchStatus(Enum):
         :param src: data source
         :return: MatchStatus
         :rtype: MatchStatus
+        :raises ValueError: if source is not valid
         """
         if src == LTSource.ESPN:
             status = m.get('status', {}).get('type', {}).get('state')
