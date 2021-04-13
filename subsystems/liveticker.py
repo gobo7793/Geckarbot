@@ -81,6 +81,7 @@ class Match:
     :param new_events: list of new events in comparison to the last execution
     :param matchday: current matchday
     """
+
     def __init__(self, match_id: str, kickoff: datetime.datetime, minute: str, home_team: str, home_team_id: str,
                  away_team: str, away_team_id: str, is_completed: bool, status: MatchStatus, raw_events: list,
                  score: dict = None, new_events: list = None, matchday: int = None):
@@ -194,6 +195,7 @@ class Match:
 
 class PlayerEvent:
     """Event during a match"""
+
     def __init__(self, event_id: str, player: str, minute: str):
         self.event_id = event_id
         self.player = player
@@ -214,6 +216,7 @@ class Goal(PlayerEvent):
     :param is_owngoal: whether goal was scored by the defending team
     :param is_penalty: whether goal was scored as a penalty
     """
+
     def __init__(self, event_id, player, minute, score: dict, is_owngoal: bool, is_penalty: bool):
         super().__init__(event_id, player, minute)
         self.score = score
@@ -274,6 +277,7 @@ class Goal(PlayerEvent):
 
 class YellowCard(PlayerEvent):
     """PlayerEvent for a yellow card"""
+
     @classmethod
     def from_espn(cls, yc: dict):
         """
@@ -295,6 +299,7 @@ class YellowCard(PlayerEvent):
 
 class RedCard(PlayerEvent):
     """PlayerEvent for a red card"""
+
     @classmethod
     def from_espn(cls, rc: dict):
         """
@@ -360,6 +365,7 @@ class LivetickerUpdate(LivetickerEvent):
     :param matches: current matches
     :param new_events: dictionary of the new events per match
     """
+
     def __init__(self, league: str, matches: list, new_events: dict):
         m_list = []
         for m in matches:
@@ -380,6 +386,7 @@ class CoroRegistration:
     :type league_reg: LeagueRegistration
     :param coro: Coroutine which receives the LivetickerEvents
     :param periodic: whether the registration should receive mid-game updates"""
+
     def __init__(self, league_reg, plugin, coro, periodic: bool = False):
         self.league_reg = league_reg
         self.plugin_name = plugin.get_name()
@@ -463,6 +470,7 @@ class LeagueRegistration:
     :param league: league key
     :param source: data source
     """
+
     def __init__(self, listener, league: str, source: LTSource):
         self.listener = listener
         self.league = league
@@ -606,7 +614,7 @@ class LeagueRegistration:
         jobs = []
         raw_kickoffs = {}
         now = datetime.datetime.now()
-        Storage().get(self.listener)['registrations'][self.source.value][self.league]['kickoffs'] = []
+        Storage().get(self.listener)['registrations'][self.source.value][self.league]['kickoffs'] = {}
 
         if self.source == LTSource.ESPN:
             # Match collection for ESPN
@@ -663,9 +671,8 @@ class LeagueRegistration:
                 await self._schedule_match_timer(kickoff=time_kickoff)
                 for coro_reg in self.registrations:
                     await coro_reg.update_kickoff()
-            Storage().get(self.listener)['registrations'][self.source.value][self.league]['kickoffs'].append(
-                time_kickoff.strftime("%Y-%m-%d %H:%M"))
-
+            storage_kickoffs = Storage().get(self.listener)['registrations'][self.source.value][self.league]['kickoffs']
+            storage_kickoffs[time_kickoff.strftime("%Y-%m-%d %H:%M")] = matches
         self.kickoff_timers.extend(jobs)
         Storage().save(self.listener)
         return jobs
@@ -760,6 +767,7 @@ class LeagueRegistration:
 
 class Liveticker(BaseSubsystem):
     """Subsystem for the registration and operation of sports livetickers"""
+
     def __init__(self, bot):
         super().__init__(bot)
         self.bot = bot
