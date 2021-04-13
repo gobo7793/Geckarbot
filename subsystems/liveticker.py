@@ -27,45 +27,39 @@ class MatchStatus(Enum):
     UNKNOWN = "❔"
 
     @staticmethod
-    def match_status_espn(m: dict):
+    def get(m: dict, src: LTSource):
         """
-        Returns the MatchStatus of the match
+        Returns the current MatchStatus of the match
 
-        :param m: raw espn match data
-        :rtype: MatchStatus
+        :param m: raw match data
+        :param src: data source
         :return: MatchStatus
-        """
-        status = m.get('status', {}).get('type', {}).get('state')
-        if status == "pre":
-            return MatchStatus.UPCOMING
-        if status == "in":
-            return MatchStatus.RUNNING
-        if status == "post":
-            if m.get('status', {}).get('type', {}).get('completed'):
-                return MatchStatus.COMPLETED
-            return MatchStatus.POSTPONED
-        return MatchStatus.UNKNOWN
-
-    @staticmethod
-    def match_status_oldb(m: dict):
-        """
-        Returns the MatchStatus of the match
-
-        :param m: raw OpenLigaDB match data
         :rtype: MatchStatus
-        :return: MatchStatus
         """
-        if m.get('MatchIsFinished'):
-            return MatchStatus.COMPLETED
-        try:
-            kickoff = datetime.datetime.strptime(m.get('MatchDateTimeUTC'), "%Y-%m-%dT%H:%M:%SZ") \
-                .replace(tzinfo=datetime.timezone.utc).astimezone().replace(tzinfo=None)
-        except (ValueError, TypeError):
-            return MatchStatus.UNKNOWN
-        else:
-            if kickoff < datetime.datetime.now():
+        if src == LTSource.ESPN:
+            status = m.get('status', {}).get('type', {}).get('state')
+            if status == "pre":
+                return MatchStatus.UPCOMING
+            if status == "in":
                 return MatchStatus.RUNNING
-            return MatchStatus.UPCOMING
+            if status == "post":
+                if m.get('status', {}).get('type', {}).get('completed'):
+                    return MatchStatus.COMPLETED
+                return MatchStatus.POSTPONED
+            return MatchStatus.UNKNOWN
+        if src == LTSource.OPENLIGADB:
+            if m.get('MatchIsFinished'):
+                return MatchStatus.COMPLETED
+            try:
+                kickoff = datetime.datetime.strptime(m.get('MatchDateTimeUTC'), "%Y-%m-%dT%H:%M:%SZ") \
+                    .replace(tzinfo=datetime.timezone.utc).astimezone().replace(tzinfo=None)
+            except (ValueError, TypeError):
+                return MatchStatus.UNKNOWN
+            else:
+                if kickoff < datetime.datetime.now():
+                    return MatchStatus.RUNNING
+                return MatchStatus.UPCOMING
+        raise ValueError("Source {} is not supported.".format(src))
 
 
 class Match:
@@ -148,7 +142,7 @@ class Match:
                            away_id: max(0, 0, *(g.get('ScoreTeam2', 0) for g in m.get('Goals', [])))},
                     is_completed=m.get('MatchIsFinished'),
                     raw_events=m.get('Goals'),
-                    status=MatchStatus.match_status_oldb(m),
+                    status=MatchStatus.get(m, LTSource.OPENLIGADB),
                     new_events=new_events,
                     matchday=m.get('Group', {}).get('GroupOrderID'))
         return match
@@ -193,7 +187,7 @@ class Match:
                     score={home_id: home_score, away_id: away_score},
                     new_events=new_events,
                     raw_events=m.get('competitions', [{}])[0].get('details'),
-                    status=MatchStatus.match_status_espn(m))
+                    status=MatchStatus.get(m, LTSource.ESPN))
         return match
 
 
@@ -435,8 +429,8 @@ class CoroRegistration:
             self.last_events[m.match_id].extend([e.event_id for e in events])
         await self.coro(LivetickerUpdate(self.league_reg.league, matches, new_events))
 
-    async def update_kickoff(self, data):
-        await self.coro(LivetickerKickoff(self.league_reg.league, data['matches'], data['start']))
+    async def update_kickoff(self, time_kickoff: datetime.datetime, matches: list):
+        await self.coro(LivetickerKickoff(self.league_reg.league, matches, time_kickoff))
 
     async def update_finished(self, match_list):
         await self.coro(LivetickerFinish(self.league_reg.league, match_list))
@@ -543,6 +537,7 @@ class LeagueRegistration:
 
         :param matchday: alternative matchday
         """
+        # TODO rework
         if matchday:
             raw_matches = restclient.Client("https://www.openligadb.de/api").make_request(
                 "/getmatchdata/{}/2020/{}".format(self.league, matchday))
@@ -552,7 +547,7 @@ class LeagueRegistration:
                 self._update_matches_oldb(matchday=self.matchday())
             else:
                 self._update_matches_oldb(matchday=self.matchday() + 1)
-                self.schedule_kickoffs_oooooooold()
+                # self.schedule_kickoffs_oooooooold()
         else:
             raw_matches = restclient.Client("https://www.openligadb.de/api").make_request(
                 "/getmatchdata/{}".format(self.league))
@@ -608,7 +603,7 @@ class LeagueRegistration:
         :raises ValueError: if source does not provide support scheduling of kickoffs
         """
         jobs = []
-        kickoffs = {}
+        raw_kickoffs = {}
         now = datetime.datetime.now()
 
         if self.source == LTSource.ESPN:
@@ -616,14 +611,8 @@ class LeagueRegistration:
             dates = "{}-{}".format(datetime.datetime.now().strftime("%Y%m%d"), until.strftime("%Y%m%d"))
             data = await restclient.Client("http://site.api.espn.com/apis/site/v2/sports") \
                 .request(f"/soccer/{self.league}/scoreboard", params={'dates': dates})
-            for match in data['events']:
-                if MatchStatus.match_status_espn(match) in [MatchStatus.COMPLETED, MatchStatus.POSTPONED]:
-                    continue
-                time_kickoff = datetime.datetime.strptime(match['date'], "%Y-%m-%dT%H:%MZ")\
-                    .replace(tzinfo=datetime.timezone.utc).astimezone().replace(tzinfo=None)
-                if time_kickoff not in kickoffs:
-                    kickoffs[match['date']] = []
-                kickoffs[match['date']].append(match['name'])
+            matches = data['events']
+            time_format = "%Y-%m-%dT%H:%MZ"
         elif self.source == LTSource.OPENLIGADB:
             # Match collection for OpenLigaDB
             matches = []
@@ -639,25 +628,38 @@ class LeagueRegistration:
                                                                                     f"{self.league}/{season}/{md}")
             matches.extend(data)
             for match in matches:
-                if MatchStatus.match_status_oldb(match) == MatchStatus.COMPLETED:
-                    continue
-                time_kickoff = datetime.datetime.strptime(match['MatchDateTimeUTC'], "%Y-%m-%dT%H:%M:%SZ") \
-                    .replace(tzinfo=datetime.timezone.utc).astimezone().replace(tzinfo=None)
-                if time_kickoff not in kickoffs:
-                    kickoffs[match['date']] = []
-                kickoffs[match['date']].append(match['name'])
+                # Transform to espn paths
+                match['date'] = match['MatchDateTimeUTC']
+                match['name'] = "{} - {}".format(match['Team1']['TeamName'], match['Team2']['TeamName'])
+            time_format = "%Y-%m-%dT%H:%M:%SZ"
         else:
             raise ValueError("Source {} is not supported.".format(self.source))
 
-        for time_kickoff_, matches in kickoffs.items():
-            if time_kickoff_ > now:
+        for match in matches:
+            # Group by kickoff
+            if MatchStatus.get(match, self.source) in [MatchStatus.COMPLETED, MatchStatus.POSTPONED]:
+                continue
+            if match['date'] not in raw_kickoffs:
+                raw_kickoffs[match['date']] = []
+            raw_kickoffs[match['date']].append(match['name'])
+
+        for raw_kickoff, matches in raw_kickoffs.items():
+            time_kickoff = datetime.datetime.strptime(raw_kickoff, time_format) \
+                .replace(tzinfo=datetime.timezone.utc).astimezone().replace(tzinfo=None)
+            if time_kickoff > until:
+                continue  # Kickoff not in this period
+            if time_kickoff > now:
+                # Kickoff in the future
                 jobs.append(self.listener.bot.timers.schedule(
                     coro=self._schedule_match_timer,
-                    td=timers.timedict(year=time_kickoff_.year, month=time_kickoff_.month, monthday=time_kickoff_.day,
-                                       hour=time_kickoff_.hour, minute=time_kickoff_.minute),
+                    td=timers.timedict(year=time_kickoff.year, month=time_kickoff.month, monthday=time_kickoff.day,
+                                       hour=time_kickoff.hour, minute=time_kickoff.minute),
                     data=matches))
             else:
-                await self._schedule_match_timer(kickoff=time_kickoff_)
+                # Kickoff in the past, match running
+                await self._schedule_match_timer(kickoff=time_kickoff)
+                for coro_reg in self.registrations:
+                    await coro_reg.update_kickoff()
 
         self.kickoff_timers.extend(jobs)
         return jobs
@@ -683,29 +685,6 @@ class LeagueRegistration:
         await self.update_kickoff_coros(match_timer)
         if match_timer.next_execution() <= datetime.datetime.now():
             match_timer.execute()
-
-    def schedule_kickoffs_oooooooold(self) -> list:
-        """
-        Schedules timers for the kickoffs of all matches
-
-        :return: List of jobs
-        """
-        jobs = []
-        kickoffs = self.extract_kickoffs_with_matches()
-        now = datetime.datetime.now()
-        for t in kickoffs:
-            if t > now:
-                # Upcoming match
-                jobs.append(self.listener.bot.timers.schedule(coro=self.schedule_match_timers, td=timers.timedict(
-                    year=t.year, month=t.month, monthday=t.day, hour=t.hour, minute=t.minute)))
-            else:
-                # Running match
-                self.schedule_timers(start=t)
-                tmp_job = self.listener.bot.timers.schedule(coro=self.update_kickoff_coros, td=timers.timedict(),
-                                                            data={'start': t, 'matches': kickoffs[t]})
-                tmp_job.execute()
-        self.kickoff_timers.extend(jobs)
-        return jobs
 
     async def schedule_match_timers(self, job: Job):
         """Coroutine for the kickoff timer"""
