@@ -605,10 +605,11 @@ class LeagueRegistration:
         jobs = []
         raw_kickoffs = {}
         now = datetime.datetime.now()
+        Storage().get(self.listener)['registrations'][self.source.value][self.league]['kickoffs'] = []
 
         if self.source == LTSource.ESPN:
             # Match collection for ESPN
-            dates = "{}-{}".format(datetime.datetime.now().strftime("%Y%m%d"), until.strftime("%Y%m%d"))
+            dates = "{}-{}".format(now.strftime("%Y%m%d"), until.strftime("%Y%m%d"))
             data = await restclient.Client("http://site.api.espn.com/apis/site/v2/sports") \
                 .request(f"/soccer/{self.league}/scoreboard", params={'dates': dates})
             matches = data['events']
@@ -644,6 +645,7 @@ class LeagueRegistration:
             raw_kickoffs[match['date']].append(match['name'])
 
         for raw_kickoff, matches in raw_kickoffs.items():
+            # Actual scheduling
             time_kickoff = datetime.datetime.strptime(raw_kickoff, time_format) \
                 .replace(tzinfo=datetime.timezone.utc).astimezone().replace(tzinfo=None)
             if time_kickoff > until:
@@ -660,8 +662,11 @@ class LeagueRegistration:
                 await self._schedule_match_timer(kickoff=time_kickoff)
                 for coro_reg in self.registrations:
                     await coro_reg.update_kickoff()
+            Storage().get(self.listener)['registrations'][self.source.value][self.league]['kickoffs'].append(
+                time_kickoff.strftime("%Y-%m-%d %H:%M"))
 
         self.kickoff_timers.extend(jobs)
+        Storage().save(self.listener)
         return jobs
 
     async def _schedule_match_timer(self, job=None, kickoff=None):
@@ -671,8 +676,9 @@ class LeagueRegistration:
         :param job: is used if this method is called by the timer
         :param kickoff: is used if the match is actually running
         """
+        now = datetime.datetime.now().replace(second=0, microsecond=0)
         if job:
-            kickoff = datetime.datetime.now().replace(second=0, microsecond=0)
+            kickoff = now
         if not kickoff:
             return
 
@@ -683,7 +689,7 @@ class LeagueRegistration:
                                                         data={'start': kickoff, 'matches': job.data})
         self.intermediate_timers.append(match_timer)
         await self.update_kickoff_coros(match_timer)
-        if match_timer.next_execution() <= datetime.datetime.now():
+        if match_timer.next_execution() <= now:
             match_timer.execute()
 
     async def schedule_match_timers(self, job: Job):
@@ -942,10 +948,9 @@ class Liveticker(BaseSubsystem):
         :return: None
         """
         self.logger.debug("Semi-Weekly timer schedules matches.")
-        until = self.current_timer.next_execution() - datetime.timedelta(days=1)
-        if until < datetime.datetime.now():
-            until = datetime.datetime.now()
-        for league_reg in self.registrations[LTSource.ESPN].values():
-            await league_reg.schedule_kickoffs(until)
-        Storage().get(self)['next_semiweekly'] = self.current_timer.next_execution().strftime("%Y-%m-%d %H:%M")
+        until = self.current_timer.next_execution()
+        for source in LTSource:
+            for league_reg in self.registrations[source].values():
+                await league_reg.schedule_kickoffs(until)
+        Storage().get(self)['next_semiweekly'] = until.strftime("%Y-%m-%d %H:%M")
         Storage().save(self)
