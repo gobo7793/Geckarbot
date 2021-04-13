@@ -692,32 +692,6 @@ class LeagueRegistration:
         if match_timer.next_execution() <= now:
             match_timer.execute()
 
-    async def schedule_match_timers(self, job: Job):
-        """Coroutine for the kickoff timer"""
-        self.logger.debug("Match in League %s started.", self.league)
-        now = datetime.datetime.now().replace(second=0, microsecond=0)
-        job.data = {'start': now,
-                    'matches': self.extract_kickoffs_with_matches()[now]}
-        await self.update_kickoff_coros(job)
-        self.schedule_timers(start=now)
-
-    def schedule_timers(self, start: datetime.datetime) -> Job:
-        """
-        Schedules timers in 15-minute intervals during the match
-
-        :param start: start datetime of the match
-        :return: jobs object of the timer
-        """
-        interval = 15
-        minutes = [m + (start.minute % interval) for m in range(0, 60, interval)]
-        intermediate = timers.timedict(year=[start.year], month=[start.month], monthday=[start.day], minute=minutes)
-        job = self.listener.bot.timers.schedule(coro=self.update_periodic_coros, td=intermediate, data={'start': start})
-        if job.next_execution().minute == datetime.datetime.now().minute:
-            job.execute()
-        self.logger.debug("Timers for match starting at %s scheduled.", start.strftime("%d/%m/%Y %H:%M"))
-        self.intermediate_timers.append(job)
-        return job
-
     def next_kickoff(self):
         """Returns datetime of the next match"""
         kickoffs = (i.next_execution() for i in self.kickoff_timers if i)
