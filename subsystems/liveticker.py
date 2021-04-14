@@ -496,7 +496,7 @@ class LeagueRegistration:
         kickoff_data = Storage().get(listener)['registrations'][source.value][league]['kickoffs']
         for raw_kickoff, matches in kickoff_data.items():
             time_kickoff = datetime.datetime.strptime(raw_kickoff, "%Y-%m-%d %H:%M")
-            await l_reg._schedule_kickoff_single(time_kickoff, matches)
+            await l_reg.schedule_kickoff_single(time_kickoff, matches)
         return l_reg
 
     def register(self, plugin, coro, periodic: bool):
@@ -640,7 +640,7 @@ class LeagueRegistration:
             matches = []
             data = await restclient.Client("https://www.openligadb.de/api").request(f"/getmatchdata/{self.league}")
             if not data:
-                return []
+                return
             matches.extend(data)
             md = data[0]['Group']['GroupOrderID']
             season = now.year
@@ -671,12 +671,12 @@ class LeagueRegistration:
                 .replace(tzinfo=datetime.timezone.utc).astimezone().replace(tzinfo=None)
             if time_kickoff > until:
                 continue  # Kickoff not in this period
-            await self._schedule_kickoff_single(time_kickoff, matches)
+            await self.schedule_kickoff_single(time_kickoff, matches)
             storage_kickoffs = Storage().get(self.listener)['registrations'][self.source.value][self.league]['kickoffs']
             storage_kickoffs[time_kickoff.strftime("%Y-%m-%d %H:%M")] = matches
         Storage().save(self.listener)
 
-    async def _schedule_kickoff_single(self, time_kickoff: datetime.datetime, matches: list):
+    async def schedule_kickoff_single(self, time_kickoff: datetime.datetime, matches: list):
         """Schedules a single kickoff time."""
         now = datetime.datetime.now()
         self.logger.debug(time_kickoff)
