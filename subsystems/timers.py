@@ -15,7 +15,7 @@ import warnings
 import datetime
 
 from base import BaseSubsystem
-from botutils.utils import write_debug_channel
+from botutils.utils import write_debug_channel, execute_anything_sync
 
 
 timedictformat = ["year", "month", "monthday", "weekday", "hour", "minute"]
@@ -419,10 +419,9 @@ def next_occurence(ntd, now=None, ignore_now=False):
         startday = 1
 
 
-#######
-# Old AsyncTimer; TODO slowly merge into Mothership
-#######
-
+#####
+# Independent small timer thingy
+#####
 
 class HasAlreadyRun(Exception):
     """
@@ -431,6 +430,58 @@ class HasAlreadyRun(Exception):
 
     def __init__(self, callback):
         super().__init__("Timer callback has already run, callback was {}".format(callback))
+
+
+class Timer:
+    def __init__(self, bot, t, callback, *args, **kwargs):
+        """
+
+        :param bot: Geckarbot ref
+        :param t: time in seconds
+        :param callback: scheduled when t seconds have passed
+        :param args: callback args
+        :param kwargs: callback kwargs
+        """
+        self.logger = logging.getLogger()
+        self.bot = bot
+        self.t = t
+        self.callback = callback
+        self.args = args
+        self.kwargs = kwargs
+
+        self.cancelled = False
+        self.has_run = False
+
+        self.task = asyncio.create_task(self._task())
+        self.logger.debug("Scheduled timer; t: %d, cb: %s", self.t, str(self.callback))
+
+    async def _task(self):
+        await asyncio.sleep(self.t)
+        self.has_run = True
+        execute_anything_sync(self.callback, *self.args, **self.kwargs)
+
+    def skip(self):
+        """
+        Stops the timer and executes coro anyway.
+
+        :raises HasAlreadyRun: Raised if `callback` was already scheduled (so nothing to skip).
+        """
+        if self.has_run:
+            raise HasAlreadyRun(self.callback)
+        self.task.cancel()
+        self.has_run = True
+        execute_anything_sync(self.callback, *self.args, **self.kwargs)
+
+    def cancel(self):
+        """
+        Cancels the timer.
+
+        :raises HasAlreadyRun: Raised if `callback` was already scheduled (so the cancellation comes too late).
+        """
+        if self.has_run:
+            raise HasAlreadyRun(self.callback)
+        self.task.cancel()
+        self.cancelled = True
 
 
 # todo move to subsystems.timers and slowly merge into it

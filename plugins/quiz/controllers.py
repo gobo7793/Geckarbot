@@ -117,7 +117,7 @@ class PointsQuizController(BaseQuizController):
 
         before = datetime.now()
         await self.quizapi.fetch()
-        tosleep = before - datetime.now()
+        tosleep = datetime.now() - before
         await asyncio.sleep(self.config["points_quiz_register_timeout"] - tosleep.seconds)
 
         # Kwiss was cancelled
@@ -194,8 +194,8 @@ class PointsQuizController(BaseQuizController):
             return Phases.END
 
         self.eval_event = asyncio.Event()
-        self.current_question_timer = timers.AsyncTimer(self.plugin.bot, self.config["points_quiz_question_timeout"],
-                                                        self.timeout_warning, self.eval_event)
+        self.current_question_timer = timers.Timer(self.plugin.bot, self.config["points_quiz_question_timeout"],
+                                                   self.timeout_warning, self.eval_event)
         msg = await self.current_question.pose(self.channel, emoji=self.config["emoji_in_pose"])
         self.current_reaction_listener = self.plugin.bot.reaction_listener.register(
             msg, self.on_reaction, data=self.current_question)
@@ -418,9 +418,9 @@ class PointsQuizController(BaseQuizController):
             return
 
         self.plugin.logger.debug("Question timeout warning")
-        self.current_question_timer = timers.AsyncTimer(self.plugin.bot,
-                                                        self.config["points_quiz_question_timeout"] // 2,
-                                                        self.timeout, event)
+        self.current_question_timer = timers.Timer(self.plugin.bot,
+                                                   self.config["points_quiz_question_timeout"] // 2,
+                                                   self.timeout, event)
 
         msg = Lang.lang(self.plugin, "points_timeout_warning",
                         format_andlist(self.havent_answered_hr(),
