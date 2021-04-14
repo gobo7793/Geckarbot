@@ -86,7 +86,7 @@ class PointsQuizController(BaseQuizController):
         self.current_question_timer = None
         self.current_reaction_listener = None
         self.statemachine = statemachine.StateMachine(init_state=Phases.INIT)
-        self.statemachine.add_state(Phases.REGISTERING, self.registering_phase, start=True)
+        self.statemachine.add_state(Phases.REGISTERING, self.registering_phase, allowed_sources=[], start=True)
         self.statemachine.add_state(Phases.ABOUTTOSTART, self.about_to_start, allowed_sources=[Phases.REGISTERING])
         self.statemachine.add_state(Phases.QUESTION, self.pose_question,
                                     allowed_sources=[Phases.ABOUTTOSTART, Phases.EVAL])
@@ -122,7 +122,7 @@ class PointsQuizController(BaseQuizController):
 
         # Kwiss was cancelled
         if self.state != Phases.REGISTERING:
-            return
+            raise RuntimeError("should not happen, we're killing tasks nowadays")
 
         # Consume signup reactions
         await signup_msg.remove_reaction(Lang.lang(self.plugin, "reaction_signup"), self.plugin.bot.user)

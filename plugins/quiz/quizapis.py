@@ -1,4 +1,5 @@
 import logging
+import asyncio
 from urllib.parse import unquote
 import random
 import json
@@ -124,6 +125,27 @@ class OpenTDBQuizAPI(BaseQuizAPI):
         """
         return self.current_question_i
 
+    @staticmethod
+    async def _fetch_cat_size(client, cat, difficulty, result):
+        params = {
+            "category": cat,
+            "encode": "url3986",
+        }
+        counts = await client.request(opentdb["api_count_route"], params=params)
+        counts = counts["category_question_count"]
+        if difficulty == Difficulty.ANY:
+            key = "total_question_count"
+        elif difficulty == Difficulty.EASY:
+            key = "total_easy_question_count"
+        elif difficulty == Difficulty.MEDIUM:
+            key = "total_medium_question_count"
+        elif difficulty == Difficulty.HARD:
+            key = "total_medium_question_count"
+        else:
+            return None
+
+        result.append(int(counts[key]))
+
     @classmethod
     async def size(cls, **kwargs):
         """
@@ -136,28 +158,14 @@ class OpenTDBQuizAPI(BaseQuizAPI):
             cats = [el["id"] for el in opentdb["cat_mapping"] if el["id"] != -1]
         else:
             cats = [cat.key(cls)]
-        r = 0
         client = restclient.Client(opentdb["base_url"])
-        for cat in cats:
-            params = {
-                "category": cat,
-                "encode": "url3986",
-            }
-            counts = await client.make_request(opentdb["api_count_route"], params=params)
-            counts = counts["category_question_count"]
-            if difficulty == Difficulty.ANY:
-                key = "total_question_count"
-            elif difficulty == Difficulty.EASY:
-                key = "total_easy_question_count"
-            elif difficulty == Difficulty.MEDIUM:
-                key = "total_medium_question_count"
-            elif difficulty == Difficulty.HARD:
-                key = "total_medium_question_count"
-            else:
-                return None
 
-            r += int(counts[key])
-        return r
+        tasks = []
+        result = []
+        for cat in cats:
+            tasks.append(cls._fetch_cat_size(client, cat, difficulty, result))
+        await asyncio.wait(tasks)
+        return sum(result)
 
     @classmethod
     async def info(cls, **kwargs):
