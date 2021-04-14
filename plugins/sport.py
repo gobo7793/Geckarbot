@@ -175,8 +175,8 @@ class Plugin(BasePlugin, name="Sport"):
                     for src in liveticker_regs.values():
                         for reg in src.get(league, []):
                             reg.deregister()
-                    reg_ = self.bot.liveticker.register(league=league, raw_source=source, plugin=self,
-                                                        coro=self._live_coro, periodic=True)
+                    reg_ = await self.bot.liveticker.register(league=league, raw_source=source, plugin=self,
+                                                              coro=self._live_coro, periodic=True)
                     next_exec = reg_.next_execution()
                     if next_exec:
                         next_exec = next_exec[0].strftime('%d.%m.%Y - %H:%M')

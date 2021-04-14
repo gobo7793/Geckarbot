@@ -187,7 +187,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                         for reg in leag:
                             reg.deregister()
             else:
-                reg = self._start_liveticker()
+                reg = await self._start_liveticker()
                 matchday = reg.league_reg.matchday()
                 match_list = reg.league_reg.matches
 
@@ -475,12 +475,12 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
     @cmd_spaetzle_set.command(name="liveticker", hidden=True)
     async def cmd_set_liveticker(self, ctx):
         """Manually starts the liveticker for automatic score updates"""
-        self._start_liveticker()
+        await self._start_liveticker()
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
-    def _start_liveticker(self):
+    async def _start_liveticker(self):
         """Registers a liveticker"""
-        return self.bot.liveticker.register(league="bl1", plugin=self, coro=self._liveticker_coro, periodic=True)
+        return await self.bot.liveticker.register(league="bl1", plugin=self, coro=self._liveticker_coro, periodic=True)
 
     async def _liveticker_coro(self, matches, *_):
         self.logger.debug("Spätzle score update started.")

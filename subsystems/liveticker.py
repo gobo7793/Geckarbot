@@ -482,8 +482,22 @@ class LeagueRegistration:
         self.matches = []
         self.finished = []
 
-        # self.update_matches()
-        # self.schedule_kickoffs()
+    @classmethod
+    async def create(cls, listener, league: str, source: LTSource):
+        """New LeagueRegistration"""
+        l_reg = LeagueRegistration(listener, league, source)
+        await l_reg.schedule_kickoffs(listener.current_timer.next_execution())
+        return l_reg
+
+    @classmethod
+    async def restore(cls, listener, league: str, source: LTSource):
+        """Restored LeagueRegistration"""
+        l_reg = LeagueRegistration(listener, league, source)
+        kickoff_data = Storage().get(listener)['registrations'][source.value][league]['kickoffs']
+        for raw_kickoff, matches in kickoff_data.items():
+            time_kickoff = datetime.datetime.strptime(raw_kickoff, "%Y-%m-%d %H:%M")
+            await l_reg._schedule_kickoff_single(time_kickoff, matches)
+        return l_reg
 
     def register(self, plugin, coro, periodic: bool):
         """Registers a CoroReg for this league"""
@@ -603,15 +617,13 @@ class LeagueRegistration:
                     return md
         return None
 
-    async def schedule_kickoffs(self, until: datetime.datetime) -> list:
+    async def schedule_kickoffs(self, until: datetime.datetime):
         """
         Schedules timers for the kickoffs of the matches until the specified date
 
         :param until: datetime of the day before the next semi-weekly execution
-        :return: List of new timer jobs with a list of matches as job.data
         :raises ValueError: if source does not provide support scheduling of kickoffs
         """
-        jobs = []
         raw_kickoffs = {}
         now = datetime.datetime.now()
         Storage().get(self.listener)['registrations'][self.source.value][self.league]['kickoffs'] = {}
@@ -659,23 +671,28 @@ class LeagueRegistration:
                 .replace(tzinfo=datetime.timezone.utc).astimezone().replace(tzinfo=None)
             if time_kickoff > until:
                 continue  # Kickoff not in this period
-            if time_kickoff > now:
-                # Kickoff in the future
-                jobs.append(self.listener.bot.timers.schedule(
-                    coro=self._schedule_match_timer,
-                    td=timers.timedict(year=time_kickoff.year, month=time_kickoff.month, monthday=time_kickoff.day,
-                                       hour=time_kickoff.hour, minute=time_kickoff.minute),
-                    data=matches))
-            else:
-                # Kickoff in the past, match running
-                await self._schedule_match_timer(kickoff=time_kickoff)
-                for coro_reg in self.registrations:
-                    await coro_reg.update_kickoff()
+            await self._schedule_kickoff_single(time_kickoff, matches)
             storage_kickoffs = Storage().get(self.listener)['registrations'][self.source.value][self.league]['kickoffs']
             storage_kickoffs[time_kickoff.strftime("%Y-%m-%d %H:%M")] = matches
-        self.kickoff_timers.extend(jobs)
         Storage().save(self.listener)
-        return jobs
+
+    async def _schedule_kickoff_single(self, time_kickoff: datetime.datetime, matches: list):
+        """Schedules a single kickoff time."""
+        now = datetime.datetime.now()
+        self.logger.debug(time_kickoff)
+        if time_kickoff > now:
+            # Kickoff in the future
+            kickoff_timer = self.listener.bot.timers.schedule(
+                coro=self._schedule_match_timer,
+                td=timers.timedict(year=time_kickoff.year, month=time_kickoff.month, monthday=time_kickoff.day,
+                                   hour=time_kickoff.hour, minute=time_kickoff.minute),
+                data=matches)
+            self.kickoff_timers.append(kickoff_timer)
+        elif (now - time_kickoff) < datetime.timedelta(hours=2):
+            # Kickoff in the past, match running
+            await self._schedule_match_timer(kickoff=time_kickoff)
+            for coro_reg in self.registrations:
+                await coro_reg.update_kickoff()
 
     async def _schedule_match_timer(self, job=None, kickoff=None):
         """
@@ -793,7 +810,7 @@ class Liveticker(BaseSubsystem):
         @bot.listen()
         async def on_ready():
             plugins = self.bot.get_normalplugins()
-            self.restore(plugins)
+            await self.restore(plugins)
             self.restored = True
             timedict = timers.timedict(weekday=[2, 5], hour=[4], minute=[0])
             self.current_timer = self.bot.timers.schedule(coro=self._semiweekly_timer, td=timedict)
@@ -812,8 +829,8 @@ class Liveticker(BaseSubsystem):
             storage['registrations'][src.value] = {}
         return storage
 
-    def register(self, league: str, raw_source: str, plugin: BasePlugin,
-                 coro, periodic: bool = True) -> CoroRegistration:
+    async def register(self, league: str, raw_source: str, plugin: BasePlugin,
+                       coro, periodic: bool = True) -> CoroRegistration:
         """
         Registers a new liveticker for the specified league.
 
@@ -826,11 +843,15 @@ class Liveticker(BaseSubsystem):
         :return: CoroRegistration
         """
         source = LTSource(raw_source)
-        if league not in self.registrations[source]:
-            self.registrations[source][league] = LeagueRegistration(self, league, source)
-        if league not in Storage().get(self)['registrations'][source.value]:
+        league_exists = league in Storage().get(self)['registrations'][source.value]
+        if not league_exists:
             Storage().get(self)['registrations'][source.value][league] = {'kickoffs': {}, 'coro_regs': []}
             Storage().save(self)
+        if league not in self.registrations[source]:
+            if league_exists:
+                self.registrations[source][league] = await LeagueRegistration.restore(self, league, source)
+            else:
+                self.registrations[source][league] = await LeagueRegistration.create(self, league, source)
         coro_reg = self.registrations[source][league].register(plugin, coro, periodic)
         return coro_reg
 
@@ -886,7 +907,7 @@ class Liveticker(BaseSubsystem):
                 coro_dict[src][leag] = [i for i in reg.registrations if plugin == i.plugin_name]
         return coro_dict
 
-    def restore(self, plugins: list):
+    async def restore(self, plugins: list):
         """
         Restores saved registrations from the storage
 
@@ -904,11 +925,11 @@ class Liveticker(BaseSubsystem):
                             j += 1
                         else:
                             i += 1
-                            self.register(plugin=get_plugin_by_name(c_reg['plugin']),
-                                          league=league,
-                                          raw_source=src,
-                                          coro=coro,
-                                          periodic=c_reg['periodic'])
+                            await self.register(plugin=get_plugin_by_name(c_reg['plugin']),
+                                                league=league,
+                                                raw_source=src,
+                                                coro=coro,
+                                                periodic=c_reg['periodic'])
         self.logger.debug('%d Liveticker registrations restored. %d failed.', i, j)
 
     def unload_plugin(self, plugin_name: str):
