@@ -690,20 +690,22 @@ class LeagueRegistration:
             self.kickoff_timers.append(kickoff_timer)
         elif (now - time_kickoff) < datetime.timedelta(hours=2):
             # Kickoff in the past, match running
-            await self._schedule_match_timer(kickoff=time_kickoff)
+            await self._schedule_match_timer(kickoff=time_kickoff, matches=matches)
             for coro_reg in self.registrations:
                 await coro_reg.update_kickoff()
 
-    async def _schedule_match_timer(self, job=None, kickoff=None):
+    async def _schedule_match_timer(self, job: Job = None, kickoff: datetime.datetime = None, matches: list = None):
         """
         Schedules the timer for the match updates
 
         :param job: is used if this method is called by the timer
         :param kickoff: is used if the match is actually running
+        :param matches: is used if the match is actually running
         """
         now = datetime.datetime.now().replace(second=0, microsecond=0)
         if job:
             kickoff = now
+            matches = job.data
         if not kickoff:
             return
 
@@ -711,7 +713,7 @@ class LeagueRegistration:
         offset = kickoff.minute % interval
         td = timers.timedict(minute=[x + offset for x in range(0, 60, interval)])
         match_timer = self.listener.bot.timers.schedule(coro=self.update_periodic_coros, td=td,
-                                                        data={'start': kickoff, 'matches': job.data})
+                                                        data={'start': kickoff, 'matches': matches})
         self.intermediate_timers.append(match_timer)
         await self.update_kickoff_coros(match_timer)
         if match_timer.next_execution() <= now:

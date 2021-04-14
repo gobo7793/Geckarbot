@@ -84,9 +84,10 @@ class Plugin(BasePlugin, name="Bot status commands for monitoring and debug purp
 
         if not subsystem or subsystem == "liveticker":
             liveticker_list = []
-            for leag in self.bot.liveticker.registrations.values():
-                liveticker_list.append("\u2b1c {}".format(str(leag)))
-                liveticker_list.extend("\u25ab {}".format(str(lt_reg)) for lt_reg in leag.registrations)
+            for src in self.bot.liveticker.registrations.values():
+                for leag in src.values():
+                    liveticker_list.append("\u2b1c {}".format(str(leag)))
+                    liveticker_list.extend("\u25ab {}".format(str(lt_reg)) for lt_reg in leag.registrations)
             for msg in paginate(liveticker_list,
                                 prefix="**Liveticker Registrations:**\n",
                                 suffix="\n",
