@@ -101,9 +101,9 @@ class PointsQuizController(BaseQuizController):
     def register_participant(self, user):
         self.registered_participants[user] = []
 
-    ###
+    #####
     # Transitions
-    ###
+    #####
     async def registering_phase(self):
         """
         REGISTERING -> [ABOUTTOSTART, ABORT]

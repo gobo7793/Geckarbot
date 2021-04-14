@@ -78,10 +78,15 @@ class OpenTDBQuizAPI(BaseQuizAPI):
 
         self.category = category
         self.questions = []
+        self.token = None
 
-        # Acquire API token
-        self.token = self.client.make_request(opentdb["token_route"], params={"command": "request"})
-        self.token = self.token["token"]
+    async def get_token(self):
+        if self.token is None:
+            self.token = await self.client.request(opentdb["token_route"], params={"command": "request"})
+            self.token = self.token["token"]
+
+    async def fetch(self):
+        await self.get_token()
 
         # Build request params
         params = {
@@ -98,9 +103,10 @@ class OpenTDBQuizAPI(BaseQuizAPI):
         if self.difficulty != Difficulty.ANY:
             params["difficulty"] = self.difficulty.value
 
-        # Acquire questions
+        # Fetch questions
         logging.getLogger(__name__).debug("Fetching questions; params: %s", str(params))
-        questions_raw = self.client.make_request(opentdb["api_route"], params=params)["results"]
+        questions_raw = await self.client.request(opentdb["api_route"], params=params)
+        questions_raw = questions_raw["results"]
         for i in range(len(questions_raw)):
             el = questions_raw[i]
             question = discord.utils.escape_markdown(unquote(el["question"]))
@@ -111,9 +117,6 @@ class OpenTDBQuizAPI(BaseQuizAPI):
             }
             incorrect_answers = [discord.utils.escape_markdown(unquote(ia)) for ia in el["incorrect_answers"]]
             self.questions.append(Question(self, question, correct_answer, incorrect_answers, index=i, info=info))
-
-    async def fetch(self):
-        pass
 
     def current_question_index(self):
         """
@@ -140,7 +143,8 @@ class OpenTDBQuizAPI(BaseQuizAPI):
                 "category": cat,
                 "encode": "url3986",
             }
-            counts = client.make_request(opentdb["api_count_route"], params=params)["category_question_count"]
+            counts = await client.make_request(opentdb["api_count_route"], params=params)
+            counts = counts["category_question_count"]
             if difficulty == Difficulty.ANY:
                 key = "total_question_count"
             elif difficulty == Difficulty.EASY:
@@ -216,6 +220,7 @@ class Pastebin(BaseQuizAPI):
     CATKEY = 0
 
     def __init__(self, config, channel, category=None, question_count=None, difficulty=None, debug=False):
+        self.logger = logging.getLogger(__name__)
         self.questions = None
         self.current_question_i = -1
         self.question_count = question_count if question_count is not None else config["questions_default"]
@@ -227,6 +232,7 @@ class Pastebin(BaseQuizAPI):
             raise RuntimeError("Unknown category: {}".format(category))
 
     async def fetch(self):
+        self.logger.debug("Pastebin QuizAPI: Fetching questions")
         async with aiohttp.ClientSession() as session:
             async with session.get(self.URL) as response:
                 response = await response.text()

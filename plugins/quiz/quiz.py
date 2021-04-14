@@ -75,7 +75,7 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
 
         self.default_controller = PointsQuizController
         self.defaults = {
-            "quizapi": quizapis["meta"],
+            "quizapi": quizapis["opentdb"],
             "questions": self.config["questions_default"],
             "method": Methods.START,
             "category": None,
