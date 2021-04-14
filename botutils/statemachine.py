@@ -119,9 +119,6 @@ class StateMachine:
         """
         if start:
             self.start = state
-            if allowed_sources is not None:
-                pass
-                # raise RuntimeError("The start state cannot have allowed_sources.")
             if coro is None:
                 self.logger.warning("Start state defined without a callback")
         if state in self.states:
