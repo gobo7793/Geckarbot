@@ -15,7 +15,7 @@ import warnings
 import datetime
 
 from base import BaseSubsystem
-from botutils.utils import write_debug_channel
+from botutils.utils import write_debug_channel, execute_anything_sync
 
 
 timedictformat = ["year", "month", "monthday", "weekday", "hour", "minute"]
@@ -419,10 +419,9 @@ def next_occurence(ntd, now=None, ignore_now=False):
         startday = 1
 
 
-#######
-# Old AsyncTimer; TODO slowly merge into Mothership
-#######
-
+#####
+# Independent small timer thingy
+#####
 
 class HasAlreadyRun(Exception):
     """
@@ -433,14 +432,18 @@ class HasAlreadyRun(Exception):
         super().__init__("Timer callback has already run, callback was {}".format(callback))
 
 
-# todo move to subsystems.timers and slowly merge into it
-class AsyncTimer(Thread):
-    """Deprecated: Old async timer"""
+class Timer:
     def __init__(self, bot, t, callback, *args, **kwargs):
-        warnings.warn("utils.AsyncTimer is deprecated.")
-        self.logger = logging.getLogger(__name__)
-        self.loop = bot.loop
+        """
 
+        :param bot: Geckarbot ref
+        :param t: time in seconds
+        :param callback: scheduled when t seconds have passed
+        :param args: callback args
+        :param kwargs: callback kwargs
+        """
+        self.logger = logging.getLogger()
+        self.bot = bot
         self.t = t
         self.callback = callback
         self.args = args
@@ -448,30 +451,34 @@ class AsyncTimer(Thread):
 
         self.cancelled = False
         self.has_run = False
-        self.cancel_lock = Lock()
 
-        super().__init__()
-        self.start()
+        self.task = asyncio.create_task(self._task())
+        self.logger.debug("Scheduled timer; t: %d, cb: %s", self.t, str(self.callback))
 
-    def run(self):
-        self.logger.debug("Running timer, will be back in %s seconds (callback: %s)", self.t, self.callback)
-        sleep(self.t)
+    async def _task(self):
+        await asyncio.sleep(self.t)
+        self.has_run = True
+        execute_anything_sync(self.callback, *self.args, **self.kwargs)
 
-        with self.cancel_lock:
-            if self.cancelled:
-                self.logger.debug("Timer was cancelled (callback: %s)", self.callback)
-                return
-            self.has_run = True
-            self.logger.debug("Timer over, running callback %s", self.callback)
+    def skip(self):
+        """
+        Stops the timer and executes coro anyway.
 
-            try:
-                asyncio.run_coroutine_threadsafe(self.callback(*self.args, **self.kwargs), self.loop)
-            except Exception as e:
-                self.logger.error(e)
-                raise e
+        :raises HasAlreadyRun: Raised if `callback` was already scheduled (so nothing to skip).
+        """
+        if self.has_run:
+            raise HasAlreadyRun(self.callback)
+        self.task.cancel()
+        self.has_run = True
+        execute_anything_sync(self.callback, *self.args, **self.kwargs)
 
     def cancel(self):
-        with self.cancel_lock:
-            if self.has_run:
-                raise HasAlreadyRun(self.callback)
-            self.cancelled = True
+        """
+        Cancels the timer.
+
+        :raises HasAlreadyRun: Raised if `callback` was already scheduled (so the cancellation comes too late).
+        """
+        if self.has_run:
+            raise HasAlreadyRun(self.callback)
+        self.task.cancel()
+        self.cancelled = True

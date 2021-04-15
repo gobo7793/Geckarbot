@@ -228,7 +228,8 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
         if controller is None:
             await add_reaction(ctx.message, Lang.CMDERROR)
         elif permchecks.check_mod_access(ctx.message.author) or controller.requester == ctx.message.author:
-            await self.abort_quiz(ctx.channel, ctx.message)
+            await self.abort_quiz(ctx.channel)
+            await add_reaction(ctx.message, Lang.CMDSUCCESS)
         else:
             await add_reaction(ctx.message, Lang.CMDNOPERMISSIONS)
 
@@ -344,6 +345,11 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
     async def cmd_info(self, ctx, *args):
         args = args[1:]
         _, args = self.parse_args(ctx.channel, args, subcommands=False)
+        infodict = await args["quizapi"].info(**args)
+        embed = discord.Embed()
+        for key in infodict:
+            embed.add_field(name=key, value=infodict[key])
+
         await ctx.send(args["quizapi"].info(**args))
 
     #####
@@ -403,15 +409,16 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
             return self.controllers[channel]
         return None
 
-    async def abort_quiz(self, channel, msg):
+    async def abort_quiz(self, channel):
         """
         Called on !kwiss stop. It is assumed that there is a quiz in channel.
 
         :param channel: channel that the abort was requested in.
-        :param msg: Message object
         """
         controller = self.controllers[channel]
-        await controller.abort(msg)
+        controller.cancel()
+        controller.cleanup()
+        del self.controllers[channel]
 
     def end_quiz(self, channel):
         """
@@ -424,9 +431,9 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
             assert False, "Channel not in controller list"
         del self.controllers[channel]
 
-    """
-    Parse arguments
-    """
+    #####
+    # Parse arguments
+    #####
     def args_combination_check(self, controller, args):
         """
         Checks for argument combination constraints.
