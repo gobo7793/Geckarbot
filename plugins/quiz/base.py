@@ -152,9 +152,13 @@ class BaseQuizController(ABC):
         """
         Called when the quiz controller is to be cancelled, e.g. with a cancel cmd.
         """
+        logger = logging.getLogger(__name__)
+        logger.debug("Cancelling controller")
         if self.task is not None:
             self.task.cancel()
             self.task = None
+        else:
+            logger.warning("Controller cancel was requested but no task found that could be cancelled")
         self.cleanup()
 
 

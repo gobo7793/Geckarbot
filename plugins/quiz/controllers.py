@@ -57,6 +57,7 @@ class PointsQuizController(BaseQuizController):
         self.requester = requester
         self.config = config
         self.plugin = plugin
+        self.task = asyncio.current_task()
 
         self.ranked = False
         if "ranked" in kwargs:

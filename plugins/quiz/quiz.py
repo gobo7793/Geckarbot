@@ -229,6 +229,7 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
             await add_reaction(ctx.message, Lang.CMDERROR)
         elif permchecks.check_mod_access(ctx.message.author) or controller.requester == ctx.message.author:
             await self.abort_quiz(ctx.channel, ctx.message)
+            await add_reaction(ctx.message, Lang.CMDSUCCESS)
         else:
             await add_reaction(ctx.message, Lang.CMDNOPERMISSIONS)
 
@@ -413,6 +414,7 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
         controller = self.controllers[channel]
         controller.cancel()
         controller.cleanup()
+        del self.controllers[channel]
 
     def end_quiz(self, channel):
         """
