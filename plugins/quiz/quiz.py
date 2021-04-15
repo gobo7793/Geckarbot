@@ -345,6 +345,11 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
     async def cmd_info(self, ctx, *args):
         args = args[1:]
         _, args = self.parse_args(ctx.channel, args, subcommands=False)
+        infodict = await args["quizapi"].info(**args)
+        embed = discord.Embed()
+        for key in infodict:
+            embed.add_field(name=key, value=infodict[key])
+
         await ctx.send(args["quizapi"].info(**args))
 
     #####

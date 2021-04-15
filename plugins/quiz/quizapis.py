@@ -363,7 +363,9 @@ class MetaQuizAPI(BaseQuizAPI):
 
         # Build questions list
         for i in range(self.question_count):
-            self.questions.append(apis[question_seq[i]].next_question())
+            question = apis[question_seq[i]].next_question()
+            question.index = i
+            self.questions.append(question)
 
     def current_question_index(self):
         """

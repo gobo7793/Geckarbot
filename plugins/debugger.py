@@ -287,18 +287,3 @@ class Plugin(BasePlugin, name="Testing and debug things"):
     @commands.command(name="setdemo", hidden=True)
     async def cmd_set(self, ctx, key, value=None):
         await self.setter.set_cmd(ctx, key, value)
-
-    async def sleepfunc(self, ctx):
-        await asyncio.sleep(20)
-        await ctx.send("sleepfunc done")
-
-    @commands.command(name="recsleep", hidden=True)
-    async def cmd_recsleep(self, ctx):
-        self.recsleeptask = asyncio.current_task()
-        await self.sleepfunc(ctx)
-        await ctx.send("recsleep done")
-
-    @commands.command(name="recsleepkill", hidden=True)
-    async def cmd_recsleepkill(self, ctx):
-        self.recsleeptask.cancel()
-        await ctx.message.add_reaction(Lang.CMDSUCCESS)
