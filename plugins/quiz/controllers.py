@@ -108,6 +108,7 @@ class PointsQuizController(BaseQuizController):
     async def registering_phase(self):
         """
         REGISTERING -> [ABOUTTOSTART, ABORT]
+
         :return: Phases.ABOUTTOSTART or Phases.ABORT
         """
         self.plugin.logger.debug("Starting PointsQuizController")
@@ -120,10 +121,6 @@ class PointsQuizController(BaseQuizController):
         await self.quizapi.fetch()
         tosleep = datetime.now() - before
         await asyncio.sleep(self.config["points_quiz_register_timeout"] - tosleep.seconds)
-
-        # Kwiss was cancelled
-        if self.state != Phases.REGISTERING:
-            raise RuntimeError("should not happen, we're killing tasks nowadays")
 
         # Consume signup reactions
         await signup_msg.remove_reaction(Lang.lang(self.plugin, "reaction_signup"), self.plugin.bot.user)
@@ -161,6 +158,7 @@ class PointsQuizController(BaseQuizController):
     async def about_to_start(self):
         """
         ABOUTTOSTART -> QUESTION; ABOUTTOSTART -> ABORT
+
         :return: Phases.QUESTION
         """
         self.plugin.logger.debug("Ending the registering phase")
@@ -185,6 +183,7 @@ class PointsQuizController(BaseQuizController):
     async def pose_question(self):
         """
         QUESTION -> [EVAL, END]
+
         :return: Phases.EVAL or Phases.END
         """
         self.plugin.logger.debug("Posing next question.")
@@ -228,6 +227,7 @@ class PointsQuizController(BaseQuizController):
         """
         EVAL -> QUESTION
         Is called when the question is over. Evaluates scores and cancels the timer.
+
         :return: Phases.QUESTION
         """
         self.plugin.logger.debug("Ending question")
@@ -630,10 +630,13 @@ class RushQuizController(BaseQuizController):
     # Transitions
     ###
     async def about_to_start(self):
+        """
+        INIT -> QUESTION
+
+        :return: QUESTION
+        """
         await self.channel.send(Lang.lang(self.plugin, "quiz_phase"))
         await asyncio.sleep(10)
-        if self.statemachine.cancelled():
-            return Phases.ABORT
         return Phases.QUESTION
 
     async def pose_question(self):

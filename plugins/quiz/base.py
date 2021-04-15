@@ -97,6 +97,7 @@ class BaseQuizController(ABC):
     """
     Interface for a quiz controller for a specific game mode
     """
+    @abstractmethod
     def __init__(self, plugin, config, quizapi, channel, requester, **kwargs):
         self.task = None
 
@@ -192,6 +193,9 @@ class Difficulty(Enum):
 
 
 class Score:
+    """
+    Represents a quiz controller's current score.
+    """
     def __init__(self, plugin, config, question_count):
         """
 
@@ -376,6 +380,11 @@ class Score:
                 self.answered_questions.append(question)
 
     def add_participant(self, member):
+        """
+        Adds a quiz participant to the score.
+
+        :param member: Member to add as a participant
+        """
         if member not in self._score:
             self._score[member] = 0
             self._points[member] = 0
@@ -524,7 +533,9 @@ class Question:
     def check_answer(self, answer, emoji=False):
         """
         Called to check the answer to the most recent question that was retrieved via qet_question().
+
         :return: True if this is the first occurence of the correct answer, False otherwise
+        :raises InvalidAnswer: Raised if the answer was invalid.
         """
         if answer is None:
             return False
@@ -546,8 +557,13 @@ class Question:
         return self._cached_emoji
 
     def is_valid_emoji(self, emoji):
+        """
+        Determines whether an emoji represents a valid answer.
+
+        :param emoji: Emoji to check
+        :return: `True` if `emoji` represents a valid answer, `False` otherwise
+        """
         for el in self.emoji_map:
-            # print("true with .name: {}".format(el == emoji.name))
             if el == emoji:
                 return True
         return False
@@ -607,6 +623,10 @@ class CategoryKey:
         return self.key(quizapi), self._entries[quizapi]["name"]
 
     def key(self, quizapi):
+        """
+        :param quizapi: QuizAPI to return the category for
+        :return: This category's category key that corresponds to `quizapi`
+        """
         return self._entries[quizapi]["key"]
 
     def merge(self, catkey):
@@ -617,4 +637,7 @@ class CategoryKey:
             self.add_key(quizapi, *self.get(quizapi))
 
     def is_empty(self):
+        """
+        :return: True if this category has no entries, False otherwise
+        """
         return not self._entries
