@@ -283,14 +283,14 @@ class Plugin(BasePlugin, name="Sport"):
                 match_msgs = []
                 for match in matches_with_events:
                     match_msgs.append(
-                        "**{} - {} | {}:{}**".format(match.home_team, match.away_team, *match.score.values()))
+                        "**{} | {} - {} | {}:{}**".format(match.minute, match.home_team, match.away_team,
+                                                          *match.score.values()))
                     match_events = []
                     for e in match.new_events:
                         if PlayerEventEnum(type(e)).name in Config().get(self)['liveticker']['tracked_events']:
                             match_events.append(e.display())
                     match_msgs.append(" / ".join(match_events))
-                msgs = paginate(match_msgs, prefix=Lang.lang(self, 'liveticker_prefix', event.league,
-                                                             event.matches[0].minute))
+                msgs = paginate(match_msgs, prefix=Lang.lang(self, 'liveticker_prefix', event.league))
                 for msg in msgs:
                     await sport.send(msg)
             else:
