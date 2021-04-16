@@ -330,6 +330,8 @@ class Lang(metaclass=_Singleton):
         "success": "✅",
         "error": "❌",
         "nochange": "🤷‍♀️",
+        "mute": "🔇",
+        "unmute": "🔊",
         "lettermap": [
             "🇦",  # a
             "🇧",  # b
