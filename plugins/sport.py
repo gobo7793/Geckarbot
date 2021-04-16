@@ -6,13 +6,12 @@ import discord
 from discord.ext import commands
 
 from base import BasePlugin
-from data import Lang, Config
 from botutils import restclient
 from botutils.stringutils import paginate
 from botutils.utils import add_reaction, helpstring_helper
+from data import Lang, Config
 from subsystems.helpsys import DefaultCategories
-from subsystems.liveticker import LivetickerKickoff, LivetickerUpdate, LivetickerFinish, LTSource, PlayerEventEnum, \
-    MatchStatus
+from subsystems.liveticker import LivetickerKickoff, LivetickerUpdate, LivetickerFinish, LTSource, PlayerEventEnum
 
 
 class Plugin(BasePlugin, name="Sport"):
@@ -278,23 +277,24 @@ class Plugin(BasePlugin, name="Sport"):
             # Intermediate-Event
             if not event.matches:
                 return
-            matches_with_events = [x for x in event.matches if x.new_events and not x.status == MatchStatus.COMPLETED]
-            if matches_with_events:
-                match_msgs = []
-                for match in matches_with_events:
-                    match_msgs.append(
-                        "**{} | {} - {} | {}:{}**".format(match.minute, match.home_team, match.away_team,
-                                                          *match.score.values()))
-                    match_events = []
-                    for e in match.new_events:
-                        if PlayerEventEnum(type(e)).name in Config().get(self)['liveticker']['tracked_events']:
-                            match_events.append(e.display())
-                    match_msgs.append(" / ".join(match_events))
-                msgs = paginate(match_msgs, prefix=Lang.lang(self, 'liveticker_prefix', event.league))
-                for msg in msgs:
-                    await sport.send(msg)
-            else:
-                await sport.send(Lang.lang(self, 'no_new_goals', event.league, event.matches[0].minute))
+            event_filter = Config().get(self)['liveticker']['tracked_events']
+            match_msgs = []
+            other_matches = []
+            for match in event.matches:
+                match_msg = "{} | {} - {} | {}:{}".format(match.minute, match.home_team, match.away_team,
+                                                          *match.score.values())
+                events_msg = " / ".join(e.display() for e in match.new_events
+                                        if PlayerEventEnum(type(e)).name in event_filter)
+                if events_msg:
+                    match_msgs.append("**{}**\n{}".format(match_msg, events_msg))
+                else:
+                    other_matches.append(match_msg)
+            if other_matches:
+                match_msgs.append("**{}:** {}".format(Lang.lang(self, 'liveticker_unchanged'),
+                                                      " \u2014\u2014 ".join(other_matches)))
+            msgs = paginate(match_msgs, prefix=Lang.lang(self, 'liveticker_prefix', event.league))
+            for msg in msgs:
+                await sport.send(msg)
         elif isinstance(event, LivetickerFinish):
             # Finished-Event
             match_msgs = []
