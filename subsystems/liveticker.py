@@ -761,7 +761,7 @@ class LeagueRegistration:
 
     async def update_kickoff_coros(self, job: Job):
         for coro_reg in self.registrations:
-            await coro_reg.update_kickoff(job.data['kickoff'], job.data['matches'])
+            await coro_reg.update_kickoff(job.data['start'], job.data['matches'])
 
     async def update_periodic_coros(self, job: Job):
         """
