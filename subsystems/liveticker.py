@@ -63,7 +63,36 @@ class MatchStatus(Enum):
         raise ValueError("Source {} is not supported.".format(src))
 
 
-class Match:
+class MatchStub:
+    """
+    Match with minimal info (used for stored kickoffs)
+
+    :param kickoff: kickoff datetime
+    :param home_team: name of the home team
+    :param away_team: name of the away team
+    :param home_team_id: id of the home team
+    :param away_team_id: id of the away team
+    """
+    def __init__(self, kickoff: datetime.datetime, home_team: str, away_team: str, home_team_id: str,
+                 away_team_id: str):
+        self.kickoff = kickoff
+        self.home_team = home_team
+        self.away_team = away_team
+        self.home_team_id = home_team_id
+        self.away_team_id = away_team_id
+
+    @classmethod
+    def from_storage(cls, time_kickoff: datetime.datetime, m: dict):
+        team_names = list(m.values())
+        team_ids = list(m.keys())
+        return cls(kickoff=time_kickoff, home_team=team_names[0], home_team_id=team_ids[0], away_team=team_names[1],
+                   away_team_id=team_ids[1])
+
+    def to_storage(self):
+        return {self.home_team_id: self.home_team, self.away_team_id: self.away_team}
+
+
+class Match(MatchStub):
     """
     Soccer match
 
@@ -71,10 +100,9 @@ class Match:
     :param kickoff: kickoff datetime
     :param minute: current minute
     :param home_team: name of the home team
-    :param home_team_id: id of the home team
     :param away_team: name of the away team
+    :param home_team_id: id of the home team
     :param away_team_id: id of the away team
-    :param is_completed: if the game is completed
     :param status: current status of the game
     :param raw_events: list of all events
     :param score: current score
@@ -83,19 +111,15 @@ class Match:
     """
 
     def __init__(self, match_id: str, kickoff: datetime.datetime, minute: str, home_team: str, home_team_id: str,
-                 away_team: str, away_team_id: str, is_completed: bool, status: MatchStatus, raw_events: list,
+                 away_team: str, away_team_id: str, status: MatchStatus, raw_events: list,
                  score: dict = None, new_events: list = None, matchday: int = None):
+        super().__init__(kickoff=kickoff, home_team=home_team, away_team=away_team, home_team_id=home_team_id,
+                         away_team_id=away_team_id)
         if new_events is None:
             new_events = []
         self.match_id = match_id
-        self.kickoff = kickoff
         self.minute = minute
-        self.home_team = home_team
-        self.home_team_id = home_team_id
-        self.away_team = away_team
-        self.away_team_id = away_team_id
         self.status = status
-        self.is_completed = is_completed
         self.raw_events = raw_events
         self.new_events = new_events
         self.matchday = matchday
@@ -142,7 +166,6 @@ class Match:
                     away_team_id=away_id,
                     score={home_id: max(0, 0, *(g.get('ScoreTeam1', 0) for g in m.get('Goals', []))),
                            away_id: max(0, 0, *(g.get('ScoreTeam2', 0) for g in m.get('Goals', [])))},
-                    is_completed=m.get('MatchIsFinished'),
                     raw_events=m.get('Goals'),
                     status=MatchStatus.get(m, LTSource.OPENLIGADB),
                     new_events=new_events,
@@ -185,7 +208,6 @@ class Match:
                     home_team_id=home_id,
                     away_team=away_team,
                     away_team_id=away_id,
-                    is_completed=m.get('status', {}).get('type', {}).get('completed'),
                     score={home_id: home_score, away_id: away_score},
                     new_events=new_events,
                     raw_events=m.get('competitions', [{}])[0].get('details'),
@@ -496,10 +518,11 @@ class LeagueRegistration:
         kickoff_data = Storage().get(listener)['registrations'][source.value][league]['kickoffs']
         for raw_kickoff, matches in kickoff_data.items():
             time_kickoff = datetime.datetime.strptime(raw_kickoff, "%Y-%m-%d %H:%M")
-            await l_reg.schedule_kickoff_single(time_kickoff, matches)
+            matches_ = [MatchStub.from_storage(time_kickoff, m) for m in matches]
+            await l_reg.schedule_kickoff_single(time_kickoff, matches_)
         return l_reg
 
-    def register(self, plugin, coro, periodic: bool):
+    async def register(self, plugin, coro, periodic: bool):
         """Registers a CoroReg for this league"""
         reg = CoroRegistration(self, plugin, coro, periodic)
         if reg not in self.registrations:
@@ -509,6 +532,8 @@ class LeagueRegistration:
             if reg_storage not in league_reg['coro_regs']:
                 league_reg['coro_regs'].append(reg_storage)
                 Storage().save(self.listener)
+            for match_timer in self.intermediate_timers:
+                await reg.update_kickoff(match_timer.data['start'], match_timer.data['matches'])
         return reg
 
     def deregister(self):
@@ -624,7 +649,7 @@ class LeagueRegistration:
         :param until: datetime of the day before the next semi-weekly execution
         :raises ValueError: if source does not provide support scheduling of kickoffs
         """
-        raw_kickoffs = {}
+        kickoffs = {}
         now = datetime.datetime.now()
         Storage().get(self.listener)['registrations'][self.source.value][self.league]['kickoffs'] = {}
 
@@ -633,47 +658,40 @@ class LeagueRegistration:
             dates = "{}-{}".format(now.strftime("%Y%m%d"), until.strftime("%Y%m%d"))
             data = await restclient.Client("http://site.api.espn.com/apis/site/v2/sports") \
                 .request(f"/soccer/{self.league}/scoreboard", params={'dates': dates})
-            matches = data['events']
-            time_format = "%Y-%m-%dT%H:%MZ"
+            matches = [Match.from_espn(x) for x in data['events']]
         elif self.source == LTSource.OPENLIGADB:
             # Match collection for OpenLigaDB
-            matches = []
+            raw_matches = []
             data = await restclient.Client("https://www.openligadb.de/api").request(f"/getmatchdata/{self.league}")
             if not data:
                 return
-            matches.extend(data)
+            raw_matches.extend(data)
             md = data[0]['Group']['GroupOrderID']
             season = now.year
             if now.month < 7:
                 season -= 1
             data = await restclient.Client("https://www.openligadb.de/api").request(f"/getmatchdata/"
                                                                                     f"{self.league}/{season}/{md}")
-            matches.extend(data)
-            for match in matches:
-                # Transform to espn paths
-                match['date'] = match['MatchDateTimeUTC']
-                match['name'] = "{} - {}".format(match['Team1']['TeamName'], match['Team2']['TeamName'])
-            time_format = "%Y-%m-%dT%H:%M:%SZ"
+            raw_matches.extend(data)
+            matches = [Match.from_openligadb(x) for x in raw_matches]
         else:
             raise ValueError("Source {} is not supported.".format(self.source))
 
         for match in matches:
             # Group by kickoff
-            if MatchStatus.get(match, self.source) in [MatchStatus.COMPLETED, MatchStatus.POSTPONED]:
+            if match.status in [MatchStatus.COMPLETED, MatchStatus.POSTPONED]:
                 continue
-            if match['date'] not in raw_kickoffs:
-                raw_kickoffs[match['date']] = []
-            raw_kickoffs[match['date']].append(match['name'])
+            if match.kickoff not in kickoffs:
+                kickoffs[match.kickoff] = []
+            kickoffs[match.kickoff].append(match)
 
-        for raw_kickoff, matches in raw_kickoffs.items():
+        for time_kickoff, matches_ in kickoffs.items():
             # Actual scheduling
-            time_kickoff = datetime.datetime.strptime(raw_kickoff, time_format) \
-                .replace(tzinfo=datetime.timezone.utc).astimezone().replace(tzinfo=None)
             if time_kickoff > until:
                 continue  # Kickoff not in this period
-            await self.schedule_kickoff_single(time_kickoff, matches)
+            await self.schedule_kickoff_single(time_kickoff, matches_)
             storage_kickoffs = Storage().get(self.listener)['registrations'][self.source.value][self.league]['kickoffs']
-            storage_kickoffs[time_kickoff.strftime("%Y-%m-%d %H:%M")] = matches
+            storage_kickoffs[time_kickoff.strftime("%Y-%m-%d %H:%M")] = [m.to_storage() for m in matches_]
         Storage().save(self.listener)
 
     async def schedule_kickoff_single(self, time_kickoff: datetime.datetime, matches: list):
@@ -692,7 +710,7 @@ class LeagueRegistration:
             # Kickoff in the past, match running
             await self._schedule_match_timer(kickoff=time_kickoff, matches=matches)
             for coro_reg in self.registrations:
-                await coro_reg.update_kickoff()
+                await coro_reg.update_kickoff(time_kickoff, matches)
 
     async def _schedule_match_timer(self, job: Job = None, kickoff: datetime.datetime = None, matches: list = None):
         """
@@ -706,6 +724,7 @@ class LeagueRegistration:
         if job:
             kickoff = now
             matches = job.data
+            job.cancel()
         if not kickoff:
             return
 
@@ -742,8 +761,7 @@ class LeagueRegistration:
 
     async def update_kickoff_coros(self, job: Job):
         for coro_reg in self.registrations:
-            await coro_reg.update_kickoff(job.data)
-        job.cancel()
+            await coro_reg.update_kickoff(job.data['kickoff'], job.data['matches'])
 
     async def update_periodic_coros(self, job: Job):
         """
@@ -854,7 +872,7 @@ class Liveticker(BaseSubsystem):
                 self.registrations[source][league] = await LeagueRegistration.restore(self, league, source)
             else:
                 self.registrations[source][league] = await LeagueRegistration.create(self, league, source)
-        coro_reg = self.registrations[source][league].register(plugin, coro, periodic)
+        coro_reg = await self.registrations[source][league].register(plugin, coro, periodic)
         return coro_reg
 
     def deregister(self, reg: LeagueRegistration):

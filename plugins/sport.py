@@ -11,7 +11,8 @@ from botutils import restclient
 from botutils.stringutils import paginate
 from botutils.utils import add_reaction
 from subsystems.helpsys import DefaultCategories
-from subsystems.liveticker import LivetickerKickoff, LivetickerUpdate, LivetickerFinish, LTSource, PlayerEventEnum
+from subsystems.liveticker import LivetickerKickoff, LivetickerUpdate, LivetickerFinish, LTSource, PlayerEventEnum, \
+    MatchStatus
 
 
 class Plugin(BasePlugin, name="Sport"):
@@ -269,7 +270,7 @@ class Plugin(BasePlugin, name="Sport"):
             # Intermediate-Event
             if not event.matches:
                 return
-            matches_with_events = [x for x in event.matches if x.new_events and not x.is_completed]
+            matches_with_events = [x for x in event.matches if x.new_events and not x.status == MatchStatus.COMPLETED]
             if matches_with_events:
                 match_msgs = []
                 for match in matches_with_events:
