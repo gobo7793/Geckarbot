@@ -7,7 +7,7 @@ from typing import Union
 from base import BaseSubsystem, BasePlugin
 from botutils import restclient
 from botutils.converters import get_plugin_by_name
-from data import Storage, Lang
+from data import Storage
 from subsystems import timers
 from subsystems.timers import Job
 
@@ -290,8 +290,7 @@ class Goal(PlayerEvent):
 
     def display(self):
         if self.is_owngoal:
-            return ":soccer: {}:{} {} ({}, {})".format(*list(self.score.values())[0:2], self.player, self.minute,
-                                                       Lang.lang(self, 'owngoal'))
+            return ":soccer::back: {}:{} {} ({})".format(*list(self.score.values())[0:2], self.player, self.minute)
         if self.is_penalty:
             return ":soccer::goal: {}:{} {} ({})".format(*list(self.score.values())[0:2], self.player, self.minute)
         return ":soccer: {}:{} {} ({})".format(*list(self.score.values())[0:2], self.player, self.minute)
@@ -629,7 +628,7 @@ class LeagueRegistration:
                 kickoff_dict[None].append(match)
             elif match.kickoff in kickoff_dict:  # Insert at kickoff
                 kickoff_dict[match.kickoff].append(match)
-            elif match.status != MatchStatus.COMPLETED:
+            else:
                 kickoff_dict[match.kickoff] = [match]
         return kickoff_dict
 
@@ -704,7 +703,7 @@ class LeagueRegistration:
                 coro=self._schedule_match_timer,
                 td=timers.timedict(year=time_kickoff.year, month=time_kickoff.month, monthday=time_kickoff.day,
                                    hour=time_kickoff.hour, minute=time_kickoff.minute),
-                data=matches)
+                data={'start': time_kickoff, 'matches': matches})
             self.kickoff_timers.append(kickoff_timer)
         elif (now - time_kickoff) < datetime.timedelta(hours=2):
             # Kickoff in the past, match running
@@ -722,8 +721,8 @@ class LeagueRegistration:
         """
         now = datetime.datetime.now().replace(second=0, microsecond=0)
         if job:
-            kickoff = now
-            matches = job.data
+            kickoff = job.data['start']
+            matches = job.data['matches']
             job.cancel()
         if not kickoff:
             return
@@ -780,7 +779,7 @@ class LeagueRegistration:
             self.finished.extend([m.match_id for m in matches])
         else:
             for match in matches:
-                if match.is_completed and match.match_id not in self.finished:
+                if match.status == MatchStatus.COMPLETED and match.match_id not in self.finished:
                     new_finished.append(match)
                     self.finished.append(match.match_id)
         for coro_reg in self.registrations:
