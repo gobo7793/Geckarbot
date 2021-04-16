@@ -73,7 +73,6 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
         }
 
     def default_storage(self, container=None):
-        # pylint: disable=arguments-differ
         if container is None:
             return {
                 'matchday': 0,

@@ -25,7 +25,7 @@ class Plugin(BasePlugin, name="Sport"):
         self.can_reload = True
         self._update_config()
 
-    def default_config(self):
+    def default_config(self, container=None):
         return {
             'cfg_version': 1,
             'sport_chan': 0,

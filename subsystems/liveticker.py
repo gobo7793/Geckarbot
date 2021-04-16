@@ -83,12 +83,14 @@ class MatchStub:
 
     @classmethod
     def from_storage(cls, time_kickoff: datetime.datetime, m: dict):
+        """Returns a MatchStub formed from the stored data"""
         team_names = list(m.values())
         team_ids = list(m.keys())
         return cls(kickoff=time_kickoff, home_team=team_names[0], home_team_id=team_ids[0], away_team=team_names[1],
                    away_team_id=team_ids[1])
 
     def to_storage(self):
+        """Transforms the data for the storage"""
         return {self.home_team_id: self.home_team, self.away_team_id: self.away_team}
 
 
@@ -838,7 +840,7 @@ class Liveticker(BaseSubsystem):
                     < datetime.datetime.now():
                 self.current_timer.execute()
 
-    def default_storage(self):
+    def default_storage(self, container=None):
         storage = {
             'storage_version': 1,
             'registrations': {},
