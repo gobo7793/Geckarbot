@@ -44,7 +44,7 @@ class PointsQuizController(BaseQuizController):
         """
         :param plugin: Plugin object
         :param config: config
-        :param quizapi: BaseQuizAPI object
+        :param quizapi: Quiz API class that is to be used
         :param channel: channel that the quiz was requested in
         :param requester: user that requested the quiz
         :param kwargs: category, question_count, difficulty, debug
@@ -460,7 +460,6 @@ class PointsQuizController(BaseQuizController):
         """
         Called when the start command is invoked.
         """
-        # Fetch questions
         self.plugin.logger.debug("category: {}".format(self.category))
         self.quizapi = self.quizapi(self.config,
                                     self.channel,

@@ -408,7 +408,8 @@ class Question:
         :param index: no idea
         :param info: Not sure, seems to be used as embed fields in the question info cmd
         """
-        logging.debug("Question(%s, %s, %s)", question, correct_answer, incorrect_answers)
+        logging.debug("Question(%s, %s, %s, index=%s, info=%s)",
+                      question, correct_answer, incorrect_answers, index, info)
         self.index = index
         self.source = quizapi
         self.info = info
