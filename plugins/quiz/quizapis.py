@@ -510,7 +510,7 @@ class Fragespiel(BaseQuizAPI):
                 break
         if r is None:
             raise InvalidCategory("Category not supported: {}".format(catarg))
-        if r == -1:
+        if r == [-1]:
             r = Fragespiel.ALL
         return r
 
