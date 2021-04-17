@@ -624,11 +624,9 @@ class LeagueRegistration:
         """
         kickoff_dict = {}
         for match in self.matches:
-            if match.kickoff is None:  # Unknown kickoff
-                if None not in kickoff_dict:
-                    kickoff_dict[None] = []
-                kickoff_dict[None].append(match)
-            elif match.kickoff in kickoff_dict:  # Insert at kickoff
+            if match.status == MatchStatus.POSTPONED:
+                continue
+            if match.kickoff in kickoff_dict:  # Insert at kickoff
                 kickoff_dict[match.kickoff].append(match)
             else:
                 kickoff_dict[match.kickoff] = [match]
