@@ -403,7 +403,6 @@ class Fragespiel(BaseQuizAPI):
             ("bt_start", "Quiz starten"),
         ]
         payload = urlencode(payload)
-        print("payload: {}".format(payload))
         headers = {"Content-Type": "application/x-www-form-urlencoded"}
 
         # Fetch a new set of questions (if necessary), check for dupes and fill self.questions
@@ -417,7 +416,6 @@ class Fragespiel(BaseQuizAPI):
                 async with self.aiosession.post(self.URL, data=payload, headers=headers) as response:
                     response = await response.text()
                 buffer = self.scrape_questions(response)
-                print("new buf: {}".format(buffer))
                 continue
 
             # Check for dupe and 4 answers
@@ -449,7 +447,6 @@ class Fragespiel(BaseQuizAPI):
             self.questions.append(question)
             done += 1
         await self.aiosession.close()
-        print("{} questions".format(len(self.questions)))
 
     @staticmethod
     def scrape_questions(html):
@@ -475,11 +472,9 @@ class Fragespiel(BaseQuizAPI):
             question["title"] = unescape(question["title"])
             for key in ("a", "b", "c", "d"):
                 question[key][0] = unescape(question[key][0])
-        print("questions: {}".format(questions))
         return questions
 
     def current_question(self):
-        print("delivering question {} (index {})".format(self.current_question_i, self.questions[self.current_question_i].index))
         return self.questions[self.current_question_i]
 
     def next_question(self):
