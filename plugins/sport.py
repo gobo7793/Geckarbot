@@ -177,13 +177,12 @@ class Plugin(BasePlugin, name="Sport"):
     @commands.group(name="liveticker")
     async def cmd_liveticker(self, ctx):
         if ctx.invoked_subcommand is None:
-            liveticker_regs = self.bot.liveticker.search(plugin=self)
+            _, _, liveticker_regs = self.bot.liveticker.search_coro(plugins=[self.get_name()])
+            for c_reg in liveticker_regs:
+                c_reg.deregister()
             msg = await ctx.send(Lang.lang(self, 'liveticker_start'))
             for source, leagues in Config().get(self)['liveticker']['leagues'].items():
                 for league in leagues:
-                    for src in liveticker_regs.values():
-                        for reg in src.get(league, []):
-                            reg.deregister()
                     reg_ = await self.bot.liveticker.register(league=league, raw_source=source, plugin=self,
                                                               coro=self._live_coro, periodic=True)
                     next_exec = reg_.next_execution()
@@ -215,11 +214,10 @@ class Plugin(BasePlugin, name="Sport"):
                 league in Config().get(self)['liveticker']['leagues'][source]:
             Config().get(self)['liveticker']['leagues'][source].remove(league)
             Config().save(self)
-            league_list = self.bot.liveticker.search(self, league=league, source=source)
-            for src in league_list.values():
-                for leag in src.values():
-                    for reg in leag:
-                        reg.deregister()
+
+            for _, _, c_reg in self.bot.liveticker.search_coro(leagues=[league], sources=[LTSource(source)],
+                                                               plugins=[self.get_name()]):
+                c_reg.deregister()
             await add_reaction(ctx.message, Lang.CMDSUCCESS)
         else:
             await add_reaction(ctx.message, Lang.CMDNOCHANGE)
