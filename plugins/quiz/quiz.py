@@ -50,6 +50,9 @@ class QuizInitError(Exception):
 
 
 class SubCommandEncountered(Exception):
+    """
+    Flow control for argument parsing
+    """
     def __init__(self, callback, args):
         super().__init__()
         self.callback = callback
@@ -57,6 +60,9 @@ class SubCommandEncountered(Exception):
 
 
 class Methods(Enum):
+    """
+    Commands for a (running) quiz
+    """
     START = "start"
     STOP = "stop"
     SCORE = "score"
@@ -130,9 +136,9 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
             return langstr
         raise NotFound()
 
-    def sort_commands(self, ctx, cmd, subcommands):
+    def sort_commands(self, ctx, command, subcommands):
         # category help
-        if cmd is None:
+        if command is None:
             return subcommands
 
         # Subcommands for kwiss
@@ -465,7 +471,7 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
         :param subcommands: Whether to fish for subcommands
         :return: Dict with the parsed arguments
         :raises QuizInitError: Raised if arguments violate conditions (aka make no sense)
-        :raises SubcommandEncountered: Flow controll for registered subcommands
+        :raises SubCommandEncountered: Flow controll for registered subcommands
         """
         self.logger.debug("Parsing args: %s", args)
         found = {el: False for el in self.defaults}

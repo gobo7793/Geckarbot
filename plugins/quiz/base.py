@@ -256,6 +256,7 @@ class Score:
         """
         :param user: The user whose points are to be calculated
         :return: user's points
+        :raises KeyError: Raised when user is not registered in this score
         """
         if user not in self._score:
             raise KeyError("User {} not found in score".format(user))
@@ -553,6 +554,9 @@ class Question:
 
     @property
     def emoji_map(self):
+        """
+        :return: A list of all letter emoji that correspond to an answer
+        """
         if self._cached_emoji is None:
             self._cached_emoji = Lang.EMOJI["lettermap"][:len(self.all_answers)]
         return self._cached_emoji

@@ -334,6 +334,9 @@ class Pastebin(BaseQuizAPI):
 
 
 class Fragespiel(BaseQuizAPI):
+    """
+    Scrapes questions from fragespiel.com
+    """
     CATEGORIES = {
         -1: ("Alle", "all"),
         "1": ("Sport", "sport"),
@@ -464,7 +467,7 @@ class Fragespiel(BaseQuizAPI):
         try:
             questions = json.loads(r.groups()[0])["questions"]
         except Exception as e:
-            logging.getLogger(__name__).error("Error on parsing fragespiel questions json:\n{}".format(r))
+            logging.getLogger(__name__).error("Error on parsing fragespiel questions json:\n%s", str(s))
             raise QuizAPIError("Unexpected parsing error") from e
 
         # Unescape
