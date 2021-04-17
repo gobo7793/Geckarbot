@@ -2,7 +2,7 @@ import asyncio
 import datetime
 import logging
 from enum import Enum
-from typing import Union
+from typing import List
 
 from base import BaseSubsystem, BasePlugin
 from botutils import restclient
@@ -893,41 +893,54 @@ class Liveticker(BaseSubsystem):
         if reg.league in self.registrations[reg.source]:
             self.registrations[reg.source].pop(reg.league)
 
-    def search(self, plugin: Union[str, BasePlugin] = None, source: Union[str, LTSource] = None,
-               league: str = None) -> dict:
+    def search_league(self, sources=None, leagues=None):
+        """
+        Searches all LeagueRegistrations fulfilling the requirements
+
+        :param sources:
+        :type sources: List[LTSource]
+        :param leagues:
+        :type leagues: List[str]
+        :return:
+        """
+        if sources is None:
+            sources = []
+        if leagues is None:
+            leagues = []
+        for src, l_regs in self.registrations.items():
+            if sources and src not in sources:
+                continue
+            for league, l_reg in l_regs.items():
+                l_reg: LeagueRegistration
+                if leagues and league not in leagues:
+                    continue
+                yield l_reg
+
+    def search_coro(self, plugins=None, sources=None, leagues=None):
         """
         Searches all CoroRegistrations fulfilling the requirements
 
-        :param plugin: plugin or plugin name
-        :param source: data source (LTSource)
-        :param league: league key
-        :return: Dictionary with a list of all matching registrations per (league, source)
+        :param plugins:
+        :type plugins: List[str]
+        :param sources:
+        :type sources: List[LTSource]
+        :param leagues:
+        :type leagues: List[str]
+        :return:
         """
-        if isinstance(plugin, BasePlugin):
-            plugin = plugin.get_name()
-        if isinstance(source, str):
-            source = LTSource(source)
-        # Filter source
-        if source:
-            coro_regs = {source: self.registrations[source]}
-        else:
-            coro_regs = self.registrations.copy()
-        # Filter league
-        if league:
-            for src, regs in list(coro_regs.items()):
-                if league in regs.keys():
-                    coro_regs[src] = {league: regs[league]}
-                else:
-                    coro_regs.pop(src)
-        # Filter plugin
-        if not plugin:
-            return coro_regs
-        coro_dict = {}
-        for src, league_regs in coro_regs.items():
-            coro_dict[src] = {}
-            for leag, reg in league_regs.items():
-                coro_dict[src][leag] = [i for i in reg.registrations if plugin == i.plugin_name]
-        return coro_dict
+        if sources is None:
+            sources = []
+        if leagues is None:
+            leagues = []
+        if plugins is None:
+            plugins = []
+        l_reg: LeagueRegistration
+        for l_reg in self.search_league(sources=sources, leagues=leagues):
+            c_reg: CoroRegistration
+            for c_reg in l_reg.registrations:
+                if plugins and c_reg.plugin_name not in plugins:
+                    continue
+                yield l_reg.source, l_reg.league, c_reg
 
     async def restore(self, plugins: list):
         """
@@ -960,10 +973,8 @@ class Liveticker(BaseSubsystem):
 
         :param plugin_name: name of the plugin
         """
-        coro_dict = self.search(plugin=plugin_name)
-        for leag in coro_dict.values():
-            for reg in leag:
-                reg.unload()
+        for _, _, c_reg in self.search_coro(plugins=[plugin_name]):
+            c_reg.unload()
         self.logger.debug('Liveticker for plugin %s unloaded', plugin_name)
 
     async def _semiweekly_timer(self, _job):
