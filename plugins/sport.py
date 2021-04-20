@@ -182,8 +182,9 @@ class Plugin(BasePlugin, name="Sport"):
             msg = []
             liveticker_regs = list(self.bot.liveticker.search_coro(plugins=[self.get_name()]))
             if liveticker_regs:
+                # Show dialog for actions
                 leagues = (c_reg.league_reg.league for _, _, c_reg in liveticker_regs)
-                actions = "🔀", "❌"
+                actions = "🔀", "🚫"
                 description = Lang.lang(self, 'liveticker_running',
                                         Config().bot.get_channel(Config().get(self)['sport_chan']).mention,
                                         ", ".join(leagues))
@@ -196,9 +197,17 @@ class Plugin(BasePlugin, name="Sport"):
                     await add_reaction(msg, emoji)
                 react = self.bot.reaction_listener.register(msg, self._liveticker_reaction,
                                                             data={'user': ctx.author.id, 'react': False})
-                await asyncio.sleep(10)
-                react.deregister()
+                await asyncio.sleep(60)
+                if react and not react.data['react']:
+                    embed.clear_fields()
+                    embed.set_footer(text=Lang.lang(self, 'liveticker_action_timeout'))
+                    await msg.edit(embed=embed)
+                    for emoji in actions:
+                        await msg.remove_reaction(emoji, self.bot.user)
+                    react.deregister()
+                self.logger.debug("ENDE")
             else:
+                # Start liveticker
                 for source, leagues in Config().get(self)['liveticker']['leagues'].items():
                     for league in leagues:
                         reg_ = await self.bot.liveticker.register(league=league, raw_source=source, plugin=self,
@@ -214,6 +223,9 @@ class Plugin(BasePlugin, name="Sport"):
 
     async def _liveticker_reaction(self, event):
         if isinstance(event, ReactionAddedEvent) and event.member.id == event.data['user'] and not event.data['react']:
+            actions = "🔀", "🚫"
+            if event.emoji.name not in actions:
+                return
             embed = event.message.embeds[0]
             embed.clear_fields()
             embed.add_field(name=Lang.lang(self, 'liveticker_action_used'),
@@ -227,11 +239,14 @@ class Plugin(BasePlugin, name="Sport"):
                                                                                event.channel.mention))
                     Config().get(self)['sport_chan'] = event.channel.id
                     Config().save(self)
-            elif event.emoji.name == "❌":
+            elif event.emoji.name == "🚫":
                 # Stopping liveticker
                 for _, _, c_reg in list(self.bot.liveticker.search_coro(plugins=[self.get_name()])):
                     c_reg.deregister()
             event.data['react'] = True
+            event.callback.deregister()
+            for emoji in actions:
+                await event.message.remove_reaction(emoji, self.bot.user)
             await add_reaction(event.message, Lang.CMDSUCCESS)
 
     @cmd_liveticker.command(name="add")
