@@ -256,6 +256,7 @@ class Score:
         """
         :param user: The user whose points are to be calculated
         :return: user's points
+        :raises KeyError: Raised when user is not registered in this score
         """
         if user not in self._score:
             raise KeyError("User {} not found in score".format(user))
@@ -408,7 +409,8 @@ class Question:
         :param index: no idea
         :param info: Not sure, seems to be used as embed fields in the question info cmd
         """
-        logging.debug("Question(%s, %s, %s)", question, correct_answer, incorrect_answers)
+        logging.debug("Question(%s, %s, %s, index=%s, info=%s)",
+                      question, correct_answer, incorrect_answers, index, info)
         self.index = index
         self.source = quizapi
         self.info = info
@@ -552,6 +554,9 @@ class Question:
 
     @property
     def emoji_map(self):
+        """
+        :return: A list of all letter emoji that correspond to an answer
+        """
         if self._cached_emoji is None:
             self._cached_emoji = Lang.EMOJI["lettermap"][:len(self.all_answers)]
         return self._cached_emoji
