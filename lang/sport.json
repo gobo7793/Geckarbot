@@ -77,6 +77,11 @@
         "liveticker_prefix": "Liveticker - {} - Neue Ereignisse\n",
         "liveticker_prefix_kickoff": "__**Liveticker - {} - Anstoß ({})**__\n",
         "liveticker_prefix_finished": "__**Liveticker - {} - Abpfiff**__\n",
+        "liveticker_running": "Ein Liveticker existiert bereits im Kanal {} mit den folgenden Ligen:\n{}\n",
+        "liveticker_action_title": "Aktionen",
+        "liveticker_action_used": "Ausgewählte Aktion",
+        "liveticker_action_\uD83D\uDD00": "\uD83D\uDD00 Liveticker in diesen Kanal verschieben.",
+        "liveticker_action_\u274c": "\u274c Liveticker stoppen.",
         "liveticker_unchanged": "Unverändert",
         "err_invalid_src": "Diese Datenquelle kenne ich nicht."
     }
