@@ -1,3 +1,4 @@
+import asyncio
 import calendar
 import logging
 from datetime import datetime, timedelta
@@ -12,6 +13,7 @@ from botutils.utils import add_reaction, helpstring_helper
 from data import Lang, Config
 from subsystems.helpsys import DefaultCategories
 from subsystems.liveticker import LivetickerKickoff, LivetickerUpdate, LivetickerFinish, LTSource, PlayerEventEnum
+from subsystems.reactions import ReactionAddedEvent
 
 
 class Plugin(BasePlugin, name="Sport"):
@@ -177,21 +179,47 @@ class Plugin(BasePlugin, name="Sport"):
     @commands.group(name="liveticker")
     async def cmd_liveticker(self, ctx):
         if ctx.invoked_subcommand is None:
-            _, _, liveticker_regs = self.bot.liveticker.search_coro(plugins=[self.get_name()])
-            for c_reg in liveticker_regs:
-                c_reg.deregister()
-            msg = await ctx.send(Lang.lang(self, 'liveticker_start'))
-            for source, leagues in Config().get(self)['liveticker']['leagues'].items():
-                for league in leagues:
-                    reg_ = await self.bot.liveticker.register(league=league, raw_source=source, plugin=self,
-                                                              coro=self._live_coro, periodic=True)
-                    next_exec = reg_.next_execution()
-                    if next_exec:
-                        next_exec = next_exec[0].strftime('%d.%m.%Y - %H:%M')
-                    await msg.edit(content=f"{msg.content}\n{league} - Next: {next_exec}")
-            Config().get(self)['sport_chan'] = ctx.channel.id
-            Config().save(self)
-            await add_reaction(ctx.message, Lang.CMDSUCCESS)
+            msg = []
+            liveticker_regs = self.bot.liveticker.search_coro(plugins=[self.get_name()])
+            if liveticker_regs:
+                leagues = (c_reg.league_reg.league for _, _, c_reg in liveticker_regs)
+                actions = "🔀", "❌"
+                description = Lang.lang(self, 'liveticker_running',
+                                        Config().bot.get_channel(Config().get(self)['sport_chan']).mention,
+                                        ", ".join(leagues))
+                embed = discord.Embed(title="Liveticker",
+                                      description=description)
+                embed.add_field(name=Lang.lang(self, 'liveticker_action_title'),
+                                value="\n".join(Lang.lang(self, 'liveticker_action_{}'.format(x)) for x in actions))
+                msg = await ctx.send(embed=embed)
+                for emoji in actions:
+                    await add_reaction(msg, emoji)
+                react = self.bot.reaction_listener.register(msg, self._liveticker_reaction,
+                                                            data={'user': ctx.author.id, 'react': False})
+                await asyncio.sleep(10)
+                react.deregister()
+            else:
+                for source, leagues in Config().get(self)['liveticker']['leagues'].items():
+                    for league in leagues:
+                        reg_ = await self.bot.liveticker.register(league=league, raw_source=source, plugin=self,
+                                                                  coro=self._live_coro, periodic=True)
+                        next_exec = reg_.next_execution()
+                        if next_exec:
+                            next_exec = next_exec[0].strftime('%d.%m.%Y - %H:%M')
+                        msg.append("{} - Next: {}".format(league, next_exec))
+                Config().get(self)['sport_chan'] = ctx.channel.id
+                Config().save(self)
+                await add_reaction(ctx.message, Lang.CMDSUCCESS)
+                await ctx.send("\n".join(msg))
+
+    async def _liveticker_reaction(self, event):
+        if isinstance(event, ReactionAddedEvent) and event.member.id == event.data['user'] and not event.data['react']:
+            embed = event.message.embeds[0]
+            embed.clear_fields()
+            embed.add_field(name=Lang.lang(self, 'liveticker_action_used'),
+                            value=Lang.lang(self, 'liveticker_action_{}'.format(event.emoji)))
+            await event.message.edit(embed=embed)
+            event.data['react'] = True
 
     @cmd_liveticker.command(name="add")
     async def cmd_liveticker_add(self, ctx, source, league):
