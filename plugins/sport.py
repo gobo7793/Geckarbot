@@ -180,7 +180,7 @@ class Plugin(BasePlugin, name="Sport"):
     async def cmd_liveticker(self, ctx):
         if ctx.invoked_subcommand is None:
             msg = []
-            liveticker_regs = self.bot.liveticker.search_coro(plugins=[self.get_name()])
+            liveticker_regs = list(self.bot.liveticker.search_coro(plugins=[self.get_name()]))
             if liveticker_regs:
                 leagues = (c_reg.league_reg.league for _, _, c_reg in liveticker_regs)
                 actions = "🔀", "❌"
@@ -219,7 +219,20 @@ class Plugin(BasePlugin, name="Sport"):
             embed.add_field(name=Lang.lang(self, 'liveticker_action_used'),
                             value=Lang.lang(self, 'liveticker_action_{}'.format(event.emoji)))
             await event.message.edit(embed=embed)
+            if event.emoji.name == "🔀":
+                # Switching channels
+                old_channel = Config().get(self)['sport_chan']
+                if event.channel.id != old_channel:
+                    await Config().bot.get_channel(old_channel).send(Lang.lang(self, 'liveticker_channel_switched',
+                                                                               event.channel.mention))
+                    Config().get(self)['sport_chan'] = event.channel.id
+                    Config().save(self)
+            elif event.emoji.name == "❌":
+                # Stopping liveticker
+                for _, _, c_reg in list(self.bot.liveticker.search_coro(plugins=[self.get_name()])):
+                    c_reg.deregister()
             event.data['react'] = True
+            await add_reaction(event.message, Lang.CMDSUCCESS)
 
     @cmd_liveticker.command(name="add")
     async def cmd_liveticker_add(self, ctx, source, league):

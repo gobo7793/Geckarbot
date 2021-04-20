@@ -82,6 +82,7 @@
         "liveticker_action_used": "Ausgewählte Aktion",
         "liveticker_action_\uD83D\uDD00": "\uD83D\uDD00 Liveticker in diesen Kanal verschieben.",
         "liveticker_action_\u274c": "\u274c Liveticker stoppen.",
+        "liveticker_channel_switched": "Liveticker wurde in den Kanal {} verschoben.",
         "liveticker_unchanged": "Unverändert",
         "err_invalid_src": "Diese Datenquelle kenne ich nicht."
     }
