@@ -588,7 +588,7 @@ class LeagueRegistration:
         """
         # TODO rework
         if matchday:
-            raw_matches = restclient.Client("https://www.openligadb.de/api").make_request(
+            raw_matches = await restclient.Client("https://www.openligadb.de/api").request(
                 "/getmatchdata/{}/2020/{}".format(self.league, matchday))
             self.matches = [Match.from_openligadb(m) for m in raw_matches]
         elif self.matchday():
@@ -598,7 +598,7 @@ class LeagueRegistration:
                 await self._update_matches_oldb(matchday=self.matchday() + 1)
                 # self.schedule_kickoffs_oooooooold()
         else:
-            raw_matches = restclient.Client("https://www.openligadb.de/api").make_request(
+            raw_matches = await restclient.Client("https://www.openligadb.de/api").request(
                 "/getmatchdata/{}".format(self.league))
             self.matches = [Match.from_openligadb(m) for m in raw_matches]
             if not self.extract_kickoffs_with_matches():
