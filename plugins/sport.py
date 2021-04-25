@@ -148,6 +148,11 @@ class Plugin(BasePlugin, name="Sport"):
     async def cmd_buli2_livescores(self, ctx, allmatches=None):
         await ctx.invoke(self.bot.get_command('fußball'), 'bl2', allmatches)
 
+    @commands.command(name="bulitable")
+    async def cmd_buli_table(self, ctx):
+        table = (x.display() for x in await self.bot.liveticker.get_standings('ger.1', LTSource.ESPN))
+        await ctx.send("\n".join(table))
+
     @commands.command(name="matches")
     async def cmd_matches_24h(self, ctx):
         async with ctx.typing():
