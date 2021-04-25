@@ -63,6 +63,44 @@ class MatchStatus(Enum):
         raise ValueError("Source {} is not supported.".format(src))
 
 
+class TableEntry:
+    """
+    Single entry of a table for the current standings in a league.
+
+    :param data: raw data
+    :param source: data source
+    """
+    def __init__(self, data: dict, source: LTSource):
+        self.source = source
+        if source == LTSource.OPENLIGADB:
+            self.rank = data['rank']
+            self.team = data['TeamName']
+            self.won = data['Won']
+            self.draw = data['Draw']
+            self.lost = data['Lost']
+            self.goals = data['Goals']
+            self.goals_against = data['OpponentGoals']
+            self.points = data['Points']
+            self.rank_change = None
+        elif source == LTSource.ESPN:
+            stats = {x['name']: (int(x['value']) if x.get('value') is not None else None) for x in data['stats']}
+            self.rank = stats.get('rank')
+            self.team = data['team']['displayName']
+            self.won = stats.get('wins')
+            self.draw = stats.get('ties')
+            self.lost = stats.get('losses')
+            self.goals = stats.get('pointsFor')
+            self.goals_against = stats.get('pointsAgainst')
+            self.points = stats.get('points')
+            self.rank_change = stats.get('rankChange')
+        else:
+            raise
+
+    def display(self):
+        return f"{self.rank} | {self.team} | {self.won}-{self.draw}-{self.lost} | {self.goals}:{self.goals_against} " \
+               f"| {self.points}"
+
+
 class MatchStub:
     """
     Match with minimal info (used for stored kickoffs)
@@ -991,3 +1029,27 @@ class Liveticker(BaseSubsystem):
                 await league_reg.schedule_kickoffs(until)
         Storage().get(self)['next_semiweekly'] = until.strftime("%Y-%m-%d %H:%M")
         Storage().save(self)
+
+    @staticmethod
+    async def get_standings(league: str, source: LTSource):
+        """
+        Returns the current standings of that league
+
+        :param league: league key
+        :param source: data source
+        :return: current standings
+        """
+        table = []
+        if source == LTSource.ESPN:
+            data = await restclient.Client("https://site.api.espn.com/apis/v2/sports").request(
+                f"/soccer/{league}/standings")
+            entries = data['children'][0]['standings']['entries']
+            for entry in entries:
+                table.append(TableEntry(entry, LTSource.ESPN))
+        elif source == LTSource.OPENLIGADB:
+            year = (datetime.datetime.today() - datetime.timedelta(days=180)).year
+            data = await restclient.Client("https://www.openligadb.de/api").request(f"/getbltable/{league}/{year}")
+            for i in range(len(data)):
+                data[i]['rank'] = i+1
+                table.append(TableEntry(data[i], LTSource.OPENLIGADB))
+        return table
