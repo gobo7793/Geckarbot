@@ -150,8 +150,11 @@ class Plugin(BasePlugin, name="Sport"):
 
     @commands.command(name="bulitable")
     async def cmd_buli_table(self, ctx):
-        table = (x.display() for x in await self.bot.liveticker.get_standings('ger.1', LTSource.ESPN))
-        await ctx.send("\n".join(table))
+        table = [x.display() for x in await self.bot.liveticker.get_standings('ger.1', LTSource.ESPN)]
+        embed = discord.Embed(title="Bundesliga")
+        embed.add_field(name=":trophy:", value="\n".join(table[:len(table)//2]))
+        embed.add_field(name=":coffin:", value="\n".join(table[len(table)//2:]))
+        await ctx.send(embed=embed)
 
     @commands.command(name="matches")
     async def cmd_matches_24h(self, ctx):
