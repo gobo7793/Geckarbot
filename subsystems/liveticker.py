@@ -63,18 +63,62 @@ class MatchStatus(Enum):
         raise ValueError("Source {} is not supported.".format(src))
 
 
+class TeamnameDict:
+    """Set of name variants"""
+    def __init__(self, long_name: str, short_name: str, abbr: str = None, emoji: str = "🏳️"):
+        self.emoji = emoji
+        self.abbr = abbr
+        self.short_name = short_name
+        self.long_name = long_name
+
+
+class TeamnameConverter:
+    def __init__(self, liveticker):
+        self.liveticker = liveticker
+        self._teamnames = {}
+        data = Storage().get(self.liveticker, container='teamname')
+        for team, entry in data.items():
+            teamname_dict = TeamnameDict(long_name=team, short_name=entry['short'], abbr=entry['abbr'],
+                                         emoji=entry['emoji'])
+            self._teamnames[team] = teamname_dict
+            self._teamnames[entry['short']] = teamname_dict
+            self._teamnames[entry['abbr']] = teamname_dict
+            for other in entry['other']:
+                self._teamnames[other] = teamname_dict
+
+    def get(self, team):
+        return self._teamnames.get(team)
+
+    def add(self, teamname_dict: TeamnameDict):
+        """Adds a set for team"""
+        Storage().get(self.liveticker, container='teamname')[teamname_dict.long_name] = {
+            'short': teamname_dict.short_name,
+            'abbr': teamname_dict.abbr,
+            'emoji': teamname_dict.emoji,
+            'other': []
+        }
+        Storage().save(self.liveticker, container='teamname')
+        self._teamnames[teamname_dict.long_name] = teamname_dict
+        self._teamnames[teamname_dict.short_name] = teamname_dict
+        self._teamnames[teamname_dict.abbr] = teamname_dict
+        return teamname_dict
+
+
 class TableEntry:
     """
     Single entry of a table for the current standings in a league.
 
     :param data: raw data
     :param source: data source
+    :param converter: Teamname converter
     """
-    def __init__(self, data: dict, source: LTSource):
+    def __init__(self, data: dict, source: LTSource, converter: TeamnameConverter):
         self.source = source
         if source == LTSource.OPENLIGADB:
             self.rank = data['rank']
-            self.team = data['TeamName']
+            self.team = converter.get(data['TeamName'])
+            if not self.team:
+                self.team = converter.add(TeamnameDict(long_name=data['TeamName'], short_name=data['ShortName']))
             self.won = data['Won']
             self.draw = data['Draw']
             self.lost = data['Lost']
@@ -85,7 +129,11 @@ class TableEntry:
         elif source == LTSource.ESPN:
             stats = {x['name']: (int(x['value']) if x.get('value') is not None else None) for x in data['stats']}
             self.rank = stats.get('rank')
-            self.team = data['team']['displayName']
+            self.team = converter.get(data['team']['displayName'])
+            if not self.team:
+                self.team = converter.add(TeamnameDict(long_name=data['team']['displayName'],
+                                                       short_name=data['team']['shortDisplayName'],
+                                                       abbr=data['team']['abbreviation']))
             self.won = stats.get('wins')
             self.draw = stats.get('ties')
             self.lost = stats.get('losses')
@@ -97,8 +145,8 @@ class TableEntry:
             raise
 
     def display(self):
-        return f"{self.rank} | {self.team} | {self.won}-{self.draw}-{self.lost} | {self.goals}:{self.goals_against} " \
-               f"| {self.points}"
+        return f"{self.rank} | {self.team.emoji} {self.team.short_name} | {self.won}-{self.draw}-{self.lost} " \
+               f"| {self.goals}:{self.goals_against} | {self.points}"
 
 
 class MatchStub:
@@ -850,6 +898,7 @@ class Liveticker(BaseSubsystem):
         self.bot = bot
         self.logger = logging.getLogger(__name__)
         self.registrations = {x: {} for x in LTSource}
+        self.teamname_converter = TeamnameConverter(self)
         self.restored = False
         self.current_timer = None
 
@@ -880,6 +929,8 @@ class Liveticker(BaseSubsystem):
                 self.current_timer.execute()
 
     def default_storage(self, container=None):
+        if container == 'teamname':
+            return {}
         storage = {
             'storage_version': 1,
             'registrations': {},
@@ -1030,8 +1081,7 @@ class Liveticker(BaseSubsystem):
         Storage().get(self)['next_semiweekly'] = until.strftime("%Y-%m-%d %H:%M")
         Storage().save(self)
 
-    @staticmethod
-    async def get_standings(league: str, source: LTSource):
+    async def get_standings(self, league: str, source: LTSource):
         """
         Returns the current standings of that league
 
@@ -1045,11 +1095,11 @@ class Liveticker(BaseSubsystem):
                 f"/soccer/{league}/standings")
             entries = data['children'][0]['standings']['entries']
             for entry in entries:
-                table.append(TableEntry(entry, LTSource.ESPN))
+                table.append(TableEntry(entry, LTSource.ESPN, self.teamname_converter))
         elif source == LTSource.OPENLIGADB:
             year = (datetime.datetime.today() - datetime.timedelta(days=180)).year
             data = await restclient.Client("https://www.openligadb.de/api").request(f"/getbltable/{league}/{year}")
             for i in range(len(data)):
                 data[i]['rank'] = i+1
-                table.append(TableEntry(data[i], LTSource.OPENLIGADB))
+                table.append(TableEntry(data[i], LTSource.OPENLIGADB, self.teamname_converter))
         return table
