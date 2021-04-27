@@ -76,13 +76,19 @@ class TeamnameDict:
             except (IndexError, TypeError):
                 self.emoji = "🏳️"
 
-    def table_display(self):
+    def table_display(self) -> str:
+        """Returns string prepared for display in the table"""
         if len(self.short_name) > 12:
             return f"{self.emoji} {self.short_name[:11]}\u2026"
         return "{} {}{}".format(self.emoji, self.short_name, "\u2024"*(11 - len(self.short_name)))
 
 
 class TeamnameConverter:
+    """
+    Class for the conversion between team names
+
+    :param liveticker: liveticker class
+    """
     def __init__(self, liveticker):
         self.liveticker = liveticker
         self._teamnames = {}
@@ -97,10 +103,15 @@ class TeamnameConverter:
                 self._teamnames[other] = teamname_dict
 
     def get(self, team):
+        """Returns the TeamnameDict for the team"""
         return self._teamnames.get(team)
 
     def add(self, teamname_dict: TeamnameDict):
-        """Adds a set for team"""
+        """
+        Adds a new TeamnameDict for a team
+
+        :param teamname_dict:
+        """
         Storage().get(self.liveticker, container='teamname')[teamname_dict.long_name] = {
             'short': teamname_dict.short_name,
             'abbr': teamname_dict.abbr,
