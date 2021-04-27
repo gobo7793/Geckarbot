@@ -7,7 +7,7 @@ from typing import List
 from base import BaseSubsystem, BasePlugin
 from botutils import restclient
 from botutils.converters import get_plugin_by_name
-from data import Storage
+from data import Storage, Lang
 from subsystems import timers
 from subsystems.timers import Job
 
@@ -65,11 +65,16 @@ class MatchStatus(Enum):
 
 class TeamnameDict:
     """Set of name variants"""
-    def __init__(self, long_name: str, short_name: str, abbr: str = None, emoji: str = "🏳️"):
+    def __init__(self, long_name: str, short_name: str, abbr: str = None, emoji: str = None):
         self.emoji = emoji
         self.abbr = abbr
         self.short_name = short_name
         self.long_name = long_name
+        if emoji is None:
+            try:
+                self.emoji = Lang.EMOJI['lettermap'][ord(self.abbr[0].lower()) - 97]
+            except (IndexError, TypeError):
+                self.emoji = "🏳️"
 
     def table_display(self):
         if len(self.short_name) > 12:
