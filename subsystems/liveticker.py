@@ -71,6 +71,11 @@ class TeamnameDict:
         self.short_name = short_name
         self.long_name = long_name
 
+    def table_display(self):
+        if len(self.short_name) > 12:
+            return f"{self.emoji} {self.short_name[:11]}\u2026"
+        return "{} {}{}".format(self.emoji, self.short_name, "\u2024"*(11 - len(self.short_name)))
+
 
 class TeamnameConverter:
     def __init__(self, liveticker):
@@ -145,7 +150,7 @@ class TableEntry:
             raise
 
     def display(self):
-        return f"{self.rank} | {self.team.emoji} {self.team.short_name} | {self.won}-{self.draw}-{self.lost} " \
+        return f"{self.rank} | {self.team.table_display()} | {self.won}-{self.draw}-{self.lost} " \
                f"| {self.goals}:{self.goals_against} | {self.points}"
 
 
