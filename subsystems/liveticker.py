@@ -2,7 +2,7 @@ import asyncio
 import datetime
 import logging
 from enum import Enum
-from typing import List
+from typing import List, Optional
 
 from base import BaseSubsystem, BasePlugin
 from botutils import restclient
@@ -66,22 +66,33 @@ class MatchStatus(Enum):
 class TeamnameDict:
     """Set of name variants"""
 
-    def __init__(self, long_name: str, short_name: str, abbr: str = None, emoji: str = None):
-        self.emoji = emoji
-        self.abbr = abbr
-        self.short_name = short_name
+    def __init__(self, long_name: str, short_name: str, abbr: str = None, emoji: str = None, other: list = None):
         self.long_name = long_name
+        self.short_name = short_name
+        self.abbr = abbr
+        self.emoji = emoji
+        self.other = other
         if emoji is None:
             try:
                 self.emoji = Lang.EMOJI['lettermap'][ord(self.abbr[0].lower()) - 97]
             except (IndexError, TypeError):
                 self.emoji = "🏳️"
+        if self.other is None:
+            self.other = []
 
     def table_display(self) -> str:
         """Returns string prepared for display in the table"""
         if len(self.short_name) > 12:
             return f"{self.emoji} {self.short_name[:11]}\u2026"
         return "{} {}{}".format(self.emoji, self.short_name, "\u2024" * (11 - len(self.short_name)))
+
+    def store(self, storage_path):
+        """Saves this to the storage"""
+        Storage().get(storage_path, container='teamname')[self.long_name] = self.to_dict()
+        Storage().save(storage_path, container='teamname')
+
+    def to_dict(self):
+        return {'short': self.short_name, 'abbr': self.abbr, 'emoji': self.emoji, 'other': self.other}
 
     def __iter__(self):
         yield self.long_name
@@ -119,15 +130,17 @@ class TeamnameConverter:
         data = Storage().get(self.liveticker, container='teamname')
         for team, entry in data.items():
             teamname_dict = TeamnameDict(long_name=team, short_name=entry['short'], abbr=entry['abbr'],
-                                         emoji=entry['emoji'])
+                                         emoji=entry['emoji'], other=entry['other'])
             for variant in (team, entry['short'], entry['abbr']):
                 self._addvariant(variant, teamname_dict)
             for other in entry['other']:
                 response = self._teamnames.setdefault(other, teamname_dict)
                 if response != teamname_dict:
-                    data[team]['other'].remove(other)
+                    teamname_dict.other.remove(other)
+                    Storage().get(self.liveticker, container='teamname')[team]['other'].remove(other)
+        Storage().save(self.liveticker, container='teamname')
 
-    def get(self, team):
+    def get(self, team) -> Optional[TeamnameDict]:
         """Returns the TeamnameDict for the team"""
         return self._teamnames.get(team)
 
@@ -137,51 +150,40 @@ class TeamnameConverter:
 
         :param teamname_dict:
         """
-        Storage().get(self.liveticker, container='teamname')[teamname_dict.long_name] = {
-            'short': teamname_dict.short_name,
-            'abbr': teamname_dict.abbr,
-            'emoji': teamname_dict.emoji,
-            'other': []
-        }
+        Storage().get(self.liveticker, container='teamname')[teamname_dict.long_name] = teamname_dict.to_dict()
         Storage().save(self.liveticker, container='teamname')
-        self._teamnames[teamname_dict.long_name] = teamname_dict
-        self._teamnames[teamname_dict.short_name] = teamname_dict
-        self._teamnames[teamname_dict.abbr] = teamname_dict
+        self._addvariant(teamname_dict.long_name, teamname_dict)
+        self._addvariant(teamname_dict.short_name, teamname_dict)
+        self._addvariant(teamname_dict.abbr, teamname_dict)
         return teamname_dict
 
     def update(self, team: str, long_name: str = None, short_name: str = None, abbr: str = None, emoji: str = None,
-               add_to_alt: bool = False):
-        teamname_dict = self._teamnames[team]
+               add_to_alt: bool = False) -> TeamnameDict:
+        teamname_dict = self.get(team)
+        if not teamname_dict:
+            raise ValueError(f"Team: {team}")
+
         if long_name:
+            Storage().get(self.liveticker, container='teamname').pop(teamname_dict.long_name)
             if add_to_alt:
-                Storage().get(self.liveticker, container='teamname')[teamname_dict.long_name]['other'].append(
-                    teamname_dict.long_name)
-            else:
-                self._teamnames.pop(teamname_dict.long_name)
+                teamname_dict.other.append(teamname_dict.long_name)
             teamname_dict.long_name = long_name
             self._addvariant(long_name, teamname_dict)
         if short_name:
             if add_to_alt:
-                Storage().get(self.liveticker, container='teamname')[teamname_dict.long_name]['other'].append(
-                    teamname_dict.short_name)
-            else:
-                self._teamnames.pop(teamname_dict.short_name)
+                teamname_dict.other.append(teamname_dict.short_name)
             teamname_dict.short_name = short_name
             self._addvariant(short_name, teamname_dict)
-            Storage().get(self.liveticker, container='teamname')[teamname_dict.long_name]['short'] = short_name
         if abbr:
             if add_to_alt:
-                Storage().get(self.liveticker, container='teamname')[teamname_dict.long_name]['other'].append(
-                    teamname_dict.abbr)
-            else:
-                self._teamnames.pop(teamname_dict.abbr)
+                teamname_dict.other.append(teamname_dict.abbr)
             teamname_dict.abbr = abbr
             self._addvariant(abbr, teamname_dict)
-            Storage().get(self.liveticker, container='teamname')[teamname_dict.long_name]['abbr'] = abbr
         if emoji:
             teamname_dict.emoji = emoji
-            Storage().get(self.liveticker, container='teamname')[teamname_dict.long_name]['emoji'] = emoji
-        Storage().save(self.liveticker, container='teamname')
+
+        teamname_dict.store(self.liveticker)
+        return teamname_dict
 
 
 class TableEntry:
