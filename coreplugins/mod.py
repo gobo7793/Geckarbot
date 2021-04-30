@@ -1,8 +1,10 @@
+import inspect
 import platform
 from datetime import datetime
 
+import discord
 from discord.ext import commands
-from discord.ext.commands import MemberConverter, UserConverter
+from discord.ext.commands import MemberConverter, UserConverter, MissingRequiredArgument
 
 from base import BasePlugin, ConfigurableType
 from botutils import utils
@@ -358,6 +360,56 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
         await utils.add_reaction(ctx.message, reaction)
         if final_msg is not None:
             await ctx.send(final_msg)
+
+    @commands.group(name="teamname", usage="<team> | set <variant> <team> <new_name>")
+    async def cmd_teamname_info(self, ctx, team: str, set_variant=None, set_team=None, set_new_name=None):
+        if team == "set":
+            await ctx.invoke(self.bot.get_command('teamname set'), set_variant, set_team, set_new_name)
+            return
+        teamname_dict = self.bot.liveticker.teamname_converter.get(team)
+        if not teamname_dict:
+            await ctx.send(Lang.lang(self, 'team_not_found'))
+        else:
+            embed = discord.Embed(title=f"{teamname_dict.emoji} {team}",
+                                  description=f"{Lang.lang(self, 'teamname_long')}: {teamname_dict.long_name}\n"
+                                              f"{Lang.lang(self, 'teamname_short')}: {teamname_dict.short_name}\n"
+                                              f"{Lang.lang(self, 'teamname_abbr')}: {teamname_dict.abbr}\n")
+            await ctx.send(embed=embed)
+
+    @cmd_teamname_info.command(name="set")
+    async def cmd_teamname_set(self, ctx, variant: str, team: str, new_name: str):
+        if not variant:
+            raise MissingRequiredArgument(inspect.Parameter("variant", inspect.Parameter.POSITIONAL_ONLY))
+        if not team:
+            raise MissingRequiredArgument(inspect.Parameter("team", inspect.Parameter.POSITIONAL_ONLY))
+        if not new_name:
+            raise MissingRequiredArgument(inspect.Parameter("new_name", inspect.Parameter.POSITIONAL_ONLY))
+        variant = variant.lower()
+        long = "long", "lang"
+        short = "short", "kurz"
+        abbr = "abbr", "abbreviation", "abk", "abk.", "abkürzung"
+        emoji = "emoji", "wappen"
+        saved_team = self.bot.liveticker.teamname_converter.get(new_name)
+        if saved_team:
+            await ctx.send(Lang.lang(self, 'teamname_set_duplicate', new_name, saved_team.long_name))
+            return
+        saved_team = self.bot.liveticker.teamname_converter.get(team)
+        if not saved_team:
+            await ctx.send(Lang.lang(self, 'team_not_found'))
+            return
+        if variant in long:
+            self.bot.liveticker.teamname_converter.update(team=saved_team.long_name, long_name=new_name,
+                                                          add_to_alt=True)
+        elif variant in short:
+            self.bot.liveticker.teamname_converter.update(team=saved_team.long_name, short_name=new_name,
+                                                          add_to_alt=True)
+        elif variant in abbr:
+            self.bot.liveticker.teamname_converter.update(team=saved_team.long_name, abbr=new_name)
+        elif variant in emoji:
+            self.bot.liveticker.teamname_converter.update(team=saved_team.long_name, emoji=new_name)
+        else:
+            await ctx.send(Lang.lang(self, 'teamname_set_variant_invalid', long + short + abbr + emoji))
+            return
 
     def _get_full_cmd_name(self, command):
         """

@@ -65,6 +65,7 @@ class MatchStatus(Enum):
 
 class TeamnameDict:
     """Set of name variants"""
+
     def __init__(self, long_name: str, short_name: str, abbr: str = None, emoji: str = None):
         self.emoji = emoji
         self.abbr = abbr
@@ -80,7 +81,12 @@ class TeamnameDict:
         """Returns string prepared for display in the table"""
         if len(self.short_name) > 12:
             return f"{self.emoji} {self.short_name[:11]}\u2026"
-        return "{} {}{}".format(self.emoji, self.short_name, "\u2024"*(11 - len(self.short_name)))
+        return "{} {}{}".format(self.emoji, self.short_name, "\u2024" * (11 - len(self.short_name)))
+
+    def __iter__(self):
+        yield self.long_name
+        yield self.short_name
+        yield self.abbr
 
 
 class TeamnameConverter:
@@ -89,18 +95,37 @@ class TeamnameConverter:
 
     :param liveticker: liveticker class
     """
+
     def __init__(self, liveticker):
         self.liveticker = liveticker
         self._teamnames = {}
+        self._restore()
+
+    def _addvariant(self, variant, teamname_dict):
+        response = self._teamnames.setdefault(variant, teamname_dict)
+        if response != teamname_dict:
+            # Check if existing entry is only alternative
+            if variant not in self._teamnames[variant]:
+                # Removing alternative and overwrite name
+                Storage().get(self.liveticker, container='teamname')[self._teamnames[variant].long_name]['other'] \
+                    .remove(variant)
+                Storage().save(self.liveticker, container='teamname')
+                self._teamnames[variant] = teamname_dict
+            else:
+                # Duplicate
+                pass  # TODO handling teamname duplicates
+
+    def _restore(self):
         data = Storage().get(self.liveticker, container='teamname')
         for team, entry in data.items():
             teamname_dict = TeamnameDict(long_name=team, short_name=entry['short'], abbr=entry['abbr'],
                                          emoji=entry['emoji'])
-            self._teamnames[team] = teamname_dict
-            self._teamnames[entry['short']] = teamname_dict
-            self._teamnames[entry['abbr']] = teamname_dict
+            for variant in (team, entry['short'], entry['abbr']):
+                self._addvariant(variant, teamname_dict)
             for other in entry['other']:
-                self._teamnames[other] = teamname_dict
+                response = self._teamnames.setdefault(other, teamname_dict)
+                if response != teamname_dict:
+                    data[team]['other'].remove(other)
 
     def get(self, team):
         """Returns the TeamnameDict for the team"""
@@ -124,6 +149,40 @@ class TeamnameConverter:
         self._teamnames[teamname_dict.abbr] = teamname_dict
         return teamname_dict
 
+    def update(self, team: str, long_name: str = None, short_name: str = None, abbr: str = None, emoji: str = None,
+               add_to_alt: bool = False):
+        teamname_dict = self._teamnames[team]
+        if long_name:
+            if add_to_alt:
+                Storage().get(self.liveticker, container='teamname')[teamname_dict.long_name]['other'].append(
+                    teamname_dict.long_name)
+            else:
+                self._teamnames.pop(teamname_dict.long_name)
+            teamname_dict.long_name = long_name
+            self._addvariant(long_name, teamname_dict)
+        if short_name:
+            if add_to_alt:
+                Storage().get(self.liveticker, container='teamname')[teamname_dict.long_name]['other'].append(
+                    teamname_dict.short_name)
+            else:
+                self._teamnames.pop(teamname_dict.short_name)
+            teamname_dict.short_name = short_name
+            self._addvariant(short_name, teamname_dict)
+            Storage().get(self.liveticker, container='teamname')[teamname_dict.long_name]['short'] = short_name
+        if abbr:
+            if add_to_alt:
+                Storage().get(self.liveticker, container='teamname')[teamname_dict.long_name]['other'].append(
+                    teamname_dict.abbr)
+            else:
+                self._teamnames.pop(teamname_dict.abbr)
+            teamname_dict.abbr = abbr
+            self._addvariant(abbr, teamname_dict)
+            Storage().get(self.liveticker, container='teamname')[teamname_dict.long_name]['abbr'] = abbr
+        if emoji:
+            teamname_dict.emoji = emoji
+            Storage().get(self.liveticker, container='teamname')[teamname_dict.long_name]['emoji'] = emoji
+        Storage().save(self.liveticker, container='teamname')
+
 
 class TableEntry:
     """
@@ -133,6 +192,7 @@ class TableEntry:
     :param source: data source
     :param converter: Teamname converter
     """
+
     def __init__(self, data: dict, source: LTSource, converter: TeamnameConverter):
         self.source = source
         if source == LTSource.OPENLIGADB:
@@ -180,6 +240,7 @@ class MatchStub:
     :param home_team_id: id of the home team
     :param away_team_id: id of the away team
     """
+
     def __init__(self, kickoff: datetime.datetime, home_team: str, away_team: str, home_team_id: str,
                  away_team_id: str):
         self.kickoff = kickoff
@@ -1121,6 +1182,6 @@ class Liveticker(BaseSubsystem):
             year = (datetime.datetime.today() - datetime.timedelta(days=180)).year
             data = await restclient.Client("https://www.openligadb.de/api").request(f"/getbltable/{league}/{year}")
             for i in range(len(data)):
-                data[i]['rank'] = i+1
+                data[i]['rank'] = i + 1
                 table.append(TableEntry(data[i], LTSource.OPENLIGADB, self.teamname_converter))
         return table
