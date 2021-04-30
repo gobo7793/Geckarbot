@@ -68,6 +68,7 @@
         "teamname_long": "**Long**",
         "teamname_short": "**Short**",
         "teamname_abbr": "**Abbr.**",
+        "teamname_other": "Other",
         "teamname_set_variant_invalid": "Variant must be one of the following: {}",
         "teamname_set_duplicate": "`{}` is already existent for the team of {}.",
 
@@ -171,6 +172,7 @@
         "teamname_long": "**Lang**",
         "teamname_short": "**Kurz**",
         "teamname_abbr": "**Abk.**",
+        "teamname_other": "Weitere",
         "teamname_set_variant_invalid": "Variante muss eine der folgenden sein: {}",
         "teamname_set_duplicate": "`{}` ist bereits für einen anderen Verein ({}) eingespeichert.",
 

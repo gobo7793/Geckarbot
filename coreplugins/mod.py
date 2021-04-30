@@ -11,6 +11,7 @@ from botutils import utils
 from botutils.converters import get_best_username, get_plugin_by_name
 from botutils.stringutils import paginate
 from botutils.timeutils import parse_time_input
+from botutils.utils import add_reaction
 from data import Config, Lang
 from subsystems.helpsys import DefaultCategories
 from subsystems.ignoring import IgnoreEditResult, IgnoreType
@@ -373,7 +374,9 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
             embed = discord.Embed(title=f"{teamname_dict.emoji} {team}",
                                   description=f"{Lang.lang(self, 'teamname_long')}: {teamname_dict.long_name}\n"
                                               f"{Lang.lang(self, 'teamname_short')}: {teamname_dict.short_name}\n"
-                                              f"{Lang.lang(self, 'teamname_abbr')}: {teamname_dict.abbr}\n")
+                                              f"{Lang.lang(self, 'teamname_abbr')}: {teamname_dict.abbr}")
+            if teamname_dict.other:
+                embed.set_footer(text=f"{Lang.lang(self, 'teamname_other')}: {', '.join(teamname_dict.other)}")
             await ctx.send(embed=embed)
 
     @cmd_teamname_info.command(name="set")
@@ -410,6 +413,7 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
         else:
             await ctx.send(Lang.lang(self, 'teamname_set_variant_invalid', long + short + abbr + emoji))
             return
+        await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
     def _get_full_cmd_name(self, command):
         """
