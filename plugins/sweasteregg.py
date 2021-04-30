@@ -48,24 +48,24 @@ class Plugin(BasePlugin):
                 4: "https://i.redd.it/aozydy26hki61.jpg",
                 5: "https://cdn.discordapp.com/attachments/706129811382337566/818086156679118858/"
                    "FB_IMG_1615117281039.jpg",
-                6: "6",
+                6: "https://i.redd.it/pw7vxwklacw61.jpg",
                 7: "https://i.redd.it/84gafcvrjcl61.png",
-                8: "8",
+                8: "https://i.redd.it/i3mf352g8yt61.jpg",
                 9: "https://i.redd.it/zf3b2i3y4hi61.jpg",
-                10: "10",
+                10: "https://i.redd.it/xdn68eew6bw61.jpg",
                 11: "https://i.imgur.com/P7q17T5.jpg",
                 12: "https://cdn.shopify.com/s/files/1/1140/8354/files/star-wars-meme-15_480x480.jpg?v=1613780820",
                 13: "https://i.redd.it/003i3tinfel61.jpg",
-                14: "14",
-                15: "15",
+                14: "https://i.redd.it/hws8hk04f8v61.png",
+                15: "https://i.redd.it/d9d4pophqdw61.jpg",
                 16: "https://tenor.com/view/impeachment-love-democracy-ilove-democracy-gif-15723806",
-                17: "17",
+                17: "https://i.redd.it/1y4r8a3bm4w61.jpg",
                 18: "https://cdn.discordapp.com/attachments/337680937770942466/820358789533270076/"
                     "FB_IMG_1615659157536.jpg",
                 19: "https://i.redd.it/3s41lcn2kso61.jpg",
-                20: "20",
+                20: "https://i.redd.it/956q8wjgfcw61.jpg",
                 21: "https://i.redd.it/a520dfy1bbl61.png",
-                22: "22",
+                22: "https://i.redd.it/29uk0r6nx9w61.jpg",
                 23: "https://tenor.com/view/general-grievous-abandon-ship-funny-abort-evacuate-gif-10721574"
             }
         }
