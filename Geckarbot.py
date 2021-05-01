@@ -21,6 +21,7 @@ import injections
 import subsystems
 from base import BasePlugin, NotLoadable, ConfigurableType, PluginClassNotFound
 from botutils import utils, permchecks, converters, stringutils
+from botutils.utils import execute_anything_sync
 from data import Config, Lang, Storage, ConfigurableData
 from subsystems import timers, reactions, ignoring, dmlisteners, helpsys, presence, liveticker
 
@@ -338,7 +339,7 @@ class Geckarbot(commands.Bot):
 
         logging.info("Loaded plugin %s", plugin_name)
         if self.liveticker.restored:
-            await self.liveticker.restore([plugin_name])
+            execute_anything_sync(self.liveticker.restore, [plugin_name])
         return True
 
     def unload_plugin(self, plugin_name, save_config=True):
