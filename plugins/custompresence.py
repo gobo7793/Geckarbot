@@ -80,7 +80,7 @@ class Plugin(BasePlugin):
     @cmd_presence.command(name="start", help="Starts the presence timer if it's not up", hidden=True)
     async def cmd_presence_start(self, ctx):
         if self.bot.presence.is_timer_up:
-            await utils.add_reaction(ctx.message, Lang.CMDERROR)
+            await utils.add_reaction(ctx.message, Lang.CMDNOCHANGE)
             return
         await self.bot.presence.start()
         await utils.add_reaction(ctx.message, Lang.CMDSUCCESS)
