@@ -1,0 +1,46 @@
+{
+    "en_US": {
+        "#0": "help textes",
+        "help_presence": "Add or remove presence messages",
+        "help_presence_list": "List all user defined presence messages",
+        "help_presence_add": "Add a new presence message",
+        "help_presence_del": "Remove a user defined presence message",
+
+        "#1": "help descs",
+        "desc_presence": "Add or remove presence messages.",
+        "desc_presence_list": "List all current user defined presence messages.",
+        "desc_presence_add": "Add a new user defined presence message. The message will be displayed in the user list periodically in addition to other user defined presence messages or messages which are defined by plugins or other bot functions.",
+        "desc_presence_del": "Removes a user defined presence message. To remove, the ID of the message is needed which can be get using the 'presence list' command.",
+
+        "#2": "presence",
+        "presence_prefix": "**There are currently {} custom presence messages:**\n",
+        "presence_entry": "#{}: {}",
+        "presence_not_exists": "A presence message with the ID {} doesn't exist.",
+        "presence_added_debug": "Presence message added: {}",
+        "presence_removed_debug": "Presence message removed: {}",
+        "presence_unknown_error": "PANIC! An unknown error occured!",
+        "no_presences": "There are no custom presences."
+    },
+    "de_DE": {
+        "#0": "help texts",
+        "help_presence": "Fügt neue Statusnachrichten hinzu oder entfernt diese",
+        "help_presence_list": "Zeigt alle benutzerdefinierten Statusnachrichten an",
+        "help_presence_add": "Fügt neue Statusnachrichten hinzu",
+        "help_presence_del": "Entfernt benutzerdefinierte Statusnachrichten",
+
+        "#1": "help descs",
+        "desc_presence": "Fügt neue Statusnachrichten hinzu oder entfernt diese.",
+        "desc_presence_list": "Zeigt alle aktuellen benutzerdefinierten Statusnachrichten an.",
+        "desc_presence_add": "Fügt eine neue benutzerdefinierte Statusnachricht hinzu. Die Nachricht wird abwechselnd mit anderen benutzerdefinierten oder von Plugins und anderen Botfunktionen gesteuerten Statusnachrichten in der Mitgliederliste angezeigt.",
+        "desc_presence_del": "Entfernt eine benutzerdefinierte Statusnachricht. Die dafür notwendige ID der Nachricht kann mithilfe des Kommandos 'presence list' ermittelt werden.",
+
+        "#2": "presence",
+        "presence_prefix": "**Die derzeitigen {} benutzerdefinierten Statusnachrichten:**\n",
+        "presence_entry": "#{}: {}",
+        "presence_not_exists": "Eine Statusnachricht mit der ID {} gibts nicht.",
+        "presence_added_debug": "Statusnachricht hinzugefügt: {}",
+        "presence_removed_debug": "Statusnachricht gelöscht: {}",
+        "presence_unknown_error": "PANIK! Ein unbekannter Fehler ist aufgetreten!",
+        "no_presences": "Es gibt keine benutzerdefinierten Statusnachrichten."
+        }
+}
