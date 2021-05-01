@@ -41,7 +41,7 @@ class Geckarbot(commands.Bot):
     Basic bot info
     """
     NAME = "Geckarbot"
-    VERSION = "2.9.2"
+    VERSION = "2.10.0"
     PLUGIN_DIR = "plugins"
     CORE_PLUGIN_DIR = "coreplugins"
     CONFIG_DIR = "config"
