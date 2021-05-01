@@ -110,7 +110,7 @@ class Plugin(BasePlugin):
 
     @commands.command(name="swe_stop", hidden=True, help="Stops the SW Easteregg")
     @commands.has_any_role(Config().MOD_ROLES)
-    async def cmd_set_channel(self, ctx):
+    async def cmd_stop(self, ctx):
         if self.orga_timer is not None:
             self.orga_timer.cancel()
         if self.meme_timer is not None:
