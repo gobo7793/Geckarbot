@@ -10,7 +10,7 @@ from botutils import converters
 from botutils.permchecks import is_botadmin
 from botutils.stringutils import paginate
 from botutils.converters import get_best_username as gbu
-from botutils.utils import add_reaction
+from botutils.utils import add_reaction, write_debug_channel
 from data import Storage, Config, Lang
 from subsystems.helpsys import DefaultCategories
 
@@ -20,6 +20,22 @@ class Plugin(BasePlugin, name="Bot status commands for monitoring and debug purp
         self.bot = bot
         super().__init__(bot)
         bot.register(self, DefaultCategories.ADMIN)
+
+        # Write cmd deletions to debug chan
+        @bot.event
+        async def on_message_delete(msg):
+            if msg.content.startswith("!"):
+                event_name = "Command deletion"
+            elif msg.content.startswith("+"):
+                event_name = "Custom command deletion"
+            else:
+                return
+            e = discord.Embed()
+            e.add_field(name="Event", value=event_name)
+            e.add_field(name="Author", value=gbu(msg.author))
+            e.add_field(name="Command", value=msg.content)
+            e.add_field(name="Channel", value=msg.channel)
+            await write_debug_channel(e)
 
     def get_configurable_type(self):
         return ConfigurableType.COREPLUGIN
