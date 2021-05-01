@@ -17,7 +17,7 @@ from subsystems.timers import Job, timedict
 
 activitymap = {
     "playing": discord.ActivityType.playing,
-    "streaming": discord.ActivityType.streaming,
+    # "streaming": discord.ActivityType.streaming,
     "listening": discord.ActivityType.listening,
     "watching": discord.ActivityType.watching,
     "competing": discord.ActivityType.competing,
@@ -64,7 +64,7 @@ class PresenceMessage:
         """
         self.bot = bot
         self.presence_id = presence_id
-        self.activity_str = activity
+        self._activity_str = activity
         self.priority = priority
 
         message = message.replace("\\\\\\", "\\")
@@ -72,14 +72,22 @@ class PresenceMessage:
         self.message = message
 
         try:
-            self.activity = activitymap[self.activity_str]
+            self._activity = activitymap[self._activity_str]
         except KeyError as e:
-            raise RuntimeError("Invalid activity type: {}".format(self.activity_str)) from e
-        self.activity = discord.Activity(type=self.activity, name=message)
+            raise RuntimeError("Invalid activity type: {}".format(self._activity_str)) from e
+        self._activity = discord.Activity(type=self._activity, name=message)
 
     def __str__(self):
         return "<presence.PresenceMessage; priority: {}, id: {}, message: {}>".format(
             self.priority, self.presence_id, self.message)
+
+    @property
+    def activity(self):
+        return self._activity_str
+
+    @property
+    def activity_type(self):
+        return self._activity
 
     def serialize(self):
         """
@@ -87,7 +95,7 @@ class PresenceMessage:
         """
         return {
             "id": self.presence_id,
-            "activity": self.activity_str,
+            "activity": self.activity,
             "message": self.message,
             "priority": self.priority,
         }
@@ -329,7 +337,7 @@ class Presence(BaseSubsystem):
     async def _set_presence(self, pmessage):
         """Sets the presence message based on pmessage activity"""
         self.log.debug("Change displayed message to: %s", pmessage.message)
-        await self.bot.change_presence(activity=pmessage.activity)
+        await self.bot.change_presence(activity=pmessage.activity_type)
 
     def _execute_removing_change(self, removed_id: int):
         """Executes _change_callback() w/o awaiting with special handling for removed presence messages"""

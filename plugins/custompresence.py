@@ -21,7 +21,7 @@ class Plugin(BasePlugin):
     @cmd_presence.command(name="list")
     async def cmd_presence_list(self, ctx):
         def get_message(item):
-            return Lang.lang(self, "presence_entry", item.presence_id, item.message)
+            return Lang.lang(self, "presence_entry", item.presence_id, item.activity, item.message)
 
         entries = self.bot.presence.filter_messages_list(PresencePriority.LOW)
         if not entries:
@@ -32,7 +32,7 @@ class Plugin(BasePlugin):
                                 f=get_message):
                 await ctx.send(msg)
 
-    @cmd_presence.command(name="add")
+    @cmd_presence.command(name="add", usage="[playing|listening|watching|streaming|competing]")
     async def cmd_presence_add(self, ctx, ptype_arg=None):
         if ptype_arg is None:
             await utils.add_reaction(ctx.message, Lang.CMDERROR)
