@@ -10,9 +10,19 @@ from typing import Optional, List, Dict
 
 import discord
 
-from base import BaseSubsystem
-from data import Config, Storage
+from base import BaseSubsystem, NotFound
+from data import Config, Storage, Lang
 from subsystems.timers import Job, timedict
+
+
+activitymap = {
+    "playing": discord.ActivityType.playing,
+    "streaming": discord.ActivityType.streaming,
+    "listening": discord.ActivityType.listening,
+    "watching": discord.ActivityType.watching,
+    "competing": discord.ActivityType.competing,
+    # "custom": discord.ActivityType.custom,
+}
 
 
 class PresencePriority(IntEnum):
@@ -40,7 +50,8 @@ class PresencePriority(IntEnum):
 class PresenceMessage:
     """Presence message dataset"""
 
-    def __init__(self, bot, presence_id: int, message: str, priority: PresencePriority = PresencePriority.DEFAULT):
+    def __init__(self, bot, presence_id: int, message: str,
+                 priority: PresencePriority = PresencePriority.DEFAULT, activity: str = "playing"):
         """
         Creates a new PresenceMessage
 
@@ -48,11 +59,23 @@ class PresenceMessage:
         :param presence_id: the unique presence message id
         :param message: the message to display
         :param priority: the priority of the message
+        :param activity: presence mode (listening, playing, ...); one out of activitymap
+        :raises RuntimeError: Invalid activity
         """
         self.bot = bot
         self.presence_id = presence_id
+        self.activity_str = activity
         self.priority = priority
+
+        message = message.replace("\\\\\\", "\\")
+        message = message.replace("\\\\", "\\")
         self.message = message
+
+        try:
+            self.activity = activitymap[self.activity_str]
+        except KeyError as e:
+            raise RuntimeError("Invalid activity type: {}".format(self.activity_str)) from e
+        self.activity = discord.Activity(type=self.activity, name=message)
 
     def __str__(self):
         return "<presence.PresenceMessage; priority: {}, id: {}, message: {}>".format(
@@ -64,6 +87,7 @@ class PresenceMessage:
         """
         return {
             "id": self.presence_id,
+            "activity": self.activity_str,
             "message": self.message,
             "priority": self.priority,
         }
@@ -77,7 +101,13 @@ class PresenceMessage:
         :param d: dict made by serialize()
         :return: PressenceMessage object
         """
-        return PresenceMessage(bot, d["id"], d["message"], d["priority"])
+        activity = "playing"
+        if "activity" in d:
+            for key in activitymap:
+                if d["activity"] == key:
+                    activity = d["activity"]
+
+        return PresenceMessage(bot, d["id"], d["message"], priority=d["priority"], activity=activity)
 
     def deregister(self):
         """Deregisters the current PresenceMessage and returns True if deregistering was successful"""
@@ -102,10 +132,10 @@ class Presence(BaseSubsystem):
         @bot.listen()
         async def on_connect():
             if bot.DEBUG_MODE:
-                init_msg = "in debug mode"
+                activity = discord.Activity(type=activitymap["playing"], name="in debug mode")
             else:
-                init_msg = Config.get(self)["loading_msg"]
-            await self._set_presence(init_msg)
+                activity = discord.Activity(type=activitymap["playing"], name=Config.get(self)["loading_msg"])
+            await self.bot.change_presence(activity=activity)
 
     def default_config(self):
         return {
@@ -113,7 +143,9 @@ class Presence(BaseSubsystem):
             "loading_msg": "Loading..."
         }
 
-    def default_storage(self):
+    def default_storage(self, container=None):
+        if container:
+            raise NotFound
         return []
 
     @property
@@ -209,7 +241,7 @@ class Presence(BaseSubsystem):
         Registers the given message to the given priority.
         Priority LOW is for customized messages which are unrelated from plugins or other bot functions.
         Priority DEFAULT is for messages provided by plugins e.g. displaying a current status.
-        Priority HIGH is for special messages, which will be displayed instant and only if some are registered.
+        Priority HIGH is for special messages, which will be displayed instantly and only if some are registered.
 
         :param message: The message
         :param priority: The priority
@@ -282,12 +314,10 @@ class Presence(BaseSubsystem):
         self._timer_job.cancel()
         self._timer_job = None
 
-    async def _set_presence(self, message):
-        """Sets the presence message, based on discord.Game activity"""
-        self.log.debug("Change displayed message to: %s", message)
-        message = message.replace("\\\\\\", "\\")
-        message = message.replace("\\\\", "\\")
-        await self.bot.change_presence(activity=discord.Game(name=message))
+    async def _set_presence(self, pmessage):
+        """Sets the presence message based on pmessage activity"""
+        self.log.debug("Change displayed message to: %s", pmessage.message)
+        await self.bot.change_presence(activity=pmessage.activity)
 
     def _execute_removing_change(self, removed_id: int):
         """Executes _change_callback() w/o awaiting with special handling for removed presence messages"""
@@ -319,8 +349,9 @@ class Presence(BaseSubsystem):
             return  # do nothing if the same message should be displayed again
 
         job.data["id_before_high"] = last_id
+        print("messages: {}".format(self.messages))
         new_msg = self.messages[next_id]
-        await self._set_presence(new_msg.message)
+        await self._set_presence(new_msg)
 
         job.data["last_prio"] = new_msg.priority
         job.data["current_id"] = next_id
