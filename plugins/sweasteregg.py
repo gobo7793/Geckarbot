@@ -158,7 +158,7 @@ class Plugin(BasePlugin):
         if self.channel is None:
             return
         Config.get(self)["last_meme_index"] += 1
-        if Config.get(self)["last_meme_index"] > len(Storage.get(self)["memes"]):
+        if Config.get(self)["last_meme_index"] >= len(Storage.get(self)["memes"]):
             Config.get(self)["last_meme_index"] = 0
         await self.channel.send(Storage.get(self)["memes"][Config.get(self)["last_meme_index"]])
         Config.save(self)
