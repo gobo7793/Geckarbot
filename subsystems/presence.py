@@ -236,7 +236,8 @@ class Presence(BaseSubsystem):
         Config.save(self)
         Storage.save(self)
 
-    def register(self, message, priority: PresencePriority = PresencePriority.DEFAULT):
+    def register(self, message,
+                 activity: str = "playing", priority: PresencePriority = PresencePriority.DEFAULT):
         """
         Registers the given message to the given priority.
         Priority LOW is for customized messages which are unrelated from plugins or other bot functions.
@@ -244,11 +245,12 @@ class Presence(BaseSubsystem):
         Priority HIGH is for special messages, which will be displayed instantly and only if some are registered.
 
         :param message: The message
+        :param activity: The activity type as a string (such as `"playing"`, "`listening`" etc)
         :param priority: The priority
         :return: The PresenceMessage dataset object of the new registered presence message
         """
         new_id = self.get_new_id()
-        presence = PresenceMessage(self.bot, new_id, message, priority)
+        presence = PresenceMessage(self.bot, new_id, message, priority=priority, activity=activity)
         self.messages[new_id] = presence
 
         self.save()
@@ -314,6 +316,16 @@ class Presence(BaseSubsystem):
         self._timer_job.cancel()
         self._timer_job = None
 
+    async def skip(self):
+        """
+        Skips the current presence (moves on).
+
+        :raises RuntimeError: If presence timer is not up.
+        """
+        if not self.is_timer_up:
+            raise RuntimeError
+        await self._change_callback(self._timer_job)
+
     async def _set_presence(self, pmessage):
         """Sets the presence message based on pmessage activity"""
         self.log.debug("Change displayed message to: %s", pmessage.message)
@@ -349,7 +361,6 @@ class Presence(BaseSubsystem):
             return  # do nothing if the same message should be displayed again
 
         job.data["id_before_high"] = last_id
-        print("messages: {}".format(self.messages))
         new_msg = self.messages[next_id]
         await self._set_presence(new_msg)
 
