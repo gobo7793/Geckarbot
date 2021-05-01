@@ -61,6 +61,7 @@ class Geckarbot(commands.Bot):
     DEBUG_MODE = None
     DEBUG_USERS = None
     GOOGLE_API_KEY = None
+    WOLFRAMALPHA_API_KEY = None
     LANGUAGE_CODE = None
     PLUGINS = None
 
@@ -111,6 +112,7 @@ class Geckarbot(commands.Bot):
         self.ROLE_IDS = cfg.get('ROLE_IDS', {})
         self.DEBUG_USERS = cfg.get('DEBUG_USERS', cfg.get('DEBUG_WHITELIST', []))
         self.GOOGLE_API_KEY = cfg.get('GOOGLE_API_KEY', "")
+        self.WOLFRAMALPHA_API_KEY = cfg.get('WOLFRAMALPHA_API_KEY', "")
         self.LANGUAGE_CODE = cfg.get('LANG', self.DEFAULT_LANG)
         self.PLUGINS = cfg.get('PLUGINS', {})
 
