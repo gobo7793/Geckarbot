@@ -169,8 +169,8 @@ class Plugin(BasePlugin, name="Sport"):
     @commands.group(name="liveticker")
     async def cmd_liveticker(self, ctx):
         if ctx.invoked_subcommand is None:
-            msg = []
             liveticker_regs = self.bot.liveticker.search(plugin=self)
+            msg = await ctx.send(Lang.lang(self, 'liveticker_start'))
             for source, leagues in Config().get(self)['liveticker']['leagues'].items():
                 for league in leagues:
                     for src in liveticker_regs.values():
@@ -181,11 +181,10 @@ class Plugin(BasePlugin, name="Sport"):
                     next_exec = reg_.next_execution()
                     if next_exec:
                         next_exec = next_exec[0].strftime('%d.%m.%Y - %H:%M')
-                    msg.append("{} - Next: {}".format(league, next_exec))
+                    await msg.edit(content=f"{msg.content}\n{league} - Next: {next_exec}")
             Config().get(self)['sport_chan'] = ctx.channel.id
             Config().save(self)
             await add_reaction(ctx.message, Lang.CMDSUCCESS)
-            await ctx.send("\n".join(msg))
 
     @cmd_liveticker.command(name="add")
     async def cmd_liveticker_add(self, ctx, source, league):

@@ -611,7 +611,7 @@ class LeagueRegistration:
         # call ESPN two times to reload server cache
         _ = restclient.Client("http://site.api.espn.com/apis/site/v2/sports").make_request(
             f"/soccer/{self.league}/scoreboard")
-        time.sleep(10)
+        time.sleep(5)
         raw = restclient.Client("http://site.api.espn.com/apis/site/v2/sports").make_request(
             f"/soccer/{self.league}/scoreboard")
         self.matches = [Match.from_espn(m) for m in raw.get('events', [])]
@@ -657,6 +657,9 @@ class LeagueRegistration:
         if self.source == LTSource.ESPN:
             # Match collection for ESPN
             dates = "{}-{}".format(now.strftime("%Y%m%d"), until.strftime("%Y%m%d"))
+            _ = await restclient.Client("http://site.api.espn.com/apis/site/v2/sports") \
+                .request(f"/soccer/{self.league}/scoreboard", params={'dates': dates})
+            time.sleep(5)
             data = await restclient.Client("http://site.api.espn.com/apis/site/v2/sports") \
                 .request(f"/soccer/{self.league}/scoreboard", params={'dates': dates})
             matches = [Match.from_espn(x) for x in data['events']]
@@ -776,7 +779,7 @@ class LeagueRegistration:
         new_finished = []
         self.update_matches()
         matches = self.extract_kickoffs_with_matches()[job.data['start']]
-        if (datetime.datetime.now() - job.data['start']).seconds > 9000:
+        if job.data['start'] + datetime.timedelta(hours=3.5) < datetime.datetime.now():
             new_finished = matches
             self.finished.extend([m.match_id for m in matches])
         else:
