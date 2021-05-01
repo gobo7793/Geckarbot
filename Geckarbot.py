@@ -338,7 +338,7 @@ class Geckarbot(commands.Bot):
 
         logging.info("Loaded plugin %s", plugin_name)
         if self.liveticker.restored:
-            self.liveticker.restore([plugin_name])
+            await self.liveticker.restore([plugin_name])
         return True
 
     def unload_plugin(self, plugin_name, save_config=True):
