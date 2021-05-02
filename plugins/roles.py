@@ -96,6 +96,15 @@ class Plugin(BasePlugin, name="Role Management"):
             'roles': {}
         }
 
+    def command_help_string(self, command):
+        return utils.helpstring_helper(self, command, "help")
+
+    def command_description(self, command):
+        return utils.helpstring_helper(self, command, "desc")
+
+    def command_usage(self, command):
+        return utils.helpstring_helper(self, command, "usage")
+
     def rc(self):
         """Returns the roles config"""
         return Storage.get(self)['roles']

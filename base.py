@@ -148,10 +148,6 @@ class BasePlugin(Cog, Configurable):
         :return: Help string
         :raises NotFound: Raise this to indicate no override.
         """
-        import data
-        langstr = data.Lang.lang_no_failsafe(self, "help_{}".format(command.qualified_name.replace(" ", "_")))
-        if langstr is not None:
-            return langstr
         raise NotFound()
 
     def command_description(self, command):
@@ -162,10 +158,6 @@ class BasePlugin(Cog, Configurable):
         :return: Description string
         :raises NotFound: Raise this to indicate no override.
         """
-        import data
-        langstr = data.Lang.lang_no_failsafe(self, "desc_{}".format(command.qualified_name.replace(" ", "_")))
-        if langstr is not None:
-            return langstr
         raise NotFound()
 
     def command_usage(self, command):
@@ -176,10 +168,6 @@ class BasePlugin(Cog, Configurable):
         :return: Usage string
         :raises NotFound: Raise this to indicate no override.
         """
-        import data
-        langstr = data.Lang.lang_no_failsafe(self, "usage_{}".format(command.qualified_name.replace(" ", "_")))
-        if langstr is not None:
-            return langstr
         raise NotFound()
 
     def sort_commands(self, ctx, command, subcommands):

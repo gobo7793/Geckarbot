@@ -16,7 +16,7 @@ from data import Config, Lang, Storage
 from botutils.converters import get_best_username as gbu, get_best_user
 from botutils.timeutils import hr_roughly
 from botutils.stringutils import paginate
-from botutils.utils import write_debug_channel, add_reaction
+from botutils.utils import write_debug_channel, add_reaction, helpstring_helper
 from botutils.questionnaire import Questionnaire, Question, QuestionType, Cancelled
 from botutils.restclient import Client
 from botutils.setter import ConfigSetter
@@ -268,11 +268,13 @@ class Plugin(BasePlugin, name="LastFM"):
         raise RuntimeError("unknown storage container {}".format(container))
 
     def command_help_string(self, command):
-        return Lang.lang(self, "help_{}".format(command.name))
+        return utils.helpstring_helper(self, command, "help")
 
     def command_description(self, command):
-        msg = Lang.lang(self, "desc_{}".format(command.name))
-        return msg
+        return utils.helpstring_helper(self, command, "desc")
+
+    def command_usage(self, command):
+        return utils.helpstring_helper(self, command, "usage")
 
     def sort_commands(self, ctx, command, subcommands):
         if command is None:

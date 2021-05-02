@@ -6,7 +6,7 @@ from discord.ext import commands
 from base import BasePlugin, NotFound
 from data import Config, Storage, Lang
 from botutils.permchecks import check_mod_access
-from botutils.utils import add_reaction
+from botutils.utils import add_reaction, helpstring_helper
 from botutils.converters import get_best_username
 from botutils.stringutils import paginate
 from subsystems.helpsys import DefaultCategories
@@ -31,7 +31,13 @@ class Plugin(BasePlugin, name="TIL"):
         return []
 
     def command_help_string(self, command):
-        return Lang.lang(self, "help_{}".format(command.name))
+        return helpstring_helper(self, command, "help")
+
+    def command_description(self, command):
+        return helpstring_helper(self, command, "desc")
+
+    def command_usage(self, command):
+        return helpstring_helper(self, command, "usage")
 
     async def _manager_check(self, ctx, show_errors=True):
         """Checks if author is manager and returns False if not"""
