@@ -101,7 +101,7 @@ class Plugin(BasePlugin):
         }
 
     @commands.command(name="swe_channel", hidden=True, help="Sets the channel for the SW Easteregg")
-    @commands.has_any_role(Config().MOD_ROLES)
+    @commands.has_any_role(*Config().MOD_ROLES)
     async def cmd_set_channel(self, ctx, channel: TextChannel):
         Config.get(self)["channel_id"] = channel.id
         Config.save(self)
@@ -109,7 +109,7 @@ class Plugin(BasePlugin):
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
     @commands.command(name="swe_stop", hidden=True, help="Stops the SW Easteregg")
-    @commands.has_any_role(Config().MOD_ROLES)
+    @commands.has_any_role(*Config().MOD_ROLES)
     async def cmd_stop(self, ctx):
         if self.orga_timer is not None:
             self.orga_timer.cancel()
