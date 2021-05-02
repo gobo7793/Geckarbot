@@ -92,15 +92,6 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
             "subcommand": None,
         }
 
-    def command_help_string(self, command):
-        return helpstring_helper(self, command, "help")
-
-    def command_description(self, command):
-        return helpstring_helper(self, command, "desc")
-
-    def command_usage(self, command):
-        return helpstring_helper(self, command, "usage")
-
         self.controller_mapping = {
             RushQuizController: ["rush", "race", "wtia"],
             PointsQuizController: ["points"],
@@ -134,16 +125,13 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
     # Help
     #####
     def command_help_string(self, command):
-        langstr = Lang.lang_no_failsafe(self, "help_{}".format(command.name))
-        if langstr is not None:
-            return langstr
-        raise NotFound()
+        return helpstring_helper(self, command, "help")
 
     def command_description(self, command):
-        langstr = Lang.lang_no_failsafe(self, "desc_{}".format(command.name))
-        if langstr is not None:
-            return langstr
-        raise NotFound()
+        return helpstring_helper(self, command, "desc")
+
+    def command_usage(self, command):
+        return helpstring_helper(self, command, "usage")
 
     def sort_commands(self, ctx, command, subcommands):
         # category help
