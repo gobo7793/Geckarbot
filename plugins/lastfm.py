@@ -213,7 +213,7 @@ class Plugin(BasePlugin, name="LastFM"):
             "intro_howto_cancel": "",
             "result_rejected": Lang.lang(self, "quote_invalid"),
             "state_cancelled": Lang.lang(self, "quote_cancelled"),
-            "state_done": Lang.lang(self, "quote_done"),
+            "state_done": "",
             "answer_list_sc": Lang.lang(self, "quote_answer_list_sc"),
         }
         self.cmd_order = [
@@ -268,13 +268,13 @@ class Plugin(BasePlugin, name="LastFM"):
         raise RuntimeError("unknown storage container {}".format(container))
 
     def command_help_string(self, command):
-        return utils.helpstring_helper(self, command, "help")
+        return helpstring_helper(self, command, "help")
 
     def command_description(self, command):
-        return utils.helpstring_helper(self, command, "desc")
+        return helpstring_helper(self, command, "desc")
 
     def command_usage(self, command):
-        return utils.helpstring_helper(self, command, "usage")
+        return helpstring_helper(self, command, "usage")
 
     def sort_commands(self, ctx, command, subcommands):
         if command is None:
@@ -460,6 +460,16 @@ class Plugin(BasePlugin, name="LastFM"):
         after = self.perf_timenow()
         self.perf_add_total_time(after - before)
 
+    async def quote_dm_kill_cb(self, msg, questionnaire):
+        """
+        Callback for when the DM registration is killed
+
+        :param msg: message string
+        :param questionnaire: Questionnare object
+        """
+        await questionnaire.user.send(Lang.lang(self, "quote_err_dmkill"))
+        await add_reaction(msg, Lang.CMDERROR)
+
     async def quote_so_far_helper(self, user, song):
         """
         Sends a list of current quotes to User `user`'s DM
@@ -480,40 +490,78 @@ class Plugin(BasePlugin, name="LastFM"):
         for msg in paginate(msg):
             await user.send(msg)
 
-    async def quote_cb(self, question, question_queue):
+    async def quote_scrobble_cb(self, question, question_queue):
         """
-        Is called when the answer for the question "scrobble or new?" comes in.
+        Is called when the answer for the question "scrobble or new?" comes in
 
         :param question: Question object
         :param question_queue: list of Question objects that were to be posed after this
-        :return: New question queue
+        :return: question_queue
         """
         if question.answer == question.data["new"]:
             self.logger.debug("Got answer new")
             question.data["result_scrobble"] = False
-            r = question_queue
+            return [question.data["q_artist"], question.data["q_title"]]
         elif question.answer == question.data["scrobble"]:
             self.logger.debug("Got answer scrobble")
             question.data["result_scrobble"] = True
-            r = [question.data["q_quote"]]
-            await self.quote_so_far_helper(question.data["user"], question.data["song"])
+            return question_queue
         else:
             assert False
-
-        return r
 
     async def quote_new_song_cb(self, question, question_queue):
         """
         Is called when the answer for the question "Title?" comes in
 
-        :param question:
-        :param question_queue:
+        :param question: Question object
+        :param question_queue: list of Question objects that were to be posed after this
         :return: question_queue
         """
+        print("question: {}, queue: {}".format(question, question_queue))
         song = Song(self, question.data["q_artist"].answer, "", question.data["q_title"].answer)
         question.data["song"] = song
+        question.data["result_scrobble"] = False
         await self.quote_so_far_helper(question.data["user"], song)
         return question_queue
+
+    async def quote_acquire_song(self, ctx, user, question_lang_key) -> Song:
+        # Fetch scrobbled song
+        lfmuser = self.get_lastfm_user(user)
+
+        params = {
+            "method": "user.getRecentTracks",
+            "user": lfmuser,
+            "limit": 1,
+            "extended": 1,
+        }
+        response = await self.request(params)
+        song = self.build_songs(response)[0]
+
+        # Build questionnaire
+        q_artist = Question(Lang.lang(self, "quote_question_artist"), QuestionType.TEXT, lang=self.lang_question)
+        q_title = Question(Lang.lang(self, "quote_question_title"), QuestionType.TEXT, lang=self.lang_question,
+                           callback=self.quote_new_song_cb)
+        cargo = {
+            "user": ctx.author,
+            "song": song,
+            "q_artist": q_artist,
+            "q_title": q_title,
+            "scrobble": Lang.lang(self, "quote_scrobble"),
+            "new": Lang.lang(self, "quote_new"),
+            "result_scrobble": True,
+            "result_artist": None,
+            "result_title": None,
+        }
+        q_title.data = cargo
+        answers = [Lang.lang(self, "quote_scrobble"), Lang.lang(self, "quote_new")]
+        q_target = Question(Lang.lang(self, question_lang_key, song.format_song()), QuestionType.SINGLECHOICE,
+                            answers=answers, data=cargo, lang=self.lang_question, callback=self.quote_scrobble_cb)
+        questions = [q_target]
+        questionnaire = Questionnaire(self.bot, ctx.author, questions, "lastfm quote", lang=self.lang_questionnaire)
+
+        # Interrogate
+        await questionnaire.interrogate()
+        return cargo["song"]
 
     async def quote_sanity_cb(self, question, question_queue):
         """
@@ -536,89 +584,30 @@ class Plugin(BasePlugin, name="LastFM"):
             return [question] + question_queue
         return question_queue
 
-    async def quote_dm_kill_cb(self, msg, questionnaire):
-        """
-        Callback for when the DM registration is killed
-
-        :param msg: message string
-        :param questionnaire: Questionnare object
-        """
-        await questionnaire.user.send(Lang.lang(self, "quote_err_dmkill"))
-        await add_reaction(msg, Lang.CMDERROR)
-
-    @cmd_lastfm.command(name="quote")
+    @cmd_lastfm.group(name="quote", invoke_without_command=True)
     async def cmd_quote(self, ctx):
-        # Acquire last song for first questionnaire route
+        # Questionnaires
         try:
-            lfmuser = self.get_lastfm_user(ctx.author)
-        except NotRegistered as e:
+            song = await self.quote_acquire_song(ctx, ctx.author, "quote_target")
+        except Cancelled:
+            await add_reaction(ctx.message, Lang.CMDNOCHANGE)
+            return
+        except (NotRegistered, UnexpectedResponse) as e:
             await e.default(ctx)
             return
 
-        params = {
-            "method": "user.getRecentTracks",
-            "user": lfmuser,
-            "limit": 1,
-            "extended": 1,
-        }
-        response = await self.request(params)
-
-        try:
-            song = self.build_songs(response)[0]
-        except UnexpectedResponse as e:
-            await e.default(ctx)
-            return
-
-        # Build Questionnaire
-        q_artist = Question(Lang.lang(self, "quote_question_artist"), QuestionType.TEXT, lang=self.lang_question)
-        q_title = Question(Lang.lang(self, "quote_question_title"), QuestionType.TEXT, lang=self.lang_question,
-                           callback=self.quote_new_song_cb)
         q_quote = Question(Lang.lang(self, "quote_question_quote"), QuestionType.TEXT,
                            lang=self.lang_question, callback=self.quote_sanity_cb)
-        cargo = {
-            "user": ctx.author,
-            "song": song,
-            "q_quote": q_quote,
-            "q_artist": q_artist,
-            "q_title": q_title,
-            "scrobble": Lang.lang(self, "quote_scrobble"),
-            "new": Lang.lang(self, "quote_new"),
-            "result_scrobble": None,
-            "result_artist": None,
-            "result_title": None,
-        }
-        q_title.data = cargo
-        answers = [Lang.lang(self, "quote_scrobble"), Lang.lang(self, "quote_new")]
-        q_target = Question(Lang.lang(self, "quote_target", song.format_song()), QuestionType.SINGLECHOICE,
-                            answers=answers, callback=self.quote_cb, data=cargo, lang=self.lang_question)
-        questions = [q_target, q_artist, q_title, q_quote]
-        questionnaire = Questionnaire(self.bot, ctx.author, questions, "lastfm quote", lang=self.lang_questionnaire)
-        questionnaire.kill_coro = self.quote_dm_kill_cb(ctx.message, questionnaire)
-
-        # Interrogate
-        try:
-            await questionnaire.interrogate()
-        except Cancelled:
-            return
-        except (KeyError, RuntimeError):
-            await add_reaction(ctx.message, Lang.CMDERROR)
-            return
-        await add_reaction(ctx.message, Lang.CMDSUCCESS)
-
-        assert cargo["result_scrobble"] is not None
-        if cargo["result_scrobble"]:
-            artist = song.artist
-            title = song.title
-        else:
-            artist = q_artist.answer
-            title = q_title.answer
+        questionnaire = Questionnaire(self.bot, ctx.author, [q_quote], "lastfm quote", lang=self.lang_questionnaire)
+        await questionnaire.interrogate()
+        await ctx.author.send(Lang.lang(self, "quote_done"))
 
         # Build new quote
-        quotes = self.get_quotes(artist, title)
+        quotes = self.get_quotes(song.artist, song.title)
         if not quotes:
             ta = {
-                "artist": artist,
-                "title": title,
+                "artist": song.artist,
+                "title": song.title,
                 "quotes": quotes,
             }
             allquotes = Storage.get(self, container="quotes")["quotes"]
@@ -632,6 +621,20 @@ class Plugin(BasePlugin, name="LastFM"):
         # Add quote
         quotes[get_new_key(quotes)] = quote
         Storage.save(self, container="quotes")
+
+        await add_reaction(ctx.message, Lang.CMDSUCCESS)
+
+    @cmd_quote.command(name="del", aliases=["rm", "remove"], hidden=True)
+    async def cmd_quote_del(self, ctx):
+        try:
+            song = await self.quote_acquire_song(ctx, ctx.author, "quote_del_target")
+        except Cancelled:
+            await add_reaction(ctx.message, Lang.CMDNOCHANGE)
+            return
+        except (NotRegistered, UnexpectedResponse) as e:
+            await e.default(ctx)
+            return
+        await ctx.send("{}, {}".format(song.artist, song.title))
 
     @cmd_lastfm.command(name="now", aliases=["listening"])
     async def cmd_now(self, ctx, user: Union[discord.Member, discord.User, str, None]):
