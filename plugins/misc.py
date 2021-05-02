@@ -1,5 +1,4 @@
 import asyncio
-import locale
 import logging
 import random
 import string
@@ -11,6 +10,7 @@ from discord.ext import commands
 
 from botutils import restclient, utils, timeutils
 from botutils.converters import get_best_username
+from botutils.utils import add_reaction
 from data import Storage, Lang, Config
 from base import BasePlugin
 from subsystems import timers
@@ -55,7 +55,7 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
                 Storage().get(self)['reminders'][rid]['link'] = "Link not found (reminder made on old version)"
             Storage().save(self)
 
-    def default_storage(self):
+    def default_storage(self, container=None):
         return {
             'version': 0,
             'reminders': {}
@@ -78,6 +78,15 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
             pos_last_comma = results[:1998].rfind(',')
             results = f"{results[:pos_last_comma + 1]}\u2026"
         await ctx.send(results)
+
+    @commands.command(name="alpha")
+    async def cmd_wolframalpha(self, ctx, *args):
+        if not self.bot.WOLFRAMALPHA_API_KEY:
+            await add_reaction(ctx.message, Lang.CMDERROR)
+            return
+        response = await restclient.Client("https://api.wolframalpha.com/v1/")\
+            .request("result", params={'i': " ".join(args), 'appid': self.bot.WOLFRAMALPHA_API_KEY}, parse_json=False)
+        await ctx.send(Lang.lang(self, 'alpha_response', response))
 
     @commands.command(name="choose")
     async def cmd_choose(self, ctx, *args):
@@ -118,6 +127,9 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
 
     @commands.command(name="money")
     async def cmd_money_converter(self, ctx, currency, arg2=None, arg3: float = None):
+        if not self.bot.WOLFRAMALPHA_API_KEY:
+            await add_reaction(ctx.message, Lang.CMDERROR)
+            return
         currency = currency.upper()
         if arg3:
             amount = arg3
@@ -133,14 +145,11 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
         else:
             amount = 1
             other_curr = "EUR"
-        rates = await restclient.Client("https://api.exchangeratesapi.io").request("/latest")
-        rate1 = rates.get('rates', {}).get(currency) if currency != "EUR" else 1
-        rate2 = rates.get('rates', {}).get(other_curr) if other_curr != "EUR" else 1
-        if rate1 and rate2:
-            other_amount = float(rate2) / float(rate1) * amount
-            await ctx.send(Lang.lang(self, 'money_converted',
-                                     locale.format_string('%.2f', amount, grouping=True), currency,
-                                     locale.format_string('%.2f', other_amount, grouping=True), other_curr))
+        response = await restclient.Client("https://api.wolframalpha.com/v1/")\
+            .request("result", params={'i': f"{amount} {currency} to {other_curr}",
+                                       'appid': self.bot.WOLFRAMALPHA_API_KEY}, parse_json=False)
+        if response != "Wolfram|Alpha did not understand your input":
+            await ctx.send(Lang.lang(self, 'alpha_response', response))
         else:
             await ctx.send(Lang.lang(self, 'money_error'))
 

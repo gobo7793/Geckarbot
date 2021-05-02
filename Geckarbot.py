@@ -21,6 +21,7 @@ import injections
 import subsystems
 from base import BasePlugin, NotLoadable, ConfigurableType, PluginClassNotFound
 from botutils import utils, permchecks, converters, stringutils
+from botutils.utils import execute_anything_sync
 from data import Config, Lang, Storage, ConfigurableData
 from subsystems import timers, reactions, ignoring, dmlisteners, helpsys, presence, liveticker
 
@@ -60,6 +61,7 @@ class Geckarbot(commands.Bot):
     DEBUG_MODE = None
     DEBUG_USERS = None
     GOOGLE_API_KEY = None
+    WOLFRAMALPHA_API_KEY = None
     LANGUAGE_CODE = None
     PLUGINS = None
 
@@ -110,6 +112,7 @@ class Geckarbot(commands.Bot):
         self.ROLE_IDS = cfg.get('ROLE_IDS', {})
         self.DEBUG_USERS = cfg.get('DEBUG_USERS', cfg.get('DEBUG_WHITELIST', []))
         self.GOOGLE_API_KEY = cfg.get('GOOGLE_API_KEY', "")
+        self.WOLFRAMALPHA_API_KEY = cfg.get('WOLFRAMALPHA_API_KEY', "")
         self.LANGUAGE_CODE = cfg.get('LANG', self.DEFAULT_LANG)
         self.PLUGINS = cfg.get('PLUGINS', {})
 
@@ -338,7 +341,7 @@ class Geckarbot(commands.Bot):
 
         logging.info("Loaded plugin %s", plugin_name)
         if self.liveticker.restored:
-            self.liveticker.restore([plugin_name])
+            execute_anything_sync(self.liveticker.restore, [plugin_name])
         return True
 
     def unload_plugin(self, plugin_name, save_config=True):
