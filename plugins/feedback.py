@@ -7,7 +7,7 @@ from discord.ext import commands
 from base import BasePlugin
 from data import Storage, Config, Lang
 from botutils import converters
-from botutils.utils import add_reaction
+from botutils.utils import add_reaction, helpstring_helper
 from botutils.stringutils import paginate, format_andlist
 
 
@@ -51,7 +51,7 @@ class Complaint:
         }
 
     @classmethod
-    def deserialize(cls, plugin, cid, d) -> Complaint:
+    def deserialize(cls, plugin, cid, d):
         """
         Constructs a Complaint object from a dict.
 
@@ -134,6 +134,15 @@ class Plugin(BasePlugin, name="Feedback"):
                 "version": 1,
             }
         raise RuntimeError("unknown container {}".format(container))
+
+    def command_help_string(self, command):
+        return helpstring_helper(self, command, "help")
+
+    def command_description(self, command):
+        return helpstring_helper(self, command, "desc")
+
+    def command_usage(self, command):
+        return helpstring_helper(self, command, "usage")
 
     def migrate(self):
         """

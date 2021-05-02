@@ -74,6 +74,15 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
             'status': None
         }
 
+    def command_help_string(self, command):
+        return utils.helpstring_helper(self, command, "help")
+
+    def command_description(self, command):
+        return utils.helpstring_helper(self, command, "desc")
+
+    def command_usage(self, command):
+        return utils.helpstring_helper(self, command, "usage")
+
     def get_api_client(self):
         """Returns a client to access Google Sheets API for the dsc contestdoc sheet"""
         return sheetsclient.Client(self.bot, Config.get(self)['contestdoc_id'])

@@ -9,7 +9,7 @@ import discord
 from discord.ext.commands import Command
 
 from base import NotFound
-from data import Config
+from data import Config, Lang
 from botutils.converters import get_embed_str
 from botutils.timeutils import to_local_time
 from botutils.stringutils import paginate
@@ -286,3 +286,22 @@ def get_plugin_by_cmd(cmd: Command):
             if el == cmd:
                 return plugin
     raise NotFound
+
+
+def helpstring_helper(plugin, command, prefix):
+    """
+    Helper to retrieve help strings (help, description etc) from a plugin's lang file.
+    The lang identifier is expected to be of the format `"prefix_command_subcommand"`,
+    e.g. `"usage_command_subcommand"` or `"desc_command"`.
+    Raises NotFound according to interface.
+
+    :param plugin: Plugin reference
+    :param command: Command that a usage string is requested for.
+    :param prefix: Helpstring prefix
+    :return: Retrieved help string
+    :raises NotFound: Raised to indicate that nothing was found.
+    """
+    langstr = Lang.lang_no_failsafe(plugin, "{}_{}".format(prefix, command.qualified_name.replace(" ", "_")))
+    if langstr is not None:
+        return langstr
+    raise NotFound()

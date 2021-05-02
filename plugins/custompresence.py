@@ -14,6 +14,15 @@ class Plugin(BasePlugin):
         super().__init__(bot)
         bot.register(self)
 
+    def command_help_string(self, command):
+        return utils.helpstring_helper(self, command, "help")
+
+    def command_description(self, command):
+        return utils.helpstring_helper(self, command, "desc")
+
+    def command_usage(self, command):
+        return utils.helpstring_helper(self, command, "usage")
+
     @commands.group(name="presence", invoke_without_command=True)
     async def cmd_presence(self, ctx):
         await ctx.invoke(self.bot.get_command("presence list"))

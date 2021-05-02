@@ -37,6 +37,15 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
             'profile_pic_creator': ""
         }
 
+    def command_help_string(self, command):
+        return utils.helpstring_helper(self, command, "help")
+
+    def command_description(self, command):
+        return utils.helpstring_helper(self, command, "desc")
+
+    def command_usage(self, command):
+        return utils.helpstring_helper(self, command, "usage")
+
     def get_configurable_type(self):
         return ConfigurableType.COREPLUGIN
 

@@ -9,7 +9,7 @@ from discord.errors import HTTPException
 from base import BasePlugin, NotFound
 from data import Storage, Lang
 from botutils import permchecks
-from botutils.utils import sort_commands_helper, add_reaction
+from botutils.utils import sort_commands_helper, add_reaction, helpstring_helper
 from subsystems.helpsys import DefaultCategories
 
 from plugins.quiz.controllers import RushQuizController, PointsQuizController
@@ -91,6 +91,15 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
             "debug": False,
             "subcommand": None,
         }
+
+    def command_help_string(self, command):
+        return helpstring_helper(self, command, "help")
+
+    def command_description(self, command):
+        return helpstring_helper(self, command, "desc")
+
+    def command_usage(self, command):
+        return helpstring_helper(self, command, "usage")
 
         self.controller_mapping = {
             RushQuizController: ["rush", "race", "wtia"],

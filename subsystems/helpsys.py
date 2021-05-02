@@ -5,7 +5,7 @@ from discord.ext import commands
 
 from base import BaseSubsystem, NotFound, BasePlugin, ConfigurableType
 from data import Lang
-from botutils.utils import add_reaction, get_plugin_by_cmd
+from botutils.utils import add_reaction, get_plugin_by_cmd, helpstring_helper
 from botutils.stringutils import paginate
 
 
@@ -48,6 +48,15 @@ class HelpCog(BasePlugin):
         super().__init__(bot)
         self.category = HelpCategory(bot, Lang.lang(self, "self_category_name"), desc=Lang.lang(self, "cat_desc_help"))
         self.category.add_plugin(self)
+
+    def command_help_string(self, command):
+        return helpstring_helper(self, command, "help")
+
+    def command_description(self, command):
+        return helpstring_helper(self, command, "desc")
+
+    def command_usage(self, command):
+        return helpstring_helper(self, command, "usage")
 
     def get_configurable_type(self):
         return ConfigurableType.COREPLUGIN
