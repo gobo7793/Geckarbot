@@ -320,7 +320,9 @@ class Questionnaire:
                 raise Cancelled()
 
         # Done
-        await self.user.send(get_lang(self.lang, "state_done"))
+        msg = get_lang(self.lang, "state_done")
+        if msg:
+            await self.user.send(msg)
         self.teardown()
         return self.question_history
 

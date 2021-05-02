@@ -61,6 +61,7 @@
     "yes": "ja",
     "nein": "nein",
     "quote_target": "Soll das Zitat deinem zuletzt gescrobbleten Lied ({}) zugeordnet werden (antworte mit \"scrobble\") oder einem anderen Lied (antworte mit \"neu\")?\nZum Abbruch kannst du jederzeit mit \"abbrechen\" antworten.",
+    "quote_del_target": "Möchtest du deine Zitate zu deinem zuletzt gescrobbleten Lied ({}) (antworte mit \"scrobble\") oder einem anderen Lied (antworte mit \"neu\") einsehen (und ggf. löschen)?\nZum Abbruch kannst du jederzeit mit \"abbrechen\" antworten.",
     "quote_scrobble": "scrobble",
     "quote_new": "neu",
     "quote_cancel": "abbrechen",
