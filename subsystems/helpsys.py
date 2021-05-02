@@ -4,8 +4,8 @@ import logging
 from discord.ext import commands
 
 from base import BaseSubsystem, NotFound, BasePlugin, ConfigurableType
-from botutils.utils import add_reaction, get_plugin_by_cmd
 from data import Lang
+from botutils.utils import add_reaction, get_plugin_by_cmd, helpstring_helper
 from botutils.stringutils import paginate
 
 
@@ -48,6 +48,15 @@ class HelpCog(BasePlugin):
         super().__init__(bot)
         self.category = HelpCategory(bot, Lang.lang(self, "self_category_name"), desc=Lang.lang(self, "cat_desc_help"))
         self.category.add_plugin(self)
+
+    def command_help_string(self, command):
+        return helpstring_helper(self, command, "help")
+
+    def command_description(self, command):
+        return helpstring_helper(self, command, "desc")
+
+    def command_usage(self, command):
+        return helpstring_helper(self, command, "usage")
 
     def get_configurable_type(self):
         return ConfigurableType.COREPLUGIN
@@ -373,6 +382,11 @@ class GeckiHelp(BaseSubsystem):
     #####
     @staticmethod
     def get_command_help(plugin, cmd):
+        """
+        :param plugin: Plugin that `cmd` is in
+        :param cmd: Command to get help string for
+        :return: Help string for `cmd`
+        """
         r = None
         try:
             r = plugin.command_help_string(cmd)
@@ -382,6 +396,11 @@ class GeckiHelp(BaseSubsystem):
         return r
 
     def get_command_description(self, plugin, cmd):
+        """
+        :param plugin: Plugin that `cmd` is in
+        :param cmd: Command to get description string for
+        :return: Description string for `cmd`
+        """
         try:
             desc = plugin.command_description(cmd)
         except NotFound:
@@ -445,6 +464,14 @@ class GeckiHelp(BaseSubsystem):
         return "{}{}".format(self.bot.command_prefix, command.qualified_name)
 
     def format_subcmds(self, ctx, plugin, command):
+        """
+        Brings the subcommands of a command in format to be used in a help message.
+
+        :param ctx: Context
+        :param plugin: Plugin that cmd is in
+        :param command: Command whose subcommands are to be listed
+        :return: Formatted list of subcommands
+        """
         r = []
         if isinstance(command, commands.Group):
             for cmd in plugin.sort_commands(ctx, command, command.commands):
@@ -456,11 +483,24 @@ class GeckiHelp(BaseSubsystem):
         return r
 
     def format_aliases(self, command):
+        """
+        Brings the aliases of a command in format to be used in a help message.
+
+        :param command: Command whose aliases are to be listed
+        :return: Formatted list of aliases
+        """
         aliases = ", ".join(command.aliases)
         r = Lang.lang(self, "help_aliases", aliases) + "\n"
         return r
 
     def format_usage(self, cmd, plugin=None):
+        """
+        Brings the usage of a command in format to be used in a help message.
+
+        :param cmd: Command whose usage is to be listed
+        :param plugin: Plugin that `cmd` is in; can be omitted to ignore plugin-specific usage msg
+        :return: Formatted command usage string
+        """
         if plugin is None:
             plugin = get_plugin_by_cmd(cmd)
 

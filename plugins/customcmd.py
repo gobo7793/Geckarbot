@@ -193,7 +193,9 @@ class Plugin(BasePlugin, name="Custom CMDs"):
             "guidelines": "https://github.com/gobo7793/Geckarbot/wiki/Command-Guidelines"
         }
 
-    def default_storage(self):
+    def default_storage(self, container=None):
+        if container is not None:
+            raise NotFound
         return {
             'fail': {
                 "creator": 0,
@@ -238,22 +240,13 @@ class Plugin(BasePlugin, name="Custom CMDs"):
             await ctx.send(msg)
 
     def command_help_string(self, command):
-        langstr = Lang.lang_no_failsafe(self, "help_{}".format(command.name.replace(" ", "_")))
-        if langstr is None:
-            raise NotFound()
-        return langstr
+        return utils.helpstring_helper(self, command, "help")
 
     def command_description(self, command):
-        langstr = Lang.lang_no_failsafe(self, "desc_{}".format(command.name.replace(" ", "_")))
-        if langstr is None:
-            raise NotFound()
-        return langstr
+        return utils.helpstring_helper(self, command, "desc")
 
     def command_usage(self, command):
-        langstr = Lang.lang_no_failsafe(self, "usage_{}".format(command.name.replace(" ", "_")))
-        if langstr is None:
-            raise NotFound()
-        return langstr
+        return utils.helpstring_helper(self, command, "usage")
 
     # def command_usage(self, command):
     #     if command.name == "search":

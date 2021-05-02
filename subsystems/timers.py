@@ -51,6 +51,7 @@ class Mothership(BaseSubsystem, Thread):
             self.start()
 
     def run(self):
+        # pylint: disable=broad-except
         while True:
             try:
                 self._loop()
@@ -112,8 +113,8 @@ class Mothership(BaseSubsystem, Thread):
         found = False
         for i in range(len(self.jobs)):
             if nexto is None:  # workaround for some cases in which nexto is None
-                self.logger.error("An error occured during inserting job {}. THIS SHOULD NOT HAPPEN! "
-                                  "Job will be inserted at last position.".format(str(job)))
+                self.logger.error("An error occured during inserting job %s. THIS SHOULD NOT HAPPEN! "
+                                  "Job will be inserted at last position.", str(job))
                 break
             next_execution = self.jobs[i].next_execution()
             if next_execution is not None and next_execution > nexto:
@@ -234,6 +235,7 @@ def normalize_td(td):
     Normalizes a timedict to consist of only lists. Also validates formats.
 
     :return: Normalized timedict;
+    :raises TypeError: If td is not a valid timedict
     """
     ntd = {}
     for el in timedictformat:
@@ -246,9 +248,9 @@ def normalize_td(td):
             try:
                 for _ in td[el]:
                     break
-            except TypeError:
+            except TypeError as e:
                 if not isinstance(td[el], int):
-                    raise TypeError("Expecting an int or a list of ints as {}".format(el))
+                    raise TypeError("Expecting an int or a list of ints as {}".format(el)) from e
                 ntd[el] = [td[el]]
         else:
             ntd[el] = None
@@ -298,17 +300,18 @@ def ring_iterator(haystack, startel, ringstart, ringend, startperiod):
     :param ringend: last element of the ring, so the ring is ringstart..ringend
     :param startperiod: This value is iterated every cycle and returned as endperiod.
     :return: haystackelement, endperiod
+    :raises RuntimeError: If startel is not in haystack
     """
-    logging.getLogger(__name__).debug("Called ringiterator({}, {}, {}, {}, {})"
-                                      .format(haystack, startel, ringstart, ringend, startperiod))
+    logging.getLogger(__name__).debug("Called ringiterator(%s, %s, %s, %s, %s)",
+                                      haystack, startel, ringstart, ringend, startperiod)
     if haystack is None:
         haystack = range(ringstart, ringend + 1)
 
     # Check if startel is actually in haystack
     try:
         i = haystack.index(startel)
-    except ValueError:
-        raise RuntimeError("{} is not in haystack".format(startel))
+    except ValueError as e:
+        raise RuntimeError("{} is not in haystack".format(startel)) from e
 
     # Actual generator
     while True:
@@ -417,6 +420,9 @@ def next_occurence(ntd, now=None, ignore_now=False):
         # Month is over
         startday = 1
 
+    logger.warning("Yes, this line happens and can be removed. If it doesn't, we should raise a RuntimeError here.")
+    return None
+
 
 #####
 # Independent small timer thingy
@@ -432,6 +438,9 @@ class HasAlreadyRun(Exception):
 
 
 class Timer:
+    """
+    Cancellable and skippable timer that executes a function or coroutine after a given amount of time has passed.
+    """
     def __init__(self, bot, t, callback, *args, **kwargs):
         """
 

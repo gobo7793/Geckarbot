@@ -266,10 +266,8 @@ class NumberGuessing:
     # @guess.command(name="start", help="Starts a game if not already running")
     async def start(self, range_from: int = 1, range_to: int = 100):
         if self.is_playing is False:
-            if range_from <= 1:
-                range_from = 1
-            if range_to < range_from:
-                range_to = range_from
+            range_from = max(range_from, 1)
+            range_to = max(range_to, range_from)
             self.number = random.choice(range(range_from, range_to + 1))
             self.is_playing = True
             self.min = range_from

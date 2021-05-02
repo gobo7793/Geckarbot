@@ -70,12 +70,16 @@ class Configurable:
         """
         Override this to return the plugin's lang code. Raise NotFound, return None or return bot.LANGUAGE_CODE
         to use the same language as the rest of the bot.
+
+        :raises NotFound: Raise this to indicate no override.
         """
         raise NotFound()
 
     def get_lang(self):
         """
         Gets the lang dictionary for Config API.
+
+        :raises NotFound: Raise this to indicate no override.
         """
         raise NotFound()
 
@@ -132,6 +136,7 @@ class BasePlugin(Cog, Configurable):
 
         :param ctx: Context
         :param command: Command or Group instance
+        :raises NotFound: Raise this to indicate that the behavior is not overridden.
         """
         raise NotFound()
 
@@ -141,11 +146,8 @@ class BasePlugin(Cog, Configurable):
 
         :param command: Command that the help string is requested for.
         :return: Help string
+        :raises NotFound: Raise this to indicate no override.
         """
-        import data
-        langstr = data.Lang.lang_no_failsafe(self, "help_{}".format(command.qualified_name.replace(" ", "_")))
-        if langstr is not None:
-            return langstr
         raise NotFound()
 
     def command_description(self, command):
@@ -154,11 +156,8 @@ class BasePlugin(Cog, Configurable):
 
         :param command: Command that a description is requested for.
         :return: Description string
+        :raises NotFound: Raise this to indicate no override.
         """
-        import data
-        langstr = data.Lang.lang_no_failsafe(self, "desc_{}".format(command.qualified_name.replace(" ", "_")))
-        if langstr is not None:
-            return langstr
         raise NotFound()
 
     def command_usage(self, command):
@@ -167,11 +166,8 @@ class BasePlugin(Cog, Configurable):
 
         :param command: Command that a usage string is requested for.
         :return: Usage string
+        :raises NotFound: Raise this to indicate no override.
         """
-        import data
-        langstr = data.Lang.lang_no_failsafe(self, "usage_{}".format(command.qualified_name.replace(" ", "_")))
-        if langstr is not None:
-            return langstr
         raise NotFound()
 
     def sort_commands(self, ctx, command, subcommands):

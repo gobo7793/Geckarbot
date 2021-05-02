@@ -68,8 +68,8 @@ class DMListener(BaseSubsystem):
         :param blocking: If this is set to True, sole access on the DM channel is claimed. No other listener will
             be able to be registered for this user's DM channel until this one is deregistered.
         :return: Registration object that can be used to deregister the listener.
-        :raises: RuntimeError if there already is a blocking listener for `user`.
-        :raises: KeyError if a blocking listener is to be registered but there already is a regular listener for `user`.
+        :raises RuntimeError: If there already is a blocking listener for `user`.
+        :raises KeyError: If a blocking listener is to be registered but there already is a regular listener for `user`.
         """
         # find blocking violations
         for key in self.registrations:
@@ -90,7 +90,7 @@ class DMListener(BaseSubsystem):
             i += 1
         return reg
 
-    def deregister(self, registration):
+    def deregister(self, registration: Registration):
         """
         Removes a listener registration. Does nothing if the registration was not found.
 
@@ -101,7 +101,7 @@ class DMListener(BaseSubsystem):
                 del self.registrations[key]
                 break
 
-    def is_registered(self, user):
+    def is_registered(self, user) -> bool:
         """
         Checks if the User has registered DM listeners
 
@@ -113,7 +113,7 @@ class DMListener(BaseSubsystem):
                 return True
         return False
 
-    def is_blocked(self, user):
+    def is_blocked(self, user) -> bool:
         """
         Checks if the User has a blocking listener
 
@@ -126,7 +126,7 @@ class DMListener(BaseSubsystem):
                 return True
         return False
 
-    async def handle_dm(self, message):
+    async def handle_dm(self, message) -> bool:
         """
         :param message: Message object
         :return: True if this was a blocking listener, False if not.
