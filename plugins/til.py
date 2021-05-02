@@ -3,7 +3,7 @@ import random
 import discord
 from discord.ext import commands
 
-from base import BasePlugin
+from base import BasePlugin, NotFound
 from data import Config, Storage, Lang
 from botutils.permchecks import check_mod_access
 from botutils.utils import add_reaction
@@ -25,7 +25,9 @@ class Plugin(BasePlugin, name="TIL"):
             "manager": 0
         }
 
-    def default_storage(self):
+    def default_storage(self, container=None):
+        if container is not None:
+            raise NotFound
         return []
 
     def command_help_string(self, command):

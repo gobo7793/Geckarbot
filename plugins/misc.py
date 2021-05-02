@@ -12,7 +12,7 @@ from botutils import restclient, utils, timeutils
 from botutils.converters import get_best_username
 from botutils.utils import add_reaction
 from data import Storage, Lang, Config
-from base import BasePlugin
+from base import BasePlugin, NotFound
 from subsystems import timers
 from subsystems.helpsys import DefaultCategories
 
@@ -56,6 +56,8 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
             Storage().save(self)
 
     def default_storage(self, container=None):
+        if container is not None:
+            raise NotFound
         return {
             'version': 0,
             'reminders': {}

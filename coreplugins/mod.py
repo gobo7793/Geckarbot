@@ -12,7 +12,6 @@ from botutils.timeutils import parse_time_input
 from data import Config, Lang
 from subsystems.helpsys import DefaultCategories
 from subsystems.ignoring import IgnoreEditResult, IgnoreType
-from subsystems.presence import PresencePriority
 
 
 class Plugin(BasePlugin, name="Bot Management Commands"):

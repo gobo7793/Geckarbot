@@ -51,7 +51,7 @@ class Complaint:
         }
 
     @classmethod
-    def deserialize(cls, plugin, cid, d):
+    def deserialize(cls, plugin, cid, d) -> Complaint:
         """
         Constructs a Complaint object from a dict.
 
@@ -65,12 +65,27 @@ class Complaint:
 
     @classmethod
     def from_message(cls, plugin, msg):
+        """
+        Parses a `!complain` command message.
+
+        :param plugin: Plugin reference
+        :param msg: Message that is to be parsed
+        :return: resulting Complaint object
+        """
         content = msg.content[len("!complain"):].strip()  # todo check if necessary
         if not content.strip():
             return None
         return cls(plugin, plugin.get_new_id(), msg.author, msg.jump_url, content, None, datetime.now())
 
     def to_message(self, show_cat=True, show_ts=True, include_url=True):
+        """
+        Converts the complaint to a human readable message.
+
+        :param show_cat: Flag that determines whether the category is to be shown.
+        :param show_ts: Flag that determines whether the timestamp is to be shown.
+        :param include_url: Flag that determines whether the message jump URL is to be shown.
+        :return: Message string
+        """
         authorname = "Not found"
         if self.author is not None:
             authorname = converters.get_best_username(self.author)
@@ -121,6 +136,9 @@ class Plugin(BasePlugin, name="Feedback"):
         raise RuntimeError("unknown container {}".format(container))
 
     def migrate(self):
+        """
+        Storage format version migrations
+        """
         # 0 -> 1
         if "version" not in self.storage:
             self.storage["version"] = 1
@@ -135,16 +153,21 @@ class Plugin(BasePlugin, name="Feedback"):
             Storage.save(self)
 
     def reset_highest_id(self):
+        """
+        Resets the current highest ID to current highest ID + 1. Used on complaint deletion.
+        """
         self.highest_id = 0
         for el in self.complaints:
             assert el > 0
             if el > self.highest_id:
                 self.highest_id = el
 
-    def get_new_id(self, increment=True):
+    def get_new_id(self, increment=True) -> int:
         """
         Acquires a new complaint id
 
+        :param increment: flags that determines whether the current highest ID is to be incremented (used if the result
+            of this function is to be used)
         :return: free unique id that can be used for a new complaint
         """
         if increment:
@@ -152,6 +175,9 @@ class Plugin(BasePlugin, name="Feedback"):
         return self.highest_id
 
     def write(self):
+        """
+        Saves the complaints to storage.
+        """
         r = {}
         for el in self.complaints:
             complaint = self.complaints[el]
@@ -160,6 +186,13 @@ class Plugin(BasePlugin, name="Feedback"):
         Storage.save(self)
 
     def parse_args(self, args, ignore=None):
+        """
+        Parses the args passed to `!redact`.
+
+        :param args: list of arguments
+        :param ignore: List of arguments to ignore
+        :return: `ids, cats` with ids the complaint IDs cats the category names that were passed.
+        """
         ignore = ignore if ignore else []
         ids = []
         cats = []
@@ -438,6 +471,11 @@ class Plugin(BasePlugin, name="Feedback"):
     # Bugscore
     #####
     async def bugscore_show(self, ctx):
+        """
+        Sends the current bugscore to ctx.
+
+        :param ctx: Context
+        """
         users = sorted(
             sorted(
                 [(converters.get_best_username(discord.utils.get(self.bot.guild.members, id=user)), n) for (user, n) in
@@ -461,6 +499,12 @@ class Plugin(BasePlugin, name="Feedback"):
             await ctx.send(msg)
 
     async def bugscore_del(self, ctx, user):
+        """
+        Removes a user from the bugscore.
+
+        :param ctx: Context
+        :param user: User to remove
+        """
         if discord.utils.get(ctx.author.roles, id=Config().BOT_ADMIN_ROLE_ID) is None:
             await add_reaction(ctx.message, Lang.CMDNOPERMISSIONS)
             return
@@ -480,6 +524,13 @@ class Plugin(BasePlugin, name="Feedback"):
 
     @commands.has_any_role(Config().BOT_ADMIN_ROLE_ID)
     async def bugscore_increment(self, ctx, user, increment):
+        """
+        Incrementation branch of bugscore cmd
+
+        :param ctx: Context
+        :param user: User whose bugscore is to be incremented
+        :param increment: Value to increment by
+        """
         if discord.utils.get(ctx.author.roles, id=Config().BOT_ADMIN_ROLE_ID) is None:
             await add_reaction(ctx.message, Lang.CMDNOPERMISSIONS)
             return

@@ -335,8 +335,7 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
             lweek = league.current_week
         if previous_week:
             lweek -= 1
-        if lweek < 1:
-            lweek = 1
+        lweek = max(lweek, 1)
 
         try:
             # full league score

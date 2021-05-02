@@ -34,6 +34,9 @@ class StateMachine:
         self._cancelled = False
 
     async def run(self):
+        """
+        Starts the state machine.
+        """
         if self._is_running:
             raise RuntimeError("Statemachine is already running.")
         self._is_running = True
@@ -70,9 +73,8 @@ class StateMachine:
                     raise IllegalTransition("{} is not registered as an end state but did not return a new state"
                                             .format(source))
                 # No end state registered
-                else:
-                    self.end()
-                    break
+                self.end()
+                break
 
             # Errors
             if self._state not in self.states:

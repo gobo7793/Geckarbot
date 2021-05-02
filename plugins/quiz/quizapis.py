@@ -467,7 +467,7 @@ class Fragespiel(BaseQuizAPI):
         try:
             questions = json.loads(r.groups()[0])["questions"]
         except Exception as e:
-            logging.getLogger(__name__).error("Error on parsing fragespiel questions json:\n%s", str(s))
+            logging.getLogger(__name__).error("Error on parsing fragespiel questions json:\n%s", r.groups()[0])
             raise QuizAPIError("Unexpected parsing error") from e
 
         # Unescape

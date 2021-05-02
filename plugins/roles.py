@@ -6,7 +6,7 @@ import emoji
 from discord import Role
 from discord.ext import commands
 
-from base import BasePlugin
+from base import BasePlugin, NotFound
 from botutils import utils, permchecks, converters, stringutils
 from botutils.utils import add_reaction
 from data import Storage, Config, Lang
@@ -84,7 +84,9 @@ class Plugin(BasePlugin, name="Role Management"):
         # asyncio.run_coroutine_threadsafe(get_init_msg_data(), self.bot.loop)
         asyncio.get_event_loop().create_task(get_init_msg_data())
 
-    def default_storage(self):
+    def default_storage(self, container=None):
+        if container is not None:
+            raise NotFound
         return {
             'message': {
                 'channel_id': 0,

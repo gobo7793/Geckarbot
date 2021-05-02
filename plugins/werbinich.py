@@ -18,15 +18,6 @@ from subsystems import presence
 from subsystems.helpsys import DefaultCategories
 from subsystems.reactions import ReactionAddedEvent
 
-h_help = "Wer bin ich?"
-h_description = "Startet ein Wer bin ich?. Nach einer Registrierungsphase ordne ich jedem Spieler einen zufälligen " \
-                "anderen Spieler zu, für den dieser per PN einen zu erratenden Namen angeben darf. Das " \
-                "(spoilerfreie) Ergebnis wird ebenfalls jedem Spieler per PN mitgeteilt."
-h_usage = "[geheim]"
-h_spoiler = "Zuschauer-Kommando, mit dem diese das letzte Spiel erfragen können."
-h_postgame = "Erklärt das Spiel für beendet, sodass !werbinich spoiler für alle verfügbar ist."
-h_clear = "Entfernt das letzte Spiel, sodass !werbinich spoiler nichts zurückgibt."
-
 
 class State(Enum):
     """

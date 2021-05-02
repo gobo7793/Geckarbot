@@ -366,7 +366,8 @@ class Plugin(BasePlugin, name="Bot updating system"):
         :return: True if there was a successful update, False if not
         """
         try:
-            f = open(TAGFILE)
+            with open(TAGFILE) as f:
+                lines = f.readlines()
         except FileNotFoundError:
             log.debug("I was not !update'd.")
             return False
@@ -374,7 +375,6 @@ class Plugin(BasePlugin, name="Bot updating system"):
             log.error("%s is a directory, I expected a file or nothing. Please clean this up.", TAGFILE)
             return False
 
-        lines = f.readlines()
         if len(lines) > 1:
             log.error("%s has more than 1 line. This should not happen.", TAGFILE)
             return False

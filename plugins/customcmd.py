@@ -193,7 +193,9 @@ class Plugin(BasePlugin, name="Custom CMDs"):
             "guidelines": "https://github.com/gobo7793/Geckarbot/wiki/Command-Guidelines"
         }
 
-    def default_storage(self):
+    def default_storage(self, container=None):
+        if container is not None:
+            raise NotFound
         return {
             'fail': {
                 "creator": 0,
