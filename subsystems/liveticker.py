@@ -963,9 +963,10 @@ class Liveticker(BaseSubsystem):
         :param plugin_name: name of the plugin
         """
         coro_dict = self.search(plugin=plugin_name)
-        for leag in coro_dict.values():
-            for reg in leag:
-                reg.unload()
+        for src in coro_dict.values():
+            for leag in src.values():
+                for reg in leag:
+                    reg.unload()
         self.logger.debug('Liveticker for plugin %s unloaded', plugin_name)
 
     async def _semiweekly_timer(self, _job):
