@@ -1,6 +1,6 @@
+import asyncio
 import datetime
 import logging
-import time
 from enum import Enum
 from typing import Union
 
@@ -572,15 +572,15 @@ class LeagueRegistration:
         if not self.registrations:
             self.unload()
 
-    def update_matches(self, matchday=None):
+    async def update_matches(self, matchday=None):
         """Updates the matches and current standings of the league"""
         if self.source == LTSource.OPENLIGADB:
-            self._update_matches_oldb(matchday)
+            await self._update_matches_oldb(matchday)
         elif self.source == LTSource.ESPN:
-            self._update_matches_espn()
+            await self._update_matches_espn()
         return self.matches
 
-    def _update_matches_oldb(self, matchday: int = None):
+    async def _update_matches_oldb(self, matchday: int = None):
         """
         Updates matches with source from OpenLigaDB
 
@@ -593,9 +593,9 @@ class LeagueRegistration:
             self.matches = [Match.from_openligadb(m) for m in raw_matches]
         elif self.matchday():
             if self.next_execution():
-                self._update_matches_oldb(matchday=self.matchday())
+                await self._update_matches_oldb(matchday=self.matchday())
             else:
-                self._update_matches_oldb(matchday=self.matchday() + 1)
+                await self._update_matches_oldb(matchday=self.matchday() + 1)
                 # self.schedule_kickoffs_oooooooold()
         else:
             raw_matches = restclient.Client("https://www.openligadb.de/api").make_request(
@@ -604,15 +604,15 @@ class LeagueRegistration:
             if not self.extract_kickoffs_with_matches():
                 md = self.matchday()
                 if md:
-                    self._update_matches_oldb(matchday=md + 1)
+                    await self._update_matches_oldb(matchday=md + 1)
 
-    def _update_matches_espn(self):
+    async def _update_matches_espn(self):
         """Updates the matches with the espn-source"""
         # call ESPN two times to reload server cache
-        _ = restclient.Client("http://site.api.espn.com/apis/site/v2/sports").make_request(
+        _ = await restclient.Client("http://site.api.espn.com/apis/site/v2/sports").request(
             f"/soccer/{self.league}/scoreboard")
-        time.sleep(10)
-        raw = restclient.Client("http://site.api.espn.com/apis/site/v2/sports").make_request(
+        await asyncio.sleep(5)
+        raw = await restclient.Client("http://site.api.espn.com/apis/site/v2/sports").request(
             f"/soccer/{self.league}/scoreboard")
         self.matches = [Match.from_espn(m) for m in raw.get('events', [])]
 
@@ -657,6 +657,9 @@ class LeagueRegistration:
         if self.source == LTSource.ESPN:
             # Match collection for ESPN
             dates = "{}-{}".format(now.strftime("%Y%m%d"), until.strftime("%Y%m%d"))
+            _ = await restclient.Client("http://site.api.espn.com/apis/site/v2/sports") \
+                .request(f"/soccer/{self.league}/scoreboard", params={'dates': dates})
+            await asyncio.sleep(5)
             data = await restclient.Client("http://site.api.espn.com/apis/site/v2/sports") \
                 .request(f"/soccer/{self.league}/scoreboard", params={'dates': dates})
             matches = [Match.from_espn(x) for x in data['events']]
@@ -774,9 +777,9 @@ class LeagueRegistration:
         if job.data['start'] == datetime.datetime.now().replace(second=0, microsecond=0):
             return
         new_finished = []
-        self.update_matches()
+        await self.update_matches()
         matches = self.extract_kickoffs_with_matches()[job.data['start']]
-        if (datetime.datetime.now() - job.data['start']).seconds > 9000:
+        if job.data['start'] + datetime.timedelta(hours=3.5) < datetime.datetime.now():
             new_finished = matches
             self.finished.extend([m.match_id for m in matches])
         else:
