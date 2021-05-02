@@ -202,7 +202,7 @@ async def log_to_mod_channel(context):
     await _log_to_channel(context, write_mod_channel)
 
 
-def sort_commands_helper(commands, order) -> list:
+def sort_commands_helper(commands: list, order: list) -> list:
     """
     Sorts a list of commands in place according to a list of command names. If a command has no corresponding
     command name in `order`, it is removed from the list.

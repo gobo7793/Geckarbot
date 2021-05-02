@@ -8,7 +8,7 @@ import discord
 from discord.ext import commands
 from discord.ext.commands import ChannelNotFound, TextChannelConverter, RoleConverter, RoleNotFound
 
-from base import BasePlugin
+from base import BasePlugin, NotFound
 from botutils import permchecks, sheetsclient, utils, timeutils
 from botutils.converters import get_best_user, get_plugin_by_name
 from botutils.stringutils import paginate, clear_link
@@ -61,7 +61,9 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
             'mod_role_id': 0
         }
 
-    def default_storage(self):
+    def default_storage(self, container=None):
+        if container is not None:
+            raise NotFound
         return {
             'rule_link': None,
             'host_id': None,
