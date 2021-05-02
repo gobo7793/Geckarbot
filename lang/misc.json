@@ -33,6 +33,7 @@
         "bully_msg_self": "I bully you :slight_smile:",
         "money_converted": "**{} {}** are the equivalent of **{} {}**",
         "money_error": "Whoops! No money?!",
+        "alpha_response": "beep boop :robot: The result is: {}",
 
         "#2": "Help",
         "help_dice": "Rolls a dice",
@@ -82,6 +83,7 @@
         "bully_msg_self": "Ich mobbe euch :slight_smile:",
         "money_converted": "**{} {}** entsprechen aktuell **{} {}**",
         "money_error": "Bin ich pleite?! Irgendwas stimmt hier nicht!",
+        "alpha_response": "beep boop :robot: Das Resultat ist: {}",
 
         "#2": "Help",
         "help_dice": "Wirft einen Würfel",
