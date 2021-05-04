@@ -61,17 +61,21 @@ class HelpCog(BasePlugin):
     def get_configurable_type(self):
         return ConfigurableType.COREPLUGIN
 
-    @commands.command(name="help")
-    async def helpcmd(self, ctx, *args):
+    @commands.group(name="help", invoke_without_command=True)
+    async def cmd_help(self, ctx, *args):
         await self.bot.helpsys.helpcmd(ctx, *args)
 
-    @commands.command(name="usage")
-    async def usagecmd(self, ctx, *args):
+    @commands.command(name="usage", hidden=True)
+    async def cmd_usage(self, ctx, *args):
         await self.bot.helpsys.usagecmd(ctx, *args)
 
-    @commands.command(name="helpall")
-    async def listcmd(self, ctx, *args):
+    @cmd_help.command(name="all")
+    async def cmd_all(self, ctx, *args):
         await self.bot.helpsys.listcmd(ctx, *args)
+
+    @cmd_help.command(name="hidden", hidden=True)
+    async def cmd_hidden(self, ctx, *args):
+        await self.bot.helpsys.hiddencmd(ctx, *args)
 
     @commands.command(name="locate")
     async def locatecmd(self, ctx, *args):
@@ -377,6 +381,31 @@ class GeckiHelp(BaseSubsystem):
             return plugin, cmd
         return None, None
 
+    def all_commands(self, include_hidden: bool = False, hidden_only: bool = False, include_debug: bool = False,
+                     flatten=False):
+        """
+        :param include_hidden: Whether to include commands with the `hidden` flag set.
+        :param hidden_only: Whether to only return commands with the `hidden` flag set. Requires `include_hidden`.
+        :param include_debug: Whether to include commands in the debug plugin.
+        :param flatten: If set to True, recursively includes subcommands
+        :return: A list of all commands.
+        """
+        plugins = [self.cog]
+        for plugin in self.bot.plugin_objects(plugins_only=True):
+            if include_debug or "debug" not in plugin.get_name():
+                plugins.append(plugin)
+        cmds = []
+        for plugin in plugins:
+            cmditer = plugin.walk_commands if flatten else plugin.get_commands
+            for cmd in cmditer():
+                if hidden_only and not cmd.hidden:
+                    continue
+                if cmd.hidden and not include_hidden:
+                    continue
+                cmds.append(self.format_command_help_line(plugin, cmd))
+
+        return sorted(cmds)
+
     #####
     # Evaluation methods
     #####
@@ -636,25 +665,28 @@ class GeckiHelp(BaseSubsystem):
 
         :param ctx: Context
         """
-        debug = False
-        if "debug" in args:
-            debug = True
-        plugins = [self.cog]
-        for plugin in self.bot.plugin_objects(plugins_only=True):
-            if debug or "debug" not in plugin.get_name():
-                plugins.append(plugin)
-        cmds = []
-        for plugin in plugins:
-            for cmd in plugin.get_commands():
-                cmds.append(self.format_command_help_line(plugin, cmd))
+        debug = True if "debug" in args else False
+        hidden = True if "hidden" in args else False
+        recursive = True if "recursive" in args else False
+        cmds = self.all_commands(include_hidden=hidden, include_debug=debug, flatten=recursive)
+        prefix = Lang.lang(self, "help_all_length", len(cmds)) + "\n"
+        for msg in paginate(cmds, prefix=prefix, msg_prefix="```", msg_suffix="```", prefix_within_msg_prefix=False):
+            await ctx.send(msg)
 
-        cmds = sorted(cmds)
-        for msg in paginate(cmds, msg_prefix="```", msg_suffix="```"):
+    async def hiddencmd(self, ctx, *args):
+        """
+        Handles and help hidden command.
+
+        :param ctx: Context
+        """
+        debug = True if "debug" in args else False
+        msgs = self.all_commands(hidden_only=True, include_hidden=True, include_debug=debug, flatten=True)
+        for msg in paginate(msgs, msg_prefix="```", msg_suffix="```"):
             await ctx.send(msg)
 
     async def locatecmd(self, ctx, *args):
         """
-        Prints the plugin name that a given cmd belongs to.
+        Shows the plugin name that a given cmd belongs to.
 
         :param ctx: Context
         :param args: Arguments that the locate command was called with
