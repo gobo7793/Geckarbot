@@ -286,3 +286,11 @@ class Plugin(BasePlugin, name="Testing and debug things"):
     @commands.command(name="setdemo", hidden=True)
     async def cmd_set(self, ctx, key, value=None):
         await self.setter.set_cmd(ctx, key, value)
+
+    @commands.group(name="qname", hidden=True)
+    async def cmd_qname(self, ctx):
+        await ctx.send(ctx.command.qualified_name)
+
+    @cmd_qname.command(name="sub", hidden=True)
+    async def cmd_qname_sub(self, ctx):
+        await ctx.send(ctx.command.qualified_name)
