@@ -2,7 +2,7 @@ import asyncio
 import datetime
 import logging
 from enum import Enum
-from typing import List, Optional
+from typing import List
 
 from base import BaseSubsystem, BasePlugin
 from botutils import restclient
@@ -66,19 +66,37 @@ class MatchStatus(Enum):
 class TeamnameDict:
     """Set of name variants"""
 
-    def __init__(self, long_name: str, short_name: str, abbr: str = None, emoji: str = None, other: list = None):
+    def __init__(self, converter, long_name: str, short_name: str = None, abbr: str = None, emoji: str = None,
+                 other: list = None):
+        if short_name is None:
+            short_name = long_name[:15]
+        if abbr is None:
+            abbr = short_name[:5].upper()
+        if emoji is None:
+            try:
+                emoji = Lang.EMOJI['lettermap'][ord(abbr[0].lower()) - 97]
+            except (IndexError, TypeError):
+                emoji = "🏳️"
+        if other is None:
+            other = []
+        self._converter = converter
         self.long_name = long_name
         self.short_name = short_name
         self.abbr = abbr
         self.emoji = emoji
         self.other = other
-        if emoji is None:
-            try:
-                self.emoji = Lang.EMOJI['lettermap'][ord(self.abbr[0].lower()) - 97]
-            except (IndexError, TypeError):
-                self.emoji = "🏳️"
-        if self.other is None:
-            self.other = []
+
+    def update(self, long_name: str = None, short_name: str = None, abbr: str = None,
+               emoji: str = None, other: list = None):
+        pass
+
+    def remove(self):
+        pass
+
+    def add_other(self, other: str):
+        """Adds an alternative name for the team"""
+        if other not in self:
+            self.other.append(other)
 
     def table_display(self) -> str:
         """Returns string prepared for display in the table"""
@@ -98,6 +116,8 @@ class TeamnameDict:
         yield self.long_name
         yield self.short_name
         yield self.abbr
+        for other in self.other:
+            yield other
 
 
 class TeamnameConverter:
@@ -112,79 +132,46 @@ class TeamnameConverter:
         self._teamnames = {}
         self._restore()
 
-    def _addvariant(self, variant, teamname_dict):
-        response = self._teamnames.setdefault(variant, teamname_dict)
-        if response != teamname_dict:
-            # Check if existing entry is only alternative
-            if variant not in self._teamnames[variant]:
-                # Removing alternative and overwrite name
-                Storage().get(self.liveticker, container='teamname')[self._teamnames[variant].long_name]['other'] \
-                    .remove(variant)
-                Storage().save(self.liveticker, container='teamname')
-                self._teamnames[variant] = teamname_dict
-            else:
-                # Duplicate
-                pass  # TODO handling teamname duplicates
+    def get(self, team: str, add_if_nonexist: bool = False):
+        teamnamedict = self._teamnames.get(team)
+        if teamnamedict is None and add_if_nonexist:
+            return self.add(team)
+        return teamnamedict
+
+    def add(self, long_name: str, short_name: str = None, abbr: str = None, emoji: str = None, other: list = None):
+        if other is None:
+            other = []
+        existing_long = self.get(long_name)
+        existing_short = self.get(short_name) if short_name else None
+        if existing_long and existing_short and existing_long != existing_short:
+            raise ValueError("Long and short names already known and connected to different teams.")
+        if existing_long:
+            # Append to existing long
+            for name in (short_name, abbr, *other):
+                if name not in self._teamnames:
+                    existing_long.add_other(name)
+                    self._teamnames[name] = existing_long
+            existing_long.store(self.liveticker)
+            return existing_long
+        if existing_short:
+            # Append to existing short
+            for name in (long_name, abbr, *other):
+                if name not in self._teamnames:
+                    existing_short.add_other(name)
+                    self._teamnames[name] = existing_short
+            existing_short.store(self.liveticker)
+            return existing_short
+        # Add new
+        teamnamedict = TeamnameDict(self, long_name, short_name, abbr, emoji, other)
+        self._teamnames[long_name] = teamnamedict
+        self._teamnames[short_name] = teamnamedict
+        for name in (abbr, *other):
+            self._teamnames.setdefault(name, teamnamedict)
+        teamnamedict.store(self.liveticker)
+        return teamnamedict
 
     def _restore(self):
-        data = Storage().get(self.liveticker, container='teamname')
-        for team, entry in data.items():
-            teamname_dict = TeamnameDict(long_name=team, short_name=entry['short'], abbr=entry['abbr'],
-                                         emoji=entry['emoji'], other=entry['other'])
-            for variant in (team, entry['short'], entry['abbr']):
-                self._addvariant(variant, teamname_dict)
-            for other in entry['other']:
-                response = self._teamnames.setdefault(other, teamname_dict)
-                if response != teamname_dict:
-                    teamname_dict.other.remove(other)
-                    Storage().get(self.liveticker, container='teamname')[team]['other'].remove(other)
-        Storage().save(self.liveticker, container='teamname')
-
-    def get(self, team) -> Optional[TeamnameDict]:
-        """Returns the TeamnameDict for the team"""
-        return self._teamnames.get(team)
-
-    def add(self, teamname_dict: TeamnameDict):
-        """
-        Adds a new TeamnameDict for a team
-
-        :param teamname_dict:
-        """
-        Storage().get(self.liveticker, container='teamname')[teamname_dict.long_name] = teamname_dict.to_dict()
-        Storage().save(self.liveticker, container='teamname')
-        self._addvariant(teamname_dict.long_name, teamname_dict)
-        self._addvariant(teamname_dict.short_name, teamname_dict)
-        self._addvariant(teamname_dict.abbr, teamname_dict)
-        return teamname_dict
-
-    def update(self, team: str, long_name: str = None, short_name: str = None, abbr: str = None, emoji: str = None,
-               add_to_alt: bool = False) -> TeamnameDict:
-        teamname_dict = self.get(team)
-        if not teamname_dict:
-            raise ValueError(f"Team: {team}")
-
-        if long_name:
-            Storage().get(self.liveticker, container='teamname').pop(teamname_dict.long_name)
-            if add_to_alt:
-                teamname_dict.other.append(teamname_dict.long_name)
-            teamname_dict.long_name = long_name
-            self._addvariant(long_name, teamname_dict)
-        if short_name:
-            if add_to_alt:
-                teamname_dict.other.append(teamname_dict.short_name)
-            teamname_dict.short_name = short_name
-            self._addvariant(short_name, teamname_dict)
-        if abbr:
-            if add_to_alt:
-                teamname_dict.other.append(teamname_dict.abbr)
-            teamname_dict.abbr = abbr
-            self._addvariant(abbr, teamname_dict)
-        if emoji:
-            teamname_dict.emoji = emoji
-
-        teamname_dict.store(self.liveticker)
-        return teamname_dict
-
+        pass
 
 class TableEntry:
     """
@@ -201,7 +188,7 @@ class TableEntry:
             self.rank = data['rank']
             self.team = converter.get(data['TeamName'])
             if not self.team:
-                self.team = converter.add(TeamnameDict(long_name=data['TeamName'], short_name=data['ShortName']))
+                self.team = converter.add(long_name=data['TeamName'], short_name=data['ShortName'])
             self.won = data['Won']
             self.draw = data['Draw']
             self.lost = data['Lost']
@@ -214,9 +201,9 @@ class TableEntry:
             self.rank = stats.get('rank')
             self.team = converter.get(data['team']['displayName'])
             if not self.team:
-                self.team = converter.add(TeamnameDict(long_name=data['team']['displayName'],
-                                                       short_name=data['team']['shortDisplayName'],
-                                                       abbr=data['team']['abbreviation']))
+                self.team = converter.add(long_name=data['team']['displayName'],
+                                          short_name=data['team']['shortDisplayName'],
+                                          abbr=data['team']['abbreviation'])
             self.won = stats.get('wins')
             self.draw = stats.get('ties')
             self.lost = stats.get('losses')
