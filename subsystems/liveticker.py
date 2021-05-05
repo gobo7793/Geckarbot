@@ -64,8 +64,17 @@ class MatchStatus(Enum):
 
 
 class TeamnameDict:
-    """Set of name variants"""
+    """
+    Set of name variants
 
+    :param converter:
+    :type converter: TeamnameConverter
+    :param long_name: longest version of the teams name
+    :param short_name: short distinct variant of the teams name
+    :param abbr: abbreviation for the team (3-5 letters)
+    :param emoji: logo of the team or other emoji that should be displayed
+    :param other: additional variants of the teams name
+    """
     def __init__(self, converter, long_name: str, short_name: str = None, abbr: str = None, emoji: str = None,
                  other: list = None):
         if short_name is None:
@@ -91,7 +100,7 @@ class TeamnameDict:
         pass
 
     def remove(self):
-        pass
+        self._converter.remove(self)
 
     def add_other(self, other: str):
         """Adds an alternative name for the team"""
@@ -139,6 +148,18 @@ class TeamnameConverter:
         return teamnamedict
 
     def add(self, long_name: str, short_name: str = None, abbr: str = None, emoji: str = None, other: list = None):
+        """
+        Adds a new data set for a team to the converter.
+
+        :param long_name: longest version of the teams name
+        :param short_name: short distinct variant of the teams name
+        :param abbr: abbreviation for the team (3-5 letters)
+        :param emoji: logo of the team or other emoji that should be displayed
+        :param other: additional variants of the teams name
+        :return: Added TeamnameDict or existing TeamnameDict the name variants were added to
+        :rtype: TeamnameDict
+        :raises ValueError: if long and short name already exists but to different teams
+        """
         if other is None:
             other = []
         existing_long = self.get(long_name)
@@ -169,6 +190,14 @@ class TeamnameConverter:
             self._teamnames.setdefault(name, teamnamedict)
         teamnamedict.store(self.liveticker)
         return teamnamedict
+
+    def remove(self, teamnamedict: TeamnameDict):
+        """Removes a team from the converter"""
+        for name in teamnamedict:
+            if self.get(name) == teamnamedict:
+                self._teamnames.pop(name)
+        Storage().get(self.liveticker, container='teamname').pop(teamnamedict.long_name)
+        Storage().save(self.liveticker, container='teamname')
 
     def _restore(self):
         pass
