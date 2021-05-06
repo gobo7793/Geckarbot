@@ -166,21 +166,27 @@ class TeamnameConverter:
         if existing_long and existing_short and existing_long != existing_short:
             raise ValueError("Long and short names already known and connected to different teams.")
         if existing_long:
-            # Append to existing long
-            for name in (short_name, abbr, *other):
-                if name not in self._teamnames:
-                    existing_long.add_other(name)
-                    self._teamnames[name] = existing_long
-            existing_long.store(self.liveticker)
-            return existing_long
+            if long_name in existing_long.other:
+                existing_long.other.remove(long_name)
+            else:
+                # Append to existing long
+                for name in (short_name, abbr, *other):
+                    if name not in self._teamnames:
+                        existing_long.add_other(name)
+                        self._teamnames[name] = existing_long
+                existing_long.store(self.liveticker)
+                return existing_long
         if existing_short:
-            # Append to existing short
-            for name in (long_name, abbr, *other):
-                if name not in self._teamnames:
-                    existing_short.add_other(name)
-                    self._teamnames[name] = existing_short
-            existing_short.store(self.liveticker)
-            return existing_short
+            if short_name in existing_short.other:
+                existing_short.other.remove(short_name)
+            else:
+                # Append to existing short
+                for name in (long_name, abbr, *other):
+                    if name not in self._teamnames:
+                        existing_short.add_other(name)
+                        self._teamnames[name] = existing_short
+                existing_short.store(self.liveticker)
+                return existing_short
         # Add new
         teamnamedict = TeamnameDict(self, long_name, short_name, abbr, emoji, other)
         self._teamnames[long_name] = teamnamedict
