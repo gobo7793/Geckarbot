@@ -95,9 +95,8 @@ class TeamnameDict:
         self.emoji = emoji
         self.other = other
 
-    def update(self, long_name: str = None, short_name: str = None, abbr: str = None,
-               emoji: str = None, other: list = None):
-        pass
+    def update(self, long_name: str = None, short_name: str = None, abbr: str = None, emoji: str = None):
+        self._converter.update(self, long_name, short_name, abbr, emoji)
 
     def remove(self):
         self._converter.remove(self)
@@ -198,6 +197,22 @@ class TeamnameConverter:
                 self._teamnames.pop(name)
         Storage().get(self.liveticker, container='teamname').pop(teamnamedict.long_name)
         Storage().save(self.liveticker, container='teamname')
+
+    def update(self, teamnamedict: TeamnameDict, long_name: str = None, short_name: str = None, abbr: str = None,
+               emoji: str = None):
+        teamnamedict.remove()
+        try:
+            self.add(long_name=long_name if long_name else teamnamedict.long_name,
+                     short_name=short_name if short_name else teamnamedict.short_name,
+                     abbr=abbr if abbr else teamnamedict.abbr,
+                     emoji=emoji if emoji else teamnamedict.emoji,
+                     other=teamnamedict.other)
+        except ValueError:
+            # Update failed, reenter teamnamedict
+            for name in teamnamedict:
+                if not self.get(name):
+                    self._teamnames[name] = teamnamedict
+            teamnamedict.store(self.liveticker)
 
     def _restore(self):
         pass
