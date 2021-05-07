@@ -39,7 +39,7 @@ def _get_all_arg_str(start_index, all_arg_list):
 class Cmd:
     """Represents a custom cmd"""
 
-    def __init__(self, plugin, name: str, creator_id: int, *texts, author_ids: list = None):
+    def __init__(self, plugin, name: str, creator_id: int, *texts, author_ids: list = None, aliases: list = None):
         """
         Creates a new custom cmd
 
@@ -48,6 +48,7 @@ class Cmd:
         :param creator_id: The user id of the initial creator of the cmd
         :param texts: The output texts of the cmd
         :param author_ids: The author ids for the output texts
+        :param aliases: List of command name aliases
         """
 
         self.plugin = plugin
@@ -55,6 +56,18 @@ class Cmd:
         self.creator_id = creator_id
         self.author_ids = [author_ids[i] if author_ids is not None else creator_id for i in range(0, len(*texts))]
         self.texts = list(*texts)
+        self.aliases = aliases
+
+    def __eq__(self, other):
+        if isinstance(other, Cmd):
+            if other.name == self.name:
+                return True
+        elif isinstance(other, str):
+            if other == self.name:
+                return True
+            if other in self.get_aliases():
+                return True
+        return False
 
     def serialize(self) -> dict:
         """
@@ -62,11 +75,14 @@ class Cmd:
 
         :return: A dict with the creator and texts
         """
-        return {
+        r = {
             'creator': self.creator_id,
             'authors': self.author_ids,
             'texts': self.texts
         }
+        if self.aliases:
+            r['aliases'] = self.aliases
+        return r
 
     @classmethod
     def deserialize(cls, plugin, name: str, d: dict):
@@ -80,7 +96,13 @@ class Cmd:
         :return: Cmd object
         :rtype: Cmd
         """
-        return Cmd(plugin, name, d['creator'], d['texts'], author_ids=d.get('authors', []))
+        return Cmd(plugin, name, d['creator'], d['texts'],
+                   author_ids=d.get('authors', []), aliases=d.get('aliases', None))
+
+    def get_aliases(self):
+        if self.aliases:
+            return self.aliases
+        return []
 
     def get_raw_text(self, text_id):
         """Returns the raw text with the given ID as formatted string or raise IndexError if ID not exists"""
@@ -164,6 +186,11 @@ class Cmd:
             text_id = random.choice(range(0, text_len))
             return self.get_formatted_text(bot, text_id, msg, cmd_args)
         return ""
+
+    def add_alias(self, alias):
+        if self.aliases is None:
+            self.aliases = []
+        self.aliases.append(alias)
 
 
 class Plugin(BasePlugin, name="Custom CMDs"):
@@ -339,13 +366,19 @@ class Plugin(BasePlugin, name="Custom CMDs"):
         cmd_name = msg_args[0][1].lower() if msg_args[0][1] else msg_args[0][0].lower()
 
         cmd_args = msg_args[1:]
-        if cmd_name not in self.commands:
+        if cmd_name not in self.commands.values():
             return
         if (self.bot.ignoring.check_command_name(cmd_name, msg.channel)
                 or self.bot.ignoring.check_passive_usage(msg.author, cmd_name)):
             raise commands.DisabledCommand()
 
-        cmd_content = self.commands[cmd_name].get_ran_formatted_text(self.bot, msg, cmd_args)
+        cmd = None
+        for el in self.commands.values():
+            if el == cmd_name:
+                cmd = el
+                break
+        assert cmd
+        cmd_content = cmd.get_ran_formatted_text(self.bot, msg, cmd_args)
 
         await msg.channel.send(cmd_content)
 
@@ -526,6 +559,10 @@ class Plugin(BasePlugin, name="Custom CMDs"):
             await ctx.send(Lang.lang(self, 'no_mention_allowed'))
             return
 
+        if not cmd_name:
+            await utils.add_reaction(ctx.message, Lang.CMDERROR)
+            return
+
         # TODO Process multiple output texts
         cmd_texts = [message]
         text_authors = [ctx.author.id for _ in range(0, len(cmd_texts))]
@@ -620,4 +657,39 @@ class Plugin(BasePlugin, name="Custom CMDs"):
 
         self._save()
         # await utils.log_to_admin_channel(ctx)
+        await utils.add_reaction(ctx.message, Lang.CMDSUCCESS)
+
+    @cmd.command(name="alias")
+    async def cmd_alias(self, ctx, *args):
+        if len(args) > 2:
+            await utils.add_reaction(ctx.message, Lang.CMDERROR)
+            await ctx.send(Lang.lang(self, "alias_too_many_args"))
+            return
+        if len(args) < 2:
+            await utils.add_reaction(ctx.message, Lang.CMDERROR)
+            await ctx.send(Lang.lang(self, "alias_not_enough_args"))
+            return
+
+        # parse args
+        existing = None
+        alias = None
+        for arg in args:
+            for cmd in self.commands.values():
+                if cmd == arg:
+                    existing = cmd
+                    break
+            else:
+                alias = arg
+
+        if not existing:
+            await utils.add_reaction(ctx.message, Lang.CMDERROR)
+            await ctx.send(Lang.lang(self, "alias_not_found", args[0], args[1]))
+            return
+        if not alias:
+            await utils.add_reaction(ctx.message, Lang.CMDERROR)
+            await ctx.send(Lang.lang(self, "alias_exists", args[0], args[1]))
+            return
+
+        existing.add_alias(alias)
+        self._save()
         await utils.add_reaction(ctx.message, Lang.CMDSUCCESS)
