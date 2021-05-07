@@ -207,12 +207,17 @@ class TeamnameConverter:
     def update(self, teamnamedict: TeamnameDict, long_name: str = None, short_name: str = None, abbr: str = None,
                emoji: str = None):
         teamnamedict.remove()
+        other = teamnamedict.other
+        if long_name:
+            other.append(teamnamedict.long_name)
+        if short_name:
+            other.append(teamnamedict.short_name)
         try:
             self.add(long_name=long_name if long_name else teamnamedict.long_name,
                      short_name=short_name if short_name else teamnamedict.short_name,
                      abbr=abbr if abbr else teamnamedict.abbr,
                      emoji=emoji if emoji else teamnamedict.emoji,
-                     other=teamnamedict.other)
+                     other=other)
         except ValueError:
             # Update failed, reenter teamnamedict
             for name in teamnamedict:
