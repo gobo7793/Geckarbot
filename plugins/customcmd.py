@@ -192,6 +192,17 @@ class Cmd:
             self.aliases = []
         self.aliases.append(alias)
 
+    def has_alias(self):
+        return bool(self.aliases)
+
+    def format_alias(self) -> str:
+        """
+        :return: "cmd.name (alias1, alias2, alias3)"
+        """
+        if self.has_alias():
+            return "{} ({})".format(self.name, ", ".join(self.aliases))
+        return self.name
+
 
 class Plugin(BasePlugin, name="Custom CMDs"):
     """Provides custom cmds"""
@@ -659,8 +670,19 @@ class Plugin(BasePlugin, name="Custom CMDs"):
         # await utils.log_to_admin_channel(ctx)
         await utils.add_reaction(ctx.message, Lang.CMDSUCCESS)
 
+    async def list_aliases(self, ctx):
+        msgs = []
+        for el in self.commands.values():
+            if el.has_alias():
+                msgs.append(el.format_alias())
+        for msg in paginate(msgs, delimiter=", "):
+            await ctx.send(msg)
+
     @cmd.command(name="alias")
     async def cmd_alias(self, ctx, *args):
+        if len(args) == 0:
+            await self.list_aliases(ctx)
+            return
         if len(args) > 2:
             await utils.add_reaction(ctx.message, Lang.CMDERROR)
             await ctx.send(Lang.lang(self, "alias_too_many_args"))
@@ -693,3 +715,13 @@ class Plugin(BasePlugin, name="Custom CMDs"):
         existing.add_alias(alias)
         self._save()
         await utils.add_reaction(ctx.message, Lang.CMDSUCCESS)
+
+    @cmd.command(name="aliasclear")
+    async def cmd_clear_alias(self, ctx, cmd):
+        for el in self.commands.values():
+            if el == cmd:
+                el.aliases = None
+                self._save()
+                await utils.add_reaction(ctx.message, Lang.CMDSUCCESS)
+                return
+        await utils.add_reaction(ctx.message, Lang.CMDERROR)
