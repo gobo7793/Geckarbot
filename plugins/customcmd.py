@@ -688,6 +688,11 @@ class Plugin(BasePlugin, name="Custom CMDs"):
         await utils.add_reaction(ctx.message, Lang.CMDSUCCESS)
 
     async def list_aliases(self, ctx):
+        """
+        Lists all commands that have aliases to ctx.
+
+        :param ctx: Context
+        """
         msgs = []
         for el in self.commands.values():
             if el.has_alias():
