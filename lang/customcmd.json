@@ -51,7 +51,13 @@
         "desc_add": "Adds a custom command or a new output text for an existing command.\n\nFollowing wildcards can be used, which will be replaced on using:\n  %u  - The user who uses the command\n  %um - Mentions the user who uses the command\n  %n  - The nth command argument\n  %n* - The nth and all following arguments\n  %a  - Alias for %1*\n\nSupports /me. If a picture should be added, a URL is required. Custom commands must be compliant to the general command guidelines, which can be accessed via '!cmd guidelines'.\n\nExample: !cmd add test Argument1: %1 from user %u",
         "help_del": "Deletes a custom command or output text",
         "usage_del": "<cmd name> [text #]",
-        "desc_del": "Deletes a custom command or one of its output texts. If the last output text was deleted, the whole command will be removed.\n\nIf an output text ID is given, only the text will be removed, otherwise the whole command. The IDs and creator can be get via '!cmd info <command>'.\n\nThe original command author and mods can delete the whole command and all texts, the output text authors only it's own texts."
+        "desc_del": "Deletes a custom command or one of its output texts. If the last output text was deleted, the whole command will be removed.\n\nIf an output text ID is given, only the text will be removed, otherwise the whole command. The IDs and creator can be get via '!cmd info <command>'.\n\nThe original command author and mods can delete the whole command and all texts, the output text authors only it's own texts.",
+        "help_alias": "Adds an alias to a user command.",
+        "usage_alias": "<command> <alias>",
+        "desc_alias": "Adds an alias to a user command. This command can then be invoked with the alias as well. Without arguments, this command lists all commands that have an alias.",
+        "help_aliasclear": "Removes all aliases from a user command.",
+        "usage_aliasclear": "<command>",
+        "desc_aliasclear": "Removes all aliases from a user command."
     },
     "de_DE": {
         "add_exists": "Neuer Ausgabetext wird zum Benutzer-Kommando \"{}\" hinzugefügt.",
@@ -107,6 +113,12 @@
         "desc_add": "Fügt ein neues Benutzer-Kommando oder Ausgabetext zu einem bestehenden Benutzer-Kommando hinzu.\n\nFolgende Wildcards sind möglich, die bei der Nutzung ersetzt werden:\n  %u  - Der ausführnde User\n  %um - Erwähnt den ausführenden Benutzer\n  %n  - Das n-te Kommando-Argument\n  %n* - Das n-te und alle folgenden Argumente\n  %a  - Alias für %1*\n\nBerücksichtigt /me. Um ein Bild hinzuzufügen, wird dessen URL benötigt. Benutzer-Kommandos müssen den generellen Kommando-Richtlinen entsprechen, die mithilfe von '!cmd guidelines' aufgerufen werden können.\n\nBeispiel: !cmd add test Argument1: %1 from user %u",
         "help_del": "Löscht ein Benutzer-Kommando oder einen Ausgabetext",
         "usage_del": "<Kommando-Name> [Ausgabetext #]",
-        "desc_del": "Löscht ein Benutzer-Kommando oder einen der Ausgabetexte. Wenn der letzte Ausgabetext entfernt wird, wird zudem das gesamte Benutzer-Kommando gelöscht.\n\nWird eine Ausgabetext-ID angegeben, wird nur dieser Ausgabetext gelöscht, andernfalls das gesamte Kommando. Die IDs und Ersteller können mithilfe von '!cmd info <Kommando-Name>' angezeigt werden.\n\nNur der ursprüngliche Ersteller eines Benutzer-Kommandos oder Moderatoren können ein Kommando und alle Ausgabetexte löschen, die Ersteller einzelner Ausgabetexte nur ihre jeweils eigenen."
+        "desc_del": "Löscht ein Benutzer-Kommando oder einen der Ausgabetexte. Wenn der letzte Ausgabetext entfernt wird, wird zudem das gesamte Benutzer-Kommando gelöscht.\n\nWird eine Ausgabetext-ID angegeben, wird nur dieser Ausgabetext gelöscht, andernfalls das gesamte Kommando. Die IDs und Ersteller können mithilfe von '!cmd info <Kommando-Name>' angezeigt werden.\n\nNur der ursprüngliche Ersteller eines Benutzer-Kommandos oder Moderatoren können ein Kommando und alle Ausgabetexte löschen, die Ersteller einzelner Ausgabetexte nur ihre jeweils eigenen.",
+        "help_alias": "Fügt ein Alias zu einem Benutzer-Kommando hinzu.",
+        "usage_alias": "<Kommando> <Alias>",
+        "desc_alias": "Fügt ein Alias zu einem Benutzer-Kommando hinzu. Dieses Kommando kann ab dann auch mit dem Alias angesteuert werden. Ohne Argumente listet dieses Kommando alle Benutzer-Kommandos auf, die ein Alias besitzen.",
+        "help_aliasclear": "Entfernt alle Alias von einem Benutzer-Kommando.",
+        "usage_aliasclear": "<Kommando>",
+        "desc_aliasclear": "Entfernt alle Alias von einem Benutzer-Komando."
     }
 }
