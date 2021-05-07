@@ -17,9 +17,10 @@
         "raw_prefix": "{}{} (Creator: {}, Total output textes: {})\n",
         "raw_text": "#{}: {} (Author: {})",
         "search_prefix": "Search results:",
+
+        "Errors": "",
         "search_empty": "Nothing found!",
         "text_id_not_positive": "The ID of a command text must be a positive number.",
-        "text_id_not_exists": "A command text with the given ID doesn't exists.",
         "del_perm_missing": "Only the original command creator or admins can delete commands or its texts.",
         "text_id_not_found": "An output text with that ID doesn't exist.",
         "no_mention_allowed": "No mentions allowed as command name.",
@@ -29,6 +30,7 @@
         "alias_too_many_args": "Too many arguments.",
         "alias_not_enough_args": "Not enough arguments.",
 
+        "Help": "",
         "help_cmd": "Creates and manages custom commands.",
         "desc_cmd": "Adds, list or removes a custom command. Custom commands can be managed at any time. To use a custom command, the message must start with the setted prefix, which can be returned using '!cmd prefix'.\nMore info about adding commands, see '!help cmd add'.",
         "help_cmd_list_prefix": "Commands:",
