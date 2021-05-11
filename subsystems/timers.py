@@ -135,7 +135,11 @@ class Mothership(BaseSubsystem, Thread):
         :param td: Timedict that specifies the execution schedule
         :param data: Opaque object that is set as job.data
         :param repeat: If set to False, the job runs only once.
+        :raises RuntimeError: raised if td is in the past
         """
+        td = normalize_td(td)
+        if next_occurence(td) is None:
+            raise RuntimeError("td {} is in the past".format(td))
         job = Job(self, td, coro, data=data, repeat=repeat)
         self.logger.info("Scheduling %s", job)
         self._to_register.append(job)
