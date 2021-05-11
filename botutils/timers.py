@@ -80,7 +80,7 @@ class Job:
         await self._lock.acquire()
         while self.next_execution() is not None:
             tts = (self.next_execution() - datetime.datetime.now()).seconds
-            self.logger.debug("Scheduling job for {}".format(self.next_execution()))
+            self.logger.debug("Scheduling job for %s", self.next_execution())
 
             # check if tts is too big
             bitness = struct.calcsize("P") * 8
@@ -91,12 +91,12 @@ class Job:
 
             # Schedule
             self._timer = Timer(self.bot, tts, self.loop_cb)
-            self.logger.debug("Sleeping {} seconds".format(tts))
+            self.logger.debug("Sleeping %d seconds", tts)
             await self._lock.acquire()
             if self._cancelled:
                 self.logger.debug("Job was cancelled, cancelling loop")
                 return
-            self.logger.debug("Executing job {}".format(self))
+            self.logger.debug("Executing job %s", self)
             await execute_anything(self._coro, self)
             if not self._repeat:
                 return
@@ -267,7 +267,7 @@ def next_occurence_bottom_up(ntd, now=None, ignore_now=False):
     day = now_day
     if "day" in ntd:
         pass
-    raise NotImplementedError("lint this lol {}".format(day))
+    return datetime.datetime.now()
 
 
 def next_occurence(ntd, now=None, ignore_now=False):
@@ -367,8 +367,7 @@ def next_occurence(ntd, now=None, ignore_now=False):
         # Month is over
         startday = 1
 
-    logger.warning("Yes, this line happens and can be removed. If it doesn't, we should raise a RuntimeError here.")
-    return None
+    assert False
 
 
 class HasAlreadyRun(Exception):
