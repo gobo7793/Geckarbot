@@ -7,7 +7,7 @@ from typing import List
 from base import BaseSubsystem, BasePlugin
 from botutils import restclient
 from botutils.converters import get_plugin_by_name
-from data import Storage, Lang
+from data import Storage, Lang, Config
 from subsystems import timers
 from subsystems.timers import Job
 
@@ -226,7 +226,13 @@ class TeamnameConverter:
             teamnamedict.store(self.liveticker)
 
     def _restore(self):
-        pass
+        data = Storage().get(self.liveticker, container='teamname')
+        for long_name, entry in data.items():
+            try:
+                self.add(long_name=long_name, short_name=entry['short'], abbr=entry['abbr'], emoji=entry['emoji'],
+                         other=entry['other'])
+            except ValueError:
+                continue
 
 class TableEntry:
     """
@@ -288,8 +294,8 @@ class MatchStub:
     def __init__(self, kickoff: datetime.datetime, home_team: str, away_team: str, home_team_id: str,
                  away_team_id: str):
         self.kickoff = kickoff
-        self.home_team = home_team
-        self.away_team = away_team
+        self.home_team = Config().bot.liveticker.teamname_converter.get(home_team, add_if_nonexist=True)
+        self.away_team = Config().bot.liveticker.teamname_converter.get(away_team, add_if_nonexist=True)
         self.home_team_id = home_team_id
         self.away_team_id = away_team_id
 
@@ -303,7 +309,7 @@ class MatchStub:
 
     def to_storage(self):
         """Transforms the data for the storage"""
-        return {self.home_team_id: self.home_team, self.away_team_id: self.away_team}
+        return {self.home_team_id: self.home_team.long_name, self.away_team_id: self.away_team.long_name}
 
 
 class Match(MatchStub):
@@ -942,7 +948,7 @@ class LeagueRegistration:
         if not kickoff:
             return
 
-        interval = 15
+        interval = 5
         offset = kickoff.minute % interval
         td = timers.timedict(minute=[x + offset for x in range(0, 60, interval)])
         match_timer = self.listener.bot.timers.schedule(coro=self.update_periodic_coros, td=td,

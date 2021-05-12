@@ -329,7 +329,7 @@ class Plugin(BasePlugin, name="Sport"):
             # Kickoff-Event
             match_msgs = []
             for match in event.matches:
-                match_msgs.append(f"{match.home_team} - {match.away_team}")
+                match_msgs.append(f"{match.home_team.long_name} - {match.away_team.long_name}")
             msgs = paginate(match_msgs,
                             prefix=Lang.lang(self, 'liveticker_prefix_kickoff', event.league,
                                              event.kickoff.strftime('%H:%M')))
@@ -343,13 +343,15 @@ class Plugin(BasePlugin, name="Sport"):
             match_msgs = []
             other_matches = []
             for match in event.matches:
-                match_msg = "{} | {} - {} | {}:{}".format(match.minute, match.home_team, match.away_team,
-                                                          *match.score.values())
                 events_msg = " / ".join(e.display() for e in match.new_events
                                         if PlayerEventEnum(type(e)).name in event_filter)
                 if events_msg:
+                    match_msg = "{} | {} - {} | {}:{}".format(match.minute, match.home_team.long_name,
+                                                              match.away_team.long_name, *match.score.values())
                     match_msgs.append("**{}**\n{}".format(match_msg, events_msg))
                 else:
+                    match_msg = "{0} - {1} | {3}:{4} ({2})".format(match.home_team.abbr, match.away_team.abbr,
+                                                                   match.minute, *match.score.values())
                     other_matches.append(match_msg)
             if other_matches:
                 match_msgs.append("**{}:** {}".format(Lang.lang(self, 'liveticker_unchanged'),
