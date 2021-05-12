@@ -401,15 +401,13 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
             await ctx.send(Lang.lang(self, 'team_not_found'))
             return
         if variant in long:
-            self.bot.liveticker.teamname_converter.update(team=saved_team.long_name, long_name=new_name,
-                                                          add_to_alt=True)
+            saved_team.update(long_name=new_name)
         elif variant in short:
-            self.bot.liveticker.teamname_converter.update(team=saved_team.long_name, short_name=new_name,
-                                                          add_to_alt=True)
+            saved_team.update(short_name=new_name)
         elif variant in abbr:
-            self.bot.liveticker.teamname_converter.update(team=saved_team.long_name, abbr=new_name)
+            saved_team.update(abbr=new_name)
         elif variant in emoji:
-            self.bot.liveticker.teamname_converter.update(team=saved_team.long_name, emoji=new_name)
+            saved_team.update(emoji=new_name)
         else:
             await ctx.send(Lang.lang(self, 'teamname_set_variant_invalid', long + short + abbr + emoji))
             return
