@@ -392,13 +392,13 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
         short = "short", "kurz"
         abbr = "abbr", "abbreviation", "abk", "abk.", "abkürzung"
         emoji = "emoji", "wappen"
-        saved_team = self.bot.liveticker.teamname_converter.get(new_name)
-        if saved_team:
-            await ctx.send(Lang.lang(self, 'teamname_set_duplicate', new_name, saved_team.long_name))
-            return
         saved_team = self.bot.liveticker.teamname_converter.get(team)
+        saved_team_new = self.bot.liveticker.teamname_converter.get(new_name)
         if not saved_team:
             await ctx.send(Lang.lang(self, 'team_not_found'))
+            return
+        if saved_team_new and saved_team_new != saved_team:
+            await ctx.send(Lang.lang(self, 'teamname_set_duplicate', new_name, saved_team.long_name))
             return
         if variant in long:
             saved_team.update(long_name=new_name)
