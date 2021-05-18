@@ -242,7 +242,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             return
         if matchday is None:
             matchday = Storage().get(self)['matchday']
-        matchday %= 17
+        matchday = (matchday - 1) % 17 + 1
         if matchday not in range(1, 18):
             await add_reaction(ctx.message, Lang.CMDERROR)
             await ctx.send(Lang.lang(self, 'matchday_out_of_range'))
