@@ -15,6 +15,7 @@ from botutils.utils import add_reaction
 from data import Config, Lang
 from subsystems.helpsys import DefaultCategories
 from subsystems.ignoring import IgnoreEditResult, IgnoreType
+from subsystems.liveticker import TeamnameDict
 
 
 class Plugin(BasePlugin, name="Bot Management Commands"):
@@ -362,10 +363,10 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
         if final_msg is not None:
             await ctx.send(final_msg)
 
-    @commands.group(name="teamname", usage="<team> | set <variant> <team> <new_name>")
-    async def cmd_teamname_info(self, ctx, team: str, set_variant=None, set_team=None, set_new_name=None):
-        if team == "set":
-            await ctx.invoke(self.bot.get_command('teamname set'), set_variant, set_team, set_new_name)
+    @commands.group(name="teamname")
+    async def cmd_teamname_info(self, ctx, team: str, *args):
+        if team in ("set", "add", "del", "remove"):
+            await ctx.invoke(self.bot.get_command(f'teamname {team}'), *args)
             return
         teamname_dict = self.bot.liveticker.teamname_converter.get(team)
         if not teamname_dict:
@@ -412,6 +413,25 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
             await ctx.send(Lang.lang(self, 'teamname_set_variant_invalid', long + short + abbr + emoji))
             return
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
+
+    @cmd_teamname_info.command(name="add")
+    async def cmd_teamname_add(self, ctx, long_name: str, short_name: str = None, abbr: str = None, emoji: str = None):
+        try:
+            teamnamedict = self.bot.liveticker.teamname_converter.add(long_name, short_name, abbr, emoji)
+        except ValueError:
+            await add_reaction(ctx.message, Lang.CMDERROR)
+            return
+        else:
+            await ctx.send(Lang.lang(self, 'teamname_added', teamnamedict.long_name))
+
+    @cmd_teamname_info.command(name="del", alias="remove")
+    async def cmd_teamname_del(self, ctx, *_teamname: str):
+        teamname = " ".join(_teamname)
+        teamnamedict: TeamnameDict = self.bot.liveticker.teamname_converter.get(teamname)
+        if not teamnamedict:
+            await add_reaction(ctx.message, Lang.CMDERROR)
+            await ctx.send(Lang.lang(self, 'team_not_found'))
+        teamnamedict.remove(teamname)
 
     def _get_full_cmd_name(self, command):
         """

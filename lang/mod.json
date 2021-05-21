@@ -71,6 +71,7 @@
         "teamname_other": "Other",
         "teamname_set_variant_invalid": "Variant must be one of the following: {}",
         "teamname_set_duplicate": "`{}` is already existent for the team of {}.",
+        "teamname_added": "Names added. ({})",
 
         "#3": "ignore",
         "nothing_blocked": "No users or commands blocked.",
@@ -175,6 +176,7 @@
         "teamname_other": "Weitere",
         "teamname_set_variant_invalid": "Variante muss eine der folgenden sein: {}",
         "teamname_set_duplicate": "`{}` ist bereits für einen anderen Verein ({}) eingespeichert.",
+        "teamname_added": "Namen zum Verein ({}) hinzugefügt",
 
         "#3": "ignore",
         "nothing_blocked": "Keine User oder Kommandos blockiert.",
