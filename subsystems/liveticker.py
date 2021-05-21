@@ -98,8 +98,13 @@ class TeamnameDict:
     def update(self, long_name: str = None, short_name: str = None, abbr: str = None, emoji: str = None):
         self._converter.update(self, long_name, short_name, abbr, emoji)
 
-    def remove(self):
-        self._converter.remove(self)
+    def remove(self, other_str: str = None):
+        if other_str not in self:
+            return
+        if other_str and other_str in self.other:
+            self._converter.remove_other(self, other_str)
+        else:
+            self._converter.remove(self)
 
     def add_other(self, other: str):
         """Adds an alternative name for the team"""
@@ -203,6 +208,13 @@ class TeamnameConverter:
                 self._teamnames.pop(name)
         Storage().get(self.liveticker, container='teamname').pop(teamnamedict.long_name)
         Storage().save(self.liveticker, container='teamname')
+
+    def remove_other(self, teamnamedict: TeamnameDict, name: str):
+        """Removes an alternative from the team"""
+        if name in teamnamedict.other:
+            teamnamedict.other.remove(name)
+            self._teamnames.pop(name)
+            teamnamedict.store(self.liveticker)
 
     def update(self, teamnamedict: TeamnameDict, long_name: str = None, short_name: str = None, abbr: str = None,
                emoji: str = None):
