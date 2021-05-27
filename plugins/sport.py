@@ -312,6 +312,12 @@ class Plugin(BasePlugin, name="Sport"):
                 events.append(f"{Lang.EMOJI['mute']} {event}")
         await ctx.send("\n".join(events))
 
+    @cmd_liveticker.command(name="stop")
+    async def cmd_liveticker_stop(self, ctx):
+        for _, _, c_reg in list(self.bot.liveticker.search_coro(plugins=[self.get_name()])):
+            c_reg.deregister()
+        await add_reaction(ctx.message, Lang.CMDSUCCESS)
+
     async def _live_coro(self, event):
         sport = Config().bot.get_channel(Config().get(self)['sport_chan'])
         if isinstance(event, LivetickerKickoff):
