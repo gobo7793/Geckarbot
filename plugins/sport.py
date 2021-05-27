@@ -49,16 +49,6 @@ class Plugin(BasePlugin, name="Sport"):
     def command_usage(self, command):
         return helpstring_helper(self, command, "usage")
 
-    def command_description(self, command):
-        name = "_".join(command.qualified_name.split())
-        lang_name = "description_{}".format(name)
-        result = Lang.lang(self, lang_name)
-        if result != lang_name and name == "fußball":
-            result = Lang.lang(self, lang_name, ", ".join(Config().get(self)['leagues'].keys()))
-        else:
-            result = Lang.lang(self, "help_{}".format(name))
-        return result
-
     @commands.command(name="kicker")
     async def cmd_kicker_table(self, ctx):
         now = datetime.now()
@@ -187,7 +177,6 @@ class Plugin(BasePlugin, name="Sport"):
     @commands.group(name="liveticker")
     async def cmd_liveticker(self, ctx):
         if ctx.invoked_subcommand is None:
-            msg = []
             liveticker_regs = list(self.bot.liveticker.search_coro(plugins=[self.get_name()]))
             if liveticker_regs:
                 # Show dialog for actions
@@ -216,6 +205,7 @@ class Plugin(BasePlugin, name="Sport"):
                 self.logger.debug("ENDE")
             else:
                 # Start liveticker
+                msg = await ctx.send(Lang.lang(self, 'liveticker_start'))
                 for source, leagues in Config().get(self)['liveticker']['leagues'].items():
                     for league in leagues:
                         reg_ = await self.bot.liveticker.register(league=league, raw_source=source, plugin=self,
@@ -223,11 +213,10 @@ class Plugin(BasePlugin, name="Sport"):
                         next_exec = reg_.next_execution()
                         if next_exec:
                             next_exec = next_exec[0].strftime('%d.%m.%Y - %H:%M')
-                        msg.append("{} - Next: {}".format(league, next_exec))
+                        await msg.edit(content="{}\n{} - Next: {}".format(msg.content, league, next_exec))
                 Config().get(self)['sport_chan'] = ctx.channel.id
                 Config().save(self)
                 await add_reaction(ctx.message, Lang.CMDSUCCESS)
-                await ctx.send("\n".join(msg))
 
     async def _liveticker_reaction(self, event):
         if isinstance(event, ReactionAddedEvent) and event.member.id == event.data['user'] and not event.data['react']:
