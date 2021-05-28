@@ -75,6 +75,7 @@ class TeamnameDict:
     :param emoji: logo of the team or other emoji that should be displayed
     :param other: additional variants of the teams name
     """
+
     def __init__(self, converter, long_name: str, short_name: str = None, abbr: str = None, emoji: str = None,
                  other: list = None):
         if short_name is None:
@@ -245,6 +246,7 @@ class TeamnameConverter:
                          other=entry['other'])
             except ValueError:
                 continue
+
 
 class TableEntry:
     """
@@ -1232,17 +1234,22 @@ class Liveticker(BaseSubsystem):
         :param league: league key
         :param source: data source
         :return: current standings
+        :raises ValueError: if unable to retrieve any standings information
         """
         table = []
         if source == LTSource.ESPN:
             data = await restclient.Client("https://site.api.espn.com/apis/v2/sports").request(
                 f"/soccer/{league}/standings")
+            if 'children' not in data:
+                raise ValueError(f"Unable to retrieve any standings information for {league}")
             entries = data['children'][0]['standings']['entries']
             for entry in entries:
                 table.append(TableEntry(entry, LTSource.ESPN, self.teamname_converter))
         elif source == LTSource.OPENLIGADB:
             year = (datetime.datetime.today() - datetime.timedelta(days=180)).year
             data = await restclient.Client("https://www.openligadb.de/api").request(f"/getbltable/{league}/{year}")
+            if not data:
+                raise ValueError(f"Unable to retrieve any standings information for {league}")
             for i in range(len(data)):
                 data[i]['rank'] = i + 1
                 table.append(TableEntry(data[i], LTSource.OPENLIGADB, self.teamname_converter))
