@@ -138,13 +138,17 @@ class Plugin(BasePlugin, name="Sport"):
     async def cmd_buli2_livescores(self, ctx, allmatches=None):
         await ctx.invoke(self.bot.get_command('fußball'), 'bl2', allmatches)
 
+    @commands.command(name="table", alias="tabelle")
+    async def cmd_table(self, ctx, league: str, raw_source: str = "espn"):
+        table = [x.display() for x in await self.bot.liveticker.get_standings(league, LTSource(raw_source))]
+        embed = discord.Embed(title="Tabelle {}".format(league))
+        embed.add_field(name=":trophy: 1", value="\n".join(table[:len(table) // 2]))
+        embed.add_field(name=":coffin: 2", value="\n".join(table[len(table) // 2:]))
+        await ctx.send(embed=embed)
+
     @commands.command(name="bulitable")
     async def cmd_buli_table(self, ctx):
-        table = [x.display() for x in await self.bot.liveticker.get_standings('ger.1', LTSource.ESPN)]
-        embed = discord.Embed(title="Bundesliga")
-        embed.add_field(name=":trophy:", value="\n".join(table[:len(table)//2]))
-        embed.add_field(name=":coffin:", value="\n".join(table[len(table)//2:]))
-        await ctx.send(embed=embed)
+        await ctx.invoke(self.bot.get_command('table'), 'ger.1', 'espn')
 
     @commands.command(name="matches")
     async def cmd_matches_24h(self, ctx):
