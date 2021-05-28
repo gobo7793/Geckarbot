@@ -259,6 +259,9 @@ class Plugin(BasePlugin, name="Sport"):
                     Config().get(self)['liveticker']['leagues'][source] = []
                 Config().get(self)['liveticker']['leagues'][source].append(league)
                 Config().save(self)
+            if list(self.bot.liveticker.search_coro(plugins=[self.get_name()])):
+                await self.bot.liveticker.register(league=league, raw_source=source, plugin=self,
+                                                   coro=self._live_coro, periodic=True)
             await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
     @cmd_liveticker.command(name="del")
@@ -271,6 +274,7 @@ class Plugin(BasePlugin, name="Sport"):
             for _, _, c_reg in self.bot.liveticker.search_coro(leagues=[league], sources=[LTSource(source)],
                                                                plugins=[self.get_name()]):
                 c_reg.deregister()
+                break
             await add_reaction(ctx.message, Lang.CMDSUCCESS)
         else:
             await add_reaction(ctx.message, Lang.CMDNOCHANGE)
