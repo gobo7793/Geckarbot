@@ -147,7 +147,7 @@ class TeamnameConverter:
         self._restore()
 
     def get(self, team: str, add_if_nonexist: bool = False):
-        teamnamedict = self._teamnames.get(team)
+        teamnamedict = self._teamnames.get(team.lower())
         if teamnamedict is None and add_if_nonexist:
             return self.add(team)
         return teamnamedict
@@ -177,9 +177,9 @@ class TeamnameConverter:
             else:
                 # Append to existing long
                 for name in (short_name, abbr, *other):
-                    if name not in self._teamnames:
+                    if name.lower() not in self._teamnames:
                         existing_long.add_other(name)
-                        self._teamnames[name] = existing_long
+                        self._teamnames[name.lower()] = existing_long
                 existing_long.store(self.liveticker)
                 return existing_long
         if existing_short:
@@ -188,17 +188,17 @@ class TeamnameConverter:
             else:
                 # Append to existing short
                 for name in (long_name, abbr, *other):
-                    if name not in self._teamnames:
+                    if name.lower() not in self._teamnames:
                         existing_short.add_other(name)
-                        self._teamnames[name] = existing_short
+                        self._teamnames[name.lower()] = existing_short
                 existing_short.store(self.liveticker)
                 return existing_short
         # Add new
         teamnamedict = TeamnameDict(self, long_name, short_name, abbr, emoji, other)
-        self._teamnames[long_name] = teamnamedict
-        self._teamnames[short_name] = teamnamedict
+        self._teamnames[long_name.lower()] = teamnamedict
+        self._teamnames[short_name.lower()] = teamnamedict
         for name in (abbr, *other):
-            self._teamnames.setdefault(name, teamnamedict)
+            self._teamnames.setdefault(name.lower(), teamnamedict)
         teamnamedict.store(self.liveticker)
         return teamnamedict
 
@@ -206,7 +206,7 @@ class TeamnameConverter:
         """Removes a team from the converter"""
         for name in teamnamedict:
             if self.get(name) == teamnamedict:
-                self._teamnames.pop(name)
+                self._teamnames.pop(name.lower())
         Storage().get(self.liveticker, container='teamname').pop(teamnamedict.long_name)
         Storage().save(self.liveticker, container='teamname')
 
@@ -214,7 +214,8 @@ class TeamnameConverter:
         """Removes an alternative from the team"""
         if name in teamnamedict.other:
             teamnamedict.other.remove(name)
-            self._teamnames.pop(name)
+            if name.lower() in self._teamnames:
+                self._teamnames.pop(name.lower())
             teamnamedict.store(self.liveticker)
 
     def update(self, teamnamedict: TeamnameDict, long_name: str = None, short_name: str = None, abbr: str = None,
@@ -235,15 +236,15 @@ class TeamnameConverter:
             # Update failed, reenter teamnamedict
             for name in teamnamedict:
                 if not self.get(name):
-                    self._teamnames[name] = teamnamedict
+                    self._teamnames[name.lower()] = teamnamedict
             teamnamedict.store(self.liveticker)
 
     def _restore(self):
         data = Storage().get(self.liveticker, container='teamname')
         for long_name, entry in data.items():
             try:
-                self.add(long_name=long_name, short_name=entry['short'], abbr=entry['abbr'], emoji=entry['emoji'],
-                         other=entry['other'])
+                self.add(long_name=str(long_name), short_name=str(entry['short']), abbr=str(entry['abbr']),
+                         emoji=str(entry['emoji']), other=[str(x) for x in entry['other']])
             except ValueError:
                 continue
 
