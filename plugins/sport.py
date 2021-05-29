@@ -102,8 +102,13 @@ class Plugin(BasePlugin, name="Sport"):
                 return
 
         if source == LTSource.OPENLIGADB:
-            raw_matches = await restclient.Client("https://www.openligadb.de/api").request(f"/getmatchdata/{league}")
-            matches = [Match.from_openligadb(m) for m in raw_matches]
+            try:
+                raw_matches = await restclient.Client("https://www.openligadb.de/api")\
+                    .request(f"/getmatchdata/{league}")
+                matches = [Match.from_openligadb(m) for m in raw_matches]
+            except (ValueError, AttributeError):
+                await add_reaction(ctx.message, Lang.CMDERROR)
+                return
         elif source == LTSource.ESPN:
             raw_matches = await restclient.Client("http://site.api.espn.com/apis/site/v2/sports").request(
                 f"/soccer/{league}/scoreboard")
@@ -111,6 +116,9 @@ class Plugin(BasePlugin, name="Sport"):
         else:
             raise ValueError('Invalid source. Should not happen.')
 
+        if len(matches) == 0:
+            await add_reaction(ctx.message, Lang.CMDERROR)
+            return
         finished = [m for m in matches if m.status == MatchStatus.COMPLETED]
         running = [m for m in matches if m.status == MatchStatus.RUNNING]
         upcoming = [m for m in matches if m.status == MatchStatus.UPCOMING]
