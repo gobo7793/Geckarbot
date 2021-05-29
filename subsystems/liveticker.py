@@ -115,8 +115,8 @@ class TeamnameDict:
     def table_display(self) -> str:
         """Returns string prepared for display in the table"""
         if len(self.short_name) > 12:
-            return f"{self.emoji} {self.short_name[:11]}\u2026"
-        return "{} {}{}".format(self.emoji, self.short_name, "\u2024" * (11 - len(self.short_name)))
+            return f"{self.emoji} `{self.short_name[:11]}\u2026`"
+        return "{} `{}{}`".format(self.emoji, self.short_name, " " * (11 - len(self.short_name)))
 
     def store(self, storage_path):
         """Saves this to the storage"""
@@ -291,8 +291,14 @@ class TableEntry:
             raise
 
     def display(self):
-        return f"{self.rank} | {self.team.table_display()} | {self.won}-{self.draw}-{self.lost} " \
-               f"| {self.goals}:{self.goals_against} | {self.points}"
+        if len(self.team.short_name) > 12:
+            team_str = f"{self.team.emoji} `{self.team.short_name[:11]}\u2026"
+        else:
+            team_str = f"{self.team.emoji} `{self.team.short_name:<12}"
+        goal_diff = self.goals - self.goals_against
+        sign = ["-", "±", "+"][(goal_diff > 0) - (goal_diff < 0) + 1]
+        return f"`{self.rank:2} `{team_str}|" \
+               f"{self.goals:2}:{self.goals_against:<2} ({sign}{abs(goal_diff):2})| {self.points:2}`"
 
 
 class MatchStub:
