@@ -149,8 +149,8 @@ class Plugin(BasePlugin, name="Sport"):
         else:
             embed = discord.Embed(title="Tabelle {}".format(league))
             if len(table) > 10:
-                embed.add_field(name=":trophy: 1", value="\n".join(table[:len(table) // 2]))
-                embed.add_field(name=":coffin: 2", value="\n".join(table[len(table) // 2:]))
+                embed.add_field(name=Lang.lang(self, 'table_top'), value="\n".join(table[:len(table) // 2]))
+                embed.add_field(name=Lang.lang(self, 'table_bottom'), value="\n".join(table[len(table) // 2:]))
             else:
                 embed.description = "\n".join(table)
             await ctx.send(embed=embed)

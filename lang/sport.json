@@ -22,6 +22,8 @@
         "liveticker_prefix_kickoff": "__**Liveticker - {} - Kickoff ({})**__\n",
         "liveticker_prefix_finished": "__**Liveticker - {} - Final whistle**__\n",
         "liveticker_unchanged": "Without changes",
+        "table_top": ":trophy: Top",
+        "table_bottom": ":coffin: Bottom",
         "err_invalid_src": "Sorry, but I don't recognize that source",
 
         "#2": "actually de strings",
@@ -85,6 +87,8 @@
         "liveticker_action_timeout": "Zeitüberschreitung, Aktionen werden nicht mehr angenommen.",
         "liveticker_channel_switched": "Liveticker wurde in den Kanal {} verschoben.",
         "liveticker_unchanged": "Unverändert",
+        "table_top": ":trophy: Obere Hälfte",
+        "table_bottom": ":coffin: Untere Hälfte",
         "err_invalid_src": "Diese Datenquelle kenne ich nicht."
     }
 }
