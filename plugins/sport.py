@@ -141,13 +141,18 @@ class Plugin(BasePlugin, name="Sport"):
     @commands.command(name="table", alias="tabelle")
     async def cmd_table(self, ctx, league: str, raw_source: str = "espn"):
         try:
-            table = [x.display() for x in await self.bot.liveticker.get_standings(league, LTSource(raw_source))]
+            table = await self.bot.liveticker.get_standings(league, LTSource(raw_source))
+            table.sort(key=lambda x: x.rank)
+            table = [x.display() for x in table]
         except ValueError:
             await add_reaction(ctx.message, Lang.CMDERROR)
         else:
             embed = discord.Embed(title="Tabelle {}".format(league))
-            embed.add_field(name=":trophy: 1", value="\n".join(table[:len(table) // 2]))
-            embed.add_field(name=":coffin: 2", value="\n".join(table[len(table) // 2:]))
+            if len(table) > 10:
+                embed.add_field(name=":trophy: 1", value="\n".join(table[:len(table) // 2]))
+                embed.add_field(name=":coffin: 2", value="\n".join(table[len(table) // 2:]))
+            else:
+                embed.description = "\n".join(table)
             await ctx.send(embed=embed)
 
     @commands.command(name="bulitable")
