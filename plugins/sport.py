@@ -12,7 +12,8 @@ from botutils.stringutils import paginate
 from botutils.utils import add_reaction, helpstring_helper
 from data import Lang, Config
 from subsystems.helpsys import DefaultCategories
-from subsystems.liveticker import LivetickerKickoff, LivetickerUpdate, LivetickerFinish, LTSource, PlayerEventEnum
+from subsystems.liveticker import LivetickerKickoff, LivetickerUpdate, LivetickerFinish, LTSource, PlayerEventEnum, \
+    Match, MatchStatus
 from subsystems.reactions import ReactionAddedEvent
 
 
@@ -30,7 +31,7 @@ class Plugin(BasePlugin, name="Sport"):
         return {
             'cfg_version': 1,
             'sport_chan': 0,
-            'leagues': {"bl1": ["bl", "1bl", "buli"], "bl2": ["2bl"], "bl3": ["3fl"], "uefanl": []},
+            'league_aliases': {},
             'liveticker': {
                 'leagues': {"oldb": [], "espn": []},
                 'tracked_events': ['GOAL', 'YELLOWCARD', 'REDCARD']
@@ -81,47 +82,53 @@ class Plugin(BasePlugin, name="Sport"):
         await ctx.send(Lang.lang(self, 'tippspiel_output'))
 
     @commands.command(name="fußball", aliases=["fusselball"])
-    async def cmd_soccer_livescores(self, ctx, league, allmatches=None):
-        if league not in Config().get(self)['leagues']:
-            for leag, aliases in Config().get(self)['leagues'].items():
-                if league in aliases:
-                    league = leag
-                    break
-            else:
-                await ctx.send(Lang.lang(self, 'league_not_found', ", ".join(Config().get(self)['leagues'])))
-                return
-        matches = restclient.Client("https://www.openligadb.de/api").make_request("/getmatchdata/{}".format(league))
-        finished, running, upcoming = [], [], []
-        for match in matches:
-            if match.get('MatchIsFinished', False):
-                finished.append(match)
-            else:
-                try:
-                    time = datetime.strptime(match.get('MatchDateTime'), "%Y-%m-%dT%H:%M:%S")
-                except (ValueError, TypeError):
-                    pass
+    async def cmd_soccer_livescores(self, ctx, league: str, raw_source: str = None, allmatches=None):
+        source = None
+        if raw_source:
+            try:
+                source = LTSource(raw_source)
+            except ValueError:
+                if allmatches is None:
+                    allmatches = True
                 else:
-                    if time < datetime.now():
-                        running.append(match)
-                    else:
-                        upcoming.append(match)
+                    await add_reaction(ctx.message, Lang.CMDERROR)
+                    return
+        if source is None:
+            try:
+                league, raw_source = Config().get(self)['league_aliases'].get(league, [])
+                source = LTSource(raw_source)
+            except ValueError:
+                await add_reaction(ctx.message, Lang.CMDERROR)
+                return
 
-        def match_msg(m):
-            dt = datetime.strptime(m.get('MatchDateTime'), "%Y-%m-%dT%H:%M:%S")
-            weekday = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'][dt.weekday()]
-            time_ = dt.strftime("%H:%M")
-            team_h = m.get('Team1', {}).get('TeamName')
-            team_a = m.get('Team2', {}).get('TeamName')
-            goals = m.get('Goals', [])
-            goals_h = max(0, *(x.get('ScoreTeam1', 0) for x in goals)) if len(goals) else ("–" if m in upcoming else 0)
-            goals_a = max(0, *(x.get('ScoreTeam2', 0) for x in goals)) if len(goals) else ("–" if m in upcoming else 0)
+        if source == LTSource.OPENLIGADB:
+            raw_matches = await restclient.Client("https://www.openligadb.de/api").request(f"/getmatchdata/{league}")
+            matches = [Match.from_openligadb(m) for m in raw_matches]
+        elif source == LTSource.ESPN:
+            raw_matches = await restclient.Client("http://site.api.espn.com/apis/site/v2/sports").request(
+                f"/soccer/{league}/scoreboard")
+            matches = [Match.from_espn(m) for m in raw_matches.get('events', [])]
+        else:
+            raise ValueError('Invalid source. Should not happen.')
+
+        finished = [m for m in matches if m.status == MatchStatus.COMPLETED]
+        running = [m for m in matches if m.status == MatchStatus.RUNNING]
+        upcoming = [m for m in matches if m.status == MatchStatus.UPCOMING]
+
+        def match_msg(m: Match):
+            weekday = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'][m.kickoff.weekday()]
+            time_ = m.kickoff.strftime("%H:%M")
+            team_h = m.home_team.long_name
+            team_a = m.away_team.long_name
+            goals_h = m.score[m.home_team_id]
+            goals_a = m.score[m.away_team_id]
             return "{}. {} | {} [{}:{}] {}".format(weekday, time_, team_h, goals_h, goals_a, team_a)
 
         embed = discord.Embed(title=Lang.lang(self, 'soccer_title', league))
         running_msg = "\n".join(match_msg(m) for m in running)
         if running_msg:
             embed.description = "\n".join(match_msg(m) for m in running)
-        if allmatches in ["all", "full"] or not running_msg:
+        if allmatches or not running_msg:
             finished_msg = "\n".join(match_msg(m) for m in finished)
             upcoming_msg = "\n".join(match_msg(m) for m in upcoming)
             if finished_msg:
@@ -132,11 +139,11 @@ class Plugin(BasePlugin, name="Sport"):
 
     @commands.command(name="buli")
     async def cmd_buli_livescores(self, ctx, allmatches=None):
-        await ctx.invoke(self.bot.get_command('fußball'), 'bl1', allmatches)
+        await ctx.invoke(self.bot.get_command('fußball'), 'ger.1', 'espn', allmatches)
 
     @commands.command(name="buli2")
     async def cmd_buli2_livescores(self, ctx, allmatches=None):
-        await ctx.invoke(self.bot.get_command('fußball'), 'bl2', allmatches)
+        await ctx.invoke(self.bot.get_command('fußball'), 'ger.2', 'espn', allmatches)
 
     @commands.command(name="table", alias="tabelle")
     async def cmd_table(self, ctx, league: str, raw_source: str = "espn"):
