@@ -29,9 +29,9 @@ class Plugin(BasePlugin, name="Sport"):
 
     def default_config(self):
         return {
-            'cfg_version': 1,
+            'cfg_version': 2,
             'sport_chan': 0,
-            'league_aliases': {},
+            'league_aliases': {"bl": ["ger.1", "espn"]},
             'liveticker': {
                 'leagues': {"oldb": [], "espn": []},
                 'tracked_events': ['GOAL', 'YELLOWCARD', 'REDCARD']
@@ -403,4 +403,15 @@ class Plugin(BasePlugin, name="Sport"):
                                                 'tracked_events': ['GOAL', 'YELLOWCARD', 'REDCARD']}
             del Config().get(self)['liveticker_leagues']
             Config().get(self)['cfg_version'] = 1
+            self.logger.debug("Updated config to version 1")
+        if Config().get(self).get('cfg_version', 0) < 2:
+            leagues = Config().get(self)['leagues']
+            league_aliases = {}
+            for k, aliases in leagues.items():
+                for v in aliases:
+                    league_aliases[v] = [k, "oldb"]
+            Config().get(self)['league_aliases'] = league_aliases
+            del Config().get(self)['leagues']
+            Config().get(self)['cfg_version'] = 2
+            self.logger.debug("Updated config to version 2")
         Config().save(self)
