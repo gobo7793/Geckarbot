@@ -165,7 +165,8 @@ class TeamnameConverter:
             return self.add(team)
         return teamnamedict
 
-    def add(self, long_name: str, short_name: str = None, abbr: str = None, emoji: str = None, other: list = None):
+    def add(self, long_name: str, short_name: str = None, abbr: str = None, emoji: str = None, other: list = None) -> \
+            TeamnameDict:
         """
         Adds a new data set for a team to the converter.
 
@@ -175,7 +176,6 @@ class TeamnameConverter:
         :param emoji: logo of the team or other emoji that should be displayed
         :param other: additional variants of the teams name
         :return: Added TeamnameDict or existing TeamnameDict the name variants were added to
-        :rtype: TeamnameDict
         :raises ValueError: if long and short name already exists but to different teams
         """
         if short_name is None:
@@ -241,7 +241,7 @@ class TeamnameConverter:
             teamnamedict.store(self.liveticker)
 
     def update(self, teamnamedict: TeamnameDict, long_name: str = None, short_name: str = None, abbr: str = None,
-               emoji: str = None):
+               emoji: str = None) -> bool:
         """
         Updates name variants or emoji of the TeamnameDict
 
@@ -251,7 +251,6 @@ class TeamnameConverter:
         :param abbr: new abbreviation
         :param emoji: new emoji
         :return: succession
-        :rtype: bool
         """
         other = teamnamedict.other
         teamnamedict.remove()
@@ -1171,7 +1170,7 @@ class Liveticker(BaseSubsystem):
         if reg.league in self.registrations[reg.source]:
             self.registrations[reg.source].pop(reg.league)
 
-    def search_league(self, sources=None, leagues=None):
+    def search_league(self, sources=None, leagues=None) -> Generator[LeagueRegistration, None, None]:
         """
         Searches all LeagueRegistrations fulfilling the requirements
 
@@ -1180,7 +1179,6 @@ class Liveticker(BaseSubsystem):
         :param leagues: list of league keys
         :type leagues: List[str]
         :return: LeagueRegistration
-        :rtype: Generator[LeagueRegistration, None, None]
         """
         if sources is None:
             sources = []
@@ -1195,7 +1193,8 @@ class Liveticker(BaseSubsystem):
                     continue
                 yield l_reg
 
-    def search_coro(self, plugins: list = None, sources: list = None, leagues: list = None):
+    def search_coro(self, plugins: list = None, sources: list = None, leagues: list = None) -> \
+            Generator[Tuple[LTSource, str, CoroRegistration], None, None]:
         """
         Searches all CoroRegistrations fulfilling the requirements
 
@@ -1206,7 +1205,6 @@ class Liveticker(BaseSubsystem):
         :param leagues: list of league keys
         :type leagues: List[str]
         :return: source, league, coro-registration
-        :rtype: Generator[Tuple[LTSource, str, CoroRegistration], None, None]
         """
         if sources is None:
             sources = []
@@ -1272,14 +1270,13 @@ class Liveticker(BaseSubsystem):
         Storage().get(self)['next_semiweekly'] = until.strftime("%Y-%m-%d %H:%M")
         Storage().save(self)
 
-    async def get_standings(self, league: str, source: LTSource):
+    async def get_standings(self, league: str, source: LTSource) -> list:
         """
         Returns the current standings of that league
 
         :param league: league key
         :param source: data source
         :raises ValueError: if unable to retrieve any standings information
-        :rtype: list
         :return: current standings
         """
         table = []
