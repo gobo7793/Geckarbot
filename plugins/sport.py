@@ -13,7 +13,7 @@ from botutils.utils import add_reaction, helpstring_helper
 from data import Lang, Config
 from subsystems.helpsys import DefaultCategories
 from subsystems.liveticker import LivetickerKickoff, LivetickerUpdate, LivetickerFinish, LTSource, PlayerEventEnum, \
-    Match, MatchStatus
+    Match, MatchStatus, TeamnameDict
 from subsystems.reactions import ReactionAddedEvent
 
 
@@ -396,6 +396,72 @@ class Plugin(BasePlugin, name="Sport"):
                             prefix=Lang.lang(self, 'liveticker_prefix_finished', event.league))
             for msg in msgs:
                 await sport.send(msg)
+
+    @commands.group(name="teamname")
+    async def cmd_teamname(self, ctx):
+        if ctx.invoked_subcommand is None:
+            await ctx.send_help(self.cmd_teamname)
+
+    @cmd_teamname.command(name="info")
+    async def cmd_teamname_info(self, ctx, team: str):
+        teamname_dict = self.bot.liveticker.teamname_converter.get(team)
+        if not teamname_dict:
+            await ctx.send(Lang.lang(self, 'team_not_found'))
+        else:
+            embed = discord.Embed(title=f"{teamname_dict.emoji} {team}",
+                                  description=f"{Lang.lang(self, 'teamname_long')}: {teamname_dict.long_name}\n"
+                                              f"{Lang.lang(self, 'teamname_short')}: {teamname_dict.short_name}\n"
+                                              f"{Lang.lang(self, 'teamname_abbr')}: {teamname_dict.abbr}")
+            if teamname_dict.other:
+                embed.set_footer(text=f"{Lang.lang(self, 'teamname_other')}: {', '.join(teamname_dict.other)}")
+            await ctx.send(embed=embed)
+
+    @cmd_teamname.command(name="set")
+    async def cmd_teamname_set(self, ctx, variant: str, team: str, new_name: str):
+        variant = variant.lower()
+        long = "long", "lang"
+        short = "short", "kurz"
+        abbr = "abbr", "abbreviation", "abk", "abk.", "abkürzung"
+        emoji = "emoji", "wappen"
+        saved_team = self.bot.liveticker.teamname_converter.get(team)
+        saved_team_new = self.bot.liveticker.teamname_converter.get(new_name)
+        if not saved_team:
+            await ctx.send(Lang.lang(self, 'team_not_found'))
+            return
+        if saved_team_new and saved_team_new != saved_team:
+            await ctx.send(Lang.lang(self, 'teamname_set_duplicate', new_name, saved_team.long_name))
+            return
+        if variant in long:
+            saved_team.update(long_name=new_name)
+        elif variant in short:
+            saved_team.update(short_name=new_name)
+        elif variant in abbr:
+            saved_team.update(abbr=new_name)
+        elif variant in emoji:
+            saved_team.update(emoji=new_name)
+        else:
+            await ctx.send(Lang.lang(self, 'teamname_set_variant_invalid', long + short + abbr + emoji))
+            return
+        await add_reaction(ctx.message, Lang.CMDSUCCESS)
+
+    @cmd_teamname.command(name="add")
+    async def cmd_teamname_add(self, ctx, long_name: str, short_name: str = None, abbr: str = None, emoji: str = None):
+        try:
+            teamnamedict = self.bot.liveticker.teamname_converter.add(long_name, short_name, abbr, emoji)
+        except ValueError:
+            await add_reaction(ctx.message, Lang.CMDERROR)
+            return
+        else:
+            await ctx.send(Lang.lang(self, 'teamname_added', teamnamedict.long_name))
+
+    @cmd_teamname.command(name="del", alias="remove")
+    async def cmd_teamname_del(self, ctx, *_teamname: str):
+        teamname = " ".join(_teamname)
+        teamnamedict: TeamnameDict = self.bot.liveticker.teamname_converter.get(teamname)
+        if not teamnamedict:
+            await add_reaction(ctx.message, Lang.CMDERROR)
+            await ctx.send(Lang.lang(self, 'team_not_found'))
+        teamnamedict.remove(teamname)
 
     def _update_config(self):
         if Config().get(self).get('cfg_version', 0) < 1:

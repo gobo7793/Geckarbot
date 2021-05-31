@@ -10,6 +10,11 @@
         "help_matches": "Displays matches starting in the next 24 hours.",
         "help_liveticker": "Starts a liveticker for BL/2BL",
         "help_livegoals": "Updates the liveticker manually",
+        "help_teamname": "Manage teamnames of sport teams",
+        "help_teamname_info": "Show name variants for a team",
+        "help_teamname_set": "Update name variant for a team",
+        "help_teamname_add": "Add a new team",
+        "help_teamname_del": "Remove an entry",
 
         "#1": "",
         "soccer_title": "Soccer - {} - Live",
@@ -25,6 +30,14 @@
         "table_top": ":trophy: Top",
         "table_bottom": ":coffin: Bottom",
         "err_invalid_src": "Sorry, but I don't recognize that source",
+        "team_not_found": "Team not found.",
+        "teamname_long": "**Long**",
+        "teamname_short": "**Short**",
+        "teamname_abbr": "**Abbr.**",
+        "teamname_other": "Other",
+        "teamname_set_variant_invalid": "Variant must be one of the following: {}",
+        "teamname_set_duplicate": "`{}` is already existent for the team of {}.",
+        "teamname_added": "Names added. ({})",
 
         "#2": "actually de strings",
         "kicker_title": "Kicker.de - Links - Spieltage",
@@ -69,6 +82,11 @@
         "help_liveticker_toggle": "Kontrolliert die Ereignistypen, die im Liveticker angezeigt werden.",
         "description_liveticker_toggle": "Kontrolliert die Ereignistypen, die im Liveticker angezeigt werden. `!liveticker toggle list` für Übersicht.",
         "help_livegoals": "Updatet den Liveticker manuell.",
+        "help_teamname": "Verwaltet Namensvarianten von Sportvereinen",
+        "help_teamname_info": "Zeigt alle Varianten zu einem Team an",
+        "help_teamname_set": "Ändert eine Namensvariante",
+        "help_teamname_add": "Fügt Namensvarianten für einen neuen Verein hinzu",
+        "help_teamname_del": "Entfernt einen Verein",
 
         "soccer_title": "Fußball - {} - Live",
         "no_matches_24h": "In den nächsten 24 Stunden stehen keine Spiele an.",
@@ -89,6 +107,14 @@
         "liveticker_unchanged": "Unverändert",
         "table_top": ":trophy: Obere Hälfte",
         "table_bottom": ":coffin: Untere Hälfte",
-        "err_invalid_src": "Diese Datenquelle kenne ich nicht."
+        "err_invalid_src": "Diese Datenquelle kenne ich nicht.",
+        "team_not_found": "Team wurde nicht gefunden.",
+        "teamname_long": "**Lang**",
+        "teamname_short": "**Kurz**",
+        "teamname_abbr": "**Abk.**",
+        "teamname_other": "Weitere",
+        "teamname_set_variant_invalid": "Variante muss eine der folgenden sein: {}",
+        "teamname_set_duplicate": "`{}` ist bereits für einen anderen Verein ({}) eingespeichert.",
+        "teamname_added": "Namen zum Verein ({}) hinzugefügt"
     }
 }
