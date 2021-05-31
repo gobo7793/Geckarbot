@@ -17,6 +17,11 @@
         "help_plugin_load": "Load a plugin",
         "help_plugin_reload": "Reload a plugin",
         "help_plugin_available": "List available plugins",
+        "help_teamname": "Manage teamnames of sport teams",
+        "help_teamname_info": "Show name variants for a team",
+        "help_teamname_set": "Update name variant for a team",
+        "help_teamname_add": "Add a new team",
+        "help_teamname_del": "Remove an entry",
 
         "#1": "help descs",
         "desc_about": "Print the credits.",
@@ -122,6 +127,11 @@
         "help_plugin_load": "Lädt ein Plugin",
         "help_plugin_reload": "Lädt ein Plugin neu",
         "help_plugin_available": "Listet alle verfügbaren Plugins",
+        "help_teamname": "Verwaltet Namensvarianten von Sportvereinen",
+        "help_teamname_info": "Zeigt alle Varianten zu einem Team an",
+        "help_teamname_set": "Ändert eine Namensvariante",
+        "help_teamname_add": "Fügt Namensvarianten für einen neuen Verein ein",
+        "help_teamname_del": "Entfernt einen Verein",
 
         "#1": "help descs",
         "desc_about": "Zeigt die Credits an.",
