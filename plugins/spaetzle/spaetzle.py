@@ -115,15 +115,6 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
     def command_usage(self, command):
         return helpstring_helper(self, command, "usage")
 
-    def command_help_string(self, command):
-        return Lang.lang(self, "help_{}".format("_".join(command.qualified_name.split())))
-
-    def command_description(self, command):
-        name = "_".join(command.qualified_name.split())
-        lang_name = "description_{}".format(name)
-        result = Lang.lang(self, lang_name)
-        return result if result != lang_name else Lang.lang(self, "help_{}".format(name))
-
     def get_api_client(self):
         """Returns sheetsclient"""
         return sheetsclient.Client(self.bot, Config().get(self)['spaetzledoc_id'])
@@ -189,11 +180,8 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             if matchday:
                 match_list = restclient.Client("https://www.openligadb.de/api").make_request(
                     "/getmatchdata/bl1/2020/{}".format(str(matchday)))
-                regs = self.bot.liveticker.search(plugin=self)
-                for src in regs.values():
-                    for leag in src.values():
-                        for reg in leag:
-                            reg.deregister()
+                for _, _, c_reg in self.bot.liveticker.search_coro(plugins=[self.get_name()]):
+                    c_reg.unload()
             else:
                 reg = await self._start_liveticker()
                 matchday = reg.league_reg.matchday()
@@ -242,7 +230,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             return
         if matchday is None:
             matchday = Storage().get(self)['matchday']
-        matchday %= 17
+        matchday = (matchday - 1) % 17 + 1
         if matchday not in range(1, 18):
             await add_reaction(ctx.message, Lang.CMDERROR)
             await ctx.send(Lang.lang(self, 'matchday_out_of_range'))
@@ -488,7 +476,8 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
 
     async def _start_liveticker(self):
         """Registers a liveticker"""
-        return await self.bot.liveticker.register(league="bl1", plugin=self, coro=self._liveticker_coro, periodic=True)
+        return await self.bot.liveticker.register(league="bl1", raw_source="oldb", plugin=self,
+                                                  coro=self._liveticker_coro, periodic=True)
 
     async def _liveticker_coro(self, matches, *_):
         self.logger.debug("Spätzle score update started.")
