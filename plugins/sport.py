@@ -337,7 +337,7 @@ class Plugin(BasePlugin, name="Sport"):
 
     async def cmd_liveticker_toggle_list(self, ctx):
         events = []
-        for event in PlayerEventEnum.__members__.keys():
+        for event in PlayerEventEnum.__members__:
             if event in Config().get(self)['liveticker']['tracked_events']:
                 events.append(f"{Lang.EMOJI['unmute']} {event}")
             else:

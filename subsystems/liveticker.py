@@ -2,7 +2,7 @@ import asyncio
 import datetime
 import logging
 from enum import Enum
-from typing import List
+from typing import List, Generator, Tuple, Optional
 
 from base import BaseSubsystem, BasePlugin
 from botutils import restclient
@@ -97,9 +97,15 @@ class TeamnameDict:
         self.other = other
 
     def update(self, long_name: str = None, short_name: str = None, abbr: str = None, emoji: str = None):
+        """Updates name variants or emoji of the TeamnameDict"""
         self._converter.update(self, long_name, short_name, abbr, emoji)
 
     def remove(self, other_str: str = None):
+        """
+        Removes an alternative or the whole TeamnameDict
+
+        :param other_str: team name alternative
+        """
         if other_str and other_str not in self:
             return
         if other_str and other_str in self.other:
@@ -146,7 +152,14 @@ class TeamnameConverter:
         self._teamnames = {}
         self._restore()
 
-    def get(self, team: str, add_if_nonexist: bool = False):
+    def get(self, team: str, add_if_nonexist: bool = False) -> Optional[TeamnameDict]:
+        """
+        Returns the saved TeamnameDict for the given team name or adds a new entry if wanted
+
+        :param team: name of the team
+        :param add_if_nonexist: if the team name is unknown yet and this is true, a new entry will be added
+        :return: associated TeamnameDict
+        """
         teamnamedict = self._teamnames.get(team.lower())
         if teamnamedict is None and add_if_nonexist:
             return self.add(team)
@@ -229,6 +242,17 @@ class TeamnameConverter:
 
     def update(self, teamnamedict: TeamnameDict, long_name: str = None, short_name: str = None, abbr: str = None,
                emoji: str = None):
+        """
+        Updates name variants or emoji of the TeamnameDict
+
+        :param teamnamedict: TeamnameDict to update
+        :param long_name: new long name
+        :param short_name: new short name
+        :param abbr: new abbreviation
+        :param emoji: new emoji
+        :return: succession
+        :rtype: bool
+        """
         other = teamnamedict.other
         teamnamedict.remove()
         if long_name:
@@ -247,6 +271,8 @@ class TeamnameConverter:
                 if not self.get(name):
                     self._teamnames[name.lower()] = teamnamedict
             teamnamedict.store(self.liveticker)
+            return False
+        return True
 
     def _restore(self):
         data = Storage().get(self.liveticker, container='teamname')
@@ -297,9 +323,10 @@ class TableEntry:
             self.points = stats.get('points')
             self.rank_change = stats.get('rankChange')
         else:
-            raise
+            raise ValueError('Invalid source')
 
-    def display(self):
+    def display(self) -> str:
+        """Returns the display string for use in an embed"""
         if len(self.team.short_name) > 12:
             team_str = f"{self.team.emoji} `{self.team.short_name[:11]}\u2026"
         else:
@@ -1148,11 +1175,12 @@ class Liveticker(BaseSubsystem):
         """
         Searches all LeagueRegistrations fulfilling the requirements
 
-        :param sources:
+        :param sources: list of sources
         :type sources: List[LTSource]
-        :param leagues:
+        :param leagues: list of league keys
         :type leagues: List[str]
-        :return:
+        :return: LeagueRegistration
+        :rtype: Generator[LeagueRegistration, None, None]
         """
         if sources is None:
             sources = []
@@ -1167,17 +1195,18 @@ class Liveticker(BaseSubsystem):
                     continue
                 yield l_reg
 
-    def search_coro(self, plugins=None, sources=None, leagues=None):
+    def search_coro(self, plugins: list = None, sources: list = None, leagues: list = None):
         """
         Searches all CoroRegistrations fulfilling the requirements
 
-        :param plugins:
+        :param plugins: list of plugin names
         :type plugins: List[str]
-        :param sources:
+        :param sources: list of sources
         :type sources: List[LTSource]
-        :param leagues:
+        :param leagues: list of league keys
         :type leagues: List[str]
-        :return:
+        :return: source, league, coro-registration
+        :rtype: Generator[Tuple[LTSource, str, CoroRegistration], None, None]
         """
         if sources is None:
             sources = []
@@ -1249,8 +1278,9 @@ class Liveticker(BaseSubsystem):
 
         :param league: league key
         :param source: data source
-        :return: current standings
         :raises ValueError: if unable to retrieve any standings information
+        :rtype: list
+        :return: current standings
         """
         table = []
         if source == LTSource.ESPN:
