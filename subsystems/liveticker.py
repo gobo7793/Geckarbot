@@ -100,7 +100,7 @@ class TeamnameDict:
         self._converter.update(self, long_name, short_name, abbr, emoji)
 
     def remove(self, other_str: str = None):
-        if other_str not in self:
+        if other_str and other_str not in self:
             return
         if other_str and other_str in self.other:
             self._converter.remove_other(self, other_str)
@@ -229,8 +229,8 @@ class TeamnameConverter:
 
     def update(self, teamnamedict: TeamnameDict, long_name: str = None, short_name: str = None, abbr: str = None,
                emoji: str = None):
-        teamnamedict.remove()
         other = teamnamedict.other
+        teamnamedict.remove()
         if long_name:
             other.append(teamnamedict.long_name)
         if short_name:

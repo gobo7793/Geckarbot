@@ -130,7 +130,7 @@
         "help_teamname": "Verwaltet Namensvarianten von Sportvereinen",
         "help_teamname_info": "Zeigt alle Varianten zu einem Team an",
         "help_teamname_set": "Ändert eine Namensvariante",
-        "help_teamname_add": "Fügt Namensvarianten für einen neuen Verein ein",
+        "help_teamname_add": "Fügt Namensvarianten für einen neuen Verein hinzu",
         "help_teamname_del": "Entfernt einen Verein",
 
         "#1": "help descs",
