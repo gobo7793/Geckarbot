@@ -165,10 +165,19 @@ class TeamnameConverter:
         :rtype: TeamnameDict
         :raises ValueError: if long and short name already exists but to different teams
         """
+        if short_name is None:
+            short_name = long_name[:15]
+        if abbr is None:
+            abbr = short_name[:5].upper()
+        if emoji is None:
+            try:
+                emoji = Lang.EMOJI['lettermap'][ord(abbr[0].lower()) - 97]
+            except (IndexError, TypeError):
+                emoji = "🏳️"
         if other is None:
             other = []
         existing_long = self.get(long_name)
-        existing_short = self.get(short_name) if short_name else None
+        existing_short = self.get(short_name)
         if existing_long and existing_short and existing_long != existing_short:
             raise ValueError("Long and short names already known and connected to different teams.")
         if existing_long:

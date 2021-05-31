@@ -1,10 +1,9 @@
-import inspect
 import platform
 from datetime import datetime
 
 import discord
 from discord.ext import commands
-from discord.ext.commands import MemberConverter, UserConverter, MissingRequiredArgument
+from discord.ext.commands import MemberConverter, UserConverter
 
 from base import BasePlugin, ConfigurableType
 from botutils import utils
@@ -364,10 +363,12 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
             await ctx.send(final_msg)
 
     @commands.group(name="teamname")
-    async def cmd_teamname_info(self, ctx, team: str, *args):
-        if team in ("set", "add", "del", "remove"):
-            await ctx.invoke(self.bot.get_command(f'teamname {team}'), *args)
-            return
+    async def cmd_teamname(self, ctx):
+        if ctx.invoked_subcommand is None:
+            await ctx.send_help(self.cmd_teamname)
+
+    @cmd_teamname.command(name="info")
+    async def cmd_teamname_info(self, ctx, team: str):
         teamname_dict = self.bot.liveticker.teamname_converter.get(team)
         if not teamname_dict:
             await ctx.send(Lang.lang(self, 'team_not_found'))
@@ -380,14 +381,8 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
                 embed.set_footer(text=f"{Lang.lang(self, 'teamname_other')}: {', '.join(teamname_dict.other)}")
             await ctx.send(embed=embed)
 
-    @cmd_teamname_info.command(name="set")
+    @cmd_teamname.command(name="set")
     async def cmd_teamname_set(self, ctx, variant: str, team: str, new_name: str):
-        if not variant:
-            raise MissingRequiredArgument(inspect.Parameter("variant", inspect.Parameter.POSITIONAL_ONLY))
-        if not team:
-            raise MissingRequiredArgument(inspect.Parameter("team", inspect.Parameter.POSITIONAL_ONLY))
-        if not new_name:
-            raise MissingRequiredArgument(inspect.Parameter("new_name", inspect.Parameter.POSITIONAL_ONLY))
         variant = variant.lower()
         long = "long", "lang"
         short = "short", "kurz"
@@ -414,7 +409,7 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
             return
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
-    @cmd_teamname_info.command(name="add")
+    @cmd_teamname.command(name="add")
     async def cmd_teamname_add(self, ctx, long_name: str, short_name: str = None, abbr: str = None, emoji: str = None):
         try:
             teamnamedict = self.bot.liveticker.teamname_converter.add(long_name, short_name, abbr, emoji)
@@ -424,7 +419,7 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
         else:
             await ctx.send(Lang.lang(self, 'teamname_added', teamnamedict.long_name))
 
-    @cmd_teamname_info.command(name="del", alias="remove")
+    @cmd_teamname.command(name="del", alias="remove")
     async def cmd_teamname_del(self, ctx, *_teamname: str):
         teamname = " ".join(_teamname)
         teamnamedict: TeamnameDict = self.bot.liveticker.teamname_converter.get(teamname)
