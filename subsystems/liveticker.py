@@ -1004,7 +1004,7 @@ class LeagueRegistration:
         if not kickoff:
             return
 
-        interval = 5
+        interval = 15
         offset = kickoff.minute % interval
         td = timers.timedict(minute=[x + offset for x in range(0, 60, interval)])
         match_timer = self.listener.bot.timers.schedule(coro=self.update_periodic_coros, td=td,
