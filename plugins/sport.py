@@ -373,12 +373,14 @@ class Plugin(BasePlugin, name="Sport"):
                 events_msg = " / ".join(e.display() for e in match.new_events
                                         if PlayerEventEnum(type(e)).name in event_filter)
                 if events_msg:
-                    match_msg = "{} | {} - {} | {}:{}".format(match.minute, match.home_team.long_name,
-                                                              match.away_team.long_name, *match.score.values())
+                    match_msg = "{} | {} {} - {} {}| {}:{}".format(match.minute, match.home_team.emoji,
+                                                                   match.home_team.long_name, match.away_team.emoji,
+                                                                   match.away_team.long_name, *match.score.values())
                     match_msgs.append("**{}**\n{}".format(match_msg, events_msg))
                 else:
-                    match_msg = "{0} - {1} | {3}:{4} ({2})".format(match.home_team.abbr, match.away_team.abbr,
-                                                                   match.minute, *match.score.values())
+                    match_msg = "{2}-{3} {0} - {1} | {5}:{6} ({4})".format(match.home_team.abbr, match.away_team.abbr,
+                                                                           match.home_team.emoji, match.away_team.emoji,
+                                                                           match.minute, *match.score.values())
                     other_matches.append(match_msg)
             if other_matches:
                 match_msgs.append("**{}:** {}".format(Lang.lang(self, 'liveticker_unchanged'),
