@@ -356,7 +356,8 @@ class Plugin(BasePlugin, name="Sport"):
             # Kickoff-Event
             match_msgs = []
             for match in event.matches:
-                match_msgs.append(f"{match.home_team.long_name} - {match.away_team.long_name}")
+                match_msgs.append(f"{match.home_team.emoji} {match.home_team.long_name} - {match.away_team.emoji} "
+                                  f"{match.away_team.long_name}")
             msgs = paginate(match_msgs,
                             prefix=Lang.lang(self, 'liveticker_prefix_kickoff', event.league,
                                              event.kickoff.strftime('%H:%M')))
@@ -393,7 +394,8 @@ class Plugin(BasePlugin, name="Sport"):
             match_msgs = []
             for match in event.matches:
                 match_msgs.append(f"{match.score[match.home_team_id]}:{match.score[match.away_team_id]} | "
-                                  f"{match.home_team.short_name} - {match.away_team.short_name}")
+                                  f"{match.home_team.emoji} {match.home_team.short_name} - {match.away_team.emoji} "
+                                  f"{match.away_team.short_name}")
             msgs = paginate(match_msgs,
                             prefix=Lang.lang(self, 'liveticker_prefix_finished', event.league))
             for msg in msgs:
