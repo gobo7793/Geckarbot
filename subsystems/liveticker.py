@@ -2,7 +2,7 @@ import asyncio
 import datetime
 import logging
 from enum import Enum
-from typing import List, Generator, Tuple, Optional
+from typing import List, Generator, Tuple, Optional, Dict
 
 from base import BaseSubsystem, BasePlugin
 from botutils import restclient
@@ -1270,30 +1270,37 @@ class Liveticker(BaseSubsystem):
         Storage().get(self)['next_semiweekly'] = until.strftime("%Y-%m-%d %H:%M")
         Storage().save(self)
 
-    async def get_standings(self, league: str, source: LTSource) -> list:
+    async def get_standings(self, league: str, source: LTSource) -> Tuple[str, Dict[str, List[TableEntry]]]:
         """
         Returns the current standings of that league
 
         :param league: league key
         :param source: data source
         :raises ValueError: if unable to retrieve any standings information
-        :return: current standings
+        :return: league name and current standings per group
         """
-        table = []
+        tables = {}
+        league_name = league
         if source == LTSource.ESPN:
             data = await restclient.Client("https://site.api.espn.com/apis/v2/sports").request(
                 f"/soccer/{league}/standings")
             if 'children' not in data:
                 raise ValueError(f"Unable to retrieve any standings information for {league}")
-            entries = data['children'][0]['standings']['entries']
-            for entry in entries:
-                table.append(TableEntry(entry, LTSource.ESPN, self.teamname_converter))
+            groups = data['children']
+            for group in groups:
+                entries = group['standings']['entries']
+                group_name = group['name']
+                tables[group_name] = [TableEntry(entry, LTSource.ESPN, self.teamname_converter) for entry in entries]
         elif source == LTSource.OPENLIGADB:
             year = (datetime.datetime.today() - datetime.timedelta(days=180)).year
             data = await restclient.Client("https://www.openligadb.de/api").request(f"/getbltable/{league}/{year}")
+            table = []
             if not data:
                 raise ValueError(f"Unable to retrieve any standings information for {league}")
             for i in range(len(data)):
                 data[i]['rank'] = i + 1
                 table.append(TableEntry(data[i], LTSource.OPENLIGADB, self.teamname_converter))
-        return table
+            tables[league] = table
+        else:
+            raise ValueError("Invalid source")
+        return league_name, tables
