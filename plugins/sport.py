@@ -156,18 +156,24 @@ class Plugin(BasePlugin, name="Sport"):
     @commands.command(name="table", alias="tabelle")
     async def cmd_table(self, ctx, league: str, raw_source: str = "espn"):
         try:
-            table = await self.bot.liveticker.get_standings(league, LTSource(raw_source))
-            table.sort(key=lambda x: x.rank)
-            table = [x.display() for x in table]
+            league_name, tables = await self.bot.liveticker.get_standings(league, LTSource(raw_source))
         except ValueError:
             await add_reaction(ctx.message, Lang.CMDERROR)
         else:
-            embed = discord.Embed(title="Tabelle {}".format(league))
-            if len(table) > 10:
-                embed.add_field(name=Lang.lang(self, 'table_top'), value="\n".join(table[:len(table) // 2]))
-                embed.add_field(name=Lang.lang(self, 'table_bottom'), value="\n".join(table[len(table) // 2:]))
+            embed = discord.Embed(title=Lang.lang(self, 'table_title', league_name))
+            for group_name, table in tables.items():
+                table.sort(key=lambda x: x.rank)
+                tables[group_name] = [x.display() for x in table]
+            if len(tables) == 1:
+                table = list(tables.values())[0]
+                if len(table) > 10:
+                    embed.add_field(name=Lang.lang(self, 'table_top'), value="\n".join(table[:len(table) // 2]))
+                    embed.add_field(name=Lang.lang(self, 'table_bottom'), value="\n".join(table[len(table) // 2:]))
+                else:
+                    embed.description = "\n".join(table)
             else:
-                embed.description = "\n".join(table)
+                for group_name, table in tables.items():
+                    embed.add_field(name=group_name, value="\n".join(table))
             await ctx.send(embed=embed)
 
     @commands.command(name="bulitable")
