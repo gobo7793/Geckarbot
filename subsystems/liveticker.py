@@ -766,9 +766,10 @@ class LeagueRegistration:
     :param listener: central Liveticker node
     :param league: league key
     :param source: data source
+    :param interval: time between two intermediate updates
     """
 
-    def __init__(self, listener, league: str, source: LTSource):
+    def __init__(self, listener, league: str, source: LTSource, interval: int = 15):
         self.listener = listener
         self.league = league
         self.source = source
@@ -778,6 +779,7 @@ class LeagueRegistration:
         self.intermediate_timers = []
         self.matches = []
         self.finished = []
+        self.interval = interval
 
     @classmethod
     async def create(cls, listener, league: str, source: LTSource):
@@ -1004,9 +1006,8 @@ class LeagueRegistration:
         if not kickoff:
             return
 
-        interval = 15
-        offset = kickoff.minute % interval
-        td = timers.timedict(minute=[x + offset for x in range(0, 60, interval)])
+        offset = kickoff.minute % self.interval
+        td = timers.timedict(minute=[x + offset for x in range(0, 60, self.interval)])
         match_timer = self.listener.bot.timers.schedule(coro=self.update_periodic_coros, td=td,
                                                         data={'start': kickoff, 'matches': matches})
         self.intermediate_timers.append(match_timer)
