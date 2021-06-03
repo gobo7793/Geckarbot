@@ -413,7 +413,7 @@ class Plugin(BasePlugin, name="Sport"):
             await ctx.send_help(self.cmd_teamname)
 
     @cmd_teamname.command(name="info")
-    async def cmd_teamname_info(self, ctx, team: str):
+    async def cmd_teamname_info(self, ctx, *, team: str):
         teamname_dict = self.bot.liveticker.teamname_converter.get(team)
         if not teamname_dict:
             await ctx.send(Lang.lang(self, 'team_not_found'))
@@ -427,7 +427,7 @@ class Plugin(BasePlugin, name="Sport"):
             await ctx.send(embed=embed)
 
     @cmd_teamname.command(name="set")
-    async def cmd_teamname_set(self, ctx, variant: str, team: str, new_name: str):
+    async def cmd_teamname_set(self, ctx, variant: str, team: str, *, new_name: str):
         variant = variant.lower()
         long = "long", "lang"
         short = "short", "kurz"
@@ -465,8 +465,7 @@ class Plugin(BasePlugin, name="Sport"):
             await ctx.send(Lang.lang(self, 'teamname_added', teamnamedict.long_name))
 
     @cmd_teamname.command(name="del", alias="remove")
-    async def cmd_teamname_del(self, ctx, *_teamname: str):
-        teamname = " ".join(_teamname)
+    async def cmd_teamname_del(self, ctx, *, teamname: str):
         teamnamedict: TeamnameDict = self.bot.liveticker.teamname_converter.get(teamname)
         if not teamnamedict:
             await add_reaction(ctx.message, Lang.CMDERROR)
