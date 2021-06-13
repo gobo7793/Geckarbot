@@ -3,10 +3,11 @@ import logging
 from discord.ext import commands
 
 from base import BasePlugin
+from botutils import restclient, timers
 from botutils.utils import helpstring_helper, add_reaction
 from data import Lang, Config
 from subsystems.helpsys import DefaultCategories
-from subsystems.liveticker import LivetickerEvent, LivetickerKickoff, LivetickerFinish
+from subsystems.liveticker import LivetickerEvent, LivetickerKickoff, LivetickerFinish, Match
 
 
 class Plugin(BasePlugin, name="EURO2020"):
@@ -16,6 +17,7 @@ class Plugin(BasePlugin, name="EURO2020"):
         bot.register(self, category=DefaultCategories.SPORT)
         self.logger = logging.getLogger(__name__)
         self.can_reload = True
+        self.bot.timers.schedule(coro=self.em_today_coro, td=timers.timedict(hour=15, minute=24))
 
     def command_help_string(self, command):
         return helpstring_helper(self, command, "help")
@@ -48,6 +50,28 @@ class Plugin(BasePlugin, name="EURO2020"):
         for _, _, c_reg in result:
             c_reg.deregister()
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
+
+    @euro2020.command(name="today")
+    async def em_today(self, ctx):
+        await self.em_today_matches(ctx)
+
+    async def em_today_coro(self, job):
+        if Config().get(self)['sport_chan']:
+            await self.em_today_matches(Config().bot.get_channel(Config().get(self)['sport_chan']))
+
+    async def em_today_matches(self, chan):
+        result = await restclient.Client("http://site.api.espn.com/apis/site/v2/sports/soccer")\
+            .request("/uefa.euro/scoreboard")
+        msg = [Lang.lang(self, 'today_matches')]
+        for m in result.get('events', []):
+            match = Match.from_espn(m)
+            kickoff = match.kickoff.strftime("%H:%M")
+            stadium, city = match.venue
+            msg.append(f"{kickoff} Uhr | {stadium}, {city} | {match.home_team.emoji} {match.away_team.emoji} "
+                       f"{match.home_team.long_name} - {match.away_team.long_name}")
+        if len(msg) == 1:
+            msg.append("None")
+        await chan.send("\n".join(msg))
 
     async def _em_coro(self, event: LivetickerEvent):
         chan = Config().bot.get_channel(Config().get(self)['sport_chan'])

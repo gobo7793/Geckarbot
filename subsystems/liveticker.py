@@ -492,7 +492,7 @@ class Match(MatchStub):
                     new_events=new_events,
                     raw_events=m.get('competitions', [{}])[0].get('details'),
                     venue=(competition.get('venue', {}).get('fullName'),
-                           competition.get('venue', {}).get('adress', {}).get('city')),
+                           competition.get('venue', {}).get('address', {}).get('city')),
                     status=MatchStatus.get(m, LTSource.ESPN))
         return match
 
