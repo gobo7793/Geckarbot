@@ -381,13 +381,14 @@ class Match(MatchStub):
     :param away_team_id: id of the away team
     :param status: current status of the game
     :param raw_events: list of all events
+    :param venue: (stadium, city) of the match
     :param score: current score
     :param new_events: list of new events in comparison to the last execution
     :param matchday: current matchday
     """
 
     def __init__(self, match_id: str, kickoff: datetime.datetime, minute: str, home_team: str, home_team_id: str,
-                 away_team: str, away_team_id: str, status: MatchStatus, raw_events: list,
+                 away_team: str, away_team_id: str, status: MatchStatus, raw_events: list, venue: Tuple[str, str],
                  score: dict = None, new_events: list = None, matchday: int = None):
         super().__init__(kickoff=kickoff, home_team=home_team, away_team=away_team, home_team_id=home_team_id,
                          away_team_id=away_team_id)
@@ -399,6 +400,7 @@ class Match(MatchStub):
         self.raw_events = raw_events
         self.new_events = new_events
         self.matchday = matchday
+        self.venue = venue
         if score:
             self.score = score
         else:
@@ -443,6 +445,7 @@ class Match(MatchStub):
                     score={home_id: max(0, 0, *(g.get('ScoreTeam1', 0) for g in m.get('Goals', []))),
                            away_id: max(0, 0, *(g.get('ScoreTeam2', 0) for g in m.get('Goals', [])))},
                     raw_events=m.get('Goals'),
+                    venue=(m.get('Location', {}).get('LocationStadium'), m.get('Location', {}).get('LocationCity')),
                     status=MatchStatus.get(m, LTSource.OPENLIGADB),
                     new_events=new_events,
                     matchday=m.get('Group', {}).get('GroupOrderID'))
@@ -466,7 +469,8 @@ class Match(MatchStub):
             kickoff = None
         # Get home and away team
         home_team, away_team, home_id, away_id, home_score, away_score = None, None, None, None, None, None
-        for team in m.get('competitions', [{}])[0].get('competitors'):
+        competition = m.get('competitions', [{}])[0]
+        for team in competition.get('competitors'):
             if team.get('homeAway') == "home":
                 home_team = team.get('team', {}).get('displayName')
                 home_id = team.get('id')
@@ -487,6 +491,8 @@ class Match(MatchStub):
                     score={home_id: home_score, away_id: away_score},
                     new_events=new_events,
                     raw_events=m.get('competitions', [{}])[0].get('details'),
+                    venue=(competition.get('venue', {}).get('fullName'),
+                           competition.get('venue', {}).get('adress', {}).get('city')),
                     status=MatchStatus.get(m, LTSource.ESPN))
         return match
 
