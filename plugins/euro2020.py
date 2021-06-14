@@ -1,9 +1,10 @@
+import datetime
 import logging
 
 from discord.ext import commands
 
 from base import BasePlugin
-from botutils import restclient, timers
+from botutils import restclient, timers, sheetsclient
 from botutils.utils import helpstring_helper, add_reaction
 from data import Lang, Config
 from subsystems.helpsys import DefaultCategories
@@ -30,7 +31,10 @@ class Plugin(BasePlugin, name="EURO2020"):
 
     def default_config(self):
         return {
-            'sport_chan': 0
+            'sport_chan': 0,
+            'spreadsheet': "1aPhu_HpThmJ8FOmiaAkdmZWo3WupEV1Qd2-Sju3IxHk",
+            'sheet_url': "https://docs.google.com/spreadsheets/d/1yExkjGVSTSTBAxiRplpBMHgX4aVgyNSAZ4lEgBn1XbM"
+                         "/edit?usp=sharing"
         }
 
     @commands.group(name="em")
@@ -49,6 +53,7 @@ class Plugin(BasePlugin, name="EURO2020"):
         result = self.bot.liveticker.search_coro(plugins=[self.get_name()])
         for _, _, c_reg in result:
             c_reg.deregister()
+            break
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
     @euro2020.command(name="today")
@@ -78,12 +83,42 @@ class Plugin(BasePlugin, name="EURO2020"):
         msg = ["__:soccer: **EURO 2020**__"]
         if isinstance(event, LivetickerKickoff):
             for match in event.matches:
-                stadium, city = match.venue
+                stadium, city = match.venue if isinstance(match, Match) else "?", "?"
                 msg.append(f"{stadium}, {city} | {match.home_team.emoji} {match.away_team.emoji} "
                            f"{match.home_team.long_name} - {match.away_team.long_name}")
+            msg.extend(await self.show_emtipp())
         elif isinstance(event, LivetickerFinish):
             for match in event.matches:
                 msg.append(f"FT {match.score[match.home_team_id]}:{match.score[match.away_team_id]} | "
                            f"{match.home_team.emoji} {match.away_team.emoji} "
                            f"{match.home_team.long_name} - {match.away_team.long_name}")
         await chan.send("\n".join(msg))
+
+    @commands.group(name="emtipp")
+    async def cmd_emtipp(self, ctx):
+        if ctx.invoked_subcommand is None:
+            await ctx.send(Config().get(self)['sheet_url'])
+
+    @cmd_emtipp.command(name="now")
+    async def cmd_emtipp_now(self, ctx):
+        msgs = await self.show_emtipp()
+        if not msgs:
+            msgs = ["None"]
+        await ctx.send("\n".join(msgs))
+        await add_reaction(ctx.message, Lang.CMDSUCCESS)
+
+    async def show_emtipp(self):
+        """Returns a list of the predictions"""
+        c = sheetsclient.Client(self.bot, Config().get(self)['spreadsheet'])
+        data = c.get(range="B2:AE64")
+        people = [data[0][6 + x*2] for x in range((len(data[0]) - 6) // 2 + 1)]
+        now = datetime.datetime.now()
+        match_msgs = []
+        for row in data[1:]:
+            row.extend([None]*(len(data[0]) + 1 - len(row)))
+            if row[0] == now.strftime("%d.%m.") and row[1] == now.strftime("%H:%M"):
+                preds = [f"{people[x]} {row[6 + x*2]}:{row[7 + x*2]}" for x in range((len(data[0]) - 6) // 2 + 1)]
+                match_msgs.append(f"{row[3]} - {row[4]} // " + " / ".join(preds))
+            elif row[0] and datetime.datetime.strptime(row[0], "%d.%m.") > now:
+                break
+        return match_msgs
