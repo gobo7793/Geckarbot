@@ -97,7 +97,8 @@ class Plugin(BasePlugin, name="EURO2020"):
                 msg.append(f"FT {match.score[match.home_team_id]}:{match.score[match.away_team_id]} | "
                            f"{match.home_team.emoji} {match.away_team.emoji} "
                            f"{match.home_team.long_name} - {match.away_team.long_name}")
-        await chan.send("\n".join(msg))
+        if len(msg) > 1:
+            await chan.send("\n".join(msg))
 
     @commands.group(name="emtipp")
     async def cmd_emtipp(self, ctx):
