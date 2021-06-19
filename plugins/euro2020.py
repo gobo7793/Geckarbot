@@ -71,7 +71,7 @@ class Plugin(BasePlugin, name="EURO2020"):
     async def em_today_matches(self, chan):
         """Sends a msg with todays matches to the specified channel"""
         result = await restclient.Client("http://site.api.espn.com/apis/site/v2/sports/soccer")\
-            .request("/uefa.euro/scoreboard")
+            .request("/uefa.euro/scoreboard", params={'dates': datetime.datetime.today().strftime("%Y%m%d")})
         msg = [Lang.lang(self, 'today_matches')]
         for m in result.get('events', []):
             match = Match.from_espn(m)
