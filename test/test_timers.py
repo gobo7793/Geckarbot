@@ -2,6 +2,8 @@ from datetime import date, datetime
 
 from subsystems import timers
 
+# pylint: disable=missing-function-docstring
+
 
 def test_cron_alg_fr13():
     # find next friday 13th
