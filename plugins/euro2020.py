@@ -21,7 +21,7 @@ class Plugin(BasePlugin, name="EURO2020"):
         bot.register(self, category=DefaultCategories.SPORT)
         self.logger = logging.getLogger(__name__)
         self.can_reload = True
-        self.bot.timers.schedule(coro=self.em_today_coro, td=timers.timedict(hour=15, minute=24))
+        self.bot.timers.schedule(coro=self.em_today_coro, td=timers.timedict(hour=1, minute=0))
 
     def command_help_string(self, command):
         return helpstring_helper(self, command, "help")
@@ -46,14 +46,14 @@ class Plugin(BasePlugin, name="EURO2020"):
             await ctx.send(Config().get(self)['kicker_url'])
 
     @euro2020.command(name="start")
-    async def em_liveticker_start(self, ctx):
+    async def cmd_em_liveticker_start(self, ctx):
         Config().get(self)['sport_chan'] = ctx.channel.id
         Config().save(self)
         await self.bot.liveticker.register(league="uefa.euro", raw_source="espn", plugin=self, coro=self._em_coro)
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
     @euro2020.command(name="stop")
-    async def em_liveticker_stop(self, ctx):
+    async def cmd_em_liveticker_stop(self, ctx):
         result = self.bot.liveticker.search_coro(plugins=[self.get_name()])
         for _, _, c_reg in result:
             c_reg.deregister()
@@ -64,11 +64,12 @@ class Plugin(BasePlugin, name="EURO2020"):
     async def em_today(self, ctx):
         await self.em_today_matches(ctx)
 
-    async def em_today_coro(self, job):
+    async def em_today_coro(self, _job):
         if Config().get(self)['sport_chan']:
             await self.em_today_matches(Config().bot.get_channel(Config().get(self)['sport_chan']))
 
     async def em_today_matches(self, chan):
+        """Sends a msg with todays matches to the specified channel"""
         result = await restclient.Client("http://site.api.espn.com/apis/site/v2/sports/soccer")\
             .request("/uefa.euro/scoreboard")
         msg = [Lang.lang(self, 'today_matches')]
@@ -141,4 +142,4 @@ class Plugin(BasePlugin, name="EURO2020"):
                 k, ", ".join(v)
             ) for k, v in grouped[3:]])
         )
-        await ctx.send(embed=discord.Embed(title="Punkte", description=desc))
+        await ctx.send(embed=discord.Embed(title=Lang.lang(self, 'points'), description=desc))
