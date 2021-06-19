@@ -1,6 +1,9 @@
 import datetime
 import logging
+from itertools import groupby
+from operator import itemgetter
 
+import discord
 from discord.ext import commands
 
 from base import BasePlugin
@@ -33,13 +36,14 @@ class Plugin(BasePlugin, name="EURO2020"):
         return {
             'sport_chan': 0,
             'spreadsheet': "1aPhu_HpThmJ8FOmiaAkdmZWo3WupEV1Qd2-Sju3IxHk",
-            'sheet_url': "https://docs.google.com/spreadsheets/d/1yExkjGVSTSTBAxiRplpBMHgX4aVgyNSAZ4lEgBn1XbM"
-                         "/edit?usp=sharing"
+            'displaysheet': "1yExkjGVSTSTBAxiRplpBMHgX4aVgyNSAZ4lEgBn1XbM",
+            'kicker_url': "https://www.kicker.de/europameisterschaft/spieltag"
         }
 
     @commands.group(name="em")
     async def euro2020(self, ctx):
-        pass
+        if ctx.invoked_subcommand is None:
+            await ctx.send(Config().get(self)['kicker_url'])
 
     @euro2020.command(name="start")
     async def em_liveticker_start(self, ctx):
@@ -97,7 +101,8 @@ class Plugin(BasePlugin, name="EURO2020"):
     @commands.group(name="emtipp")
     async def cmd_emtipp(self, ctx):
         if ctx.invoked_subcommand is None:
-            await ctx.send(Config().get(self)['sheet_url'])
+            await ctx.send("https://docs.google.com/spreadsheets/d/{}/edit?usp=sharing".format(
+                Config().get(self)['displaysheet']))
 
     @cmd_emtipp.command(name="now")
     async def cmd_emtipp_now(self, ctx):
@@ -122,3 +127,18 @@ class Plugin(BasePlugin, name="EURO2020"):
             elif row[0] and datetime.datetime.strptime(row[0], "%d.%m.") > now:
                 break
         return match_msgs
+
+    @cmd_emtipp.command(name="punkte", aliases=["gesamt", "platz"])
+    async def cmd_emtipp_points(self, ctx):
+        c = sheetsclient.Client(self.bot, Config().get(self)['displaysheet'])
+        people, points = c.get_multiple(["J2:AC2", "J67:AC67"])
+        points_per_person = [x for x in zip(points[0], people[0]) if x != ('', '')]
+        points_per_person.sort(reverse=True)
+        grouped = [(k, [x[1] for x in v]) for k, v in groupby(points_per_person, key=itemgetter(0))]
+        desc = ":trophy: {} - {}\n:second_place: {} - {}\n:third_place: {} - {}\n{}".format(
+            grouped[0][0], ", ".join(grouped[0][1]), grouped[1][0], ", ".join(grouped[1][1]), grouped[2][0],
+            ", ".join(grouped[2][1]), " / ".join(["{} - {}".format(
+                k, ", ".join(v)
+            ) for k, v in grouped[3:]])
+        )
+        await ctx.send(embed=discord.Embed(title="Punkte", description=desc))
