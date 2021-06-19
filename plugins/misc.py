@@ -109,6 +109,19 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
         result = random.choice(options)
         await ctx.send(Lang.lang(self, 'choose_msg') + result.strip())
 
+    @commands.command(name="kw", aliases=["week"])
+    async def cmd_week_number(self, ctx, *, date=None):
+        day: datetime
+        if date:
+            day = timeutils.parse_time_input(date)
+            if day == datetime.max:
+                await add_reaction(ctx.message, Lang.CMDERROR)
+                return
+        else:
+            day = datetime.today()
+        week = day.isocalendar()[1]
+        await ctx.send(Lang.lang(self, 'week_number', week))
+
     @commands.command(name="multichoose")
     async def cmd_multichoose(self, ctx, count: int, *args):
         full_options_str = " ".join(args)

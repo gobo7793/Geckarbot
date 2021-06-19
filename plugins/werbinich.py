@@ -4,6 +4,7 @@ from enum import Enum
 from datetime import datetime
 
 import discord
+from discord import ClientUser
 from discord.ext import commands
 from discord.http import HTTPException
 from discord.errors import Forbidden
@@ -449,7 +450,7 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
         :param event: Reaction event
         """
         if isinstance(event, ReactionAddedEvent) and event.emoji.name == Lang.lang(self, "reaction_spoiler") \
-                and not event.user.bot:
+                and not isinstance(event.user, ClientUser):
             if self.statemachine.state == State.IDLE and self.participants \
                     and (event.user not in (x.user for x in self.participants) or self.postgame):
                 if event.user in self.spoilered_users:
