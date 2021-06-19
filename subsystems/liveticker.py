@@ -2,7 +2,7 @@ import asyncio
 import datetime
 import logging
 from enum import Enum
-from typing import List, Generator, Tuple, Optional
+from typing import List, Generator, Tuple, Optional, Dict
 
 from base import BaseSubsystem, BasePlugin
 from botutils import restclient
@@ -381,13 +381,14 @@ class Match(MatchStub):
     :param away_team_id: id of the away team
     :param status: current status of the game
     :param raw_events: list of all events
+    :param venue: (stadium, city) of the match
     :param score: current score
     :param new_events: list of new events in comparison to the last execution
     :param matchday: current matchday
     """
 
     def __init__(self, match_id: str, kickoff: datetime.datetime, minute: str, home_team: str, home_team_id: str,
-                 away_team: str, away_team_id: str, status: MatchStatus, raw_events: list,
+                 away_team: str, away_team_id: str, status: MatchStatus, raw_events: list, venue: Tuple[str, str],
                  score: dict = None, new_events: list = None, matchday: int = None):
         super().__init__(kickoff=kickoff, home_team=home_team, away_team=away_team, home_team_id=home_team_id,
                          away_team_id=away_team_id)
@@ -399,6 +400,7 @@ class Match(MatchStub):
         self.raw_events = raw_events
         self.new_events = new_events
         self.matchday = matchday
+        self.venue = venue
         if score:
             self.score = score
         else:
@@ -443,6 +445,7 @@ class Match(MatchStub):
                     score={home_id: max(0, 0, *(g.get('ScoreTeam1', 0) for g in m.get('Goals', []))),
                            away_id: max(0, 0, *(g.get('ScoreTeam2', 0) for g in m.get('Goals', [])))},
                     raw_events=m.get('Goals'),
+                    venue=(m.get('Location', {}).get('LocationStadium'), m.get('Location', {}).get('LocationCity')),
                     status=MatchStatus.get(m, LTSource.OPENLIGADB),
                     new_events=new_events,
                     matchday=m.get('Group', {}).get('GroupOrderID'))
@@ -466,7 +469,8 @@ class Match(MatchStub):
             kickoff = None
         # Get home and away team
         home_team, away_team, home_id, away_id, home_score, away_score = None, None, None, None, None, None
-        for team in m.get('competitions', [{}])[0].get('competitors'):
+        competition = m.get('competitions', [{}])[0]
+        for team in competition.get('competitors'):
             if team.get('homeAway') == "home":
                 home_team = team.get('team', {}).get('displayName')
                 home_id = team.get('id')
@@ -487,6 +491,8 @@ class Match(MatchStub):
                     score={home_id: home_score, away_id: away_score},
                     new_events=new_events,
                     raw_events=m.get('competitions', [{}])[0].get('details'),
+                    venue=(competition.get('venue', {}).get('fullName'),
+                           competition.get('venue', {}).get('address', {}).get('city')),
                     status=MatchStatus.get(m, LTSource.ESPN))
         return match
 
@@ -766,9 +772,10 @@ class LeagueRegistration:
     :param listener: central Liveticker node
     :param league: league key
     :param source: data source
+    :param interval: time between two intermediate updates
     """
 
-    def __init__(self, listener, league: str, source: LTSource):
+    def __init__(self, listener, league: str, source: LTSource, interval: int = 15):
         self.listener = listener
         self.league = league
         self.source = source
@@ -778,6 +785,7 @@ class LeagueRegistration:
         self.intermediate_timers = []
         self.matches = []
         self.finished = []
+        self.interval = interval
 
     @classmethod
     async def create(cls, listener, league: str, source: LTSource):
@@ -1004,9 +1012,8 @@ class LeagueRegistration:
         if not kickoff:
             return
 
-        interval = 5
-        offset = kickoff.minute % interval
-        td = timers.timedict(minute=[x + offset for x in range(0, 60, interval)])
+        offset = kickoff.minute % self.interval
+        td = timers.timedict(minute=[x + offset for x in range(0, 60, self.interval)])
         match_timer = self.listener.bot.timers.schedule(coro=self.update_periodic_coros, td=td,
                                                         data={'start': kickoff, 'matches': matches})
         self.intermediate_timers.append(match_timer)
@@ -1270,30 +1277,37 @@ class Liveticker(BaseSubsystem):
         Storage().get(self)['next_semiweekly'] = until.strftime("%Y-%m-%d %H:%M")
         Storage().save(self)
 
-    async def get_standings(self, league: str, source: LTSource) -> list:
+    async def get_standings(self, league: str, source: LTSource) -> Tuple[str, Dict[str, List[TableEntry]]]:
         """
         Returns the current standings of that league
 
         :param league: league key
         :param source: data source
         :raises ValueError: if unable to retrieve any standings information
-        :return: current standings
+        :return: league name and current standings per group
         """
-        table = []
+        tables = {}
+        league_name = league
         if source == LTSource.ESPN:
             data = await restclient.Client("https://site.api.espn.com/apis/v2/sports").request(
                 f"/soccer/{league}/standings")
             if 'children' not in data:
                 raise ValueError(f"Unable to retrieve any standings information for {league}")
-            entries = data['children'][0]['standings']['entries']
-            for entry in entries:
-                table.append(TableEntry(entry, LTSource.ESPN, self.teamname_converter))
+            groups = data['children']
+            for group in groups:
+                entries = group['standings']['entries']
+                group_name = group['name']
+                tables[group_name] = [TableEntry(entry, LTSource.ESPN, self.teamname_converter) for entry in entries]
         elif source == LTSource.OPENLIGADB:
             year = (datetime.datetime.today() - datetime.timedelta(days=180)).year
             data = await restclient.Client("https://www.openligadb.de/api").request(f"/getbltable/{league}/{year}")
+            table = []
             if not data:
                 raise ValueError(f"Unable to retrieve any standings information for {league}")
             for i in range(len(data)):
                 data[i]['rank'] = i + 1
                 table.append(TableEntry(data[i], LTSource.OPENLIGADB, self.teamname_converter))
-        return table
+            tables[league] = table
+        else:
+            raise ValueError("Invalid source")
+        return league_name, tables

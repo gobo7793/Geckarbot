@@ -156,18 +156,24 @@ class Plugin(BasePlugin, name="Sport"):
     @commands.command(name="table", alias="tabelle")
     async def cmd_table(self, ctx, league: str, raw_source: str = "espn"):
         try:
-            table = await self.bot.liveticker.get_standings(league, LTSource(raw_source))
-            table.sort(key=lambda x: x.rank)
-            table = [x.display() for x in table]
+            league_name, tables = await self.bot.liveticker.get_standings(league, LTSource(raw_source))
         except ValueError:
             await add_reaction(ctx.message, Lang.CMDERROR)
         else:
-            embed = discord.Embed(title="Tabelle {}".format(league))
-            if len(table) > 10:
-                embed.add_field(name=Lang.lang(self, 'table_top'), value="\n".join(table[:len(table) // 2]))
-                embed.add_field(name=Lang.lang(self, 'table_bottom'), value="\n".join(table[len(table) // 2:]))
+            embed = discord.Embed(title=Lang.lang(self, 'table_title', league_name))
+            for group_name, table in tables.items():
+                table.sort(key=lambda x: x.rank)
+                tables[group_name] = [x.display() for x in table]
+            if len(tables) == 1:
+                table = list(tables.values())[0]
+                if len(table) > 10:
+                    embed.add_field(name=Lang.lang(self, 'table_top'), value="\n".join(table[:len(table) // 2]))
+                    embed.add_field(name=Lang.lang(self, 'table_bottom'), value="\n".join(table[len(table) // 2:]))
+                else:
+                    embed.description = "\n".join(table)
             else:
-                embed.description = "\n".join(table)
+                for group_name, table in tables.items():
+                    embed.add_field(name=group_name, value="\n".join(table))
             await ctx.send(embed=embed)
 
     @commands.command(name="bulitable")
@@ -356,7 +362,8 @@ class Plugin(BasePlugin, name="Sport"):
             # Kickoff-Event
             match_msgs = []
             for match in event.matches:
-                match_msgs.append(f"{match.home_team.long_name} - {match.away_team.long_name}")
+                match_msgs.append(f"{match.home_team.emoji} {match.home_team.long_name} - {match.away_team.emoji} "
+                                  f"{match.away_team.long_name}")
             msgs = paginate(match_msgs,
                             prefix=Lang.lang(self, 'liveticker_prefix_kickoff', event.league,
                                              event.kickoff.strftime('%H:%M')))
@@ -373,12 +380,14 @@ class Plugin(BasePlugin, name="Sport"):
                 events_msg = " / ".join(e.display() for e in match.new_events
                                         if PlayerEventEnum(type(e)).name in event_filter)
                 if events_msg:
-                    match_msg = "{} | {} - {} | {}:{}".format(match.minute, match.home_team.long_name,
-                                                              match.away_team.long_name, *match.score.values())
+                    match_msg = "{} | {} {} - {} {}| {}:{}".format(match.minute, match.home_team.emoji,
+                                                                   match.home_team.long_name, match.away_team.emoji,
+                                                                   match.away_team.long_name, *match.score.values())
                     match_msgs.append("**{}**\n{}".format(match_msg, events_msg))
                 else:
-                    match_msg = "{0} - {1} | {3}:{4} ({2})".format(match.home_team.abbr, match.away_team.abbr,
-                                                                   match.minute, *match.score.values())
+                    match_msg = "{2}-{3} {0} - {1} | {5}:{6} ({4})".format(match.home_team.abbr, match.away_team.abbr,
+                                                                           match.home_team.emoji, match.away_team.emoji,
+                                                                           match.minute, *match.score.values())
                     other_matches.append(match_msg)
             if other_matches:
                 match_msgs.append("**{}:** {}".format(Lang.lang(self, 'liveticker_unchanged'),
@@ -391,7 +400,8 @@ class Plugin(BasePlugin, name="Sport"):
             match_msgs = []
             for match in event.matches:
                 match_msgs.append(f"{match.score[match.home_team_id]}:{match.score[match.away_team_id]} | "
-                                  f"{match.home_team.short_name} - {match.away_team.short_name}")
+                                  f"{match.home_team.emoji} {match.home_team.short_name} - {match.away_team.emoji} "
+                                  f"{match.away_team.short_name}")
             msgs = paginate(match_msgs,
                             prefix=Lang.lang(self, 'liveticker_prefix_finished', event.league))
             for msg in msgs:
@@ -403,7 +413,7 @@ class Plugin(BasePlugin, name="Sport"):
             await ctx.send_help(self.cmd_teamname)
 
     @cmd_teamname.command(name="info")
-    async def cmd_teamname_info(self, ctx, team: str):
+    async def cmd_teamname_info(self, ctx, *, team: str):
         teamname_dict = self.bot.liveticker.teamname_converter.get(team)
         if not teamname_dict:
             await ctx.send(Lang.lang(self, 'team_not_found'))
@@ -417,7 +427,7 @@ class Plugin(BasePlugin, name="Sport"):
             await ctx.send(embed=embed)
 
     @cmd_teamname.command(name="set")
-    async def cmd_teamname_set(self, ctx, variant: str, team: str, new_name: str):
+    async def cmd_teamname_set(self, ctx, variant: str, team: str, *, new_name: str):
         variant = variant.lower()
         long = "long", "lang"
         short = "short", "kurz"
@@ -455,8 +465,7 @@ class Plugin(BasePlugin, name="Sport"):
             await ctx.send(Lang.lang(self, 'teamname_added', teamnamedict.long_name))
 
     @cmd_teamname.command(name="del", alias="remove")
-    async def cmd_teamname_del(self, ctx, *_teamname: str):
-        teamname = " ".join(_teamname)
+    async def cmd_teamname_del(self, ctx, *, teamname: str):
         teamnamedict: TeamnameDict = self.bot.liveticker.teamname_converter.get(teamname)
         if not teamnamedict:
             await add_reaction(ctx.message, Lang.CMDERROR)
