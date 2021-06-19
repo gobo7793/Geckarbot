@@ -324,7 +324,7 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
         self.postgame = False
         self.spoilered_users = []
         if self.spoiler_reaction_listener:
-            self.spoiler_reaction_listener.unregister()
+            self.spoiler_reaction_listener.deregister()
         self.presence_message = self.bot.presence.register(Lang.lang(self, "presence", self.channel.name),
                                                            priority=presence.PresencePriority.HIGH)
         reaction = Lang.lang(self, "reaction_signup")
@@ -448,7 +448,8 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
 
         :param event: Reaction event
         """
-        if isinstance(event, ReactionAddedEvent) and event.emoji.name == Lang.lang(self, "reaction_spoiler"):
+        if isinstance(event, ReactionAddedEvent) and event.emoji.name == Lang.lang(self, "reaction_spoiler") \
+                and not event.user.bot:
             if self.statemachine.state == State.IDLE and self.participants \
                     and (event.user not in (x.user for x in self.participants) or self.postgame):
                 if event.user in self.spoilered_users:
