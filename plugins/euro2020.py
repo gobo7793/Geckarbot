@@ -71,7 +71,7 @@ class Plugin(BasePlugin, name="EURO2020"):
     async def em_today_matches(self, chan):
         """Sends a msg with todays matches to the specified channel"""
         result = await restclient.Client("http://site.api.espn.com/apis/site/v2/sports/soccer")\
-            .request("/uefa.euro/scoreboard")
+            .request("/uefa.euro/scoreboard", params={'dates': datetime.datetime.today().strftime("%Y%m%d")})
         msg = [Lang.lang(self, 'today_matches')]
         for m in result.get('events', []):
             match = Match.from_espn(m)
@@ -88,7 +88,9 @@ class Plugin(BasePlugin, name="EURO2020"):
         msg = ["__:soccer: **EURO 2020**__"]
         if isinstance(event, LivetickerKickoff):
             for match in event.matches:
-                stadium, city = match.venue if isinstance(match, Match) else "?", "?"
+                stadium, city = "?", "?"
+                if isinstance(match, Match):
+                    stadium, city = match.venue
                 msg.append(f"{stadium}, {city} | {match.home_team.emoji} {match.away_team.emoji} "
                            f"{match.home_team.long_name} - {match.away_team.long_name}")
             msg.extend(await self.show_emtipp())
@@ -97,7 +99,8 @@ class Plugin(BasePlugin, name="EURO2020"):
                 msg.append(f"FT {match.score[match.home_team_id]}:{match.score[match.away_team_id]} | "
                            f"{match.home_team.emoji} {match.away_team.emoji} "
                            f"{match.home_team.long_name} - {match.away_team.long_name}")
-        await chan.send("\n".join(msg))
+        if len(msg) > 1:
+            await chan.send("\n".join(msg))
 
     @commands.group(name="emtipp")
     async def cmd_emtipp(self, ctx):
