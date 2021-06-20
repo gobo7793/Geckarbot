@@ -421,6 +421,9 @@ class Plugin(BasePlugin, name="LastFM"):
         if key is None:
             await self.config_setter.list(ctx)
             return
+        if value is None:
+            await add_reaction(ctx.message, Lang.CMDERROR)
+            return
         await self.config_setter.set_cmd(ctx, key, value)
 
     @cmd_lastfm.command(name="register")
