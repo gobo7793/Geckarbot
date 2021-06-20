@@ -6,8 +6,8 @@ import discord
 from discord.ext import commands
 from discord.errors import HTTPException
 
-from base import BasePlugin, NotFound
-from data import Storage, Lang
+from base import BasePlugin
+from data import Storage, Lang, Config
 from botutils import permchecks
 from botutils.utils import sort_commands_helper, add_reaction, helpstring_helper
 from subsystems.helpsys import DefaultCategories
@@ -17,31 +17,6 @@ from plugins.quiz.quizapis import quizapis, opentdb
 from plugins.quiz.base import Difficulty
 from plugins.quiz.utils import get_best_username
 from plugins.quiz.migrations import migration
-
-jsonify = {
-    "timeout": 20,  # answering timeout in minutes; not impl yet TODO
-    "timeout_warning": 2,  # warning time before timeout in minutes
-    "questions_limit": 25,
-    "questions_default": 10,
-    "default_category": -1,
-    "question_cooldown": 5,
-    "channel_blacklist": [],
-    "points_quiz_register_timeout": 1 * 60,
-    "points_quiz_question_timeout": 20,  # warning after this value, actual timeout after 1.5*this value
-    "ranked_min_players": 4,
-    "ranked_min_questions": 7,
-    "ranked_register_additional_tries": 2,
-    "emoji_in_pose": True,
-    "channel_mapping": {
-        706125113728172084: "any",
-        716683335778173048: "politics",
-        706128206687895552: "games",
-        706129681790795796: "sports",
-        706129811382337566: "tv",
-        706129915405271123: "music",
-        706130284252364811: "computer",
-    }
-}
 
 
 class QuizInitError(Exception):
@@ -77,7 +52,8 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
         self.bot = bot
         self.controllers = {}
         self.registered_subcommands = {}
-        self.config = jsonify
+        self.config = Config.get(self)
+        self.role = self.bot.guild.get_role(self.config.get("roleid", 0))
 
         self.default_controller = PointsQuizController
         self.defaults = {
@@ -114,6 +90,23 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
             quiz = self.get_controller(msg.channel)
             if quiz:
                 await quiz.on_message(msg)
+
+    def default_config(self, container=None):
+        return {
+            "roleid": 0,
+            "timeout": 20,  # answering timeout in minutes; not impl yet TODO
+            "timeout_warning": 2,  # warning time before timeout in minutes
+            "questions_limit": 25,
+            "questions_default": 10,
+            "default_category": -1,
+            "question_cooldown": 5,
+            "points_quiz_register_timeout": 1 * 60,
+            "points_quiz_question_timeout": 20,  # warning after this value, actual timeout after 1.5*this value
+            "ranked_min_players": 4,
+            "ranked_min_questions": 7,
+            "ranked_register_additional_tries": 2,
+            "emoji_in_pose": True,
+        }
 
     def default_storage(self, container=None):
         return {
@@ -343,6 +336,19 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
 
         embed = controller.quizapi.current_question().embed(emoji=True, info=True)
         await ctx.channel.send(embed=embed)
+
+    @cmd_kwiss.command(name="role")
+    async def cmd_role(self, ctx, role: discord.Role):
+        if not permchecks.check_mod_access(ctx.author) and not permchecks.check_admin_access(ctx.author) \
+                and not permchecks.is_botadmin(ctx.author):
+            await add_reaction(ctx.message, Lang.CMDNOPERMISSIONS)
+            await ctx.send(Lang.lang(self, "permissions"))
+            return
+
+        Config.get(self)["roleid"] = role.id
+        self.role = role
+        Config.save(self)
+        await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
     @cmd_kwiss.command(name="info", hidden=True)
     async def cmd_info(self, ctx, *args):

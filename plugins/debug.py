@@ -306,3 +306,13 @@ class Plugin(BasePlugin, name="Testing and debug things"):
     @cmd_qname.command(name="sub", hidden=True)
     async def cmd_qname_sub(self, ctx):
         await ctx.send(ctx.command.qualified_name)
+
+    @commands.command(name="rolebyid", hidden=True)
+    async def cmd_rolebyid(self, ctx, rid: int):
+        role = self.bot.guild.get_role(rid)
+        await ctx.send(role.mention)
+
+    @commands.command(name="rolebymention", hidden=True)
+    async def cmd_rolebymention(self, ctx, role: discord.Role):
+        # role = await commands.RoleConverter().convert(ctx, role)
+        await ctx.send(role.mention)
