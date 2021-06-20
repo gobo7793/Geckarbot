@@ -203,6 +203,8 @@ class PointsQuizController(BaseQuizController):
         msg = await self.current_question.pose(self.channel, emoji=self.config["emoji_in_pose"])
         self.current_reaction_listener = self.plugin.bot.reaction_listener.register(
             msg, self.on_reaction, data=self.current_question)
+        if self.config["emoji_in_pose"]:
+            await self.current_question.add_reactions(msg)
 
         # If debug, add bot's answer
         if self.gecki:
