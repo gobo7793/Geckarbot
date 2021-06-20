@@ -42,7 +42,7 @@ class Geckarbot(commands.Bot):
     Basic bot info
     """
     NAME = "Geckarbot"
-    VERSION = "2.10.1"
+    VERSION = "2.10.2"
     PLUGIN_DIR = "plugins"
     CORE_PLUGIN_DIR = "coreplugins"
     CONFIG_DIR = "config"
@@ -190,7 +190,7 @@ class Geckarbot(commands.Bot):
 
     def register(self, plugin_class,
                  category: Union[str, helpsys.DefaultCategories, helpsys.HelpCategory, None] = None,
-                 category_desc: str = None):
+                 category_desc: str = None) -> bool:
         """
         Registers a plugin
 
@@ -232,7 +232,7 @@ class Geckarbot(commands.Bot):
         logging.debug("Registered plugin %s", plugin_object.get_name())
         return True
 
-    def deregister(self, plugin: BasePlugin):
+    def deregister(self, plugin: BasePlugin) -> bool:
         """
         Deregisters a plugin
 
@@ -260,7 +260,7 @@ class Geckarbot(commands.Bot):
                 continue
             yield el
 
-    def load_plugins(self, plugin_dir):
+    def load_plugins(self, plugin_dir) -> list:
         """
         Loads all plugins in given plugin_dir with following conditions:
             1. If LOAD_PLUGINS is empty: All available plugins will be loaded
@@ -288,6 +288,7 @@ class Geckarbot(commands.Bot):
         Imports a plugin module
 
         :param module_name: The full qualified plugin module name to imported
+        :raises PluginClassNotFound: If the module does not have a class called `Plugin`
         """
         module = pkgutil.importlib.import_module(module_name)
         members = inspect.getmembers(module)
@@ -305,7 +306,7 @@ class Geckarbot(commands.Bot):
 
         :param plugin_dir: The directory from which the plugin will be loaded
         :param plugin_name: The name of the plugin module
-        :return: `True` if plugin is loaded successfully, `False` on errors or `None` if plugin already loaded.
+        :return: `True` if plugin is loaded successfully, `False` on errors or `None` if plugin was already loaded.
         """
         for pl in self.plugins:
             if pl.get_name() == plugin_name:
@@ -350,7 +351,7 @@ class Geckarbot(commands.Bot):
 
         :param plugin_name: The plugin name to be unloaded
         :param save_config: If `True` the plugin config and storage will be saved, on `False` not.
-        :return: `True` if plugin was unloaded successfully, `False` on errors and `None` if plugin is not laoded.
+        :return: `True` if plugin was unloaded successfully, `False` on errors and `None` if plugin was not laoded.
         """
         try:
             plugin = converters.get_plugin_by_name(plugin_name)
@@ -413,7 +414,8 @@ class Geckarbot(commands.Bot):
         :param kwargs: The keyword arguments for the event that raised the exception
         """
         if self.DEBUG_MODE:
-            return await super().on_error(event_method, *args, **kwargs)
+            await super().on_error(event_method, *args, **kwargs)
+            return
 
         exc_type, exc_value, exc_traceback = sys.exc_info()
 
@@ -448,7 +450,8 @@ class Geckarbot(commands.Bot):
         :param exception: The error that was raised
         """
         if self.DEBUG_MODE:
-            return await super().on_command_error(context, exception)
+            await super().on_command_error(context, exception)
+            return
 
         # No command or ignoring list handling
         if isinstance(exception, ignoring.UserBlockedCommand):
@@ -544,7 +547,8 @@ class Geckarbot(commands.Bot):
         This check will be executed before other command checks.
 
         :param ctx: The command context
-        :returns: True if command can be executed, otherwise the `discord.ext.commands.DisabledCommand` exception
+        :returns: True
+        :raises DisabledCommand: if the Command is disabled
         """
         if self.ignoring.check_command(ctx):
             raise commands.DisabledCommand()
@@ -562,7 +566,7 @@ def intent_setup():
     return intents
 
 
-def logging_setup(debug=False):
+def logging_setup(debug: bool = False):
     """
     Sets the logging level
 

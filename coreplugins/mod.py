@@ -12,7 +12,6 @@ from botutils.timeutils import parse_time_input
 from data import Config, Lang
 from subsystems.helpsys import DefaultCategories
 from subsystems.ignoring import IgnoreEditResult, IgnoreType
-from subsystems.presence import PresencePriority
 
 
 class Plugin(BasePlugin, name="Bot Management Commands"):
@@ -37,6 +36,15 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
             'privacy_notes_lang': "",
             'profile_pic_creator': ""
         }
+
+    def command_help_string(self, command):
+        return utils.helpstring_helper(self, command, "help")
+
+    def command_description(self, command):
+        return utils.helpstring_helper(self, command, "desc")
+
+    def command_usage(self, command):
+        return utils.helpstring_helper(self, command, "usage")
 
     def get_configurable_type(self):
         return ConfigurableType.COREPLUGIN
@@ -154,52 +162,6 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
         else:
             await utils.add_reaction(ctx.message, Lang.CMDERROR)
             await ctx.send(Lang.lang(self, "errors_on_reload", name))
-
-    #####
-    # Presence Subsystem
-    #####
-
-    @commands.group(name="presence", invoke_without_command=True)
-    async def cmd_presence(self, ctx):
-        await ctx.invoke(self.bot.get_command("presence list"))
-
-    @cmd_presence.command(name="list")
-    async def cmd_presence_list(self, ctx):
-        def get_message(item):
-            return Lang.lang(self, "presence_entry", item.presence_id, item.message)
-
-        entries = self.bot.presence.filter_messages_list(PresencePriority.LOW)
-        if not entries:
-            await ctx.send(Lang.lang(self, "no_presences"))
-        else:
-            for msg in paginate(entries,
-                                prefix=Lang.lang(self, "presence_prefix", len(entries)),
-                                f=get_message):
-                await ctx.send(msg)
-
-    @cmd_presence.command(name="add")
-    # @commands.has_any_role(*Config().MOD_ROLES)
-    async def cmd_presence_add(self, ctx, *, message):
-        if self.bot.presence.register(message, PresencePriority.LOW) is not None:
-            await utils.add_reaction(ctx.message, Lang.CMDSUCCESS)
-            await utils.write_mod_channel(Lang.lang(self, "presence_added_debug", message))
-        else:
-            await utils.add_reaction(ctx.message, Lang.CMDERROR)
-            await ctx.send(Lang.lang(self, "presence_unknown_error"))
-
-    @cmd_presence.command(name="del", usage="<id>")
-    # @commands.has_any_role(*Config().MOD_ROLES)
-    async def cmd_presence_del(self, ctx, entry_id: int):
-        presence_message = "PANIC"
-        if entry_id in self.bot.presence.messages:
-            presence_message = self.bot.presence.messages[entry_id].message
-
-        if self.bot.presence.deregister_id(entry_id):
-            await utils.add_reaction(ctx.message, Lang.CMDSUCCESS)
-            await utils.write_mod_channel(Lang.lang(self, "presence_removed_debug", presence_message))
-        else:
-            await utils.add_reaction(ctx.message, Lang.CMDERROR)
-            await ctx.send(Lang.lang(self, "presence_not_exists", entry_id))
 
     #####
     # Ignoring Subsystem

@@ -495,11 +495,17 @@ class Question:
         """
         logging.getLogger(__name__).debug("Posing question #%s: %s", self.index, self.question)
         msg = await channel.send(embed=self.embed(emoji=emoji))
-        if emoji:
-            for i in range(len(self.all_answers)):
-                await msg.add_reaction(Lang.EMOJI["lettermap"][i])  # this breaks if there are more than 26 answers
         self.message = msg
         return msg
+
+    async def add_reactions(self, msg):
+        """
+        Adds answer emoji reactions to a question message. Expected to be called somewhat immediately after pose().
+
+        :param msg: Question message
+        """
+        for i in range(len(self.all_answers)):
+            await msg.add_reaction(Lang.EMOJI["lettermap"][i])  # this breaks if there are more than 26 answers
 
     def embed(self, emoji=False, info=False):
         """

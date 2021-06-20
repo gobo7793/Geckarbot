@@ -113,8 +113,12 @@ class PointsQuizController(BaseQuizController):
         """
         self.plugin.logger.debug("Starting PointsQuizController")
         reaction = Lang.lang(self.plugin, "reaction_signup")
-        signup_msg = await self.channel.send(Lang.lang(self.plugin, "registering_phase", reaction,
-                                                       self.config["points_quiz_register_timeout"] // 60))
+        signup_msg = Lang.lang(self.plugin, "registering_phase", reaction,
+                               self.config["points_quiz_register_timeout"] // 60)
+        print("role: {}".format(self.plugin.role))
+        if self.plugin.role is not None:
+            signup_msg = "{}\n{}".format(signup_msg, self.plugin.role.mention)
+        signup_msg = await self.channel.send(signup_msg)
         await add_reaction(signup_msg, Lang.lang(self.plugin, "reaction_signup"))
 
         before = datetime.now()
@@ -199,6 +203,8 @@ class PointsQuizController(BaseQuizController):
         msg = await self.current_question.pose(self.channel, emoji=self.config["emoji_in_pose"])
         self.current_reaction_listener = self.plugin.bot.reaction_listener.register(
             msg, self.on_reaction, data=self.current_question)
+        if self.config["emoji_in_pose"]:
+            await self.current_question.add_reactions(msg)
 
         # If debug, add bot's answer
         if self.gecki:
@@ -634,7 +640,10 @@ class RushQuizController(BaseQuizController):
 
         :return: QUESTION
         """
-        await self.channel.send(Lang.lang(self.plugin, "quiz_phase"))
+        startmsg = Lang.lang(self.plugin, "quiz_phase")
+        if self.plugin.role is not None:
+            startmsg = "{}\n{}".format(startmsg, self.plugin.role.mention)
+        await self.channel.send(startmsg)
         await asyncio.sleep(10)
         return Phases.QUESTION
 

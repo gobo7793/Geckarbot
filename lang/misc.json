@@ -34,6 +34,7 @@
         "money_converted": "**{} {}** are the equivalent of **{} {}**",
         "money_error": "Whoops! No money?!",
         "alpha_response": "beep boop :robot: The result is: {}",
+        "week_number": "Week {}",
 
         "#2": "Help",
         "help_dice": "Rolls a dice",
@@ -42,6 +43,7 @@
         "help_choose": "Picks on of the options",
         "desc_choose": "Picks on of the options. Separate options with '|'",
         "usage_choose": "Option 1 | Option 2 | ...",
+        "help_kw": "Shows the week number to a date.",
         "desc_mudkip": "Wheres the '!mud' comes from.",
         "help_mimimi": "For special mimimi moments",
         "desc_mimimi": "Provides an .mp3 file that plays the sound of 'mimimi'.",
@@ -84,6 +86,7 @@
         "money_converted": "**{} {}** entsprechen aktuell **{} {}**",
         "money_error": "Bin ich pleite?! Irgendwas stimmt hier nicht!",
         "alpha_response": "beep boop :robot: Das Resultat ist: {}",
+        "week_number": "Kalenderwoche {}",
 
         "#2": "Help",
         "help_dice": "Wirft einen Würfel",
@@ -92,6 +95,7 @@
         "help_choose": "Zieht zufällig aus gegebenen Optionen.",
         "desc_choose": "Zieht zufällig aus anzugebenden Optionen. Optionen sind mit | zu trennen.",
         "usage_choose": "option1 | option2 | ...",
+        "help_kw": "Gibt die Kalenderwoche aus.",
         "help_multichoose": "Wie !choose, aber wählt mehrere aus.",
         "desc_multichoose": "Zieht zufällig aus anzugebenden Optionen. Optionen sind mit | zu trennen.",
         "usage_multichoose": "<Anzahl Ausgaben> option1 | option2 | ...",

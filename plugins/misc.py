@@ -12,7 +12,7 @@ from botutils import restclient, utils, timeutils
 from botutils.converters import get_best_username
 from botutils.utils import add_reaction
 from data import Storage, Lang, Config
-from base import BasePlugin
+from base import BasePlugin, NotFound
 from subsystems import timers
 from subsystems.helpsys import DefaultCategories
 
@@ -44,6 +44,17 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
                 self.bot.helpsys.default_category(DefaultCategories.UTILS).add_command(cmd)
                 self.bot.helpsys.default_category(DefaultCategories.MISC).remove_command(cmd)
 
+    def command_help_string(self, command):
+        if command.name == _KEYSMASH_CMD_NAME:
+            return _create_keysmash()
+        return utils.helpstring_helper(self, command, "help")
+
+    def command_description(self, command):
+        return utils.helpstring_helper(self, command, "desc")
+
+    def command_usage(self, command):
+        return utils.helpstring_helper(self, command, "usage")
+
     def migrate(self):
         """
         Migrates storage to current version:
@@ -56,15 +67,12 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
             Storage().save(self)
 
     def default_storage(self, container=None):
+        if container is not None:
+            raise NotFound
         return {
             'version': 0,
             'reminders': {}
         }
-
-    def command_help_string(self, command):
-        if command.name == _KEYSMASH_CMD_NAME:
-            return _create_keysmash()
-        return super().command_help_string(command)
 
     @commands.command(name="dice")
     async def cmd_dice(self, ctx, number_of_sides: int = 6, number_of_dice: int = 1):
@@ -100,6 +108,19 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
             return
         result = random.choice(options)
         await ctx.send(Lang.lang(self, 'choose_msg') + result.strip())
+
+    @commands.command(name="kw", aliases=["week"])
+    async def cmd_week_number(self, ctx, *, date=None):
+        day: datetime
+        if date:
+            day = timeutils.parse_time_input(date)
+            if day == datetime.max:
+                await add_reaction(ctx.message, Lang.CMDERROR)
+                return
+        else:
+            day = datetime.today()
+        week = day.isocalendar()[1]
+        await ctx.send(Lang.lang(self, 'week_number', week))
 
     @commands.command(name="multichoose")
     async def cmd_multichoose(self, ctx, count: int, *args):

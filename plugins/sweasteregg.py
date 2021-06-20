@@ -4,7 +4,7 @@ from typing import List, Optional
 from discord import TextChannel
 from discord.ext import commands
 
-from base import BasePlugin
+from base import BasePlugin, NotFound
 from botutils.utils import add_reaction
 from data import Config, Storage, Lang
 from subsystems import helpsys
@@ -38,7 +38,9 @@ class Plugin(BasePlugin):
             "is_running": False
         }
 
-    def default_storage(self):
+    def default_storage(self, container=None):
+        if container is not None:
+            raise NotFound
         return {
             "memes": {
                 0: "https://tenor.com/view/day-long-remembered-darth-vader-grand-moff-tarkin-tarkin-vader-gif-16214689",
@@ -134,7 +136,7 @@ class Plugin(BasePlugin):
         for presence_str in presence_strings:
             self.presences.append(self.bot.presence.register(presence_str, PresencePriority.HIGH))
         mtd = timedict(year=date.today().year, month=month, monthday=monthday,
-                       minute=[i for i in range(0, 60, Config.get(self)["mtimer_min"])])
+                       minute=list(range(0, 60, Config.get(self)["mtimer_min"])))
         self.meme_timer = self.bot.timers.schedule(self._mtimer_callback, mtd, repeat=True)
 
         otd = timedict(year=date.today().year, month=month, monthday=monthday, hour=13, minute=30)

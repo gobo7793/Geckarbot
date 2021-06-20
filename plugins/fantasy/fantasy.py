@@ -13,7 +13,7 @@ from botutils import stringutils, permchecks
 from botutils.converters import get_best_username, get_best_user
 from botutils.permchecks import WrongChannel
 from botutils.stringutils import paginate
-from botutils.utils import add_reaction
+from botutils.utils import add_reaction, helpstring_helper
 from data import Config, Storage, Lang
 from plugins.fantasy.league import FantasyLeague, deserialize_league, create_league
 from plugins.fantasy.migrations import _2_to_3, _3_to_4, _4_to_5, _5_to_6, _6_to_7
@@ -92,6 +92,15 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
                 "leagues": []
             }
         return {}
+
+    def command_help_string(self, command):
+        return helpstring_helper(self, command, "help")
+
+    def command_description(self, command):
+        return helpstring_helper(self, command, "desc")
+
+    def command_usage(self, command):
+        return helpstring_helper(self, command, "usage")
 
     async def shutdown(self):
         self._stop_score_timer()
@@ -335,8 +344,7 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
             lweek = league.current_week
         if previous_week:
             lweek -= 1
-        if lweek < 1:
-            lweek = 1
+        lweek = max(lweek, 1)
 
         try:
             # full league score

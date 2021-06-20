@@ -1,21 +1,11 @@
-"""
-This subsystem provides cron-like timers whose execution are scheduled to run at a specific time in the future,
-periodically or only once.
-"""
-
-from copy import deepcopy
-from calendar import monthrange
-from threading import Thread, Lock
-from time import sleep
-import sys
 import asyncio
 import logging
-import traceback
-import warnings
 import datetime
+import struct
+from copy import deepcopy
+from calendar import monthrange
 
-from base import BaseSubsystem
-from botutils.utils import write_debug_channel, execute_anything_sync
+from botutils.utils import execute_anything, execute_anything_sync, write_debug_channel
 
 
 timedictformat = ["year", "month", "monthday", "weekday", "hour", "minute"]
@@ -28,136 +18,27 @@ class LastExecution(Exception):
     pass
 
 
-class Mothership(BaseSubsystem, Thread):
-    """
-    The timer subsystem allows for a periodic or singular coroutine to be scheduled based
-     on a time distance or a calendar-oriented schedule.
-
-    Timers do not survive bot restarts.
-    """
-
-    def __init__(self, bot, launch_immediately=True):
-        BaseSubsystem.__init__(self, bot)
-        Thread.__init__(self)
-        self.bot = bot
-        self.jobs = []
-        self._to_register = []
-        self._to_cancel = []
-        self._lock = Lock()
-        self._shutdown = None
-        self.logger = logging.getLogger(__name__)
-
-        if launch_immediately:
-            self.start()
-
-    def run(self):
-        # pylint: disable=broad-except
-        while True:
-            try:
-                self._loop()
-            except Exception as e:
-                msg = "Timer Mothership crashed: {}; Traceback:```\n{}\n```".format(e, traceback.format_exc())
-                self.logger.error(msg)
-                asyncio.run_coroutine_threadsafe(write_debug_channel(msg), self.bot.loop)
-                sleep(60)
-
-    def _loop(self):
-        while True:
-            if self._shutdown is not None:
-                self.logger.info("Shutting down timer thread.")
-                sys.exit(self._shutdown)
-            with self._lock:
-                self.logger.debug("Tick")
-                # Handle registrations
-                for el in self._to_register:
-                    self.insert_job(el)
-                self._to_register = []
-
-                # Handle cancellations
-                for el in self._to_cancel:
-                    if el in self.jobs:
-                        self.jobs.remove(el)
-                self._to_cancel = []
-
-                # Handle executions
-                now = datetime.datetime.now()
-                executed = []
-                todel = []
-                for el in self.jobs:
-                    if (el.next_execution() - now).total_seconds() < 10:  # with this, it should always be < 0
-                        self.logger.debug("About to execute %s", el)
-                        try:
-                            el.execute()
-                            executed.append(el)
-                        except LastExecution:
-                            todel.append(el)
-                    else:
-                        break
-                for el in executed:
-                    self.logger.debug("Executed job %s; scheduling re-execution", el)
-                    self.jobs.remove(el)
-                    self._to_register.append(el)
-                for el in todel:
-                    self.logger.debug("Executed job %s; this was the last execution", el)
-                    self.jobs.remove(el)
-
-            tts = 60 - datetime.datetime.now().second + 1
-            sleep(tts)
-
-    def insert_job(self, job):
-        """
-        Inserts a job at the correct position in the job list.
-        """
-        self.logger.debug("Inserting job %s in job list", job)
-        nexto = job.next_execution()
-        found = False
-        for i in range(len(self.jobs)):
-            if nexto is None:  # workaround for some cases in which nexto is None
-                self.logger.error("An error occured during inserting job %s. THIS SHOULD NOT HAPPEN! "
-                                  "Job will be inserted at last position.", str(job))
-                break
-            next_execution = self.jobs[i].next_execution()
-            if next_execution is not None and next_execution > nexto:
-                found = True
-                self.jobs.insert(i, job)
-                break
-        if not found:
-            self.jobs.append(job)
-
-    def cancel(self, job):
-        self._to_cancel.append(job)
-
-    def schedule(self, coro, td, data=None, repeat=True):
+class Job:
+    """The scheduled Job representation"""
+    def __init__(self, bot, td, f, data=None, repeat=True):
         """
         cron-like. Takes timedict elements as arguments.
 
-        :param coro: Coroutine with the signature f(Cancellable).
+        :param f: Function or coroutine with the signature f(Job). Gets called with this job instance as argument.
         :param td: Timedict that specifies the execution schedule
         :param data: Opaque object that is set as job.data
         :param repeat: If set to False, the job runs only once.
         :raises RuntimeError: raised if td is in the past
         """
-        td = normalize_td(td)
-        if next_occurence(td) is None:
-            raise RuntimeError("td {} is in the past".format(td))
-        job = Job(self, td, coro, data=data, repeat=repeat)
-        self.logger.info("Scheduling %s", job)
-        self._to_register.append(job)
-        return job
-
-    def shutdown(self, exitcode):
-        self.logger.debug("Thread shutdown has been requested.")
-        self._shutdown = exitcode
-
-
-class Job:
-    """The scheduled Job representation"""
-    def __init__(self, mothership, td, coro, data=None, repeat=True):
-        self._mothership = mothership
+        self.logger = logging.getLogger(__name__)
+        self.bot = bot
         self._timedict = normalize_td(td)
         self._cancelled = False
-        self._coro = coro
+        self._coro = f
         self._repeat = repeat
+
+        self._timer = None
+        self._lock = asyncio.Lock()
 
         self.data = data
         """
@@ -165,8 +46,10 @@ class Job:
         It can be used to store arbitrary information to be used by the coroutine.
         """
 
-        self._cached_next_exec = next_occurence(self._timedict)
+        self._cached_next_exec = next_occurence(self._timedict, ignore_now=True)
         self._last_exec = None
+
+        execute_anything_sync(self._loop)
 
     @property
     def timedict(self):
@@ -179,31 +62,44 @@ class Job:
         return self._cancelled
 
     def cancel(self):
-        """Removes the job from the schedule, effectively cancelling it"""
-        self._mothership.logger.info("Cancelling %s", self)
-        self._cancelled = True
-        self._mothership.cancel(self)
-
-    def execute(self):
         """
-        Executes this job. Does not check if it is actually scheduled to be executed.
-        """
-        if self._last_exec is not None and (self.next_execution() - self._last_exec).total_seconds() < 60:
-            warnings.warn("{}; {}: Job was about to be executed twice. THIS SHOULD NOT HAPPEN."
-                          .format(self._last_exec, self._coro))
-            return
+        Cancels the job
 
+        :raises RuntimeError: If the job was already cancelled"""
         if self._cancelled:
-            return
+            raise RuntimeError("Already cancelled")
+        self.logger.info("Cancelling %s", self)
+        self._cancelled = True
+        self._timer.cancel()
+        self._lock.release()
 
-        self._last_exec = self.next_execution()
-        self._mothership.logger.info("Executing %s at %s", self, self._last_exec)
-        self._cached_next_exec = next_occurence(self._timedict, ignore_now=True)
-        asyncio.run_coroutine_threadsafe(self._coro(self), self._mothership.bot.loop)
+    def loop_cb(self):
+        self._lock.release()
 
-        if not self._repeat or self.next_execution() is None:
-            self.cancel()
-            raise LastExecution  # alternatively
+    async def _loop(self):
+        await self._lock.acquire()
+        while self.next_execution() is not None:
+            tts = (self.next_execution() - datetime.datetime.now()).seconds
+            self.logger.debug("Scheduling job for %s", self.next_execution())
+
+            # check if tts is too big
+            bitness = struct.calcsize("P") * 8
+            if 2 ** (bitness - 3) < (365 * 24 * (60/2) * (60/2)):
+                await write_debug_channel("Unable to sleep for {} years; job: {}"
+                                          .format(self.next_execution().year, self))
+                return
+
+            # Schedule
+            self._timer = Timer(self.bot, tts, self.loop_cb)
+            self.logger.debug("Sleeping %d seconds", tts)
+            await self._lock.acquire()
+            if self._cancelled:
+                self.logger.debug("Job was cancelled, cancelling loop")
+                return
+            self.logger.debug("Executing job %s", self)
+            await execute_anything(self._coro, self)
+            if not self._repeat:
+                return
 
     def next_execution(self):
         """
@@ -212,10 +108,12 @@ class Job:
 
         :return: The datetime object of the next execution or None if no future execution.
         """
-        if self._cached_next_exec is None:
-            self._mothership.logger.debug("No cached next occurence")
-            self._cached_next_exec = next_occurence(self._timedict)
-        self._mothership.logger.debug("Next execution: %s", self._cached_next_exec)
+        now = datetime.datetime.now()
+        delta = datetime.timedelta(seconds=10)
+        if self._cached_next_exec is None or self._cached_next_exec - now < delta:
+            self.logger.debug("Next occurence cache invalid")
+            self._cached_next_exec = next_occurence(self._timedict, now=now + delta, ignore_now=True)
+        self.logger.debug("Next execution: %s", self._cached_next_exec)
         return self._cached_next_exec
 
     def __str__(self):
@@ -327,6 +225,51 @@ def ring_iterator(haystack, startel, ringstart, ringend, startperiod):
         i += 1
 
 
+def next_occurence_bottom_up(ntd, now=None, ignore_now=False):
+    """
+    Takes a normalized timedict and returns a datetime object that represents the next occurence of said timedict,
+    taking now as starting point.
+
+    :param ntd: normalized timedict
+    :param now: datetime.datetime object from which to calculate; omit for current time
+    :param ignore_now: If `True`: If the next occurence would be right now, returns the next occurence instead.
+    :return: datetime.datetime object that marks the next occurence; `None` if there is none
+    :raises NotImplementedError: Because this isn't done yet (supposed to replace top-down variant and introduce
+        granularity down to seconds)
+    """
+    logger = logging.getLogger(__name__)
+    logger.debug("Called next_occurence (bottom up) with ntd %s; now: %s; ignore_now: %s", ntd, now, ignore_now)
+    if now is None:
+        now = datetime.datetime.now()
+
+    if ignore_now:
+        now += datetime.timedelta(seconds=1)
+
+    # find second
+    second = now.second
+    if "second" in ntd:
+        second = nearest_element(now.second, ntd["second"], 0, 59)
+
+    # find minute
+    now_minute = now.minute if second >= now.second else now.minute + 1
+    minute = now_minute
+    if "minute" in ntd:
+        minute = nearest_element(now_minute, ntd["minute"], 0, 59)
+
+    # find hour
+    now_hour = now.hour if minute >= now.minute else now.hour + 1
+    hour = now_hour
+    if "hour" in ntd:
+        hour = nearest_element(now_hour, ntd["hour"], 0, 23)
+
+    # find day
+    now_day = now.day if hour >= now.hour else now.day + 1
+    day = now_day
+    if "day" in ntd:
+        pass
+    return datetime.datetime.now()
+
+
 def next_occurence(ntd, now=None, ignore_now=False):
     """
     Takes a normalized timedict and returns a datetime object that represents the next occurence of said timedict,
@@ -424,13 +367,8 @@ def next_occurence(ntd, now=None, ignore_now=False):
         # Month is over
         startday = 1
 
-    logger.warning("Yes, this line happens and can be removed. If it doesn't, we should raise a RuntimeError here.")
-    return None
+    assert False
 
-
-#####
-# Independent small timer thingy
-#####
 
 class HasAlreadyRun(Exception):
     """

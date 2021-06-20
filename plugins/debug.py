@@ -1,4 +1,3 @@
-import sys
 import asyncio
 from typing import Union
 
@@ -7,6 +6,7 @@ from discord.ext import commands
 
 from base import BasePlugin
 from botutils import utils, converters, setter
+from botutils.timers import Job, timedict
 from data import Config, Lang
 from subsystems import timers
 from subsystems.helpsys import DefaultCategories
@@ -46,6 +46,7 @@ class Plugin(BasePlugin, name="Testing and debug things"):
         self.setter.add_switch(("switch2_a", "switch2_b"))
         self.sleeptask = None
         self.recsleeptask = None
+        self.spamjob = None
 
     def default_storage(self, container=None):
         return {}
@@ -228,9 +229,19 @@ class Plugin(BasePlugin, name="Testing and debug things"):
     async def _spamcb(job):
         await job.data.send("Spam")
 
-    # @commands.command(name="spam", hidden=True)
+    @commands.group(name="spam", hidden=True, invoke_without_command=True)
     async def cmd_spam(self, ctx):
-        self.bot.timers.schedule(self._spamcb, timers.timedict(), data=ctx)
+        self.spamjob = Job(self.bot, timedict(), self._spamcb, data=ctx)
+        await utils.add_reaction(ctx.message, Lang.CMDSUCCESS)
+
+    @cmd_spam.command(name="cancel", hidden=True)
+    async def cmd_spam_cancel(self, ctx):
+        if self.spamjob is None:
+            await ctx.send("Nothing to cancel")
+            await utils.add_reaction(ctx.message, Lang.CMDERROR)
+            return
+        self.spamjob.cancel()
+        self.spamjob = None
         await utils.add_reaction(ctx.message, Lang.CMDSUCCESS)
 
     @commands.command(name="tasks", hidden=True)
@@ -287,3 +298,21 @@ class Plugin(BasePlugin, name="Testing and debug things"):
     @commands.command(name="setdemo", hidden=True)
     async def cmd_set(self, ctx, key, value=None):
         await self.setter.set_cmd(ctx, key, value)
+
+    @commands.group(name="qname", hidden=True)
+    async def cmd_qname(self, ctx):
+        await ctx.send(ctx.command.qualified_name)
+
+    @cmd_qname.command(name="sub", hidden=True)
+    async def cmd_qname_sub(self, ctx):
+        await ctx.send(ctx.command.qualified_name)
+
+    @commands.command(name="rolebyid", hidden=True)
+    async def cmd_rolebyid(self, ctx, rid: int):
+        role = self.bot.guild.get_role(rid)
+        await ctx.send(role.mention)
+
+    @commands.command(name="rolebymention", hidden=True)
+    async def cmd_rolebymention(self, ctx, role: discord.Role):
+        # role = await commands.RoleConverter().convert(ctx, role)
+        await ctx.send(role.mention)
