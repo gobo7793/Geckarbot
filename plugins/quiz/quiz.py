@@ -454,10 +454,16 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
         # Ranked constraints
         if args["ranked"] and not args["debug"]:
             if controller != self.default_controller:
+                self.logger.debug("Ranked constraints violated: controller {} != {}"
+                                  .format(controller, self.default_controller))
                 return "ranked_constraints"
-            if args["category"] != self.defaults["category"]:
-                return "ranked_constraints"
+            #if args["category"] != self.defaults["category"]:
+            #    self.logger.debug("Ranked constraints violated: cat {} != {}"
+            #                      .format(args["category"], self.defaults["category"]))
+            #    return "ranked_constraints"
             if args["difficulty"] != self.defaults["difficulty"]:
+                self.logger.debug("Ranked constraints violated: difficulty {} != {}"
+                                  .format(args["difficulty"], self.defaults["difficulty"]))
                 return "ranked_constraints"
             if args["questions"] < self.config["ranked_min_questions"]:
                 return "ranked_questioncount"
