@@ -88,7 +88,9 @@ class Plugin(BasePlugin, name="EURO2020"):
         msg = ["__:soccer: **EURO 2020**__"]
         if isinstance(event, LivetickerKickoff):
             for match in event.matches:
-                stadium, city = match.venue if isinstance(match, Match) else "?", "?"
+                stadium, city = "?", "?"
+                if isinstance(match, Match):
+                    stadium, city = match.venue
                 msg.append(f"{stadium}, {city} | {match.home_team.emoji} {match.away_team.emoji} "
                            f"{match.home_team.long_name} - {match.away_team.long_name}")
             msg.extend(await self.show_emtipp())
