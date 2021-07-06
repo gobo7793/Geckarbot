@@ -151,15 +151,14 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
         if not self.bot.WOLFRAMALPHA_API_KEY:
             await add_reaction(ctx.message, Lang.CMDERROR)
             return
-        currency = currency.upper()
         if arg3:
             amount = arg3
-            other_curr = arg2.upper()
+            other_curr = arg2
         elif arg2:
             try:
                 amount = float(arg2)
             except (TypeError, ValueError):
-                other_curr = arg2.upper()
+                other_curr = arg2
                 amount = 1
             else:
                 other_curr = "EUR"
@@ -167,7 +166,7 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
             amount = 1
             other_curr = "EUR"
         response = await restclient.Client("https://api.wolframalpha.com/v1/")\
-            .request("result", params={'i': f"{amount} {currency} to {other_curr}",
+            .request("result", params={'i': f"convert {amount} {currency} to {other_curr}",
                                        'appid': self.bot.WOLFRAMALPHA_API_KEY}, parse_json=False)
         if response != "Wolfram|Alpha did not understand your input":
             await ctx.send(Lang.lang(self, 'alpha_response', response))
