@@ -15,6 +15,8 @@
         "help_teamname_set": "Update name variant for a team",
         "help_teamname_add": "Add a new team",
         "help_teamname_del": "Remove an entry",
+        "help_bulitable": "Current standings of the Bundesliga table",
+        "help_table": "Current standing of any leagues table",
 
         "#1": "",
         "soccer_title": "Soccer - {} - Live",
@@ -88,6 +90,8 @@
         "help_teamname_set": "Ändert eine Namensvariante",
         "help_teamname_add": "Fügt Namensvarianten für einen neuen Verein hinzu",
         "help_teamname_del": "Entfernt einen Verein",
+        "help_bulitable": "Aktuelle Tabelle der Bundesliga",
+        "help_table": "Aktuelle Tabelle einer beliebigen Liga",
 
         "soccer_title": "Fußball - {} - Live",
         "no_matches_24h": "In den nächsten 24 Stunden stehen keine Spiele an.",
