@@ -4,6 +4,7 @@ from discord.ext import commands
 
 from base import BasePlugin
 from botutils.questionnaire import Question, Questionnaire, QuestionType
+from subsystems.helpsys import DefaultCategories
 
 
 protoquestions = [
@@ -21,7 +22,7 @@ class Plugin(BasePlugin):
         self.answers = []
         self.logger = logging.getLogger(__name__)
 
-        self.bot.register(self)
+        self.bot.register(self, DefaultCategories.MISC)
 
     @commands.command(name="blub")
     async def cmd_poll(self, ctx):

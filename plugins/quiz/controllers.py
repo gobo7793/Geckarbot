@@ -12,8 +12,7 @@ from botutils.utils import add_reaction
 from botutils.stringutils import format_andlist
 from data import Storage, Lang
 
-from plugins.quiz.abc import BaseQuizController
-from plugins.quiz.base import Score, InvalidAnswer, Difficulty
+from plugins.quiz.base import BaseQuizController, Score, InvalidAnswer, Difficulty
 from plugins.quiz.utils import get_best_username
 
 
@@ -45,7 +44,7 @@ class PointsQuizController(BaseQuizController):
         """
         :param plugin: Plugin object
         :param config: config
-        :param quizapi: BaseQuizAPI object
+        :param quizapi: Quiz API class that is to be used
         :param channel: channel that the quiz was requested in
         :param requester: user that requested the quiz
         :param kwargs: category, question_count, difficulty, debug
@@ -58,6 +57,7 @@ class PointsQuizController(BaseQuizController):
         self.requester = requester
         self.config = config
         self.plugin = plugin
+        self.task = asyncio.current_task()
 
         self.ranked = False
         if "ranked" in kwargs:
@@ -87,7 +87,7 @@ class PointsQuizController(BaseQuizController):
         self.current_question_timer = None
         self.current_reaction_listener = None
         self.statemachine = statemachine.StateMachine(init_state=Phases.INIT)
-        self.statemachine.add_state(Phases.REGISTERING, self.registering_phase, start=True)
+        self.statemachine.add_state(Phases.REGISTERING, self.registering_phase, allowed_sources=[], start=True)
         self.statemachine.add_state(Phases.ABOUTTOSTART, self.about_to_start, allowed_sources=[Phases.REGISTERING])
         self.statemachine.add_state(Phases.QUESTION, self.pose_question,
                                     allowed_sources=[Phases.ABOUTTOSTART, Phases.EVAL])
@@ -102,28 +102,29 @@ class PointsQuizController(BaseQuizController):
     def register_participant(self, user):
         self.registered_participants[user] = []
 
-    ###
+    #####
     # Transitions
-    ###
+    #####
     async def registering_phase(self):
         """
         REGISTERING -> [ABOUTTOSTART, ABORT]
+
         :return: Phases.ABOUTTOSTART or Phases.ABORT
         """
         self.plugin.logger.debug("Starting PointsQuizController")
         reaction = Lang.lang(self.plugin, "reaction_signup")
-        signup_msg = await self.channel.send(Lang.lang(self.plugin, "registering_phase", reaction,
-                                                       self.config["points_quiz_register_timeout"] // 60))
+        signup_msg = Lang.lang(self.plugin, "registering_phase", reaction,
+                               self.config["points_quiz_register_timeout"] // 60)
+        print("role: {}".format(self.plugin.role))
+        if self.plugin.role is not None:
+            signup_msg = "{}\n{}".format(signup_msg, self.plugin.role.mention)
+        signup_msg = await self.channel.send(signup_msg)
         await add_reaction(signup_msg, Lang.lang(self.plugin, "reaction_signup"))
 
         before = datetime.now()
         await self.quizapi.fetch()
-        tosleep = before - datetime.now()
+        tosleep = datetime.now() - before
         await asyncio.sleep(self.config["points_quiz_register_timeout"] - tosleep.seconds)
-
-        # Kwiss was cancelled
-        if self.state != Phases.REGISTERING:
-            return
 
         # Consume signup reactions
         await signup_msg.remove_reaction(Lang.lang(self.plugin, "reaction_signup"), self.plugin.bot.user)
@@ -161,6 +162,7 @@ class PointsQuizController(BaseQuizController):
     async def about_to_start(self):
         """
         ABOUTTOSTART -> QUESTION; ABOUTTOSTART -> ABORT
+
         :return: Phases.QUESTION
         """
         self.plugin.logger.debug("Ending the registering phase")
@@ -185,6 +187,7 @@ class PointsQuizController(BaseQuizController):
     async def pose_question(self):
         """
         QUESTION -> [EVAL, END]
+
         :return: Phases.EVAL or Phases.END
         """
         self.plugin.logger.debug("Posing next question.")
@@ -195,11 +198,13 @@ class PointsQuizController(BaseQuizController):
             return Phases.END
 
         self.eval_event = asyncio.Event()
-        self.current_question_timer = timers.AsyncTimer(self.plugin.bot, self.config["points_quiz_question_timeout"],
-                                                        self.timeout_warning, self.eval_event)
+        self.current_question_timer = timers.Timer(self.plugin.bot, self.config["points_quiz_question_timeout"],
+                                                   self.timeout_warning, self.eval_event)
         msg = await self.current_question.pose(self.channel, emoji=self.config["emoji_in_pose"])
         self.current_reaction_listener = self.plugin.bot.reaction_listener.register(
             msg, self.on_reaction, data=self.current_question)
+        if self.config["emoji_in_pose"]:
+            await self.current_question.add_reactions(msg)
 
         # If debug, add bot's answer
         if self.gecki:
@@ -228,6 +233,7 @@ class PointsQuizController(BaseQuizController):
         """
         EVAL -> QUESTION
         Is called when the question is over. Evaluates scores and cancels the timer.
+
         :return: Phases.QUESTION
         """
         self.plugin.logger.debug("Ending question")
@@ -337,6 +343,13 @@ class PointsQuizController(BaseQuizController):
         else:
             await self.channel.send(Lang.lang(self.plugin, "quiz_abort"))
 
+    def cleanup(self):
+        if self.current_question_timer is not None:
+            try:
+                self.current_question_timer.cancel()
+            except timers.HasAlreadyRun:
+                pass
+
     ###
     # Callbacks
     ###
@@ -412,9 +425,9 @@ class PointsQuizController(BaseQuizController):
             return
 
         self.plugin.logger.debug("Question timeout warning")
-        self.current_question_timer = timers.AsyncTimer(self.plugin.bot,
-                                                        self.config["points_quiz_question_timeout"] // 2,
-                                                        self.timeout, event)
+        self.current_question_timer = timers.Timer(self.plugin.bot,
+                                                   self.config["points_quiz_question_timeout"] // 2,
+                                                   self.timeout, event)
 
         msg = Lang.lang(self.plugin, "points_timeout_warning",
                         format_andlist(self.havent_answered_hr(),
@@ -453,7 +466,6 @@ class PointsQuizController(BaseQuizController):
         """
         Called when the start command is invoked.
         """
-        # Fetch questions
         self.plugin.logger.debug("category: {}".format(self.category))
         self.quizapi = self.quizapi(self.config,
                                     self.channel,
@@ -591,6 +603,7 @@ class RushQuizController(BaseQuizController):
         self.plugin = plugin
         self.channel = channel
         self.requester = requester
+        self.task = asyncio.current_task()
 
         # QuizAPI config
         self.category = None
@@ -622,10 +635,16 @@ class RushQuizController(BaseQuizController):
     # Transitions
     ###
     async def about_to_start(self):
-        await self.channel.send(Lang.lang(self.plugin, "quiz_phase"))
+        """
+        INIT -> QUESTION
+
+        :return: QUESTION
+        """
+        startmsg = Lang.lang(self.plugin, "quiz_phase")
+        if self.plugin.role is not None:
+            startmsg = "{}\n{}".format(startmsg, self.plugin.role.mention)
+        await self.channel.send(startmsg)
         await asyncio.sleep(10)
-        if self.statemachine.cancelled():
-            return Phases.ABORT
         return Phases.QUESTION
 
     async def pose_question(self):
@@ -775,11 +794,11 @@ class RushQuizController(BaseQuizController):
     def score(self):
         return self._score
 
-    def stop(self):
-        pass
+    def cleanup(self):
+        self.statemachine.cancel()
 
     async def abort(self, msg):
-        self.statemachine.cancel()
+        self.cleanup()
         await add_reaction(msg, Lang.CMDSUCCESS)
 
     @property

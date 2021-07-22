@@ -195,36 +195,46 @@ class Client(restclient.Client):
         # self.logger.debug("Response: {}".format(response))
         return response
 
-    def get_sheets(self):
+    def _get_sheets(self):
+        """
+        Gets all sheets
+
+        :return: List of sheets
+        """
         info = get_service().spreadsheets().get(spreadsheetId=self.spreadsheet_id).execute()
         sheets = info.get('sheets', [])
         return sheets
 
-    def get_sheet_properties(self, sheet):
+    def _get_sheet_properties(self, sheet):
         """
         Returns properties of the specified sheet
 
         :param sheet: name or id of the sheet
         :return: sheet properties
         """
-        sheets = self.get_sheets()
+        sheets = self._get_sheets()
         for sh in sheets:
             properties = sh.get('properties', {})
             if sheet == properties.get('title') or sheet == properties.get('sheetId'):
                 return properties
 
-    def get_sheet_id(self, sheet):
-        """Converts the title of a sheet into the coresponding sheet id"""
+    def _get_sheet_id(self, sheet):
+        """
+        Converts the title of a sheet into the coresponding sheet id
+
+        :return: sheet id
+        """
         if type(sheet) == int:
             return sheet
-        return self.get_sheet_properties(sheet).get('sheetId')
+        return self._get_sheet_properties(sheet).get('sheetId')
 
     def get(self, range, formatted: bool = True) -> list:
         """
         Reads a single range
-        :param range:
-        :param formatted:
-        :return:
+
+        :param range: rangename
+        :param formatted: whether the cell values should be read formatted/as seen in the sheet or not
+        :return: values of that range
         """
         value_render_option = "FORMATTED_VALUE" if formatted else "UNFORMATTED_VALUE"
         if self.bot.GOOGLE_API_KEY:
@@ -243,7 +253,7 @@ class Client(restclient.Client):
         Reads multiple ranges
 
         :param ranges: list of ranges
-        :param formatted: whether the cell values should be read formatted (True) or unformatted (False)
+        :param formatted: whether the cell values should be read formatted/as seen in the sheet or not
         :return: values list
         """
         value_render_option = "FORMATTED_VALUE" if formatted else "UNFORMATTED_VALUE"
@@ -329,6 +339,7 @@ class Client(restclient.Client):
     def clear(self, range) -> dict:
         """
         Clears a range
+
         :param range: range to be cleared
         :return: response
         """
@@ -339,6 +350,7 @@ class Client(restclient.Client):
     def clear_multiple(self, ranges: list) -> dict:
         """
         Clears multiple ranges
+
         :param ranges: list of ranges
         :return: response
         """
@@ -352,6 +364,7 @@ class Client(restclient.Client):
     def add_sheet(self, title: str, rows: int = 1000, columns: int = 26):
         """
         Adds a new sheet
+
         :param title: name of the new sheet
         :param rows: number of rows
         :param columns: number of columns
@@ -394,7 +407,7 @@ class Client(restclient.Client):
         :param new_title: title of the resulting duplicate
         :return: DuplicateSheetResponse if successful, None instead
         """
-        properties = self.get_sheet_properties(sheet)
+        properties = self._get_sheet_properties(sheet)
         if properties is None:
             return None
         if type(sheet) == int:
@@ -481,7 +494,7 @@ class Client(restclient.Client):
         if all_sheets:
             request['allSheets'] = True
         elif sheet and range:
-            sheet_id = self.get_sheet_id(sheet)
+            sheet_id = self._get_sheet_id(sheet)
             if sheet_id:
                 try:
                     cell_range = CellRange.from_a1(range)
@@ -498,7 +511,7 @@ class Client(restclient.Client):
             else:
                 return None
         elif sheet:
-            sheet_id = self.get_sheet_id(sheet)
+            sheet_id = self._get_sheet_id(sheet)
             if sheet_id:
                 request['sheetId'] = sheet_id
             else:

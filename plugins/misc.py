@@ -1,5 +1,4 @@
 import asyncio
-import locale
 import logging
 import random
 import string
@@ -11,8 +10,9 @@ from discord.ext import commands
 
 from botutils import restclient, utils, timeutils
 from botutils.converters import get_best_username
+from botutils.utils import add_reaction
 from data import Storage, Lang, Config
-from base import BasePlugin
+from base import BasePlugin, NotFound
 from subsystems import timers
 from subsystems.helpsys import DefaultCategories
 
@@ -25,16 +25,16 @@ def _create_keysmash():
 
 
 class Plugin(BasePlugin, name="Funny/Misc Commands"):
-
     def __init__(self, bot):
         super().__init__(bot)
         bot.register(self, DefaultCategories.MISC)
+        self.migrate()
 
         self.reminders = {}  # type: Dict[int, timers.Job]
         for reminder_id in Storage().get(self)['reminders']:
             reminder = Storage().get(self)['reminders'][reminder_id]
             self._register_reminder(reminder['chan'], reminder['user'], reminder['time'],
-                                    reminder_id, reminder['text'], True)
+                                    reminder_id, reminder['text'], reminder['link'], True)
         self._remove_old_reminders()
 
         # Add commands to help category 'utils'
@@ -44,13 +44,35 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
                 self.bot.helpsys.default_category(DefaultCategories.UTILS).add_command(cmd)
                 self.bot.helpsys.default_category(DefaultCategories.MISC).remove_command(cmd)
 
-    def default_storage(self):
-        return {'reminders': {}}
-
     def command_help_string(self, command):
         if command.name == _KEYSMASH_CMD_NAME:
             return _create_keysmash()
-        return super().command_help_string(command)
+        return utils.helpstring_helper(self, command, "help")
+
+    def command_description(self, command):
+        return utils.helpstring_helper(self, command, "desc")
+
+    def command_usage(self, command):
+        return utils.helpstring_helper(self, command, "usage")
+
+    def migrate(self):
+        """
+        Migrates storage to current version:
+            None -> 0: inserts jump link placeholders
+        """
+        if 'version' not in Storage().get(self):
+            Storage().get(self)['version'] = 0
+            for rid in Storage().get(self)['reminders'].keys():
+                Storage().get(self)['reminders'][rid]['link'] = "Link not found (reminder made on old version)"
+            Storage().save(self)
+
+    def default_storage(self, container=None):
+        if container is not None:
+            raise NotFound
+        return {
+            'version': 0,
+            'reminders': {}
+        }
 
     @commands.command(name="dice")
     async def cmd_dice(self, ctx, number_of_sides: int = 6, number_of_dice: int = 1):
@@ -65,6 +87,15 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
             results = f"{results[:pos_last_comma + 1]}\u2026"
         await ctx.send(results)
 
+    @commands.command(name="alpha")
+    async def cmd_wolframalpha(self, ctx, *args):
+        if not self.bot.WOLFRAMALPHA_API_KEY:
+            await add_reaction(ctx.message, Lang.CMDERROR)
+            return
+        response = await restclient.Client("https://api.wolframalpha.com/v1/")\
+            .request("result", params={'i': " ".join(args), 'appid': self.bot.WOLFRAMALPHA_API_KEY}, parse_json=False)
+        await ctx.send(Lang.lang(self, 'alpha_response', response))
+
     @commands.command(name="choose")
     async def cmd_choose(self, ctx, *args):
         full_options_str = " ".join(args)
@@ -77,6 +108,19 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
             return
         result = random.choice(options)
         await ctx.send(Lang.lang(self, 'choose_msg') + result.strip())
+
+    @commands.command(name="kw", aliases=["week"])
+    async def cmd_week_number(self, ctx, *, date=None):
+        day: datetime
+        if date:
+            day = timeutils.parse_time_input(date)
+            if day == datetime.max:
+                await add_reaction(ctx.message, Lang.CMDERROR)
+                return
+        else:
+            day = datetime.today()
+        week = day.isocalendar()[1]
+        await ctx.send(Lang.lang(self, 'week_number', week))
 
     @commands.command(name="multichoose")
     async def cmd_multichoose(self, ctx, count: int, *args):
@@ -104,6 +148,9 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
 
     @commands.command(name="money")
     async def cmd_money_converter(self, ctx, currency, arg2=None, arg3: float = None):
+        if not self.bot.WOLFRAMALPHA_API_KEY:
+            await add_reaction(ctx.message, Lang.CMDERROR)
+            return
         currency = currency.upper()
         if arg3:
             amount = arg3
@@ -119,14 +166,11 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
         else:
             amount = 1
             other_curr = "EUR"
-        rates = await restclient.Client("https://api.exchangeratesapi.io").request("/latest")
-        rate1 = rates.get('rates', {}).get(currency) if currency != "EUR" else 1
-        rate2 = rates.get('rates', {}).get(other_curr) if other_curr != "EUR" else 1
-        if rate1 and rate2:
-            other_amount = float(rate2) / float(rate1) * amount
-            await ctx.send(Lang.lang(self, 'money_converted',
-                                     locale.format_string('%.2f', amount, grouping=True), currency,
-                                     locale.format_string('%.2f', other_amount, grouping=True), other_curr))
+        response = await restclient.Client("https://api.wolframalpha.com/v1/")\
+            .request("result", params={'i': f"{amount} {currency} to {other_curr}",
+                                       'appid': self.bot.WOLFRAMALPHA_API_KEY}, parse_json=False)
+        if response != "Wolfram|Alpha did not understand your input":
+            await ctx.send(Lang.lang(self, 'alpha_response', response))
         else:
             await ctx.send(Lang.lang(self, 'money_error'))
 
@@ -196,7 +240,8 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
             await ctx.send(Lang.lang(self, 'remind_past'))
             return
 
-        if self._register_reminder(ctx.channel.id, ctx.author.id, remind_time, reminder_id, rtext):
+        rlink = ctx.message.jump_url
+        if self._register_reminder(ctx.channel.id, ctx.author.id, remind_time, reminder_id, rtext, rlink):
             await ctx.send(Lang.lang(self, 'remind_set', remind_time.strftime('%d.%m.%Y %H:%M'), reminder_id))
         else:
             await utils.add_reaction(ctx.message, Lang.CMDERROR)
@@ -249,7 +294,7 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
         await utils.add_reaction(ctx.message, Lang.CMDSUCCESS)
 
     def _register_reminder(self, channel_id: int, user_id: int, remind_time: datetime,
-                           reminder_id: int, text, is_restart: bool = False) -> bool:
+                           reminder_id: int, text, link: str, is_restart: bool = False) -> bool:
         """
         Registers a reminder
 
@@ -258,6 +303,7 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
         :param remind_time: The remind time
         :param reminder_id: The reminder ID
         :param text: The reminder message text
+        :param link: The reminder message jump link (or placeholder text)
         :param is_restart: True if reminder is restarting after bot (re)start
         :returns: True if reminder is registered, otherwise False
         """
@@ -268,7 +314,14 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
         log.info("Adding reminder %d for user with id %d at %s: %s",
                  reminder_id, user_id, remind_time, text)
 
-        job_data = {'chan': channel_id, 'user': user_id, 'time': remind_time, 'text': text, 'id': reminder_id}
+        job_data = {
+            'chan': channel_id,
+            'user': user_id,
+            'time': remind_time,
+            'text': text,
+            'link': link,
+            'id': reminder_id
+        }
 
         timedict = timers.timedict(year=remind_time.year, month=remind_time.month, monthday=remind_time.day,
                                    hour=remind_time.hour, minute=remind_time.minute)

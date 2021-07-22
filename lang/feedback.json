@@ -14,7 +14,7 @@
         "redact_count": "There are {} complaints ({} categorized, {} uncategorized) and {} categories.",
         "redact_cat_appendix": "Category: {}",
 
-        "redact_cat_show_prefix": "**Category *{}* contains the following complaints:**\n",
+        "redact_cat_show_prefix": "**Category *{}* contains the following {} complaints:**\n",
         "redact_cat_list_prefix": "**Categories:**\n",
         "redact_cat_list_empty": "There are no categories.",
         "redact_cat_moved": "Moved complaint **#{}** from category **{}** to category **{}**.",
@@ -29,6 +29,7 @@
         "bugscore_nan": "{} is not a number.",
         "bugscore_empty": "Nobody has found any bugs yet :(",
 
+        "cat_desc": "Complaints and their management",
         "help_complain": "Takes a complaint and stores it.",
         "usage_complain": "<complaint>",
         "desc_complain": "Delivers a feedback message. The admins and botmasters can then read the accumulated feedback via !redact. The bot saves the feedback author, the message and a link to the message for context.",
@@ -63,7 +64,7 @@
         "redact_count": "Es gibt {} Beschwerden ({} kategorisiert, {} ohne Kategorie) und {} Kategorien.",
         "redact_cat_appendix": "Kategorie: {}",
 
-        "redact_cat_show_prefix": "**Die Kategorie *{}* enthält die folgenden Beschwerden:**\n",
+        "redact_cat_show_prefix": "**Die Kategorie *{}* enthält die folgenden {} Beschwerden:**\n",
         "redact_cat_list_prefix": "**Kategorien:**\n",
         "redact_cat_list_empty": "Es gibt keine Kategorien.",
         "redact_cat_moved": "Beschwerde **#{}** von Kategorie **{}** zu Kategorie **{}** verschoben.",
@@ -78,6 +79,7 @@
         "bugscore_nan": "{} ist keine Zahl.",
         "bugscore_empty": "Niemand hat bisher Bugs gefunden :(",
 
+        "cat_desc": "Kommandos für Beschwerden",
         "help_complain": "Nimmt eine Beschwerde entgegen und speichert sie.",
         "usage_complain": "<Beschwerde>",
         "desc_complain": "Überbringt eine Feedback-Nachricht. Die Admins und Botmaster können die angesammelten Feedback-Nachrichten via !redact lesen. Es werden der Autor, die Nachricht selbst und ein Link zur Nachricht (für Kontext) gespeichert.",

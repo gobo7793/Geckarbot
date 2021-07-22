@@ -7,9 +7,15 @@
     "help_usage": "Shows only the usage information of a command",
     "desc_usage": "Short help message about a command that only contains the usage information (argument structure).",
     "usage_usage": "<command>",
-    "help_helpall": "Lists all commands.",
-    "desc_helpall": "Lists all commands in alphabetical order.",
-    "usage_helpall": "[debug]",
+    "help_help_all": "Lists all commands.",
+    "desc_help_all": "Lists all commands in alphabetical order.",
+    "usage_help_all": "[debug] [hidden] [recursive]",
+    "help_help_hidden": "Lists all hidden commands.",
+    "desc_help_hidden": "Lists all commands that have the \"hidden\" flag set. Warning: Most of these commands are for technical purposes.",
+    "usage_help_hidden": "[debug]",
+    "help_locate": "Finds the corresponding plugin to a command",
+    "desc_locate": "Shows the name of the plugin that the given command belongs to.",
+    "usage_locate": "<Command>",
     "self_category_name": "Help",
 
     "help_categories_prefix": "!help <category> for help on a category.\n\nCategories:",
@@ -17,6 +23,9 @@
     "help_subcommands_prefix": "Subcommands:",
     "help_aliases": "Aliases: {}",
     "help_no_desc": "This command does not have a description. You are on your own.",
+    "help_all_length": "**{} commands:**",
+
+    "locate": "The command belongs to the plugin **{}**.",
 
     "default_category_misc": "Misc",
     "default_category_user": "User",
@@ -25,6 +34,15 @@
     "default_category_games": "Games",
     "default_category_utils": "Utilities",
     "default_category_sport": "Sport",
+
+    "cat_desc_misc": "Miscellaneous commands",
+    "cat_desc_user": "Bot control commands for users",
+    "cat_desc_admin": "Bot control commands for admins",
+    "cat_desc_mod": "Bot control commands for mods",
+    "cat_desc_games": "Something to play with",
+    "cat_desc_utils": "Useful in general",
+    "cat_desc_sport": "API commands for misc sports",
+    "cat_desc_help": "Explains things",
 
     "cmd_not_found": "Command not found.",
     "cmd_cat_not_found": "Command or category not found."
@@ -37,9 +55,15 @@
     "help_usage": "Kurzer Benutzungshinweis",
     "desc_usage": "Abgekürzte Hilfe-Nachricht zu einem Kommando, die nur die Benutzungsinformation (Information zur Argumentstruktur) enthält.",
     "usage_usage": "<Kommando>",
-    "help_helpall": "Listet alle Kommandos auf",
-    "desc_helpall": "Listet alle bekannten Kommandos in alphabetischer Reihenfolge auf.",
-    "usage_helpall": "[debug]",
+    "help_help_all": "Listet alle Kommandos auf",
+    "desc_help_all": "Listet alle bekannten Kommandos in alphabetischer Reihenfolge auf.",
+    "usage_help_all": "[debug]",
+    "help_help_hidden": "Listet alle versteckten Kommandos auf",
+    "desc_help_hidden": "Listet alle versteckten Kommandos auf. Warnung: Die meisten dieser Kommandos sind für Debugging- oder andere technische Zwecke gedacht und sollten mit Bedacht genutzt werden.",
+    "usage_help_hidden": "[debug]",
+    "help_locate": "Findet das Plugin zu einem Kommando",
+    "desc_locate": "Zeigt den Namen des Plugins, in dem das übergebene Kommando zu finden ist.",
+    "usage_locate": "<Kommando>",
     "self_category_name": "Hilfe",
 
     "help_categories_prefix": "!help <Kategorie> für Hilfe zu einer Kategorie.\n\nKategorien:",
@@ -47,6 +71,9 @@
     "help_subcommands_prefix": "Unterkommandos:",
     "help_aliases": "Alias: {}",
     "help_no_desc": "Dieses Kommando hat keine Beschreibung. Du bist auf dich allein gestellt. Viel Glück.",
+    "help_all_length": "**{} Kommandos:**",
+
+    "locate": "Das Kommando ist im Plugin **{}**.",
 
     "default_category_misc": "Sonstiges",
     "default_category_user": "Botuser",
@@ -55,6 +82,15 @@
     "default_category_games": "Spiele",
     "default_category_utils": "Tools",
     "default_category_sport": "Sport",
+
+    "cat_desc_misc": "Diverses Gerümpel",
+    "cat_desc_user": "Bot-Steuerung für User",
+    "cat_desc_admin": "Bot-Steuerung für Bot-Admins",
+    "cat_desc_mod": "Bot-Steuerung für Mods",
+    "cat_desc_games": "Spaß und Spiel für die ganze Familie",
+    "cat_desc_utils": "Allgemein nützliche Kommandos",
+    "cat_desc_sport": "König Fußball und seine Untertanen",
+    "cat_desc_help": "Erläutert die Bot-Bedienung",
 
     "cmd_not_found": "Kommando nicht gefunden.",
     "cmd_cat_not_found": "Kategorie oder Kommando nicht gefunden."

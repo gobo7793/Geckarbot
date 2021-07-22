@@ -1,14 +1,15 @@
 from typing import Union
-
 import datetime
 import random
 import inspect
 import logging
+import asyncio
+
 import discord
 from discord.ext.commands import Command
 
 from base import NotFound
-from data import Config
+from data import Config, Lang
 from botutils.converters import get_embed_str
 from botutils.timeutils import to_local_time
 from botutils.stringutils import paginate
@@ -201,7 +202,7 @@ async def log_to_mod_channel(context):
     await _log_to_channel(context, write_mod_channel)
 
 
-def sort_commands_helper(commands, order) -> list:
+def sort_commands_helper(commands: list, order: list) -> list:
     """
     Sorts a list of commands in place according to a list of command names. If a command has no corresponding
     command name in `order`, it is removed from the list.
@@ -240,6 +241,22 @@ def trueshuffle(p: list):
         p[choice] = toswap
 
 
+def execute_anything_sync(f, *args, **kwargs):
+    """
+    Executes functions, coroutine functions and coroutines, returns their return values and raises their exceptions.
+
+    :param f: Function, coroutine function or coroutine to execute / schedule
+    :param args: args to pass to f
+    :param kwargs: kwargs to pass to f
+    :return: If f is a function: Return value of f; if f is a coroutine: task that was created
+    """
+    if inspect.iscoroutinefunction(f):
+        f = f(*args, **kwargs)
+    if inspect.iscoroutine(f):
+        return asyncio.get_event_loop().create_task(f)
+    return f(*args, **kwargs)
+
+
 async def execute_anything(f, *args, **kwargs):
     """
     Executes functions, coroutine functions and coroutines, returns their return values and raises their exceptions.
@@ -247,18 +264,11 @@ async def execute_anything(f, *args, **kwargs):
     :param f: Function, coroutine function or coroutine to execute / schedule
     :param args: args to pass to f
     :param kwargs: kwargs to pass to f
-    :return: Return value of f
+    :return: Return value of f if wait is True; otherwise task object (in coro case)
     """
     if inspect.iscoroutinefunction(f):
         f = f(*args, **kwargs)
     if inspect.iscoroutine(f):
-        # loop = asyncio.get_event_loop()
-        # task = loop.create_task(f)
-        # loop.run_until_complete(task)
-        # e = task.exception()
-        # if e is not None:
-        #     raise e
-        # return task.result()
         return await f
     return f(*args, **kwargs)
 
@@ -276,3 +286,22 @@ def get_plugin_by_cmd(cmd: Command):
             if el == cmd:
                 return plugin
     raise NotFound
+
+
+def helpstring_helper(plugin, command, prefix):
+    """
+    Helper to retrieve help strings (help, description etc) from a plugin's lang file.
+    The lang identifier is expected to be of the format `"prefix_command_subcommand"`,
+    e.g. `"usage_command_subcommand"` or `"desc_command"`.
+    Raises NotFound according to interface.
+
+    :param plugin: Plugin reference
+    :param command: Command that a usage string is requested for.
+    :param prefix: Helpstring prefix
+    :return: Retrieved help string
+    :raises NotFound: Raised to indicate that nothing was found.
+    """
+    langstr = Lang.lang_no_failsafe(plugin, "{}_{}".format(prefix, command.qualified_name.replace(" ", "_")))
+    if langstr is not None:
+        return langstr
+    raise NotFound()

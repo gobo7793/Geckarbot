@@ -156,9 +156,9 @@ class Plugin(BasePlugin, name="A simple number guessing game"):
         text = ["**Channel games**"]
 
         if channel_id is None:
-            for channel_id in self.games_channel:
-                name = str(self.bot.get_channel(channel_id))
-                game = self.games_channel[channel_id]
+            for channel_id_ in self.games_channel:
+                name = str(self.bot.get_channel(channel_id_))
+                game = self.games_channel[channel_id_]
                 text.append(self.format_line(name, game, ind))
                 ind += 1
         else:
@@ -177,9 +177,9 @@ class Plugin(BasePlugin, name="A simple number guessing game"):
         text = ["**Single games**"]
 
         if user_id is None:
-            for user_id in self.games_user.keys():
-                name = str(self.bot.get_user(user_id))
-                game = self.games_user[user_id]
+            for user_id_ in self.games_user:
+                name = str(self.bot.get_user(user_id_))
+                game = self.games_user[user_id_]
                 text.append(self.format_line(name, game, ind))
                 ind += 1
         else:
@@ -234,42 +234,40 @@ class NumberGuessing:
             except (TypeError, ValueError):
                 await self.start()
             return ReturnCode.CONTINUING
-        elif guess == "stop":
+        if guess == "stop":
             await self.stop()
             return ReturnCode.STOPPED
+
+        try:
+            guess = int(guess)
+        except (TypeError, ValueError):
+            await self.send_message(Lang.lang(self.plugin, 'invalid_number'))
+            return
+
+        if self.is_playing is False:
+            await self.start()
+
+        if guess < 1:
+            await self.send_message(Lang.lang(self.plugin, 'invalid_number'))
         else:
-            try:
-                guess = int(guess)
-            except (TypeError, ValueError):
-                await self.send_message(Lang.lang(self.plugin, 'invalid_number'))
-                return
-
-            if self.is_playing is False:
-                await self.start()
-
-            if guess < 1:
-                await self.send_message(Lang.lang(self.plugin, 'invalid_number'))
+            self.guess_count += 1
+            if guess == self.number:
+                await self.send_message(
+                    Lang.lang(self.plugin, 'guess_won', self.number, self.guess_count))
+                self.reset()  # sets the variables back to start a new game
+                return ReturnCode.STOPPED
+            if guess < self.number:
+                await self.send_message(Lang.lang(self.plugin, 'guess_too_low', guess))
             else:
-                self.guess_count += 1
-                if guess == self.number:
-                    await self.send_message(
-                        Lang.lang(self.plugin, 'guess_won', self.number, self.guess_count))
-                    self.reset()  # sets the variables back to start a new game
-                    return ReturnCode.STOPPED
-                if guess < self.number:
-                    await self.send_message(Lang.lang(self.plugin, 'guess_too_low', guess))
-                else:
-                    await self.send_message(Lang.lang(self.plugin, 'guess_too_big', guess))
-                return ReturnCode.CONTINUING
-            return ReturnCode.ERROR
+                await self.send_message(Lang.lang(self.plugin, 'guess_too_big', guess))
+            return ReturnCode.CONTINUING
+        return ReturnCode.ERROR
 
     # @guess.command(name="start", help="Starts a game if not already running")
     async def start(self, range_from: int = 1, range_to: int = 100):
         if self.is_playing is False:
-            if range_from <= 1:
-                range_from = 1
-            if range_to < range_from:
-                range_to = range_from
+            range_from = max(range_from, 1)
+            range_to = max(range_to, range_from)
             self.number = random.choice(range(range_from, range_to + 1))
             self.is_playing = True
             self.min = range_from

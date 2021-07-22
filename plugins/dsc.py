@@ -8,7 +8,7 @@ import discord
 from discord.ext import commands
 from discord.ext.commands import ChannelNotFound, TextChannelConverter, RoleConverter, RoleNotFound
 
-from base import BasePlugin
+from base import BasePlugin, NotFound
 from botutils import permchecks, sheetsclient, utils, timeutils
 from botutils.converters import get_best_user, get_plugin_by_name
 from botutils.stringutils import paginate, clear_link
@@ -42,7 +42,7 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
 
     def __init__(self, bot):
         super().__init__(bot)
-        bot.register(self, category="DSC")
+        bot.register(self, category="DSC", category_desc=Lang.lang(self, "cat_desc"))
         self.log = logging.getLogger(__name__)
 
         self.presence = None
@@ -61,7 +61,9 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
             'mod_role_id': 0
         }
 
-    def default_storage(self):
+    def default_storage(self, container=None):
+        if container is not None:
+            raise NotFound
         return {
             'rule_link': None,
             'host_id': None,
@@ -71,6 +73,15 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
             'date': datetime.now(),
             'status': None
         }
+
+    def command_help_string(self, command):
+        return utils.helpstring_helper(self, command, "help")
+
+    def command_description(self, command):
+        return utils.helpstring_helper(self, command, "desc")
+
+    def command_usage(self, command):
+        return utils.helpstring_helper(self, command, "usage")
 
     def get_api_client(self):
         """Returns a client to access Google Sheets API for the dsc contestdoc sheet"""

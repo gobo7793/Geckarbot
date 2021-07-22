@@ -10,7 +10,7 @@ from botutils import converters
 from botutils.permchecks import is_botadmin
 from botutils.stringutils import paginate
 from botutils.converters import get_best_username as gbu
-from botutils.utils import add_reaction
+from botutils.utils import add_reaction, write_debug_channel
 from data import Storage, Config, Lang
 from subsystems.helpsys import DefaultCategories
 
@@ -20,6 +20,22 @@ class Plugin(BasePlugin, name="Bot status commands for monitoring and debug purp
         self.bot = bot
         super().__init__(bot)
         bot.register(self, DefaultCategories.ADMIN)
+
+        # Write cmd deletions to debug chan
+        @bot.event
+        async def on_message_delete(msg):
+            if msg.content.startswith("!"):
+                event_name = "Command deletion"
+            elif msg.content.startswith("+"):
+                event_name = "Custom command deletion"
+            else:
+                return
+            e = discord.Embed()
+            e.add_field(name="Event", value=event_name)
+            e.add_field(name="Author", value=gbu(msg.author))
+            e.add_field(name="Command", value=msg.content)
+            e.add_field(name="Channel", value=msg.channel)
+            await write_debug_channel(e)
 
     def get_configurable_type(self):
         return ConfigurableType.COREPLUGIN
@@ -58,7 +74,7 @@ class Plugin(BasePlugin, name="Bot status commands for monitoring and debug purp
             if not dmregs:
                 dmregs = {0: "None"}
             dm_prefix = "**{} DM Listeners:**\n".format(len(self.bot.dm_listener.registrations))
-            for msg in paginate((x for x in dmregs.keys()),
+            for msg in paginate(list(dmregs),
                                 prefix=dm_prefix,
                                 suffix="\n",
                                 f=lambda x: dmregs[x]):
@@ -84,9 +100,10 @@ class Plugin(BasePlugin, name="Bot status commands for monitoring and debug purp
 
         if not subsystem or subsystem == "liveticker":
             liveticker_list = []
-            for leag in self.bot.liveticker.registrations.values():
-                liveticker_list.append("\u2b1c {}".format(str(leag)))
-                liveticker_list.extend("\u25ab {}".format(str(lt_reg)) for lt_reg in leag.registrations)
+            for src in self.bot.liveticker.registrations.values():
+                for leag in src.values():
+                    liveticker_list.append("\u2b1c {}".format(str(leag)))
+                    liveticker_list.extend("\u25ab {}".format(str(lt_reg)) for lt_reg in leag.registrations)
             for msg in paginate(liveticker_list,
                                 prefix="**Liveticker Registrations:**\n",
                                 suffix="\n",
@@ -195,8 +212,9 @@ class Plugin(BasePlugin, name="Bot status commands for monitoring and debug purp
     @commands.command(name="livetickerkill", help="Kills all liveticker registrations")
     @commands.has_any_role(Config().BOT_ADMIN_ROLE_ID)
     async def cmd_liveticker_kill(self, ctx):
-        for reg in list(self.bot.liveticker.registrations.values()):
-            reg.deregister()
+        for src in self.bot.liveticker.registrations.values():
+            for reg in list(src.values()):
+                reg.deregister()
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
     @commands.command(name="dmreg")

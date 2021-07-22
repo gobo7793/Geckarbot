@@ -1,7 +1,7 @@
 import random
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Tuple
+from typing import Tuple, Union, Optional
 
 from botutils.sheetsclient import Cell, CellRange
 from data import Storage
@@ -9,10 +9,19 @@ from subsystems.liveticker import MatchStatus
 
 
 class LeagueNotFound(Exception):
+    """League is not valid"""
     pass
 
 
+class UserNotFound(Exception):
+    """User is not a valid Spaetzle participant"""
+    def __init__(self, user):
+        super().__init__()
+        self.user = user
+
+
 class MatchResult(Enum):
+    """Result of a match"""
     HOME = -1
     DRAW = 0
     AWAY = 1
@@ -38,7 +47,8 @@ class TeamnameDict:
                     # Long name
                     self.teamdict.setdefault(name.lower(), team['short_name'])
 
-    def get_long(self, team):
+    def get_long(self, team: Optional[str]) -> Optional[str]:
+        """Returns standard full name of the given team"""
         if team is None:
             return None
         name = self.teamdict.get(team.lower())
@@ -46,7 +56,8 @@ class TeamnameDict:
             name = self.teamdict.get(name.lower())
         return name
 
-    def get_abbr(self, team):
+    def get_abbr(self, team: Optional[str]) -> Optional[str]:
+        """Returns standard abbrevation for the team name"""
         if team is None:
             return None
         name = self.teamdict.get(team.lower())
@@ -55,11 +66,12 @@ class TeamnameDict:
         return name
 
     @staticmethod
-    def is_teamname_abbr(team):
+    def is_teamname_abbr(team: Optional[str]) -> bool:
+        """whether the given name classifies as a abbrevation"""
         return team is not None and len(team) <= 3
 
 
-def valid_pred(pred: tuple):
+def valid_pred(pred: tuple) -> bool:
     """
     Returns True if prediction is a valid representation of two integers
     """
@@ -71,14 +83,14 @@ def valid_pred(pred: tuple):
         return True
 
 
-def pred_reachable(score: Tuple[int, int], pred: Tuple[int, int]):
+def pred_reachable(score: Tuple[int, int], pred: Tuple[int, int]) -> bool:
     """
     Returns True if the prediction can still be matched given the current score
     """
     return score[0] <= pred[0] and score[1] <= pred[1]
 
 
-def points(score: Tuple[int, int], pred: Tuple[int, int]):
+def points(score: Tuple[int, int], pred: Tuple[int, int]) -> int:
     """
     Returns the points resulting from this score and prediction
     """
@@ -93,7 +105,8 @@ def points(score: Tuple[int, int], pred: Tuple[int, int]):
     return 0
 
 
-def duel_points(pts, opp_pts):
+def duel_points(pts, opp_pts) -> int:
+    """Calculates the points gained by the given score"""
     try:
         pts = int(pts)
     except (ValueError, TypeError):
@@ -146,7 +159,7 @@ def pointdiff_possible(score: Tuple[int, int], pred1, pred2):
     return diff1, diff2
 
 
-def determine_winner(points_h: str, points_a: str, diff_h: int, diff_a: int):
+def determine_winner(points_h: str, points_a: str, diff_h: int, diff_a: int) -> MatchResult:
     """
     Determines the winner of a duel
 
@@ -174,7 +187,14 @@ def determine_winner(points_h: str, points_a: str, diff_h: int, diff_a: int):
     return MatchResult.NONE
 
 
-def convert_to_datetime(day, time):
+def convert_to_datetime(day: Union[int, str], time: Union[float, str]) -> datetime:
+    """
+    Converts day and time data to a datetime.
+
+    :param day: day?
+    :param time: time?
+    :return: datetime??
+    """
     if isinstance(day, int):
         day_ = datetime(1899, 12, 30) + timedelta(days=day)
     else:
@@ -195,13 +215,13 @@ def convert_to_datetime(day, time):
     return datetime.combine(day_.date(), time_.time())
 
 
-def match_status(day, time=None):
+def match_status(day: Union[datetime, int, str], time: Union[float, str] = None) -> MatchStatus:
     """
     Checks the status of a match (Solely time-based)
 
     :param day: datetime or day of kick-off
     :param time: time of kick-off
-    :return: CLOSED for finished matches, RUNNING for currently active matches (2 hours after kickoff) and UPCOMING
+    :return: COMPLETED for finished matches, RUNNING for currently active matches (2 hours after kickoff) and UPCOMING
         for matches not started. UNKNOWN if unable to read the date or time
     """
     if isinstance(day, datetime):
@@ -221,34 +241,50 @@ def match_status(day, time=None):
         return MatchStatus.UNKNOWN
 
 
-def get_user_league(plugin, user: str):
+def get_user_league(plugin, user: str) -> str:
     """
     Returns the league of the user
 
+    :param plugin: Spaetzle plugin
+    :type plugin: plugins.spaetzle.spaetzle.Plugin
+    :param user: Spaetzle participant
     :return: number of the league
+    :raises UserNotFound: if the user is not a valid participant
     """
     for league, participants in Storage().get(plugin)['participants'].items():
         if user.lower() in (x.lower() for x in participants):
             return league
-    else:
-        raise UserNotFound(user)
+    raise UserNotFound(user)
 
 
-def get_user_cell(plugin, user: str):
+def get_user_cell(plugin, user: str) -> Cell:
     """
     Returns the position of the user's title cell in the 'Tipps' section
 
-    :return: Cell
+    :param plugin: Spaetzle plugin
+    :type plugin: plugins.spaetzle.spaetzle.Plugin
+    :param user: Spaetzle participant
+    :return: users Cell
+    :raises UserNotFound: if the user is not a valid participant
     """
     for league, participants in Storage().get(plugin)['participants'].items():
         for i in range(len(participants)):
             if user.lower() == participants[i].lower():
                 return Cell(column=60 + (2 * i), row=12 * (int(league) - 1) + 2)
-    else:
-        raise UserNotFound(user)
+    raise UserNotFound(user)
 
 
-def get_schedule(plugin, league, matchday: int):
+def get_schedule(plugin, league: str, matchday: int) -> list:
+    """
+    Returns the duels for a given Spaetzle league and matchday
+
+    :param plugin: Spaetzle plugin
+    :type plugin: plugins.spaetzle.spaetzle.Plugin
+    :param league: Spaetzle league
+    :param matchday: matchday
+    :return: list of duels
+    :raises LeagueNotFound: if league is not valid
+    """
     matchday = [2, 11, 0, 8, 6, 16, 10, 14, 15, 4, 3, 9, 12, 1, 5, 13, 7][matchday - 1]  # "Randomize" input
     participants = Storage().get(plugin)['participants'].get(league)
     if participants is None:
@@ -270,7 +306,16 @@ def get_schedule(plugin, league, matchday: int):
     return schedule
 
 
-def get_schedule_opponent(plugin, participant, matchday: int):
+def get_schedule_opponent(plugin, participant: str, matchday: int) -> Optional[str]:
+    """
+    Returns participants opponent on given matchday
+
+    :param plugin: Spaetzle plugin
+    :type plugin: plugins.spaetzle.spaetzle.Plugin
+    :param participant: name of the Spaetzle participant
+    :param matchday: matchday
+    :return: name of the opponent
+    """
     league = get_user_league(plugin, participant)
     schedule = get_schedule(plugin, league, matchday)
     for home, away in schedule:
@@ -281,22 +326,25 @@ def get_schedule_opponent(plugin, participant, matchday: int):
     return None
 
 
-def get_participant_history(plugin, participant):
+def get_participant_history(plugin, participant: str) -> list:
+    """
+    Returns a summary of the completed duels
+
+    :param plugin: Spaetzle plugin
+    :type plugin: plugins.spaetzle.spaetzle.Plugin
+    :param participant: name of the Spaetzle participant
+    :return: (title, pts, pts_opp, opp)-tuple list
+    """
     c = plugin.get_api_client()
     cell = get_user_cell(plugin, participant)
     cell_range = CellRange(start_cell=cell.translate(0, 10), width=2, height=2).rangename()
     current = Storage.get(plugin)['matchday']
-    ranges = ["ST {}!{}".format(t, cell_range) for t in range(current // 17 * 17 + 1, current)]
+    ranges = ["ST {}!{}".format(t, cell_range) for t in range((current - 1) // 17 * 17 + 1, current)]
     values = c.get_multiple(ranges=ranges)
     data = []
-    for title, v in zip(range(current // 17 * 17 + 1, current), values):
+    for title, v in zip(range((current - 1) // 17 * 17 + 1, current), values):
         pts = v[0][0]
         pts_opp = v[1][0]
         opp = v[1][1]
         data.append((title, pts, pts_opp, opp))
     return data
-
-
-class UserNotFound(Exception):
-    def __init__(self, user):
-        self.user = user

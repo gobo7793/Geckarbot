@@ -10,9 +10,19 @@ from typing import Optional, List, Dict
 
 import discord
 
-from base import BaseSubsystem
+from base import BaseSubsystem, NotFound
 from data import Config, Storage
 from subsystems.timers import Job, timedict
+
+
+activitymap = {
+    "playing": discord.ActivityType.playing,
+    # "streaming": discord.ActivityType.streaming,
+    "listening": discord.ActivityType.listening,
+    "watching": discord.ActivityType.watching,
+    "competing": discord.ActivityType.competing,
+    # "custom": discord.ActivityType.custom,
+}
 
 
 class PresencePriority(IntEnum):
@@ -40,7 +50,8 @@ class PresencePriority(IntEnum):
 class PresenceMessage:
     """Presence message dataset"""
 
-    def __init__(self, bot, presence_id: int, message: str, priority: PresencePriority = PresencePriority.DEFAULT):
+    def __init__(self, bot, presence_id: int, message: str,
+                 priority: PresencePriority = PresencePriority.DEFAULT, activity: str = "playing"):
         """
         Creates a new PresenceMessage
 
@@ -48,15 +59,35 @@ class PresenceMessage:
         :param presence_id: the unique presence message id
         :param message: the message to display
         :param priority: the priority of the message
+        :param activity: presence mode (listening, playing, ...); one out of activitymap
+        :raises RuntimeError: Invalid activity
         """
         self.bot = bot
         self.presence_id = presence_id
+        self._activity_str = activity
         self.priority = priority
+
+        message = message.replace("\\\\\\", "\\")
+        message = message.replace("\\\\", "\\")
         self.message = message
+
+        try:
+            self._activity = activitymap[self._activity_str]
+        except KeyError as e:
+            raise RuntimeError("Invalid activity type: {}".format(self._activity_str)) from e
+        self._activity = discord.Activity(type=self._activity, name=message)
 
     def __str__(self):
         return "<presence.PresenceMessage; priority: {}, id: {}, message: {}>".format(
             self.priority, self.presence_id, self.message)
+
+    @property
+    def activity(self):
+        return self._activity_str
+
+    @property
+    def activity_type(self):
+        return self._activity
 
     def serialize(self):
         """
@@ -64,6 +95,7 @@ class PresenceMessage:
         """
         return {
             "id": self.presence_id,
+            "activity": self.activity,
             "message": self.message,
             "priority": self.priority,
         }
@@ -77,7 +109,13 @@ class PresenceMessage:
         :param d: dict made by serialize()
         :return: PressenceMessage object
         """
-        return PresenceMessage(bot, d["id"], d["message"], d["priority"])
+        activity = "playing"
+        if "activity" in d:
+            for key in activitymap:
+                if d["activity"] == key:
+                    activity = d["activity"]
+
+        return PresenceMessage(bot, d["id"], d["message"], priority=d["priority"], activity=activity)
 
     def deregister(self):
         """Deregisters the current PresenceMessage and returns True if deregistering was successful"""
@@ -102,10 +140,10 @@ class Presence(BaseSubsystem):
         @bot.listen()
         async def on_connect():
             if bot.DEBUG_MODE:
-                init_msg = "in debug mode"
+                activity = discord.Activity(type=activitymap["playing"], name="in debug mode")
             else:
-                init_msg = Config.get(self)["loading_msg"]
-            await self._set_presence(init_msg)
+                activity = discord.Activity(type=activitymap["playing"], name=Config.get(self)["loading_msg"])
+            await self.bot.change_presence(activity=activity)
 
     def default_config(self):
         return {
@@ -113,7 +151,9 @@ class Presence(BaseSubsystem):
             "loading_msg": "Loading..."
         }
 
-    def default_storage(self):
+    def default_storage(self, container=None):
+        if container:
+            raise NotFound
         return []
 
     @property
@@ -204,19 +244,21 @@ class Presence(BaseSubsystem):
         Config.save(self)
         Storage.save(self)
 
-    def register(self, message, priority: PresencePriority = PresencePriority.DEFAULT):
+    def register(self, message,
+                 activity: str = "playing", priority: PresencePriority = PresencePriority.DEFAULT):
         """
         Registers the given message to the given priority.
         Priority LOW is for customized messages which are unrelated from plugins or other bot functions.
         Priority DEFAULT is for messages provided by plugins e.g. displaying a current status.
-        Priority HIGH is for special messages, which will be displayed instant and only if some are registered.
+        Priority HIGH is for special messages, which will be displayed instantly and only if some are registered.
 
         :param message: The message
+        :param activity: The activity type as a string (such as `"playing"`, "`listening`" etc)
         :param priority: The priority
         :return: The PresenceMessage dataset object of the new registered presence message
         """
         new_id = self.get_new_id()
-        presence = PresenceMessage(self.bot, new_id, message, priority)
+        presence = PresenceMessage(self.bot, new_id, message, priority=priority, activity=activity)
         self.messages[new_id] = presence
 
         self.save()
@@ -267,7 +309,7 @@ class Presence(BaseSubsystem):
             return
 
         self.log.info("Start presence changing timer")
-        time_dict = timedict(minute=(i for i in range(0, 60, Config.get(self)["update_period_min"])))
+        time_dict = timedict(minute=list(range(0, 60, Config.get(self)["update_period_min"])))
         self._timer_job = self.bot.timers.schedule(self._change_callback, time_dict, repeat=True)
         job_data = {
             "current_id": -1,
@@ -282,12 +324,20 @@ class Presence(BaseSubsystem):
         self._timer_job.cancel()
         self._timer_job = None
 
-    async def _set_presence(self, message):
-        """Sets the presence message, based on discord.Game activity"""
-        self.log.debug("Change displayed message to: %s", message)
-        message = message.replace("\\\\\\", "\\")
-        message = message.replace("\\\\", "\\")
-        await self.bot.change_presence(activity=discord.Game(name=message))
+    async def skip(self):
+        """
+        Skips the current presence (moves on).
+
+        :raises RuntimeError: If presence timer is not up.
+        """
+        if not self.is_timer_up:
+            raise RuntimeError
+        await self._change_callback(self._timer_job)
+
+    async def _set_presence(self, pmessage):
+        """Sets the presence message based on pmessage activity"""
+        self.log.debug("Change displayed message to: %s", pmessage.message)
+        await self.bot.change_presence(activity=pmessage.activity_type)
 
     def _execute_removing_change(self, removed_id: int):
         """Executes _change_callback() w/o awaiting with special handling for removed presence messages"""
@@ -320,7 +370,7 @@ class Presence(BaseSubsystem):
 
         job.data["id_before_high"] = last_id
         new_msg = self.messages[next_id]
-        await self._set_presence(new_msg.message)
+        await self._set_presence(new_msg)
 
         job.data["last_prio"] = new_msg.priority
         job.data["current_id"] = next_id

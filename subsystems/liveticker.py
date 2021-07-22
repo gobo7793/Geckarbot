@@ -1,22 +1,25 @@
+import asyncio
 import datetime
 import logging
-import time
 from enum import Enum
+from typing import List, Generator, Tuple, Optional, Dict
 
-from base import BaseSubsystem
+from base import BaseSubsystem, BasePlugin
 from botutils import restclient
 from botutils.converters import get_plugin_by_name
-from data import Storage
+from data import Storage, Lang, Config
 from subsystems import timers
 from subsystems.timers import Job
 
 
 class LTSource(Enum):
+    """Data source"""
     OPENLIGADB = "oldb"
     ESPN = "espn"
 
 
 class MatchStatus(Enum):
+    """Current status of the match"""
     COMPLETED = ":ballot_box_with_check:"
     RUNNING = ":green_square:"
     UPCOMING = ":clock4:"
@@ -24,24 +27,30 @@ class MatchStatus(Enum):
     UNKNOWN = "❔"
 
     @staticmethod
-    def match_status_espn(m):
-        status = m.get('status', {}).get('type', {}).get('state')
-        if status == "pre":
-            return MatchStatus.UPCOMING
-        elif status == "in":
-            return MatchStatus.RUNNING
-        elif status == "post":
-            if m.get('status', {}).get('type', {}).get('completed'):
-                return MatchStatus.COMPLETED
-            else:
-                return MatchStatus.POSTPONED
-        return MatchStatus.UNKNOWN
+    def get(m: dict, src: LTSource):
+        """
+        Returns the current MatchStatus of the match
 
-    @staticmethod
-    def match_status_oldb(m):
-        if m.get('MatchIsFinished'):
-            return MatchStatus.COMPLETED
-        else:
+        :param m: raw match data
+        :param src: data source
+        :return: MatchStatus
+        :rtype: MatchStatus
+        :raises ValueError: if source is not valid
+        """
+        if src == LTSource.ESPN:
+            status = m.get('status', {}).get('type', {}).get('state')
+            if status == "pre":
+                return MatchStatus.UPCOMING
+            if status == "in":
+                return MatchStatus.RUNNING
+            if status == "post":
+                if m.get('status', {}).get('type', {}).get('completed'):
+                    return MatchStatus.COMPLETED
+                return MatchStatus.POSTPONED
+            return MatchStatus.UNKNOWN
+        if src == LTSource.OPENLIGADB:
+            if m.get('MatchIsFinished'):
+                return MatchStatus.COMPLETED
             try:
                 kickoff = datetime.datetime.strptime(m.get('MatchDateTimeUTC'), "%Y-%m-%dT%H:%M:%SZ") \
                     .replace(tzinfo=datetime.timezone.utc).astimezone().replace(tzinfo=None)
@@ -50,38 +59,368 @@ class MatchStatus(Enum):
             else:
                 if kickoff < datetime.datetime.now():
                     return MatchStatus.RUNNING
-                else:
-                    return MatchStatus.UPCOMING
+                return MatchStatus.UPCOMING
+        raise ValueError("Source {} is not supported.".format(src))
 
 
-class Match:
-    def __init__(self, match_id, kickoff, minute, home_team, home_team_id, away_team, away_team_id, is_completed,
-                 status, raw_events, score=None, new_events=None):
+class TeamnameDict:
+    """
+    Set of name variants
+
+    :param converter:
+    :type converter: TeamnameConverter
+    :param long_name: longest version of the teams name
+    :param short_name: short distinct variant of the teams name
+    :param abbr: abbreviation for the team (3-5 letters)
+    :param emoji: logo of the team or other emoji that should be displayed
+    :param other: additional variants of the teams name
+    """
+
+    def __init__(self, converter, long_name: str, short_name: str = None, abbr: str = None, emoji: str = None,
+                 other: list = None):
+        if short_name is None:
+            short_name = long_name[:15]
+        if abbr is None:
+            abbr = short_name[:5].upper()
+        if emoji is None:
+            try:
+                emoji = Lang.EMOJI['lettermap'][ord(abbr[0].lower()) - 97]
+            except (IndexError, TypeError):
+                emoji = "🏳️"
+        if other is None:
+            other = []
+        self._converter = converter
+        self.long_name = long_name
+        self.short_name = short_name
+        self.abbr = abbr
+        self.emoji = emoji
+        self.other = other
+
+    def update(self, long_name: str = None, short_name: str = None, abbr: str = None, emoji: str = None):
+        """Updates name variants or emoji of the TeamnameDict"""
+        self._converter.update(self, long_name, short_name, abbr, emoji)
+
+    def remove(self, other_str: str = None):
+        """
+        Removes an alternative or the whole TeamnameDict
+
+        :param other_str: team name alternative
+        """
+        if other_str and other_str not in self:
+            return
+        if other_str and other_str in self.other:
+            self._converter.remove_other(self, other_str)
+        else:
+            self._converter.remove(self)
+
+    def add_other(self, other: str):
+        """Adds an alternative name for the team"""
+        if other not in self:
+            self.other.append(other)
+
+    def table_display(self) -> str:
+        """Returns string prepared for display in the table"""
+        if len(self.short_name) > 12:
+            return f"{self.emoji} `{self.short_name[:11]}\u2026`"
+        return "{} `{}{}`".format(self.emoji, self.short_name, " " * (11 - len(self.short_name)))
+
+    def store(self, storage_path):
+        """Saves this to the storage"""
+        Storage().get(storage_path, container='teamname')[self.long_name] = self.to_dict()
+        Storage().save(storage_path, container='teamname')
+
+    def to_dict(self):
+        return {'short': self.short_name, 'abbr': self.abbr, 'emoji': self.emoji, 'other': self.other}
+
+    def __iter__(self):
+        yield self.long_name
+        yield self.short_name
+        yield self.abbr
+        for other in self.other:
+            yield other
+
+
+class TeamnameConverter:
+    """
+    Class for the conversion between team names
+
+    :param liveticker: liveticker class
+    """
+
+    def __init__(self, liveticker):
+        self.liveticker = liveticker
+        self._teamnames = {}
+        self._restore()
+
+    def get(self, team: str, add_if_nonexist: bool = False) -> Optional[TeamnameDict]:
+        """
+        Returns the saved TeamnameDict for the given team name or adds a new entry if wanted
+
+        :param team: name of the team
+        :param add_if_nonexist: if the team name is unknown yet and this is true, a new entry will be added
+        :return: associated TeamnameDict
+        """
+        teamnamedict = self._teamnames.get(team.lower())
+        if teamnamedict is None and add_if_nonexist:
+            return self.add(team)
+        return teamnamedict
+
+    def add(self, long_name: str, short_name: str = None, abbr: str = None, emoji: str = None, other: list = None) -> \
+            TeamnameDict:
+        """
+        Adds a new data set for a team to the converter.
+
+        :param long_name: longest version of the teams name
+        :param short_name: short distinct variant of the teams name
+        :param abbr: abbreviation for the team (3-5 letters)
+        :param emoji: logo of the team or other emoji that should be displayed
+        :param other: additional variants of the teams name
+        :return: Added TeamnameDict or existing TeamnameDict the name variants were added to
+        :raises ValueError: if long and short name already exists but to different teams
+        """
+        if short_name is None:
+            short_name = long_name[:15]
+        if abbr is None:
+            abbr = short_name[:5].upper()
+        if emoji is None:
+            try:
+                emoji = Lang.EMOJI['lettermap'][ord(abbr[0].lower()) - 97]
+            except (IndexError, TypeError):
+                emoji = "🏳️"
+        if other is None:
+            other = []
+        existing_long = self.get(long_name)
+        existing_short = self.get(short_name)
+        if existing_long and existing_short and existing_long != existing_short:
+            raise ValueError("Long and short names already known and connected to different teams.")
+        if existing_long:
+            if long_name in existing_long.other:
+                existing_long.other.remove(long_name)
+            else:
+                # Append to existing long
+                for name in (short_name, abbr, *other):
+                    if name.lower() not in self._teamnames:
+                        existing_long.add_other(name)
+                        self._teamnames[name.lower()] = existing_long
+                existing_long.store(self.liveticker)
+                return existing_long
+        if existing_short:
+            if short_name in existing_short.other:
+                existing_short.other.remove(short_name)
+            else:
+                # Append to existing short
+                for name in (long_name, abbr, *other):
+                    if name.lower() not in self._teamnames:
+                        existing_short.add_other(name)
+                        self._teamnames[name.lower()] = existing_short
+                existing_short.store(self.liveticker)
+                return existing_short
+        # Add new
+        teamnamedict = TeamnameDict(self, long_name, short_name, abbr, emoji, other)
+        self._teamnames[long_name.lower()] = teamnamedict
+        self._teamnames[short_name.lower()] = teamnamedict
+        for name in (abbr, *other):
+            self._teamnames.setdefault(name.lower(), teamnamedict)
+        teamnamedict.store(self.liveticker)
+        return teamnamedict
+
+    def remove(self, teamnamedict: TeamnameDict):
+        """Removes a team from the converter"""
+        for name in teamnamedict:
+            if self.get(name) == teamnamedict:
+                self._teamnames.pop(name.lower())
+        Storage().get(self.liveticker, container='teamname').pop(teamnamedict.long_name)
+        Storage().save(self.liveticker, container='teamname')
+
+    def remove_other(self, teamnamedict: TeamnameDict, name: str):
+        """Removes an alternative from the team"""
+        if name in teamnamedict.other:
+            teamnamedict.other.remove(name)
+            if name.lower() in self._teamnames:
+                self._teamnames.pop(name.lower())
+            teamnamedict.store(self.liveticker)
+
+    def update(self, teamnamedict: TeamnameDict, long_name: str = None, short_name: str = None, abbr: str = None,
+               emoji: str = None) -> bool:
+        """
+        Updates name variants or emoji of the TeamnameDict
+
+        :param teamnamedict: TeamnameDict to update
+        :param long_name: new long name
+        :param short_name: new short name
+        :param abbr: new abbreviation
+        :param emoji: new emoji
+        :return: succession
+        """
+        other = teamnamedict.other
+        teamnamedict.remove()
+        if long_name:
+            other.append(teamnamedict.long_name)
+        if short_name:
+            other.append(teamnamedict.short_name)
+        try:
+            self.add(long_name=long_name if long_name else teamnamedict.long_name,
+                     short_name=short_name if short_name else teamnamedict.short_name,
+                     abbr=abbr if abbr else teamnamedict.abbr,
+                     emoji=emoji if emoji else teamnamedict.emoji,
+                     other=other)
+        except ValueError:
+            # Update failed, reenter teamnamedict
+            for name in teamnamedict:
+                if not self.get(name):
+                    self._teamnames[name.lower()] = teamnamedict
+            teamnamedict.store(self.liveticker)
+            return False
+        return True
+
+    def _restore(self):
+        data = Storage().get(self.liveticker, container='teamname')
+        for long_name, entry in data.items():
+            try:
+                self.add(long_name=str(long_name), short_name=str(entry['short']), abbr=str(entry['abbr']),
+                         emoji=str(entry['emoji']), other=[str(x) for x in entry['other']])
+            except ValueError:
+                continue
+
+
+class TableEntry:
+    """
+    Single entry of a table for the current standings in a league.
+
+    :param data: raw data
+    :param source: data source
+    :param converter: Teamname converter
+    """
+
+    def __init__(self, data: dict, source: LTSource, converter: TeamnameConverter):
+        self.source = source
+        if source == LTSource.OPENLIGADB:
+            self.rank = data['rank']
+            self.team = converter.get(data['TeamName'])
+            if not self.team:
+                self.team = converter.add(long_name=data['TeamName'], short_name=data['ShortName'])
+            self.won = data['Won']
+            self.draw = data['Draw']
+            self.lost = data['Lost']
+            self.goals = data['Goals']
+            self.goals_against = data['OpponentGoals']
+            self.points = data['Points']
+            self.rank_change = None
+        elif source == LTSource.ESPN:
+            stats = {x['name']: (int(x['value']) if x.get('value') is not None else None) for x in data['stats']}
+            self.rank = stats.get('rank')
+            self.team = converter.get(data['team']['displayName'])
+            if not self.team:
+                self.team = converter.add(long_name=data['team']['displayName'],
+                                          short_name=data['team']['shortDisplayName'],
+                                          abbr=data['team']['abbreviation'])
+            self.won = stats.get('wins')
+            self.draw = stats.get('ties')
+            self.lost = stats.get('losses')
+            self.goals = stats.get('pointsFor')
+            self.goals_against = stats.get('pointsAgainst')
+            self.points = stats.get('points')
+            self.rank_change = stats.get('rankChange')
+        else:
+            raise ValueError('Invalid source')
+
+    def display(self) -> str:
+        """Returns the display string for use in an embed"""
+        if len(self.team.short_name) > 12:
+            team_str = f"{self.team.emoji} `{self.team.short_name[:11]}\u2026"
+        else:
+            team_str = f"{self.team.emoji} `{self.team.short_name:<12}"
+        goal_diff = self.goals - self.goals_against
+        sign = ["-", "±", "+"][(goal_diff > 0) - (goal_diff < 0) + 1]
+        return f"`{self.rank:2} `{team_str}|" \
+               f"{self.goals:2}:{self.goals_against:<2} ({sign}{abs(goal_diff):2})| {self.points:2}`"
+
+
+class MatchStub:
+    """
+    Match with minimal info (used for stored kickoffs)
+
+    :param kickoff: kickoff datetime
+    :param home_team: name of the home team
+    :param away_team: name of the away team
+    :param home_team_id: id of the home team
+    :param away_team_id: id of the away team
+    """
+
+    def __init__(self, kickoff: datetime.datetime, home_team: str, away_team: str, home_team_id: str,
+                 away_team_id: str):
+        self.kickoff = kickoff
+        self.home_team = Config().bot.liveticker.teamname_converter.get(home_team, add_if_nonexist=True)
+        self.away_team = Config().bot.liveticker.teamname_converter.get(away_team, add_if_nonexist=True)
+        self.home_team_id = home_team_id
+        self.away_team_id = away_team_id
+
+    @classmethod
+    def from_storage(cls, time_kickoff: datetime.datetime, m: dict):
+        """Returns a MatchStub formed from the stored data"""
+        team_names = list(m.values())
+        team_ids = list(m.keys())
+        return cls(kickoff=time_kickoff, home_team=team_names[0], home_team_id=team_ids[0], away_team=team_names[1],
+                   away_team_id=team_ids[1])
+
+    def to_storage(self):
+        """Transforms the data for the storage"""
+        return {self.home_team_id: self.home_team.long_name, self.away_team_id: self.away_team.long_name}
+
+
+class Match(MatchStub):
+    """
+    Soccer match
+
+    :param match_id: id of the match
+    :param kickoff: kickoff datetime
+    :param minute: current minute
+    :param home_team: name of the home team
+    :param away_team: name of the away team
+    :param home_team_id: id of the home team
+    :param away_team_id: id of the away team
+    :param status: current status of the game
+    :param raw_events: list of all events
+    :param venue: (stadium, city) of the match
+    :param score: current score
+    :param new_events: list of new events in comparison to the last execution
+    :param matchday: current matchday
+    """
+
+    def __init__(self, match_id: str, kickoff: datetime.datetime, minute: str, home_team: str, home_team_id: str,
+                 away_team: str, away_team_id: str, status: MatchStatus, raw_events: list, venue: Tuple[str, str],
+                 score: dict = None, new_events: list = None, matchday: int = None):
+        super().__init__(kickoff=kickoff, home_team=home_team, away_team=away_team, home_team_id=home_team_id,
+                         away_team_id=away_team_id)
         if new_events is None:
             new_events = []
         self.match_id = match_id
-        self.kickoff = kickoff
         self.minute = minute
-        self.home_team = home_team
-        self.home_team_id = home_team_id
-        self.away_team = away_team
-        self.away_team_id = away_team_id
         self.status = status
-        self.is_completed = is_completed
         self.raw_events = raw_events
         self.new_events = new_events
+        self.matchday = matchday
+        self.venue = venue
         if score:
             self.score = score
         else:
             self.score = {self.home_team_id: 0, self.away_team_id: 0}
 
     @classmethod
-    def from_openligadb(cls, m, new_events=None):
+    def from_openligadb(cls, m: dict, new_events: list = None):
+        """
+        Match by a OpenLigaDB source
+
+        :param m: match data
+        :param new_events: list of new events
+        :return: Match object
+        :rtype: Match
+        """
         # Extract kickoff into datetime object
         if new_events is None:
             new_events = []
         try:
-            kickoff = datetime.datetime.strptime(m.get('MatchDateTimeUTC'), "%Y-%m-%dT%H:%M:%SZ")\
+            kickoff = datetime.datetime.strptime(m.get('MatchDateTimeUTC'), "%Y-%m-%dT%H:%M:%SZ") \
                 .replace(tzinfo=datetime.timezone.utc).astimezone().replace(tzinfo=None)
         except (ValueError, TypeError):
             kickoff = None
@@ -98,31 +437,40 @@ class Match:
 
         match = cls(match_id=m.get('MatchID'),
                     kickoff=kickoff,
-                    minute=minute,
+                    minute=str(minute),
                     home_team=m.get('Team1', {}).get('TeamName'),
                     home_team_id=home_id,
                     away_team=m.get('Team2', {}).get('TeamName'),
                     away_team_id=away_id,
                     score={home_id: max(0, 0, *(g.get('ScoreTeam1', 0) for g in m.get('Goals', []))),
                            away_id: max(0, 0, *(g.get('ScoreTeam2', 0) for g in m.get('Goals', [])))},
-                    is_completed=m.get('MatchIsFinished'),
                     raw_events=m.get('Goals'),
-                    status=MatchStatus.match_status_oldb(m),
-                    new_events=new_events)
-        match.matchday = m.get('Group', {}).get('GroupOrderID')
+                    venue=(m.get('Location', {}).get('LocationStadium'), m.get('Location', {}).get('LocationCity')),
+                    status=MatchStatus.get(m, LTSource.OPENLIGADB),
+                    new_events=new_events,
+                    matchday=m.get('Group', {}).get('GroupOrderID'))
         return match
 
     @classmethod
-    def from_espn(cls, m, new_events=None):
+    def from_espn(cls, m: dict, new_events: list = None):
+        """
+        Match by a ESPN source
+
+        :param m: match data
+        :param new_events: list of new events
+        :return: Match object
+        :rtype: Match
+        """
         # Extract kickoff into datetime object
         try:
-            kickoff = datetime.datetime.strptime(m.get('date'), "%Y-%m-%dT%H:%MZ")\
+            kickoff = datetime.datetime.strptime(m.get('date'), "%Y-%m-%dT%H:%MZ") \
                 .replace(tzinfo=datetime.timezone.utc).astimezone().replace(tzinfo=None)
         except (ValueError, TypeError):
             kickoff = None
         # Get home and away team
         home_team, away_team, home_id, away_id, home_score, away_score = None, None, None, None, None, None
-        for team in m.get('competitions', [{}])[0].get('competitors'):
+        competition = m.get('competitions', [{}])[0]
+        for team in competition.get('competitors'):
             if team.get('homeAway') == "home":
                 home_team = team.get('team', {}).get('displayName')
                 home_id = team.get('id')
@@ -140,32 +488,57 @@ class Match:
                     home_team_id=home_id,
                     away_team=away_team,
                     away_team_id=away_id,
-                    is_completed=m.get('status', {}).get('type', {}).get('completed'),
                     score={home_id: home_score, away_id: away_score},
                     new_events=new_events,
                     raw_events=m.get('competitions', [{}])[0].get('details'),
-                    status=MatchStatus.match_status_espn(m))
+                    venue=(competition.get('venue', {}).get('fullName'),
+                           competition.get('venue', {}).get('address', {}).get('city')),
+                    status=MatchStatus.get(m, LTSource.ESPN))
         return match
 
+
 class PlayerEvent:
-    def __init__(self, event_id, player, minute):
+    """Event during a match"""
+
+    def __init__(self, event_id: str, player: str, minute: str):
         self.event_id = event_id
         self.player = player
         self.minute = minute
 
-    def display(self):
-        pass
+    def display(self) -> str:
+        """Returns display string"""
+        return "<PlayerEvent {} ({})>".format(self.player, self.minute)
 
 
 class Goal(PlayerEvent):
-    def __init__(self, event_id, player, minute, score, is_owngoal, is_penalty):
+    """
+    PlayerEvent for a goal
+    :param event_id: id of the goal
+    :param player: goalgetter
+    :param minute: match minute the goal was scored
+    :param score: score of the match at the time of the goal
+    :param is_owngoal: whether goal was scored by the defending team
+    :param is_penalty: whether goal was scored as a penalty
+    """
+
+    def __init__(self, event_id, player, minute, score: dict, is_owngoal: bool, is_penalty: bool):
         super().__init__(event_id, player, minute)
         self.score = score
         self.is_owngoal = is_owngoal
         self.is_penalty = is_penalty
+        self.is_overtime = False
 
     @classmethod
-    def from_openligadb(cls, g: dict, home_id, away_id):
+    def from_openligadb(cls, g: dict, home_id: str, away_id: str):
+        """
+        Builds the Goal object from a OpenLigaDB source
+
+        :param g: goal data
+        :param home_id: id of the home team
+        :param away_id: id of the away team
+        :return: Goal object
+        :rtype: Goal
+        """
         goal = cls(event_id=g.get('GoalID'),
                    player=g.get('GoalGetterName'),
                    minute=g.get('MatchMinute'),
@@ -178,6 +551,14 @@ class Goal(PlayerEvent):
 
     @classmethod
     def from_espn(cls, g: dict, score: dict):
+        """
+        Builds the Goal object from a ESPN source
+
+        :param g: goal data
+        :param score: current score
+        :return: Goal object
+        :rtype: Goal
+        """
         score[g.get('team', {}).get('id')] += g.get('scoreValue')
         goal = cls(event_id="{}/{}/{}".format(g.get('type', {}).get('id'),
                                               g.get('clock', {}).get('value'),
@@ -190,28 +571,47 @@ class Goal(PlayerEvent):
         return goal
 
     def display(self):
+        if self.is_owngoal:
+            return ":soccer::back: {}:{} {} ({})".format(*list(self.score.values())[0:2], self.player, self.minute)
+        if self.is_penalty:
+            return ":soccer::goal: {}:{} {} ({})".format(*list(self.score.values())[0:2], self.player, self.minute)
         return ":soccer: {}:{} {} ({})".format(*list(self.score.values())[0:2], self.player, self.minute)
 
 
 class YellowCard(PlayerEvent):
+    """PlayerEvent for a yellow card"""
+
     @classmethod
-    def from_espn(cls, rc):
-        return cls(event_id="{}/{}/{}".format(rc.get('type', {}).get('id'),
-                                              rc.get('clock', {}).get('value'),
-                                              rc.get('athletesInvolved', [{}])[0].get('id')),
-                   player=rc.get('athletesInvolved', [{}])[0].get('displayName'),
-                   minute=rc.get('clock', {}).get('displayValue'))
+    def from_espn(cls, yc: dict):
+        """
+        PlayerEvent for a yellow card from a ESPN source
+
+        :param yc: event data
+        :return: YellowCard
+        :rtype: YellowCard
+        """
+        return cls(event_id="{}/{}/{}".format(yc.get('type', {}).get('id'),
+                                              yc.get('clock', {}).get('value'),
+                                              yc.get('athletesInvolved', [{}])[0].get('id')),
+                   player=yc.get('athletesInvolved', [{}])[0].get('displayName'),
+                   minute=yc.get('clock', {}).get('displayValue'))
 
     def display(self):
         return ":yellow_square: {} ({})".format(self.player, self.minute)
 
 
 class RedCard(PlayerEvent):
-    def __init__(self, event_id, player, minute):
-        super().__init__(event_id, player, minute)
+    """PlayerEvent for a red card"""
 
     @classmethod
-    def from_espn(cls, rc):
+    def from_espn(cls, rc: dict):
+        """
+        PlayerEvent for a red card from a ESPN source
+
+        :param rc: event data
+        :return: RedCard
+        :rtype: RedCard
+        """
         return cls(event_id="{}/{}/{}".format(rc.get('type', {}).get('id'),
                                               rc.get('clock', {}).get('value'),
                                               rc.get('athletesInvolved', [{}])[0].get('id')),
@@ -221,13 +621,31 @@ class RedCard(PlayerEvent):
     def display(self):
         return ":red_square: {} ({})".format(self.player, self.minute)
 
-def build_player_event(event, score):
-    if event.get('scoringPlay'):
-        return Goal.from_espn(event, score)
-    elif event.get('type', {}).get('id') == "93":
-        return RedCard.from_espn(event)
-    elif event.get('type', {}).get('id') == "94":
-        return YellowCard.from_espn(event)
+
+class PlayerEventEnum(Enum):
+    """Enum for the different types of PlayerEvents"""
+    GOAL = Goal
+    YELLOWCARD = YellowCard
+    REDCARD = RedCard
+
+    @staticmethod
+    def build_player_event(event: dict, score: dict) -> PlayerEvent:
+        """
+        Builds the corresponding PlayerEvent from the given event dict
+
+        :param event: event data dictionary
+        :param score: current score
+        :return: Goal/RedCard/YellowCard
+        :raises ValueError: when event type does not match with the expected values
+        """
+        if event.get('scoringPlay'):
+            return Goal.from_espn(event, score)
+        if event.get('type', {}).get('id') == "93":
+            return RedCard.from_espn(event)
+        if event.get('type', {}).get('id') == "94":
+            return YellowCard.from_espn(event)
+        raise ValueError("Unexpected event type {}: {}".format(event.get('type', {}).get('id'),
+                                                               event.get('type', {}).get('name')))
 
 
 class LivetickerEvent:
@@ -243,7 +661,15 @@ class LivetickerKickoff(LivetickerEvent):
 
 
 class LivetickerUpdate(LivetickerEvent):
-    def __init__(self, league, matches, new_events):
+    """
+    LivetickerEvent for the mid-game update
+
+    :param league: league of the Registration
+    :param matches: current matches
+    :param new_events: dictionary of the new events per match
+    """
+
+    def __init__(self, league: str, matches: list, new_events: dict):
         m_list = []
         for m in matches:
             m.new_events = new_events.get(m.match_id)
@@ -252,20 +678,19 @@ class LivetickerUpdate(LivetickerEvent):
 
 
 class LivetickerFinish(LivetickerEvent):
-    def __init__(self, league, matches):
-        super().__init__(league, matches)
+    pass
 
 
 class CoroRegistration:
-    def __init__(self, league_reg, plugin, coro, periodic: bool = False):
-        """
-        Registration for a single Coroutine
+    """Registration for a single Coroutine. Liveticker updates for the specified league will be transmitted to the
+    specified coro
 
-        :param league_reg:
-        :type league_reg: LeagueRegistration
-        :param coro:
-        :param periodic:
-        """
+    :param league_reg: Registration of the corresponding league
+    :type league_reg: LeagueRegistration
+    :param coro: Coroutine which receives the LivetickerEvents
+    :param periodic: whether the registration should receive mid-game updates"""
+
+    def __init__(self, league_reg, plugin, coro, periodic: bool = False):
         self.league_reg = league_reg
         self.plugin_name = plugin.get_name()
         self.coro = coro
@@ -287,7 +712,10 @@ class CoroRegistration:
         """Returns datetime of the next timer execution"""
         return self.league_reg.next_execution()
 
-    async def update(self, job):
+    async def update(self, job: Job):
+        """
+        Coroutine used by the interval timer during matches. Manufactures the LivetickerUpdate for the coro.
+        """
         self.logger.debug("CoroReg updates.")
         matches = self.league_reg.extract_kickoffs_with_matches()[job.data['start']]
         new_events = {}
@@ -303,8 +731,8 @@ class CoroRegistration:
             elif self.league_reg.source == LTSource.ESPN:
                 tmp_score = {m.home_team_id: 0, m.away_team_id: 0}
                 for e in m.raw_events:
-                    event = build_player_event(e, tmp_score.copy())
-                    if type(event) == Goal:
+                    event = PlayerEventEnum.build_player_event(e, tmp_score.copy())
+                    if isinstance(event, Goal):
                         tmp_score = event.score
                     if event.event_id not in self.last_events[m.match_id]:
                         events.append(event)
@@ -312,8 +740,8 @@ class CoroRegistration:
             self.last_events[m.match_id].extend([e.event_id for e in events])
         await self.coro(LivetickerUpdate(self.league_reg.league, matches, new_events))
 
-    async def update_kickoff(self, data):
-        await self.coro(LivetickerKickoff(self.league_reg.league, data['matches'], data['start']))
+    async def update_kickoff(self, time_kickoff: datetime.datetime, matches: list):
+        await self.coro(LivetickerKickoff(self.league_reg.league, matches, time_kickoff))
 
     async def update_finished(self, match_list):
         await self.coro(LivetickerFinish(self.league_reg.league, match_list))
@@ -337,7 +765,17 @@ class CoroRegistration:
 
 
 class LeagueRegistration:
-    def __init__(self, listener, league, source: LTSource):
+    """
+    Registration for a league. Manages central data collection and scheduling of timers.
+
+    :type listener: Liveticker
+    :param listener: central Liveticker node
+    :param league: league key
+    :param source: data source
+    :param interval: time between two intermediate updates
+    """
+
+    def __init__(self, listener, league: str, source: LTSource, interval: int = 15):
         self.listener = listener
         self.league = league
         self.source = source
@@ -347,19 +785,38 @@ class LeagueRegistration:
         self.intermediate_timers = []
         self.matches = []
         self.finished = []
+        self.interval = interval
 
-        self.update_matches()
-        self.schedule_kickoffs()
+    @classmethod
+    async def create(cls, listener, league: str, source: LTSource):
+        """New LeagueRegistration"""
+        l_reg = LeagueRegistration(listener, league, source)
+        await l_reg.schedule_kickoffs(listener.current_timer.next_execution())
+        return l_reg
 
-    def register(self, plugin, coro, periodic: bool):
+    @classmethod
+    async def restore(cls, listener, league: str, source: LTSource):
+        """Restored LeagueRegistration"""
+        l_reg = LeagueRegistration(listener, league, source)
+        kickoff_data = Storage().get(listener)['registrations'][source.value][league]['kickoffs']
+        for raw_kickoff, matches in kickoff_data.items():
+            time_kickoff = datetime.datetime.strptime(raw_kickoff, "%Y-%m-%d %H:%M")
+            matches_ = [MatchStub.from_storage(time_kickoff, m) for m in matches]
+            await l_reg.schedule_kickoff_single(time_kickoff, matches_)
+        return l_reg
+
+    async def register(self, plugin, coro, periodic: bool):
         """Registers a CoroReg for this league"""
         reg = CoroRegistration(self, plugin, coro, periodic)
         if reg not in self.registrations:
             self.registrations.append(reg)
             reg_storage = reg.storage()
-            if reg_storage not in Storage().get(self.listener)[self.source.value][self.league]:
-                Storage().get(self.listener)[self.source.value][self.league].append(reg_storage)
+            league_reg = Storage().get(self.listener)['registrations'][self.source.value][self.league]
+            if reg_storage not in league_reg['coro_regs']:
+                league_reg['coro_regs'].append(reg_storage)
                 Storage().save(self.listener)
+            for match_timer in self.intermediate_timers:
+                await reg.update_kickoff(match_timer.data['start'], match_timer.data['matches'])
         return reg
 
     def deregister(self):
@@ -371,6 +828,7 @@ class LeagueRegistration:
         self.listener.deregister(self)
 
     def unload(self):
+        """Unloads this LeagueRegistration"""
         for job in self.kickoff_timers:
             job.cancel()
         for job in self.intermediate_timers:
@@ -378,9 +836,11 @@ class LeagueRegistration:
         self.listener.unload(self)
 
     def deregister_coro(self, coro: CoroRegistration):
+        """Finishes the deregistration of a CoroRegistration"""
         reg_storage = coro.storage()
-        if reg_storage in Storage().get(self.listener)[self.source.value].get(self.league, []):
-            Storage().get(self.listener)[self.source.value][self.league].remove(reg_storage)
+        leag_reg = Storage().get(self.listener)['registrations'][self.source.value][self.league]
+        if reg_storage in leag_reg['coro_regs']:
+            leag_reg['coro_regs'].remove(reg_storage)
             Storage().save(self.listener)
         if coro in self.registrations:
             self.registrations.remove(coro)
@@ -388,126 +848,185 @@ class LeagueRegistration:
             self.deregister()
 
     def unload_coro(self, coro: CoroRegistration):
+        """Finishes the unloading of a CoroRegistration"""
         if coro in self.registrations:
             self.registrations.remove(coro)
         if not self.registrations:
             self.unload()
 
-    def update_matches(self, matchday=None):
+    async def update_matches(self, matchday=None):
         """Updates the matches and current standings of the league"""
         if self.source == LTSource.OPENLIGADB:
-            self._update_matches_oldb(matchday)
+            await self._update_matches_oldb(matchday)
         elif self.source == LTSource.ESPN:
-            self._update_matches_espn()
+            await self._update_matches_espn()
         return self.matches
 
-    def _update_matches_oldb(self, matchday=None):
+    async def _update_matches_oldb(self, matchday: int = None):
+        """
+        Updates matches with source from OpenLigaDB
+
+        :param matchday: alternative matchday
+        """
+        # TODO rework
         if matchday:
-            raw_matches = restclient.Client("https://www.openligadb.de/api").make_request(
+            raw_matches = await restclient.Client("https://www.openligadb.de/api").request(
                 "/getmatchdata/{}/2020/{}".format(self.league, matchday))
             self.matches = [Match.from_openligadb(m) for m in raw_matches]
         elif self.matchday():
             if self.next_execution():
-                self._update_matches_oldb(matchday=self.matchday())
+                await self._update_matches_oldb(matchday=self.matchday())
             else:
-                self._update_matches_oldb(matchday=self.matchday() + 1)
-                self.schedule_kickoffs()
+                await self._update_matches_oldb(matchday=self.matchday() + 1)
+                # self.schedule_kickoffs_oooooooold()
         else:
-            raw_matches = restclient.Client("https://www.openligadb.de/api").make_request(
+            raw_matches = await restclient.Client("https://www.openligadb.de/api").request(
                 "/getmatchdata/{}".format(self.league))
             self.matches = [Match.from_openligadb(m) for m in raw_matches]
             if not self.extract_kickoffs_with_matches():
                 md = self.matchday()
                 if md:
-                    self._update_matches_oldb(matchday=md + 1)
+                    await self._update_matches_oldb(matchday=md + 1)
 
-    def _update_matches_espn(self):
+    async def _update_matches_espn(self):
+        """Updates the matches with the espn-source"""
         # call ESPN two times to reload server cache
-        raw = restclient.Client("http://site.api.espn.com/apis/site/v2/sports").make_request(
+        _ = await restclient.Client("http://site.api.espn.com/apis/site/v2/sports").request(
             f"/soccer/{self.league}/scoreboard")
-        time.sleep(10)
-        raw = restclient.Client("http://site.api.espn.com/apis/site/v2/sports").make_request(
+        await asyncio.sleep(5)
+        raw = await restclient.Client("http://site.api.espn.com/apis/site/v2/sports").request(
             f"/soccer/{self.league}/scoreboard")
         self.matches = [Match.from_espn(m) for m in raw.get('events', [])]
 
-    def extract_kickoffs_with_matches(self):
+    def extract_kickoffs_with_matches(self) -> dict:
+        """
+        Groups the matches by their kickoff times
+
+        :return: dict with the kickoff as the key and a list of matches as value
+        """
         kickoff_dict = {}
         for match in self.matches:
-            if match.kickoff is None:  # Unknown kickoff
-                if None not in kickoff_dict:
-                    kickoff_dict[None] = []
-                kickoff_dict[None].append(match)
-            elif match.kickoff in kickoff_dict:  # Insert at kickoff
+            if match.status == MatchStatus.POSTPONED:
+                continue
+            if match.kickoff in kickoff_dict:  # Insert at kickoff
                 kickoff_dict[match.kickoff].append(match)
-            elif match.status != MatchStatus.COMPLETED:
+            else:
                 kickoff_dict[match.kickoff] = [match]
         return kickoff_dict
 
     def matchday(self):
+        """Returns the current matchday (OLDB only)"""
         if self.source == LTSource.OPENLIGADB:
             for match in self.matches:
                 md = match.matchday
                 if md:
                     return md
-        else:
-            return None
+        return None
 
-    def schedule_kickoffs(self):
+    async def schedule_kickoffs(self, until: datetime.datetime):
         """
-        Schedules timers for the kickoffs of all matches
+        Schedules timers for the kickoffs of the matches until the specified date
 
-        :return: List of jobs
+        :param until: datetime of the day before the next semi-weekly execution
+        :raises ValueError: if source does not provide support scheduling of kickoffs
         """
-        jobs = []
-        kickoffs = self.extract_kickoffs_with_matches()
+        kickoffs = {}
         now = datetime.datetime.now()
-        for time in kickoffs:
-            if time > now:
-                # Upcoming match
-                jobs.append(self.listener.bot.timers.schedule(coro=self.schedule_match_timers, td=timers.timedict(
-                    year=time.year, month=time.month, monthday=time.day, hour=time.hour, minute=time.minute)))
-            else:
-                # Running match
-                self.schedule_timers(start=time)
-                tmp_job = self.listener.bot.timers.schedule(coro=self.update_kickoff_coros, td=timers.timedict(),
-                                                            data={'start': time, 'matches': kickoffs[time]})
-                tmp_job.execute()
-        self.kickoff_timers.extend(jobs)
-        return jobs
+        Storage().get(self.listener)['registrations'][self.source.value][self.league]['kickoffs'] = {}
 
-    async def schedule_match_timers(self, job):
-        self.logger.debug("Match in League {} started.".format(self.league))
+        if self.source == LTSource.ESPN:
+            # Match collection for ESPN
+            dates = "{}-{}".format(now.strftime("%Y%m%d"), until.strftime("%Y%m%d"))
+            _ = await restclient.Client("http://site.api.espn.com/apis/site/v2/sports") \
+                .request(f"/soccer/{self.league}/scoreboard", params={'dates': dates})
+            await asyncio.sleep(5)
+            data = await restclient.Client("http://site.api.espn.com/apis/site/v2/sports") \
+                .request(f"/soccer/{self.league}/scoreboard", params={'dates': dates})
+            matches = [Match.from_espn(x) for x in data['events']]
+        elif self.source == LTSource.OPENLIGADB:
+            # Match collection for OpenLigaDB
+            raw_matches = []
+            data = await restclient.Client("https://www.openligadb.de/api").request(f"/getmatchdata/{self.league}")
+            if not data:
+                return
+            raw_matches.extend(data)
+            md = data[0]['Group']['GroupOrderID']
+            season = now.year
+            if now.month < 7:
+                season -= 1
+            data = await restclient.Client("https://www.openligadb.de/api").request(f"/getmatchdata/"
+                                                                                    f"{self.league}/{season}/{md}")
+            raw_matches.extend(data)
+            matches = [Match.from_openligadb(x) for x in raw_matches]
+        else:
+            raise ValueError("Source {} is not supported.".format(self.source))
+
+        for match in matches:
+            # Group by kickoff
+            if match.status in [MatchStatus.COMPLETED, MatchStatus.POSTPONED]:
+                continue
+            if match.kickoff not in kickoffs:
+                kickoffs[match.kickoff] = []
+            kickoffs[match.kickoff].append(match)
+
+        for time_kickoff, matches_ in kickoffs.items():
+            # Actual scheduling
+            if time_kickoff > until:
+                continue  # Kickoff not in this period
+            await self.schedule_kickoff_single(time_kickoff, matches_)
+            storage_kickoffs = Storage().get(self.listener)['registrations'][self.source.value][self.league]['kickoffs']
+            storage_kickoffs[time_kickoff.strftime("%Y-%m-%d %H:%M")] = [m.to_storage() for m in matches_]
+        Storage().save(self.listener)
+
+    async def schedule_kickoff_single(self, time_kickoff: datetime.datetime, matches: list):
+        """Schedules a single kickoff time."""
+        now = datetime.datetime.now()
+        self.logger.debug(time_kickoff)
+        if time_kickoff > now:
+            # Kickoff in the future
+            kickoff_timer = self.listener.bot.timers.schedule(
+                coro=self._schedule_match_timer,
+                td=timers.timedict(year=time_kickoff.year, month=time_kickoff.month, monthday=time_kickoff.day,
+                                   hour=time_kickoff.hour, minute=time_kickoff.minute),
+                data={'start': time_kickoff, 'matches': matches})
+            self.kickoff_timers.append(kickoff_timer)
+        elif (now - time_kickoff) < datetime.timedelta(hours=2):
+            # Kickoff in the past, match running
+            await self._schedule_match_timer(kickoff=time_kickoff, matches=matches)
+            for coro_reg in self.registrations:
+                await coro_reg.update_kickoff(time_kickoff, matches)
+
+    async def _schedule_match_timer(self, job: Job = None, kickoff: datetime.datetime = None, matches: list = None):
+        """
+        Schedules the timer for the match updates
+
+        :param job: is used if this method is called by the timer
+        :param kickoff: is used if the match is actually running
+        :param matches: is used if the match is actually running
+        """
         now = datetime.datetime.now().replace(second=0, microsecond=0)
-        job.data = {'start': now,
-                    'matches': self.extract_kickoffs_with_matches()[now]}
-        await self.update_kickoff_coros(job)
-        self.schedule_timers(start=now)
+        if job:
+            kickoff = job.data['start']
+            matches = job.data['matches']
+            job.cancel()
+        if not kickoff:
+            return
 
-    def schedule_timers(self, start: datetime.datetime):
-        """
-        Schedules timers in 15-minute intervals during the match starting 15 minutes after the beginning and stopping 2
-        hours after
-
-        :param start: start datetime of the match
-        :return: jobs objects of the timers
-        """
-        interval = 15
-        minutes = [m + (start.minute % interval) for m in range(0, 60, interval)]
-        intermediate = timers.timedict(year=[start.year], month=[start.month], monthday=[start.day], minute=minutes)
-        job = self.listener.bot.timers.schedule(coro=self.update_periodic_coros, td=intermediate, data={'start': start})
-        if job.next_execution().minute == datetime.datetime.now().minute:
-            job.execute()
-        self.logger.debug("Timers for match starting at {} scheduled.".format(start.strftime("%d/%m/%Y %H:%M")))
-        self.intermediate_timers.append(job)
-        return job
+        offset = kickoff.minute % self.interval
+        td = timers.timedict(minute=[x + offset for x in range(0, 60, self.interval)])
+        match_timer = self.listener.bot.timers.schedule(coro=self.update_periodic_coros, td=td,
+                                                        data={'start': kickoff, 'matches': matches})
+        self.intermediate_timers.append(match_timer)
+        await self.update_kickoff_coros(match_timer)
+        if match_timer.next_execution() <= now:
+            match_timer.execute()
 
     def next_kickoff(self):
         """Returns datetime of the next match"""
         kickoffs = (i.next_execution() for i in self.kickoff_timers if i)
         if kickoffs:
             return min(kickoffs)
-        else:
-            return None
+        return None
 
     def next_execution(self):
         """Returns datetime and type of the next timer execution"""
@@ -525,8 +1044,7 @@ class LeagueRegistration:
 
     async def update_kickoff_coros(self, job: Job):
         for coro_reg in self.registrations:
-            await coro_reg.update_kickoff(job.data)
-        job.cancel()
+            await coro_reg.update_kickoff(job.data['start'], job.data['matches'])
 
     async def update_periodic_coros(self, job: Job):
         """
@@ -538,14 +1056,14 @@ class LeagueRegistration:
         if job.data['start'] == datetime.datetime.now().replace(second=0, microsecond=0):
             return
         new_finished = []
-        self.update_matches()
+        await self.update_matches()
         matches = self.extract_kickoffs_with_matches()[job.data['start']]
-        if (datetime.datetime.now() - job.data['start']).seconds > 9000:
+        if job.data['start'] + datetime.timedelta(hours=3.5) < datetime.datetime.now():
             new_finished = matches
             self.finished.extend([m.match_id for m in matches])
         else:
             for match in matches:
-                if match.is_completed and match.match_id not in self.finished:
+                if match.status == MatchStatus.COMPLETED and match.match_id not in self.finished:
                     new_finished.append(match)
                     self.finished.append(match.match_id)
         for coro_reg in self.registrations:
@@ -568,26 +1086,57 @@ class LeagueRegistration:
 
 
 class Liveticker(BaseSubsystem):
+    """Subsystem for the registration and operation of sports livetickers"""
+
     def __init__(self, bot):
         super().__init__(bot)
         self.bot = bot
         self.logger = logging.getLogger(__name__)
-        self.registrations = {}
+        self.registrations = {x: {} for x in LTSource}
+        self.teamname_converter = TeamnameConverter(self)
         self.restored = False
+        self.current_timer = None
 
+        # Update storage
+        if not Storage().get(self).get('storage_version'):
+            self.logger.debug("default storage set")
+            regs = Storage().get(self)
+            for src, l_regs in regs.items():
+                for league, c_regs in l_regs.items():
+                    regs[src][league] = {
+                        'kickoffs': {},
+                        'coro_regs': c_regs
+                    }
+            Storage().set(self, {'storage_version': 1, 'registrations': regs, 'next_semiweekly': None})
+            Storage().save(self)
+
+        # pylint: disable=unused-variable
         @bot.listen()
         async def on_ready():
             plugins = self.bot.get_normalplugins()
-            self.restore(plugins)
+            await self.restore(plugins)
             self.restored = True
+            timedict = timers.timedict(weekday=[2, 5], hour=[4], minute=[0])
+            self.current_timer = self.bot.timers.schedule(coro=self._semiweekly_timer, td=timedict)
+            if Storage().get(self).get('next_semiweekly') is None or \
+                    datetime.datetime.strptime(Storage().get(self)['next_semiweekly'], "%Y-%m-%d %H:%M") \
+                    < datetime.datetime.now():
+                self.current_timer.execute()
 
-    def default_storage(self):
-        regs = {}
+    def default_storage(self, container=None):
+        if container == 'teamname':
+            return {}
+        storage = {
+            'storage_version': 1,
+            'registrations': {},
+            'next_semiweekly': None
+        }
         for src in LTSource.__members__.values():
-            regs[src.value] = {}
-        return regs
+            storage['registrations'][src.value] = {}
+        return storage
 
-    def register(self, league, raw_source, plugin, coro, periodic: bool = True):
+    async def register(self, league: str, raw_source: str, plugin: BasePlugin,
+                       coro, periodic: bool = True) -> CoroRegistration:
         """
         Registers a new liveticker for the specified league.
 
@@ -595,71 +1144,170 @@ class Liveticker(BaseSubsystem):
         :param plugin: plugin where all coroutines are in
         :param league: League the liveticker should observe
         :param coro: coroutine for the events
+        :type coro: function
         :param periodic: if coro should be updated automatically
         :return: CoroRegistration
         """
         source = LTSource(raw_source)
-        if league not in self.registrations:
-            self.registrations[league] = LeagueRegistration(self, league, source)
-        if league not in Storage().get(self)[source.value]:
-            Storage().get(self)[source.value][league] = []
+        league_exists = league in Storage().get(self)['registrations'][source.value]
+        if not league_exists:
+            Storage().get(self)['registrations'][source.value][league] = {'kickoffs': {}, 'coro_regs': []}
             Storage().save(self)
-        coro_reg = self.registrations[league].register(plugin, coro, periodic)
+        if league not in self.registrations[source]:
+            if league_exists:
+                self.registrations[source][league] = await LeagueRegistration.restore(self, league, source)
+            else:
+                self.registrations[source][league] = await LeagueRegistration.create(self, league, source)
+        coro_reg = await self.registrations[source][league].register(plugin, coro, periodic)
         return coro_reg
 
     def deregister(self, reg: LeagueRegistration):
-        if reg.league in self.registrations:
-            self.registrations.pop(reg.league)
-        if reg.league in Storage().get(self)[reg.source.value]:
-            Storage().get(self)[reg.source.value].pop(reg.league)
+        """
+        Finishes the deregistration of a LeagueRegistration
+
+        :param reg: LeagueRegistration
+        """
+        if reg.league in self.registrations[reg.source]:
+            self.registrations[reg.source].pop(reg.league)
+        if reg.league in Storage().get(self)['registrations'][reg.source.value]:
+            Storage().get(self)['registrations'][reg.source.value].pop(reg.league)
             Storage().save(self)
 
     def unload(self, reg: LeagueRegistration):
-        if reg.league in self.registrations:
-            self.registrations.pop(reg.league)
+        if reg.league in self.registrations[reg.source]:
+            self.registrations[reg.source].pop(reg.league)
 
-    def search(self, plugin=None, league=None) -> dict:
+    def search_league(self, sources=None, leagues=None) -> Generator[LeagueRegistration, None, None]:
+        """
+        Searches all LeagueRegistrations fulfilling the requirements
+
+        :param sources: list of sources
+        :type sources: List[LTSource]
+        :param leagues: list of league keys
+        :type leagues: List[str]
+        :return: LeagueRegistration
+        """
+        if sources is None:
+            sources = []
+        if leagues is None:
+            leagues = []
+        for src, l_regs in self.registrations.items():
+            if sources and src not in sources:
+                continue
+            for league, l_reg in l_regs.items():
+                l_reg: LeagueRegistration
+                if leagues and league not in leagues:
+                    continue
+                yield l_reg
+
+    def search_coro(self, plugins: list = None, sources: list = None, leagues: list = None) -> \
+            Generator[Tuple[LTSource, str, CoroRegistration], None, None]:
         """
         Searches all CoroRegistrations fulfilling the requirements
 
-        :param plugin: plugin name
-        :param league: league key
-        :return: Dictionary with a list of all matching registrations per league
+        :param plugins: list of plugin names
+        :type plugins: List[str]
+        :param sources: list of sources
+        :type sources: List[LTSource]
+        :param leagues: list of league keys
+        :type leagues: List[str]
+        :return: source, league, coro-registration
         """
-        if league:
-            league_reg = self.registrations.get(league)
-            if league_reg:
-                coro_regs = [(league, self.registrations[league].registrations)]
-            else:
-                return {}
-        else:
-            coro_regs = [(leag.league, leag.registrations) for leag in self.registrations.values()]
-        coro_dict = {}
-        for leag, regs in coro_regs:
-            r = [i for i in regs if plugin is None or i.plugin_name == plugin]
-            if r:
-                coro_dict[leag] = r
-        return coro_dict
+        if sources is None:
+            sources = []
+        if leagues is None:
+            leagues = []
+        if plugins is None:
+            plugins = []
+        l_reg: LeagueRegistration
+        for l_reg in self.search_league(sources=sources, leagues=leagues):
+            c_reg: CoroRegistration
+            for c_reg in l_reg.registrations:
+                if plugins and c_reg.plugin_name not in plugins:
+                    continue
+                yield l_reg.source, l_reg.league, c_reg
 
-    def restore(self, plugins: list):
-        i = 0
-        for src, registrations in Storage().get(self).items():
+    async def restore(self, plugins: list):
+        """
+        Restores saved registrations from the storage
+
+        :param plugins: List of all active plugins
+        """
+        i, j = 0, 0
+        for src, registrations in Storage().get(self)['registrations'].items():
             for league in registrations:
-                for reg in registrations[league]:
-                    if reg['plugin'] in plugins:
-                        i += 1
-                        coro = getattr(get_plugin_by_name(reg['plugin']),
-                                       reg['coro']) if reg['coro'] else None
-                        self.register(plugin=get_plugin_by_name(reg['plugin']),
-                                      league=league,
-                                      raw_source=src,
-                                      coro=coro,
-                                      periodic=reg['periodic'])
-        self.logger.debug(f'{i} Liveticker registrations restored.')
+                for c_reg in registrations[league]['coro_regs']:
+                    if c_reg['plugin'] in plugins:
+                        try:
+                            coro = getattr(get_plugin_by_name(c_reg['plugin']),
+                                           c_reg['coro']) if c_reg['coro'] else None
+                        except AttributeError:
+                            j += 1
+                        else:
+                            i += 1
+                            await self.register(plugin=get_plugin_by_name(c_reg['plugin']),
+                                                league=league,
+                                                raw_source=src,
+                                                coro=coro,
+                                                periodic=c_reg['periodic'])
+        self.logger.debug('%d Liveticker registrations restored. %d failed.', i, j)
 
-    def unload_plugin(self, plugin_name):
-        coro_dict = self.search(plugin=plugin_name)
-        for leag in coro_dict.values():
-            for reg in leag:
-                reg.unload()
-        self.logger.debug(f'Liveticker for plugin {plugin_name} unloaded')
+    def unload_plugin(self, plugin_name: str):
+        """
+        Unloads all active registrations belonging to the specified plugin
+
+        :param plugin_name: name of the plugin
+        """
+        for _, _, c_reg in self.search_coro(plugins=[plugin_name]):
+            c_reg.unload()
+        self.logger.debug('Liveticker for plugin %s unloaded', plugin_name)
+
+    async def _semiweekly_timer(self, _job):
+        """
+        Coroutine used by the semi-weekly timer for the scheduling of matches
+
+        :param _job: timer job
+        :return: None
+        """
+        self.logger.debug("Semi-Weekly timer schedules matches.")
+        until = self.current_timer.next_execution()
+        for source in LTSource:
+            for league_reg in self.registrations[source].values():
+                await league_reg.schedule_kickoffs(until)
+        Storage().get(self)['next_semiweekly'] = until.strftime("%Y-%m-%d %H:%M")
+        Storage().save(self)
+
+    async def get_standings(self, league: str, source: LTSource) -> Tuple[str, Dict[str, List[TableEntry]]]:
+        """
+        Returns the current standings of that league
+
+        :param league: league key
+        :param source: data source
+        :raises ValueError: if unable to retrieve any standings information
+        :return: league name and current standings per group
+        """
+        tables = {}
+        league_name = league
+        if source == LTSource.ESPN:
+            data = await restclient.Client("https://site.api.espn.com/apis/v2/sports").request(
+                f"/soccer/{league}/standings")
+            if 'children' not in data:
+                raise ValueError(f"Unable to retrieve any standings information for {league}")
+            groups = data['children']
+            for group in groups:
+                entries = group['standings']['entries']
+                group_name = group['name']
+                tables[group_name] = [TableEntry(entry, LTSource.ESPN, self.teamname_converter) for entry in entries]
+        elif source == LTSource.OPENLIGADB:
+            year = (datetime.datetime.today() - datetime.timedelta(days=180)).year
+            data = await restclient.Client("https://www.openligadb.de/api").request(f"/getbltable/{league}/{year}")
+            table = []
+            if not data:
+                raise ValueError(f"Unable to retrieve any standings information for {league}")
+            for i in range(len(data)):
+                data[i]['rank'] = i + 1
+                table.append(TableEntry(data[i], LTSource.OPENLIGADB, self.teamname_converter))
+            tables[league] = table
+        else:
+            raise ValueError("Invalid source")
+        return league_name, tables

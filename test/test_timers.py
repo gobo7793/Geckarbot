@@ -2,6 +2,8 @@ from datetime import date, datetime
 
 from subsystems import timers
 
+# pylint: disable=missing-function-docstring
+
 
 def test_cron_alg_fr13():
     # find next friday 13th
@@ -142,4 +144,10 @@ def test_cron_alg_sameday():
     now = datetime(year=2051, month=7, day=12, hour=14, minute=54)
     timedict = timers.timedict(year=2051, month=7, monthday=12, hour=18, minute=36)
     expected = datetime(year=2051, month=7, day=12, hour=18, minute=36)
+    tcase_cron_alg(now, timedict, expected)
+
+def test_cron_alg_pasthournextday():
+    now = datetime(year=2051, month=7, day=12, hour=19, minute=54)
+    timedict = timers.timedict(hour=14, minute=0)
+    expected = datetime(year=2051, month=7, day=13, hour=14, minute=0)
     tcase_cron_alg(now, timedict, expected)

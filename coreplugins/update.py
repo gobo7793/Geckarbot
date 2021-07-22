@@ -277,7 +277,7 @@ class Plugin(BasePlugin, name="Bot updating system"):
         """
         # pylint: disable=broad-except
         self.state = State.UPDATING
-        self.bot.presence.register(Lang.lang(self, "presence_update", tag), PresencePriority.HIGH)
+        self.bot.presence.register(Lang.lang(self, "presence_update", tag), priority=PresencePriority.HIGH)
         await channel.send(Lang.lang(self, "doing_update", tag))
         for plugin in self.bot.plugin_objects(plugins_only=True):
             try:
@@ -366,7 +366,8 @@ class Plugin(BasePlugin, name="Bot updating system"):
         :return: True if there was a successful update, False if not
         """
         try:
-            f = open(TAGFILE)
+            with open(TAGFILE) as f:
+                lines = f.readlines()
         except FileNotFoundError:
             log.debug("I was not !update'd.")
             return False
@@ -374,7 +375,6 @@ class Plugin(BasePlugin, name="Bot updating system"):
             log.error("%s is a directory, I expected a file or nothing. Please clean this up.", TAGFILE)
             return False
 
-        lines = f.readlines()
         if len(lines) > 1:
             log.error("%s has more than 1 line. This should not happen.", TAGFILE)
             return False
@@ -414,14 +414,14 @@ class Plugin(BasePlugin, name="Bot updating system"):
     @commands.command(name="restart", help="Restarts the bot.")
     @commands.has_any_role(Config().BOT_ADMIN_ROLE_ID)
     async def cmd_restart(self, ctx):
-        self.bot.presence.register(Lang.lang(self, "presence_restart"), PresencePriority.HIGH)
+        self.bot.presence.register(Lang.lang(self, "presence_restart"), priority=PresencePriority.HIGH)
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
         await self.bot.shutdown(Geckarbot.Exitcodes.RESTART)  # This signals the runscript
 
     @commands.command(name="shutdown", help="Stops the bot.")
     @commands.has_any_role(Config().BOT_ADMIN_ROLE_ID)
     async def cmd_shutdowncmd(self, ctx):
-        self.bot.presence.register(Lang.lang(self, "presence_shutdown"), PresencePriority.HIGH)
+        self.bot.presence.register(Lang.lang(self, "presence_shutdown"), priority=PresencePriority.HIGH)
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
         await self.bot.shutdown(Geckarbot.Exitcodes.SUCCESS)  # This signals the runscript
 

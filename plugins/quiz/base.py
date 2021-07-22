@@ -2,6 +2,7 @@ import string
 import random
 import logging
 from enum import Enum
+from abc import ABC, abstractmethod
 
 import discord
 
@@ -14,7 +15,158 @@ class InvalidAnswer(Exception):
     pass
 
 
+class BaseQuizAPI(ABC):
+    """
+    Interface for question resources
+    """
+
+    @abstractmethod
+    async def fetch(self):
+        """
+        Called before accessing questions. Used to e.g. asynchronously fetch questions.
+        """
+        pass
+
+    @abstractmethod
+    def current_question(self):
+        """
+        Retrieves the current question.
+        :return: Question object
+        """
+        pass
+
+    @abstractmethod
+    def next_question(self):
+        """
+        Retrieves a new question.
+        :raise: controllers.QuizEnded when there is no next question
+        :return: Question object
+        """
+        pass
+
+    @abstractmethod
+    async def size(self, **kwargs):
+        """
+        Calculates the question space size for the given constraints (such as category and difficulty).
+        :return: int
+        """
+        pass
+
+    @abstractmethod
+    async def info(self, **kwargs):
+        """
+        :param kwargs:
+        :return: Returns an info string under the given constraints.
+        """
+        pass
+
+    @staticmethod
+    @abstractmethod
+    def category_name(catkey):
+        """
+        :param catkey: Opaque category key object that was previously returned by category_key()
+        :return: Human-readable representation of the quiz category
+        """
+        pass
+
+    @staticmethod
+    @abstractmethod
+    def category_key(catarg: str):
+        """
+        :param catarg: Argument that was passed that identifies a category
+        :return: Opaque category identifier that can be used in initialization and for category_name.
+            Returns None if catarg is an unknown category.
+        """
+        pass
+
+    def __len__(self):
+        """
+        :return: Returns the amount of questions.
+        """
+        pass
+
+    @abstractmethod
+    def __del__(self):
+        """
+        Called when the quiz is stopped.
+        """
+        pass
+
+
+class BaseQuizController(ABC):
+    """
+    Interface for a quiz controller for a specific game mode
+    """
+    @abstractmethod
+    def __init__(self, plugin, config, quizapi, channel, requester, **kwargs):
+        self.task = None
+
+    @abstractmethod
+    async def start(self, msg):
+        """
+        Called when the start command is invoked.
+        This is usually expected to call fetch() on the QuizAPI object (if used).
+        """
+        pass
+
+    @abstractmethod
+    async def pause(self, msg):
+        """
+        Called when the pause command is invoked.
+        """
+        pass
+
+    @abstractmethod
+    async def resume(self, msg):
+        """
+        Called when the resume command is invoked.
+        """
+        pass
+
+    @abstractmethod
+    async def status(self, msg):
+        """
+        Called when the status command is invoked.
+        """
+        pass
+
+    @property
+    @abstractmethod
+    def score(self):
+        """
+        :return: Score object
+        """
+        pass
+
+    @abstractmethod
+    async def on_message(self, msg):
+        pass
+
+    @abstractmethod
+    def cleanup(self):
+        """
+        Cleanup method.
+        """
+        pass
+
+    def cancel(self):
+        """
+        Called when the quiz controller is to be cancelled, e.g. with a cancel cmd.
+        """
+        logger = logging.getLogger(__name__)
+        logger.debug("Cancelling controller")
+        if self.task is not None:
+            self.task.cancel()
+            self.task = None
+        else:
+            logger.warning("Controller cancel was requested but no task found that could be cancelled")
+        self.cleanup()
+
+
 class Difficulty(Enum):
+    """
+    Represents the difficulty of a question.
+    """
     ANY = "any"
     EASY = "easy"
     MEDIUM = "medium"
@@ -22,6 +174,13 @@ class Difficulty(Enum):
 
     @staticmethod
     def human_readable(el):
+        """
+        Converts a Difficulty object to a hr string.
+
+        :param el: Difficulty object
+        :return: hr string
+        :raises RuntimeError: If el is not a Difficulty object
+        """
         if el == Difficulty.ANY:
             return "Any"
         if el == Difficulty.EASY:
@@ -30,10 +189,20 @@ class Difficulty(Enum):
             return "Medium"
         if el == Difficulty.HARD:
             return "Hard"
+        raise RuntimeError
 
 
 class Score:
+    """
+    Represents a quiz controller's current score.
+    """
     def __init__(self, plugin, config, question_count):
+        """
+
+        :param plugin: Plugin reference
+        :param config: config dict
+        :param question_count: Amount of questions
+        """
         self._score = {}
         self._points = {}
         self.plugin = plugin
@@ -47,6 +216,13 @@ class Score:
 
     @staticmethod
     def divdiff(x, f):
+        """
+        Divided differences as used for interpolation polynomial
+
+        :param x: list of x values
+        :param f: list of f(x) values with f the function to interpolate
+        :return: Divided differences in a triangle matrix
+        """
         r = []
         for _ in range(len(x)):
             r.append([0] * len(x))
@@ -80,6 +256,7 @@ class Score:
         """
         :param user: The user whose points are to be calculated
         :return: user's points
+        :raises KeyError: Raised when user is not registered in this score
         """
         if user not in self._score:
             raise KeyError("User {} not found in score".format(user))
@@ -204,6 +381,11 @@ class Score:
                 self.answered_questions.append(question)
 
     def add_participant(self, member):
+        """
+        Adds a quiz participant to the score.
+
+        :param member: Member to add as a participant
+        """
         if member not in self._score:
             self._score[member] = 0
             self._points[member] = 0
@@ -215,6 +397,9 @@ class Score:
 
 
 class Question:
+    """
+    Represents a question and its answers
+    """
     def __init__(self, quizapi, question, correct_answer, incorrect_answers, index=None, info=None):
         """
         :param quizapi: QuizAPI object
@@ -224,7 +409,8 @@ class Question:
         :param index: no idea
         :param info: Not sure, seems to be used as embed fields in the question info cmd
         """
-        logging.debug("Question(%s, %s, %s)", question, correct_answer, incorrect_answers)
+        logging.debug("Question(%s, %s, %s, index=%s, info=%s)",
+                      question, correct_answer, incorrect_answers, index, info)
         self.index = index
         self.source = quizapi
         self.info = info
@@ -254,6 +440,9 @@ class Question:
                 break
 
     def shuffle_answers(self):
+        """
+        Re-orders the answers.
+        """
         # Try int sort
         isint = True
         answers = []
@@ -264,13 +453,21 @@ class Question:
                 isint = False
                 break
         if isint:
-            self.all_answers = sorted(self.all_answers, key=lambda x: int(x))
+            self.all_answers = sorted(self.all_answers, key=int)
             return
 
         # Regular shuffling
         random.shuffle(self.all_answers)
 
     def letter_mapping(self, index, emoji=False, reverse=False):
+        """
+        Maps an answer index to the corresponding letter or letter emoji.
+
+        :param index: Map index
+        :param emoji: Switches map from ascii letters to emoji letters
+        :param reverse: Reverses the mapping direction
+        :return:
+        """
         if not reverse:
             if emoji:
                 return self.emoji_map[index]
@@ -289,13 +486,26 @@ class Question:
         return None
 
     async def pose(self, channel, emoji=False):
+        """
+        Poses a question to a channel.
+
+        :param channel: Channel object
+        :param emoji: Flag that determines whether letter emojis are used to identify the answers
+        :return: message that was sent to `channel`
+        """
         logging.getLogger(__name__).debug("Posing question #%s: %s", self.index, self.question)
         msg = await channel.send(embed=self.embed(emoji=emoji))
-        if emoji:
-            for i in range(len(self.all_answers)):
-                await msg.add_reaction(Lang.EMOJI["lettermap"][i])  # this breaks if there are more than 26 answers
         self.message = msg
         return msg
+
+    async def add_reactions(self, msg):
+        """
+        Adds answer emoji reactions to a question message. Expected to be called somewhat immediately after pose().
+
+        :param msg: Question message
+        """
+        for i in range(len(self.all_answers)):
+            await msg.add_reaction(Lang.EMOJI["lettermap"][i])  # this breaks if there are more than 26 answers
 
     def embed(self, emoji=False, info=False):
         """
@@ -307,7 +517,7 @@ class Question:
         if self.index is not None:
             title = "#{}: {}".format(self.index+1, title)
         embed = discord.Embed(title=title)
-        value = "\n".join([el for el in self.answers_mc(emoji=emoji)])
+        value = "\n".join(self.answers_mc(emoji=emoji))
         embed.add_field(name="Possible answers:", value=value)
 
         if info:
@@ -331,7 +541,9 @@ class Question:
     def check_answer(self, answer, emoji=False):
         """
         Called to check the answer to the most recent question that was retrieved via qet_question().
+
         :return: True if this is the first occurence of the correct answer, False otherwise
+        :raises InvalidAnswer: Raised if the answer was invalid.
         """
         if answer is None:
             return False
@@ -348,13 +560,21 @@ class Question:
 
     @property
     def emoji_map(self):
+        """
+        :return: A list of all letter emoji that correspond to an answer
+        """
         if self._cached_emoji is None:
             self._cached_emoji = Lang.EMOJI["lettermap"][:len(self.all_answers)]
         return self._cached_emoji
 
     def is_valid_emoji(self, emoji):
+        """
+        Determines whether an emoji represents a valid answer.
+
+        :param emoji: Emoji to check
+        :return: `True` if `emoji` represents a valid answer, `False` otherwise
+        """
         for el in self.emoji_map:
-            # print("true with .name: {}".format(el == emoji.name))
             if el == emoji:
                 return True
         return False
@@ -373,6 +593,7 @@ class CategoryKey:
         :param quizapi: QuizAPI class that understands key
         :param key: category key that is understood by QuizAPI
         :param name: human-readable name
+        :raises KeyError: Raised if the category key already exists
         """
         if quizapi in self._entries:
             entry = self._entries[quizapi]
@@ -413,6 +634,10 @@ class CategoryKey:
         return self.key(quizapi), self._entries[quizapi]["name"]
 
     def key(self, quizapi):
+        """
+        :param quizapi: QuizAPI to return the category for
+        :return: This category's category key that corresponds to `quizapi`
+        """
         return self._entries[quizapi]["key"]
 
     def merge(self, catkey):
@@ -423,4 +648,7 @@ class CategoryKey:
             self.add_key(quizapi, *self.get(quizapi))
 
     def is_empty(self):
+        """
+        :return: True if this category has no entries, False otherwise
+        """
         return not self._entries

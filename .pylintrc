@@ -152,7 +152,9 @@ disable=parameter-unpacking,
         consider-using-enumerate,
         docstring-first-line-empty,
         unnecessary-pass,
-        too-many-boolean-expressions
+        too-many-boolean-expressions,
+        useless-param-doc,
+        duplicate-code
 
 # Enable the message, report, category or checker with the given id(s). You can
 # either give multiple identifier separated by comma (,) or put this option

@@ -7,6 +7,7 @@ from urllib.parse import urlencode
 import base64
 import logging
 import asyncio
+
 import aiohttp
 
 
@@ -37,12 +38,12 @@ class Client:
         self.aiosession = aiohttp.ClientSession()
 
     @staticmethod
-    def _normalize_url_part(part):
+    def _normalize_url_part(part) -> str:
         """
         Normalizes a URL part, i.e. removes "/" at the beginning and adds one at the end
         *TODO* urlencode
         :param part: URL part to normalize
-        :return:
+        :return: Normalized URL part
         """
         while True:
             if not part.startswith("/"):
@@ -58,16 +59,15 @@ class Client:
             return part
         return part + "/"
 
-    def set_url_appendix(self, s):
+    def set_url_appendix(self, s: str):
         """
         Sets an appendix for the host URL (useful for things that don't change like authentication)
 
         :param s: appendix
-        :return: None
         """
         self.url_appendix = Client._normalize_url_part(s)
 
-    def parse_response(self, response):
+    def parse_response(self, response: str):
         """
         Parses a json response from the API.
 
@@ -76,18 +76,18 @@ class Client:
         """
         return self.decoder.decode(response)
 
-    def parse_request_data(self, data):
+    def parse_request_data(self, data: dict):
         """
         Parses a dict to urlencoded json
 
         :param data: the dict that is to be urlencoded
-        :return:
+        :return: Urlencoded `data` (defaults to None if data is None)
         """
         if data is None:
             return None
         return self.encoder.encode(data)
 
-    def url(self, endpoint="", appendix=None, params=None):
+    def url(self, endpoint: str = "", appendix: str = None, params: dict = None):
         """
         Build the URL with url, appendix and endpoint
 
@@ -112,20 +112,19 @@ class Client:
 
         return url
 
-    def auth_basic(self, username, password):
+    def auth_basic(self, username: str, password: str):
         """
         Sets authentication header for basic authentication.
 
         :param username: Username
         :param password: Password
-        :return: None
         """
         self.credentials["username"] = username
         self.credentials["password"] = password
         self.auth = "basic"
 
     @staticmethod
-    def _build_session_cookie(session):
+    def _build_session_cookie(session) -> dict:
         return {"cookie": session["name"] + "=" + session["value"]}
 
     def _build_headers(self, headers):
@@ -163,6 +162,7 @@ class Client:
         :param method: http method ("GET", "POST" etc)
         :param parse_json: Treat response as json and parse it
         :return: parsed response
+        :raises RuntimeError: Raised if method is an unknown http method
         """
         headers = self._build_headers(headers)
         url = self.url(endpoint=endpoint, appendix=appendix, params=params)
@@ -233,6 +233,9 @@ class Client:
         """
         Prints the dictionary d but replaces any `"password"` values with `***`
         """
+        if d is None:
+            return
+
         found = []
         candidates = ["password", "pw", "Password", "passwort", "Passwort"]
         for el in candidates:

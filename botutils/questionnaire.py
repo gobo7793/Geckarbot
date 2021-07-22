@@ -17,7 +17,6 @@ baselang = {
     "or": "or",
     "answer_cancel": "cancel",
     "answer_mc_done": "done",
-    "answer_unknown": "This is not a valid answer.",
     "answer_list_mc": "The possible answers are: {}\n"
                       "This is a multiple choice question, so you may choose as many as you want.\n"
                       "Please submit your answers one by one. When you are done, type `done`.",
@@ -91,7 +90,8 @@ class Question:
                  answers: List[str] = None,
                  callback: Callable = None,
                  data=None,
-                 lang: dict = None):
+                 lang: dict = None,
+                 allow_empty: bool = False):
         """
         :param question: Question to be posed
         :param qtype: Question type
@@ -107,21 +107,21 @@ class Question:
             "or": "or" string that is used when formatting single choice answers.
             "answer_cancel": Answer that can be used at any point in the questionnaire to cancel it.
             "answer_mc_done": Answer that is used to finish multiple choice answers. Usually something like "done".
-            "answer_unknown": Questionnaire response when the submitted answer is invalid. Used in choice questions.
-            Currently not used in favor of "result_rejected" (not sure why).
             "answer_list_mc": 1-spot format string that takes the list of possible answers in multiple choice questions.
             Used to explain how to answer a multiple choice question.
             "answer_list_sc": 1-spot format string that takes the list of possible answers in single choice questions.
             Used to explain how to answer a single choice question.
+        :param allow_empty: If set to True, allows empty answers list in multiple-choice type questions.
         :raises RuntimeError: No answers were given but question type is not `QuestionType.TEXT`
         """
         self.logger = logging.getLogger(__name__)
         self.question = question
         self.type = qtype
-        self.answers = answers
+        self._answers = answers
         self.callback = callback
         self.data = data
         self.lang = lang if lang is not None else {}
+        self.allow_empty = allow_empty
 
         self.answer = None
         self.question_msg = None
@@ -137,10 +137,10 @@ class Question:
         """
         msg = [self.question]
         if self.type == QuestionType.MULTIPLECHOICE:
-            answers = ellist(self.answers, ands=get_lang(self.lang, "and"), emptylist="PANIC PANIC BEEEDOOO")
+            answers = ellist(self._answers, ands=get_lang(self.lang, "and"), emptylist="PANIC PANIC BEEEDOOO")
             msg.append(get_lang(self.lang, "answer_list_mc").format(answers))
         elif self.type == QuestionType.SINGLECHOICE:
-            answers = ellist(self.answers, ands=get_lang(self.lang, "or"), emptylist="PANIC PANIC BEEEDOOO")
+            answers = ellist(self._answers, ands=get_lang(self.lang, "or"), emptylist="PANIC PANIC BEEEDOOO")
             msg.append(get_lang(self.lang, "answer_list_sc").format(answers))
 
         for msg in paginate(msg):
@@ -165,17 +165,18 @@ class Question:
             return Result.DONE
 
         if self.type == QuestionType.SINGLECHOICE:
-            if answer in self.answers:
+            if answer in self._answers:
                 self.answer = answer
                 return Result.DONE
             return Result.REJECTED
 
         if self.type == QuestionType.MULTIPLECHOICE:
             if answer == self.lang.get("answer_mc_done", baselang["answer_mc_done"]):
-                if not self.answer:
+                if not self.allow_empty and not self.answer:
                     return Result.EMPTY
                 return Result.DONE
-            if answer in self.answers:
+            print("searching {} in {}".format(answer, self._answers))
+            if answer in self._answers:
                 # Create or append to answer list
                 if self.answer is not None:
                     if answer not in self.answer:
@@ -198,7 +199,8 @@ class Questionnaire:
     """
     Questionnaire to interrogate a user via DM. Supports multiple variants of question types.
     """
-    def __init__(self, bot, target_user: User, questions: List[Question], name: str, kill_coro=None, lang: dict = None):
+    def __init__(self, bot, target_user: User, questions: List[Question], name: str,
+                 kill_coro=None, lang: dict = None):
         """
         :param bot: bot reference
         :param target_user: user that is to be DM'ed
@@ -320,7 +322,9 @@ class Questionnaire:
                 raise Cancelled()
 
         # Done
-        await self.user.send(get_lang(self.lang, "state_done"))
+        msg = get_lang(self.lang, "state_done")
+        if msg:
+            await self.user.send(msg)
         self.teardown()
         return self.question_history
 

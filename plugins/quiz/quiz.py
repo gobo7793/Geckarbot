@@ -6,10 +6,10 @@ import discord
 from discord.ext import commands
 from discord.errors import HTTPException
 
-from base import BasePlugin, NotFound
-from data import Storage, Lang
+from base import BasePlugin
+from data import Storage, Lang, Config
 from botutils import permchecks
-from botutils.utils import sort_commands_helper, add_reaction
+from botutils.utils import sort_commands_helper, add_reaction, helpstring_helper
 from subsystems.helpsys import DefaultCategories
 
 from plugins.quiz.controllers import RushQuizController, PointsQuizController
@@ -18,60 +18,6 @@ from plugins.quiz.base import Difficulty
 from plugins.quiz.utils import get_best_username
 from plugins.quiz.migrations import migration
 
-jsonify = {
-    "timeout": 20,  # answering timeout in minutes; not impl yet TODO
-    "timeout_warning": 2,  # warning time before timeout in minutes
-    "questions_limit": 25,
-    "questions_default": 10,
-    "default_category": -1,
-    "question_cooldown": 5,
-    "channel_blacklist": [],
-    "points_quiz_register_timeout": 1 * 60,
-    "points_quiz_question_timeout": 20,  # warning after this value, actual timeout after 1.5*this value
-    "ranked_min_players": 4,
-    "ranked_min_questions": 7,
-    "ranked_register_additional_tries": 2,
-    "emoji_in_pose": True,
-    "channel_mapping": {
-        706125113728172084: "any",
-        716683335778173048: "politics",
-        706128206687895552: "games",
-        706129681790795796: "sports",
-        706129811382337566: "tv",
-        706129915405271123: "music",
-        706130284252364811: "computer",
-    }
-}
-
-h_help = "A trivia kwiss"
-h_description = "Starts a kwiss.\n\n" \
-                "Subcommands:\n" \
-                "!kwiss status - Gets information about the kwiss currently running in this channel.\n" \
-                "!kwiss stop - Stops the currently running kwiss. Only for kwiss starter and botmasters.\n" \
-                "!kwiss categories - List of categories.\n" \
-                "!kwiss emoji <emoji> - Sets your prefix emoji.\n" \
-                "!kwiss ladder - Shows the ranked ladder.\n" \
-                "!kwiss del <user> - Removes a user from the ranked ladder. Admins only.\n" \
-                "!kwiss question - Information about the current question.\n\n" \
-                "Optional arguments to start a kwiss (in any order):\n" \
-                "mode - Game mode. One out of points, rush." \
-                "category - one out of !kwiss category\n" \
-                "difficulty - one out of any, easy, medium, hard\n" \
-                "question count - number that determines how many questions are to be posed\n" \
-                "ranked - include this to start a ranked kwiss\n" \
-                "gecki - Gecki participates (only works in points mode)\n" \
-                "Example: !kwiss 5 tv hard gecki\n\n" \
-                "Points game mode:\n" \
-                "Each question is answered by all players. The players earn points depending on how many questions " \
-                "they answered correctly. The player who earned the most points wins.\n\n" \
-                "Rush game mode:\n" \
-                "The player who is the fastest to answer correctly wins the question. The player who answers " \
-                "the most questions correctly wins.\n\n" \
-                "Ranked\n" \
-                "To start a kwiss that counts for the eternal global ladder, use the argument \"ranked\". " \
-                "Ranked kwisses are constrained in most kwiss parameters (especially mode and difficulty)."
-h_usage = "[<mode> <question count> <difficulty> <category> <ranked> <debug>]"
-
 
 class QuizInitError(Exception):
     def __init__(self, plugin, msg_id, *args):
@@ -79,6 +25,9 @@ class QuizInitError(Exception):
 
 
 class SubCommandEncountered(Exception):
+    """
+    Flow control for argument parsing
+    """
     def __init__(self, callback, args):
         super().__init__()
         self.callback = callback
@@ -86,6 +35,9 @@ class SubCommandEncountered(Exception):
 
 
 class Methods(Enum):
+    """
+    Commands for a (running) quiz
+    """
     START = "start"
     STOP = "stop"
     SCORE = "score"
@@ -100,7 +52,8 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
         self.bot = bot
         self.controllers = {}
         self.registered_subcommands = {}
-        self.config = jsonify
+        self.config = Config.get(self)
+        self.role = self.bot.guild.get_role(self.config.get("roleid", 0))
 
         self.default_controller = PointsQuizController
         self.defaults = {
@@ -138,30 +91,44 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
             if quiz:
                 await quiz.on_message(msg)
 
-    def default_storage(self):
+    def default_config(self, container=None):
+        return {
+            "roleid": 0,
+            "timeout": 20,  # answering timeout in minutes; not impl yet TODO
+            "timeout_warning": 2,  # warning time before timeout in minutes
+            "questions_limit": 25,
+            "questions_default": 10,
+            "default_category": -1,
+            "question_cooldown": 5,
+            "points_quiz_register_timeout": 1 * 60,
+            "points_quiz_question_timeout": 20,  # warning after this value, actual timeout after 1.5*this value
+            "ranked_min_players": 4,
+            "ranked_min_questions": 7,
+            "ranked_register_additional_tries": 2,
+            "emoji_in_pose": True,
+        }
+
+    def default_storage(self, container=None):
         return {
             "emoji": {},
             "ladder": {},
         }
 
-    """
-    Help
-    """
+    #####
+    # Help
+    #####
     def command_help_string(self, command):
-        langstr = Lang.lang_no_failsafe(self, "help_{}".format(command.name))
-        if langstr is not None:
-            return langstr
-        raise NotFound()
+        return helpstring_helper(self, command, "help")
 
     def command_description(self, command):
-        langstr = Lang.lang_no_failsafe(self, "desc_{}".format(command.name))
-        if langstr is not None:
-            return langstr
-        raise NotFound()
+        return helpstring_helper(self, command, "desc")
 
-    def sort_commands(self, ctx, cmd, subcommands):
+    def command_usage(self, command):
+        return helpstring_helper(self, command, "usage")
+
+    def sort_commands(self, ctx, command, subcommands):
         # category help
-        if cmd is None:
+        if command is None:
             return subcommands
 
         # Subcommands for kwiss
@@ -177,18 +144,11 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
         ]
         return sort_commands_helper(subcommands, order)
 
-    """
-    Commands
-    """
-    @commands.group(name="kwiss",
-                    help=h_help,
-                    description=h_description,
-                    usage=h_usage,
-                    invoke_without_command=True)
-    async def kwiss(self, ctx, *args):
-        """
-        !kwiss command
-        """
+    #####
+    # Commands
+    #####
+    @commands.group(name="kwiss", invoke_without_command=True)
+    async def cmd_kwiss(self, ctx, *args):
         self.logger.debug("Caught kwiss cmd")
         channel = ctx.channel
         try:
@@ -241,7 +201,7 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
             await quiz_controller.status(ctx.message)
             await quiz_controller.start(ctx.message)
 
-    @kwiss.command(name="status")
+    @cmd_kwiss.command(name="status")
     async def cmd_status(self, ctx):
         controller = self.get_controller(ctx.channel)
         if controller is None:
@@ -250,7 +210,7 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
         else:
             await controller.status(ctx.message)
 
-    @kwiss.command(name="score")
+    @cmd_kwiss.command(name="score")
     async def cmd_score(self, ctx):
         controller = self.get_controller(ctx.channel)
         if controller is None:
@@ -258,17 +218,18 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
         else:
             await ctx.send(embed=controller.score.embed())
 
-    @kwiss.command(name="stop")
+    @cmd_kwiss.command(name="stop")
     async def cmd_stop(self, ctx):
         controller = self.get_controller(ctx.channel)
         if controller is None:
             await add_reaction(ctx.message, Lang.CMDERROR)
         elif permchecks.check_mod_access(ctx.message.author) or controller.requester == ctx.message.author:
-            await self.abort_quiz(ctx.channel, ctx.message)
+            await self.abort_quiz(ctx.channel)
+            await add_reaction(ctx.message, Lang.CMDSUCCESS)
         else:
             await add_reaction(ctx.message, Lang.CMDNOPERMISSIONS)
 
-    @kwiss.command(name="emoji")
+    @cmd_kwiss.command(name="emoji")
     async def cmd_emoji(self, ctx, *args):
         # Delete emoji
         if len(args) == 0:
@@ -296,7 +257,7 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
         Storage().save(self)
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
-    @kwiss.command(name="ladder")
+    @cmd_kwiss.command(name="ladder")
     async def cmd_ladder(self, ctx):
         embed = discord.Embed()
         entries = {}
@@ -327,7 +288,7 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
         embed.set_footer(text=Lang.lang(self, "ladder_suffix"))
         await ctx.send(embed=embed)
 
-    @kwiss.command(name="categories", aliases=["cat", "cats", "category"])
+    @cmd_kwiss.command(name="categories", aliases=["cat", "cats", "category"])
     async def cmd_catlist(self, ctx, *args):
         embed = discord.Embed(title="Categories:")
         s = []
@@ -337,7 +298,7 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
         embed.add_field(name="Name: Command", value="\n".join(s))
         await ctx.send(embed=embed)
 
-    @kwiss.command(name="del", usage="<user>")
+    @cmd_kwiss.command(name="del", usage="<user>")
     async def cmd_del(self, ctx, *args):
         if len(args) != 1:
             await add_reaction(ctx.message, Lang.CMDERROR)
@@ -360,7 +321,7 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
         else:
             await add_reaction(ctx.message, Lang.CMDNOCHANGE)
 
-    @kwiss.command(name="question")
+    @cmd_kwiss.command(name="question")
     async def cmd_question(self, ctx, *args):
         if len(args) != 0:
             await add_reaction(ctx.message, Lang.CMDERROR)
@@ -376,16 +337,40 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
         embed = controller.quizapi.current_question().embed(emoji=True, info=True)
         await ctx.channel.send(embed=embed)
 
-    @kwiss.command(name="info", hidden=True)
+    @cmd_kwiss.command(name="role")
+    async def cmd_role(self, ctx, role: discord.Role):
+        if not permchecks.check_mod_access(ctx.author) and not permchecks.check_admin_access(ctx.author) \
+                and not permchecks.is_botadmin(ctx.author):
+            await add_reaction(ctx.message, Lang.CMDNOPERMISSIONS)
+            await ctx.send(Lang.lang(self, "permissions"))
+            return
+
+        Config.get(self)["roleid"] = role.id
+        self.role = role
+        Config.save(self)
+        await add_reaction(ctx.message, Lang.CMDSUCCESS)
+
+    @cmd_kwiss.command(name="info", hidden=True)
     async def cmd_info(self, ctx, *args):
         args = args[1:]
-        controller, args = self.parse_args(ctx.channel, args, subcommands=False)
+        _, args = self.parse_args(ctx.channel, args, subcommands=False)
+        infodict = await args["quizapi"].info(**args)
+        embed = discord.Embed()
+        for key in infodict:
+            embed.add_field(name=key, value=infodict[key])
+
         await ctx.send(args["quizapi"].info(**args))
 
-    """
-    Interface
-    """
+    #####
+    # Interface
+    #####
     def update_ladder(self, member, points):
+        """
+        Updates the ranked ladder.
+
+        :param member: Discord member
+        :param points: Points of the quiz round that triggered this update
+        """
         ladder = Storage().get(self)["ladder"]
         if member.id in ladder:
             ladder[member.id]["points"] = int(round(ladder[member.id]["points"] * 3/4 + points * 1/4))
@@ -433,31 +418,31 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
             return self.controllers[channel]
         return None
 
-    async def abort_quiz(self, channel, msg):
+    async def abort_quiz(self, channel):
         """
         Called on !kwiss stop. It is assumed that there is a quiz in channel.
 
         :param channel: channel that the abort was requested in.
-        :param msg: Message object
         """
         controller = self.controllers[channel]
-        await controller.abort(msg)
+        controller.cancel()
+        controller.cleanup()
+        del self.controllers[channel]
 
     def end_quiz(self, channel):
         """
         Cleans up the quiz.
 
         :param channel: channel that the quiz is taking place in
-        :return: (End message, score embed)
         """
         self.logger.debug("Cleaning up quiz in channel %s.", channel)
         if channel not in self.controllers:
             assert False, "Channel not in controller list"
         del self.controllers[channel]
 
-    """
-    Parse arguments
-    """
+    #####
+    # Parse arguments
+    #####
     def args_combination_check(self, controller, args):
         """
         Checks for argument combination constraints.
@@ -469,10 +454,16 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
         # Ranked constraints
         if args["ranked"] and not args["debug"]:
             if controller != self.default_controller:
+                self.logger.debug("Ranked constraints violated: controller {} != {}"
+                                  .format(controller, self.default_controller))
                 return "ranked_constraints"
-            if args["category"] != self.defaults["category"]:
-                return "ranked_constraints"
+            #if args["category"] != self.defaults["category"]:
+            #    self.logger.debug("Ranked constraints violated: cat {} != {}"
+            #                      .format(args["category"], self.defaults["category"]))
+            #    return "ranked_constraints"
             if args["difficulty"] != self.defaults["difficulty"]:
+                self.logger.debug("Ranked constraints violated: difficulty {} != {}"
+                                  .format(args["difficulty"], self.defaults["difficulty"]))
                 return "ranked_constraints"
             if args["questions"] < self.config["ranked_min_questions"]:
                 return "ranked_questioncount"
@@ -488,6 +479,8 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
         :param args: argument list
         :param subcommands: Whether to fish for subcommands
         :return: Dict with the parsed arguments
+        :raises QuizInitError: Raised if arguments violate conditions (aka make no sense)
+        :raises SubCommandEncountered: Flow controll for registered subcommands
         """
         self.logger.debug("Parsing args: %s", args)
         found = {el: False for el in self.defaults}
