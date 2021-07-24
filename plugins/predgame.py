@@ -44,6 +44,8 @@ class Plugin(BasePlugin, name="Prediction Game"):
         # {    "ger.1": {
         #         "name": "Bundesliga",
         #         "sheet": "sheetid"
+        #         "name_range": "H1:AE1"  # sheets range in which the names are
+        #         "points_range": "H4:AE4"  # sheets range in which the final total points are
         #         "prediction_range": "A1:AE354"  # sheets range in which the prediction data are
         #     }
         # }
@@ -86,7 +88,7 @@ class Plugin(BasePlugin, name="Prediction Game"):
 
     async def _liveticker_coro(self, event: LivetickerEvent):
         chan = Config().bot.get_channel(Config().get(self)['chan_id'])
-        msg = ["__:soccer: **EURO 2020**__"]
+        msg = []
         if isinstance(event, LivetickerKickoff):
             for match in event.matches:
                 stadium, city = "?", "?"
@@ -95,11 +97,11 @@ class Plugin(BasePlugin, name="Prediction Game"):
                 msg.append(f"{stadium}, {city} | {match.home_team.emoji} {match.away_team.emoji} "
                            f"{match.home_team.long_name} - {match.away_team.long_name}")
             msg.extend(await self._show_predictions())
-        elif isinstance(event, LivetickerFinish):
-            for match in event.matches:
-                msg.append(f"FT {match.score[match.home_team_id]}:{match.score[match.away_team_id]} | "
-                           f"{match.home_team.emoji} {match.away_team.emoji} "
-                           f"{match.home_team.long_name} - {match.away_team.long_name}")
+        # elif isinstance(event, LivetickerFinish):
+        #     for match in event.matches:
+        #         msg.append(f"FT {match.score[match.home_team_id]}:{match.score[match.away_team_id]} | "
+        #                    f"{match.home_team.emoji} {match.away_team.emoji} "
+        #                    f"{match.home_team.long_name} - {match.away_team.long_name}")
         if len(msg) > 1:
             await chan.send("\n".join(msg))
 
@@ -119,35 +121,40 @@ class Plugin(BasePlugin, name="Prediction Game"):
 
     async def _show_predictions(self):
         """Returns a list of the predictions"""
-
-        c = sheetsclient.Client(self.bot, Config().get(self)['spreadsheet'])
-        data = c.get(range="A7:AE345")
-        people = [data[0][6 + x*2] for x in range((len(data[0]) - 6) // 2 + 1)]
-        now = datetime.datetime.now()
         match_msgs = []
-        for row in data[1:]:
-            row.extend([None]*(len(data[0]) + 1 - len(row)))
-            if row[0] == now.strftime("%d.%m.") and row[1] == now.strftime("%H:%M"):
-                preds = [f"{people[x]} {row[6 + x*2]}:{row[7 + x*2]}" for x in range((len(data[0]) - 6) // 2 + 1)]
-                match_msgs.append(f"{row[3]} - {row[4]} // " + " / ".join(preds))
-            elif row[0] and datetime.datetime.strptime(row[0], "%d.%m.") > now:
-                break
-        return match_msgs
+        for league in Storage.get(self):
+            c = sheetsclient.Client(self.bot, Config().get(self)['spreadsheet'])
+            data = c.get(range=Storage.get(self)[league]["prediction_range"])
+            people = [data[0][6 + x*2] for x in range((len(data[0]) - 6) // 2 + 1)]
+            now = datetime.datetime.now()
+            for row in data[1:]:
+                row.extend([None]*(len(data[0]) + 1 - len(row)))
+                if row[0] == now.strftime("%d.%m.") and row[1] == now.strftime("%H:%M"):
+                    preds = [f"{people[x]} {row[6 + x*2]}:{row[7 + x*2]}" for x in range((len(data[0]) - 6) // 2 + 1)]
+                    match_msgs.append(f"{row[3]} - {row[4]} // " + " / ".join(preds))
+                elif row[0] and datetime.datetime.strptime(row[0], "%d.%m.") > now:
+                    break
+        if len(match_msgs) > 0:
+            return match_msgs
 
     @cmd_predgame.command(name="points", aliases=["punkte", "gesamt", "platz"])
-    async def cmd_points(self, ctx):
-        c = sheetsclient.Client(self.bot, Config().get(self)['displaysheet'])
-        people, points = c.get_multiple(["J2:AC2", "J67:AC67"])
-        points_per_person = [x for x in zip(points[0], people[0]) if x != ('', '')]
-        points_per_person.sort(reverse=True)
-        grouped = [(k, [x[1] for x in v]) for k, v in groupby(points_per_person, key=itemgetter(0))]
-        desc = ":trophy: {} - {}\n:second_place: {} - {}\n:third_place: {} - {}\n{}".format(
-            grouped[0][0], ", ".join(grouped[0][1]), grouped[1][0], ", ".join(grouped[1][1]), grouped[2][0],
-            ", ".join(grouped[2][1]), " / ".join(["{} - {}".format(
-                k, ", ".join(v)
-            ) for k, v in grouped[3:]])
-        )
-        await ctx.send(embed=discord.Embed(title=Lang.lang(self, 'points'), description=desc))
+    async def cmd_points(self, ctx, league: str = None):
+        for leg in Storage.get(self):
+            if league is not None and leg != league:
+                continue
+            c = sheetsclient.Client(self.bot, Storage().get(self)[leg]['sheet'])
+            people, points = c.get_multiple([Storage().get(self)[leg]['name_range'],
+                                             Storage().get(self)[leg]['points_range']])
+            points_per_person = [x for x in zip(points[0], people[0]) if x != ('', '')]
+            points_per_person.sort(reverse=True)
+            grouped = [(k, [x[1] for x in v]) for k, v in groupby(points_per_person, key=itemgetter(0))]
+            desc = ":trophy: {} - {}\n:second_place: {} - {}\n:third_place: {} - {}\n{}".format(
+                grouped[0][0], ", ".join(grouped[0][1]), grouped[1][0], ", ".join(grouped[1][1]), grouped[2][0],
+                ", ".join(grouped[2][1]), " / ".join(["{} - {}".format(
+                    k, ", ".join(v)
+                ) for k, v in grouped[3:]])
+            )
+            await ctx.send(embed=discord.Embed(title=Lang.lang(self, 'points'), description=desc))
 
     @cmd_predgame.command(name="start")
     async def cmd_liveticker_start(self, ctx):
