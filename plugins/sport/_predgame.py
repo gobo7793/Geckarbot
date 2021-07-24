@@ -15,28 +15,29 @@ from subsystems.helpsys import DefaultCategories
 from subsystems.liveticker import LivetickerEvent, LivetickerKickoff, LivetickerFinish, Match
 
 
-class Plugin(BasePlugin, name="Prediction Game"):
+class _Predgame:
 
-    def __init__(self, bot):
-        super().__init__(bot)
-        bot.register(self, category=DefaultCategories.SPORT)
-        self.logger = logging.getLogger(__name__)
-        self.can_reload = True
-        self.today_timer = self.bot.timers.schedule(coro=self._today_coro, td=timers.timedict(hour=1, minute=0))
-
-    def command_help_string(self, command):
-        return helpstring_helper(self, command, "help")
-
-    def command_description(self, command):
-        return helpstring_helper(self, command, "desc")
-
-    def command_usage(self, command):
-        return helpstring_helper(self, command, "usage")
+    # def __init__(self, bot):
+    #     super().__init__(bot)
+    #     bot.register(self, category=DefaultCategories.SPORT)
+    #     self.logger = logging.getLogger(__name__)
+    #     self.can_reload = True
+    #     self.today_timer = self.bot.timers.schedule(coro=self._today_coro, td=timers.timedict(hour=1, minute=0))
+    #
+    # def command_help_string(self, command):
+    #     return helpstring_helper(self, command, "help")
+    #
+    # def command_description(self, command):
+    #     return helpstring_helper(self, command, "desc")
+    #
+    # def command_usage(self, command):
+    #     return helpstring_helper(self, command, "usage")
 
     def default_config(self, container=None):
         return {
             "chan_id": 0,
-            "show_today_matches": True
+            "show_today_matches": True,
+            "overview_sheet": ""
         }
 
     def default_storage(self, container=None):
@@ -49,9 +50,6 @@ class Plugin(BasePlugin, name="Prediction Game"):
         #         "prediction_range": "A1:AE354"  # sheets range in which the prediction data are
         #     }
         # }
-
-    async def shutdown(self):
-        self.today_timer.cancel()
 
     @commands.group(name="predgame", aliases=["tippspiel"], invoke_without_command=True)
     async def cmd_predgame(self, ctx):
@@ -107,6 +105,11 @@ class Plugin(BasePlugin, name="Prediction Game"):
 
     @cmd_predgame.group(name="sheet", aliases=["sheets"])
     async def cmd_sheet(self, ctx):
+        if Config.get(self)["overview_sheet"]:
+            msg = "Overview: https://docs.google.com/spreadsheets/d/{}/edit?usp=sharing".format(
+                Config.get(self)["overview_sheet"])
+            await ctx.send(msg)
+
         for league in Storage.get(self):
             msg = "{}: https://docs.google.com/spreadsheets/d/{}/edit?usp=sharing".format(
                 Storage.get(self)[league]['name'], Storage.get(self)[league]['sheet'])
@@ -115,9 +118,10 @@ class Plugin(BasePlugin, name="Prediction Game"):
     @cmd_predgame.command(name="now")
     async def cmd_now(self, ctx):
         msgs = await self._show_predictions()
-        if not msgs:
-            msgs = ["None"]
-        await ctx.send("\n".join(msgs))
+        if msgs:
+            await ctx.send("\n".join(msgs))
+        else:
+            await add_reaction(ctx.message, Lang.CMDNOCHANGE)
 
     async def _show_predictions(self):
         """Returns a list of the predictions"""
