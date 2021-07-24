@@ -34,6 +34,7 @@ class Plugin(BasePlugin, name="Sport"):
             'league_aliases': {"bl": ["ger.1", "espn"]},
             'liveticker': {
                 'leagues': {"oldb": [], "espn": []},
+                'do_intermediate_updates': True,
                 'tracked_events': ['GOAL', 'YELLOWCARD', 'REDCARD']
             }
         }
@@ -328,7 +329,15 @@ class Plugin(BasePlugin, name="Sport"):
             await self.cmd_liveticker_toggle_list(ctx)
             return
         event = event.upper()
-        if event in Config().get(self)['liveticker']['tracked_events']:
+        if event in ("ALL", "ALLE", "UPDATES"):
+            if Config().get(self)['liveticker'].get('do_intermediate_updates', True):
+                Config().get(self)['liveticker']['do_intermediate_updates'] = False
+                await add_reaction(ctx.message, Lang.EMOJI['mute'])
+            else:
+                Config().get(self)['liveticker']['do_intermediate_updates'] = True
+                await add_reaction(ctx.message, Lang.EMOJI['unmute'])
+            await add_reaction(ctx.message, Lang.CMDSUCCESS)
+        elif event in Config().get(self)['liveticker']['tracked_events']:
             Config().get(self)['liveticker']['tracked_events'].remove(event)
             Config().save(self)
             await add_reaction(ctx.message, Lang.EMOJI['mute'])
@@ -343,11 +352,15 @@ class Plugin(BasePlugin, name="Sport"):
 
     async def cmd_liveticker_toggle_list(self, ctx):
         events = []
+        if Config().get(self)['liveticker'].get('do_intermediate_updates', True):
+            events.append(Lang.lang(self, 'liveticker_updates_enabled'))
+        else:
+            events.append(Lang.lang(self, 'liveticker_updates_disabled'))
         for event in PlayerEventEnum.__members__:
             if event in Config().get(self)['liveticker']['tracked_events']:
-                events.append(f"{Lang.EMOJI['unmute']} {event}")
+                events.append(f"- {Lang.EMOJI['unmute']} {event}")
             else:
-                events.append(f"{Lang.EMOJI['mute']} {event}")
+                events.append(f"- {Lang.EMOJI['mute']} {event}")
         await ctx.send("\n".join(events))
 
     @cmd_liveticker.command(name="stop")
@@ -371,6 +384,8 @@ class Plugin(BasePlugin, name="Sport"):
                 await sport.send(msg)
         elif isinstance(event, LivetickerUpdate):
             # Intermediate-Event
+            if not Config().get(self)['liveticker'].get('do_intermediate_updates', True):
+                return
             if not event.matches:
                 return
             event_filter = Config().get(self)['liveticker']['tracked_events']
