@@ -690,11 +690,12 @@ class CoroRegistration:
     :param coro: Coroutine which receives the LivetickerEvents
     :param periodic: whether the registration should receive mid-game updates"""
 
-    def __init__(self, league_reg, plugin, coro, periodic: bool = False):
+    def __init__(self, league_reg, plugin, coro, interval: int, periodic: bool = False):
         self.league_reg = league_reg
         self.plugin_name = plugin.get_name()
         self.coro = coro
         self.periodic = periodic
+        self.interval = interval
         self.last_events = {}
         self.logger = logging.getLogger(__name__)
 
@@ -772,10 +773,9 @@ class LeagueRegistration:
     :param listener: central Liveticker node
     :param league: league key
     :param source: data source
-    :param interval: time between two intermediate updates
     """
 
-    def __init__(self, listener, league: str, source: LTSource, interval: int = 15):
+    def __init__(self, listener, league: str, source: LTSource):
         self.listener = listener
         self.league = league
         self.source = source
@@ -785,7 +785,6 @@ class LeagueRegistration:
         self.intermediate_timers = []
         self.matches = []
         self.finished = []
-        self.interval = interval
 
     @classmethod
     async def create(cls, listener, league: str, source: LTSource):
@@ -805,9 +804,9 @@ class LeagueRegistration:
             await l_reg.schedule_kickoff_single(time_kickoff, matches_)
         return l_reg
 
-    async def register(self, plugin, coro, periodic: bool):
+    async def register(self, plugin, coro, interval: int, periodic: bool):
         """Registers a CoroReg for this league"""
-        reg = CoroRegistration(self, plugin, coro, periodic)
+        reg = CoroRegistration(self, plugin, coro, interval, periodic)
         if reg not in self.registrations:
             self.registrations.append(reg)
             reg_storage = reg.storage()
@@ -1012,8 +1011,9 @@ class LeagueRegistration:
         if not kickoff:
             return
 
-        offset = kickoff.minute % self.interval
-        td = timers.timedict(minute=[x + offset for x in range(0, 60, self.interval)])
+        interval_set = set([c.interval for c in self.registrations])
+        td = timers.timedict(minute=[(x + kickoff.minute) % 60 for x in range(0, 60) if 0 in
+                                     (x % y for y in interval_set)])
         match_timer = self.listener.bot.timers.schedule(coro=self.update_periodic_coros, td=td,
                                                         data={'start': kickoff, 'matches': matches})
         self.intermediate_timers.append(match_timer)
@@ -1067,7 +1067,8 @@ class LeagueRegistration:
                     new_finished.append(match)
                     self.finished.append(match.match_id)
         for coro_reg in self.registrations:
-            if coro_reg.periodic:
+            if coro_reg.periodic and \
+                    (datetime.datetime.now() - job.data['start']).seconds % (coro_reg.interval * 60) == 0:
                 await coro_reg.update(job)
             if new_finished:
                 await coro_reg.update_finished(new_finished)
@@ -1136,10 +1137,11 @@ class Liveticker(BaseSubsystem):
         return storage
 
     async def register(self, league: str, raw_source: str, plugin: BasePlugin,
-                       coro, periodic: bool = True) -> CoroRegistration:
+                       coro, interval: int = 15, periodic: bool = True) -> CoroRegistration:
         """
         Registers a new liveticker for the specified league.
 
+        :param interval: time between two intermediate updates
         :param raw_source: which data source should be used (espn, oldb etc.)
         :param plugin: plugin where all coroutines are in
         :param league: League the liveticker should observe
@@ -1158,7 +1160,7 @@ class Liveticker(BaseSubsystem):
                 self.registrations[source][league] = await LeagueRegistration.restore(self, league, source)
             else:
                 self.registrations[source][league] = await LeagueRegistration.create(self, league, source)
-        coro_reg = await self.registrations[source][league].register(plugin, coro, periodic)
+        coro_reg = await self.registrations[source][league].register(plugin, coro, interval, periodic)
         return coro_reg
 
     def deregister(self, reg: LeagueRegistration):
