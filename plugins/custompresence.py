@@ -7,12 +7,13 @@ from data import Lang
 from botutils import utils
 from botutils.stringutils import paginate
 from subsystems.presence import PresencePriority, activitymap
+from subsystems.helpsys import DefaultCategories
 
 
 class Plugin(BasePlugin):
     def __init__(self, bot):
         super().__init__(bot)
-        bot.register(self)
+        bot.register(self, DefaultCategories.USER)
 
     def command_help_string(self, command):
         return utils.helpstring_helper(self, command, "help")
