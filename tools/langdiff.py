@@ -28,9 +28,9 @@ class Found:
 
     def __len__(self):
         r = 0
-        for langcode in self.found:
-            for langstring in self.found[langcode]:
-                r += len(self.found[langcode][langstring])
+        for _, found in self.found.items():
+            for _, el in found.items():
+                r += len(el)
         return r
 
     def append(self, langcode: str, langstring: str, not_found_in: str):
@@ -56,10 +56,10 @@ class Found:
         :param prefix: indentation prefix
         :return: Iterator for messages that represent all found violations
         """
-        for langcode in self.found:
+        for langcode, item in self.found.items():
             yield "{}{}:".format(prefix, langcode)
-            for langstring in self.found[langcode]:
-                yield "  {}{} not found in {}".format(prefix, langstring, ", ".join(self.found[langcode][langstring]))
+            for langstring, el in item.items():
+                yield "  {}{} not found in {}".format(prefix, langstring, ", ".join(el))
 
 
 def diff(filename: str) -> bool:
@@ -122,8 +122,8 @@ def main() -> int:
     if errors:
         r += 2
         print("Errors while handling files:")
-        for key in errors:
-            print("{}: {}".format(key, errors[key]))
+        for key, item in errors.items():
+            print("{}: {}".format(key, item))
 
     if diffs_found:
         r += 4

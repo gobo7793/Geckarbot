@@ -134,9 +134,9 @@ class Plugin(BasePlugin):
 
         # remove all reminders from user
         to_remove = []
-        for el in self.reminders:
-            if self.reminders[el].data['user'] == ctx.author.id:
-                to_remove.append(el)
+        for key, item in self.reminders.items():
+            if item.data['user'] == ctx.author.id:
+                to_remove.append(key)
         for el in to_remove:
             self._remove_reminder(el)
 
@@ -198,10 +198,10 @@ class Plugin(BasePlugin):
         Auto-Removes all reminders in the past
         """
         old_reminders = []
-        for el in self.reminders:
-            if (self.reminders[el].next_execution() is None
-                    or self.reminders[el].next_execution() < datetime.now()):
-                old_reminders.append(el)
+        for key, item in self.reminders.items():
+            if (item.next_execution() is None
+                    or item.next_execution() < datetime.now()):
+                old_reminders.append(key)
         for el in old_reminders:
             asyncio.run_coroutine_threadsafe(self._reminder_callback(self.reminders[el]), self.bot.loop)
 
