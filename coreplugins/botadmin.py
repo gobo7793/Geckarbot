@@ -137,11 +137,6 @@ class Plugin(BasePlugin, name="Bot status commands for monitoring and debug purp
                 if containers:
                     prefix += "Available containers: {}\n".format(containers)
 
-            if not iodir.data(plugin).has_structure(container):
-                prefix += "**Warning: plugin {0} does not have the {1} structure {2}.** " \
-                          "This is the main {1}.\n".format(name, iodir_str, container)
-                container = None
-
             origin = iodir.get(plugin, container=container)
             if isinstance(origin, list):
                 dump = origin
