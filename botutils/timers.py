@@ -303,6 +303,8 @@ def next_occurence(ntd, now=None, ignore_now=False):
         # Check if this year is in the years list and if there even is a year in the future to be had
         if ntd["year"] is not None and year not in ntd["year"]:
             logger.debug("year: %d; ntd[year]: %s", year, ntd["year"])
+            startmonth = 1
+            startday = 1
             for el in ntd["year"]:
                 if el > year:
                     break  # Wait for better years
