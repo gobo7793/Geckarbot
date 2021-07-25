@@ -27,6 +27,8 @@ class Plugin(BasePlugin):
                                     reminder_id, reminder['text'], reminder['link'], True)
         self._remove_old_reminders()
 
+        self.explain_history = {}
+
     def command_help_string(self, command):
         return utils.helpstring_helper(self, command, "help")
 
@@ -140,6 +142,15 @@ class Plugin(BasePlugin):
 
         await utils.add_reaction(ctx.message, Lang.CMDSUCCESS)
 
+    @cmd_reminder.command(name="explain")
+    async def cmd_reminder_explain(self, ctx):
+        if ctx.author not in self.explain_history:
+            await utils.add_reaction(ctx.message, Lang.CMDNOCHANGE)
+            await ctx.send(Lang.lang(self, "explain_notfound"))
+            return
+
+        await ctx.send(Lang.lang(self, "explain_message", self.explain_history[ctx.author]))
+
     def _register_reminder(self, channel_id: int, user_id: int, remind_time: datetime,
                            reminder_id: int, text, link: str, is_restart: bool = False) -> bool:
         """
@@ -215,6 +226,7 @@ class Plugin(BasePlugin):
         user = self.bot.get_user(job.data['user'])
         text = job.data['text']
         rid = job.data['id']
+        self.explain_history[user] = job.data['link']
 
         if text:
             remind_text = Lang.lang(self, 'remind_callback', user.mention, text)

@@ -1,6 +1,18 @@
 {
     "en_US": {
-        "#1": "Remindme",
+        "#1": "Help",
+        "help_remindme": "Creates a reminder",
+        "usage_remindme": "<#|#m|#h|#d|DD.MM.YYYY|HH:MM|DD.MM.YYYY HH:MM|DD.MM. HH:MM> [Message]",
+        "desc_remindme": "Reminds the user in x Minutes, Hours, Days or at a specific date or time.\nThe time span for the reminder can be set with a m for Minutes, h for Hours or d for days (e.g. '4h'). The default is Minutes.",
+        "help_remindme_list": "Lists all reminders of the user",
+        "desc_remindme_list": "Lists all reminders which are scheduled for the user.",
+        "help_remindme_cancel": "Removes a reminder",
+        "usage_remindme_cancel": "[Reminder ID]",
+        "desc_remindme_cancel": "Removes the reminder with the given ID. If no ID given, all reminders for the user will be removed.",
+        "help_remindme_explain": "Explains the last reminder.",
+        "desc_remindme_explain": "Returns a link to the message with which the user's last reminder was made.",
+
+        "#2": "Remindme",
         "remind_set": "I will remind you at {}. To cancel it, type `!remindme cancel {}`.",
         "remind_duration_err": "I'm not sure what you mean, but the duration must be a date,  time or a positive number.",
         "remind_del_id_err": "Sorry, but you don't have a reminder with ID {}.",
@@ -15,18 +27,24 @@
         "remind_noargs": "You didn't gave me a time, so feel reminded __now__...",
         "remind_past": "Sorry, I don't have a time machine.",
 
-        "#2": "Help",
-        "help_remindme": "Creates a reminder",
-        "usage_remindme": "<#|#m|#h|#d|DD.MM.YYYY|HH:MM|DD.MM.YYYY HH:MM|DD.MM. HH:MM> [Message]",
-        "desc_remindme": "Reminds the user in x Minutes, Hours, Days or at a specific date or time.\nThe time span for the reminder can be set with a m for Minutes, h for Hours or d for days (e.g. '4h'). The default is Minutes.",
-        "help_remindme_list": "Lists all reminders of the user",
-        "desc_remindme_list": "Lists all reminders which are scheduled for the user.",
-        "help_remindme_cancel": "Removes a reminder",
-        "usage_remindme_cancel": "[Reminder ID]",
-        "desc_remindme_cancel": "Removes the reminder with the given ID. If no ID given, all reminders for the user will be removed."
+        "#3": "explain",
+        "explain_notfound": "I have not reminded you of anything so far, nothing to explain here.",
+        "explain_message": "The origin of your last reminder is this message: {}"
     },
     "de_DE": {
-        "#1": "Remindme",
+        "#1": "Help",
+        "help_remindme": "Erstellt eine Erinnerung",
+        "usage_remindme": "<#|#m|#h|#d|DD.MM.YYYY|HH:MM|DD.MM.YYYY HH:MM|DD.MM. HH:MM> [Nachricht]",
+        "desc_remindme": "Erstellt eine Erinnerung in x Minuten, Stunden oder Tagen oder an einem festen Datum/Uhrzeit.\nDie Zeitspanne zur Erinnerung lässt sich mit einem m für Minuten, h für Stunden oder d für Tage angeben (z.B. '4h'). Die Standardeinheit ist Minuten.",
+        "help_remindme_list": "Zeigt alle Erinnerungen des Users",
+        "desc_remindme_list": "Listet alle Erinnerungen auf die für den ausführenden User geplant sind.",
+        "help_remindme_cancel": "Löscht eine Erinnerung",
+        "usage_remindme_cancel": "[Reminder-ID]",
+        "desc_remindme_cancel": "Löscht die Erinnerung mit der angegebenen ID. Wenn keine ID angegeben wird, werden alle Erinnerungen des Users gelöscht.",
+        "help_remindme_explain": "Erklärt die letzte Erinnerung.",
+        "desc_remindme_explain": "Gibt den Link zur Nachricht, in der die zuletzt ausgeführte Erinnerung des Users erstellt wurde.",
+
+        "#2": "Remindme",
         "remind_set": "Ich erinnere dich zum Zeitpunkt {}. Um die Erinnerung abzubrechen, nutze `!remindme cancel {}`.",
         "remind_duration_err": "Ich bin mir jetzt nicht sicher was du meinst, aber um eine Erinnerung zu erstellen brauche ich ein Datum, Zeit oder eine positive Zahl.",
         "remind_del_id_err": "Sorry, aber ich wüsste nicht, dass du eine Erinnerung mit der ID {} hättest.",
@@ -41,14 +59,8 @@
         "remind_noargs": "Fühl dich erinnert. Du hast mir nicht gesagt, wann ich dich erinnern soll, also tu ich es einfach jetzt, bevor ichs noch selber vergesse :relieved:",
         "remind_past": "Sorry, aber ich habe keine Zeitmaschine.",
 
-        "#2": "Help",
-        "help_remindme": "Erstellt eine Erinnerung",
-        "usage_remindme": "<#|#m|#h|#d|DD.MM.YYYY|HH:MM|DD.MM.YYYY HH:MM|DD.MM. HH:MM> [Nachricht]",
-        "desc_remindme": "Erstellt eine Erinnerung in x Minuten, Stunden oder Tagen oder an einem festen Datum/Uhrzeit.\nDie Zeitspanne zur Erinnerung lässt sich mit einem m für Minuten, h für Stunden oder d für Tage angeben (z.B. '4h'). Die Standardeinheit ist Minuten.",
-        "help_remindme_list": "Zeigt alle Erinnerungen des Users",
-        "desc_remindme_list": "Listet alle Erinnerungen auf die für den ausführenden User geplant sind.",
-        "help_remindme_cancel": "Löscht eine Erinnerung",
-        "usage_remindme_cancel": "[Reminder-ID]",
-        "desc_remindme_cancel": "Löscht die Erinnerung mit der angegebenen ID. Wenn keine ID angegeben wird, werden alle Erinnerungen des Users gelöscht."
+        "#3": "explain",
+        "explain_notfound": "Ich habe dich bisher an nichts erinnert, es gibt also nichts zu erklären.",
+        "explain_message": "Dein letzter Reminder kommt von hier: {}"
     }
 }
