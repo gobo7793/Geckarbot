@@ -179,9 +179,13 @@ class _Liveticker:
             # Kickoff-Event
             match_msgs = []
             for match in event.matches:
-                match_msgs.append(f"{match.home_team.emoji} {match.home_team.long_name} - {match.away_team.emoji} "
-                                  f"{match.away_team.long_name}")
-            match_msgs.extend(await self._show_predictions())
+                predictions = await self._get_predictions(match.home_team.long_name,
+                                                          match.away_team.long_name, match.kickoff)
+                match_msg = f"{match.home_team.emoji} {match.home_team.long_name} - " \
+                            f"{match.away_team.emoji} {match.away_team.long_name}"
+                if predictions:
+                    match_msg += f"\n{predictions}"
+                match_msgs.append(match_msg)
             msgs = paginate(match_msgs,
                             prefix=Lang.lang(self, 'liveticker_prefix_kickoff', event.league,
                                              event.kickoff.strftime('%H:%M')))

@@ -38,12 +38,12 @@ class Plugin(BasePlugin, _Liveticker, _Predgame, _Livescores, name="Sport"):
     def default_storage(self, container=None):
         return {
             "predictions": {
-                # "ger.1": {
-                #     "name": "Bundesliga",
-                #     "sheet": "sheetid"
-                #     "name_range": "H1:AE1"  # sheets range in which the names are
-                #     "points_range": "H4:AE4"  # sheets range in which the final total points are
-                #     "prediction_range": "A1:AE354"  # sheets range in which the prediction data are
+                # "ger.2": {  # espn_code
+                #     "name": "2. Bundesliga"  # display name
+                #     "sheet": "1nK92I12U8SLMsXRFTWJjweQDGTIYiL74MoFTQ3uXHZE",
+                #     "name_range": "G1:AD1"  # sheets range in which the names are
+                #     "points_range": "G4:AD4"  # sheets range in which the final total points are
+                #     "prediction_range": "A6:AD354"  # sheets range in which the matchday prediction data are
                 # }
             }
         }
