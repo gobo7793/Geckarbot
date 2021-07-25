@@ -10,7 +10,9 @@ from data import Lang, Config
 from subsystems.liveticker import LTSource, Match, MatchStatus
 
 
+# pylint: disable=no-member
 class _Livescores:
+
     @commands.command(name="kicker")
     async def cmd_kicker_table(self, ctx):
         now = datetime.now()

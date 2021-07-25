@@ -11,6 +11,7 @@ from subsystems.liveticker import TeamnameDict, LTSource, PlayerEventEnum, Livet
 from subsystems.reactions import ReactionAddedEvent
 
 
+# pylint: disable=no-member
 class _Liveticker:
 
     @commands.group(name="liveticker")

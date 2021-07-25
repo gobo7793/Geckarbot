@@ -10,9 +10,10 @@ from discord.ext import commands
 from botutils import sheetsclient, restclient, timeutils
 from botutils.utils import add_reaction
 from data import Lang, Config, Storage
-from subsystems.liveticker import Match, TeamnameDict, TeamnameConverter
+from subsystems.liveticker import Match, TeamnameDict
 
 
+# pylint: disable=no-member
 class _Predgame:
 
     @commands.group(name="predgame", aliases=["tippspiel"], invoke_without_command=True)
@@ -30,7 +31,7 @@ class _Predgame:
         if Config.get(self)["show_today_matches"] and Config().get(self)['sport_chan']:
             await self._today_matches(Config().bot.get_channel(Config().get(self)['sport_chan']))
 
-    async def _today_matches(self, chan: TextChannel):
+    async def _today_matches(self, chan: TextChannel) -> int:
         """Sends a msg with todays matches to the specified channel
 
         :param chan: channel object
@@ -81,12 +82,13 @@ class _Predgame:
         else:
             await ctx.send("Can't find such a match")
 
-    async def _get_predictions(self, team1: TeamnameDict, team2: TeamnameDict, kickoff: datetime = None):
+    async def _get_predictions(self, team1: TeamnameDict, team2: TeamnameDict, kickoff: datetime = None) -> str:
         """Returns a list of the predictions for the first found match
 
         :param kickoff: kickoff datetime object
         :param team1: team1 TeamnameDict object with all its names
         :param team2: team2 TeamnameDict object with all its names
+        :return: the predictions output string
         """
 
         match_msg = ""
@@ -151,7 +153,7 @@ class _Predgame:
         """
         msgs = []
         for leg in Storage.get(self)["predictions"]:
-            if league and (league != leg and league != Storage.get(self)["predictions"][leg]["name"]):
+            if league and league not in (leg, Storage.get(self)["predictions"][leg]["name"]):
                 continue
             c = sheetsclient.Client(self.bot, Storage().get(self)["predictions"][leg]['sheet'])
             people, points = c.get_multiple([Storage().get(self)["predictions"][leg]['name_range'],
@@ -182,11 +184,11 @@ class _Predgame:
         """
         msgs = []
         for leg in Storage.get(self)["predictions"]:
-            if league and (league != leg and league != Storage.get(self)["predictions"][leg]["name"]):
+            if league and league not in (leg, Storage.get(self)["predictions"][leg]["name"]):
                 continue
             c = sheetsclient.Client(self.bot, Storage().get(self)["predictions"][leg]['sheet'])
             people_raw, data = c.get_multiple([Storage().get(self)["predictions"][leg]['name_range'],
-                                           Storage.get(self)["predictions"][leg]["prediction_range"]])
+                                               Storage.get(self)["predictions"][leg]["prediction_range"]])
             for row in data:
                 if not row[0].endswith(f" {matchday}"):
                     continue
