@@ -24,7 +24,7 @@ class _Predgame:
     async def cmd_predgame_today(self, ctx):
         match_count = await self._today_matches(ctx.channel)
         if match_count <= 0:
-            await add_reaction(ctx.message, Lang.CMDNOCHANGE)
+            await ctx.send("Today are no matches :(")
 
     async def _today_coro(self, _job):
         if Config.get(self)["show_today_matches"] and Config().get(self)['sport_chan']:
@@ -114,7 +114,7 @@ class _Predgame:
 
         return match_msg
 
-    @cmd_predgame.command(name="points", aliases=["punkte", "gesamt", "platz"])
+    @cmd_predgame.command(name="points", aliases=["punkte", "gesamt", "platz", "total"])
     async def cmd_predgame_points(self, ctx, *args):
         league_args = []
         matchday = 0
@@ -206,7 +206,7 @@ class _Predgame:
 
     @cmd_predgame_set.command(name="add")
     async def cmd_predgame_set__add(self, ctx, espn_code, name, sheet_id,
-                                    name_range="H1:AE1", points_range="H4:AE4", prediction_range="B1:AE354"):
+                                    name_range="G1:AD1", points_range="F4:AD4", prediction_range="A1:AD354"):
         Storage.get(self)["predictions"][espn_code] = {
             "name": name,
             "sheet": sheet_id,
@@ -227,7 +227,7 @@ class _Predgame:
             ctx.send("Can't find league $name")
 
     @cmd_predgame_set.command(name="sheet")
-    async def cmd_predgame_set_sheet(self, ctx, sheet_id):
+    async def cmd_predgame_set_sheet(self, ctx, sheet_id: str = ""):
         Config.get(self)["predictions_overview_sheet"] = sheet_id
         Config.save(self)
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
