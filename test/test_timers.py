@@ -1,8 +1,15 @@
+import logging
+
 from datetime import date, datetime
 
 from subsystems import timers
 
 # pylint: disable=missing-function-docstring
+
+debug = False
+
+if debug:
+    logging.basicConfig(level=logging.DEBUG)
 
 
 def test_cron_alg_fr13():
@@ -146,8 +153,23 @@ def test_cron_alg_sameday():
     expected = datetime(year=2051, month=7, day=12, hour=18, minute=36)
     tcase_cron_alg(now, timedict, expected)
 
+
 def test_cron_alg_pasthournextday():
     now = datetime(year=2051, month=7, day=12, hour=19, minute=54)
     timedict = timers.timedict(hour=14, minute=0)
     expected = datetime(year=2051, month=7, day=13, hour=14, minute=0)
+    tcase_cron_alg(now, timedict, expected)
+
+
+def test_cron_alg_futureyearpastday():
+    now = datetime(year=2021, month=7, day=25, hour=12, minute=11)
+    timedict = timers.timedict(year=2031, month=7, monthday=23, hour=15, minute=12)
+    expected = datetime(year=2031, month=7, day=23, hour=15, minute=12)
+    tcase_cron_alg(now, timedict, expected)
+
+
+def test_cron_alg_futureyearpastmonth():
+    now = datetime(year=2021, month=7, day=25, hour=12, minute=11)
+    timedict = timers.timedict(year=2031, month=6, monthday=23, hour=15, minute=12)
+    expected = datetime(year=2031, month=6, day=23, hour=15, minute=12)
     tcase_cron_alg(now, timedict, expected)
