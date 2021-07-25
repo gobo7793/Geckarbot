@@ -58,7 +58,7 @@ class Plugin(BasePlugin):
         }
 
     @commands.group(name="remindme", invoke_without_command=True)
-    async def cmd_reminder(self, ctx, *args):
+    async def cmd_remindme(self, ctx, *args):
         self._remove_old_reminders()
 
         if not args:
@@ -95,7 +95,7 @@ class Plugin(BasePlugin):
         else:
             await utils.add_reaction(ctx.message, Lang.CMDERROR)
 
-    @cmd_reminder.command(name="list")
+    @cmd_remindme.command(name="list")
     async def cmd_reminder_list(self, ctx):
         self._remove_old_reminders()
 
@@ -115,7 +115,7 @@ class Plugin(BasePlugin):
             msg = Lang.lang(self, 'remind_list_none')
         await ctx.send(msg + reminders_msg)
 
-    @cmd_reminder.command(name="cancel")
+    @cmd_remindme.command(name="cancel")
     async def cmd_reminder_cancel(self, ctx, reminder_id: int = -1):
         self._remove_old_reminders()
 
@@ -142,7 +142,7 @@ class Plugin(BasePlugin):
 
         await utils.add_reaction(ctx.message, Lang.CMDSUCCESS)
 
-    @cmd_reminder.command(name="explain")
+    @cmd_remindme.command(name="explain")
     async def cmd_reminder_explain(self, ctx):
         if ctx.author not in self.explain_history:
             await utils.add_reaction(ctx.message, Lang.CMDNOCHANGE)
