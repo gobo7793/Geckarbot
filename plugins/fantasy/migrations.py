@@ -6,6 +6,24 @@ from plugins.fantasy.utils import Platform
 log = logging.getLogger(__name__)
 
 
+def migrate(plugin):
+    """
+    Migrates the config versions of the fantasy plugin
+
+    :param plugin: The class:`plugins.fantasy.fantasy.Plugin` instance
+    """
+    if Config.get(plugin)["version"] == 2:
+        _2_to_3(plugin)
+    if Config.get(plugin)["version"] == 3:
+        _3_to_4(plugin)
+    if Config.get(plugin)["version"] == 4:
+        _4_to_5(plugin)
+    if Config.get(plugin)["version"] == 5:
+        _5_to_6(plugin)
+    if Config.get(plugin)["version"] == 6:
+        _6_to_7(plugin)
+
+
 def _6_to_7(plugin):
     log.info("Migrating config from version 6 to version 7")
 

@@ -15,8 +15,8 @@ from botutils.permchecks import WrongChannel
 from botutils.stringutils import paginate
 from botutils.utils import add_reaction, helpstring_helper
 from data import Config, Storage, Lang
+from plugins.fantasy import migrations
 from plugins.fantasy.league import FantasyLeague, deserialize_league, create_league
-from plugins.fantasy.migrations import _2_to_3, _3_to_4, _4_to_5, _5_to_6, _6_to_7
 from plugins.fantasy.utils import pos_alphabet, FantasyState, Platform, Match, parse_platform
 from subsystems import timers
 from subsystems.helpsys import DefaultCategories
@@ -112,16 +112,7 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
 
     async def _load(self):
         """Loads the league settings from Storage"""
-        if Config.get(self)["version"] == 2:
-            _2_to_3(self)
-        if Config.get(self)["version"] == 3:
-            _3_to_4(self)
-        if Config.get(self)["version"] == 4:
-            _4_to_5(self)
-        if Config.get(self)["version"] == 5:
-            _5_to_6(self)
-        if Config.get(self)["version"] == 6:
-            _6_to_7(self)
+        migrations.migrate(self)
 
         self.supercommish = get_best_user(Storage.get(self)["supercommish"])
         self.state = Storage.get(self)["state"]
