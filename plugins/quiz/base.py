@@ -20,6 +20,16 @@ class BaseQuizAPI(ABC):
     Interface for question resources
     """
 
+    @classmethod
+    @abstractmethod
+    def register_categories(cls, category_controller):
+        """
+        Called on plugin init. Used to register categories with the category controller.
+
+        :param category_controller: CategoryController instance
+        """
+        pass
+
     @abstractmethod
     async def fetch(self):
         """
