@@ -13,10 +13,11 @@ from botutils.utils import sort_commands_helper, add_reaction, helpstring_helper
 from subsystems.helpsys import DefaultCategories
 
 from plugins.quiz.controllers import RushQuizController, PointsQuizController
-from plugins.quiz.quizapis import quizapis, opentdb
+from plugins.quiz.quizapis import quizapis, MetaQuizAPI
 from plugins.quiz.base import Difficulty
 from plugins.quiz.utils import get_best_username
 from plugins.quiz.migrations import migration
+from plugins.quiz.categories import CategoryController, DefaultCategory
 
 
 class QuizInitError(Exception):
@@ -54,13 +55,19 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
         self.registered_subcommands = {}
         self.config = Config.get(self)
         self.role = self.bot.guild.get_role(self.config.get("roleid", 0))
+        self.category_controller = CategoryController()
+
+        # init quizapis
+        for _, el in quizapis.items():
+            el.register_categories(self.category_controller)
+        MetaQuizAPI.register_categories(self.category_controller)
 
         self.default_controller = PointsQuizController
         self.defaults = {
-            "quizapi": quizapis["meta"],
+            "quizapi": MetaQuizAPI,
             "questions": self.config["questions_default"],
             "method": Methods.START,
-            "category": None,
+            "category": DefaultCategory.ALL,
             "difficulty": Difficulty.EASY,
             "ranked": False,
             "gecki": False,
@@ -166,13 +173,8 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
 
         err = self.args_combination_check(controller_class, args)
         if err is not None:
-            args = []
-            if err == "ranked_playercount":
-                args = (self.config["ranked_min_participants"],)
-            if err == "ranked_questioncount":
-                args = (self.config["ranked_min_questions"],)
             await add_reaction(ctx.message, Lang.CMDERROR)
-            await ctx.send(Lang.lang(self, err, *args))
+            await ctx.send(Lang.lang(self, *err))
             return
 
         # Look for existing quiz
@@ -181,16 +183,21 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
             await add_reaction(ctx.message, Lang.CMDERROR)
             raise QuizInitError(self, "existing_quiz")
 
-        # Starting a new quiz
+        # Start a new quiz
         assert method == Methods.START
         await add_reaction(ctx.message, Lang.EMOJI["success"])
+        cat = self.category_controller.get_category_key(args["quizapi"], args["category"])
+        self.logger.debug("Starting kwiss: controller %s, config %s, api %s,  channel %s, author %s, cat %s, question "
+                          "count %s, difficulty %s, debug %s, ranked %s, gecki %s", controller_class, self.config,
+                          args["quizapi"], ctx.channel, ctx.message.author, cat, args["questions"], args["difficulty"],
+                          args["debug"], args["ranked"], args["gecki"])
         async with ctx.typing():
             quiz_controller = controller_class(self,
                                                self.config,
                                                args["quizapi"],
                                                ctx.channel,
                                                ctx.message.author,
-                                               category=args["category"],
+                                               category=cat,
                                                question_count=args["questions"],
                                                difficulty=args["difficulty"],
                                                debug=args["debug"],
@@ -286,16 +293,6 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
 
         embed.add_field(name="Ladder:", value="\n".join(values))
         embed.set_footer(text=Lang.lang(self, "ladder_suffix"))
-        await ctx.send(embed=embed)
-
-    @cmd_kwiss.command(name="categories", aliases=["cat", "cats", "category"])
-    async def cmd_catlist(self, ctx, *args):
-        embed = discord.Embed(title="Categories:")
-        s = []
-        for el in opentdb["cat_mapping"]:
-            cat = el["names"]
-            s.append("**{}**: {}".format(cat[0], cat[1]))
-        embed.add_field(name="Name: Command", value="\n".join(s))
         await ctx.send(embed=embed)
 
     @cmd_kwiss.command(name="del", usage="<user>")
@@ -449,14 +446,14 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
 
         :param controller: Quiz controller class
         :param args: args dict
-        :return: lang code for error msg, None if the arg combination is okay
+        :return: (lang code, args...) for error msg, None if the arg combination is okay
         """
         # Ranked constraints
         if args["ranked"] and not args["debug"]:
             if controller != self.default_controller:
                 self.logger.debug("Ranked constraints violated: controller {} != {}"
                                   .format(controller, self.default_controller))
-                return "ranked_constraints"
+                return "ranked_constraints",
             #if args["category"] != self.defaults["category"]:
             #    self.logger.debug("Ranked constraints violated: cat {} != {}"
             #                      .format(args["category"], self.defaults["category"]))
@@ -464,11 +461,15 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
             if args["difficulty"] != self.defaults["difficulty"]:
                 self.logger.debug("Ranked constraints violated: difficulty {} != {}"
                                   .format(args["difficulty"], self.defaults["difficulty"]))
-                return "ranked_constraints"
+                return "ranked_constraints",
             if args["questions"] < self.config["ranked_min_questions"]:
-                return "ranked_questioncount"
+                return "ranked_questioncount", self.config["ranked_min_questions"]
             if not self.bot.DEBUG_MODE and args["gecki"]:
-                return "ranked_gecki"
+                return "ranked_gecki",
+
+        # Category support
+        if args["quizapi"] not in self.category_controller.get_supporters(args["category"]):
+            return "category_not_supported", args["quizapi"].NAME, args["category_name"]
         return None
 
     def parse_args(self, channel, args, subcommands=True):
@@ -585,33 +586,16 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
                 continue
 
             # category
-            found_cat = False
-            for api in quizapis.values():
-                cat = api.category_key(arg)
-                if cat is not None:
-                    if found["category"]:
-                        raise QuizInitError(self, "dupiclate_cat_arg")
-                    parsed["category"] = arg
-                    found["category"] = True
-                    found_cat = True
-                    break
-            if found_cat:
+            cat = self.category_controller.get_cat_by_arg(arg)
+            if cat is not None:
+                if found["category"]:
+                    raise QuizInitError(self, "duplicate_cat_arg")
+                parsed["category_name"] = arg
+                parsed["category"] = cat
+                found["category"] = True
                 continue
 
             raise QuizInitError(self, "unknown_arg", arg)
-
-        # set catkey and check if quizapi supports category
-        catkey = parsed["quizapi"].category_key(parsed["category"])
-        parsed["category"] = catkey
-        if found["quizapi"] or found["category"]:  # todo improve this check
-            if catkey is None:
-                apiname = None
-                for api in quizapis:
-                    if quizapis[api] == parsed["quizapi"]:
-                        apiname = api
-                        break
-                assert apiname is not None
-                raise QuizInitError(self, "category_not_supported", apiname, parsed["category"])
 
         self.logger.debug("Parsed kwiss args: %s", parsed)
         return controller, parsed

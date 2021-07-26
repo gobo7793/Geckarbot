@@ -3,6 +3,7 @@ import random
 import logging
 from enum import Enum
 from abc import ABC, abstractmethod
+from typing import Type
 
 import discord
 
@@ -19,6 +20,16 @@ class BaseQuizAPI(ABC):
     """
     Interface for question resources
     """
+
+    @classmethod
+    @abstractmethod
+    def register_categories(cls, category_controller):
+        """
+        Called on plugin init. Used to register categories with the category controller.
+
+        :param category_controller: CategoryController instance
+        """
+        pass
 
     @abstractmethod
     async def fetch(self):
@@ -57,25 +68,6 @@ class BaseQuizAPI(ABC):
         """
         :param kwargs:
         :return: Returns an info string under the given constraints.
-        """
-        pass
-
-    @staticmethod
-    @abstractmethod
-    def category_name(catkey):
-        """
-        :param catkey: Opaque category key object that was previously returned by category_key()
-        :return: Human-readable representation of the quiz category
-        """
-        pass
-
-    @staticmethod
-    @abstractmethod
-    def category_key(catarg: str):
-        """
-        :param catarg: Argument that was passed that identifies a category
-        :return: Opaque category identifier that can be used in initialization and for category_name.
-            Returns None if catarg is an unknown category.
         """
         pass
 
@@ -161,6 +153,12 @@ class BaseQuizController(ABC):
         else:
             logger.warning("Controller cancel was requested but no task found that could be cancelled")
         self.cleanup()
+
+
+class BaseCategoryController:
+    @abstractmethod
+    def register_category_support(self, apiclass: Type[BaseQuizAPI], category, catkey):
+        pass
 
 
 class Difficulty(Enum):
@@ -578,77 +576,3 @@ class Question:
             if el == emoji:
                 return True
         return False
-
-
-class CategoryKey:
-    """
-    Meta category key that represents one category as given as command argument
-    """
-    def __init__(self):
-        # entries are self._entries[quizapi] = {"key": key, "name": human-readable name}
-        self._entries = {}
-
-    def add_key(self, quizapi, key, name):
-        """
-        :param quizapi: QuizAPI class that understands key
-        :param key: category key that is understood by QuizAPI
-        :param name: human-readable name
-        :raises KeyError: Raised if the category key already exists
-        """
-        if quizapi in self._entries:
-            entry = self._entries[quizapi]
-            if key != entry["key"] or name != entry["name"]:
-                raise KeyError("{} already exists and is different".format(quizapi))
-            return
-        self._entries[quizapi] = {"key": key, "name": name}
-
-    def name(self):
-        """
-        Finds the best human-readable name for this category.
-        :return: Human-readable category name; None if there is nothing registered
-        """
-        if not self._entries:
-            return None
-        points = {}
-        for quizapi in self._entries:
-            entry = self._entries[quizapi]
-            if entry["name"] in points:
-                points[entry["name"]] += 1
-            else:
-                points[entry["name"]] = 0
-
-        return sorted(points.keys(), key=lambda x: points[x], reverse=True)[0]
-
-    def iter_quizapis(self):
-        """
-        Iterates over registered quizapis
-        """
-        for el in self._entries:
-            yield el
-
-    def get(self, quizapi):
-        """
-        :param quizapi: QuizAPI class that understands key
-        :return: key, name
-        """
-        return self.key(quizapi), self._entries[quizapi]["name"]
-
-    def key(self, quizapi):
-        """
-        :param quizapi: QuizAPI to return the category for
-        :return: This category's category key that corresponds to `quizapi`
-        """
-        return self._entries[quizapi]["key"]
-
-    def merge(self, catkey):
-        """
-        :param catkey: CategoryKey element that is to be merged into this object
-        """
-        for quizapi in catkey.iter_quizapis():
-            self.add_key(quizapi, *self.get(quizapi))
-
-    def is_empty(self):
-        """
-        :return: True if this category has no entries, False otherwise
-        """
-        return not self._entries
