@@ -280,9 +280,11 @@ class _Liveticker:
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
     @cmd_teamname.command(name="add")
-    async def cmd_teamname_add(self, ctx, long_name: str, short_name: str = None, abbr: str = None, emoji: str = None):
+    async def cmd_teamname_add(self, ctx, long_name: str, short_name: str = None, abbr: str = None, emoji: str = None,
+                               *alternatives: str):
         try:
-            teamnamedict = self.bot.liveticker.teamname_converter.add(long_name, short_name, abbr, emoji)
+            teamnamedict = self.bot.liveticker.teamname_converter.add(long_name, short_name, abbr, emoji,
+                                                                      other=alternatives)
         except ValueError:
             await add_reaction(ctx.message, Lang.CMDERROR)
             return

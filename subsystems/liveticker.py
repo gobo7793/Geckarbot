@@ -2,7 +2,7 @@ import asyncio
 import datetime
 import logging
 from enum import Enum
-from typing import List, Generator, Tuple, Optional, Dict
+from typing import List, Generator, Tuple, Optional, Dict, Iterable
 
 from base import BaseSubsystem, BasePlugin
 from botutils import restclient
@@ -165,8 +165,8 @@ class TeamnameConverter:
             return self.add(team)
         return teamnamedict
 
-    def add(self, long_name: str, short_name: str = None, abbr: str = None, emoji: str = None, other: list = None) -> \
-            TeamnameDict:
+    def add(self, long_name: str, short_name: str = None, abbr: str = None, emoji: str = None,
+            other: Iterable[str] = None) -> TeamnameDict:
         """
         Adds a new data set for a team to the converter.
 
