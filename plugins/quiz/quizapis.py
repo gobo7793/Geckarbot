@@ -667,7 +667,6 @@ class MetaQuizAPI(BaseQuizAPI):
 
 quizapis = {
     "opentdb": OpenTDBQuizAPI,
-    "meta": MetaQuizAPI,
     "pastebin": Pastebin,
-    "fragespiel": Fragespiel,
+    "fragespiel": Fragespiel
 }

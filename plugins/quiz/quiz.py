@@ -13,10 +13,11 @@ from botutils.utils import sort_commands_helper, add_reaction, helpstring_helper
 from subsystems.helpsys import DefaultCategories
 
 from plugins.quiz.controllers import RushQuizController, PointsQuizController
-from plugins.quiz.quizapis import quizapis, opentdb
+from plugins.quiz.quizapis import quizapis, opentdb, MetaQuizAPI
 from plugins.quiz.base import Difficulty
 from plugins.quiz.utils import get_best_username
 from plugins.quiz.migrations import migration
+from plugins.quiz.categories import CategoryController
 
 
 class QuizInitError(Exception):
@@ -54,10 +55,16 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
         self.registered_subcommands = {}
         self.config = Config.get(self)
         self.role = self.bot.guild.get_role(self.config.get("roleid", 0))
+        self.category_controller = CategoryController()
+
+        # init quizapis
+        for _, el in quizapis.items():
+            el.register_categories(self.category_controller)
+        MetaQuizAPI.register_categories(self.category_controller)
 
         self.default_controller = PointsQuizController
         self.defaults = {
-            "quizapi": quizapis["meta"],
+            "quizapi": MetaQuizAPI,
             "questions": self.config["questions_default"],
             "method": Methods.START,
             "category": None,

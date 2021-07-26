@@ -51,15 +51,11 @@ class Category:
 
 
 class CategoryController:
-    def __init__(self, quizapis: Sequence[BaseQuizAPI]):
+    def __init__(self):
         self.categories = {}
         for el in DefaultCategory:
             name, args = el.value
             self.categories[el] = Category(name, args)
-
-        # init quizapis
-        for el in quizapis:
-            el.register_categories(self)
 
     def register_category_support(self, apiclass: BaseQuizAPI, category: DefaultCategory, catkey):
         """
