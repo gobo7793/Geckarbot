@@ -211,9 +211,8 @@ class Pastebin(BaseQuizAPI):
     """
     Uses a list of questions on Pastebin.
     """
+
     URL = "https://pastebin.com/raw/QRGzxxEy"
-    CATEGORIES = ["any", "default", "none", "general"]
-    CATKEY = 0
 
     def __init__(self, config, channel, category=None, question_count=None, difficulty=None, debug=False):
         self.logger = logging.getLogger(__name__)
@@ -223,9 +222,12 @@ class Pastebin(BaseQuizAPI):
         self.channel = channel
         self.difficulty = difficulty
         self.debug = debug
+        self.category = category
 
-        if category != self.CATKEY:
-            raise RuntimeError("Unknown category: {}".format(category))
+    @classmethod
+    def register_categories(cls, category_controller: CategoryController):
+        category_controller.register_category_support(cls, DefaultCategory.ALL, None)
+        category_controller.register_category_support(cls, DefaultCategory.MISC, None)
 
     async def fetch(self):
         self.logger.debug("Pastebin QuizAPI: Fetching questions")
@@ -262,18 +264,6 @@ class Pastebin(BaseQuizAPI):
 
         return self.questions[self.current_question_i]
 
-    @staticmethod
-    def category_name(catkey):
-        if catkey == Pastebin.CATKEY:
-            return "Any"
-        return "Unknown"
-
-    @staticmethod
-    def category_key(catarg):
-        if catarg is None or catarg.lower() in Pastebin.CATEGORIES:
-            return Pastebin.CATKEY
-        return None
-
     @classmethod
     async def size(cls, **kwargs):
         return 547
@@ -290,43 +280,42 @@ class Fragespiel(BaseQuizAPI):
     Scrapes questions from fragespiel.com
     """
     CATEGORIES = {
-        -1: ("Alle", "all"),
-        "1": ("Sport", "sport"),
-        "2": ("Mode & Lifestyle", "mode", "lifestyle"),
-        "3": ("Geschichte", "geschichte"),
-        "4": ("Erotik", "erotik", "nsfw"),
-        "5": ("Chemie", "chemie"),
-        "6": ("Biologie", "biologie", "bio"),
-        "7": ("Verschiedenes", "verschiedenes", "misc", "sonstiges", "divers"),
-        "8": ("Geographie", "geographie", "geo", "erdkunde"),
-        "9": ("Film & Musik", "film+musik", "film&musik"),
-        "10": ("Politik", "politik"),
-        "11": ("Astronomie", "astronomie", "kosmos", "universum"),
-        "12": ("Physik", "physik"),
-        "13": ("Literatur", "literatur"),
-        "14": ("Wissenschaft", "wissenschaft"),
-        "15": ("Österreich", "österreich", "at"),
-        "16": ("Deutschland", "deutschland", "de"),
-        "17": ("Religion", "religion", "reli"),
-        "18": ("Wirtschaft", "wirtschaft"),
-        "19": ("Computer", "computer"),
-        "20": ("Fußball", "fußball"),
-        "23": ("Medizin", "medizin"),
-        "24": ("Tiere", "tiere"),
-        "25": ("Speisen & Getränke", "speisen", "essen", "trinken", "getränke"),
-        "26": ("Pflanzen", "pflanzen"),
-        "30": ("Kunst", "kunst"),
-        "31": ("Bauwerke", "bauwerke"),
-        "32": ("Philosophie", "philosophie"),
-        "33": ("Musik", "musik"),
-        "34": ("Film & TV", "film", "fernsehen", "tv"),
-        "35": ("Mythen & Sagen", "mythen", "sagen"),
-        "36": ("Mathematik", "mathematik", "mathe"),
-        "37": ("Technik", "technik"),
-        "39": ("DDR", "ddr"),
+        DefaultCategory.ALL: ["1", "2", "3", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "17", "18",
+                              "19", "20", "23", "24", "25", "26", "30", "31", "32", "33", "34", "35", "36", "37"],
+        DefaultCategory.MISC: ["7"],
+        DefaultCategory.LITERATURE: ["13"],
+        DefaultCategory.FILMTV: ["34"],
+        DefaultCategory.MUSIC: ["33"],
+
+        # Chemie, Biologie, Astronomie, Physik, Wissenschaft, Medizin, Pflanzen
+        DefaultCategory.SCIENCE: ["5", "6", "11", "12", "14", "23", "26"],
+        DefaultCategory.COMPUTER: ["19"],
+        DefaultCategory.TECH: ["37"],
+        DefaultCategory.MYTHOLOGY: ["35"],
+        DefaultCategory.HISTORY: ["3"],
+        DefaultCategory.POLITICS: ["10"],
+
+        # Kunst, Bauwerke
+        DefaultCategory.ART: ["30", "31"],
+        DefaultCategory.ANIMALS: ["24"],
+        DefaultCategory.GEOGRAPHY: ["8"],
+        DefaultCategory.SPORT: ["20"],
+        DefaultCategory.MATHEMATICS: ["36"],
+        DefaultCategory.FASHION: ["2"],
+        DefaultCategory.RELIGION: ["17"],
+        DefaultCategory.ECONOMICS: ["18"],
+        DefaultCategory.FOOD: ["25"],
+        DefaultCategory.PHILOSOPHY: ["32"],
     }
-    ALL = ["1", "2", "3", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "17", "18", "19", "20", "23", "24",
-           "25", "26", "30", "31", "32", "33", "34", "35", "36", "37"]
+
+    """
+    unused:
+        "4": "Erotik",
+        "15": "Österreich"
+        "16": "Deutschland"
+        "39": "DDR"
+    """
+
     URL = "https://www.fragespiel.com/quiz/training.html"
 
     def __init__(self, config, channel, category=None, question_count=None, difficulty=None, debug=False):
@@ -341,6 +330,11 @@ class Fragespiel(BaseQuizAPI):
         self.current_question_i = -1
 
         self.aiosession = aiohttp.ClientSession()
+
+    @classmethod
+    def register_categories(cls, category_controller: CategoryController):
+        for cat, key in cls.CATEGORIES.items():
+            category_controller.register_category_support(cls, cat, key)
 
     async def fetch(self):
         done = 0
@@ -446,25 +440,6 @@ class Fragespiel(BaseQuizAPI):
 
     async def info(self, **kwargs):
         pass
-
-    @staticmethod
-    def category_name(catkey):
-        pass
-
-    @staticmethod
-    def category_key(catarg: Union[str, None]):
-        if catarg is None:
-            return Fragespiel.ALL
-        r = None
-        for cid in Fragespiel.CATEGORIES:
-            if catarg in Fragespiel.CATEGORIES[cid]:
-                r = [cid]
-                break
-        if r is None:
-            raise InvalidCategory("Category not supported: {}".format(catarg))
-        if r == [-1]:
-            r = Fragespiel.ALL
-        return r
 
     def __del__(self):
         pass

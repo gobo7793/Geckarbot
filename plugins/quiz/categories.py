@@ -32,6 +32,11 @@ class DefaultCategory(Enum):
     MATHEMATICS = ("Mathematics", ["mathematics", "math"])
     CELEBRITIES = ("Celebrities", ["celebrities"])
     COMICS = ("Comics", ["comics"])
+    FASHION = ("Fashion", ["fashion"])
+    RELIGION = ("Religion", ["religion"])
+    ECONOMICS = ("Economics", ["economics"])
+    FOOD = ("Food", ["food"])
+    PHILOSOPHY = ("Philosophy", ["philosophy", "philo"])
 
 
 class Category:
