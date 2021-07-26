@@ -529,7 +529,8 @@ class PointsQuizController(BaseQuizController):
                               self.quizapi.current_question_index() + 1,
                               len(self.quizapi))
         embed = discord.Embed(title=title)
-        # embed.add_field(name="Category", value=self.quizapi.category_name(self.category))
+        catname = self.plugin.category_controller.get_name_by_category_key(self.quizapi, self.category)
+        embed.add_field(name="Category", value=catname)
         embed.add_field(name="Difficulty", value=Difficulty.human_readable(self.difficulty))
         embed.add_field(name="Mode", value="Points (Everyone answers)")
         embed.add_field(name="Questions", value=str(self.question_count))
@@ -774,7 +775,8 @@ class RushQuizController(BaseQuizController):
                               self.quizapi.current_question_index() + 1,
                               len(self.quizapi))
         embed = discord.Embed(title=title)
-        embed.add_field(name="Category", value=self.quizapi.category_name(self.category))
+        catname = self.plugin.category_controller.get_name_by_category_key(self.quizapi, self.category)
+        embed.add_field(name="Category", value=catname)
         embed.add_field(name="Difficulty", value=Difficulty.human_readable(self.difficulty))
         embed.add_field(name="Mode", value="Rush (Winner takes it all)")
         embed.add_field(name="Initiated by", value=get_best_username(Storage().get(self.plugin), self.requester))

@@ -40,6 +40,9 @@ class DefaultCategory(Enum):
 
 
 class Category:
+    """
+    Default categories are built into this structure at runtime.
+    """
     def __init__(self, name: str, args: Sequence[str]):
         self.name = name
         self.args = args  # argument strings that this category is identified by
@@ -56,6 +59,10 @@ class Category:
 
 
 class CategoryController(BaseCategoryController):
+    """
+    Controller for categories. Quiz APIs register categories they support, argument parser requests category keys from
+    here.
+    """
     def __init__(self):
         self.categories = {}
         for el in DefaultCategory:
@@ -84,6 +91,11 @@ class CategoryController(BaseCategoryController):
             if arg in self.categories[cat].args:
                 return cat
         return None
+
+    def get_name_by_category_key(self, quizapi: Type[BaseQuizAPI], catkey):
+        for _, category in self.categories.items():
+            if quizapi in category.supporters and category.supporters[quizapi] == catkey:
+                return category.name
 
     def get_supporters(self, category: DefaultCategory) -> list:
         return list(self.categories[category].supporters.keys())

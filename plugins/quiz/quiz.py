@@ -173,13 +173,8 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
 
         err = self.args_combination_check(controller_class, args)
         if err is not None:
-            args = []
-            if err == "ranked_playercount":
-                args = (self.config["ranked_min_participants"],)
-            if err == "ranked_questioncount":
-                args = (self.config["ranked_min_questions"],)
             await add_reaction(ctx.message, Lang.CMDERROR)
-            await ctx.send(Lang.lang(self, err, *args))
+            await ctx.send(Lang.lang(self, *err))
             return
 
         # Look for existing quiz
@@ -451,14 +446,14 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
 
         :param controller: Quiz controller class
         :param args: args dict
-        :return: lang code for error msg, None if the arg combination is okay
+        :return: (lang code, args...) for error msg, None if the arg combination is okay
         """
         # Ranked constraints
         if args["ranked"] and not args["debug"]:
             if controller != self.default_controller:
                 self.logger.debug("Ranked constraints violated: controller {} != {}"
                                   .format(controller, self.default_controller))
-                return "ranked_constraints"
+                return "ranked_constraints",
             #if args["category"] != self.defaults["category"]:
             #    self.logger.debug("Ranked constraints violated: cat {} != {}"
             #                      .format(args["category"], self.defaults["category"]))
@@ -466,11 +461,15 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
             if args["difficulty"] != self.defaults["difficulty"]:
                 self.logger.debug("Ranked constraints violated: difficulty {} != {}"
                                   .format(args["difficulty"], self.defaults["difficulty"]))
-                return "ranked_constraints"
+                return "ranked_constraints",
             if args["questions"] < self.config["ranked_min_questions"]:
-                return "ranked_questioncount"
+                return "ranked_questioncount", self.config["ranked_min_questions"]
             if not self.bot.DEBUG_MODE and args["gecki"]:
-                return "ranked_gecki"
+                return "ranked_gecki",
+
+        # Category support
+        if args["quizapi"] not in self.category_controller.get_supporters(args["category"]):
+            return "category_not_supported", args["quizapi"].NAME, args["category_name"]
         return None
 
     def parse_args(self, channel, args, subcommands=True):
@@ -591,6 +590,7 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
             if cat is not None:
                 if found["category"]:
                     raise QuizInitError(self, "duplicate_cat_arg")
+                parsed["category_name"] = arg
                 parsed["category"] = cat
                 found["category"] = True
                 continue

@@ -32,6 +32,7 @@ class OpenTDBQuizAPI(BaseQuizAPI):
     """
     Uses OpenTDB as a question resource
     """
+    NAME = "opentdb"
     BASE_URL = "https://opentdb.com"
     TOKEN_ROUTE = "api_token.php"
     API_ROUTE = "api.php"
@@ -211,6 +212,7 @@ class Pastebin(BaseQuizAPI):
     Uses a list of questions on Pastebin.
     """
 
+    NAME = "pastebin"
     URL = "https://pastebin.com/raw/QRGzxxEy"
 
     def __init__(self, config, channel, category, question_count=None, difficulty=None, debug=False):
@@ -278,6 +280,7 @@ class Fragespiel(BaseQuizAPI):
     """
     Scrapes questions from fragespiel.com
     """
+    NAME = "fragespiel"
     CATEGORIES = {
         DefaultCategory.ALL: ["1", "2", "3", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "17", "18",
                               "19", "20", "23", "24", "25", "26", "30", "31", "32", "33", "34", "35", "36", "37"],
@@ -465,7 +468,7 @@ class MetaQuizAPI(BaseQuizAPI):
     """
     Quiz API that combines all existing ones.
     """
-
+    NAME = "meta"
     apis = [OpenTDBQuizAPI, Pastebin, Fragespiel]
 
     def __init__(self, config, channel, category,
