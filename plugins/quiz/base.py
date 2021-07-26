@@ -3,6 +3,7 @@ import random
 import logging
 from enum import Enum
 from abc import ABC, abstractmethod
+from typing import Type
 
 import discord
 
@@ -152,6 +153,12 @@ class BaseQuizController(ABC):
         else:
             logger.warning("Controller cancel was requested but no task found that could be cancelled")
         self.cleanup()
+
+
+class BaseCategoryController:
+    @abstractmethod
+    def register_category_support(self, apiclass: Type[BaseQuizAPI], category, catkey):
+        pass
 
 
 class Difficulty(Enum):

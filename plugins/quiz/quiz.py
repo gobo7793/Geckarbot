@@ -192,6 +192,10 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
         assert method == Methods.START
         await add_reaction(ctx.message, Lang.EMOJI["success"])
         cat = self.category_controller.get_category_key(args["quizapi"], args["category"])
+        self.logger.debug("Starting kwiss: controller %s, config %s, api %s,  channel %s, author %s, cat %s, question "
+                          "count %s, difficulty %s, debug %s, ranked %s, gecki %s", controller_class, self.config,
+                          args["quizapi"], ctx.channel, ctx.message.author, cat, args["questions"], args["difficulty"],
+                          args["debug"], args["ranked"], args["gecki"])
         async with ctx.typing():
             quiz_controller = controller_class(self,
                                                self.config,

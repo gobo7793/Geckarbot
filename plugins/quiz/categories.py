@@ -1,7 +1,7 @@
 from enum import Enum
 from typing import Union, Sequence, Type
 
-from plugins.quiz.base import BaseQuizAPI
+from plugins.quiz.base import BaseQuizAPI, BaseCategoryController
 
 
 class CategoryKey:
@@ -55,7 +55,7 @@ class Category:
         self.supporters[apiclass] = catkey
 
 
-class CategoryController:
+class CategoryController(BaseCategoryController):
     def __init__(self):
         self.categories = {}
         for el in DefaultCategory:

@@ -5,7 +5,7 @@ from html import unescape
 import random
 import json
 import re
-from typing import Union
+from typing import Type
 
 import aiohttp
 import discord
@@ -13,7 +13,7 @@ import discord
 from botutils import restclient
 
 from plugins.quiz.controllers import QuizEnded
-from plugins.quiz.base import BaseQuizAPI, Difficulty, Question
+from plugins.quiz.base import BaseQuizAPI, BaseCategoryController, Difficulty, Question
 from plugins.quiz.categories import DefaultCategory, CategoryController
 
 
@@ -68,9 +68,8 @@ class OpenTDBQuizAPI(BaseQuizAPI):
       TV (14)
     """
 
-    def __init__(self, config, channel,
-                 category=None, question_count=None, difficulty=Difficulty.EASY,
-                 debug=False):
+    def __init__(self, config, channel, category,
+                 question_count=None, difficulty=Difficulty.EASY, debug=False):
         """
         :param config: plugin config
         :param channel: channel ID that this quiz was requested in
@@ -96,7 +95,7 @@ class OpenTDBQuizAPI(BaseQuizAPI):
         self.token = None
 
     @classmethod
-    def register_categories(cls, category_controller: CategoryController):
+    def register_categories(cls, category_controller):
         for cat, catkey in cls.CAT_MAP.items():
             category_controller.register_category_support(cls, cat, catkey)
 
@@ -214,7 +213,7 @@ class Pastebin(BaseQuizAPI):
 
     URL = "https://pastebin.com/raw/QRGzxxEy"
 
-    def __init__(self, config, channel, category=None, question_count=None, difficulty=None, debug=False):
+    def __init__(self, config, channel, category, question_count=None, difficulty=None, debug=False):
         self.logger = logging.getLogger(__name__)
         self.questions = None
         self.current_question_i = -1
@@ -225,7 +224,7 @@ class Pastebin(BaseQuizAPI):
         self.category = category
 
     @classmethod
-    def register_categories(cls, category_controller: CategoryController):
+    def register_categories(cls, category_controller):
         category_controller.register_category_support(cls, DefaultCategory.ALL, None)
         category_controller.register_category_support(cls, DefaultCategory.MISC, None)
 
@@ -318,7 +317,7 @@ class Fragespiel(BaseQuizAPI):
 
     URL = "https://www.fragespiel.com/quiz/training.html"
 
-    def __init__(self, config, channel, category=None, question_count=None, difficulty=None, debug=False):
+    def __init__(self, config, channel, category, question_count=None, difficulty=None, debug=False):
         self.logger = logging.getLogger(__name__)
         self.config = config
         self.channel = channel
@@ -332,7 +331,7 @@ class Fragespiel(BaseQuizAPI):
         self.aiosession = aiohttp.ClientSession()
 
     @classmethod
-    def register_categories(cls, category_controller: CategoryController):
+    def register_categories(cls, category_controller):
         for cat, key in cls.CATEGORIES.items():
             category_controller.register_category_support(cls, cat, key)
 
@@ -435,7 +434,8 @@ class Fragespiel(BaseQuizAPI):
     def current_question_index(self):
         return self.current_question_i
 
-    async def size(self, **kwargs):
+    @classmethod
+    async def size(cls,  **kwargs):
         return None
 
     async def info(self, **kwargs):
@@ -445,15 +445,31 @@ class Fragespiel(BaseQuizAPI):
         pass
 
 
+class MockCategoryController(BaseCategoryController):
+    """
+    Collects category registrations from quiz APIs that Meta controls.
+    """
+    def __init__(self):
+        self.categories = {}
+
+    def register_category_support(self, apiclass: Type[BaseQuizAPI], category: DefaultCategory, catkey):
+        if category in self.categories:
+            self.categories[category][apiclass] = catkey
+        else:
+            self.categories[category] = {
+                apiclass: catkey
+            }
+
+
 class MetaQuizAPI(BaseQuizAPI):
     """
     Quiz API that combines all existing ones.
     """
-    apis = [OpenTDBQuizAPI, Pastebin]
 
-    def __init__(self, config, channel,
-                 category=None, question_count=None, difficulty=Difficulty.EASY,
-                 debug=False):
+    apis = [OpenTDBQuizAPI, Pastebin, Fragespiel]
+
+    def __init__(self, config, channel, category,
+                 question_count=None, difficulty=Difficulty.EASY, debug=False):
         """
         Pulls from all implemented quiz APIs.
 
@@ -463,7 +479,9 @@ class MetaQuizAPI(BaseQuizAPI):
         :param question_count: Amount of questions to be asked, None for default
         :param difficulty: Difficulty enum ref that determines the difficulty of the questions
         """
-        logging.info("Quiz API: Meta")
+        self.logger = logging.getLogger(__name__)
+        self.logger.info("Quiz API: Meta")
+
         self.config = config
         self.debug = debug
         self.channel = channel
@@ -475,39 +493,59 @@ class MetaQuizAPI(BaseQuizAPI):
         self.client = restclient.Client(OpenTDBQuizAPI.BASE_URL)
         self.current_question_i = -1
 
-        self.category = None
-        self.parse_category(category)
+        self.category = category
         self.questions = []
         self.is_running = True
 
         # Meta stuff
         self.spacesize = 0
 
+    @classmethod
+    def register_categories(cls, category_controller):
+        mock_controller = MockCategoryController()
+        for quizapi in cls.apis:
+            quizapi.register_categories(mock_controller)
+        for category, catkey in mock_controller.categories.items():
+            category_controller.register_category_support(cls, category, catkey)
+
     async def fetch(self):
         # Determine question space sizes, weights and question sequence
         sizes = {}
         apiclasses = []
         weights = []
-        for el in self.apis:
-            if self.category[el] is None:
+        to_guess = []
+        for api, catkey in self.category.items():
+            if catkey is None:
                 continue
-            size = await el.size(category=self.category[el], difficulty=self.difficulty)
-            if size is not None:
-                apiclasses.append(el)
+            size = await api.size(category=catkey, difficulty=self.difficulty)
+            if size is None:
+                to_guess.append(api)
+            else:
+                apiclasses.append(api)
                 weights.append(size)
-                sizes[el] = size
+                sizes[api] = size
                 self.spacesize += size
+
+        if weights:
+            average = sum(weights) / len(weights)
+        else:
+            average = 1
+        for api in to_guess:
+            apiclasses.append(api)
+            weights.append(average)
 
         question_seq = random.choices(apiclasses, weights=weights, k=self.question_count)
         question_counts = {el: 0 for el in apiclasses}
         for el in question_seq:
             question_counts[el] += 1
 
+        self.logger.debug("Meta Quiz API; fetching from quiz APIs:")
         apis = {}
-        for el in apiclasses:
-            apis[el] = el(self.config, self.channel, category=self.category[el], question_count=question_counts[el],
-                          difficulty=self.difficulty, debug=self.debug)
-            await apis[el].fetch()
+        for api in apiclasses:
+            self.logger.debug("%s from %s", question_counts[api], api)
+            apis[api] = api(self.config, self.channel, category=self.category[api], question_count=question_counts[api],
+                            difficulty=self.difficulty, debug=self.debug)
+            await apis[api].fetch()
 
         # Build questions list
         for i in range(self.question_count):
@@ -520,39 +558,6 @@ class MetaQuizAPI(BaseQuizAPI):
         :return: Index of the current question
         """
         return self.current_question_i
-
-    def parse_category(self, cat):
-        """
-        Takes all available info to determine the correct category.
-
-        :param cat: Category that was given by User. None if none was given.
-        """
-        if cat is not None:
-            self.category = cat
-        elif self.channel.id in self.config["channel_mapping"]:
-            self.category = self.config["channel_mapping"][self.channel.id]
-        else:
-            self.category = self.config["default_category"]
-
-    @staticmethod
-    def category_name(catkey) -> str:
-        """
-        :return: Human-readable representation of the quiz category
-        """
-        for api in catkey:
-            return api.category_name(catkey[api])
-
-    @staticmethod
-    def category_key(catarg: str) -> object:
-        """
-        :param catarg: Argument that was passed that identifies a category
-        :return: Opaque category identifier that can be used in initialization and for category_name.
-            Returns None if catarg is an unknown category.
-        """
-        r = {}
-        for api in MetaQuizAPI.apis:
-            r[api] = api.category_key(catarg)
-        return r
 
     @classmethod
     async def size(cls, **kwargs):

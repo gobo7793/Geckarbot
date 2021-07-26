@@ -469,7 +469,7 @@ class PointsQuizController(BaseQuizController):
         self.plugin.logger.debug("category: {}".format(self.category))
         self.quizapi = self.quizapi(self.config,
                                     self.channel,
-                                    category=self.category,
+                                    self.category,
                                     question_count=self.question_count,
                                     difficulty=self.difficulty,
                                     debug=self.debug)
@@ -755,9 +755,8 @@ class RushQuizController(BaseQuizController):
     # Commands
     ###
     async def start(self, msg):
-        self.quizapi = self.quizapi(self.config, self.channel,
-                                    category=self.category, question_count=self.question_count,
-                                    difficulty=self.difficulty, debug=self.debug)
+        self.quizapi = self.quizapi(self.config, self.channel, self.category,
+                                    question_count=self.question_count, difficulty=self.difficulty, debug=self.debug)
         await self.statemachine.run()
 
     async def pause(self, msg):
