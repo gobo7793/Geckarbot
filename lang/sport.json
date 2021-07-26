@@ -59,6 +59,14 @@
         "teamname_set_variant_invalid": "Variant must be one of the following: {}",
         "teamname_set_duplicate": "`{}` is already existent for the team of {}.",
         "teamname_added": "Names added. ({})",
+        "pred_no_today_games": "Today are no games to predict :frowning:",
+        "pred_today_games": "Prediction game - Games today",
+        "pred_cant_find_team": "There is no team {}",
+        "pred_cant_find_match": "There is no match {} - {}",
+        "pred_cant_find_league": "There is no prediction game for league {} :frowning:",
+        "pred_cant_find_matchday": "No prediction game league has a matchday {}",
+        "pred_cant_find_league_matchday": "League {} has no matchday {}",
+        "pred_total_points_title": "{} - Total Points",
 
         "#2": "actually de strings",
         "kicker_title": "Kicker.de - Links - Spieltage",
@@ -156,6 +164,14 @@
         "teamname_other": "Weitere",
         "teamname_set_variant_invalid": "Variante muss eine der folgenden sein: {}",
         "teamname_set_duplicate": "`{}` ist bereits für einen anderen Verein ({}) eingespeichert.",
-        "teamname_added": "Namen zum Verein ({}) hinzugefügt"
+        "teamname_added": "Namen zum Verein ({}) hinzugefügt",
+        "pred_no_today_games": "Heute finden leider keine Spiele statt :frowning:",
+        "pred_today_games": "Tippspiel - Heutige Spiele",
+        "pred_cant_find_team": "Ich kann kein Team Namens {} finden",
+        "pred_cant_find_match": "Ich kann kein Spiel {} - {} finden",
+        "pred_cant_find_league": "Es gibt kein Tippspiel für die Liga {} :frowning:",
+        "pred_cant_find_matchday": "Keine Tippspiel-Liga hat einen Spieltag {}",
+        "pred_cant_find_league_matchday": "Die Tippspiel-Liga {} hat keinen Spieltag {}",
+        "pred_total_points_title": "{} - Gesamtstand"
     }
 }

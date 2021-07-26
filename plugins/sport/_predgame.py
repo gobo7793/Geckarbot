@@ -25,7 +25,7 @@ class _Predgame:
     async def cmd_predgame_today(self, ctx):
         match_count = await self._today_matches(ctx.channel)
         if match_count <= 0:
-            await ctx.send("Today are no matches :(")
+            await ctx.send(Lang.lang(self, "pred_no_today_games"))
 
     async def _today_coro(self, _job):
         if Config.get(self)["show_today_matches"] and Config().get(self)['sport_chan']:
@@ -42,7 +42,7 @@ class _Predgame:
         for league in Storage.get(self)["predictions"]:
             result = await restclient.Client("http://site.api.espn.com/apis/site/v2/sports/soccer") \
                 .request(f"/{league}/scoreboard", params={'dates': datetime.datetime.today().strftime("%Y%m%d")})
-            msg = ["Tippspiel - Heutige Spiele"]
+            msg = [Lang.lang(self, "pred_today_games")]
 
             for m in result.get('events', []):
                 match = Match.from_espn(m)
@@ -76,11 +76,18 @@ class _Predgame:
         kickoff = None if date is None else timeutils.parse_time_input(date, time)
         team1_dict = self.bot.liveticker.teamname_converter.get(team1)
         team2_dict = self.bot.liveticker.teamname_converter.get(team2)
+        if team1_dict is None:
+            await ctx.send(Lang.lang(self, "pred_cant_find_team", team1))
+            return
+        if team2_dict is None:
+            await ctx.send(Lang.lang(self, "pred_cant_find_team", team2))
+            return
+
         msg = await self._get_predictions(team1_dict, team2_dict, kickoff)
         if msg:
             await ctx.send(msg)
         else:
-            await ctx.send("Can't find such a match")
+            await ctx.send(Lang.lang(self, "pred_cant_find_match", team1_dict.short_name, team2_dict.short_name))
 
     async def _get_predictions(self, team1: TeamnameDict, team2: TeamnameDict, kickoff: datetime = None) -> str:
         """Returns a list of the predictions for the first found match
@@ -133,11 +140,11 @@ class _Predgame:
             msgs = self._get_matchday_points(matchday, league)
 
         if len(msgs) < 1 and not league:
-            await ctx.send("Couldn't find league")
+            await ctx.send(Lang.lang(self, "pred_cant_find_league", league))
         elif len(msgs) < 1 and matchday > 0:
-            await ctx.send("Couldn't find matchday in any league")
+            await ctx.send(Lang.lang(self, "pred_cant_find_matchday", matchday))
         elif len(msgs) < 1 and not league and matchday > 0:
-            await ctx.send("Couldn't find matchday in league")
+            await ctx.send(Lang.lang(self, "pred_cant_find_league_matchday", league, matchday))
         else:
             for msg in msgs:
                 if matchday <= 0:
@@ -172,7 +179,8 @@ class _Predgame:
                 grouped[2][0], ", ".join(grouped[2][1]),
                 places
             )
-            msgs.append(("Total points league" + leg, desc))
+            msgs.append((Lang.lang(self, "pred_total_points_title", Storage.get(self)["predictions"][leg]["name"]),
+                         desc))
         return msgs
 
     def _get_matchday_points(self, matchday: int, league: str = "") -> List[str]:
@@ -226,7 +234,8 @@ class _Predgame:
             Storage.save(self)
             await add_reaction(ctx.message, Lang.CMDSUCCESS)
         else:
-            ctx.send("Can't find league $name")
+            await add_reaction(ctx.message, Lang.CMDERROR)
+            ctx.send(Lang.lang(self, "pred_cant_find_league", name))
 
     @cmd_predgame_set.command(name="sheet")
     async def cmd_predgame_set_sheet(self, ctx, sheet_id: str = ""):
