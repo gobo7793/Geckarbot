@@ -81,6 +81,7 @@ class Plugin(BasePlugin, _Liveticker, _Predgame, _Livescores, name="Sport"):
 
         if Config().get(self).get('cfg_version', 0) < 3:
             Config.get(self)["liveticker"]["show_today_matches"] = True
+            Config.get(self)["predictions_overview_sheet"] = ""
             Storage.set(self, Storage.get_default(self))
             Config().get(self)['cfg_version'] = 3
             self.logger.debug("Updated config to version 3")
