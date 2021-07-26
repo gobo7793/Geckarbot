@@ -6,7 +6,6 @@ import random
 import json
 import re
 from typing import Union
-from enum import Enum
 
 import aiohttp
 import discord
@@ -14,65 +13,8 @@ import discord
 from botutils import restclient
 
 from plugins.quiz.controllers import QuizEnded
-from plugins.quiz.base import BaseQuizAPI, Difficulty, Question, CategoryKey
-
-opentdb = {
-    "base_url": "https://opentdb.com",
-    "token_route": "api_token.php",
-    "api_route": "api.php",
-    "api_count_route": "api_count.php",
-    "default_cat": "any",
-    "cat_mapping": [
-        {'id': -1, 'names': ['Any', 'any', 'none', 'all', 'null']},
-        {'id': 9, 'names': ['General', 'general']},
-        {'id': 10, 'names': ['Books', 'books']},
-        {'id': 11, 'names': ['Film', 'film']},
-        {'id': 12, 'names': ['Music', 'music']},
-        {'id': 13, 'names': ['Musical / Theatre', 'musical', 'musicals',
-                             'theatres', 'theatre', 'theater', 'theaters']},
-        {'id': 14, 'names': ['T.V.', 'tv', 'television']},
-        {'id': 15, 'names': ['Games', 'games']},
-        {'id': 16, 'names': ['Boardgames', 'boardgames']},
-        {'id': 17, 'names': ['Science / Nature', 'science', 'nature']},
-        {'id': 18, 'names': ['Computers', 'computers', 'computer', 'it']},
-        {'id': 19, 'names': ['Mathematics', 'mathematics', 'math']},
-        {'id': 20, 'names': ['Mythology', 'mythology']},
-        {'id': 21, 'names': ['Sports', 'sports', 'sport']},
-        {'id': 22, 'names': ['Geography', 'geography', 'geo']},
-        {'id': 23, 'names': ['History', 'history']},
-        {'id': 24, 'names': ['Politics', 'politics']},
-        {'id': 25, 'names': ['Art', 'art']},
-        {'id': 26, 'names': ['Celebrities', 'celebrities']},
-        {'id': 27, 'names': ['Animals', 'animals']},
-        {'id': 28, 'names': ['Vehicles', 'vehicles']},
-        {'id': 29, 'names': ['Comics', 'comics']},
-        {'id': 30, 'names': ['Gadgets', 'gadgets']},
-        {'id': 31, 'names': ['Anime / Manga', 'anime', 'manga']},
-        {'id': 32, 'names': ['Cartoons / Animated', 'cartoons', 'cartoon', 'animated']},
-    ]
-}
-
-
-class DefaultCategories(Enum):
-    """
-    Default categories that most APIs implement
-    (not used yet)
-    """
-    ALL = 0
-    MISC = 1
-    LITERATURE = 2
-    FILMTV = 3
-    MUSIC = 4
-    SCIENCE = 6
-    COMPUTER = 7
-    TECH = 8
-    MYTHOLOGY = 9
-    HISTORY = 10
-    POLITICS = 11
-    ART = 12
-    ANIMALS = 13
-    GEOGRAPHY = 14
-    SPORT = 15
+from plugins.quiz.base import BaseQuizAPI, Difficulty, Question
+from plugins.quiz.categories import DefaultCategory, CategoryController
 
 
 class QuizAPIError(Exception):
@@ -90,6 +32,42 @@ class OpenTDBQuizAPI(BaseQuizAPI):
     """
     Uses OpenTDB as a question resource
     """
+    BASE_URL = "https://opentdb.com"
+    TOKEN_ROUTE = "api_token.php"
+    API_ROUTE = "api.php"
+    API_COUNT_ROUTE = "api_count.php"
+    CAT_MAP = {
+        DefaultCategory.ALL: -1,
+        DefaultCategory.MISC: 9,
+        DefaultCategory.LITERATURE: 10,
+        DefaultCategory.FILMTV: 11,
+        DefaultCategory.MUSIC: 12,
+        DefaultCategory.SCIENCE: 17,
+        DefaultCategory.COMPUTER: 18,
+        DefaultCategory.GAMES: 15,
+        DefaultCategory.MYTHOLOGY: 20,
+        DefaultCategory.HISTORY: 23,
+        DefaultCategory.POLITICS: 24,
+        DefaultCategory.ART: 25,
+        DefaultCategory.ANIMALS: 27,
+        DefaultCategory.GEOGRAPHY: 22,
+        DefaultCategory.SPORT: 21,
+        DefaultCategory.MATHEMATICS: 19,
+        DefaultCategory.CELEBRITIES: 26,
+        DefaultCategory.COMICS: 29,
+    }
+
+    """
+    unused:
+      Musical / Theatre (13)
+      Boardgames (16)
+      Vehicles (28)
+      Gadgets (30)
+      Anime / Manga (31)
+      Cartoons (32)
+      TV (14)
+    """
+
     def __init__(self, config, channel,
                  category=None, question_count=None, difficulty=Difficulty.EASY,
                  debug=False):
@@ -109,7 +87,7 @@ class OpenTDBQuizAPI(BaseQuizAPI):
         if question_count is None:
             self.question_count = self.config["questions_default"]
 
-        self.client = restclient.Client(opentdb["base_url"])
+        self.client = restclient.Client(self.BASE_URL)
         self.current_question_i = -1
         self.is_running = True
 
@@ -117,9 +95,14 @@ class OpenTDBQuizAPI(BaseQuizAPI):
         self.questions = []
         self.token = None
 
+    @classmethod
+    def register_categories(cls, category_controller: CategoryController):
+        for cat, catkey in cls.CAT_MAP.items():
+            category_controller.register_category_support(cls, cat, catkey)
+
     async def get_token(self):
         if self.token is None:
-            self.token = await self.client.request(opentdb["token_route"], params={"command": "request"})
+            self.token = await self.client.request(self.TOKEN_ROUTE, params={"command": "request"})
             self.token = self.token["token"]
 
     async def fetch(self):
@@ -132,17 +115,14 @@ class OpenTDBQuizAPI(BaseQuizAPI):
             "encode": "url3986",
             "type": "multiple",
         }
-        if self.category is None:
-            self.category = self.category_key(self.category)
-        catkey, _ = self.category.get(OpenTDBQuizAPI)
-        if catkey > 0:
-            params["category"] = catkey
+        if self.category > 0:
+            params["category"] = self.category
         if self.difficulty != Difficulty.ANY:
             params["difficulty"] = self.difficulty.value
 
         # Fetch questions
         logging.getLogger(__name__).debug("Fetching questions; params: %s", str(params))
-        questions_raw = await self.client.request(opentdb["api_route"], params=params)
+        questions_raw = await self.client.request(self.API_ROUTE, params=params)
         questions_raw = questions_raw["results"]
         for i in range(len(questions_raw)):
             el = questions_raw[i]
@@ -161,13 +141,13 @@ class OpenTDBQuizAPI(BaseQuizAPI):
         """
         return self.current_question_i
 
-    @staticmethod
-    async def _fetch_cat_size(client, cat, difficulty, result):
+    @classmethod
+    async def _fetch_cat_size(cls, client, cat, difficulty, result):
         params = {
             "category": cat,
             "encode": "url3986",
         }
-        counts = await client.request(opentdb["api_count_route"], params=params)
+        counts = await client.request(cls.API_COUNT_ROUTE, params=params)
         counts = counts["category_question_count"]
         if difficulty == Difficulty.ANY:
             key = "total_question_count"
@@ -189,12 +169,12 @@ class OpenTDBQuizAPI(BaseQuizAPI):
             if the constraints are not supported (e.g. unknown category).
         """
         difficulty = kwargs["difficulty"] if "difficulty" in kwargs else Difficulty.ANY
-        cat = kwargs["category"] if "category" in kwargs else None
-        if cat.key(cls) == -1:
-            cats = [el["id"] for el in opentdb["cat_mapping"] if el["id"] != -1]
+        cat = kwargs["category"]
+        if cat == -1:
+            cats = [el for _, el in cls.CAT_MAP.items() if el != -1]
         else:
-            cats = [cat.key(cls)]
-        client = restclient.Client(opentdb["base_url"])
+            cats = [cat]
+        client = restclient.Client(cls.BASE_URL)
 
         tasks = []
         result = []
@@ -206,34 +186,6 @@ class OpenTDBQuizAPI(BaseQuizAPI):
     @classmethod
     async def info(cls, **kwargs):
         return "Question count: {}".format(cls.size(**kwargs))
-
-    @staticmethod
-    def category_name(catkey) -> str:
-        """
-        :return: Human-readable representation of the quiz category
-        """
-        if catkey is None:
-            catkey = OpenTDBQuizAPI.category_key(opentdb["default_cat"])
-        _, name = catkey.get(OpenTDBQuizAPI)
-        return name
-
-    @staticmethod
-    def category_key(catarg: Union[str, None]) -> CategoryKey:
-        """
-        :param catarg: Argument that was passed that identifies a category
-        :return: Opaque category identifier that can be used in initialization and for category_name.
-            Returns None if catarg is an unknown category.
-        :raises InvalidCategory: Raised if catarg does not represent a valid category
-        """
-        if catarg is None:
-            catarg = opentdb["default_cat"]
-        for mapping in opentdb["cat_mapping"]:
-            for cat in mapping["names"]:
-                if catarg.lower() == cat:
-                    catkey = CategoryKey()
-                    catkey.add_key(OpenTDBQuizAPI, mapping["id"], mapping["names"][0])
-                    return catkey
-        raise InvalidCategory("Unsupported category: {}".format(catarg))
 
     def next_question(self):
         """
@@ -545,7 +497,7 @@ class MetaQuizAPI(BaseQuizAPI):
         if question_count is None:
             self.question_count = self.config["questions_default"]
 
-        self.client = restclient.Client(opentdb["base_url"])
+        self.client = restclient.Client(OpenTDBQuizAPI.BASE_URL)
         self.current_question_i = -1
 
         self.category = None

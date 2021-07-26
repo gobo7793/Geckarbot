@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Union, Sequence
+from typing import Union, Sequence, Type
 
 from plugins.quiz.base import BaseQuizAPI
 
@@ -13,7 +13,7 @@ class DefaultCategory(Enum):
     Default categories that most APIs implement
     (not used yet)
     """
-    ALL = ("Any", ["any"])
+    ALL = ("Any", ["any", "all"])
     MISC = ("Misc", ["misc", "general"])
     LITERATURE = ("Literature", ["literature", "books"])
     FILMTV = ("Film and TV", ["film", "movie", "movies", "tv", "television"])
@@ -40,7 +40,7 @@ class Category:
         self.args = args  # argument strings that this category is identified by
         self.supporters = {}  # dict of the form {QuizAPI class: category key} with category key being an opaque object
 
-    def register_support(self, apiclass: BaseQuizAPI, catkey: object):
+    def register_support(self, apiclass: Type[BaseQuizAPI], catkey: object):
         """
         Registers an apiclass that supports this category.
 
@@ -57,7 +57,7 @@ class CategoryController:
             name, args = el.value
             self.categories[el] = Category(name, args)
 
-    def register_category_support(self, apiclass: BaseQuizAPI, category: DefaultCategory, catkey):
+    def register_category_support(self, apiclass: Type[BaseQuizAPI], category: DefaultCategory, catkey):
         """
         Registers the support of a specific default category for a quiz api class.
 
@@ -83,7 +83,7 @@ class CategoryController:
     def get_supporters(self, category: DefaultCategory) -> list:
         return list(self.categories[category].supporters.keys())
 
-    def get_category_key(self, quizapi: BaseQuizAPI, category: DefaultCategory):
+    def get_category_key(self, quizapi: Type[BaseQuizAPI], category: DefaultCategory):
         """
         Returns the category key that a quizapi registered its support with.
 

@@ -13,11 +13,11 @@ from botutils.utils import sort_commands_helper, add_reaction, helpstring_helper
 from subsystems.helpsys import DefaultCategories
 
 from plugins.quiz.controllers import RushQuizController, PointsQuizController
-from plugins.quiz.quizapis import quizapis, opentdb, MetaQuizAPI
+from plugins.quiz.quizapis import quizapis, MetaQuizAPI
 from plugins.quiz.base import Difficulty
 from plugins.quiz.utils import get_best_username
 from plugins.quiz.migrations import migration
-from plugins.quiz.categories import CategoryController
+from plugins.quiz.categories import CategoryController, DefaultCategory
 
 
 class QuizInitError(Exception):
@@ -67,7 +67,7 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
             "quizapi": MetaQuizAPI,
             "questions": self.config["questions_default"],
             "method": Methods.START,
-            "category": None,
+            "category": DefaultCategory.ALL,
             "difficulty": Difficulty.EASY,
             "ranked": False,
             "gecki": False,
@@ -188,16 +188,17 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
             await add_reaction(ctx.message, Lang.CMDERROR)
             raise QuizInitError(self, "existing_quiz")
 
-        # Starting a new quiz
+        # Start a new quiz
         assert method == Methods.START
         await add_reaction(ctx.message, Lang.EMOJI["success"])
+        cat = self.category_controller.get_category_key(args["quizapi"], args["category"])
         async with ctx.typing():
             quiz_controller = controller_class(self,
                                                self.config,
                                                args["quizapi"],
                                                ctx.channel,
                                                ctx.message.author,
-                                               category=args["category"],
+                                               category=cat,
                                                question_count=args["questions"],
                                                difficulty=args["difficulty"],
                                                debug=args["debug"],
@@ -293,16 +294,6 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
 
         embed.add_field(name="Ladder:", value="\n".join(values))
         embed.set_footer(text=Lang.lang(self, "ladder_suffix"))
-        await ctx.send(embed=embed)
-
-    @cmd_kwiss.command(name="categories", aliases=["cat", "cats", "category"])
-    async def cmd_catlist(self, ctx, *args):
-        embed = discord.Embed(title="Categories:")
-        s = []
-        for el in opentdb["cat_mapping"]:
-            cat = el["names"]
-            s.append("**{}**: {}".format(cat[0], cat[1]))
-        embed.add_field(name="Name: Command", value="\n".join(s))
         await ctx.send(embed=embed)
 
     @cmd_kwiss.command(name="del", usage="<user>")
@@ -592,33 +583,15 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
                 continue
 
             # category
-            found_cat = False
-            for api in quizapis.values():
-                cat = api.category_key(arg)
-                if cat is not None:
-                    if found["category"]:
-                        raise QuizInitError(self, "dupiclate_cat_arg")
-                    parsed["category"] = arg
-                    found["category"] = True
-                    found_cat = True
-                    break
-            if found_cat:
+            cat = self.category_controller.get_cat_by_arg(arg)
+            if cat is not None:
+                if found["category"]:
+                    raise QuizInitError(self, "duplicate_cat_arg")
+                parsed["category"] = cat
+                found["category"] = True
                 continue
 
             raise QuizInitError(self, "unknown_arg", arg)
-
-        # set catkey and check if quizapi supports category
-        catkey = parsed["quizapi"].category_key(parsed["category"])
-        parsed["category"] = catkey
-        if found["quizapi"] or found["category"]:  # todo improve this check
-            if catkey is None:
-                apiname = None
-                for api in quizapis:
-                    if quizapis[api] == parsed["quizapi"]:
-                        apiname = api
-                        break
-                assert apiname is not None
-                raise QuizInitError(self, "category_not_supported", apiname, parsed["category"])
 
         self.logger.debug("Parsed kwiss args: %s", parsed)
         return controller, parsed

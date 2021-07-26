@@ -70,25 +70,6 @@ class BaseQuizAPI(ABC):
         """
         pass
 
-    @staticmethod
-    @abstractmethod
-    def category_name(catkey):
-        """
-        :param catkey: Opaque category key object that was previously returned by category_key()
-        :return: Human-readable representation of the quiz category
-        """
-        pass
-
-    @staticmethod
-    @abstractmethod
-    def category_key(catarg: str):
-        """
-        :param catarg: Argument that was passed that identifies a category
-        :return: Opaque category identifier that can be used in initialization and for category_name.
-            Returns None if catarg is an unknown category.
-        """
-        pass
-
     def __len__(self):
         """
         :return: Returns the amount of questions.
@@ -588,77 +569,3 @@ class Question:
             if el == emoji:
                 return True
         return False
-
-
-class CategoryKey:
-    """
-    Meta category key that represents one category as given as command argument
-    """
-    def __init__(self):
-        # entries are self._entries[quizapi] = {"key": key, "name": human-readable name}
-        self._entries = {}
-
-    def add_key(self, quizapi, key, name):
-        """
-        :param quizapi: QuizAPI class that understands key
-        :param key: category key that is understood by QuizAPI
-        :param name: human-readable name
-        :raises KeyError: Raised if the category key already exists
-        """
-        if quizapi in self._entries:
-            entry = self._entries[quizapi]
-            if key != entry["key"] or name != entry["name"]:
-                raise KeyError("{} already exists and is different".format(quizapi))
-            return
-        self._entries[quizapi] = {"key": key, "name": name}
-
-    def name(self):
-        """
-        Finds the best human-readable name for this category.
-        :return: Human-readable category name; None if there is nothing registered
-        """
-        if not self._entries:
-            return None
-        points = {}
-        for quizapi in self._entries:
-            entry = self._entries[quizapi]
-            if entry["name"] in points:
-                points[entry["name"]] += 1
-            else:
-                points[entry["name"]] = 0
-
-        return sorted(points.keys(), key=lambda x: points[x], reverse=True)[0]
-
-    def iter_quizapis(self):
-        """
-        Iterates over registered quizapis
-        """
-        for el in self._entries:
-            yield el
-
-    def get(self, quizapi):
-        """
-        :param quizapi: QuizAPI class that understands key
-        :return: key, name
-        """
-        return self.key(quizapi), self._entries[quizapi]["name"]
-
-    def key(self, quizapi):
-        """
-        :param quizapi: QuizAPI to return the category for
-        :return: This category's category key that corresponds to `quizapi`
-        """
-        return self._entries[quizapi]["key"]
-
-    def merge(self, catkey):
-        """
-        :param catkey: CategoryKey element that is to be merged into this object
-        """
-        for quizapi in catkey.iter_quizapis():
-            self.add_key(quizapi, *self.get(quizapi))
-
-    def is_empty(self):
-        """
-        :return: True if this category has no entries, False otherwise
-        """
-        return not self._entries
