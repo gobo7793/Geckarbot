@@ -69,23 +69,18 @@ class OpenTDBQuizAPI(BaseQuizAPI):
       TV (14)
     """
 
-    def __init__(self, config, channel, category,
-                 question_count=None, difficulty=Difficulty.EASY, debug=False):
+    def __init__(self, channel, category, question_count, difficulty=Difficulty.EASY, debug=False):
         """
-        :param config: plugin config
         :param channel: channel ID that this quiz was requested in
         :param category: Question topic / category. If None, it is chosen according to channel default mapping.
         :param question_count: Amount of questions to be asked, None for default
         :param difficulty: Difficulty enum ref that determines the difficulty of the questions
         """
         logging.info("Quiz API: OpenTDB")
-        self.config = config
         self.debug = debug
         self.channel = channel
         self.difficulty = difficulty
         self.question_count = question_count
-        if question_count is None:
-            self.question_count = self.config["questions_default"]
 
         self.client = restclient.Client(self.BASE_URL)
         self.current_question_i = -1
@@ -215,11 +210,11 @@ class Pastebin(BaseQuizAPI):
     NAME = "pastebin"
     URL = "https://pastebin.com/raw/QRGzxxEy"
 
-    def __init__(self, config, channel, category, question_count=None, difficulty=None, debug=False):
+    def __init__(self, channel, category, question_count, difficulty=None, debug=False):
         self.logger = logging.getLogger(__name__)
         self.questions = None
         self.current_question_i = -1
-        self.question_count = question_count if question_count is not None else config["questions_default"]
+        self.question_count = question_count
         self.channel = channel
         self.difficulty = difficulty
         self.debug = debug
@@ -320,9 +315,8 @@ class Fragespiel(BaseQuizAPI):
 
     URL = "https://www.fragespiel.com/quiz/training.html"
 
-    def __init__(self, config, channel, category, question_count=None, difficulty=None, debug=False):
+    def __init__(self, channel, category, question_count, difficulty=None, debug=False):
         self.logger = logging.getLogger(__name__)
-        self.config = config
         self.channel = channel
         self.categories = category
         self.question_count = question_count
@@ -471,12 +465,10 @@ class MetaQuizAPI(BaseQuizAPI):
     NAME = "meta"
     apis = [OpenTDBQuizAPI, Pastebin, Fragespiel]
 
-    def __init__(self, config, channel, category,
-                 question_count=None, difficulty=Difficulty.EASY, debug=False):
+    def __init__(self, channel, category, question_count, difficulty=Difficulty.EASY, debug=False):
         """
         Pulls from all implemented quiz APIs.
 
-        :param config: config dict
         :param channel: channel ID that this quiz was requested in
         :param category: Question topic / category. If None, it is chosen according to channel default mapping.
         :param question_count: Amount of questions to be asked, None for default
@@ -485,13 +477,10 @@ class MetaQuizAPI(BaseQuizAPI):
         self.logger = logging.getLogger(__name__)
         self.logger.info("Quiz API: Meta")
 
-        self.config = config
         self.debug = debug
         self.channel = channel
         self.difficulty = difficulty
         self.question_count = question_count
-        if question_count is None:
-            self.question_count = self.config["questions_default"]
 
         self.client = restclient.Client(OpenTDBQuizAPI.BASE_URL)
         self.current_question_i = -1
@@ -546,7 +535,7 @@ class MetaQuizAPI(BaseQuizAPI):
         apis = {}
         for api in apiclasses:
             self.logger.debug("%s from %s", question_counts[api], api)
-            apis[api] = api(self.config, self.channel, category=self.category[api], question_count=question_counts[api],
+            apis[api] = api(self.channel, self.category[api], question_counts[api],
                             difficulty=self.difficulty, debug=self.debug)
             await apis[api].fetch()
 

@@ -90,7 +90,7 @@ class BaseQuizController(ABC):
     Interface for a quiz controller for a specific game mode
     """
     @abstractmethod
-    def __init__(self, plugin, config, quizapi, channel, requester, **kwargs):
+    def __init__(self, plugin, quizapi, channel, requester, **kwargs):
         self.task = None
 
     @abstractmethod
@@ -194,17 +194,15 @@ class Score:
     """
     Represents a quiz controller's current score.
     """
-    def __init__(self, plugin, config, question_count):
+    def __init__(self, plugin, question_count):
         """
 
         :param plugin: Plugin reference
-        :param config: config dict
         :param question_count: Amount of questions
         """
         self._score = {}
         self._points = {}
         self.plugin = plugin
-        self.config = config
         self.question_count = question_count
         self.answered_questions = []
 
