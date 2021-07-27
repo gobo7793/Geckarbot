@@ -23,7 +23,7 @@ class Plugin(BasePlugin, _Liveticker, _Predgame, _Livescores, name="Sport"):
 
     def default_config(self):
         return {
-            'cfg_version': 2,
+            'cfg_version': 3,
             'sport_chan': 0,
             'league_aliases': {"bl": ["ger.1", "espn"]},
             'liveticker': {
