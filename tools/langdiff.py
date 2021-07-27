@@ -28,8 +28,8 @@ class Found:
 
     def __len__(self):
         r = 0
-        for _, found in self.found.items():
-            for _, el in found.items():
+        for found in self.found.values():
+            for el in found.values():
                 r += len(el)
         return r
 
