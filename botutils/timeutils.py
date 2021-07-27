@@ -52,11 +52,15 @@ def parse_time_input(*args, end_of_day: bool = False) -> datetime:
     def parse_time(t):
         try:
             parsed = datetime.strptime(t, dt_format)
-            return datetime(parsed.year if '%Y' in dt_format else today.year,
-                            parsed.month if '%m' in dt_format else today.month,
-                            parsed.day if '%d' in dt_format else today.day,
-                            parsed.hour if '%H' in dt_format else fill_time.hour,
-                            parsed.minute if '%M' in dt_format else fill_time.minute)
+            r = datetime(parsed.year if '%Y' in dt_format else today.year,
+                         parsed.month if '%m' in dt_format else today.month,
+                         parsed.day if '%d' in dt_format else today.day,
+                         parsed.hour if '%H' in dt_format else fill_time.hour,
+                         parsed.minute if '%M' in dt_format else fill_time.minute)
+            # use next year instead if the year was not specified and the date would be in the past
+            if '%Y' not in dt_format and r < datetime.now():
+                r = datetime(r.year + 1, r.month, r.day, r.hour, r.minute)
+            return r
         except ValueError:
             return None
 

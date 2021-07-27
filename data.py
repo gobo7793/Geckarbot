@@ -103,9 +103,6 @@ class ConfigurableData:
     def structures(self):
         return self._structures.keys()
 
-    def has_structure(self, container=None):
-        return container in self._structures
-
     def get(self, container=None):
         """
         Returns the general data or from the given container
@@ -159,10 +156,6 @@ class IODirectory(metaclass=_Singleton):
     @classmethod
     def set_default(cls, configurable):
         configurable.complaints = configurable.default_storage()
-
-    @classmethod
-    def has_structure(cls, plugin):
-        return cls() in plugin.iodirs and plugin.iodirs[cls()] is not None
 
     #######
     # Save/Load/Get configurable data
