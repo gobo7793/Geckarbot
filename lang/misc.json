@@ -6,10 +6,6 @@
         "mudkip_out": "https://www.youtube.com/watch?v=3DkqMjfqqPc",
         "tree_out": "cko!",
 
-        "help_mud": "Kip!",
-        "help_mudkip": "Mudkip!",
-        "help_geck": "Arbor!",
-
         "#1": "Stuff",
         "geck_error": "An error occured during `!geck` command. Does the file {} exist?",
         "choose_sabaton": "SABATON! SABATON! Sabaton is always the best choice, but...",
@@ -31,6 +27,12 @@
         "desc_choose": "Picks on of the options. Separate options with '|'",
         "usage_choose": "Option 1 | Option 2 | ...",
         "help_kw": "Shows the week number to a date.",
+        "help_multichoose": "Like !choose but chooses multiple options.",
+        "desc_multichoose": "Randomly draws from specified options. Options are to be separated by |",
+        "usage_multichoose": "<Amount of draws> option1 | option2 | ...",
+        "help_geck": "Arbor!",
+        "help_mud": "Kip!",
+        "help_mudkip": "Mudkip!",
         "desc_mudkip": "Wheres the '!mud' comes from.",
         "help_mimimi": "For special mimimi moments",
         "desc_mimimi": "Provides an .mp3 file that plays the sound of 'mimimi'.",
@@ -41,6 +43,12 @@
         "usage_money": "<currency> [other_currency] [amount]"
     },
     "de_DE": {
+        "#0": "Single lang strings",
+        "geck_out": "arbor!",
+        "mud_out": "Kip!",
+        "mudkip_out": "https://www.youtube.com/watch?v=3DkqMjfqqPc",
+        "tree_out": "cko!",
+
         "#1": "Stuff",
         "geck_error": "Beim Kommando `!geck` lief was schief. Gibt es die Datei {}?",
         "choose_sabaton": "NOCH EIN BIER! NOCH EIN BIER! Also Sabaton geht ja immer, aber...",
@@ -65,6 +73,7 @@
         "help_multichoose": "Wie !choose, aber wählt mehrere aus.",
         "desc_multichoose": "Zieht zufällig aus anzugebenden Optionen. Optionen sind mit | zu trennen.",
         "usage_multichoose": "<Anzahl Ausgaben> option1 | option2 | ...",
+        "help_geck": "Arbor!",
         "help_mud": "Kip!",
         "help_mudkip": "Hydropi!",
         "desc_mudkip": "Erklärt die Herkunft von '!mud'.",
