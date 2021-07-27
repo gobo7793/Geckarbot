@@ -15,6 +15,7 @@
         "list_suffix": "To show the output texts of a command, type `!cmd info <command>`",
         "raw_suffix": "\n\n*These are output textes {} to {}. To see more, use `!cmd info {} {}+` (or `++`).*",
         "raw_prefix": "{}{} (Creator: {}, Total output textes: {})\n",
+        "raw_aliases": " (Alias: {})",
         "raw_text": "#{}: {} (Author: {})",
         "search_prefix": "Search results:",
 

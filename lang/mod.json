@@ -73,7 +73,7 @@
         "list_active": "**Blocked active command usages:**\n",
         "until": " until {}",
         "until_strf": "%Y-%m-%d, %-I:%M %p",
-        "command_blocked": "Command `{}` is blocked in this channel{} now.",
+        "cmd_blocked": "Command `{}` is blocked in this channel{} now.",
         "user_blocked": "{} is blocked{} now.",
         "active_usage_blocked": "{} can't use command `{}`{} now.",
         "all_passives_unblocked": "Now, you have definitely no commands anymore, which you've blocked earlier.",
