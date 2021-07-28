@@ -1,6 +1,7 @@
 import asyncio
 import datetime
 import logging
+from abc import ABC, abstractmethod
 from enum import Enum
 from typing import List, Generator, Tuple, Optional, Dict, Iterable
 
@@ -367,7 +368,6 @@ class MatchStub:
         """Transforms the data for the storage"""
         return {self.home_team_id: self.home_team.long_name, self.away_team_id: self.away_team.long_name}
 
-
 class Match(MatchStub):
     """
     Soccer match
@@ -497,136 +497,102 @@ class Match(MatchStub):
         return match
 
 
-class PlayerEvent:
-    """Event during a match"""
+class PlayerEvent(ABC):
+    """Base class for all event types in a match"""
 
-    def __init__(self, event_id: str, player: str, minute: str):
-        self.event_id = event_id
-        self.player = player
-        self.minute = minute
+    event_id: str
+    player: str
+    minute: str
+
+    @abstractmethod
+    def display(self):
+        pass
+
+class GoalBase(PlayerEvent, ABC):
+    """Base class for Goals"""
+
+    score: Dict[str, int]
+    is_owngoal: bool
+    is_penalty: bool
+    is_overtime: bool
 
     def display(self) -> str:
-        """Returns display string"""
-        return "<PlayerEvent {} ({})>".format(self.player, self.minute)
-
-
-class Goal(PlayerEvent):
-    """
-    PlayerEvent for a goal
-    :param event_id: id of the goal
-    :param player: goalgetter
-    :param minute: match minute the goal was scored
-    :param score: score of the match at the time of the goal
-    :param is_owngoal: whether goal was scored by the defending team
-    :param is_penalty: whether goal was scored as a penalty
-    """
-
-    def __init__(self, event_id, player, minute, score: dict, is_owngoal: bool, is_penalty: bool):
-        super().__init__(event_id, player, minute)
-        self.score = score
-        self.is_owngoal = is_owngoal
-        self.is_penalty = is_penalty
-        self.is_overtime = False
-
-    @classmethod
-    def from_openligadb(cls, g: dict, home_id: str, away_id: str):
-        """
-        Builds the Goal object from a OpenLigaDB source
-
-        :param g: goal data
-        :param home_id: id of the home team
-        :param away_id: id of the away team
-        :return: Goal object
-        :rtype: Goal
-        """
-        goal = cls(event_id=g.get('GoalID'),
-                   player=g.get('GoalGetterName'),
-                   minute=g.get('MatchMinute'),
-                   score={home_id: g.get('ScoreTeam1'),
-                          away_id: g.get('ScoreTeam2')},
-                   is_owngoal=g.get('IsOwnGoal'),
-                   is_penalty=g.get('IsPenalty'))
-        goal.is_overtime = g.get('IsOvertime')
-        return goal
-
-    @classmethod
-    def from_espn(cls, g: dict, score: dict):
-        """
-        Builds the Goal object from a ESPN source
-
-        :param g: goal data
-        :param score: current score
-        :return: Goal object
-        :rtype: Goal
-        """
-        score[g.get('team', {}).get('id')] += g.get('scoreValue')
-        goal = cls(event_id="{}/{}/{}".format(g.get('type', {}).get('id'),
-                                              g.get('clock', {}).get('value'),
-                                              g.get('athletesInvolved', [{}])[0].get('id')),
-                   player=g.get('athletesInvolved', [{}])[0].get('displayName'),
-                   minute=g.get('clock', {}).get('displayValue'),
-                   score=score,
-                   is_owngoal=g.get('ownGoal'),
-                   is_penalty=g.get('penaltyKick'))
-        return goal
-
-    def display(self):
         if self.is_owngoal:
             return ":soccer::back: {}:{} {} ({})".format(*list(self.score.values())[0:2], self.player, self.minute)
         if self.is_penalty:
             return ":soccer::goal: {}:{} {} ({})".format(*list(self.score.values())[0:2], self.player, self.minute)
         return ":soccer: {}:{} {} ({})".format(*list(self.score.values())[0:2], self.player, self.minute)
 
+class GoalESPN(GoalBase):
+    """Goal from an ESPN source"""
 
-class YellowCard(PlayerEvent):
-    """PlayerEvent for a yellow card"""
+    def __init__(self, g: dict, score: dict):
+        score[g.get('team', {}).get('id')] += g.get('scoreValue')
+        self.event_id = "{}/{}/{}".format(g.get('type', {}).get('id'),
+                                          g.get('clock', {}).get('value'),
+                                          g.get('athletesInvolved', [{}])[0].get('id'))
+        self.player = g.get('athletesInvolved', [{}])[0].get('displayName')
+        self.minute = g.get('clock', {}).get('displayValue')
+        self.score = score
+        self.is_owngoal = g.get('ownGoal')
+        self.is_penalty = g.get('penaltyKick')
+        self.is_overtime = False
 
-    @classmethod
-    def from_espn(cls, yc: dict):
-        """
-        PlayerEvent for a yellow card from a ESPN source
 
-        :param yc: event data
-        :return: YellowCard
-        :rtype: YellowCard
-        """
-        return cls(event_id="{}/{}/{}".format(yc.get('type', {}).get('id'),
-                                              yc.get('clock', {}).get('value'),
-                                              yc.get('athletesInvolved', [{}])[0].get('id')),
-                   player=yc.get('athletesInvolved', [{}])[0].get('displayName'),
-                   minute=yc.get('clock', {}).get('displayValue'))
+class GoalOLDB(GoalBase):
+    """Goal from an OpenLigaDB source"""
+
+    def __init__(self, g: dict, home_id: str, away_id: str):
+        self.event_id = g.get('GoalID')
+        self.player = g.get('GoalGetterName')
+        self.minute = g.get('MatchMinute')
+        self.score = {home_id: g.get('ScoreTeam1'), away_id: g.get('ScoreTeam2')}
+        self.is_owngoal = g.get('IsOwnGoal')
+        self.is_penalty = g.get('IsPenalty')
+        self.is_overtime = g.get('IsOvertime')
+
+
+class YellowCardBase(PlayerEvent, ABC):
+    """Base class for yellow cards"""
 
     def display(self):
         return ":yellow_square: {} ({})".format(self.player, self.minute)
 
 
-class RedCard(PlayerEvent):
-    """PlayerEvent for a red card"""
+class YellowCardESPN(YellowCardBase):
+    """Yellow card from an ESPN source"""
 
-    @classmethod
-    def from_espn(cls, rc: dict):
-        """
-        PlayerEvent for a red card from a ESPN source
+    def __init__(self, yc: dict):
+        self.event_id = "{}/{}/{}".format(yc.get('type', {}).get('id'),
+                                          yc.get('clock', {}).get('value'),
+                                          yc.get('athletesInvolved', [{}])[0].get('id'))
+        self.player = yc.get('athletesInvolved', [{}])[0].get('displayName')
+        self.minute = yc.get('clock', {}).get('displayValue')
 
-        :param rc: event data
-        :return: RedCard
-        :rtype: RedCard
-        """
-        return cls(event_id="{}/{}/{}".format(rc.get('type', {}).get('id'),
-                                              rc.get('clock', {}).get('value'),
-                                              rc.get('athletesInvolved', [{}])[0].get('id')),
-                   player=rc.get('athletesInvolved', [{}])[0].get('displayName'),
-                   minute=rc.get('clock', {}).get('displayValue'))
+
+class RedCardBase(PlayerEvent, ABC):
+    """Base class for red cards"""
 
     def display(self):
         return ":red_square: {} ({})".format(self.player, self.minute)
 
 
+class RedCardESPN(RedCardBase):
+    """PlayerEvent for a red card"""
+
+    def __init__(self, rc: dict):
+        self.event_id = "{}/{}/{}".format(rc.get('type', {}).get('id'),
+                                          rc.get('clock', {}).get('value'),
+                                          rc.get('athletesInvolved', [{}])[0].get('id'))
+        self.player = rc.get('athletesInvolved', [{}])[0].get('displayName')
+        self.minute = rc.get('clock', {}).get('displayValue')
+
+
 class PlayerEventEnum(Enum):
     """Enum for the different types of PlayerEvents"""
-    GOAL = Goal
-    YELLOWCARD = YellowCard
-    REDCARD = RedCard
+    GOAL = GoalBase
+    YELLOWCARD = YellowCardBase
+    REDCARD = RedCardBase
 
     @staticmethod
     def build_player_event(event: dict, score: dict) -> PlayerEvent:
@@ -639,11 +605,11 @@ class PlayerEventEnum(Enum):
         :raises ValueError: when event type does not match with the expected values
         """
         if event.get('scoringPlay'):
-            return Goal.from_espn(event, score)
+            return GoalESPN(event, score)
         if event.get('type', {}).get('id') == "93":
-            return RedCard.from_espn(event)
+            return RedCardESPN(event)
         if event.get('type', {}).get('id') == "94":
-            return YellowCard.from_espn(event)
+            return YellowCardESPN(event)
         raise ValueError("Unexpected event type {}: {}".format(event.get('type', {}).get('id'),
                                                                event.get('type', {}).get('name')))
 
@@ -726,14 +692,14 @@ class CoroRegistration:
             events = []
             if self.league_reg.source == LTSource.OPENLIGADB:
                 for g in m.raw_events:
-                    goal = Goal.from_openligadb(g, m.home_team_id, m.away_team_id)
+                    goal = GoalOLDB(g, m.home_team_id, m.away_team_id)
                     if goal.event_id not in self.last_events[m.match_id]:
                         events.append(goal)
             elif self.league_reg.source == LTSource.ESPN:
                 tmp_score = {m.home_team_id: 0, m.away_team_id: 0}
                 for e in m.raw_events:
                     event = PlayerEventEnum.build_player_event(e, tmp_score.copy())
-                    if isinstance(event, Goal):
+                    if isinstance(event, GoalBase):
                         tmp_score = event.score
                     if event.event_id not in self.last_events[m.match_id]:
                         events.append(event)
