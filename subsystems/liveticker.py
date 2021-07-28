@@ -781,6 +781,7 @@ class LeagueRegistration:
         self.source = source
         self.registrations = []
         self.logger = logging.getLogger(__name__)
+        self.kickoffs = {}
         self.kickoff_timers = []
         self.intermediate_timers = []
         self.matches = []
@@ -790,7 +791,7 @@ class LeagueRegistration:
     async def create(cls, listener, league: str, source: LTSource):
         """New LeagueRegistration"""
         l_reg = LeagueRegistration(listener, league, source)
-        await l_reg.schedule_kickoffs(listener.current_timer.next_execution())
+        await l_reg.schedule_kickoffs(until=listener.semiweekly_timer.next_execution())
         return l_reg
 
     @classmethod
@@ -856,46 +857,71 @@ class LeagueRegistration:
     async def update_matches(self, matchday=None):
         """Updates the matches and current standings of the league"""
         if self.source == LTSource.OPENLIGADB:
-            await self._update_matches_oldb(matchday)
+            if matchday:
+                self.matches = await self.get_matches_oldb_by_matchday(matchday=matchday)
+            else:
+                self.matches = await self.get_matches_oldb_by_date()
         elif self.source == LTSource.ESPN:
-            await self._update_matches_espn()
+            self.matches = await self.get_matches_espn()
         return self.matches
 
-    async def _update_matches_oldb(self, matchday: int = None):
-        """
-        Updates matches with source from OpenLigaDB
+    async def get_matches_espn(self, from_day: datetime.date = None, until_day: datetime.date = None) -> List[Match]:
+        """Requests espn match data for a specified date range"""
+        if from_day is None:
+            from_day = datetime.date.today()
+        if until_day is None:
+            until_day = from_day
 
-        :param matchday: alternative matchday
-        """
-        # TODO rework
-        if matchday:
-            raw_matches = await restclient.Client("https://www.openligadb.de/api").request(
-                "/getmatchdata/{}/2020/{}".format(self.league, matchday))
-            self.matches = [Match.from_openligadb(m) for m in raw_matches]
-        elif self.matchday():
-            if self.next_execution():
-                await self._update_matches_oldb(matchday=self.matchday())
-            else:
-                await self._update_matches_oldb(matchday=self.matchday() + 1)
-                # self.schedule_kickoffs_oooooooold()
-        else:
-            raw_matches = await restclient.Client("https://www.openligadb.de/api").request(
-                "/getmatchdata/{}".format(self.league))
-            self.matches = [Match.from_openligadb(m) for m in raw_matches]
-            if not self.extract_kickoffs_with_matches():
-                md = self.matchday()
-                if md:
-                    await self._update_matches_oldb(matchday=md + 1)
-
-    async def _update_matches_espn(self):
-        """Updates the matches with the espn-source"""
-        # call ESPN two times to reload server cache
-        _ = await restclient.Client("http://site.api.espn.com/apis/site/v2/sports").request(
-            f"/soccer/{self.league}/scoreboard")
+        dates = "{}-{}".format(from_day.strftime("%Y%m%d"), until_day.strftime("%Y%m%d"))
+        _ = await restclient.Client("http://site.api.espn.com/apis/site/v2/sports") \
+            .request(f"/soccer/{self.league}/scoreboard", params={'dates': dates})
         await asyncio.sleep(5)
-        raw = await restclient.Client("http://site.api.espn.com/apis/site/v2/sports").request(
-            f"/soccer/{self.league}/scoreboard")
-        self.matches = [Match.from_espn(m) for m in raw.get('events', [])]
+        data = await restclient.Client("http://site.api.espn.com/apis/site/v2/sports") \
+            .request(f"/soccer/{self.league}/scoreboard", params={'dates': dates})
+        matches = [Match.from_espn(x) for x in data['events']]
+        return matches
+
+    async def get_matches_oldb_by_date(self, from_day: datetime.date = None, until_day: datetime.date = None,
+                                       limit: int = 5) -> List[Match]:
+        """
+        Requests openligadb match data for a specified date range. Doesn't support past days or dates too far into
+        future since it is all matchday-based and starts from the present matchday.
+
+        :param from_day: start of the date range. No past days supported.
+        :param until_day: end of the date range.
+        :param limit: maximum number of requests respectivly the number of matchdays checked for fitting matches.
+        """
+        if from_day is None:
+            from_day = datetime.date.today()
+        if until_day is None:
+            until_day = from_day
+
+        data = await restclient.Client("https://www.openligadb.de/api").request("/getmatchdata/{}".format(self.league))
+        matches = []
+        if not data:
+            return []
+        for m in data:
+            match = Match.from_openligadb(m)
+            if match.kickoff.date() > until_day:
+                break
+            if match.kickoff.date() >= from_day:
+                matches.append(match)
+        else:
+            for i in range(1, limit):
+                add_matches = await self.get_matches_oldb_by_matchday(matchday=matches[-1].matchday)
+                if not add_matches:
+                    break
+                else:
+                    matches.extend(add_matches)
+        return matches
+
+    async def get_matches_oldb_by_matchday(self, matchday: int, season: int = None):
+        if season is None:
+            date = datetime.date.today()
+            season = date.year if date.month > 6 else date.year - 1
+        data = await restclient.Client("https://www.openligadb.de/api").request(
+            f"/getmatchdata/{self.league}/{season}/{matchday}")
+        return [Match.from_openligadb(m) for m in data]
 
     def extract_kickoffs_with_matches(self) -> dict:
         """
@@ -933,15 +959,10 @@ class LeagueRegistration:
         now = datetime.datetime.now()
         Storage().get(self.listener)['registrations'][self.source.value][self.league]['kickoffs'] = {}
 
+        matches: List[Match]
         if self.source == LTSource.ESPN:
             # Match collection for ESPN
-            dates = "{}-{}".format(now.strftime("%Y%m%d"), until.strftime("%Y%m%d"))
-            _ = await restclient.Client("http://site.api.espn.com/apis/site/v2/sports") \
-                .request(f"/soccer/{self.league}/scoreboard", params={'dates': dates})
-            await asyncio.sleep(5)
-            data = await restclient.Client("http://site.api.espn.com/apis/site/v2/sports") \
-                .request(f"/soccer/{self.league}/scoreboard", params={'dates': dates})
-            matches = [Match.from_espn(x) for x in data['events']]
+            matches = await self.get_matches_espn(from_day=now, until_day=until)
         elif self.source == LTSource.OPENLIGADB:
             # Match collection for OpenLigaDB
             raw_matches = []
@@ -1096,7 +1117,8 @@ class Liveticker(BaseSubsystem):
         self.registrations = {x: {} for x in LTSource}
         self.teamname_converter = TeamnameConverter(self)
         self.restored = False
-        self.current_timer = None
+        self.hourly_timer = None
+        self.semiweekly_timer = None
 
         # Update storage
         if not Storage().get(self).get('storage_version'):
@@ -1117,12 +1139,13 @@ class Liveticker(BaseSubsystem):
             plugins = self.bot.get_normalplugins()
             await self.restore(plugins)
             self.restored = True
-            timedict = timers.timedict(weekday=[2, 5], hour=[4], minute=[0])
-            self.current_timer = self.bot.timers.schedule(coro=self._semiweekly_timer, td=timedict)
+            self.hourly_timer = self.bot.timers.schedule(coro=self._hourly_timer_coro, td=timers.timedict(minute=[0]))
+            self.semiweekly_timer = self.bot.timers.schedule(coro=self._semiweekly_timer_coro,
+                                                             td=timers.timedict(weekday=[2, 5], hour=[4], minute=[0]))
             if Storage().get(self).get('next_semiweekly') is None or \
                     datetime.datetime.strptime(Storage().get(self)['next_semiweekly'], "%Y-%m-%d %H:%M") \
                     < datetime.datetime.now():
-                self.current_timer.execute()
+                self.semiweekly_timer.execute()
 
     def default_storage(self, container=None):
         if container == 'teamname':
@@ -1264,7 +1287,11 @@ class Liveticker(BaseSubsystem):
             c_reg.unload()
         self.logger.debug('Liveticker for plugin %s unloaded', plugin_name)
 
-    async def _semiweekly_timer(self, _job):
+    async def _hourly_timer_coro(self, _job):
+        self.logger.debug("Hourly timer schedules liveticker timers for this hour.")
+        # TODO Hourly timer
+
+    async def _semiweekly_timer_coro(self, _job):
         """
         Coroutine used by the semi-weekly timer for the scheduling of matches
 
@@ -1272,7 +1299,7 @@ class Liveticker(BaseSubsystem):
         :return: None
         """
         self.logger.debug("Semi-Weekly timer schedules matches.")
-        until = self.current_timer.next_execution()
+        until = self.semiweekly_timer.next_execution()
         for source in LTSource:
             for league_reg in self.registrations[source].values():
                 await league_reg.schedule_kickoffs(until)
