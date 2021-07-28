@@ -285,6 +285,8 @@ class TeamnameConverter:
 
 
 class TableEntryBase(ABC):
+    """Base class for an entry of a standings table"""
+
     rank: int
     team: TeamnameDict
     won: int
@@ -308,6 +310,12 @@ class TableEntryBase(ABC):
 
 
 class TableEntryESPN(TableEntryBase):
+    """
+    Table entry from an ESPN source
+
+    :param data: raw data from the request
+    :param converter: teamname converter
+    """
 
     def __init__(self, data: dict, converter: TeamnameConverter):
         stats = {x['name']: (int(x['value']) if x.get('value') is not None else None) for x in data['stats']}
@@ -327,6 +335,12 @@ class TableEntryESPN(TableEntryBase):
 
 
 class TableEntryOLDB(TableEntryBase):
+    """
+    Table entry from an OpenLigaDB source
+
+    :param data: raw data from the request
+    :param converter: teamname converter
+    """
 
     def __init__(self, data: dict, converter: TeamnameConverter):
         self.rank = data['rank']
@@ -528,7 +542,12 @@ class GoalBase(PlayerEvent, ABC):
         return ":soccer: {}:{} {} ({})".format(*list(self.score.values())[0:2], self.player, self.minute)
 
 class GoalESPN(GoalBase):
-    """Goal from an ESPN source"""
+    """
+    Goal from an ESPN source
+
+    :param g: raw data from the request
+    :param score: score dict from before the goal
+    """
 
     def __init__(self, g: dict, score: dict):
         score[g.get('team', {}).get('id')] += g.get('scoreValue')
@@ -544,7 +563,13 @@ class GoalESPN(GoalBase):
 
 
 class GoalOLDB(GoalBase):
-    """Goal from an OpenLigaDB source"""
+    """
+    Goal from an OpenLigaDB source
+
+    :param g: raw data from the request
+    :param home_id: id of the home team
+    :param away_id: id of the away team
+    """
 
     def __init__(self, g: dict, home_id: str, away_id: str):
         self.event_id = g.get('GoalID')
@@ -564,7 +589,11 @@ class YellowCardBase(PlayerEvent, ABC):
 
 
 class YellowCardESPN(YellowCardBase):
-    """Yellow card from an ESPN source"""
+    """
+    Yellow card from an ESPN source
+
+    :param yc: raw data from the request
+    """
 
     def __init__(self, yc: dict):
         self.event_id = "{}/{}/{}".format(yc.get('type', {}).get('id'),
@@ -582,7 +611,11 @@ class RedCardBase(PlayerEvent, ABC):
 
 
 class RedCardESPN(RedCardBase):
-    """PlayerEvent for a red card"""
+    """
+    Red card from an ESPN source
+
+    :param rc: raw data from the request
+    """
 
     def __init__(self, rc: dict):
         self.event_id = "{}/{}/{}".format(rc.get('type', {}).get('id'),
@@ -599,9 +632,9 @@ class PlayerEventEnum(Enum):
     REDCARD = RedCardBase
 
     @staticmethod
-    def build_player_event(event: dict, score: dict) -> PlayerEvent:
+    def build_player_event_espn(event: dict, score: dict) -> PlayerEvent:
         """
-        Builds the corresponding PlayerEvent from the given event dict
+        Builds the corresponding PlayerEvent from the given event dict. ESPN only
 
         :param event: event data dictionary
         :param score: current score
@@ -702,7 +735,7 @@ class CoroRegistration:
             elif self.league_reg.source == LTSource.ESPN:
                 tmp_score = {m.home_team_id: 0, m.away_team_id: 0}
                 for e in m.raw_events:
-                    event = PlayerEventEnum.build_player_event(e, tmp_score.copy())
+                    event = PlayerEventEnum.build_player_event_espn(e, tmp_score.copy())
                     if isinstance(event, GoalBase):
                         tmp_score = event.score
                     if event.event_id not in self.last_events[m.match_id]:
