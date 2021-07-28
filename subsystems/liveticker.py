@@ -965,19 +965,7 @@ class LeagueRegistration:
             matches = await self.get_matches_espn(from_day=now, until_day=until)
         elif self.source == LTSource.OPENLIGADB:
             # Match collection for OpenLigaDB
-            raw_matches = []
-            data = await restclient.Client("https://www.openligadb.de/api").request(f"/getmatchdata/{self.league}")
-            if not data:
-                return
-            raw_matches.extend(data)
-            md = data[0]['Group']['GroupOrderID']
-            season = now.year
-            if now.month < 7:
-                season -= 1
-            data = await restclient.Client("https://www.openligadb.de/api").request(f"/getmatchdata/"
-                                                                                    f"{self.league}/{season}/{md}")
-            raw_matches.extend(data)
-            matches = [Match.from_openligadb(x) for x in raw_matches]
+            matches = await self.get_matches_oldb_by_date(from_day=now, until_day=until)
         else:
             raise ValueError("Source {} is not supported.".format(self.source))
 
