@@ -284,46 +284,16 @@ class TeamnameConverter:
                 continue
 
 
-class TableEntry:
-    """
-    Single entry of a table for the current standings in a league.
-
-    :param data: raw data
-    :param source: data source
-    :param converter: Teamname converter
-    """
-
-    def __init__(self, data: dict, source: LTSource, converter: TeamnameConverter):
-        self.source = source
-        if source == LTSource.OPENLIGADB:
-            self.rank = data['rank']
-            self.team = converter.get(data['TeamName'])
-            if not self.team:
-                self.team = converter.add(long_name=data['TeamName'], short_name=data['ShortName'])
-            self.won = data['Won']
-            self.draw = data['Draw']
-            self.lost = data['Lost']
-            self.goals = data['Goals']
-            self.goals_against = data['OpponentGoals']
-            self.points = data['Points']
-            self.rank_change = None
-        elif source == LTSource.ESPN:
-            stats = {x['name']: (int(x['value']) if x.get('value') is not None else None) for x in data['stats']}
-            self.rank = stats.get('rank')
-            self.team = converter.get(data['team']['displayName'])
-            if not self.team:
-                self.team = converter.add(long_name=data['team']['displayName'],
-                                          short_name=data['team']['shortDisplayName'],
-                                          abbr=data['team']['abbreviation'])
-            self.won = stats.get('wins')
-            self.draw = stats.get('ties')
-            self.lost = stats.get('losses')
-            self.goals = stats.get('pointsFor')
-            self.goals_against = stats.get('pointsAgainst')
-            self.points = stats.get('points')
-            self.rank_change = stats.get('rankChange')
-        else:
-            raise ValueError('Invalid source')
+class TableEntryBase(ABC):
+    rank: int
+    team: TeamnameDict
+    won: int
+    draw: int
+    lost: int
+    goals: int
+    goals_against: int
+    points: int
+    rank_change: int = 0
 
     def display(self) -> str:
         """Returns the display string for use in an embed"""
@@ -335,6 +305,40 @@ class TableEntry:
         sign = ["-", "±", "+"][(goal_diff > 0) - (goal_diff < 0) + 1]
         return f"`{self.rank:2} `{team_str}|" \
                f"{self.goals:2}:{self.goals_against:<2} ({sign}{abs(goal_diff):2})| {self.points:2}`"
+
+
+class TableEntryESPN(TableEntryBase):
+
+    def __init__(self, data: dict, converter: TeamnameConverter):
+        stats = {x['name']: (int(x['value']) if x.get('value') is not None else None) for x in data['stats']}
+        self.rank = stats.get('rank')
+        self.team = converter.get(data['team']['displayName'])
+        if not self.team:
+            self.team = converter.add(long_name=data['team']['displayName'],
+                                      short_name=data['team']['shortDisplayName'],
+                                      abbr=data['team']['abbreviation'])
+        self.won = stats.get('wins')
+        self.draw = stats.get('ties')
+        self.lost = stats.get('losses')
+        self.goals = stats.get('pointsFor')
+        self.goals_against = stats.get('pointsAgainst')
+        self.points = stats.get('points')
+        self.rank_change = stats.get('rankChange')
+
+
+class TableEntryOLDB(TableEntryBase):
+
+    def __init__(self, data: dict, converter: TeamnameConverter):
+        self.rank = data['rank']
+        self.team = converter.get(data['TeamName'])
+        if not self.team:
+            self.team = converter.add(long_name=data['TeamName'], short_name=data['ShortName'])
+        self.won = data['Won']
+        self.draw = data['Draw']
+        self.lost = data['Lost']
+        self.goals = data['Goals']
+        self.goals_against = data['OpponentGoals']
+        self.points = data['Points']
 
 
 class MatchStub:
@@ -1260,7 +1264,7 @@ class Liveticker(BaseSubsystem):
         Storage().get(self)['next_semiweekly'] = until.strftime("%Y-%m-%d %H:%M")
         Storage().save(self)
 
-    async def get_standings(self, league: str, source: LTSource) -> Tuple[str, Dict[str, List[TableEntry]]]:
+    async def get_standings(self, league: str, source: LTSource) -> Tuple[str, Dict[str, List[TableEntryBase]]]:
         """
         Returns the current standings of that league
 
@@ -1280,7 +1284,7 @@ class Liveticker(BaseSubsystem):
             for group in groups:
                 entries = group['standings']['entries']
                 group_name = group['name']
-                tables[group_name] = [TableEntry(entry, LTSource.ESPN, self.teamname_converter) for entry in entries]
+                tables[group_name] = [TableEntryESPN(entry, self.teamname_converter) for entry in entries]
         elif source == LTSource.OPENLIGADB:
             year = (datetime.datetime.today() - datetime.timedelta(days=180)).year
             data = await restclient.Client("https://www.openligadb.de/api").request(f"/getbltable/{league}/{year}")
@@ -1289,7 +1293,7 @@ class Liveticker(BaseSubsystem):
                 raise ValueError(f"Unable to retrieve any standings information for {league}")
             for i in range(len(data)):
                 data[i]['rank'] = i + 1
-                table.append(TableEntry(data[i], LTSource.OPENLIGADB, self.teamname_converter))
+                table.append(TableEntryOLDB(data[i], self.teamname_converter))
             tables[league] = table
         else:
             raise ValueError("Invalid source")
