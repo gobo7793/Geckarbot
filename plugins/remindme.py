@@ -126,6 +126,7 @@ class Plugin(BasePlugin):
                 await ctx.send(Lang.lang(self, 'remind_del_id_err', reminder_id))
                 return
             if self.reminders[reminder_id].data['user'] == ctx.author.id:
+                self.reminders[reminder_id].cancel()
                 self._remove_reminder(reminder_id)
                 await utils.add_reaction(ctx.message, Lang.CMDSUCCESS)
                 return
@@ -138,6 +139,7 @@ class Plugin(BasePlugin):
             if item.data['user'] == ctx.author.id:
                 to_remove.append(key)
         for el in to_remove:
+            self.reminders[reminder_id].cancel()
             self._remove_reminder(el)
 
         await utils.add_reaction(ctx.message, Lang.CMDSUCCESS)
@@ -212,12 +214,11 @@ class Plugin(BasePlugin):
         :param reminder_id: the reminder ID
         """
         if reminder_id in self.reminders:
-            self.reminders[reminder_id].cancel()
             del self.reminders[reminder_id]
         if reminder_id in Storage().get(self)['reminders']:
             del Storage().get(self)['reminders'][reminder_id]
         Storage().save(self)
-        log.info("Reminder %d removed", reminder_id)
+        log.info("Removed reminder %d", reminder_id)
 
     async def _reminder_callback(self, job):
         log.info("Executing reminder %d", job.data['id'])
@@ -234,5 +235,4 @@ class Plugin(BasePlugin):
             remind_text = Lang.lang(self, 'remind_callback_no_msg', user.mention)
 
         await channel.send(remind_text)
-        log.info("Executed reminder %d", rid)
         self._remove_reminder(rid)
