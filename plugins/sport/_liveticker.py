@@ -50,7 +50,7 @@ class _Liveticker:
                     for league in leagues:
                         reg_ = await self.bot.liveticker.register(
                             league=league, raw_source=source, plugin=self, coro=self._live_coro, periodic=True,
-                            interval=Config().get(self)['liveticker'].get('interval', 15))
+                            interval=Config().get(self)['liveticker']['interval'])
                         next_exec = reg_.next_execution()
                         if next_exec:
                             next_exec = next_exec[0].strftime('%d.%m.%Y - %H:%M')
@@ -291,8 +291,8 @@ class _Liveticker:
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
     @cmd_teamname.command(name="add")
-    async def cmd_teamname_add(self, ctx, long_name: str, short_name: str = None, abbr: str = None, emoji: str = None,
-                               *alternatives: str):
+    async def cmd_teamname_add(self, ctx, long_name: str, *alternatives: str, short_name: str = None,
+                               abbr: str = None, emoji: str = None):
         try:
             teamnamedict = self.bot.liveticker.teamname_converter.add(long_name, short_name, abbr, emoji,
                                                                       other=alternatives)

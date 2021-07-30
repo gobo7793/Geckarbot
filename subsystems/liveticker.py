@@ -373,6 +373,12 @@ class MatchStubBase:
                 "match_id": self.match_id}
 
 class MatchStubStorage(MatchStubBase):
+    """
+    MatchStub generated from stored data
+
+    :param kickoff: kickoff of the match
+    :param m: dict with the remaining data
+    """
 
     def __init__(self, kickoff: datetime.datetime, m: dict):
         (home_team_id, home_team), (away_team_id, away_team) = m.get("teams", m).items()
@@ -615,7 +621,7 @@ class PlayerEventEnum(Enum):
     UNKOWN = None
 
     @classmethod
-    def _missing_(cls, value):
+    def _missing_(cls, _):
         return PlayerEventEnum.UNKOWN
 
     @staticmethod
@@ -858,7 +864,11 @@ class LeagueRegistration:
 
     async def get_matches_espn(self,
                                from_day: datetime.date = None, until_day: datetime.date = None) -> List[MatchESPN]:
-        """Requests espn match data for a specified date range"""
+        """Requests espn match data for a specified date range
+
+        :param from_day: start of the date range.
+        :param until_day: end of the date range.
+        :return: List of the corresponding matches"""
         if from_day is None:
             from_day = datetime.date.today()
         if until_day is None:
@@ -882,6 +892,7 @@ class LeagueRegistration:
         :param from_day: start of the date range. No past days supported.
         :param until_day: end of the date range.
         :param limit: maximum number of requests respectivly the number of matchdays checked for fitting matches.
+        :return: List of the corresponding matches
         """
         if from_day is None:
             from_day = datetime.date.today()
@@ -899,15 +910,21 @@ class LeagueRegistration:
             if match.kickoff.date() >= from_day:
                 matches.append(match)
         else:
-            for i in range(1, limit):
+            for _ in range(1, limit):
                 add_matches = await self.get_matches_oldb_by_matchday(matchday=matches[-1].matchday)
                 if not add_matches:
                     break
-                else:
-                    matches.extend(add_matches)
+                matches.extend(add_matches)
         return matches
 
     async def get_matches_oldb_by_matchday(self, matchday: int, season: int = None) -> List[MatchOLDB]:
+        """
+        Requests openligadb match data for a specified matchday
+
+        :param matchday: Requested matchday
+        :param season: season/year
+        :return: List of the corresponding matches
+        """
         if season is None:
             date = datetime.date.today()
             season = date.year if date.month > 6 else date.year - 1
@@ -1012,7 +1029,7 @@ class LeagueRegistration:
         if not kickoff:
             return
 
-        interval_set = set([c.interval for c in self.registrations])
+        interval_set = {c.interval for c in self.registrations}
         td = timers.timedict(minute=[(x + kickoff.minute) % 60 for x in range(0, 60) if 0 in
                                      (x % y for y in interval_set)])
         match_timer = self.listener.bot.timers.schedule(coro=self.update_periodic_coros, td=td,
