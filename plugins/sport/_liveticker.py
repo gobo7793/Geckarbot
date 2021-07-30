@@ -216,9 +216,9 @@ class _Liveticker:
                 events_msg = " / ".join(e.display() for e in match.new_events
                                         if PlayerEventEnum(type(e).__base__).name in event_filter)
                 if events_msg:
-                    match_msg = "{} | {} {} - {} {}| {}:{}".format(match.minute, match.home_team.emoji,
-                                                                   match.home_team.long_name, match.away_team.emoji,
-                                                                   match.away_team.long_name, *match.score.values())
+                    match_msg = "{} | {} {} - {} {} | {}:{}".format(match.minute, match.home_team.emoji,
+                                                                    match.home_team.long_name, match.away_team.emoji,
+                                                                    match.away_team.long_name, *match.score.values())
                     match_msgs.append("**{}**\n{}".format(match_msg, events_msg))
                 else:
                     match_msg = "{2}-{3} {0} - {1} | {5}:{6} ({4})".format(match.home_team.abbr, match.away_team.abbr,
@@ -226,8 +226,8 @@ class _Liveticker:
                                                                            match.minute, *match.score.values())
                     other_matches.append(match_msg)
             if other_matches:
-                match_msgs.append("**{}:** {}".format(Lang.lang(self, 'liveticker_unchanged'),
-                                                      " \u2014\u2014 ".join(other_matches)))
+                match_msgs.append("{}: {}".format(Lang.lang(self, 'liveticker_unchanged'),
+                                                      " \u2014 ".join(other_matches)))
             msgs = paginate(match_msgs, prefix=Lang.lang(self, 'liveticker_prefix', event.league))
             for msg in msgs:
                 await sport.send(msg)
