@@ -190,6 +190,12 @@ class Difficulty(Enum):
         raise RuntimeError
 
 
+class Rankedness(Enum):
+    RANKED = 0
+    AUTO = 1
+    UNRANKED = 2
+
+
 class Score:
     """
     Represents a quiz controller's current score.

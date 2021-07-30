@@ -12,7 +12,7 @@ from botutils.utils import add_reaction
 from botutils.stringutils import format_andlist
 from data import Storage, Lang
 
-from plugins.quiz.base import BaseQuizController, Score, InvalidAnswer, Difficulty
+from plugins.quiz.base import BaseQuizController, Score, InvalidAnswer, Difficulty, Rankedness
 from plugins.quiz.utils import get_best_username
 
 
@@ -57,9 +57,10 @@ class PointsQuizController(BaseQuizController):
         self.plugin = plugin
         self.task = asyncio.current_task()
 
-        self.ranked = False
+        self.ranked = Rankedness.UNRANKED
         if "ranked" in kwargs:
             self.ranked = kwargs["ranked"]
+        self.original_rankedness = self.ranked
 
         # QuizAPI config
         self.category = None
@@ -113,7 +114,6 @@ class PointsQuizController(BaseQuizController):
         reaction = Lang.lang(self.plugin, "reaction_signup")
         signup_msg = Lang.lang(self.plugin, "registering_phase", reaction,
                                self.plugin.get_config("points_quiz_register_timeout") // 60)
-        print("role: {}".format(self.plugin.role))
         if self.plugin.role is not None:
             signup_msg = "{}\n{}".format(signup_msg, self.plugin.role.mention)
         signup_msg = await self.channel.send(signup_msg)
@@ -152,7 +152,19 @@ class PointsQuizController(BaseQuizController):
                 self.register_participant(self.plugin.bot.user)
 
         players = len(self.registered_participants)
-        if players == 0 or (self.ranked and players < self.plugin.get_config("ranked_min_players") and not self.debug):
+
+        # Decide Rankedness
+        if players < self.plugin.get_config("ranked_min_players") and not self.debug:
+            if self.ranked == Rankedness.AUTO:
+                self.ranked = Rankedness.UNRANKED
+            elif self.ranked == Rankedness.RANKED:
+                return Phases.ABORT
+        else:
+            if self.ranked == Rankedness.AUTO:
+                self.ranked = Rankedness.RANKED
+        self.plugin.logger.debug("Rankedness: %s", self.ranked)
+
+        if players == 0:
             await self.channel.send(Lang.lang(self.plugin, "quiz_no_players"))
             return Phases.ABORT
         return Phases.ABOUTTOSTART
@@ -319,7 +331,7 @@ class PointsQuizController(BaseQuizController):
         else:
             await self.channel.send(msg, embed=embed)
 
-        if self.ranked:
+        if self.ranked == Rankedness.RANKED:
             for player in self.registered_participants:
                 self.plugin.update_ladder(player, self.score.calc_points(player))
 
@@ -336,7 +348,7 @@ class PointsQuizController(BaseQuizController):
                 self.current_question_timer.cancel()
             except timers.HasAlreadyRun:
                 pass
-        if self.ranked \
+        if self.original_rankedness == Rankedness.RANKED \
                 and len(self.registered_participants) < self.plugin.get_config("ranked_min_players") \
                 and not self.stopped_manually:
             await self.channel.send(Lang.lang(self.plugin, "ranked_playercount",
@@ -378,7 +390,8 @@ class PointsQuizController(BaseQuizController):
             return
         if event.member not in self.registered_participants:
             # register user if not ranked and answer is valid
-            if not self.ranked and self.quizapi.current_question().is_valid_emoji(event.emoji.name):
+            if not self.ranked == Rankedness.RANKED and \
+                    self.quizapi.current_question().is_valid_emoji(event.emoji.name):
                 self.register_participant(event.member)
                 await self.channel.send(Lang.lang(self.plugin,
                                                   "registration_late",
@@ -542,8 +555,10 @@ class PointsQuizController(BaseQuizController):
             #    status = ":pause_button: Paused"
             embed.add_field(name="Status", value=status)
 
-        if self.ranked:
+        if self.ranked == Rankedness.RANKED:
             embed.add_field(name="Ranked", value=":memo:")
+        elif self.ranked == Rankedness.AUTO:
+            embed.add_field(name="Ranked", value=":hourglass_flowing_sand:")
 
         if self.debug:
             embed.add_field(name="Debug mode", value=":beetle:")
