@@ -48,8 +48,9 @@ class _Liveticker:
                 msg = await ctx.send(Lang.lang(self, 'liveticker_start'))
                 for source, leagues in Config().get(self)['liveticker']['leagues'].items():
                     for league in leagues:
-                        reg_ = await self.bot.liveticker.register(league=league, raw_source=source, plugin=self,
-                                                                  coro=self._live_coro, periodic=True)
+                        reg_ = await self.bot.liveticker.register(
+                            league=league, raw_source=source, plugin=self, coro=self._live_coro, periodic=True,
+                            interval=Config().get(self)['liveticker']['interval'])
                         next_exec = reg_.next_execution()
                         if next_exec:
                             next_exec = next_exec[0].strftime('%d.%m.%Y - %H:%M')
@@ -101,7 +102,8 @@ class _Liveticker:
                 Config().save(self)
             if list(self.bot.liveticker.search_coro(plugins=[self.get_name()])):
                 await self.bot.liveticker.register(league=league, raw_source=source, plugin=self,
-                                                   coro=self._live_coro, periodic=True)
+                                                   coro=self._live_coro, periodic=True,
+                                                   interval=Config().get(self)['liveticker'].get('interval', 15))
             await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
     @cmd_liveticker.command(name="del")
@@ -142,6 +144,7 @@ class _Liveticker:
                 Config().get(self)['liveticker']['do_intermediate_updates'] = True
                 await add_reaction(ctx.message, Lang.EMOJI['unmute'])
             await add_reaction(ctx.message, Lang.CMDSUCCESS)
+            Config().save(self)
         elif event in Config().get(self)['liveticker']['tracked_events']:
             Config().get(self)['liveticker']['tracked_events'].remove(event)
             Config().save(self)
@@ -174,6 +177,14 @@ class _Liveticker:
             c_reg.deregister()
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
+    @cmd_liveticker.command(name="interval")
+    async def cmd_liveticker_interval(self, ctx, new_interval: int):
+        Config().get(self)['liveticker']['interval'] = new_interval
+        Config().save(self)
+        for _, _, c_reg in list(self.bot.liveticker.search_coro(plugins=[self.get_name()])):
+            c_reg.interval = new_interval
+        await add_reaction(ctx.message, Lang.CMDSUCCESS)
+
     async def _live_coro(self, event):
         sport = Config().bot.get_channel(Config().get(self)['sport_chan'])
         if isinstance(event, LivetickerKickoff):
@@ -203,11 +214,11 @@ class _Liveticker:
             other_matches = []
             for match in event.matches:
                 events_msg = " / ".join(e.display() for e in match.new_events
-                                        if PlayerEventEnum(type(e)).name in event_filter)
+                                        if PlayerEventEnum(type(e).__base__).name in event_filter)
                 if events_msg:
-                    match_msg = "{} | {} {} - {} {}| {}:{}".format(match.minute, match.home_team.emoji,
-                                                                   match.home_team.long_name, match.away_team.emoji,
-                                                                   match.away_team.long_name, *match.score.values())
+                    match_msg = "{} | {} {} - {} {} | {}:{}".format(match.minute, match.home_team.emoji,
+                                                                    match.home_team.long_name, match.away_team.emoji,
+                                                                    match.away_team.long_name, *match.score.values())
                     match_msgs.append("**{}**\n{}".format(match_msg, events_msg))
                 else:
                     match_msg = "{2}-{3} {0} - {1} | {5}:{6} ({4})".format(match.home_team.abbr, match.away_team.abbr,
@@ -215,8 +226,8 @@ class _Liveticker:
                                                                            match.minute, *match.score.values())
                     other_matches.append(match_msg)
             if other_matches:
-                match_msgs.append("**{}:** {}".format(Lang.lang(self, 'liveticker_unchanged'),
-                                                      " \u2014\u2014 ".join(other_matches)))
+                match_msgs.append("{}: {}".format(Lang.lang(self, 'liveticker_unchanged'),
+                                                      " \u2014 ".join(other_matches)))
             msgs = paginate(match_msgs, prefix=Lang.lang(self, 'liveticker_prefix', event.league))
             for msg in msgs:
                 await sport.send(msg)
@@ -280,9 +291,11 @@ class _Liveticker:
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
     @cmd_teamname.command(name="add")
-    async def cmd_teamname_add(self, ctx, long_name: str, short_name: str = None, abbr: str = None, emoji: str = None):
+    async def cmd_teamname_add(self, ctx, long_name: str, *alternatives: str, short_name: str = None,
+                               abbr: str = None, emoji: str = None):
         try:
-            teamnamedict = self.bot.liveticker.teamname_converter.add(long_name, short_name, abbr, emoji)
+            teamnamedict = self.bot.liveticker.teamname_converter.add(long_name, short_name, abbr, emoji,
+                                                                      other=alternatives)
         except ValueError:
             await add_reaction(ctx.message, Lang.CMDERROR)
             return

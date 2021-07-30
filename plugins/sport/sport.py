@@ -27,7 +27,8 @@ class Plugin(BasePlugin, _Liveticker, _Predgame, _Livescores, name="Sport"):
             'sport_chan': 0,
             'league_aliases': {"bl": ["ger.1", "espn"]},
             'liveticker': {
-                "show_today_matches": True,
+                'interval': 15,
+                'show_today_matches': True,
                 'leagues': {"oldb": [], "espn": []},
                 'do_intermediate_updates': True,
                 'tracked_events': ['GOAL', 'YELLOWCARD', 'REDCARD']
@@ -81,6 +82,7 @@ class Plugin(BasePlugin, _Liveticker, _Predgame, _Livescores, name="Sport"):
 
         if Config().get(self).get('cfg_version', 0) < 3:
             Config.get(self)["liveticker"]["show_today_matches"] = True
+            Config.get(self)["liveticker"]["interval"] = 15
             Config.get(self)["predictions_overview_sheet"] = ""
             Storage.set(self, Storage.get_default(self))
             Config().get(self)['cfg_version'] = 3

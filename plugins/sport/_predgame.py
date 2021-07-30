@@ -10,7 +10,7 @@ from discord.ext import commands
 from botutils import sheetsclient, restclient, timeutils
 from botutils.utils import add_reaction
 from data import Lang, Config, Storage
-from subsystems.liveticker import Match, TeamnameDict
+from subsystems.liveticker import TeamnameDict, MatchESPN
 
 
 # pylint: disable=no-member
@@ -45,7 +45,7 @@ class _Predgame:
             msg = [Lang.lang(self, "pred_today_games")]
 
             for m in result.get('events', []):
-                match = Match.from_espn(m)
+                match = MatchESPN(m)
                 kickoff = match.kickoff.strftime("%H:%M")
                 stadium, city = match.venue
                 msg.append(f"{Storage.get(self)['predictions'][league]['name']} | {kickoff} | {stadium}, {city} | "
