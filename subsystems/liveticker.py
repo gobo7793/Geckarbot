@@ -741,6 +741,7 @@ class CoroRegistration:
         return {
             'plugin': self.plugin_name,
             'coro': self.coro.__name__,
+            'interval': self.interval,
             'periodic': self.periodic
         }
 
@@ -1253,7 +1254,8 @@ class Liveticker(BaseSubsystem):
                                                 league=league,
                                                 raw_source=src,
                                                 coro=coro,
-                                                periodic=c_reg['periodic'])
+                                                periodic=c_reg['periodic'],
+                                                interval=c_reg.get('interval', 15))
         self.logger.debug('%d Liveticker registrations restored. %d failed.', i, j)
 
     def unload_plugin(self, plugin_name: str):

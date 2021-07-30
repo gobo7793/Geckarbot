@@ -27,7 +27,8 @@ class Plugin(BasePlugin, _Liveticker, _Predgame, _Livescores, name="Sport"):
             'sport_chan': 0,
             'league_aliases': {"bl": ["ger.1", "espn"]},
             'liveticker': {
-                "show_today_matches": True,
+                'interval': 15,
+                'show_today_matches': True,
                 'leagues': {"oldb": [], "espn": []},
                 'do_intermediate_updates': True,
                 'tracked_events': ['GOAL', 'YELLOWCARD', 'REDCARD']
