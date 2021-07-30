@@ -7,6 +7,7 @@ from discord.ext import commands
 from discord.errors import HTTPException
 
 from base import BasePlugin
+from botutils.stringutils import paginate
 from data import Storage, Lang, Config
 from botutils import permchecks
 from botutils.utils import sort_commands_helper, add_reaction, helpstring_helper
@@ -66,6 +67,7 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
             "points_quiz_question_timeout": [int, 20],  # warning after this value, actual timeout after 1.5*this value
             "question_cooldown": [int, 5],
             "emoji_in_pose": [bool, True],
+            "catlist_embeds": [bool, False]
         }
         self.config_setter = ConfigSetter(self, self.base_config)
         self.role = self.bot.guild.get_role(Config().get(self).get("roleid", 0))
@@ -333,6 +335,40 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
             await add_reaction(ctx.message, Lang.CMDSUCCESS)
         else:
             await add_reaction(ctx.message, Lang.CMDNOCHANGE)
+
+    @cmd_kwiss.command(name="categories")
+    async def cmd_categories(self, ctx):
+        # Embed format
+        if self.get_config("catlist_embeds"):
+            entries = discord.Embed()
+            for cat in self.category_controller.categories.values():
+                entries.add_field(name=cat.name, value=cat.args[0])
+            await ctx.send(embed=entries)
+            return
+
+        # Table format
+        else:
+            longest_cat = len("Category")
+            longest_arg = len("Argument")
+            entries = [("Category", "Argument")]
+            for cat in self.category_controller.categories.values():
+                arg = cat.args[0]
+                if len(cat.name) > longest_cat:
+                    longest_cat = len(cat.name)
+                if len(arg) > longest_arg:
+                    longest_arg = len(arg)
+                entries.append((cat.name, arg))
+
+            for i in range(len(entries)):
+                name = entries[i][0]
+                name = name + " " * (1 + longest_cat - len(name))
+                entries[i] = name + "| " + entries[i][1]
+
+            underline = "-" * (1 + longest_cat) + "+" + "-" * longest_cat
+            entries = entries[:1] + [underline] + entries[1:]
+
+            for msg in paginate(entries, prefix="```", suffix="```"):
+                await ctx.send(msg)
 
     @cmd_kwiss.command(name="question")
     async def cmd_question(self, ctx, *args):
