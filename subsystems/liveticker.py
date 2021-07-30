@@ -685,7 +685,7 @@ class CoroRegistration:
         self.plugin_name = plugin.get_name()
         self.coro = coro
         self.periodic = periodic
-        self.interval = interval
+        self.interval = interval  # TODO setter method for changing timers
         self.last_events = {}
         self.logger = logging.getLogger(__name__)
 
