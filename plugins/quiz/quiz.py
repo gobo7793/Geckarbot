@@ -10,6 +10,7 @@ from base import BasePlugin
 from data import Storage, Lang, Config
 from botutils import permchecks
 from botutils.utils import sort_commands_helper, add_reaction, helpstring_helper
+from botutils.setter import ConfigSetter
 from subsystems.helpsys import DefaultCategories
 
 from plugins.quiz.controllers import RushQuizController, PointsQuizController
@@ -53,8 +54,7 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
         self.bot = bot
         self.controllers = {}
         self.registered_subcommands = {}
-        self.config = Config.get(self)
-        self.role = self.bot.guild.get_role(self.config.get("roleid", 0))
+        self.role = self.bot.guild.get_role(self.get_config("roleid"))
         self.category_controller = CategoryController()
 
         # init quizapis
@@ -65,7 +65,7 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
         self.default_controller = PointsQuizController
         self.defaults = {
             "quizapi": MetaQuizAPI,
-            "questions": self.config["questions_default"],
+            "questions": self.get_config("questions_default"),
             "method": Methods.START,
             "category": DefaultCategory.ALL,
             "difficulty": Difficulty.EASY,
@@ -79,6 +79,18 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
             RushQuizController: ["rush", "race", "wtia"],
             PointsQuizController: ["points"],
         }
+
+        self.base_config = {
+            "ranked_min_players": [int, 4],
+            "ranked_min_questions": [int, 7],
+            "questions_limit": [int, 25],
+            "questions_default": [int, 10],
+            "points_quiz_register_timeout": [int, 60],
+            "points_quiz_question_timeout": [int, 20],  # warning after this value, actual timeout after 1.5*this value
+            "question_cooldown": [int, 5],
+            "emoji_in_pose": [bool, True],
+        }
+        self.config_setter = ConfigSetter(self, self.base_config)
 
         # Documented subcommands
         self.register_subcommand(None, "question", self.cmd_question)
@@ -98,21 +110,12 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
             if quiz:
                 await quiz.on_message(msg)
 
+    def get_config(self, key):
+        return Config.get(self).get(key, self.base_config[key][1])
+
     def default_config(self, container=None):
         return {
             "roleid": 0,
-            "timeout": 20,  # answering timeout in minutes; not impl yet TODO
-            "timeout_warning": 2,  # warning time before timeout in minutes
-            "questions_limit": 25,
-            "questions_default": 10,
-            "default_category": -1,
-            "question_cooldown": 5,
-            "points_quiz_register_timeout": 1 * 60,
-            "points_quiz_question_timeout": 20,  # warning after this value, actual timeout after 1.5*this value
-            "ranked_min_players": 4,
-            "ranked_min_questions": 7,
-            "ranked_register_additional_tries": 2,
-            "emoji_in_pose": True,
         }
 
     def default_storage(self, container=None):
@@ -187,13 +190,12 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
         assert method == Methods.START
         await add_reaction(ctx.message, Lang.EMOJI["success"])
         cat = self.category_controller.get_category_key(args["quizapi"], args["category"])
-        self.logger.debug("Starting kwiss: controller %s, config %s, api %s,  channel %s, author %s, cat %s, question "
-                          "count %s, difficulty %s, debug %s, ranked %s, gecki %s", controller_class, self.config,
+        self.logger.debug("Starting kwiss: controller %s, api %s,  channel %s, author %s, cat %s, question "
+                          "count %s, difficulty %s, debug %s, ranked %s, gecki %s", controller_class,
                           args["quizapi"], ctx.channel, ctx.message.author, cat, args["questions"], args["difficulty"],
                           args["debug"], args["ranked"], args["gecki"])
         async with ctx.typing():
             quiz_controller = controller_class(self,
-                                               self.config,
                                                args["quizapi"],
                                                ctx.channel,
                                                ctx.message.author,
@@ -207,6 +209,17 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
             self.logger.debug("Registered quiz controller %s in channel %s", quiz_controller, ctx.channel)
             await quiz_controller.status(ctx.message)
             await quiz_controller.start(ctx.message)
+
+    @commands.has_role(Config().BOT_ADMIN_ROLE_ID)
+    @cmd_kwiss.command(name="set", aliases=["config"], hidden=True)
+    async def cmd_set(self, ctx, key=None, value=None):
+        if key is None:
+            await self.config_setter.list(ctx)
+            return
+        if value is None:
+            await add_reaction(ctx.message, Lang.CMDERROR)
+            return
+        await self.config_setter.set_cmd(ctx, key, value)
 
     @cmd_kwiss.command(name="status")
     async def cmd_status(self, ctx):
@@ -462,8 +475,8 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
                 self.logger.debug("Ranked constraints violated: difficulty {} != {}"
                                   .format(args["difficulty"], self.defaults["difficulty"]))
                 return "ranked_constraints",
-            if args["questions"] < self.config["ranked_min_questions"]:
-                return "ranked_questioncount", self.config["ranked_min_questions"]
+            if args["questions"] < self.get_config("ranked_min_questions"):
+                return "ranked_questioncount", self.get_config("ranked_min_questions")
             if not self.bot.DEBUG_MODE and args["gecki"]:
                 return "ranked_gecki",
 
@@ -513,7 +526,7 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
                 arg = int(arg)
                 if found["questions"]:
                     raise QuizInitError(self, "duplicate_count_arg")
-                if arg > self.config["questions_limit"]:
+                if arg > self.get_config("questions_limit"):
                     raise QuizInitError(self, "too_many_questions", arg)
                 parsed["questions"] = arg
                 found["questions"] = True

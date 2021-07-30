@@ -40,22 +40,20 @@ class PointsQuizController(BaseQuizController):
     """
     Gamemode: every user with the correct answer gets a point
     """
-    def __init__(self, plugin, config, quizapi, channel, requester, **kwargs):
+    def __init__(self, plugin, quizapi, channel, requester, **kwargs):
         """
         :param plugin: Plugin object
-        :param config: config
         :param quizapi: Quiz API class that is to be used
         :param channel: channel that the quiz was requested in
         :param requester: user that requested the quiz
         :param kwargs: category, question_count, difficulty, debug
         """
-        super().__init__(plugin, config, quizapi, channel, requester, **kwargs)
+        super().__init__(plugin, quizapi, channel, requester, **kwargs)
         plugin.logger.debug("Building PointsQuizController; kwargs: {}".format(kwargs))
         self.cmdstring_register = "register"
 
         self.channel = channel
         self.requester = requester
-        self.config = config
         self.plugin = plugin
         self.task = asyncio.current_task()
 
@@ -77,7 +75,7 @@ class PointsQuizController(BaseQuizController):
         self.difficulty = kwargs["difficulty"]
 
         self.quizapi = quizapi
-        self._score = Score(self.plugin, self.config, self.question_count)
+        self._score = Score(self.plugin, self.question_count)
 
         # State handling
         self.eval_event = None
@@ -114,7 +112,7 @@ class PointsQuizController(BaseQuizController):
         self.plugin.logger.debug("Starting PointsQuizController")
         reaction = Lang.lang(self.plugin, "reaction_signup")
         signup_msg = Lang.lang(self.plugin, "registering_phase", reaction,
-                               self.config["points_quiz_register_timeout"] // 60)
+                               self.plugin.get_config("points_quiz_register_timeout") // 60)
         print("role: {}".format(self.plugin.role))
         if self.plugin.role is not None:
             signup_msg = "{}\n{}".format(signup_msg, self.plugin.role.mention)
@@ -124,7 +122,7 @@ class PointsQuizController(BaseQuizController):
         before = datetime.now()
         await self.quizapi.fetch()
         tosleep = datetime.now() - before
-        await asyncio.sleep(self.config["points_quiz_register_timeout"] - tosleep.seconds)
+        await asyncio.sleep(self.plugin.get_config("points_quiz_register_timeout") - tosleep.seconds)
 
         # Consume signup reactions
         await signup_msg.remove_reaction(Lang.lang(self.plugin, "reaction_signup"), self.plugin.bot.user)
@@ -154,7 +152,7 @@ class PointsQuizController(BaseQuizController):
                 self.register_participant(self.plugin.bot.user)
 
         players = len(self.registered_participants)
-        if players == 0 or (self.ranked and players < self.config["ranked_min_players"] and not self.debug):
+        if players == 0 or (self.ranked and players < self.plugin.get_config("ranked_min_players") and not self.debug):
             await self.channel.send(Lang.lang(self.plugin, "quiz_no_players"))
             return Phases.ABORT
         return Phases.ABOUTTOSTART
@@ -198,12 +196,14 @@ class PointsQuizController(BaseQuizController):
             return Phases.END
 
         self.eval_event = asyncio.Event()
-        self.current_question_timer = timers.Timer(self.plugin.bot, self.config["points_quiz_question_timeout"],
-                                                   self.timeout_warning, self.eval_event)
-        msg = await self.current_question.pose(self.channel, emoji=self.config["emoji_in_pose"])
+        self.current_question_timer = timers.Timer(self.plugin.bot,
+                                                   self.plugin.get_config("points_quiz_question_timeout"),
+                                                   self.timeout_warning,
+                                                   self.eval_event)
+        msg = await self.current_question.pose(self.channel, emoji=self.plugin.get_config("emoji_in_pose"))
         self.current_reaction_listener = self.plugin.bot.reaction_listener.register(
             msg, self.on_reaction, data=self.current_question)
-        if self.config["emoji_in_pose"]:
+        if self.plugin.get_config("emoji_in_pose"):
             await self.current_question.add_reactions(msg)
 
         # If debug, add bot's answer
@@ -276,7 +276,7 @@ class PointsQuizController(BaseQuizController):
                                  emptylist=Lang.lang(self.plugin, "nobody"),
                                  fulllist=Lang.lang(self.plugin, "everyone"),
                                  fulllen=len(self.registered_participants))
-        if self.config["emoji_in_pose"]:
+        if self.plugin.get_config("emoji_in_pose"):
             ca = question.correct_answer_emoji
         else:
             ca = question.correct_answer_letter
@@ -287,7 +287,7 @@ class PointsQuizController(BaseQuizController):
         for user in self.registered_participants:
             self.registered_participants[user] = []
 
-        await asyncio.sleep(self.config["question_cooldown"])
+        await asyncio.sleep(self.plugin.get_config("question_cooldown"))
         return Phases.QUESTION
 
     async def end(self):
@@ -337,9 +337,10 @@ class PointsQuizController(BaseQuizController):
             except timers.HasAlreadyRun:
                 pass
         if self.ranked \
-                and len(self.registered_participants) < self.config["ranked_min_players"] \
+                and len(self.registered_participants) < self.plugin.get_config("ranked_min_players") \
                 and not self.stopped_manually:
-            await self.channel.send(Lang.lang(self.plugin, "ranked_playercount", self.config["ranked_min_players"]))
+            await self.channel.send(Lang.lang(self.plugin, "ranked_playercount",
+                                              self.plugin.get_config("ranked_min_players")))
         else:
             await self.channel.send(Lang.lang(self.plugin, "quiz_abort"))
 
@@ -426,7 +427,7 @@ class PointsQuizController(BaseQuizController):
 
         self.plugin.logger.debug("Question timeout warning")
         self.current_question_timer = timers.Timer(self.plugin.bot,
-                                                   self.config["points_quiz_question_timeout"] // 2,
+                                                   self.plugin.get_config("points_quiz_question_timeout") // 2,
                                                    self.timeout, event)
 
         msg = Lang.lang(self.plugin, "points_timeout_warning",
@@ -434,7 +435,7 @@ class PointsQuizController(BaseQuizController):
                                        ands=Lang.lang(self.plugin, "and"),
                                        fulllist=Lang.lang(self.plugin, "everyone"),
                                        fulllen=len(self.registered_participants)),
-                        self.config["points_quiz_question_timeout"] // 2)
+                        self.plugin.get_config("points_quiz_question_timeout") // 2)
         panic = not self.havent_answered_hr()
         await self.channel.send(msg)
         if panic:
@@ -467,10 +468,9 @@ class PointsQuizController(BaseQuizController):
         Called when the start command is invoked.
         """
         self.plugin.logger.debug("category: {}".format(self.category))
-        self.quizapi = self.quizapi(self.config,
-                                    self.channel,
+        self.quizapi = self.quizapi(self.channel,
                                     self.category,
-                                    question_count=self.question_count,
+                                    self.question_count,
                                     difficulty=self.difficulty,
                                     debug=self.debug)
         await self.statemachine.run()
@@ -589,18 +589,16 @@ class RushQuizController(BaseQuizController):
     """
     Gamemode: the first user with the correct answer gets the point for the round
     """
-    def __init__(self, plugin, config, quizapi, channel, requester, **kwargs):
+    def __init__(self, plugin, quizapi, channel, requester, **kwargs):
         """
         :param plugin: Plugin object
-        :param config: config
         :param quizapi: BaseQuizAPI object
         :param channel: channel that the quiz was requested in
         :param requester: user that requested the quiz
         :param kwargs: category, question_count, difficulty, debug
         """
-        super().__init__(plugin, config, quizapi, channel, requester, **kwargs)
+        super().__init__(plugin, quizapi, channel, requester, **kwargs)
         plugin.logger.debug("Building RaceQuizController; kwargs: {}".format(kwargs))
-        self.config = config
         self.plugin = plugin
         self.channel = channel
         self.requester = requester
@@ -630,7 +628,7 @@ class RushQuizController(BaseQuizController):
         # Quiz handling
         self.last_author = None
         self.quizapi = quizapi
-        self._score = Score(self.plugin, self.config, self.question_count)
+        self._score = Score(self.plugin, self.question_count)
 
     ###
     # Transitions
@@ -685,7 +683,7 @@ class RushQuizController(BaseQuizController):
                                           get_best_username(Storage().get(self.plugin), self.last_author),
                                           question.correct_answer_letter))
 
-        await asyncio.sleep(self.config["question_cooldown"])
+        await asyncio.sleep(self.plugin.get_config("question_cooldown"))
         return Phases.QUESTION
 
     async def end(self):
@@ -756,8 +754,8 @@ class RushQuizController(BaseQuizController):
     # Commands
     ###
     async def start(self, msg):
-        self.quizapi = self.quizapi(self.config, self.channel, self.category,
-                                    question_count=self.question_count, difficulty=self.difficulty, debug=self.debug)
+        self.quizapi = self.quizapi(self.channel, self.category, self.question_count,
+                                    difficulty=self.difficulty, debug=self.debug)
         await self.statemachine.run()
 
     async def pause(self, msg):

@@ -6,9 +6,7 @@ from discord.ext import commands
 
 from base import BasePlugin
 from botutils import utils, converters, setter
-from botutils.timers import Job, timedict
 from data import Config, Lang
-from subsystems import timers
 from subsystems.helpsys import DefaultCategories
 from subsystems.ignoring import UserBlockedCommand
 from subsystems.presence import PresencePriority
@@ -224,25 +222,6 @@ class Plugin(BasePlugin, name="Testing and debug things"):
             await ctx.send("{}".format(user.mention))
         else:
             await ctx.send("Sorry, no user found for {}".format(user))
-
-    @staticmethod
-    async def _spamcb(job):
-        await job.data.send("Spam")
-
-    @commands.group(name="spam", hidden=True, invoke_without_command=True)
-    async def cmd_spam(self, ctx):
-        self.spamjob = Job(self.bot, timedict(), self._spamcb, data=ctx)
-        await utils.add_reaction(ctx.message, Lang.CMDSUCCESS)
-
-    @cmd_spam.command(name="cancel", hidden=True)
-    async def cmd_spam_cancel(self, ctx):
-        if self.spamjob is None:
-            await ctx.send("Nothing to cancel")
-            await utils.add_reaction(ctx.message, Lang.CMDERROR)
-            return
-        self.spamjob.cancel()
-        self.spamjob = None
-        await utils.add_reaction(ctx.message, Lang.CMDSUCCESS)
 
     @commands.command(name="tasks", hidden=True)
     async def cmd_tasklist(self, ctx):
