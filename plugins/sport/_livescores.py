@@ -7,7 +7,7 @@ from discord.ext import commands
 from botutils import restclient
 from botutils.utils import add_reaction
 from data import Lang, Config
-from subsystems.liveticker import LTSource, Match, MatchStatus
+from subsystems.liveticker import LTSource, MatchStatus, MatchOLDB, MatchESPN, MatchBase
 
 
 # pylint: disable=no-member
@@ -63,14 +63,14 @@ class _Livescores:
             try:
                 raw_matches = await restclient.Client("https://www.openligadb.de/api") \
                     .request(f"/getmatchdata/{league}")
-                matches = [Match.from_openligadb(m) for m in raw_matches]
+                matches = [MatchOLDB(m) for m in raw_matches]
             except (ValueError, AttributeError):
                 await add_reaction(ctx.message, Lang.CMDERROR)
                 return
         elif source == LTSource.ESPN:
             raw_matches = await restclient.Client("http://site.api.espn.com/apis/site/v2/sports").request(
                 f"/soccer/{league}/scoreboard")
-            matches = [Match.from_espn(m) for m in raw_matches.get('events', [])]
+            matches = [MatchESPN(m) for m in raw_matches.get('events', [])]
         else:
             raise ValueError('Invalid source. Should not happen.')
 
@@ -81,7 +81,7 @@ class _Livescores:
         running = [m for m in matches if m.status == MatchStatus.RUNNING]
         upcoming = [m for m in matches if m.status == MatchStatus.UPCOMING]
 
-        def match_msg(m: Match):
+        def match_msg(m: MatchBase):
             weekday = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'][m.kickoff.weekday()]
             time_ = m.kickoff.strftime("%H:%M")
             team_h = m.home_team.long_name

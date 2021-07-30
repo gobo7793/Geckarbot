@@ -314,17 +314,16 @@ class TableEntryESPN(TableEntryBase):
     Table entry from an ESPN source
 
     :param data: raw data from the request
-    :param converter: teamname converter
     """
 
-    def __init__(self, data: dict, converter: TeamnameConverter):
+    def __init__(self, data: dict):
         stats = {x['name']: (int(x['value']) if x.get('value') is not None else None) for x in data['stats']}
         self.rank = stats.get('rank')
-        self.team = converter.get(data['team']['displayName'])
+        self.team = Config().bot.liveticker.teamname_converter.get(data['team']['displayName'])
         if not self.team:
-            self.team = converter.add(long_name=data['team']['displayName'],
-                                      short_name=data['team']['shortDisplayName'],
-                                      abbr=data['team']['abbreviation'])
+            self.team = Config().bot.liveticker.teamname_converter.add(long_name=data['team']['displayName'],
+                                                                       short_name=data['team']['shortDisplayName'],
+                                                                       abbr=data['team']['abbreviation'])
         self.won = stats.get('wins')
         self.draw = stats.get('ties')
         self.lost = stats.get('losses')
@@ -339,14 +338,14 @@ class TableEntryOLDB(TableEntryBase):
     Table entry from an OpenLigaDB source
 
     :param data: raw data from the request
-    :param converter: teamname converter
     """
 
-    def __init__(self, data: dict, converter: TeamnameConverter):
+    def __init__(self, data: dict):
         self.rank = data['rank']
-        self.team = converter.get(data['TeamName'])
+        self.team = Config().bot.liveticker.teamname_converter.get(data['TeamName'])
         if not self.team:
-            self.team = converter.add(long_name=data['TeamName'], short_name=data['ShortName'])
+            self.team = Config().bot.liveticker.teamname_converter.add(long_name=data['TeamName'],
+                                                                       short_name=data['ShortName'])
         self.won = data['Won']
         self.draw = data['Draw']
         self.lost = data['Lost']
@@ -355,86 +354,114 @@ class TableEntryOLDB(TableEntryBase):
         self.points = data['Points']
 
 
-class MatchStub:
-    """
-    Match with minimal info (used for stored kickoffs)
+class MatchStubBase:
+    """Base class of a match stub with minimal info"""
 
-    :param kickoff: kickoff datetime
-    :param home_team: name of the home team
-    :param away_team: name of the away team
-    :param home_team_id: id of the home team
-    :param away_team_id: id of the away team
-    """
+    match_id: str
+    kickoff: datetime.datetime
+    home_team: TeamnameDict
+    away_team: TeamnameDict
+    home_team_id: str
+    away_team_id: str
 
-    def __init__(self, kickoff: datetime.datetime, home_team: str, away_team: str, home_team_id: str,
-                 away_team_id: str):
+    def display(self):
+        return f"{self.home_team.emoji} {self.home_team.long_name} - {self.away_team.emoji} {self.away_team.long_name}"
+
+    def to_storage(self):
+        """Transforms the data for the storage"""
+        return {"teams": {self.home_team_id: self.home_team.long_name, self.away_team_id: self.away_team.long_name},
+                "match_id": self.match_id}
+
+class MatchStubStorage(MatchStubBase):
+
+    def __init__(self, kickoff: datetime.datetime, m: dict):
+        (home_team_id, home_team), (away_team_id, away_team) = m.get("teams", m).items()
         self.kickoff = kickoff
         self.home_team = Config().bot.liveticker.teamname_converter.get(home_team, add_if_nonexist=True)
         self.away_team = Config().bot.liveticker.teamname_converter.get(away_team, add_if_nonexist=True)
         self.home_team_id = home_team_id
         self.away_team_id = away_team_id
 
-    @classmethod
-    def from_storage(cls, time_kickoff: datetime.datetime, m: dict):
-        """Returns a MatchStub formed from the stored data"""
-        team_names = list(m.values())
-        team_ids = list(m.keys())
-        return cls(kickoff=time_kickoff, home_team=team_names[0], home_team_id=team_ids[0], away_team=team_names[1],
-                   away_team_id=team_ids[1])
 
-    def to_storage(self):
-        """Transforms the data for the storage"""
-        return {self.home_team_id: self.home_team.long_name, self.away_team_id: self.away_team.long_name}
+class MatchBase(MatchStubBase, ABC):
+    """Abstract base class of a match with additional info"""
 
-class Match(MatchStub):
+    minute: str
+    status: MatchStatus
+    raw_events: list
+    new_events: list
+    venue: Tuple[str, str]
+    score: Dict[str, int]
+
+    def display(self):
+        return f"{self.minute} | {self.home_team.emoji} {self.home_team.long_name} - " \
+               f"{self.away_team.emoji} {self.away_team.long_name} | " \
+               f"{self.score[self.home_team_id]}:{self.score[self.away_team_id]}"
+
+class MatchESPN(MatchBase):
     """
-    Soccer match
+    Match from an ESPN source
 
-    :param match_id: id of the match
-    :param kickoff: kickoff datetime
-    :param minute: current minute
-    :param home_team: name of the home team
-    :param away_team: name of the away team
-    :param home_team_id: id of the home team
-    :param away_team_id: id of the away team
-    :param status: current status of the game
-    :param raw_events: list of all events
-    :param venue: (stadium, city) of the match
-    :param score: current score
-    :param new_events: list of new events in comparison to the last execution
-    :param matchday: current matchday
+    :param m: raw data from the request
+    :param new_events:
     """
 
-    def __init__(self, match_id: str, kickoff: datetime.datetime, minute: str, home_team: str, home_team_id: str,
-                 away_team: str, away_team_id: str, status: MatchStatus, raw_events: list, venue: Tuple[str, str],
-                 score: dict = None, new_events: list = None, matchday: int = None):
-        super().__init__(kickoff=kickoff, home_team=home_team, away_team=away_team, home_team_id=home_team_id,
-                         away_team_id=away_team_id)
-        if new_events is None:
-            new_events = []
-        self.match_id = match_id
-        self.minute = minute
-        self.status = status
-        self.raw_events = raw_events
-        self.new_events = new_events
-        self.matchday = matchday
-        self.venue = venue
-        if score:
-            self.score = score
-        else:
-            self.score = {self.home_team_id: 0, self.away_team_id: 0}
-
-    @classmethod
-    def from_openligadb(cls, m: dict, new_events: list = None):
-        """
-        Match by a OpenLigaDB source
-
-        :param m: match data
-        :param new_events: list of new events
-        :return: Match object
-        :rtype: Match
-        """
+    def __init__(self, m: dict, new_events: list = None):
         # Extract kickoff into datetime object
+        try:
+            kickoff = datetime.datetime.strptime(m.get('date'), "%Y-%m-%dT%H:%MZ") \
+                .replace(tzinfo=datetime.timezone.utc).astimezone().replace(tzinfo=None)
+        except (ValueError, TypeError):
+            kickoff = None
+        # Get home and away team
+        home_team, away_team, home_id, away_id, home_score, away_score = None, None, None, None, None, None
+        competition = m.get('competitions', [{}])[0]
+        for team in competition.get('competitors'):
+            if team.get('homeAway') == "home":
+                home_team = Config().bot.liveticker.teamname_converter.get(team.get('team', {}).get('displayName'))
+                if not home_team:
+                    home_team = Config().bot.liveticker.teamname_converter.add(
+                        long_name=team.get('team', {}).get('displayName'),
+                        short_name=team.get('team', {}).get('shortDisplayName'),
+                        abbr=team.get('team', {}).get('abbreviation'))
+                home_id = team.get('id')
+                home_score = team.get('score')
+            elif team.get('homeAway') == "away":
+                away_team = Config().bot.liveticker.teamname_converter.get(team.get('team', {}).get('displayName'))
+                if not away_team:
+                    away_team = Config().bot.liveticker.teamname_converter.add(
+                        long_name=team.get('team', {}).get('displayName'),
+                        short_name=team.get('team', {}).get('shortDisplayName'),
+                        abbr=team.get('team', {}).get('abbreviation'))
+                away_id = team.get('id')
+                away_score = team.get('score')
+
+        # Put all informations together
+        self.match_id = m.get('uid')
+        self.kickoff = kickoff
+        self.minute = m.get('status', {}).get('displayClock')
+        self.home_team = home_team
+        self.home_team_id = home_id
+        self.away_team = away_team
+        self.away_team_id = away_id
+        self.score = {home_id: home_score, away_id: away_score}
+        self.new_events = new_events
+        self.raw_events = m.get('competitions', [{}])[0].get('details')
+        self.venue = (competition.get('venue', {}).get('fullName'),
+                      competition.get('venue', {}).get('address', {}).get('city'))
+        self.status = MatchStatus.get(m, LTSource.ESPN)
+
+
+class MatchOLDB(MatchBase):
+    """
+    Match from an OpenLigaDB source
+
+    :param m: raw data from the request
+    """
+
+    matchday: int
+
+    def __init__(self, m: dict, new_events: list = None):
         if new_events is None:
             new_events = []
         try:
@@ -449,70 +476,23 @@ class Match(MatchStub):
                 minute = max(45, minute - 15)
         else:
             minute = None
-        # Note team IDs
-        home_id = m.get('Team1', {}).get('TeamId')
-        away_id = m.get('Team2', {}).get('TeamId')
 
-        match = cls(match_id=m.get('MatchID'),
-                    kickoff=kickoff,
-                    minute=str(minute),
-                    home_team=m.get('Team1', {}).get('TeamName'),
-                    home_team_id=home_id,
-                    away_team=m.get('Team2', {}).get('TeamName'),
-                    away_team_id=away_id,
-                    score={home_id: max(0, 0, *(g.get('ScoreTeam1', 0) for g in m.get('Goals', []))),
-                           away_id: max(0, 0, *(g.get('ScoreTeam2', 0) for g in m.get('Goals', [])))},
-                    raw_events=m.get('Goals'),
-                    venue=(m.get('Location', {}).get('LocationStadium'), m.get('Location', {}).get('LocationCity')),
-                    status=MatchStatus.get(m, LTSource.OPENLIGADB),
-                    new_events=new_events,
-                    matchday=m.get('Group', {}).get('GroupOrderID'))
-        return match
-
-    @classmethod
-    def from_espn(cls, m: dict, new_events: list = None):
-        """
-        Match by a ESPN source
-
-        :param m: match data
-        :param new_events: list of new events
-        :return: Match object
-        :rtype: Match
-        """
-        # Extract kickoff into datetime object
-        try:
-            kickoff = datetime.datetime.strptime(m.get('date'), "%Y-%m-%dT%H:%MZ") \
-                .replace(tzinfo=datetime.timezone.utc).astimezone().replace(tzinfo=None)
-        except (ValueError, TypeError):
-            kickoff = None
-        # Get home and away team
-        home_team, away_team, home_id, away_id, home_score, away_score = None, None, None, None, None, None
-        competition = m.get('competitions', [{}])[0]
-        for team in competition.get('competitors'):
-            if team.get('homeAway') == "home":
-                home_team = team.get('team', {}).get('displayName')
-                home_id = team.get('id')
-                home_score = team.get('score')
-            elif team.get('homeAway') == "away":
-                away_team = team.get('team', {}).get('displayName')
-                away_id = team.get('id')
-                away_score = team.get('score')
-
-        # Put all informations together
-        match = cls(match_id=m.get('uid'),
-                    kickoff=kickoff,
-                    minute=m.get('status', {}).get('displayClock'),
-                    home_team=home_team,
-                    home_team_id=home_id,
-                    away_team=away_team,
-                    away_team_id=away_id,
-                    score={home_id: home_score, away_id: away_score},
-                    new_events=new_events,
-                    raw_events=m.get('competitions', [{}])[0].get('details'),
-                    venue=(competition.get('venue', {}).get('fullName'),
-                           competition.get('venue', {}).get('address', {}).get('city')),
-                    status=MatchStatus.get(m, LTSource.ESPN))
-        return match
+        self.match_id = m.get('MatchID')
+        self.kickoff = kickoff
+        self.minute = str(minute)
+        self.home_team = Config().bot.liveticker.teamname_converter.get(m.get('Team1', {}).get('TeamName'),
+                                                                        add_if_nonexist=True)
+        self.home_team_id = m.get('Team1', {}).get('TeamId')
+        self.away_team = Config().bot.liveticker.teamname_converter.get(m.get('Team2', {}).get('TeamName'),
+                                                                        add_if_nonexist=True)
+        self.away_team_id = m.get('Team2', {}).get('TeamId')
+        self.score = {self.home_team_id: max(0, 0, *(g.get('ScoreTeam1', 0) for g in m.get('Goals', []))),
+                      self.away_team_id: max(0, 0, *(g.get('ScoreTeam2', 0) for g in m.get('Goals', [])))}
+        self.raw_events = m.get('Goals')
+        self.venue = (m.get('Location', {}).get('LocationStadium'), m.get('Location', {}).get('LocationCity'))
+        self.status = MatchStatus.get(m, LTSource.OPENLIGADB)
+        self.new_events = new_events
+        self.matchday = m.get('Group', {}).get('GroupOrderID')
 
 
 class PlayerEvent(ABC):
@@ -525,6 +505,7 @@ class PlayerEvent(ABC):
     @abstractmethod
     def display(self):
         pass
+
 
 class GoalBase(PlayerEvent, ABC):
     """Base class for Goals"""
@@ -540,6 +521,7 @@ class GoalBase(PlayerEvent, ABC):
         if self.is_penalty:
             return ":soccer::goal: {}:{} {} ({})".format(*list(self.score.values())[0:2], self.player, self.minute)
         return ":soccer: {}:{} {} ({})".format(*list(self.score.values())[0:2], self.player, self.minute)
+
 
 class GoalESPN(GoalBase):
     """
@@ -630,6 +612,11 @@ class PlayerEventEnum(Enum):
     GOAL = GoalBase
     YELLOWCARD = YellowCardBase
     REDCARD = RedCardBase
+    UNKOWN = None
+
+    @classmethod
+    def _missing_(cls, value):
+        return PlayerEventEnum.UNKOWN
 
     @staticmethod
     def build_player_event_espn(event: dict, score: dict) -> PlayerEvent:
@@ -672,7 +659,7 @@ class LivetickerUpdate(LivetickerEvent):
     :param new_events: dictionary of the new events per match
     """
 
-    def __init__(self, league: str, matches: list, new_events: dict):
+    def __init__(self, league: str, matches: List[MatchBase], new_events: dict):
         m_list = []
         for m in matches:
             m.new_events = new_events.get(m.match_id)
@@ -804,7 +791,7 @@ class LeagueRegistration:
         kickoff_data = Storage().get(listener)['registrations'][source.value][league]['kickoffs']
         for raw_kickoff, matches in kickoff_data.items():
             time_kickoff = datetime.datetime.strptime(raw_kickoff, "%Y-%m-%d %H:%M")
-            matches_ = [MatchStub.from_storage(time_kickoff, m) for m in matches]
+            matches_ = [MatchStubStorage(time_kickoff, m) for m in matches]
             await l_reg.schedule_kickoff_single(time_kickoff, matches_)
         return l_reg
 
@@ -868,7 +855,8 @@ class LeagueRegistration:
             self.matches = await self.get_matches_espn()
         return self.matches
 
-    async def get_matches_espn(self, from_day: datetime.date = None, until_day: datetime.date = None) -> List[Match]:
+    async def get_matches_espn(self,
+                               from_day: datetime.date = None, until_day: datetime.date = None) -> List[MatchESPN]:
         """Requests espn match data for a specified date range"""
         if from_day is None:
             from_day = datetime.date.today()
@@ -881,11 +869,11 @@ class LeagueRegistration:
         await asyncio.sleep(5)
         data = await restclient.Client("http://site.api.espn.com/apis/site/v2/sports") \
             .request(f"/soccer/{self.league}/scoreboard", params={'dates': dates})
-        matches = [Match.from_espn(x) for x in data['events']]
+        matches = [MatchESPN(x) for x in data['events']]
         return matches
 
     async def get_matches_oldb_by_date(self, from_day: datetime.date = None, until_day: datetime.date = None,
-                                       limit: int = 5) -> List[Match]:
+                                       limit: int = 5) -> List[MatchOLDB]:
         """
         Requests openligadb match data for a specified date range. Doesn't support past days or dates too far into
         future since it is all matchday-based and starts from the present matchday.
@@ -904,7 +892,7 @@ class LeagueRegistration:
         if not data:
             return []
         for m in data:
-            match = Match.from_openligadb(m)
+            match = MatchOLDB(m)
             if match.kickoff.date() > until_day:
                 break
             if match.kickoff.date() >= from_day:
@@ -918,13 +906,13 @@ class LeagueRegistration:
                     matches.extend(add_matches)
         return matches
 
-    async def get_matches_oldb_by_matchday(self, matchday: int, season: int = None):
+    async def get_matches_oldb_by_matchday(self, matchday: int, season: int = None) -> List[MatchOLDB]:
         if season is None:
             date = datetime.date.today()
             season = date.year if date.month > 6 else date.year - 1
         data = await restclient.Client("https://www.openligadb.de/api").request(
             f"/getmatchdata/{self.league}/{season}/{matchday}")
-        return [Match.from_openligadb(m) for m in data]
+        return [MatchOLDB(m) for m in data]
 
     def extract_kickoffs_with_matches(self) -> dict:
         """
@@ -962,7 +950,7 @@ class LeagueRegistration:
         now = datetime.datetime.now()
         Storage().get(self.listener)['registrations'][self.source.value][self.league]['kickoffs'] = {}
 
-        matches: List[Match]
+        matches: List[MatchBase]
         if self.source == LTSource.ESPN:
             # Match collection for ESPN
             matches = await self.get_matches_espn(from_day=now, until_day=until)
@@ -1080,7 +1068,7 @@ class LeagueRegistration:
                     self.finished.append(match.match_id)
         for coro_reg in self.registrations:
             if coro_reg.periodic and \
-                    (datetime.datetime.now() - job.data['start']).seconds % (coro_reg.interval * 60) == 0:
+                    ((datetime.datetime.now() - job.data['start']).seconds // 60) % coro_reg.interval == 0:
                 await coro_reg.update(job)
             if new_finished:
                 await coro_reg.update_finished(new_finished)
@@ -1297,7 +1285,8 @@ class Liveticker(BaseSubsystem):
         Storage().get(self)['next_semiweekly'] = until.strftime("%Y-%m-%d %H:%M")
         Storage().save(self)
 
-    async def get_standings(self, league: str, source: LTSource) -> Tuple[str, Dict[str, List[TableEntryBase]]]:
+    @staticmethod
+    async def get_standings(league: str, source: LTSource) -> Tuple[str, Dict[str, List[TableEntryBase]]]:
         """
         Returns the current standings of that league
 
@@ -1317,7 +1306,7 @@ class Liveticker(BaseSubsystem):
             for group in groups:
                 entries = group['standings']['entries']
                 group_name = group['name']
-                tables[group_name] = [TableEntryESPN(entry, self.teamname_converter) for entry in entries]
+                tables[group_name] = [TableEntryESPN(entry) for entry in entries]
         elif source == LTSource.OPENLIGADB:
             year = (datetime.datetime.today() - datetime.timedelta(days=180)).year
             data = await restclient.Client("https://www.openligadb.de/api").request(f"/getbltable/{league}/{year}")
@@ -1326,7 +1315,7 @@ class Liveticker(BaseSubsystem):
                 raise ValueError(f"Unable to retrieve any standings information for {league}")
             for i in range(len(data)):
                 data[i]['rank'] = i + 1
-                table.append(TableEntryOLDB(data[i], self.teamname_converter))
+                table.append(TableEntryOLDB(data[i]))
             tables[league] = table
         else:
             raise ValueError("Invalid source")

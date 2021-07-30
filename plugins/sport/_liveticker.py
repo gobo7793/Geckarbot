@@ -142,6 +142,7 @@ class _Liveticker:
                 Config().get(self)['liveticker']['do_intermediate_updates'] = True
                 await add_reaction(ctx.message, Lang.EMOJI['unmute'])
             await add_reaction(ctx.message, Lang.CMDSUCCESS)
+            Config().save(self)
         elif event in Config().get(self)['liveticker']['tracked_events']:
             Config().get(self)['liveticker']['tracked_events'].remove(event)
             Config().save(self)
@@ -203,7 +204,7 @@ class _Liveticker:
             other_matches = []
             for match in event.matches:
                 events_msg = " / ".join(e.display() for e in match.new_events
-                                        if PlayerEventEnum(type(e)).name in event_filter)
+                                        if PlayerEventEnum(type(e).__base__).name in event_filter)
                 if events_msg:
                     match_msg = "{} | {} {} - {} {}| {}:{}".format(match.minute, match.home_team.emoji,
                                                                    match.home_team.long_name, match.away_team.emoji,
