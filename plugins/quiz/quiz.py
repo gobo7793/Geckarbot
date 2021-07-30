@@ -7,6 +7,7 @@ from discord.ext import commands
 from discord.errors import HTTPException
 
 from base import BasePlugin
+from botutils.stringutils import paginate
 from data import Storage, Lang, Config
 from botutils import permchecks
 from botutils.utils import sort_commands_helper, add_reaction, helpstring_helper
@@ -15,7 +16,7 @@ from subsystems.helpsys import DefaultCategories
 
 from plugins.quiz.controllers import RushQuizController, PointsQuizController
 from plugins.quiz.quizapis import quizapis, MetaQuizAPI
-from plugins.quiz.base import Difficulty
+from plugins.quiz.base import Difficulty, Rankedness
 from plugins.quiz.utils import get_best_username
 from plugins.quiz.migrations import migration
 from plugins.quiz.categories import CategoryController, DefaultCategory
@@ -54,8 +55,22 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
         self.bot = bot
         self.controllers = {}
         self.registered_subcommands = {}
-        self.role = self.bot.guild.get_role(self.get_config("roleid"))
         self.category_controller = CategoryController()
+
+        self.base_config = {
+            "ranked_min_players": [int, 4],
+            "ranked_min_questions": [int, 7],
+            "ranked_auto": [bool, True],
+            "questions_limit": [int, 25],
+            "questions_default": [int, 10],
+            "points_quiz_register_timeout": [int, 60],
+            "points_quiz_question_timeout": [int, 20],  # warning after this value, actual timeout after 1.5*this value
+            "question_cooldown": [int, 5],
+            "emoji_in_pose": [bool, True],
+            "catlist_embeds": [bool, False]
+        }
+        self.config_setter = ConfigSetter(self, self.base_config)
+        self.role = self.bot.guild.get_role(Config().get(self).get("roleid", 0))
 
         # init quizapis
         for _, el in quizapis.items():
@@ -70,6 +85,7 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
             "category": DefaultCategory.ALL,
             "difficulty": Difficulty.EASY,
             "ranked": False,
+            "unranked": False,
             "gecki": False,
             "debug": False,
             "subcommand": None,
@@ -79,18 +95,6 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
             RushQuizController: ["rush", "race", "wtia"],
             PointsQuizController: ["points"],
         }
-
-        self.base_config = {
-            "ranked_min_players": [int, 4],
-            "ranked_min_questions": [int, 7],
-            "questions_limit": [int, 25],
-            "questions_default": [int, 10],
-            "points_quiz_register_timeout": [int, 60],
-            "points_quiz_question_timeout": [int, 20],  # warning after this value, actual timeout after 1.5*this value
-            "question_cooldown": [int, 5],
-            "emoji_in_pose": [bool, True],
-        }
-        self.config_setter = ConfigSetter(self, self.base_config)
 
         # Documented subcommands
         self.register_subcommand(None, "question", self.cmd_question)
@@ -190,6 +194,7 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
         assert method == Methods.START
         await add_reaction(ctx.message, Lang.EMOJI["success"])
         cat = self.category_controller.get_category_key(args["quizapi"], args["category"])
+        rankedness = self.rankedness(controller_class, args)
         self.logger.debug("Starting kwiss: controller %s, api %s,  channel %s, author %s, cat %s, question "
                           "count %s, difficulty %s, debug %s, ranked %s, gecki %s", controller_class,
                           args["quizapi"], ctx.channel, ctx.message.author, cat, args["questions"], args["difficulty"],
@@ -203,7 +208,7 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
                                                question_count=args["questions"],
                                                difficulty=args["difficulty"],
                                                debug=args["debug"],
-                                               ranked=args["ranked"],
+                                               ranked=rankedness,
                                                gecki=args["gecki"])
             self.controllers[channel] = quiz_controller
             self.logger.debug("Registered quiz controller %s in channel %s", quiz_controller, ctx.channel)
@@ -330,6 +335,40 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
             await add_reaction(ctx.message, Lang.CMDSUCCESS)
         else:
             await add_reaction(ctx.message, Lang.CMDNOCHANGE)
+
+    @cmd_kwiss.command(name="categories")
+    async def cmd_categories(self, ctx):
+        # Embed format
+        if self.get_config("catlist_embeds"):
+            entries = discord.Embed()
+            for cat in self.category_controller.categories.values():
+                entries.add_field(name=cat.name, value=cat.args[0])
+            await ctx.send(embed=entries)
+            return
+
+        # Table format
+        else:
+            longest_cat = len("Category")
+            longest_arg = len("Argument")
+            entries = [("Category", "Argument")]
+            for cat in self.category_controller.categories.values():
+                arg = cat.args[0]
+                if len(cat.name) > longest_cat:
+                    longest_cat = len(cat.name)
+                if len(arg) > longest_arg:
+                    longest_arg = len(arg)
+                entries.append((cat.name, arg))
+
+            for i in range(len(entries)):
+                name = entries[i][0]
+                name = name + " " * (1 + longest_cat - len(name))
+                entries[i] = name + "| " + entries[i][1]
+
+            underline = "-" * (1 + longest_cat) + "+" + "-" * longest_cat
+            entries = entries[:1] + [underline] + entries[1:]
+
+            for msg in paginate(entries, prefix="```", suffix="```"):
+                await ctx.send(msg)
 
     @cmd_kwiss.command(name="question")
     async def cmd_question(self, ctx, *args):
@@ -485,6 +524,26 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
             return "category_not_supported", args["quizapi"].NAME, args["category_name"]
         return None
 
+    def rankedness(self, controller, args) -> Rankedness:
+        """
+        Decides whether a quiz is supposed to be ranked, auto (can potentially be ranked, going to depend on player
+        count) or unranked.
+
+        :param controller: Controller class, corresponds to game mode
+        :param args: Parsed args
+        :return: Resulting Rankedness object
+        """
+        if args["ranked"]:
+            return Rankedness.RANKED
+        elif args["unranked"] or not self.get_config("ranked_auto"):
+            return Rankedness.UNRANKED
+
+        # ranked constraints
+        if controller != self.default_controller:
+            return Rankedness.UNRANKED
+
+        return Rankedness.AUTO
+
     def parse_args(self, channel, args, subcommands=True):
         """
         Parses the arguments given to the quiz command and fills in defaults if necessary.
@@ -582,8 +641,17 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
 
             # ranked
             if arg == "ranked":
+                if found["unranked"]:
+                    raise QuizInitError(self, "duplicate_ranked_arg")
                 parsed["ranked"] = True
                 found["ranked"] = True
+                continue
+
+            if arg == "unranked":
+                if found["ranked"]:
+                    raise QuizInitError(self, "duplicate_ranked_arg")
+                parsed["unranked"] = True
+                found["unranked"] = True
                 continue
 
             # gecki

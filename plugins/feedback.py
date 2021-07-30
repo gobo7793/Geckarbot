@@ -433,7 +433,7 @@ class Plugin(BasePlugin, name="Feedback"):
             for msg in paginate(cats_sorted, prefix=Lang.lang(self, "redact_cat_list_prefix")):
                 await ctx.send(msg)
 
-    @cmd_redact.command(name="category", aliases=["cat"])
+    @cmd_redact.command(name="category", aliases=["cat", "cats", "categories"])
     async def cmd_category(self, ctx, *args):
         ids, cats = self.parse_args(args)
 
