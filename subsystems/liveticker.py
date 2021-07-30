@@ -1097,7 +1097,6 @@ class Liveticker(BaseSubsystem):
         self.registrations = {x: {} for x in LTSource}
         self.teamname_converter = TeamnameConverter(self)
         self.restored = False
-        self.hourly_timer = None
         self.semiweekly_timer = None
 
         # Update storage
@@ -1119,7 +1118,6 @@ class Liveticker(BaseSubsystem):
             plugins = self.bot.get_normalplugins()
             await self.restore(plugins)
             self.restored = True
-            self.hourly_timer = self.bot.timers.schedule(coro=self._hourly_timer_coro, td=timers.timedict(minute=[0]))
             self.semiweekly_timer = self.bot.timers.schedule(coro=self._semiweekly_timer_coro,
                                                              td=timers.timedict(weekday=[2, 5], hour=[4], minute=[0]))
             if Storage().get(self).get('next_semiweekly') is None or \
@@ -1267,10 +1265,6 @@ class Liveticker(BaseSubsystem):
         for _, _, c_reg in self.search_coro(plugins=[plugin_name]):
             c_reg.unload()
         self.logger.debug('Liveticker for plugin %s unloaded', plugin_name)
-
-    async def _hourly_timer_coro(self, _job):
-        self.logger.debug("Hourly timer schedules liveticker timers for this hour.")
-        # TODO Hourly timer
 
     async def _semiweekly_timer_coro(self, _job):
         """
