@@ -69,7 +69,7 @@ class _Livescores:
                 return
         elif source == LTSource.ESPN:
             raw_matches = await restclient.Client("http://site.api.espn.com/apis/site/v2/sports").request(
-                f"/soccer/{league}/scoreboard")
+                f"/soccer/{league}/scoreboard", params={'dates': datetime.today().strftime("%Y%m%d")})
             matches = [MatchESPN(m) for m in raw_matches.get('events', [])]
         else:
             raise ValueError('Invalid source. Should not happen.')
