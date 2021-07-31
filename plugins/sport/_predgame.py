@@ -28,7 +28,9 @@ class _Predgame:
             await ctx.send(Lang.lang(self, "pred_no_today_games"))
 
     async def _today_coro(self, _job):
-        if Config.get(self)["show_today_matches"] and Config().get(self)['sport_chan']:
+        today_matches = Config.get(self)["liveticker"]["show_today_matches"]
+        chan_id = Config().get(self)['sport_chan']
+        if today_matches and chan_id > 0:
             await self._today_matches(Config().bot.get_channel(Config().get(self)['sport_chan']))
 
     async def _today_matches(self, chan: TextChannel) -> int:
@@ -47,8 +49,7 @@ class _Predgame:
             for m in result.get('events', []):
                 match = MatchESPN(m)
                 kickoff = match.kickoff.strftime("%H:%M")
-                stadium, city = match.venue
-                msg.append(f"{Storage.get(self)['predictions'][league]['name']} | {kickoff} | {stadium}, {city} | "
+                msg.append(f"{Storage.get(self)['predictions'][league]['name']} | {kickoff} | "
                            f"{match.home_team.emoji} {match.away_team.emoji} "
                            f"{match.home_team.long_name} - {match.away_team.long_name}")
 
@@ -216,7 +217,7 @@ class _Predgame:
 
     @cmd_predgame_set.command(name="add")
     async def cmd_predgame_set__add(self, ctx, espn_code, name, sheet_id,
-                                    name_range="G1:AD1", points_range="F4:AD4", prediction_range="A1:AD354"):
+                                    name_range="G1:AD1", points_range="G4:AD4", prediction_range="A6:AD345"):
         Storage.get(self)["predictions"][espn_code] = {
             "name": name,
             "sheet": sheet_id,
@@ -241,4 +242,18 @@ class _Predgame:
     async def cmd_predgame_set_sheet(self, ctx, sheet_id: str = ""):
         Config.get(self)["predictions_overview_sheet"] = sheet_id
         Config.save(self)
+        await add_reaction(ctx.message, Lang.CMDSUCCESS)
+
+    @cmd_predgame_set.command(name="today")
+    async def cmd_predgame_set_today(self, ctx, show_today: bool = None):
+        if show_today is None:
+            current = Config.get(self)["liveticker"]["show_today_matches"]
+            Config.get(self)["liveticker"]["show_today_matches"] = not current
+        else:
+            Config.get(self)["liveticker"]["show_today_matches"] = show_today
+        Config.save(self)
+        if Config.get(self)["liveticker"]["show_today_matches"]:
+            await add_reaction(ctx.message, Lang.EMOJI['unmute'])
+        else:
+            await add_reaction(ctx.message, Lang.EMOJI['mute'])
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
