@@ -677,12 +677,12 @@ class LivetickerFinish(LivetickerEvent):
     pass
 
 
-class CoroRegistration:
+class CoroRegistrationBase(ABC):
     """Registration for a single Coroutine. Liveticker updates for the specified league will be transmitted to the
     specified coro
 
     :param league_reg: Registration of the corresponding league
-    :type league_reg: LeagueRegistration
+    :type league_reg: LeagueRegistrationBase
     :param coro: Coroutine which receives the LivetickerEvents
     :param periodic: whether the registration should receive mid-game updates"""
 
@@ -709,6 +709,10 @@ class CoroRegistration:
         """Returns datetime of the next timer execution"""
         return self.league_reg.next_execution()
 
+    @abstractmethod
+    def transform_events(self, m: MatchBase):
+        pass
+
     async def update(self, job: Job):
         """
         Coroutine used by the interval timer during matches. Manufactures the LivetickerUpdate for the coro.
@@ -719,20 +723,7 @@ class CoroRegistration:
         for m in matches:
             if m.match_id not in self.last_events:
                 self.last_events[m.match_id] = []
-            events = []
-            if self.league_reg.source == LTSource.OPENLIGADB:
-                for g in m.raw_events:
-                    goal = GoalOLDB(g, m.home_team_id, m.away_team_id)
-                    if goal.event_id not in self.last_events[m.match_id]:
-                        events.append(goal)
-            elif self.league_reg.source == LTSource.ESPN:
-                tmp_score = {m.home_team_id: 0, m.away_team_id: 0}
-                for e in m.raw_events:
-                    event = PlayerEventEnum.build_player_event_espn(e, tmp_score.copy())
-                    if isinstance(event, GoalBase):
-                        tmp_score = event.score
-                    if event.event_id not in self.last_events[m.match_id]:
-                        events.append(event)
+            events = self.transform_events(m)
             new_events[m.match_id] = events
             self.last_events[m.match_id].extend([e.event_id for e in events])
         await self.coro(LivetickerUpdate(self.league_reg.league, matches, new_events))
@@ -762,7 +753,32 @@ class CoroRegistration:
         return bool(self.next_execution())
 
 
-class LeagueRegistration:
+class CoroRegistrationESPN(CoroRegistrationBase):
+
+    def transform_events(self, m: MatchESPN):
+        events = []
+        tmp_score = {m.home_team_id: 0, m.away_team_id: 0}
+        for e in m.raw_events:
+            event = PlayerEventEnum.build_player_event_espn(e, tmp_score.copy())
+            if isinstance(event, GoalBase):
+                tmp_score = event.score
+            if event.event_id not in self.last_events[m.match_id]:
+                events.append(event)
+        return events
+
+
+class CoroRegistrationOLDB(CoroRegistrationBase):
+
+    def transform_events(self, m: MatchOLDB):
+        events = []
+        for g in m.raw_events:
+            goal = GoalOLDB(g, m.home_team_id, m.away_team_id)
+            if goal.event_id not in self.last_events[m.match_id]:
+                events.append(goal)
+        return events
+
+
+class LeagueRegistrationBase(ABC):
     """
     Registration for a league. Manages central data collection and scheduling of timers.
 
@@ -787,14 +803,14 @@ class LeagueRegistration:
     @classmethod
     async def create(cls, listener, league: str, source: LTSource):
         """New LeagueRegistration"""
-        l_reg = LeagueRegistration(listener, league, source)
+        l_reg = LeagueRegistrationBase(listener, league, source)
         await l_reg.schedule_kickoffs(until=listener.semiweekly_timer.next_execution())
         return l_reg
 
     @classmethod
     async def restore(cls, listener, league: str, source: LTSource):
         """Restored LeagueRegistration"""
-        l_reg = LeagueRegistration(listener, league, source)
+        l_reg = LeagueRegistrationBase(listener, league, source)
         kickoff_data = Storage().get(listener)['registrations'][source.value][league]['kickoffs']
         for raw_kickoff, matches in kickoff_data.items():
             time_kickoff = datetime.datetime.strptime(raw_kickoff, "%Y-%m-%d %H:%M")
@@ -802,9 +818,13 @@ class LeagueRegistration:
             await l_reg.schedule_kickoff_single(time_kickoff, matches_)
         return l_reg
 
+    @abstractmethod
     async def register(self, plugin, coro, interval: int, periodic: bool):
-        """Registers a CoroReg for this league"""
-        reg = CoroRegistration(self, plugin, coro, interval, periodic)
+        """Builds and registers a CoroReg for this league"""
+        pass
+
+    async def register_reg(self, reg: CoroRegistrationBase):
+        """Registers the registration"""
         if reg not in self.registrations:
             self.registrations.append(reg)
             reg_storage = reg.storage()
@@ -832,7 +852,7 @@ class LeagueRegistration:
             job.cancel()
         self.listener.unload(self)
 
-    def deregister_coro(self, coro: CoroRegistration):
+    def deregister_coro(self, coro: CoroRegistrationBase):
         """Finishes the deregistration of a CoroRegistration"""
         reg_storage = coro.storage()
         leag_reg = Storage().get(self.listener)['registrations'][self.source.value][self.league]
@@ -844,93 +864,29 @@ class LeagueRegistration:
         if not self.registrations:
             self.deregister()
 
-    def unload_coro(self, coro: CoroRegistration):
+    def unload_coro(self, coro: CoroRegistrationBase):
         """Finishes the unloading of a CoroRegistration"""
         if coro in self.registrations:
             self.registrations.remove(coro)
         if not self.registrations:
             self.unload()
 
-    async def update_matches(self, matchday=None):
-        """Updates the matches and current standings of the league"""
-        if self.source == LTSource.OPENLIGADB:
-            if matchday:
-                self.matches = await self.get_matches_oldb_by_matchday(matchday=matchday)
-            else:
-                self.matches = await self.get_matches_oldb_by_date()
-        elif self.source == LTSource.ESPN:
-            self.matches = await self.get_matches_espn()
+    async def update_matches(self):
+        """Updates and returns the matches and current standings of the league"""
+        self.matches = await self.get_matches_by_date()
         return self.matches
 
-    async def get_matches_espn(self,
-                               from_day: datetime.date = None, until_day: datetime.date = None) -> List[MatchESPN]:
-        """Requests espn match data for a specified date range
-
-        :param from_day: start of the date range.
-        :param until_day: end of the date range.
-        :return: List of the corresponding matches"""
-        if from_day is None:
-            from_day = datetime.date.today()
-        if until_day is None:
-            until_day = from_day
-
-        dates = "{}-{}".format(from_day.strftime("%Y%m%d"), until_day.strftime("%Y%m%d"))
-        _ = await restclient.Client("http://site.api.espn.com/apis/site/v2/sports") \
-            .request(f"/soccer/{self.league}/scoreboard", params={'dates': dates})
-        await asyncio.sleep(5)
-        data = await restclient.Client("http://site.api.espn.com/apis/site/v2/sports") \
-            .request(f"/soccer/{self.league}/scoreboard", params={'dates': dates})
-        matches = [MatchESPN(x) for x in data['events']]
-        return matches
-
-    async def get_matches_oldb_by_date(self, from_day: datetime.date = None, until_day: datetime.date = None,
-                                       limit: int = 5) -> List[MatchOLDB]:
+    @abstractmethod
+    async def get_matches_by_date(self, from_day: datetime.date = None, until_day: datetime.date = None) \
+            -> List[MatchBase]:
         """
-        Requests openligadb match data for a specified date range. Doesn't support past days or dates too far into
-        future since it is all matchday-based and starts from the present matchday.
+        Requests match data for a specific data range.
 
-        :param from_day: start of the date range. No past days supported.
-        :param until_day: end of the date range.
-        :param limit: maximum number of requests respectivly the number of matchdays checked for fitting matches.
-        :return: List of the corresponding matches
+        :param from_day: start of the date range
+        :param until_day: end of the date range
+        :return: List of corresponding matches
         """
-        if from_day is None:
-            from_day = datetime.date.today()
-        if until_day is None:
-            until_day = from_day
-
-        data = await restclient.Client("https://www.openligadb.de/api").request("/getmatchdata/{}".format(self.league))
-        matches = []
-        if not data:
-            return []
-        for m in data:
-            match = MatchOLDB(m)
-            if match.kickoff.date() > until_day:
-                break
-            if match.kickoff.date() >= from_day:
-                matches.append(match)
-        else:
-            for _ in range(1, limit):
-                add_matches = await self.get_matches_oldb_by_matchday(matchday=matches[-1].matchday)
-                if not add_matches:
-                    break
-                matches.extend(add_matches)
-        return matches
-
-    async def get_matches_oldb_by_matchday(self, matchday: int, season: int = None) -> List[MatchOLDB]:
-        """
-        Requests openligadb match data for a specified matchday
-
-        :param matchday: Requested matchday
-        :param season: season/year
-        :return: List of the corresponding matches
-        """
-        if season is None:
-            date = datetime.date.today()
-            season = date.year if date.month > 6 else date.year - 1
-        data = await restclient.Client("https://www.openligadb.de/api").request(
-            f"/getmatchdata/{self.league}/{season}/{matchday}")
-        return [MatchOLDB(m) for m in data]
+        pass
 
     def extract_kickoffs_with_matches(self) -> dict:
         """
@@ -948,15 +904,6 @@ class LeagueRegistration:
                 kickoff_dict[match.kickoff] = [match]
         return kickoff_dict
 
-    def matchday(self):
-        """Returns the current matchday (OLDB only)"""
-        if self.source == LTSource.OPENLIGADB:
-            for match in self.matches:
-                md = match.matchday
-                if md:
-                    return md
-        return None
-
     async def schedule_kickoffs(self, until: datetime.datetime):
         """
         Schedules timers for the kickoffs of the matches until the specified date
@@ -968,15 +915,7 @@ class LeagueRegistration:
         now = datetime.datetime.now()
         Storage().get(self.listener)['registrations'][self.source.value][self.league]['kickoffs'] = {}
 
-        matches: List[MatchBase]
-        if self.source == LTSource.ESPN:
-            # Match collection for ESPN
-            matches = await self.get_matches_espn(from_day=now, until_day=until)
-        elif self.source == LTSource.OPENLIGADB:
-            # Match collection for OpenLigaDB
-            matches = await self.get_matches_oldb_by_date(from_day=now, until_day=until)
-        else:
-            raise ValueError("Source {} is not supported.".format(self.source))
+        matches: List[MatchBase] = await self.get_matches_by_date(from_day=now, until_day=until)
 
         for match in matches:
             # Group by kickoff
@@ -1104,6 +1043,99 @@ class LeagueRegistration:
         return bool(self.next_execution())
 
 
+class LeagueRegistrationESPN(LeagueRegistrationBase):
+
+    async def register(self, plugin, coro, interval: int, periodic: bool):
+        reg = CoroRegistrationESPN(self, plugin=plugin, coro=coro, interval=interval, periodic=periodic)
+        await self.register_reg(reg)
+
+    async def get_matches_by_date(self, from_day: datetime.date = None, until_day: datetime.date = None) \
+            -> List[MatchESPN]:
+        """Requests espn match data for a specified date range
+
+        :param from_day: start of the date range.
+        :param until_day: end of the date range.
+        :return: List of the corresponding matches"""
+        if from_day is None:
+            from_day = datetime.date.today()
+        if until_day is None:
+            until_day = from_day
+
+        dates = "{}-{}".format(from_day.strftime("%Y%m%d"), until_day.strftime("%Y%m%d"))
+        _ = await restclient.Client("http://site.api.espn.com/apis/site/v2/sports") \
+            .request(f"/soccer/{self.league}/scoreboard", params={'dates': dates})
+        await asyncio.sleep(5)
+        data = await restclient.Client("http://site.api.espn.com/apis/site/v2/sports") \
+            .request(f"/soccer/{self.league}/scoreboard", params={'dates': dates})
+        matches = [MatchESPN(x) for x in data['events']]
+        return matches
+
+
+class LeagueRegistrationOLDB(LeagueRegistrationBase):
+
+    async def register(self, plugin, coro, interval: int, periodic: bool):
+        reg = CoroRegistrationOLDB(self, plugin=plugin, coro=coro, interval=interval, periodic=periodic)
+        await self.register_reg(reg)
+
+    async def get_matches_by_date(self, from_day: datetime.date = None, until_day: datetime.date = None,
+                                       limit: int = 5) -> List[MatchOLDB]:
+        """
+        Requests openligadb match data for a specified date range. Doesn't support past days or dates too far into
+        future since it is all matchday-based and starts from the present matchday.
+
+        :param from_day: start of the date range. No past days supported.
+        :param until_day: end of the date range.
+        :param limit: maximum number of requests respectivly the number of matchdays checked for fitting matches.
+        :return: List of the corresponding matches
+        """
+        if from_day is None:
+            from_day = datetime.date.today()
+        if until_day is None:
+            until_day = from_day
+
+        data = await restclient.Client("https://www.openligadb.de/api").request("/getmatchdata/{}".format(self.league))
+        matches = []
+        if not data:
+            return []
+        for m in data:
+            match = MatchOLDB(m)
+            if match.kickoff.date() > until_day:
+                break
+            if match.kickoff.date() >= from_day:
+                matches.append(match)
+        else:
+            for _ in range(1, limit):
+                add_matches = await self.get_matches_by_matchday(matchday=matches[-1].matchday)
+                if not add_matches:
+                    break
+                matches.extend(add_matches)
+        return matches
+
+    async def get_matches_by_matchday(self, matchday: int, season: int = None) -> List[MatchOLDB]:
+        """
+        Requests openligadb match data for a specified matchday
+
+        :param matchday: Requested matchday
+        :param season: season/year
+        :return: List of the corresponding matches
+        """
+        if season is None:
+            date = datetime.date.today()
+            season = date.year if date.month > 6 else date.year - 1
+        data = await restclient.Client("https://www.openligadb.de/api").request(
+            f"/getmatchdata/{self.league}/{season}/{matchday}")
+        return [MatchOLDB(m) for m in data]
+
+    def matchday(self):
+        """Returns the current matchday (OLDB only)"""
+        if self.source == LTSource.OPENLIGADB:
+            for match in self.matches:
+                md = match.matchday
+                if md:
+                    return md
+        return None
+
+
 class Liveticker(BaseSubsystem):
     """Subsystem for the registration and operation of sports livetickers"""
 
@@ -1155,7 +1187,7 @@ class Liveticker(BaseSubsystem):
         return storage
 
     async def register(self, league: str, raw_source: str, plugin: BasePlugin,
-                       coro, interval: int = 15, periodic: bool = True) -> CoroRegistration:
+                       coro, interval: int = 15, periodic: bool = True) -> CoroRegistrationBase:
         """
         Registers a new liveticker for the specified league.
 
@@ -1175,13 +1207,13 @@ class Liveticker(BaseSubsystem):
             Storage().save(self)
         if league not in self.registrations[source]:
             if league_exists:
-                self.registrations[source][league] = await LeagueRegistration.restore(self, league, source)
+                self.registrations[source][league] = await LeagueRegistrationBase.restore(self, league, source)
             else:
-                self.registrations[source][league] = await LeagueRegistration.create(self, league, source)
+                self.registrations[source][league] = await LeagueRegistrationBase.create(self, league, source)
         coro_reg = await self.registrations[source][league].register(plugin, coro, interval, periodic)
         return coro_reg
 
-    def deregister(self, reg: LeagueRegistration):
+    def deregister(self, reg: LeagueRegistrationBase):
         """
         Finishes the deregistration of a LeagueRegistration
 
@@ -1193,11 +1225,11 @@ class Liveticker(BaseSubsystem):
             Storage().get(self)['registrations'][reg.source.value].pop(reg.league)
             Storage().save(self)
 
-    def unload(self, reg: LeagueRegistration):
+    def unload(self, reg: LeagueRegistrationBase):
         if reg.league in self.registrations[reg.source]:
             self.registrations[reg.source].pop(reg.league)
 
-    def search_league(self, sources=None, leagues=None) -> Generator[LeagueRegistration, None, None]:
+    def search_league(self, sources=None, leagues=None) -> Generator[LeagueRegistrationBase, None, None]:
         """
         Searches all LeagueRegistrations fulfilling the requirements
 
@@ -1215,13 +1247,13 @@ class Liveticker(BaseSubsystem):
             if sources and src not in sources:
                 continue
             for league, l_reg in l_regs.items():
-                l_reg: LeagueRegistration
+                l_reg: LeagueRegistrationBase
                 if leagues and league not in leagues:
                     continue
                 yield l_reg
 
     def search_coro(self, plugins: list = None, sources: list = None, leagues: list = None) -> \
-            Generator[Tuple[LTSource, str, CoroRegistration], None, None]:
+            Generator[Tuple[LTSource, str, CoroRegistrationBase], None, None]:
         """
         Searches all CoroRegistrations fulfilling the requirements
 
@@ -1239,9 +1271,9 @@ class Liveticker(BaseSubsystem):
             leagues = []
         if plugins is None:
             plugins = []
-        l_reg: LeagueRegistration
+        l_reg: LeagueRegistrationBase
         for l_reg in self.search_league(sources=sources, leagues=leagues):
-            c_reg: CoroRegistration
+            c_reg: CoroRegistrationBase
             for c_reg in l_reg.registrations:
                 if plugins and c_reg.plugin_name not in plugins:
                     continue
