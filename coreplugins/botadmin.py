@@ -60,9 +60,7 @@ class Plugin(BasePlugin, name="Bot status commands for monitoring and debug purp
                 await ctx.send(msg)
 
         if not subsystem or subsystem == "timers":
-            timer_status = "up" if self.bot.timers.is_alive() else "down"
-            timer_prefix = "**{} Timers: Thread is {}; registrations:**\n".format(len(self.bot.timers.jobs),
-                                                                                  timer_status)
+            timer_prefix = "**{} Timers; registrations:**\n".format(len(self.bot.timers.jobs))
             for msg in paginate(self.bot.timers.jobs,
                                 prefix=timer_prefix,
                                 suffix="\n",

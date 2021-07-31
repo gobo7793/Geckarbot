@@ -49,11 +49,16 @@ class Mothership(BaseSubsystem):
         :raises RuntimeError: raised if td is in the past
         """
         td = normalize_td(td)
-        # if next_occurence(td) is None:
-        #   raise RuntimeError("td {} is in the past".format(td))
+        if next_occurence(td) is None:
+            raise RuntimeError("td {} is in the past".format(td))
         job = Job(self.bot, td, coro, data=data, repeat=repeat)
         self.logger.info("Scheduling %s", job)
+        self.jobs.append(job)
         return job
+
+    def remove(self, job):
+        self.logger.debug("Removing job %s", job)
+        self.jobs.remove(job)
 
 
 class Job:
@@ -81,6 +86,8 @@ class Job:
         self._task = None
 
         self.data = data
+        self._is_scheduled = False
+        self._last_tts = 0
         """
         Opaque value guaranteed to never be overwritten.
         It can be used to store arbitrary information to be used by the coroutine.
@@ -101,6 +108,10 @@ class Job:
         """Gets if the job was cancelled"""
         return self._cancelled
 
+    @property
+    def is_scheduled(self):
+        return self._is_scheduled
+
     def cancel(self):
         """
         Cancels the job
@@ -119,7 +130,8 @@ class Job:
     async def _loop(self):
         await self._lock.acquire()
         while self.next_execution() is not None:
-            tts = (self.next_execution() - datetime.datetime.now()).seconds
+            tts = (self.next_execution() - datetime.datetime.now()).total_seconds()
+            self._last_tts = int(tts)
             self.logger.debug("Scheduling job for %s", self.next_execution())
 
             # check if tts is too big
@@ -127,21 +139,25 @@ class Job:
             if 2 ** (bitness - 3) < (365 * 24 * (60/2) * (60/2)):
                 await write_debug_channel("Unable to sleep for {} years; job: {}"
                                           .format(self.next_execution().year, self))
-                return
+                break
 
             # Schedule
+            self._is_scheduled = True
             self._timer = Timer(self.bot, tts, self.loop_cb)
-            self.logger.debug("Sleeping %d seconds", tts)
+            self.logger.debug("Sleeping %d seconds, that's roughly %d days", tts, self._last_tts // (60*60*24))
             if not self._passthrough:
                 await self._lock.acquire()
             self._passthrough = False
             if self._cancelled:
                 self.logger.debug("Job was cancelled, cancelling loop")
-                return
+                break
             self.logger.debug("Executing job %s", self)
             await execute_anything(self._coro, self)
             if not self._repeat:
-                return
+                break
+
+        self._is_scheduled = False
+        self.bot.timers.remove(self)
 
     def execute(self):
         """
@@ -171,7 +187,8 @@ class Job:
         return self._cached_next_exec
 
     def __str__(self):
-        return "<timers.Job; coro: {}; td: {}>".format(self._coro, self._timedict)
+        return "<timers.Job; coro: {}; td: {}; is scheduled: {}; last tts: {} ({} days)>".format(
+            self._coro, self._timedict, self._is_scheduled, self._last_tts, self._last_tts // (60*60*24))
 
 
 def timedict(year=None, month=None, monthday=None, weekday=None, hour=None, minute=None):
@@ -308,6 +325,11 @@ def next_occurence(ntd, now=None, ignore_now=False):
         startday = now.day
     for month, year in ring_iterator(ntd["month"], startmonth, 1, 12, now.year):
         logger.debug("Checking %d-%d", year, month)
+
+        # Check if we're in the past
+        if year < now.year or (year == now.year and month < now.month):
+            logger.debug("We're in the past")
+            continue
 
         # Check if this year is in the years list and if there even is a year in the future to be had
         if ntd["year"] is not None and year not in ntd["year"]:
