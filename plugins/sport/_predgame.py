@@ -108,7 +108,8 @@ class _Predgame:
             for row in data[1:]:
                 row.extend([None] * (len(data[0]) + 1 - len(row)))
                 if kickoff is not None and \
-                        (row[0] != kickoff.strftime("%d.%m.") or row[1] != kickoff.strftime("%H:%M")):
+                        (not row[0].endswith(kickoff.strftime("%d.%m.")) or
+                         not row[1].endswith(kickoff.strftime("%H:%M"))):
                     continue
                 if not row[2] or not row[5]:
                     continue
