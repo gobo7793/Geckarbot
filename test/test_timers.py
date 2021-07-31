@@ -6,7 +6,7 @@ from subsystems import timers
 
 # pylint: disable=missing-function-docstring
 
-DEBUG = False
+DEBUG = True
 
 if DEBUG:
     logging.basicConfig(level=logging.DEBUG)
@@ -45,15 +45,57 @@ def test_cron_alg_fr13():
     assert testdate.year == year
 
 
+def format_td(td):
+    if td is None:
+        return str(td)
+    return "{}-{}-{}-{}-{}".format(td.year, td.month, td.day, td.hour, td.minute)
+
+
 def tcase_cron_alg(now, td, expected, ignore_now=False):
     td = timers.next_occurence(timers.normalize_td(td), now=now, ignore_now=ignore_now)
-    assert td is not None, "timers.next_occurence didn't return anything"
-    msg = "date is {}-{}-{}-{}-{}, should be {}-{}-{}-{}-{}".format(
-        td.year, td.month, td.day, td.hour, td.minute, expected.year, expected.month, expected.day,
-        expected.hour, expected.minute)
+    msg = "date is {}, should be {}".format(format_td(td), format_td(expected))
+    assert (td is None and expected is None) or (td is not None and expected is not None), msg
+    if td is None:
+        return
+
     day = td.year == expected.year and td.month == expected.month and td.day == expected.day
     time = td.hour == expected.hour and td.minute == expected.minute
     assert day and time, msg
+
+
+def test_cron_alg_past():
+    now = datetime(year=2050, month=12, day=31, hour=23, minute=59)
+    timedict = timers.timedict(year=1997, minute=3)
+    expected = None
+    tcase_cron_alg(now, timedict, expected)
+
+
+def test_cron_alg_past_same_year():
+    now = datetime(year=2021, month=7, day=31, hour=14, minute=11)
+    timedict = timers.timedict(year=2021, month=5, monthday=3, hour=23, minute=0)
+    expected = None
+    tcase_cron_alg(now, timedict, expected)
+
+
+def test_cron_alg_past_same_hour():
+    now = datetime(year=2021, month=7, day=31, hour=14, minute=11)
+    timedict = timers.timedict(year=2021, month=7, monthday=31, hour=14, minute=0)
+    expected = None
+    tcase_cron_alg(now, timedict, expected)
+
+
+def test_cron_alg_past_same_day():
+    now = datetime(year=2021, month=7, day=31, hour=14, minute=11)
+    timedict = timers.timedict(year=2021, month=7, monthday=31, hour=13, minute=14)
+    expected = None
+    tcase_cron_alg(now, timedict, expected)
+
+
+def test_cron_alg_past_same_month():
+    now = datetime(year=2021, month=7, day=31, hour=14, minute=11)
+    timedict = timers.timedict(year=2021, month=7, monthday=30, hour=13, minute=14)
+    expected = None
+    tcase_cron_alg(now, timedict, expected)
 
 
 def test_cron_alg_hour0():
