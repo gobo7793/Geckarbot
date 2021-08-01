@@ -10,6 +10,8 @@ from calendar import monthrange
 import random
 import logging
 
+from typing import Tuple
+
 sys.path.append(".")
 sys.path.append("..")
 import test_timers
@@ -46,12 +48,15 @@ class TestThread(Thread):
         return self.test_counter + 1, self.failed_test_counter
 
     def main_thread_obligations(self):
+        """
+        Collects failed test messages and prints them
+        """
         with self.lock:
             for el in self.failed_test_buffer:
                 print(el)
             self.failed_test_buffer = []
 
-    def generate_testcase(self):
+    def generate_testcase(self) -> Tuple[datetime, dict, datetime]:
         """
         Generates a random set of `now, td, expected` which serves as a test case.
 
@@ -77,7 +82,7 @@ class TestThread(Thread):
         expected = None if tc < now else tc
         return now, td, expected
 
-    def append_failed_test(self, msg):
+    def append_failed_test(self, msg: str):
         """
         Appends a failed test message to the main thread's buffer.
 
