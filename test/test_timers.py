@@ -6,7 +6,7 @@ from subsystems import timers
 
 # pylint: disable=missing-function-docstring
 
-DEBUG = True
+DEBUG = False
 
 if DEBUG:
     logging.basicConfig(level=logging.DEBUG)
@@ -214,4 +214,18 @@ def test_cron_alg_futureyearpastmonth():
     now = datetime(year=2021, month=7, day=25, hour=12, minute=11)
     timedict = timers.timedict(year=2031, month=6, monthday=23, hour=15, minute=12)
     expected = datetime(year=2031, month=6, day=23, hour=15, minute=12)
+    tcase_cron_alg(now, timedict, expected)
+
+
+def test_fuzzer_01():
+    now = datetime(year=2021, month=8, day=1, hour=15, minute=36)
+    timedict = timers.timedict(year=2036, month=3, monthday=25, hour=6, minute=44)
+    expected = datetime(year=2036, month=3, day=25, hour=6, minute=44)
+    tcase_cron_alg(now, timedict, expected)
+
+
+def test_fuzzer_02():
+    now = datetime(year=2021, month=8, day=1, hour=15, minute=38)
+    timedict = timers.timedict(year=2024, month=6, monthday=28, hour=7, minute=19)
+    expected = datetime(year=2024, month=6, day=28, hour=7, minute=19)
     tcase_cron_alg(now, timedict, expected)
