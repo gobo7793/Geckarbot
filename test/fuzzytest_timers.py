@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+# pylint: disable=import-error,wrong-import-position,missing-class-docstring
+
 import sys
 import signal
 from threading import Thread, Lock
@@ -26,8 +28,8 @@ class TestThread(Thread):
 
     def __init__(self, seed, main_thread=None):
         super().__init__()
-        self.is_main = True if main_thread is None else False
-        self.main_thread = self if main_thread is None else main_thread
+        self.is_main = not bool(main_thread)
+        self.main_thread = self if self.is_main else main_thread
         self.random = random.Random(seed)
         self.logger = logging.getLogger(__name__)
 
@@ -44,11 +46,10 @@ class TestThread(Thread):
         return self.test_counter + 1, self.failed_test_counter
 
     def main_thread_obligations(self):
-        self.lock.acquire()
-        for el in self.failed_test_buffer:
-            print(el)
-        self.failed_test_buffer = []
-        self.lock.release()
+        with self.lock:
+            for el in self.failed_test_buffer:
+                print(el)
+            self.failed_test_buffer = []
 
     def generate_testcase(self):
         """
@@ -69,7 +70,7 @@ class TestThread(Thread):
         td = {
             "year": tc.year,
             "month": tc.month,
-            "day": tc.day,
+            "monthday": tc.day,
             "hour": tc.hour,
             "minute": tc.minute,
         }
@@ -82,9 +83,8 @@ class TestThread(Thread):
 
         :param msg: Message to be appended
         """
-        self.main_thread.lock.acquire()
-        self.main_thread.failed_test_buffer.append(msg)
-        self.main_thread.lock.release()
+        with self.main_thread.lock:
+            self.main_thread.failed_test_buffer.append(msg)
 
     def run(self):
         i = 0
@@ -99,7 +99,6 @@ class TestThread(Thread):
             try:
                 test_timers.tcase_cron_alg(now, td, expected)
             except AssertionError as e:
-                print("FAIL on: now {}, td {}, expected {}".format(now, td, expected))
                 self.failed_test_counter += 1
                 self.append_failed_test(str(e))
             self.test_counter += 1
@@ -110,6 +109,9 @@ class TestThread(Thread):
 
 
 def get_seed():
+    """
+    Generates a seed for a testing thread.
+    """
     return random.SystemRandom().random()
 
 
@@ -119,7 +121,10 @@ class Main:
         self.threads = []
         logging.basicConfig(level=LEVEL)
 
-    def signal_handler(self, sig, frame):
+    def signal_handler(self, *_):
+        """
+        Signal handler callback for SIGINT
+        """
         print()
         for i in range(len(self.threads)):
             tc, ftc = self.threads[i].kill()
@@ -128,6 +133,9 @@ class Main:
         print("Done.")
 
     def main(self):
+        """
+        Main method; parses args and does testing thread setup
+        """
         # Parse args
         threadcount = 1
         found_q = False
@@ -140,7 +148,7 @@ class Main:
                 found_q = True
                 threadcount = int(arg[2:])
 
-            if arg == "help" or arg == "--help" or arg == "-h":
+            if arg in ("help", "--help", "-h"):
                 print("Usage: {} [-qX] [help]\n  -qX: Amount of threads\n  help: Prints this help".format(sys.argv[0]))
                 return
 
