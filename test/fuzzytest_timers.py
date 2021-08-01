@@ -56,22 +56,31 @@ class TestThread(Thread):
                 print(el)
             self.failed_test_buffer = []
 
-    def generate_testcase(self) -> Tuple[datetime, dict, datetime]:
+    def generate_random_date(self) -> datetime:
         """
-        Generates a random set of `now, td, expected` which serves as a test case.
+        Generates a random datetime date based on the thread's seeded random.
 
-        :return: now, td, expected as to be used by test_timers.tcase_cron_alg()
+        :return: random datetime
         """
-        now = datetime.now()
-        year = self.random.randint(2000, 2050)
+        year = self.random.randint(1980, 2050)
         month = self.random.randint(1, 12)
-        tc = datetime(
+        r = datetime(
             year=year,
             month=month,
             day=self.random.randint(1, monthrange(year, month)[1]),
             hour=self.random.randint(0, 23),
             minute=self.random.randint(0, 59)
         )
+        return r
+
+    def generate_testcase(self) -> Tuple[datetime, dict, datetime]:
+        """
+        Generates a random set of `now, td, expected` which serves as a test case.
+
+        :return: now, td, expected as to be used by test_timers.tcase_cron_alg()
+        """
+        now = self.generate_random_date()
+        tc = self.generate_random_date()
         td = {
             "year": tc.year,
             "month": tc.month,
