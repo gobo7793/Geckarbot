@@ -9,7 +9,7 @@ from discord.ext import commands
 from botutils import restclient, utils, timeutils
 from botutils.converters import get_best_username
 from botutils.utils import add_reaction
-from data import Lang, Config
+from data import Lang, Config, Storage
 from base import BasePlugin
 from subsystems.helpsys import DefaultCategories
 
@@ -43,6 +43,9 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
 
     def command_usage(self, command):
         return utils.helpstring_helper(self, command, "usage")
+
+    def default_storage(self, container=None):
+        return {'stopwatch': {}}
 
     @commands.command(name="dice")
     async def cmd_dice(self, ctx, number_of_sides: int = 6, number_of_dice: int = 1):
@@ -176,3 +179,17 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
         else:
             text = Lang.lang(self, "bully_msg", get_best_username(bully))
         await ctx.send(text)
+
+    @commands.command(name="stopwatch", aliases=["stoppuhr", "stopuhr"])
+    async def cmd_stopwatch(self, ctx):
+        if ctx.author.id in Storage().get(self)['stopwatch']:
+            timediff = datetime.now() - datetime.fromisoformat(Storage().get(self)['stopwatch'].pop(ctx.author.id))
+            timediff_parts = [timediff.days, timediff.seconds // 3600, timediff.seconds // 60 % 60,
+                              timediff.seconds % 60 + round(timediff.microseconds / 1_000_000, 2)]
+            timediff_zip = zip(timediff_parts, Lang.lang(self, 'stopwatch_units').split("|"))
+            msg = ", ".join(f"{x} {y}" for x, y in timediff_zip if x != 0)
+            await ctx.send(msg)
+        else:
+            Storage().get(self)['stopwatch'][ctx.author.id] = str(datetime.now())
+            await ctx.send(Lang.lang(self, 'stopwatch_started'))
+        Storage().save(self)

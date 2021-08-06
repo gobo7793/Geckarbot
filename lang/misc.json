@@ -18,6 +18,8 @@
         "money_error": "Whoops! No money?!",
         "alpha_response": "beep boop :robot: The result is: {}",
         "week_number": "Week {}",
+        "stopwatch_started": "Stopwatch started, type `!stopwatch` again to stop the timer and get your result!",
+        "stopwatch_units": "days|hours|minutes|seconds",
 
         "#2": "Help",
         "help_dice": "Rolls a dice",
@@ -37,6 +39,7 @@
         "help_mimimi": "For special mimimi moments",
         "desc_mimimi": "Provides an .mp3 file that plays the sound of 'mimimi'.",
         "desc_keysmash": "Protects the keyboard.",
+        "help_stopwatch": "Starts/Stops a stopwatch.",
         "help_werwars": "Accuses a user",
         "desc_werwars": "Searches a user which writed something in the last 30 min and accuses him. Supports passive ignoring.",
         "help_money": "Exchanges money!",
@@ -61,6 +64,8 @@
         "money_error": "Bin ich pleite?! Irgendwas stimmt hier nicht!",
         "alpha_response": "beep boop :robot: Das Resultat ist: {}",
         "week_number": "Kalenderwoche {}",
+        "stopwatch_started": "Stoppuhr gestartet. Nutze `!stoppuhr` erneut um dein Ergebnis zu erhalten!",
+        "stopwatch_units": "Tag(e)|Stunde(n)|Minute(n)|Sekunden",
 
         "#2": "Help",
         "help_dice": "Wirft einen Würfel",
@@ -80,6 +85,7 @@
         "help_mimimi": "Für besondere Mimimi-Momente",
         "desc_mimimi": "Postet eine mp3-Datei, die \"Mimimi\" enthält.",
         "desc_keysmash": "Schont die Tastatur.",
+        "help_stopwatch": "Startet/Stoppt eine Stoppuhr.",
         "help_werwars": "Zeigt anklagend auf einen User",
         "desc_werwars": "Sucht einen User, der in den letzten 30 Minuten aktiv war und zeigt anklagend auf diesen. Unterstützt die Ignore-Funktion.",
         "help_money": "Wechselt Geld um!",
