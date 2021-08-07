@@ -165,14 +165,24 @@ class _Predgame:
             if league and league not in (leg, Storage.get(self)["predictions"][leg]["name"]):
                 continue
             c = sheetsclient.Client(self.bot, Storage().get(self)["predictions"][leg]['sheet'])
-            people, points = c.get_multiple([Storage().get(self)["predictions"][leg]['name_range'],
-                                             Storage().get(self)["predictions"][leg]['points_range']])
-            points_per_person = [x for x in zip(points[0], people[0]) if x != ('', '')]
+            people, points_str = c.get_multiple([Storage().get(self)["predictions"][leg]['name_range'],
+                                                 Storage().get(self)["predictions"][leg]['points_range']])
+            points = []
+            for pts in points_str[0]:
+                if not pts:
+                    points.append("")
+                else:
+                    try:
+                        points.append(int(pts))
+                    except ValueError:
+                        pt = pts.replace(",", ".")
+                        points.append(float(pt))
+            points_per_person = [x for x in zip(points, people[0]) if x != ('', '')]
             points_per_person.sort(reverse=True)
             grouped = [(k, [x[1] for x in v]) for k, v in groupby(points_per_person, key=itemgetter(0))]
 
             places = ""
-            for i in range(3, len(grouped) - 1):
+            for i in range(3, len(grouped)):
                 emote = f"{i + 1}\U0000FE0F\U000020E3" if i < 9 else ":blue_square:"
                 places += "\n{} {} - {}".format(emote, grouped[i][0], ", ".join(grouped[i][1]))
             desc = ":trophy: {} - {}\n:second_place: {} - {}\n:third_place: {} - {}{}".format(
