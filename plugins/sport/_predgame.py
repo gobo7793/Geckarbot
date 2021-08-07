@@ -168,14 +168,14 @@ class _Predgame:
             people, points_str = c.get_multiple([Storage().get(self)["predictions"][leg]['name_range'],
                                                  Storage().get(self)["predictions"][leg]['points_range']])
             points = []
-            for i in range(len(points_str[0])):
-                if points_str[0][i] == "":
+            for pts in points_str[0]:
+                if not pts:
                     points.append("")
                 else:
                     try:
-                        points.append(int(points_str[0][i]))
+                        points.append(int(pts))
                     except ValueError:
-                        pt = points_str[0][i].replace(",", ".")
+                        pt = pts.replace(",", ".")
                         points.append(float(pt))
             points_per_person = [x for x in zip(points, people[0]) if x != ('', '')]
             points_per_person.sort(reverse=True)
