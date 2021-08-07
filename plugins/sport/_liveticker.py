@@ -191,8 +191,8 @@ class _Liveticker:
             # Kickoff-Event
             match_msgs = []
             for match in event.matches:
-                predictions = await self._get_predictions(match.home_team.long_name,
-                                                          match.away_team.long_name, match.kickoff)
+                predictions = await self._get_predictions(match.home_team,
+                                                          match.away_team, match.kickoff)
                 match_msg = f"{match.home_team.emoji} {match.home_team.long_name} - " \
                             f"{match.away_team.emoji} {match.away_team.long_name}"
                 if predictions:
