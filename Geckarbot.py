@@ -666,7 +666,7 @@ def main():
         status = bot.exitcode.value
     except AttributeError:
         logging.error("Shutdown: exit code not set; %s is not an Exitcode", bot.exitcode)
-        status = bot.exitcode.UNDEFINED.value
+        status = Exitcode.UNDEFINED.value
     sys.exit(status)
 
 
