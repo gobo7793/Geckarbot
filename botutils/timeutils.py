@@ -30,9 +30,9 @@ def parse_time_input(*args, end_of_day: bool = False) -> datetime:
     If for given date/time input some is missing, the current time, date or year will be used, except if
     end_of_day is True, which indicates that 23:59 will be used as time.
 
-    [#|#m|#h|#d|DD.MM.YYYY|DD.MM.|HH:MM|DD.MM.YYYY HH:MM|DD.MM. HH:MM]
+    [#|#m|#h|#d|DD.MM.YYYY|DD.MM.YY|DD.MM.|HH:MM|DD.MM.YYYY HH:MM|DD.MM.YY HH:MM|DD.MM. HH:MM]
 
-    [#|#m|#h|#d|[DD.MM.[YYYY]] [HH:MM]]
+    [#|#m|#h|#d|[DD.MM.[YY[YY]]] [HH:MM]]
 
     :param args: The command args for duration/date/time. Can also contain other leading or trailing
         args than time args, e.g. "be 14:00", which will be parsed to 2pm or today.
@@ -52,13 +52,13 @@ def parse_time_input(*args, end_of_day: bool = False) -> datetime:
     def parse_time(t):
         try:
             parsed = datetime.strptime(t, dt_format)
-            r = datetime(parsed.year if '%Y' in dt_format else today.year,
+            r = datetime(parsed.year if '%Y' in dt_format else parsed.year if '%y' in dt_format else today.year,
                          parsed.month if '%m' in dt_format else today.month,
                          parsed.day if '%d' in dt_format else today.day,
                          parsed.hour if '%H' in dt_format else fill_time.hour,
                          parsed.minute if '%M' in dt_format else fill_time.minute)
             # use next year instead if the year was not specified and the date would be in the past
-            if '%Y' not in dt_format and r < datetime.now():
+            if '%Y' not in dt_format and '%y' not in dt_format and r < datetime.now():
                 r = datetime(r.year + 1, r.month, r.day, r.hour, r.minute)
             return r
         except ValueError:
@@ -86,12 +86,12 @@ def parse_time_input(*args, end_of_day: bool = False) -> datetime:
             darg = unpacked[i]
             if i < (len(unpacked) - 1):
                 darg = " ".join(unpacked[i:i + 2])
-            for dt_format in ["%d.%m.%Y %H:%M", "%d.%m. %H:%M"]:
+            for dt_format in ["%d.%m.%Y %H:%M", "%d.%m.%y %H:%M", "%d.%m. %H:%M"]:
                 pvalue = parse_time(darg)
                 if pvalue is not None:
                     return pvalue
 
-            for dt_format in ["%d.%m.%Y", "%d.%m.", "%H:%M"]:
+            for dt_format in ["%d.%m.%Y", "%d.%m.%y", "%d.%m.", "%H:%M"]:
                 pvalue = parse_time(arg)
                 if pvalue is not None:
                     return pvalue
