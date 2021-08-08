@@ -8,8 +8,7 @@ from enum import Enum
 
 from discord.ext import commands
 
-import Geckarbot
-from base import BasePlugin, ConfigurableType
+from base import BasePlugin, ConfigurableType, Exitcode
 from data import Config, Lang
 from botutils import restclient, utils, permchecks
 from botutils.stringutils import paginate
@@ -289,10 +288,9 @@ class Plugin(BasePlugin, name="Bot updating system"):
                 )
                 await utils.write_debug_channel(msg)
 
-        await self.bot.close()
         with open(TAGFILE, "w") as f:
             f.write(tag)
-        await self.bot.shutdown(Geckarbot.Exitcodes.UPDATE)  # This signals the runscript
+        await self.bot.shutdown(Exitcode.UPDATE)  # This signals the runscript
 
     async def get_releases(self):
         """Get all published releases from Github"""
@@ -416,14 +414,14 @@ class Plugin(BasePlugin, name="Bot updating system"):
     async def cmd_restart(self, ctx):
         self.bot.presence.register(Lang.lang(self, "presence_restart"), priority=PresencePriority.HIGH)
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
-        await self.bot.shutdown(Geckarbot.Exitcodes.RESTART)  # This signals the runscript
+        await self.bot.shutdown(Exitcode.RESTART)  # This signals the runscript
 
     @commands.command(name="shutdown", help="Stops the bot.")
     @commands.has_any_role(Config().BOT_ADMIN_ROLE_ID)
     async def cmd_shutdowncmd(self, ctx):
         self.bot.presence.register(Lang.lang(self, "presence_shutdown"), priority=PresencePriority.HIGH)
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
-        await self.bot.shutdown(Geckarbot.Exitcodes.SUCCESS)  # This signals the runscript
+        await self.bot.shutdown(Exitcode.SUCCESS)  # This signals the runscript
 
     @commands.command(name="replace", help="Confirms an !update command.")
     async def cmd_confirm(self, ctx):

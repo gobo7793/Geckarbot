@@ -19,22 +19,11 @@ from discord.ext import commands
 
 import injections
 import subsystems
-from base import BasePlugin, NotLoadable, ConfigurableType, PluginClassNotFound
+from base import BasePlugin, NotLoadable, ConfigurableType, PluginClassNotFound, Exitcode
 from botutils import utils, permchecks, converters, stringutils
 from botutils.utils import execute_anything_sync
 from data import Config, Lang, Storage, ConfigurableData
 from subsystems import timers, reactions, ignoring, dmlisteners, helpsys, presence, liveticker
-
-
-class Exitcodes(Enum):
-    """
-    These exit codes are evaluated by the runscript and acted on accordingly.
-    """
-    SUCCESS = 0  # regular shutdown, doesn't come back up
-    ERROR = 1  # some generic error
-    HTTP = 2  # no connection to discord
-    UPDATE = 10  # shutdown, update, restart
-    RESTART = 11  # simple restart
 
 
 class Geckarbot(commands.Bot):
@@ -42,7 +31,7 @@ class Geckarbot(commands.Bot):
     Basic bot info
     """
     NAME = "Geckarbot"
-    VERSION = "2.12.2"
+    VERSION = "2.12.3"
     PLUGIN_DIR = "plugins"
     CORE_PLUGIN_DIR = "coreplugins"
     CONFIG_DIR = "config"
@@ -78,6 +67,7 @@ class Geckarbot(commands.Bot):
 
     def __init__(self, *args, **kwargs):
         logging.info("Starting %s %s", self.NAME, self.VERSION)
+        self.exitcode = Exitcode.UNDEFINED
         self.guild = None
         self._plugins = []
 
@@ -389,20 +379,16 @@ class Geckarbot(commands.Bot):
         logging.info("Debug mode set to %s", self.DEBUG_MODE)
         logging_setup(debug=mode)
 
-    async def shutdown(self, status):
+    async def shutdown(self, status: Exitcode):
         """
         Shutting down the bot to handle the exit code by the runscript, e.g. for updating
 
         :param status: The exit status or exit code
         """
-        try:
-            status = status.value
-        except AttributeError:
-            pass
-        self.timers.shutdown(status)
         logging.info("Shutting down.")
-        logging.debug("Exit code: %s", status)
-        sys.exit(status)
+        logging.debug("Setting exit code: %s", status)
+        self.exitcode = status
+        await self.close()
 
     async def on_error(self, event_method, *args, **kwargs):
         """
@@ -675,6 +661,13 @@ def main():
                                                                                          ', '.join(unloaded)))
 
     bot.run(bot.TOKEN)
+    logging.debug("Loop ended; exit code: %s", bot.exitcode)
+    try:
+        status = bot.exitcode.value
+    except AttributeError:
+        logging.error("Shutdown: exit code not set; %s is not an Exitcode", bot.exitcode)
+        status = Exitcode.UNDEFINED.value
+    sys.exit(status)
 
 
 if __name__ == "__main__":
