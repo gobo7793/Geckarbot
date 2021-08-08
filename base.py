@@ -8,6 +8,18 @@ from discord.ext.commands import Cog
 # pylint: disable=unused-argument
 
 
+class Exitcode(Enum):
+    """
+    These exit codes are evaluated by the runscript and acted on accordingly.
+    """
+    SUCCESS = 0  # regular shutdown, doesn't come back up
+    ERROR = 1  # some generic error
+    HTTP = 2  # no connection to discord (not implemented)
+    UNDEFINED = 3  # if this is returned, the exit code was not set correctly
+    UPDATE = 10  # shutdown, update, restart
+    RESTART = 11  # simple restart
+
+
 class NotLoadable(Exception):
     """
     Raised by plugins to signal that it was unable to load correctly.
