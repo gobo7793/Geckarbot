@@ -26,18 +26,6 @@ from data import Config, Lang, Storage, ConfigurableData
 from subsystems import timers, reactions, ignoring, dmlisteners, helpsys, presence, liveticker
 
 
-class Exitcodes(Enum):
-    """
-    These exit codes are evaluated by the runscript and acted on accordingly.
-    """
-    SUCCESS = 0  # regular shutdown, doesn't come back up
-    ERROR = 1  # some generic error
-    HTTP = 2  # no connection to discord (not implemented)
-    UNDEFINED = 3  # if this is returned, the exit code was not set correctly
-    UPDATE = 10  # shutdown, update, restart
-    RESTART = 11  # simple restart
-
-
 class Geckarbot(commands.Bot):
     """
     Basic bot info
