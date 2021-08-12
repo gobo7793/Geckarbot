@@ -80,6 +80,7 @@
         "pizza_nan": "{} ist keine Zahl.",
         "pizza_single_result": "Die Pizza kostet {} {}.",
         "pizza_a": "pro Fläche",
+        "pizza_a_unit": "pro {}",
         "pizza_header_d": "Durchmesser",
         "pizza_header_price": "Preis",
         "pizza_header_rel": "rel. Preis",

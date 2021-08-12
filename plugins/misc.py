@@ -209,32 +209,54 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
             return
 
         pizzas = []
-        single_unit = None
+        single_d_unit = None
         single_relprice = None
+        single_relunit = None
+        single_priceunit = None
         for i in range(len(args) // 2):
             d = parse_number(args[i*2])
             price = parse_number(args[i*2 + 1])
             pizzas.append([d, price, None])
 
+        # Calc
         for i in range(len(pizzas)):
             d, price, _ = pizzas[i]
-            rel = pi * (d.number / 2)**2
+            rel = price.number / (pi * (d.number / 2)**2)
             single_relprice = rel
             unit = ""
-            if price.unit and d.unit:
-                unit = "{}/{}²".format(price.unit, d.unit)
-                single_unit = unit
+            if d.unit:
+                single_d_unit = d.unit + "²"
+                if price.unit:
+                    unit = "{}/{}²".format(price.unit, d.unit)
+                    single_relunit = unit
+            if price.unit:
+                single_priceunit = price.unit
             pizzas[i][2] = Number(rel, unit)
 
-            # Format to string in-place
+        # Sort
+        pizzas = sorted(pizzas, key=lambda x: x[2].number)
+
+        # Format to string in-place
+        for i in range(len(pizzas)):
             for j in range(len(pizzas[0])):
                 split_unit = not j == 0
-                pizzas[i][j] = format_number(pizzas[i][j], split_unit=split_unit)
+                decpl = 4 if j == 2 else 2
+                pizzas[i][j] = format_number(pizzas[i][j], decplaces=decpl, split_unit=split_unit)
 
         # Format table or print single result
         if len(pizzas) == 1:
-            a = single_unit if single_unit else Lang.lang(self, "pizza_a")
-            await ctx.send(Lang.lang(self, "pizza_single_result", format_number(single_relprice), a))
+            # Format units
+            if single_relunit:
+                a = single_relunit
+            elif single_d_unit:
+                a = Lang.lang(self, "pizza_a_unit", single_d_unit)
+            else:
+                a = Lang.lang(self, "pizza_a")
+            if single_priceunit and not single_relunit:
+                single_relprice = Number(single_relprice, single_priceunit)
+
+            single_relprice = format_number(single_relprice, decplaces=4)
+            await ctx.send(Lang.lang(self, "pizza_single_result", single_relprice, a))
         else:
             # Add table header
             h = [Lang.lang(self, "pizza_header_d"),
