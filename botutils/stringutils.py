@@ -36,7 +36,6 @@ def parse_number(s: str) -> Number:
         lf = len(f)
         f = int(f)
         if f != 0:
-            print("{}: divider: {}".format(s, (10 ** lf)))
             r = i + sign * (int(f) / (10 ** lf))
         else:
             r = i
