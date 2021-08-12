@@ -20,6 +20,14 @@
         "week_number": "Week {}",
         "stopwatch_started": "Stopwatch started, type `!stopwatch` again to stop the timer and get your result!",
         "stopwatch_units": "days|hours|minutes|seconds",
+        "pizza_argsdim": "I am missing the price of the pizza with diameter {}.",
+        "pizza_nan": "{} ist not a number.",
+        "pizza_single_result": "The pizza costs {} {}.",
+        "pizza_a": "per area",
+        "pizza_a_unit": "per {}",
+        "pizza_header_d": "Diameter",
+        "pizza_header_price": "Price",
+        "pizza_header_rel": "Rel. price",
 
         "#2": "Help",
         "help_dice": "Rolls a dice",
@@ -43,7 +51,10 @@
         "help_werwars": "Accuses a user",
         "desc_werwars": "Searches a user which writed something in the last 30 min and accuses him. Supports passive ignoring.",
         "help_money": "Exchanges money!",
-        "usage_money": "<currency> [other_currency] [amount]"
+        "usage_money": "<currency> [other_currency] [amount]",
+        "help_pizza": "Calculates the relative price of pizza",
+        "desc_pizza": "Calculates the price per area of one or several pizzas.",
+        "usage_pizza": "Diameter1 Price1 [Diameter2 Price2 ...]"
     },
     "de_DE": {
         "#0": "Single lang strings",
@@ -66,6 +77,14 @@
         "week_number": "Kalenderwoche {}",
         "stopwatch_started": "Stoppuhr gestartet. Nutze `!stoppuhr` erneut um dein Ergebnis zu erhalten!",
         "stopwatch_units": "Tag(e)|Stunde(n)|Minute(n)|Sekunden",
+        "pizza_argsdim": "Mir fehlt der Preis der Pizza mit dem Durchmesser {}.",
+        "pizza_nan": "{} ist keine Zahl.",
+        "pizza_single_result": "Die Pizza kostet {} {}.",
+        "pizza_a": "pro Fläche",
+        "pizza_a_unit": "pro {}",
+        "pizza_header_d": "Durchmesser",
+        "pizza_header_price": "Preis",
+        "pizza_header_rel": "rel. Preis",
 
         "#2": "Help",
         "help_dice": "Wirft einen Würfel",
@@ -89,6 +108,9 @@
         "help_werwars": "Zeigt anklagend auf einen User",
         "desc_werwars": "Sucht einen User, der in den letzten 30 Minuten aktiv war und zeigt anklagend auf diesen. Unterstützt die Ignore-Funktion.",
         "help_money": "Wechselt Geld um!",
-        "usage_money": "<Währung> [andere Währung] [Geldmenge]"
+        "usage_money": "<Währung> [andere Währung] [Geldmenge]",
+        "help_pizza": "Berechnet das Preisverhältnis von Pizza",
+        "desc_pizza": "Berechnet den Preis pro Pizzafläche von einer oder mehreren Pizzen.",
+        "usage_pizza": "Durchmesser1 Preis1 [Durchmesser2 Preis2 ...]"
     }
 }
