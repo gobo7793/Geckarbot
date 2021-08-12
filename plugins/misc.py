@@ -1,7 +1,9 @@
 import logging
 import random
 import string
+import locale
 from datetime import datetime, timezone, timedelta
+from math import pi
 
 import discord
 from discord.ext import commands
@@ -9,6 +11,7 @@ from discord.ext import commands
 from botutils import restclient, utils, timeutils
 from botutils.converters import get_best_username
 from botutils.utils import add_reaction
+from botutils.stringutils import table, parse_number, format_number, Number
 from data import Lang, Config, Storage
 from base import BasePlugin
 from subsystems.helpsys import DefaultCategories
@@ -193,3 +196,50 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
             Storage().get(self)['stopwatch'][ctx.author.id] = str(datetime.now())
             await ctx.send(Lang.lang(self, 'stopwatch_started'))
         Storage().save(self)
+
+    @commands.command(name="pizza")
+    async def cmd_pizza(self, ctx, *args):
+        if len(args) % 2 == 1:
+            await add_reaction(ctx.message, Lang.CMDERROR)
+            await ctx.send(Lang.lang(self, "pizza_argsdim", args[-1]))
+            return
+
+        if len(args) == 0:
+            await add_reaction(ctx.message, Lang.CMDERROR)
+            await self.bot.helpsys.cmd_help(ctx, self, ctx.command)
+            return
+
+        pizzas = []
+        single_unit = None
+        single_relprice = None
+        for i in range(len(args) // 2):
+            d = parse_number(args[i*2])
+            price = parse_number(args[i*2 + 1])
+            pizzas.append([d, price, None])
+
+        for i in range(len(pizzas)):
+            d, price, _ = pizzas[i]
+            rel = pi * (d.number / 2)**2
+            single_relprice = rel
+            unit = ""
+            if price.unit and d.unit:
+                unit = "{}/{}²".format(price.unit, d.unit)
+                single_unit = unit
+            pizzas[i][2] = Number(rel, unit)
+
+            # Format to string in-place
+            for j in range(len(pizzas[0])):
+                split_unit = False if j == 0 else True
+                pizzas[i][j] = format_number(pizzas[i][j], split_unit=split_unit)
+
+        # Format table or print single result
+        if len(pizzas) == 1:
+            a = single_unit if single_unit else Lang.lang(self, "pizza_a")
+            await ctx.send(Lang.lang(self, "pizza_single_result", format_number(single_relprice), a))
+        else:
+            # Add table header
+            h = [Lang.lang(self, "pizza_header_d"),
+                 Lang.lang(self, "pizza_header_price"),
+                 Lang.lang(self, "pizza_header_rel")]
+            pizzas.insert(0, h)
+            await ctx.send(table(pizzas, header=True))
