@@ -214,9 +214,16 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
         single_relunit = None
         single_priceunit = None
         for i in range(len(args) // 2):
-            d = parse_number(args[i*2])
-            price = parse_number(args[i*2 + 1])
-            pizzas.append([d, price, None])
+            prepizza = [None, None]
+            for j in range(2):
+                arg = args[i*2 + j]
+                try:
+                    prepizza[j] = parse_number(arg)
+                except ValueError:
+                    await add_reaction(ctx.message, Lang.CMDERROR)
+                    await ctx.send(Lang.lang(self, "pizza_nan", arg))
+                    return
+            pizzas.append([prepizza[0], prepizza[1], None])
 
         # Calc
         for i in range(len(pizzas)):

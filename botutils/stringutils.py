@@ -25,7 +25,10 @@ def parse_number(s: str) -> Number:
     if i:
         i = int(i)
     else:
-        raise ValueError("s is not a number string")
+        if f:
+            i = 0
+        else:
+            raise ValueError("s is not a number string")
 
     if f:
         r = i + int(f) / 10
