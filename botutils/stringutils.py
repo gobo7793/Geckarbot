@@ -34,7 +34,7 @@ def parse_number(s: str) -> Number:
     return Number(r, unit)
 
 
-def format_number(n: typing.Union[Number, int, float], decplaces: int = 2, split_unit=True):
+def format_number(n: typing.Union[Number, int, float], decplaces: int = 2, split_unit=True) -> str:
     """
     Formats a number into a nice-looking string.
 
@@ -240,6 +240,7 @@ def table(tablelist: list, header: bool = False, prefix: str = "```", suffix: st
     :param prefix: table prefix, defaults to ```
     :param suffix: table suffix, defaults to ```
     :return: Formatted
+    :raises RuntimeError: If the table rows do not have the same length (i.e. table is not a rectangle)
     """
     # dim check
     for i in range(1, len(tablelist)):

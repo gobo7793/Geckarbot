@@ -1,7 +1,6 @@
 import logging
 import random
 import string
-import locale
 from datetime import datetime, timezone, timedelta
 from math import pi
 
@@ -229,7 +228,7 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
 
             # Format to string in-place
             for j in range(len(pizzas[0])):
-                split_unit = False if j == 0 else True
+                split_unit = not j == 0
                 pizzas[i][j] = format_number(pizzas[i][j], split_unit=split_unit)
 
         # Format table or print single result
