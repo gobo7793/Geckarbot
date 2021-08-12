@@ -8,7 +8,7 @@ from discord.ext import commands
 
 
 Number = namedtuple("Number", "number unit")
-_pattern = re.compile(r"(\d*)[.,]?(\d*)\s*(.*)")
+_pattern = re.compile(r"(-?)(\d*)[.,]?(\d*)\s*(.*)")
 
 
 def parse_number(s: str) -> Number:
@@ -21,17 +21,25 @@ def parse_number(s: str) -> Number:
     :return: `Number` object that represents the parsed number
     :raise ValueError: If `Number.number` cannot be filled, i.e. `s` does not begin with a decimal.
     """
-    i, f, unit = _pattern.match(s.strip()).groups()
+    sign, i, f, unit = _pattern.match(s.strip()).groups()
     if i:
         i = int(i)
+    elif f:
+        i = 0
     else:
-        if f:
-            i = 0
-        else:
-            raise ValueError("s is not a number string")
+        raise ValueError("s is not a number string")
+
+    sign = -1 if sign else 1
+    i = sign * i
 
     if f:
-        r = i + int(f) / 10
+        lf = len(f)
+        f = int(f)
+        if f != 0:
+            print("{}: divider: {}".format(s, (10 ** lf)))
+            r = i + sign * (int(f) / (10 ** lf))
+        else:
+            r = i
     else:
         r = i
     return Number(r, unit)
