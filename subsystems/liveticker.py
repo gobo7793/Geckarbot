@@ -644,11 +644,11 @@ class PlayerEventEnum(Enum):
     GOAL = GoalBase
     YELLOWCARD = YellowCardBase
     REDCARD = RedCardBase
-    UNKOWN = None
+    UNKNOWN = None
 
     @classmethod
     def _missing_(cls, _):
-        return PlayerEventEnum.UNKOWN
+        return PlayerEventEnum.UNKNOWN
 
     @staticmethod
     def build_player_event_espn(event: dict, score: dict) -> PlayerEvent:
