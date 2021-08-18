@@ -40,8 +40,8 @@ class Plugin(BasePlugin, name="Testing and debug things"):
             "switch2_b": "Switch!"
         }
         self.setter = setter.ConfigSetter(self, whitelist, desc)
-        self.setter.add_switch(["switch1_a", "switch1_b", "switch1_c"])
-        self.setter.add_switch(("switch2_a", "switch2_b"))
+        self.setter.add_switch("switch1_a", "switch1_b", "switch1_c")
+        self.setter.add_switch("switch2_a", "switch2_b")
         self.sleeptask = None
         self.recsleeptask = None
         self.spamjob = None

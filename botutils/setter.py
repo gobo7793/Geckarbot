@@ -63,20 +63,24 @@ class ConfigSetter:
         self.lang = lang if lang is not None else {}
         self.switches = []
 
-    def add_switch(self, keys):
+    def add_switch(self, *keys):
         """
-        Adds a switch. A switch is a set of config keys with bool values where exactly one value is True at any time.
-        If a second value is set to True, every other value is set to False. This only applies if the set / set_cmd
-        methods are used.
+        Adds a switch. A switch is a set of existing config keys with bool values where exactly one value is True at
+        any time. If a second value is set to True, every other value is set to False. This only applies if
+        the set / set_cmd methods are used.
 
-        :param keys: List of keys that constitute the switch
+        :param keys: Keys that constitute the switch
         :raises RuntimeError: Raised if a switch condition is violated. These are:
+            Switch empty (no keys passed)
             Key already present in another switch
             Value is not of type bool
             Default value of more than one key is True
             No key with default value True found
             Unknown key (key not in whitelist)
         """
+        if len(keys) == 0:
+            raise RuntimeError("Switch cannot be empty")
+
         # check conditions
         for switch in self.switches:
             for key in keys:
