@@ -399,10 +399,16 @@ class MatchBase(MatchStubBase, ABC):
     venue: Tuple[str, str]
     score: Dict[str, int]
 
+    @abstractmethod
+    def transform_events(self, last_events: list):
+        """Transforms the raw event data and returns the resulting events"""
+        pass
+
     def display(self):
         return f"{self.minute} | {self.home_team.emoji} {self.home_team.long_name} - " \
                f"{self.away_team.emoji} {self.away_team.long_name} | " \
                f"{self.score[self.home_team_id]}:{self.score[self.away_team_id]}"
+
 
 class MatchESPN(MatchBase):
     """
@@ -457,6 +463,17 @@ class MatchESPN(MatchBase):
                       competition.get('venue', {}).get('address', {}).get('city'))
         self.status = MatchStatus.get(m, LTSource.ESPN)
 
+    def transform_events(self, last_events: list):
+        events = []
+        tmp_score = {self.home_team_id: 0, self.away_team_id: 0}
+        for e in self.raw_events:
+            event = PlayerEventEnum.build_player_event_espn(e, tmp_score.copy())
+            if isinstance(event, GoalBase):
+                tmp_score = event.score
+            if event.event_id not in last_events:
+                events.append(event)
+        return events
+
 
 class MatchOLDB(MatchBase):
     """
@@ -500,6 +517,14 @@ class MatchOLDB(MatchBase):
         self.status = MatchStatus.get(m, LTSource.OPENLIGADB)
         self.new_events = new_events
         self.matchday = m.get('Group', {}).get('GroupOrderID')
+
+    def transform_events(self, last_events: list):
+        events = []
+        for g in self.raw_events:
+            goal = GoalOLDB(g, self.home_team_id, self.away_team_id)
+            if goal.event_id not in last_events:
+                events.append(goal)
+        return events
 
 
 class PlayerEvent(ABC):
@@ -710,10 +735,6 @@ class CoroRegistrationBase(ABC):
         """Returns datetime of the next timer execution"""
         return self.league_reg.next_execution()
 
-    @abstractmethod
-    def transform_events(self, m: MatchBase):
-        pass
-
     async def update(self, job: Job):
         """
         Coroutine used by the interval timer during matches. Manufactures the LivetickerUpdate for the coro.
@@ -724,7 +745,7 @@ class CoroRegistrationBase(ABC):
         for m in matches:
             if m.match_id not in self.last_events:
                 self.last_events[m.match_id] = []
-            events = self.transform_events(m)
+            events = m.transform_events(self.last_events[m.match_id])
             new_events[m.match_id] = events
             self.last_events[m.match_id].extend([e.event_id for e in events])
         await self.coro(LivetickerUpdate(self.league_reg.league, matches, new_events))
@@ -755,28 +776,11 @@ class CoroRegistrationBase(ABC):
 
 
 class CoroRegistrationESPN(CoroRegistrationBase):
-
-    def transform_events(self, m: MatchESPN):
-        events = []
-        tmp_score = {m.home_team_id: 0, m.away_team_id: 0}
-        for e in m.raw_events:
-            event = PlayerEventEnum.build_player_event_espn(e, tmp_score.copy())
-            if isinstance(event, GoalBase):
-                tmp_score = event.score
-            if event.event_id not in self.last_events[m.match_id]:
-                events.append(event)
-        return events
+    pass
 
 
 class CoroRegistrationOLDB(CoroRegistrationBase):
-
-    def transform_events(self, m: MatchOLDB):
-        events = []
-        for g in m.raw_events:
-            goal = GoalOLDB(g, m.home_team_id, m.away_team_id)
-            if goal.event_id not in self.last_events[m.match_id]:
-                events.append(goal)
-        return events
+    pass
 
 
 class LeagueRegistrationBase(ABC):
