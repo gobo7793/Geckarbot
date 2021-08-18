@@ -28,49 +28,6 @@ class MatchResult(Enum):
     NONE = None
 
 
-class TeamnameDict:
-    """
-    Class to convert teamnames into a standardized abbrevation and long form
-    """
-    def __init__(self, plugin):
-        self.teamdict = {}
-        teamnames = Storage().get(plugin)['teamnames']
-        for long_name, team in teamnames.items():
-            self.teamdict[team['short_name'].lower()] = long_name
-            self.teamdict[long_name.lower()] = team['short_name']
-        for long_name, team in teamnames.items():
-            for name in team['other']:
-                if self.is_teamname_abbr(name):
-                    # Abbreviation
-                    self.teamdict.setdefault(name.lower(), long_name)
-                else:
-                    # Long name
-                    self.teamdict.setdefault(name.lower(), team['short_name'])
-
-    def get_long(self, team: Optional[str]) -> Optional[str]:
-        """Returns standard full name of the given team"""
-        if team is None:
-            return None
-        name = self.teamdict.get(team.lower())
-        if name is not None and self.is_teamname_abbr(name):
-            name = self.teamdict.get(name.lower())
-        return name
-
-    def get_abbr(self, team: Optional[str]) -> Optional[str]:
-        """Returns standard abbrevation for the team name"""
-        if team is None:
-            return None
-        name = self.teamdict.get(team.lower())
-        if name is not None and not self.is_teamname_abbr(name):
-            name = self.teamdict.get(name.lower())
-        return name
-
-    @staticmethod
-    def is_teamname_abbr(team: Optional[str]) -> bool:
-        """whether the given name classifies as a abbrevation"""
-        return team is not None and len(team) <= 3
-
-
 def valid_pred(pred: tuple) -> bool:
     """
     Returns True if prediction is a valid representation of two integers
