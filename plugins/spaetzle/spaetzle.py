@@ -171,16 +171,19 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             await ctx.send_help(self.cmd_spaetzle_set)
 
     @cmd_spaetzle_set.command(name="matches", aliases=["spiele"])
-    async def cmd_set_matches(self, ctx, matchday: int = None):
+    async def cmd_set_matches(self, ctx, matchday: int = None, season: int = None):
         """Sets the matches of the upcoming or running matchday"""
         if not await Trusted(self).is_trusted(ctx):
             return
         async with ctx.typing():
             # Request data
             if matchday:
+                if not season:
+                    day = datetime.today()
+                    season = day.year if day.month > 6 else day.year - 1
                 match_list = restclient.Client("https://www.openligadb.de/api").make_request(
-                    "/getmatchdata/bl1/2020/{}".format(str(matchday)))
-                for _, _, c_reg in self.bot.liveticker.search_coro(plugins=[self.get_name()]):
+                    f"/getmatchdata/bl1/{season}/{matchday}")
+                for _, _, c_reg in list(self.bot.liveticker.search_coro(plugins=[self.get_name()])):
                     c_reg.unload()
             else:
                 reg = await self._start_liveticker()

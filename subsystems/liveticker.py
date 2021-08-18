@@ -495,7 +495,8 @@ class MatchOLDB(MatchBase):
         self.score = {self.home_team_id: max(0, 0, *(g.get('ScoreTeam1', 0) for g in m.get('Goals', []))),
                       self.away_team_id: max(0, 0, *(g.get('ScoreTeam2', 0) for g in m.get('Goals', [])))}
         self.raw_events = m.get('Goals')
-        self.venue = (m.get('Location', {}).get('LocationStadium'), m.get('Location', {}).get('LocationCity'))
+        self.venue = (m['Location'].get('LocationStadium'), m['Location'].get('LocationCity')) \
+            if 'Location' in m else (None, None)
         self.status = MatchStatus.get(m, LTSource.OPENLIGADB)
         self.new_events = new_events
         self.matchday = m.get('Group', {}).get('GroupOrderID')
