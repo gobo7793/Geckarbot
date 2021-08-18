@@ -1,12 +1,10 @@
 import logging
 from enum import Enum
-from datetime import datetime
 from typing import Union
 import time
 import random
 import re
 import pprint
-from urllib.error import HTTPError
 
 import discord
 from discord.ext import commands
@@ -21,6 +19,10 @@ from botutils.questionnaire import Questionnaire, Question, QuestionType, Cancel
 from botutils.restclient import Client
 from botutils.setter import ConfigSetter
 from botutils.permchecks import check_mod_access, check_admin_access
+
+from plugins.lastfm.api import Api, UnexpectedResponse
+from plugins.lastfm.presence import LfmPresenceMessage
+from plugins.lastfm.lfm_base import Song
 
 
 BASEURL = "https://ws.audioscrobbler.com/2.0/"
@@ -44,132 +46,10 @@ class NotRegistered(Exception):
         await ctx.send(Lang.lang(self.plugin, msg))
 
 
-class UnexpectedResponse(Exception):
-    """
-    Returned when last.fm returns an unexpected response.
-    """
-    def __init__(self, msg, usermsg):
-        self.user_message = usermsg
-        super().__init__(msg)
-
-    async def default(self, ctx):
-        await add_reaction(ctx.message, Lang.CMDERROR)
-        await ctx.send(self.user_message)
-
-
 class MostInterestingType(Enum):
     TITLE = 0
     ALBUM = 1
     ARTIST = 2
-
-
-class Song:
-    """
-    Represents an occurence of a title in a scrobble history, i.e. a scrobble.
-    """
-    def __init__(self, plugin, artist, album, title, nowplaying=False, timestamp=None, loved=False):
-        self.plugin = plugin
-        self.artist = artist
-        self.album = album
-        self.title = title
-        self.nowplaying = nowplaying
-        self.timestamp = timestamp
-        self.loved = loved
-
-    @classmethod
-    def from_response(cls, plugin, element):
-        """
-        Builds a song from a dict as returned by last.fm API.
-
-        :param plugin: reference to Plugin
-        :param element: part of a response that represents a song
-        :return: Song object that represents `element`
-        :raises KeyError: Necessary information is missing in `element`
-        """
-        plugin.logger.debug("Building song from {}".format(pprint.pformat(element)))
-        title = element["name"]
-        album = element["album"]["#text"]
-
-        # Artist
-        artist = element["artist"]
-        if "name" in artist:
-            artist = artist["name"]
-        elif "#text" in artist:
-            artist = artist["#text"]
-        else:
-            raise KeyError("\"name\" or \"#text\" in artist")
-
-        # Now playing
-        nowplaying = element.get("@attr", {}).get("nowplaying", "false")
-        if nowplaying == "true":
-            nowplaying = True
-        else:
-            if nowplaying != "false":
-                write_debug_channel("WARNING: lastfm: unexpected \"nowplaying\": {}".format(nowplaying))
-            nowplaying = False
-
-        # Loved
-        loved = element.get("loved", "0")
-        if loved == "1":
-            loved = True
-        else:
-            if loved != "0":
-                write_debug_channel("Lastfm: Unknown \"loved\" value: {}".format(loved))
-            loved = False
-
-        # Timestamp
-        ts = element.get("date", {}).get("uts", "0")
-        try:
-            ts = datetime.fromtimestamp(int(ts))
-        except (TypeError, ValueError):
-            ts = None
-
-        return cls(plugin, artist, album, title, nowplaying=nowplaying, timestamp=ts, loved=loved)
-
-    def quote(self, p: float = None):
-        """
-        Returns a random quote if there is one.
-
-        :param p: Probability (defaults to config value quote_p)
-        :return: quote
-        """
-        if p is None:
-            p = self.plugin.get_config("quote_p")
-
-        quotes = self.plugin.get_quotes(self.artist, self.title)
-        if quotes:
-            qkey = random.choice(list(quotes.keys()))
-            if p is not None and random.choices([True, False], weights=[p, 1 - p])[0]:
-                return quotes[qkey]["quote"]
-        return None
-
-    def format_song(self):
-        """
-        :return: Nice readable representation of the song according to lang string
-        """
-        r = Lang.lang(self.plugin, "listening_song_base", self.title, self.artist)
-        if self.loved:
-            r = "{} {}".format(Lang.lang(self.plugin, "loved"), r)
-        return r
-
-    def __getitem__(self, key):
-        if key == "artist":
-            return self.artist
-        if key == "album":
-            return self.album
-        if key == "title":
-            return self.title
-        if key == "nowplaying":
-            return self.nowplaying
-        if key == "loved":
-            return self.loved
-        raise KeyError
-
-    def __repr__(self):
-        return "<plugins.lastfm.Song object; {}: {} ({})>".format(self.artist, self.title, self.album)
-
-    def __str__(self):
-        return "<plugins.lastfm.Song object; {}: {} ({})>".format(self.artist, self.title, self.album)
 
 
 class Plugin(BasePlugin, name="LastFM"):
@@ -178,6 +58,7 @@ class Plugin(BasePlugin, name="LastFM"):
 
         self.logger = logging.getLogger(__name__)
         self.migrate()
+        self.api = Api(self)
         self.client = Client(BASEURL)
         self.conf = Config.get(self)
         if not self.conf.get("apikey", ""):
@@ -200,9 +81,21 @@ class Plugin(BasePlugin, name="LastFM"):
             "mi_downgrade": [float, 1.5],
             "quote_p": [float, 0.5],
             "max_quote_length": [int, 100],
-            "quote_restrict_del": [bool, True]
+            "quote_restrict_del": [bool, True],
+            "presence": [bool, True],
+            "presence_tick": [int, 60],
+            "presence_include_listener": [bool, True],
+            "presence_artist_only": [bool, False],
+            "presence_title_only": [bool, False],
+            "presence_artist_and_title": [bool, True],
+            "presence_order_artist_title": [bool, False],
+            "presence_order_user_song": [bool, True]
         }
         self.config_setter = ConfigSetter(self, self.base_config)
+        self.config_setter.add_switch("presence_title_only", "presence_artist_only", "presence_artist_and_title")
+
+        # Presence
+        self.presence_handler = LfmPresenceMessage(self)
 
         # Quote lang dicts
         self.lang_question = {
@@ -305,25 +198,12 @@ class Plugin(BasePlugin, name="LastFM"):
                     r.append(cmd)
         return r
 
-    async def request(self, params, method="GET"):
+    @property
+    def show_presence(self):
         """
-        Does a request to last.fm API and parses the reponse to a dict.
-
-        :param params: URL parameters
-        :param method: HTTP method
-        :return: Response dict
+        Indicates whether the presence is supposed to be registered / displayed
         """
-        params["format"] = "json"
-        params["api_key"] = self.conf["apikey"]
-        headers = {
-            "Content-Type": "application/json",
-            "User-Agent": "Geckarbot/{}".format(self.bot.VERSION)
-        }
-        before = self.perf_timenow()
-        r = await self.client.request("", params=params, headers=headers, method=method)
-        after = self.perf_timenow()
-        self.perf_add_lastfm_time(after - before)
-        return r
+        return self.get_config("presence")
 
     def get_lastfm_user(self, user: discord.User):
         """
@@ -426,9 +306,13 @@ class Plugin(BasePlugin, name="LastFM"):
             return
         await self.config_setter.set_cmd(ctx, key, value)
 
+        # specific handlers that have to do something on value change
+        if key == "presence":
+            self.presence_handler.config_update()
+
     @cmd_lastfm.command(name="register")
     async def cmd_register(self, ctx, lfmuser: str):
-        info = await self.get_user_info(lfmuser)
+        info = await self.api.get_user_info(lfmuser)
         if info is None:
             await add_reaction(ctx.message, Lang.CMDERROR)
             await ctx.send(Lang.lang(self, "user_not_found", lfmuser))
@@ -482,14 +366,9 @@ class Plugin(BasePlugin, name="LastFM"):
         except NotRegistered as e:
             await e.default(ctx)
             return
-        params = {
-            "method": "user.getRecentTracks",
-            "user": lfmuser,
-            "page": page,
-            "limit": pagelen
-        }
+
         try:
-            songs = self.build_songs(await self.request(params))
+            songs = await self.api.get_recent_tracks(lfmuser, page=page, pagelen=pagelen)
         except UnexpectedResponse as e:
             await e.default(ctx)
             return
@@ -571,15 +450,7 @@ class Plugin(BasePlugin, name="LastFM"):
     async def quote_acquire_song(self, ctx, user, question_lang_key) -> Song:
         # Fetch scrobbled song
         lfmuser = self.get_lastfm_user(user)
-
-        params = {
-            "method": "user.getRecentTracks",
-            "user": lfmuser,
-            "limit": 1,
-            "extended": 1,
-        }
-        response = await self.request(params)
-        song = self.build_songs(response)[0]
+        song = (await self.api.get_recent_tracks(lfmuser, pagelen=1, extended=True))[0]
 
         # Build questionnaire
         q_artist = Question(Lang.lang(self, "quote_question_artist"), QuestionType.TEXT, lang=self.lang_question)
@@ -598,7 +469,7 @@ class Plugin(BasePlugin, name="LastFM"):
         }
         q_title.data = cargo
         answers = [Lang.lang(self, "quote_scrobble"), Lang.lang(self, "quote_new")]
-        q_target = Question(Lang.lang(self, question_lang_key, song.format_song()), QuestionType.SINGLECHOICE,
+        q_target = Question(Lang.lang(self, question_lang_key, song.format(reverse=True)), QuestionType.SINGLECHOICE,
                             answers=answers, data=cargo, lang=self.lang_question, callback=self.quote_scrobble_cb)
         questions = [q_target]
         questionnaire = Questionnaire(self.bot, ctx.author, questions, "lastfm acquire quote",
@@ -739,23 +610,15 @@ class Plugin(BasePlugin, name="LastFM"):
                 return
         else:
             # user is a str
-            userinfo = await self.get_user_info(user)
+            userinfo = await self.api.get_user_info(user)
             if userinfo is None:
                 await add_reaction(ctx.message, Lang.CMDERROR)
                 await ctx.send(Lang.lang(self, "user_not_found", user))
                 return
 
-        params = {
-            "method": "user.getRecentTracks",
-            "user": lfmuser,
-            "limit": 1,
-            "extended": 1,
-        }
-
         async with ctx.typing():
-            response = await self.request(params)
             try:
-                song = self.build_songs(response)[0]
+                song = (await self.api.get_recent_tracks(lfmuser, pagelen=1, extended=True))[0]
             except UnexpectedResponse as e:
                 await e.default(ctx)
                 return
@@ -774,7 +637,7 @@ class Plugin(BasePlugin, name="LastFM"):
         """
         if song.title.strip().lower().startswith("keine lust") and random.choice([True, True, False]):
             return "Keine Lust :("
-        msg = song.format_song()
+        msg = song.format(reverse=True)
         if song["album"]:
             msg = Lang.lang(self, "listening_song_album", msg, song["album"])
         if song["nowplaying"]:
@@ -785,50 +648,6 @@ class Plugin(BasePlugin, name="LastFM"):
         if quote:
             msg = "{} _{}_".format(msg, quote)
         return msg
-
-    async def get_user_info(self, lfmuser):
-        """
-        Fetches info about a last.fm user
-
-        :param lfmuser: last.fm username
-        :return: userinfo dict
-        """
-        params = {
-            "method": "user.getInfo",
-            "user": lfmuser
-        }
-        try:
-            userinfo = await self.request(params)
-        except HTTPError:
-            return None
-
-        if "error" in userinfo:
-            return None
-        return userinfo
-
-    def build_songs(self, response, append_to=None, first=True):
-        """
-        Builds song dicts out of a response.
-
-        :param response: Response from the Last.fm API
-        :param append_to: Append resulting songs to this list instead of building a new one.
-        :param first: If False, removes a leading "nowplaying" song if existant.
-        :return: List of song dicts that have the keys `artist`, `title`, `album`, `nowplaying`
-        :raises UnexpectedResponse: The last.fm response is missing necessary information
-        """
-        try:
-            tracks = response["recenttracks"]["track"]
-        except KeyError as e:
-            raise UnexpectedResponse("\"recenttracks\" not in response", Lang.lang(self, "api_error")) from e
-        r = [] if append_to is None else append_to
-        done = False
-        for el in tracks:
-            song = Song.from_response(self, el)
-            if not first and not done and song.nowplaying:
-                done = True
-                continue
-            r.append(Song.from_response(self, el))
-        return r
 
     @staticmethod
     def interest_match(song, criterion, example):
@@ -880,10 +699,6 @@ class Plugin(BasePlugin, name="LastFM"):
         """
         self.logger.debug("Expanding")
         page_index = 1
-        params = {
-            "method": "user.getRecentTracks",
-            "user": lfmuser,
-        }
 
         prototype = {
             "top_index": 1,
@@ -933,10 +748,8 @@ class Plugin(BasePlugin, name="LastFM"):
             page_index += 1
             if page_index > self.get_config("limit"):
                 break
-            params["limit"] = page_len
-            params["page"] = page_index
             self.logger.debug("Expand: Fetching page %i", page_index)
-            current_page = self.build_songs(await self.request(params), first=False)
+            current_page = await self.api.get_recent_tracks(lfmuser, page=page_index, pagelen=page_len, first=False)
 
         self.logger.debug("counters: %s", str(counters))
 
@@ -1050,14 +863,7 @@ class Plugin(BasePlugin, name="LastFM"):
         min_title = self.get_config("min_title") * pagelen
         min_artist = self.get_config("min_artist") * pagelen
         lfmuser = self.get_lastfm_user(user)
-        params = {
-            "method": "user.getRecentTracks",
-            "user": lfmuser,
-            "limit": pagelen,
-            "extended": 1,
-        }
-        response = await self.request(params, "GET")
-        songs = self.build_songs(response)
+        songs = await self.api.get_recent_tracks(lfmuser, pagelen=pagelen, extended=True)
 
         # Calc counts
         scores = self.calc_scores(songs[:pagelen], min_artist, min_album, min_title)
