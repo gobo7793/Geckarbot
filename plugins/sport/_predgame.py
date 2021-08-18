@@ -183,14 +183,15 @@ class _Predgame:
 
             places = ""
             for i in range(3, len(grouped)):
-                emote = f"{i + 1}\U0000FE0F\U000020E3" if i < 9 else ":blue_square:"
+                emote = f"{i + 1}\U0000FE0F\U000020E3" if i < 9 else\
+                    ":keycap_ten:" if i == 9 else ":put_litter_in_its_place:"
                 places += "\n{} {} - {}".format(emote, grouped[i][0], ", ".join(grouped[i][1]))
-            desc = ":trophy: {} - {}\n:second_place: {} - {}\n:third_place: {} - {}{}".format(
-                grouped[0][0], ", ".join(grouped[0][1]),
-                grouped[1][0], ", ".join(grouped[1][1]),
-                grouped[2][0], ", ".join(grouped[2][1]),
-                places
-            )
+            desc = ":trophy: {} - {}".format(grouped[0][0], ", ".join(grouped[0][1]))
+            if len(grouped) > 1:
+                desc += "\n:second_place: {} - {}".format(grouped[1][0], ", ".join(grouped[1][1]))
+            if len(grouped) > 2:
+                desc += "\n:third_place: {} - {}".format(grouped[2][0], ", ".join(grouped[2][1]))
+            desc += places
             msgs.append((Lang.lang(self, "pred_total_points_title", Storage.get(self)["predictions"][leg]["name"]),
                          desc))
         return msgs
