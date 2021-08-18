@@ -168,6 +168,7 @@ class _Predgame:
             people, points_str = c.get_multiple([Storage().get(self)["predictions"][leg]['name_range'],
                                                  Storage().get(self)["predictions"][leg]['points_range']])
             points = []
+            pts_format = "d"
             for pts in points_str[0]:
                 if not pts:
                     points.append("")
@@ -177,6 +178,7 @@ class _Predgame:
                     except ValueError:
                         pt = pts.replace(",", ".")
                         points.append(float(pt))
+                        pts_format = ".3f"
             points_per_person = [x for x in zip(points, people[0]) if x != ('', '')]
             points_per_person.sort(reverse=True)
             grouped = [(k, [x[1] for x in v]) for k, v in groupby(points_per_person, key=itemgetter(0))]
@@ -185,12 +187,17 @@ class _Predgame:
             for i in range(3, len(grouped)):
                 emote = f"{i + 1}\U0000FE0F\U000020E3" if i < 9 else\
                     ":keycap_ten:" if i == 9 else ":put_litter_in_its_place:"
-                places += "\n{} {} - {}".format(emote, grouped[i][0], ", ".join(grouped[i][1]))
-            desc = ":trophy: {} - {}".format(grouped[0][0], ", ".join(grouped[0][1]))
+                places += "\n{emote} {pts:{pts_format}} - {names}".format(
+                    emote=emote, pts=grouped[i][0], pts_format=pts_format, names=", ".join(grouped[i][1]))
+
+            desc = ":trophy: {pts:{pts_format}} - {names}".format(
+                pts=grouped[0][0], pts_format=pts_format, names=", ".join(grouped[0][1]))
             if len(grouped) > 1:
-                desc += "\n:second_place: {} - {}".format(grouped[1][0], ", ".join(grouped[1][1]))
+                desc += "\n:second_place: {pts:{pts_format}} - {names}".format(
+                    pts=grouped[1][0], pts_format=pts_format, names=", ".join(grouped[1][1]))
             if len(grouped) > 2:
-                desc += "\n:third_place: {} - {}".format(grouped[2][0], ", ".join(grouped[2][1]))
+                desc += "\n:third_place: {pts:{pts_format}} - {names}".format(
+                    pts=grouped[2][0], pts_format=pts_format, names=", ".join(grouped[2][1]))
             desc += places
             msgs.append((Lang.lang(self, "pred_total_points_title", Storage.get(self)["predictions"][leg]["name"]),
                          desc))
