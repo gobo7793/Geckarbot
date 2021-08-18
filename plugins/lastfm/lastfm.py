@@ -440,12 +440,11 @@ class Plugin(BasePlugin, name="LastFM"):
             self.logger.debug("Got answer new")
             question.data["result_scrobble"] = False
             return [question.data["q_artist"], question.data["q_title"]]
-        elif question.answer == question.data["scrobble"]:
+        if question.answer == question.data["scrobble"]:
             self.logger.debug("Got answer scrobble")
             question.data["result_scrobble"] = True
             return question_queue
-        else:
-            assert False
+        assert False
 
     async def quote_new_song_cb(self, question, question_queue):
         """
@@ -461,6 +460,14 @@ class Plugin(BasePlugin, name="LastFM"):
         return question_queue
 
     async def quote_acquire_song(self, ctx, user, question_lang_key) -> Song:
+        """
+        Asks `user` via DM for the song that a quote is to be added to and builds a Song instance out of it.
+
+        :param ctx: Context
+        :param user: Discord user
+        :param question_lang_key: Lang.lang key for the question
+        :return: Song that a quote is to be added to
+        """
         # Fetch scrobbled song
         lfmuser = self.get_lastfm_user(user)
         song = (await self.api.get_recent_tracks(lfmuser, pagelen=1, extended=True))[0]
@@ -572,9 +579,9 @@ class Plugin(BasePlugin, name="LastFM"):
         # Acquire quotes
         candidates = self.get_quotes(song.artist, song.title)
         quotes = {}
-        for el in candidates:
-            if not restricted or user.id == candidates[el]["author"]:
-                quotes[el] = candidates[el]
+        for el in candidates.values():
+            if not restricted or user.id == el["author"]:
+                quotes[el] = el
         if not quotes:
             await user.send(Lang.lang(self, "quote_del_empty"))
             await add_reaction(ctx.message, Lang.CMDNOCHANGE)

@@ -52,7 +52,13 @@ class PresenceState:
                 s0 = self.cur_song_f
             self.cur_song_f = " ".join((s0, s1))
 
-    async def reset(self):
+    async def reset(self) -> PresenceState:
+        """
+        Resets the state of the presence message, i.e. fetches a new random scrobble or skips the presence message
+        if necessary
+
+        :return: This PresenceState
+        """
         rnd = await self.presence_msg.get_random_lastfm_listener()
         self.cur_listener_dc, self.cur_listener_lfm, self.cur_song = rnd
         if self.cur_song is not None:
@@ -61,7 +67,7 @@ class PresenceState:
             await self.presence_msg.plugin.bot.presence.skip()
         return self
 
-    def is_set(self):
+    def is_set(self) -> bool:
         return self.cur_listener_dc is not None
 
 
