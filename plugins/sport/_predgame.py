@@ -1,13 +1,15 @@
 import datetime
 from itertools import groupby
 from operator import itemgetter
-from typing import List, Tuple
+from typing import List, Tuple, Union
 
 import discord
 from discord import TextChannel
 from discord.ext import commands
 
 from botutils import sheetsclient, restclient, timeutils
+from botutils.converters import get_best_username, get_username_from_id, get_best_user
+from botutils.stringutils import paginate, format_andlist
 from botutils.utils import add_reaction
 from data import Lang, Config, Storage
 from subsystems.liveticker import TeamnameDict, MatchESPN
@@ -21,43 +23,54 @@ class _Predgame:
         if ctx.invoked_subcommand is None:
             await ctx.invoke(self.bot.get_command("predgame points"))
 
-    @cmd_predgame.command(name="today")
+    @cmd_predgame.command(name="today", aliases=["heute"])
     async def cmd_predgame_today(self, ctx):
-        match_count = await self._today_matches(ctx.channel)
+        async with ctx.channel.typing():
+            match_count = await self._today_matches(ctx.channel)
+
         if match_count <= 0:
             await ctx.send(Lang.lang(self, "pred_no_today_games"))
 
     async def _today_coro(self, _job):
-        today_matches = Config.get(self)["liveticker"]["show_today_matches"]
+        today_matches = Config.get(self)["predgame"]["show_today_matches"]
         chan_id = Config().get(self)['sport_chan']
+        pinglist = [get_best_user(u) for u in Config.get(self)["predgame"]["pinglist"]]
         if today_matches and chan_id > 0:
-            await self._today_matches(Config().bot.get_channel(Config().get(self)['sport_chan']))
+            await self._today_matches(Config().bot.get_channel(Config().get(self)['sport_chan']), pinglist)
 
-    async def _today_matches(self, chan: TextChannel) -> int:
+    async def _today_matches(self, chan: TextChannel,
+                             pinglist: List[Union[discord.User, discord.Member]] = None) -> int:
         """Sends a msg with todays matches to the specified channel
 
         :param chan: channel object
+        :param pinglist: List of Users/Members to ping in this message
         :return: Number of today matches
         """
 
-        match_count = 0
+        msgs = []
         for league in Storage.get(self)["predictions"]:
             result = await restclient.Client("http://site.api.espn.com/apis/site/v2/sports/soccer") \
                 .request(f"/{league}/scoreboard", params={'dates': datetime.datetime.today().strftime("%Y%m%d")})
-            msg = [Lang.lang(self, "pred_today_games")]
 
             for m in result.get('events', []):
                 match = MatchESPN(m)
                 kickoff = match.kickoff.strftime("%H:%M")
-                msg.append(f"{Storage.get(self)['predictions'][league]['name']} | {kickoff} | "
-                           f"{match.home_team.emoji} {match.away_team.emoji} "
-                           f"{match.home_team.long_name} - {match.away_team.long_name}")
+                msgs.append(f"{Storage.get(self)['predictions'][league]['name']} | {kickoff} | "
+                            f"{match.home_team.emoji} {match.away_team.emoji} "
+                            f"{match.home_team.long_name} - {match.away_team.long_name}")
 
-            match_count += len(msg)
-            if len(msg) > 1:
-                await chan.send("\n".join(msg))
+        if len(msgs) > 0:
+            ping_msg = ""
+            if pinglist is not None and pinglist:
+                userlist = format_andlist([user.mention for user in pinglist], ands=Lang.lang(self, 'and'))
+                ping_msg = Lang.lang(self, 'pred_today_pinglist', userlist)
 
-        return match_count
+            for msg in paginate(msgs,
+                                prefix=f"**{Lang.lang(self, 'pred_today_games')}**\n",
+                                suffix=f"\n{ping_msg}"):
+                await chan.send(msg)
+
+        return len(msgs)
 
     @cmd_predgame.group(name="sheet", aliases=["sheets"])
     async def cmd_predgame_sheet(self, ctx):
@@ -185,7 +198,7 @@ class _Predgame:
 
             places = ""
             for i in range(3, len(grouped)):
-                emote = f"{i + 1}\U0000FE0F\U000020E3" if i < 9 else\
+                emote = f"{i + 1}\U0000FE0F\U000020E3" if i < 9 else \
                     ":keycap_ten:" if i == 9 else ":put_litter_in_its_place:"
                 places += "\n{emote} {pts:{pts_format}} - {names}".format(
                     emote=emote, pts=grouped[i][0], pts_format=pts_format, names=", ".join(grouped[i][1]))
@@ -235,7 +248,7 @@ class _Predgame:
         await self.bot.helpsys.cmd_help(ctx, self, ctx.command)
 
     @cmd_predgame_set.command(name="add")
-    async def cmd_predgame_set__add(self, ctx, espn_code, name, sheet_id,
+    async def cmd_predgame_set_add(self, ctx, espn_code, name, sheet_id,
                                     name_range="G1:AD1", points_range="G4:AD4", prediction_range="A6:AD345"):
         Storage.get(self)["predictions"][espn_code] = {
             "name": name,
@@ -248,7 +261,7 @@ class _Predgame:
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
     @cmd_predgame_set.command(name="del")
-    async def cmd_predgame_set__del(self, ctx, name):
+    async def cmd_predgame_set_del(self, ctx, name):
         if name in Storage.get(self)["predictions"]:
             del Storage.get(self)["predictions"][name]
             Storage.save(self)
@@ -266,13 +279,49 @@ class _Predgame:
     @cmd_predgame_set.command(name="today")
     async def cmd_predgame_set_today(self, ctx, show_today: bool = None):
         if show_today is None:
-            current = Config.get(self)["liveticker"]["show_today_matches"]
-            Config.get(self)["liveticker"]["show_today_matches"] = not current
+            current = Config.get(self)["predgame"]["show_today_matches"]
+            Config.get(self)["predgame"]["show_today_matches"] = not current
         else:
-            Config.get(self)["liveticker"]["show_today_matches"] = show_today
+            Config.get(self)["predgame"]["show_today_matches"] = show_today
         Config.save(self)
-        if Config.get(self)["liveticker"]["show_today_matches"]:
+
+        if Config.get(self)["predgame"]["show_today_matches"]:
             await add_reaction(ctx.message, Lang.EMOJI['unmute'])
         else:
             await add_reaction(ctx.message, Lang.EMOJI['mute'])
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
+
+    @cmd_predgame.group(name="pinglist", invoke_without_command=True)
+    async def cmd_predgame_pinglist(self, ctx):
+        if Config.get(self)["predgame"]["pinglist"]:
+            users = ", ".join([get_username_from_id(u) for u in Config.get(self)["predgame"]["pinglist"]])
+            await ctx.send(Lang.lang(self, "pred_pinguser_list", users))
+        else:
+            await ctx.send(Lang.lang(self, "pred_pinguser_empty"))
+
+    @cmd_predgame_pinglist.command(name="add")
+    async def cmd_predgame_pinglist_add(self, ctx, user: Union[discord.User, discord.Member]):
+        if user.id in Config.get(self)["predgame"]["pinglist"]:
+            await add_reaction(ctx.message, Lang.CMDERROR)
+            await ctx.send(Lang.lang(self, "pred_pinguser_already", get_best_username(user)))
+            return
+
+        Config.get(self)["predgame"]["pinglist"].append(user.id)
+        Config.save(self)
+        await add_reaction(ctx.message, Lang.CMDSUCCESS)
+
+    @cmd_predgame_pinglist.command(name="del")
+    async def cmd_predgame_pinglist_del(self, ctx, user: Union[discord.User, discord.Member] = None):
+        if user is None:
+            Config.get(self)["predgame"]["pinglist"].clear()
+            await add_reaction(ctx.message, Lang.CMDSUCCESS)
+            return
+
+        if user.id in Config.get(self)["predgame"]["pinglist"]:
+            Config.get(self)["predgame"]["pinglist"].remove(user.id)
+            Config.save(self)
+            await add_reaction(ctx.message, Lang.CMDSUCCESS)
+            return
+
+        await add_reaction(ctx.message, Lang.CMDERROR)
+        await ctx.send(Lang.lang(self, "pred_pinguser_not_found", get_best_username(user)))
