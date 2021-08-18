@@ -55,9 +55,10 @@ class PresenceState:
     async def reset(self):
         rnd = await self.presence_msg.get_random_lastfm_listener()
         self.cur_listener_dc, self.cur_listener_lfm, self.cur_song = rnd
-        print(rnd)
         if self.cur_song is not None:
             self.format_song()
+        elif self.presence_msg.show_presence:
+            await self.presence_msg.plugin.bot.presence.skip()
         return self
 
     def is_set(self):
@@ -140,6 +141,11 @@ class LfmPresenceMessage(PresenceMessage):
 
         for userid in candidates:
             lfmuser = users[userid]
+            if lfmuser.get("presence_optout", not self.plugin.get_config("presence_optout")):
+                self.logger.debug("Skipping user %s", lfmuser["lfmuser"])
+                continue
+            lfmuser = lfmuser["lfmuser"]
+
             song = await self.plugin.api.get_current_scrobble(lfmuser)
             if song:
                 self.logger.debug("Got random listener %s: %s", lfmuser, song)
