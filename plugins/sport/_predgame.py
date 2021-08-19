@@ -36,7 +36,7 @@ class _Predgame:
         chan_id = Config().get(self)['sport_chan']
         pinglist = [get_best_user(u) for u in Config.get(self)["predgame"]["pinglist"]]
         if today_matches and chan_id > 0:
-            await self._today_matches(Config().bot.get_channel(Config().get(self)['sport_chan']), pinglist)
+            await self._today_matches(Config().bot.get_channel(chan_id), pinglist)
 
     async def _today_matches(self, chan: TextChannel,
                              pinglist: List[Union[discord.User, discord.Member]] = None) -> int:
