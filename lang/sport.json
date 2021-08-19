@@ -44,6 +44,11 @@
         "help_predgame_set_today": "Set if the todays matches will be showed automatically",
         "desc_predgame_set_today": "Set if the todays matches will be showed automatically. If `true`or `false` are not given, the current value will be toggled.",
         "usage_predgame_set_today": "[true|false]",
+        "help_predgame_pinglist": "Shows users in pinglist",
+        "desc_predgame_pinglist": "Shows all users who are in the pinglist which are mentioned in the message containing todays matches to predict.",
+        "help_predgame_pinglist_add": "Add a user to pinglist",
+        "help_predgame_pinglist_del": "Removes a user from pinglist",
+        "desc_predgame_pinglist_del": "Removes a user from pinglist. If no user is given, all users will be removed.",
 
         "#1": "",
         "and": "and",
@@ -162,6 +167,11 @@
         "help_predgame_set_today": "Bestimmt ob die heutigen Matches automatisch angezeigt werden sollen",
         "desc_predgame_set_today": "Bestimmt ob die heutigen Matches automatisch angezeigt werden sollen. Wenn `true` oder `false` nicht explizit angegeben werden, wird die aktuelle Einstellung umgeschaltet.",
         "usage_predgame_set_today": "[true|false]",
+        "help_predgame_pinglist": "Zeigt alle User in der Pingliste an",
+        "desc_predgame_pinglist": "Zeigt alle User in der Pingliste an, die bei der automatischen Nachricht der heutigen zu tippenden Spiele erwähnt bzw. gepingt werden.",
+        "help_predgame_pinglist_add": "Fügt einen User zur Pingliste hinzu",
+        "help_predgame_pinglist_del": "Entfernt einen User von der Pingliste",
+        "desc_predgame_pinglist_del": "Entfernt einen User von der Pingliste. Wenn kein User angegeben ist, werden alle User aus der Pingliste entfernt.",
 
         "#1": "",
         "and": "und",
