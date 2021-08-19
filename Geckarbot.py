@@ -9,7 +9,6 @@ import pkgutil
 import pprint
 import sys
 import traceback
-from enum import Enum
 from logging import handlers
 from pathlib import Path
 from typing import List, Union
