@@ -41,7 +41,6 @@ class Configurable:
     """Defines a class which the config of its instances can be managed by Config class"""
 
     def __init__(self, bot):
-        super().__init__()
         self.iodirs = {}
         self.bot = bot
         self.can_configdump = True

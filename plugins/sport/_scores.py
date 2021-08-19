@@ -10,8 +10,10 @@ from data import Lang, Config
 from subsystems.liveticker import LTSource, MatchStatus, MatchOLDB, MatchESPN, MatchBase
 
 
-# pylint: disable=no-member
-class _Livescores:
+class _Scores:
+
+    def __init__(self, bot):
+        self.bot = bot
 
     @commands.command(name="kicker")
     async def cmd_kicker_table(self, ctx):

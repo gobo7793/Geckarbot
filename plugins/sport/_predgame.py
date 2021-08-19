@@ -1,4 +1,5 @@
 import datetime
+import logging
 from itertools import groupby
 from operator import itemgetter
 from typing import List, Tuple, Union
@@ -14,9 +15,13 @@ from botutils.utils import add_reaction
 from data import Lang, Config, Storage
 from subsystems.liveticker import TeamnameDict, MatchESPN
 
+logger = logging.getLogger(__name__)
 
-# pylint: disable=no-member
+
 class _Predgame:
+
+    def __init__(self, bot):
+        self.bot = bot
 
     @commands.group(name="predgame", aliases=["tippspiel"], invoke_without_command=True)
     async def cmd_predgame(self, ctx):
@@ -249,7 +254,7 @@ class _Predgame:
 
     @cmd_predgame_set.command(name="add")
     async def cmd_predgame_set_add(self, ctx, espn_code, name, sheet_id,
-                                    name_range="G1:AD1", points_range="G4:AD4", prediction_range="A6:AD345"):
+                                   name_range="G1:AD1", points_range="G4:AD4", prediction_range="A6:AD345"):
         Storage.get(self)["predictions"][espn_code] = {
             "name": name,
             "sheet": sheet_id,
@@ -258,6 +263,7 @@ class _Predgame:
             "prediction_range": prediction_range  # sheets range in which the prediction data are
         }
         Storage.save(self)
+        logger.info("New prediction league added: %s as %s, using sheet ID %s", espn_code, name, sheet_id)
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
     @cmd_predgame_set.command(name="del")
@@ -265,6 +271,7 @@ class _Predgame:
         if name in Storage.get(self)["predictions"]:
             del Storage.get(self)["predictions"][name]
             Storage.save(self)
+            logger.info("Prediction league removed: %s", name)
             await add_reaction(ctx.message, Lang.CMDSUCCESS)
         else:
             await add_reaction(ctx.message, Lang.CMDERROR)
@@ -308,18 +315,21 @@ class _Predgame:
 
         Config.get(self)["predgame"]["pinglist"].append(user.id)
         Config.save(self)
+        logger.info("User %s added to predgame pinglist", user.id)
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
     @cmd_predgame_pinglist.command(name="del")
     async def cmd_predgame_pinglist_del(self, ctx, user: Union[discord.User, discord.Member] = None):
         if user is None:
             Config.get(self)["predgame"]["pinglist"].clear()
+            logger.info("All users removed von predgame pinglist")
             await add_reaction(ctx.message, Lang.CMDSUCCESS)
             return
 
         if user.id in Config.get(self)["predgame"]["pinglist"]:
             Config.get(self)["predgame"]["pinglist"].remove(user.id)
             Config.save(self)
+            logger.info("User %s removed from predgame pinglist", user.id)
             await add_reaction(ctx.message, Lang.CMDSUCCESS)
             return
 
