@@ -23,6 +23,9 @@ class UnexpectedResponse(Exception):
 
 
 class Api:
+    """
+    Implements access to the Last.fm API.
+    """
     def __init__(self, plugin):
         self.plugin = plugin
         self.client = Client(BASEURL)

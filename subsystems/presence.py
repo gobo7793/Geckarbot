@@ -25,6 +25,13 @@ activitymap = {
 }
 
 
+class SkipPresence(Exception):
+    """
+    To be raised by PresenceMessage.set implementations if the presence message is to be skipped instead of set.
+    """
+    pass
+
+
 class PresencePriority(IntEnum):
     """Priority enumeration for presence messages"""
 
@@ -370,29 +377,35 @@ class Presence(BaseSubsystem):
             asyncio.run_coroutine_threadsafe(self._change_callback(self._timer_job), self.bot.loop)
 
     async def _change_callback(self, job):
-        """The callback method for the timer subsystem to change the presence message"""
+        """
+        The callback method for the timer subsystem to change the presence message.
+        Sets a presence with the following conditions:
+            1. Prio as high as possible
+            2. Not the same presence as before (if possible within the prio list)
+            3. Randomly chosen
+            4. If the presence message raises SkipPresence, tries again
+        """
+        self.log.debug("Executing presence change callback")
+        prio = None
+        if len(self.filter_messages_list(PresencePriority.HIGH)) > 0:
+            prio = PresencePriority.HIGH
 
-        last_id = job.data["current_id"]
-        high_list = self.filter_messages_list(PresencePriority.HIGH)
+        # Search for new presence msg
+        while True:
+            last_id = job.data["current_id"]
+            next_id = self.get_ran_id(last_id, priority=prio)
+            if next_id == last_id:
+                return  # do nothing if the same message should be displayed again
 
-        if len(high_list) > 0:
-            next_prio = PresencePriority.HIGH
-        else:
-            next_prio = None
-            if job.data["last_prio"] == PresencePriority.HIGH:
-                last_id = job.data["id_before_high"] - 1  # restore last message before high
+            new_msg = self.messages[next_id]
+            try:
+                await new_msg.set()
+            except SkipPresence:
+                self.log.debug("%s raised SkipPresence; skipping", new_msg)
+                continue
+            break
 
-        next_id = self.get_ran_id(last_id, next_prio)
-
-        if next_id == last_id:
-            return  # do nothing if the same message should be displayed again
-
-        job.data["id_before_high"] = last_id
-        new_msg = self.messages[next_id]
         if job.data["current_msg"]:
             await job.data["current_msg"].unset()
-        await new_msg.set()
-
-        job.data["last_prio"] = new_msg.priority
         job.data["current_id"] = next_id
         job.data["current_msg"] = new_msg

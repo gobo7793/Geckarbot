@@ -1,6 +1,6 @@
 import logging
 from enum import Enum
-from typing import Union
+from typing import Union, Optional
 import time
 import random
 import re
@@ -89,7 +89,8 @@ class Plugin(BasePlugin, name="LastFM"):
             "presence_title_only": [bool, False],
             "presence_artist_and_title": [bool, True],
             "presence_order_artist_title": [bool, False],
-            "presence_order_user_song": [bool, True]
+            "presence_order_user_song": [bool, True],
+            "presence_optout": [bool, True],
         }
         self.config_setter = ConfigSetter(self, self.base_config)
         self.config_setter.add_switch("presence_title_only", "presence_artist_only", "presence_artist_and_title")
@@ -155,6 +156,16 @@ class Plugin(BasePlugin, name="LastFM"):
             struc["version"] = 2
             Storage.save(self, container="quotes")
 
+        storage = Storage.get(self)
+        if "version" not in storage:
+            for userid in storage["users"]:
+                lfmuser = storage["users"][userid]
+                storage["users"][userid] = {
+                    "lfmuser": lfmuser
+                }
+            storage["version"] = 1
+            Storage.save(self)
+
     def get_config(self, key):
         return Config.get(self).get(key, self.base_config[key][1])
 
@@ -164,6 +175,7 @@ class Plugin(BasePlugin, name="LastFM"):
     def default_storage(self, container=None):
         if container is None:
             return {
+                "version": 1,
                 "users": {}
             }
         if container == "quotes":
@@ -214,7 +226,7 @@ class Plugin(BasePlugin, name="LastFM"):
         r = Storage.get(self)["users"].get(user.id, None)
         if r is None:
             raise NotRegistered(self)
-        return r
+        return r["lfmuser"]
 
     def perf_reset_timers(self):
         """
@@ -283,12 +295,14 @@ class Plugin(BasePlugin, name="LastFM"):
         return time.clock_gettime(time.CLOCK_MONOTONIC)
 
     @commands.group(name="lastfm", invoke_without_command=True)
-    async def cmd_lastfm(self, ctx):
+    async def cmd_lastfm(self, ctx, user: Union[discord.Member, discord.User, str, None]):
         self.perf_reset_timers()
         before = self.perf_timenow()
+        if user is None:
+            user = ctx.author
         try:
             async with ctx.typing():
-                await self.most_interesting(ctx, ctx.author)
+                await self.most_interesting(ctx, user)
         except (NotRegistered, UnexpectedResponse) as e:
             await e.default(ctx)
             return
@@ -322,7 +336,7 @@ class Plugin(BasePlugin, name="LastFM"):
             await ctx.send(self, "error")
             await write_debug_channel("Error: \"user\" not in {}".format(info))
             return
-        Storage.get(self)["users"][ctx.author.id] = lfmuser
+        Storage.get(self)["users"][ctx.author.id] = {"lfmuser": lfmuser}
         Storage.save(self)
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
@@ -426,12 +440,11 @@ class Plugin(BasePlugin, name="LastFM"):
             self.logger.debug("Got answer new")
             question.data["result_scrobble"] = False
             return [question.data["q_artist"], question.data["q_title"]]
-        elif question.answer == question.data["scrobble"]:
+        if question.answer == question.data["scrobble"]:
             self.logger.debug("Got answer scrobble")
             question.data["result_scrobble"] = True
             return question_queue
-        else:
-            assert False
+        assert False
 
     async def quote_new_song_cb(self, question, question_queue):
         """
@@ -441,13 +454,20 @@ class Plugin(BasePlugin, name="LastFM"):
         :param question_queue: list of Question objects that were to be posed after this
         :return: question_queue
         """
-        print("question: {}, queue: {}".format(question, question_queue))
         song = Song(self, question.data["q_artist"].answer, "", question.data["q_title"].answer)
         question.data["song"] = song
         question.data["result_scrobble"] = False
         return question_queue
 
     async def quote_acquire_song(self, ctx, user, question_lang_key) -> Song:
+        """
+        Asks `user` via DM for the song that a quote is to be added to and builds a Song instance out of it.
+
+        :param ctx: Context
+        :param user: Discord user
+        :param question_lang_key: Lang.lang key for the question
+        :return: Song that a quote is to be added to
+        """
         # Fetch scrobbled song
         lfmuser = self.get_lastfm_user(user)
         song = (await self.api.get_recent_tracks(lfmuser, pagelen=1, extended=True))[0]
@@ -559,9 +579,9 @@ class Plugin(BasePlugin, name="LastFM"):
         # Acquire quotes
         candidates = self.get_quotes(song.artist, song.title)
         quotes = {}
-        for el in candidates:
-            if not restricted or user.id == candidates[el]["author"]:
-                quotes[el] = candidates[el]
+        for el in candidates.values():
+            if not restricted or user.id == el["author"]:
+                quotes[el] = el
         if not quotes:
             await user.send(Lang.lang(self, "quote_del_empty"))
             await add_reaction(ctx.message, Lang.CMDNOCHANGE)
@@ -593,7 +613,16 @@ class Plugin(BasePlugin, name="LastFM"):
         await user.send(Lang.lang(self, "quote_del_success", q_del.answer))
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
-    @cmd_lastfm.command(name="now", aliases=["listening"])
+    @cmd_lastfm.command(name="listening")
+    async def cmd_listening(self, ctx, user: Union[discord.Member, discord.User, str, None]):
+        if self.presence_handler.is_currently_shown:
+            song = self.presence_handler.state.cur_song.format(reverse=True)
+            listener = self.presence_handler.state.cur_listener_dc
+            await ctx.send(Lang.lang(self, "presence_listening", song, gbu(listener)))
+            return
+        await self.cmd_now(ctx, user)
+
+    @cmd_lastfm.command(name="now")
     async def cmd_now(self, ctx, user: Union[discord.Member, discord.User, str, None]):
         self.perf_reset_timers()
         before = self.perf_timenow()
@@ -626,6 +655,51 @@ class Plugin(BasePlugin, name="LastFM"):
         await ctx.send(self.listening_msg(user, song))
         after = self.perf_timenow()
         self.perf_add_total_time(after - before)
+
+    @cmd_lastfm.command(name="presence")
+    async def cmd_presence_opt(self, ctx, opt_arg: Optional[str]):
+        # update presence
+        if opt_arg == "update":
+            await self.presence_handler.update()
+            await add_reaction(ctx.message, Lang.CMDSUCCESS)
+            return
+
+        # actual optout setting
+        key = "presence_optout"
+        userlist = Storage.get(self)["users"]
+        userid = ctx.author.id
+
+        if userid not in userlist.keys():
+            await ctx.send(Lang.lang(self, "not_registered"))
+            return
+
+        # send current status
+        if opt_arg is None:
+            if userlist[userid].get(key, not self.get_config(key)):
+                await ctx.send(Lang.lang(self, "presence_status_optout"))
+                return
+            else:
+                await ctx.send(Lang.lang(self, "presence_status_optin"))
+                return
+
+        # set status
+        err = False
+        if opt_arg in ("opt in", "optin", "opt-in", "opt_in"):
+            userlist[userid][key] = False
+        elif opt_arg in ("opt out", "optout", "opt-out", "opt_out"):
+            userlist[userid][key] = True
+        elif opt_arg == "default":
+            del userlist[userid][key]
+        else:
+            err = True
+
+        if err:
+            await add_reaction(ctx.message, Lang.CMDERROR)
+            await self.bot.helpsys.cmd_help(ctx, self, ctx.command)
+            return
+
+        Storage.save(self)
+        await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
     def listening_msg(self, user, song):
         """
