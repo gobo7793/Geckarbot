@@ -3,35 +3,42 @@ import logging
 from base import BasePlugin
 from botutils.utils import helpstring_helper
 from data import Config, Storage
-from plugins.sport._livescores import _Livescores
+from plugins.sport._scores import _Scores
 from plugins.sport._liveticker import _Liveticker
 from plugins.sport._predgame import _Predgame
 from subsystems import timers
 from subsystems.helpsys import DefaultCategories
 
+logger = logging.getLogger(__name__)
 
-class Plugin(BasePlugin, _Liveticker, _Predgame, _Livescores, name="Sport"):
+
+class Plugin(BasePlugin, _Liveticker, _Predgame, _Scores, name="Sport"):
     """Commands related to soccer or other sports"""
 
     def __init__(self, bot):
-        super().__init__(bot)
+        BasePlugin.__init__(self, bot)
+        _Scores.__init__(self, bot)
+        _Predgame.__init__(self, bot)
+        _Liveticker.__init__(self, bot, self.get_name, self._get_predictions)
         bot.register(self, category=DefaultCategories.SPORT)
-        self.logger = logging.getLogger(__name__)
         self._update_config()
 
         self.today_timer = self.bot.timers.schedule(coro=self._today_coro, td=timers.timedict(hour=1, minute=0))
 
     def default_config(self):
         return {
-            'cfg_version': 3,
+            'cfg_version': 4,
             'sport_chan': 0,
             'league_aliases': {"bl": ["ger.1", "espn"]},
             'liveticker': {
                 'interval': 15,
-                'show_today_matches': True,
                 'leagues': {"oldb": [], "espn": []},
                 'do_intermediate_updates': True,
                 'tracked_events': ['GOAL', 'YELLOWCARD', 'REDCARD']
+            },
+            'predgame': {
+                'show_today_matches': True,
+                'pinglist': [],
             },
             'predictions_overview_sheet': ''
         }
@@ -67,7 +74,7 @@ class Plugin(BasePlugin, _Liveticker, _Predgame, _Livescores, name="Sport"):
                                                 'tracked_events': ['GOAL', 'YELLOWCARD', 'REDCARD']}
             del Config().get(self)['liveticker_leagues']
             Config().get(self)['cfg_version'] = 1
-            self.logger.debug("Updated config to version 1")
+            logger.info("Updated config to version 1")
 
         if Config().get(self).get('cfg_version', 0) < 2:
             leagues = Config().get(self)['leagues']
@@ -78,7 +85,7 @@ class Plugin(BasePlugin, _Liveticker, _Predgame, _Livescores, name="Sport"):
             Config().get(self)['league_aliases'] = league_aliases
             del Config().get(self)['leagues']
             Config().get(self)['cfg_version'] = 2
-            self.logger.debug("Updated config to version 2")
+            logger.info("Updated config to version 2")
 
         if Config().get(self).get('cfg_version', 0) < 3:
             Config.get(self)["liveticker"]["show_today_matches"] = True
@@ -86,7 +93,16 @@ class Plugin(BasePlugin, _Liveticker, _Predgame, _Livescores, name="Sport"):
             Config.get(self)["predictions_overview_sheet"] = ""
             Storage.set(self, Storage.get_default(self))
             Config().get(self)['cfg_version'] = 3
-            self.logger.debug("Updated config to version 3")
+            logger.info("Updated config to version 3")
+
+        if Config().get(self).get('cfg_version', 0) < 4:
+            Config.get(self)["predgame"] = {
+                "show_today_matches": Config.get(self)["liveticker"]["show_today_matches"],
+                "pinglist": []
+            }
+            del Config.get(self)["liveticker"]["show_today_matches"]
+            Config().get(self)['cfg_version'] = 4
+            logger.info("Updated config to version 4")
 
         Storage.save(self)
         Config().save(self)

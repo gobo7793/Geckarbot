@@ -1,4 +1,5 @@
 import asyncio
+import logging
 
 import discord
 from discord.ext import commands
@@ -10,9 +11,15 @@ from subsystems.liveticker import TeamnameDict, LTSource, PlayerEventEnum, Livet
     LivetickerFinish
 from subsystems.reactions import ReactionAddedEvent
 
+logger = logging.getLogger(__name__)
 
-# pylint: disable=no-member
+
 class _Liveticker:
+
+    def __init__(self, bot, get_name, _get_predictions):
+        self.bot = bot
+        self.get_name = get_name
+        self._get_predictions = _get_predictions
 
     @commands.group(name="liveticker")
     async def cmd_liveticker(self, ctx):
@@ -42,7 +49,7 @@ class _Liveticker:
                     for emoji in actions:
                         await msg.remove_reaction(emoji, self.bot.user)
                     react.deregister()
-                self.logger.debug("ENDE")
+                logger.debug("ENDE")
             else:
                 # Start liveticker
                 msg = await ctx.send(Lang.lang(self, 'liveticker_start'))
@@ -181,7 +188,7 @@ class _Liveticker:
     async def cmd_liveticker_interval(self, ctx, new_interval: int):
         Config().get(self)['liveticker']['interval'] = new_interval
         Config().save(self)
-        for _, _, c_reg in list(self.bot.liveticker.search_coro(plugins=[self.get_name()])):
+        for _, _, c_reg in list(self.bot.liveticker.search_coro(plugins=[super.get_name()])):
             c_reg.interval = new_interval
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
@@ -227,7 +234,7 @@ class _Liveticker:
                     other_matches.append(match_msg)
             if other_matches:
                 match_msgs.append("{}: {}".format(Lang.lang(self, 'liveticker_unchanged'),
-                                                      " \u2014 ".join(other_matches)))
+                                                  " \u2014 ".join(other_matches)))
             msgs = paginate(match_msgs, prefix=Lang.lang(self, 'liveticker_prefix', event.league))
             for msg in msgs:
                 await sport.send(msg)
