@@ -1,16 +1,16 @@
 name: Analysing missing lang strings
 
 on:
-    pull_request:
-        branches:
-        - develop
-        - release
-        - hotfix
-    push:
-        branches:
-        - develop
-        - release
-        - hotfix
+  pull_request:
+    branches:
+      - development
+      - release
+      - hotfix
+  push:
+    branches:
+      - development
+      - release
+      - hotfix
 
 jobs:
   langdiff:
