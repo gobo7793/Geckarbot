@@ -731,10 +731,6 @@ class CoroRegistrationBase(ABC):
         """Returns datetime of the next match"""
         return self.league_reg.next_kickoff()
 
-    def next_execution(self):
-        """Returns datetime of the next timer execution"""
-        return self.league_reg.next_execution()
-
     async def update(self, matches: List[MatchBase]):
         """
         Coroutine used by the interval timer during matches. Manufactures the LivetickerUpdate for the coro.
@@ -767,11 +763,11 @@ class CoroRegistrationBase(ABC):
         return self.coro == other.coro and self.periodic == other.periodic
 
     def __str__(self):
-        return "<liveticker.CoroRegistration; coro={}; periodic={}>" \
-            .format(self.coro, self.periodic)
+        return "<liveticker.CoroRegistration; coro={}; periodic={}; interval={}>" \
+            .format(self.coro, self.periodic, self.interval)
 
     def __bool__(self):
-        return bool(self.next_execution())
+        return self.league_reg.__bool__()
 
 
 class CoroRegistrationESPN(CoroRegistrationBase):
@@ -941,24 +937,10 @@ class LeagueRegistrationBase(ABC):
 
     def next_kickoff(self):
         """Returns datetime of the next match"""
-        kickoffs = (i.next_execution() for i in self.kickoff_timers if i)
+        kickoffs = list(self.kickoffs.keys())
         if kickoffs:
             return min(kickoffs)
         return None
-
-    def next_execution(self):
-        """Returns datetime and type of the next timer execution"""
-        kickoffs = [j for j in (i.next_execution() for i in self.kickoff_timers if i) if j]
-        intermed = [j for j in (i.next_execution() for i in self.intermediate_timers if i) if j]
-        if kickoffs and intermed:
-            next_exec, timer_type = min((min(kickoffs), "kickoff"), (min(intermed), "intermediate"))
-        elif kickoffs:
-            next_exec, timer_type = min(kickoffs), "kickoff"
-        elif intermed:
-            next_exec, timer_type = min(intermed), "intermediate"
-        else:
-            return None
-        return next_exec, timer_type
 
     async def update_kickoff_coros(self, job: Job):
         for coro_reg in self.registrations:
@@ -1009,14 +991,11 @@ class LeagueRegistrationBase(ABC):
                 self.kickoffs.pop(kickoff)
 
     def __str__(self):
-        next_exec = self.next_execution()
-        if next_exec:
-            next_exec = next_exec[0].strftime('%Y-%m-%d - %H:%M'), next_exec[1]
         return f"<liveticker.LeagueRegistration; league={self.league}; src={self.source.value}; " \
-               f"regs={len(self.registrations)}; next={next_exec}>"
+               f"regs={len(self.registrations)}; kickoffs={len(self.kickoffs)}>"
 
     def __bool__(self):
-        return bool(self.next_execution())
+        return bool(self.kickoffs)
 
 
 class LeagueRegistrationESPN(LeagueRegistrationBase):
