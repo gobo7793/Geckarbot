@@ -44,7 +44,7 @@ def parse_number(s: str) -> Number:
     return Number(r, unit)
 
 
-def format_number(n: typing.Union[Number, int, float], decplaces: int = 2, split_unit=True) -> str:
+def format_number(n: typing.Union[Number, int, float], decplaces: int = 2, split_unit: bool = True) -> str:
     """
     Formats a number into a nice-looking string.
 
