@@ -11,10 +11,10 @@ CONVERTERS = {
 class Encoder(json.JSONEncoder):
     """JSON encoder class for data types w/o built-in encoder"""
 
-    def default(self, obj):
-        if isinstance(obj, datetime.datetime):
-            return {"val": obj.isoformat(), "_spec_type": "datetime"}
-        return super().default(obj)
+    def default(self, o):
+        if isinstance(o, datetime.datetime):
+            return {"val": o.isoformat(), "_spec_type": "datetime"}
+        return super().default(o)
 
 
 class Decoder(json.JSONDecoder):

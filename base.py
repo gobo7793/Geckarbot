@@ -63,7 +63,7 @@ class Configurable:
         Effects main config/ storage and every container.
         """
 
-    def default_config(self):
+    def default_config(self, container=None):
         """
         Returns an empty default config
         """

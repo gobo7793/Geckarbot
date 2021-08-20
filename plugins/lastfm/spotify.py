@@ -54,6 +54,10 @@ class Client:
 
     @property
     def credentials(self):
+        """
+        :return: client_id, client_secret
+        :raises NoCredentials: If API credentials are not set
+        """
         r = (self._client_id, self._client_secret)
         if None in r:
             raise NoCredentials
@@ -97,7 +101,8 @@ class Client:
         :param headers: headers
         :param data: data
         :param method: HTTP method
-        :return:
+        :return: response structure
+        :raises ApiError: If the API returned an error (indicated by an "error" entry)
         """
         had_auth_error = False
         r = None
@@ -118,6 +123,22 @@ class Client:
                 break
         return r
 
+    @staticmethod
+    def locate_response_element(response, layer):
+        """
+
+        :param response: Spotify API response
+        :param layer: API request layer
+        :return: element that we're interested in
+        """
+        if layer == layer.TITLE:
+            return response["tracks"]["items"][0]
+        if layer == layer.ALBUM:
+            return response["albums"]["items"][0]
+        if layer == layer.ARTIST:
+            return response["artists"]["items"][0]
+        assert False, "unknown layer {}".format(layer)
+
     async def search(self, searchstring, layer=Layer.TITLE):
         """
         Implements Spotify's search API. Submits a search string and returns the first element found in the specified
@@ -133,14 +154,8 @@ class Client:
             "limit": 1,
         }
         r = await self.spotify_request("search", params=params, headers=self.headers)
-
-        if layer == layer.TITLE:
-            return Song.from_spotify_response(self.plugin, r["tracks"]["items"][0])
-        if layer == layer.ALBUM:
-            return Song.from_spotify_response(self.plugin, r["albums"]["items"][0], layer=Layer.ALBUM)
-        if layer == layer.ARTIST:
-            return Song.from_spotify_response(self.plugin, r["artists"]["items"][0], layer=Layer.ARTIST)
-        assert False, "unknown layer {}".format(layer)
+        r = self.locate_response_element(r, layer)
+        return Song.from_spotify_response(self.plugin, r, layer=layer)
 
     async def cmd_search(self, ctx, searchstring: str, layer: Layer):
         r = await self.search(searchstring, layer=layer)
@@ -152,11 +167,16 @@ class Client:
 
         :param song: Song object to be enriched
         """
-        searchstring = "{} - {}".format(song.artist, song.title)
+        self.logger.debug("Enriching song %s; layer: %s", song, song.layer)
+        if song.layer == Layer.ARTIST:
+            searchstring = song.artist
+        else:
+            searchstring = "{} - {}".format(song.artist, song.get_layer_name(song.layer))
+
         params = {
             "q": searchstring,
-            "type": LAYERMAP[Layer.TITLE],
+            "type": LAYERMAP[song.layer],
             "limit": 1,
         }
         r = await self.spotify_request("search", params=params, headers=self.headers)
-        song.set_spotify_links_from_response(r["tracks"]["items"][0])
+        song.set_spotify_links_from_response(self.locate_response_element(r, song.layer))

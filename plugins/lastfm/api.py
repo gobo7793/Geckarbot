@@ -51,7 +51,7 @@ class Api:
         self.plugin.perf_add_lastfm_time(after - before)
         return r
 
-    def build_songs(self, response, append_to=None, first=True) -> List[Song]:
+    def build_songs(self, response, append_to=None, first: bool = True) -> List[Song]:
         """
         Builds song dicts out of a response.
 

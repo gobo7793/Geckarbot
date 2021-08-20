@@ -188,8 +188,7 @@ class Plugin(BasePlugin, name="Feedback"):
         Saves the complaints to storage.
         """
         r = {}
-        for el in self.complaints:
-            complaint = self.complaints[el]
+        for complaint in self.complaints.values():
             r[complaint.id] = complaint.serialize()
         Storage.get(self)["complaints"] = r
         Storage.save(self)
@@ -237,8 +236,7 @@ class Plugin(BasePlugin, name="Feedback"):
         complaints = {}
         categorized = 0
         uncategorized = 0
-        for index in self.complaints:
-            complaint = self.complaints[index]
+        for index, complaint in self.complaints.items():
             partial_match = index in ids or complaint.category in cats
             full_match = not partial and (full or complaint.category is None)
             if partial_match or full_match:
@@ -257,7 +255,7 @@ class Plugin(BasePlugin, name="Feedback"):
                 await ctx.send(Lang.lang(self, "redact_no_complaints"))
                 return
 
-        msgs = [complaints[el].to_message() for el in complaints]
+        msgs = [complaint.to_message() for complaint in complaints.values()]
 
         if partial:
             sumstr = Lang.lang(self, "redact_title_partial", csum, len(msgs))
@@ -305,8 +303,7 @@ class Plugin(BasePlugin, name="Feedback"):
             return
 
         r = []
-        for i in self.complaints:
-            complaint = self.complaints[i]
+        for complaint in self.complaints.values():
             found = True
             for searchterm in args:
                 # Search check
@@ -332,8 +329,7 @@ class Plugin(BasePlugin, name="Feedback"):
         cats = set()
         uncategorized = 0
         categorized = 0
-        for el in self.complaints:
-            complaint = self.complaints[el]
+        for complaint in self.complaints.values():
             if complaint.category is not None:
                 cats.add(complaint.category)
                 categorized += 1
@@ -392,8 +388,7 @@ class Plugin(BasePlugin, name="Feedback"):
         :param category: Category that is to be shown
         """
         msgs = []
-        for el in self.complaints:
-            complaint = self.complaints[el]
+        for complaint in self.complaints.values():
             if complaint.category == category:
                 msgs.append(complaint.to_message(show_cat=False))
 
@@ -415,8 +410,8 @@ class Plugin(BasePlugin, name="Feedback"):
         """
         cats = {}
         cats_sorted = []
-        for el in self.complaints:
-            cat = self.complaints[el].category
+        for cat in self.complaints.values():
+            cat = cat.category
             if cat is not None:
                 if cat in cats:
                     cats[cat] += 1
