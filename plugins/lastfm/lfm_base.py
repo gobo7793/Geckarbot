@@ -1,4 +1,6 @@
 from datetime import datetime
+from enum import Enum
+from typing import List
 import pprint
 import random
 
@@ -6,11 +8,17 @@ from botutils.utils import write_debug_channel
 from data import Lang
 
 
+class Layer(Enum):
+    TITLE = 0
+    ALBUM = 1
+    ARTIST = 2
+
+
 class Song:
     """
     Represents an occurence of a title in a scrobble history, i.e. a scrobble.
     """
-    def __init__(self, plugin, artist, album, title, nowplaying=False, timestamp=None, loved=False):
+    def __init__(self, plugin, artist, album, title, nowplaying=False, timestamp=None, loved=False, layer=Layer.TITLE):
         self.plugin = plugin
         self.artist = artist
         self.album = album
@@ -18,9 +26,14 @@ class Song:
         self.nowplaying = nowplaying
         self.timestamp = timestamp
         self.loved = loved
+        self.layer = layer
+
+        # spotify
+        self.spotify_links = {}
+        self.featurings: List[str] = []
 
     @classmethod
-    def from_response(cls, plugin, element):
+    def from_lastfm_response(cls, plugin, element):
         """
         Builds a song from a dict as returned by last.fm API.
 
@@ -69,6 +82,57 @@ class Song:
 
         return cls(plugin, artist, album, title, nowplaying=nowplaying, timestamp=ts, loved=loved)
 
+    @staticmethod
+    def parse_artists(element):
+        """
+
+        :param element: spotify response element r["artists"]
+        :return: artist name, featurings list
+        """
+        artist = None
+        featurings = []
+        first = True
+        for el in element:
+            if first:
+                first = False
+                artist = el["name"]
+            else:
+                featurings.append(el["name"])
+        return artist, featurings
+
+    @classmethod
+    def from_spotify_response(cls, plugin, element, layer=Layer.TITLE):
+        """
+        Builds a Song object from a spotify API response.
+
+        :param plugin: Plugin object
+        :param element: response["tracks"]["items"][i]
+        :param layer: layer that was requested from spotify
+        :return: Song object that represents `element`
+        """
+        title = None
+        album = None
+        artist = None
+        featurings = None
+
+        # Request was for title
+        if layer == layer.TITLE:
+            title = element["name"]
+            album = element["album"]["name"]
+            artist, featurings = cls.parse_artists(element["artists"])
+
+        # Request was for album
+        if layer == layer.ALBUM:
+            album = element["name"]
+            artist, featurings = cls.parse_artists(element["artists"])
+
+        if layer == layer.ARTIST:
+            artist = element["name"]
+
+        r = cls(plugin, artist, album, title, layer=layer)
+        r.set_spotify_links_from_response(element)
+        return r
+
     def quote(self, p: float = None):
         """
         Returns a random quote if there is one.
@@ -93,12 +157,33 @@ class Song:
         :return: Nice readable representation of the song according to lang string
         """
         if not reverse:
-            r = Lang.lang(self.plugin, "listening_song_base", self.title, self.artist)
+            r = Lang.lang(self.plugin, "listening_song_base", self.artist, self.title)
         else:
-            r = Lang.lang(self.plugin, "listening_song_base_reverse", self.artist, self.title)
+            r = Lang.lang(self.plugin, "listening_song_base_reverse", self.title, self.artist)
         if loved and self.loved:
             r = "{} {}".format(Lang.lang(self.plugin, "loved"), r)
         return r
+
+    def set_spotify_link(self, layer, link):
+        self.spotify_links[layer] = link
+
+    def set_spotify_links_from_response(self, element):
+        """
+        Gets all relevant spotify links out of element.
+
+        :param element: response["tracks"]["items"][i]
+        """
+        if self.layer == Layer.TITLE:
+            self.spotify_links[Layer.ARTIST] = element["artists"][0]["external_urls"]["spotify"]
+            self.spotify_links[Layer.ALBUM] = element["album"]["external_urls"]["spotify"]
+            self.spotify_links[Layer.TITLE] = element["external_urls"]["spotify"]
+        elif self.layer == Layer.ALBUM:
+            self.spotify_links[Layer.ARTIST] = element["artists"][0]["external_urls"]["spotify"]
+            self.spotify_links[Layer.ALBUM] = element["external_urls"]["spotify"]
+        elif self.layer == Layer.ARTIST:
+            self.spotify_links[Layer.ARTIST] = element["external_urls"]["spotify"]
+        else:
+            assert False, "unknown layer {}".format(self.layer)
 
     def __getitem__(self, key):
         if key == "artist":

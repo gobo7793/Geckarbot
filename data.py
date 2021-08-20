@@ -277,10 +277,11 @@ class Config(IODirectory):
         """Gets the default config of the given plugin and container"""
         try:
             return plugin.default_config(container=container)
-        except TypeError:
+        except TypeError as e:
             if container is None:
                 return plugin.default_config()
-            raise
+            raise RuntimeError("This plugin's default_config() method does not have a \"container\" keyword argument.")\
+                from e
 
 
 class Storage(IODirectory):

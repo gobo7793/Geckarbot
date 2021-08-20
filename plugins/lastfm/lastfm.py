@@ -1,5 +1,4 @@
 import logging
-from enum import Enum
 from typing import Union, Optional
 import time
 import random
@@ -11,21 +10,20 @@ from discord.ext import commands
 
 from base import BasePlugin, NotLoadable
 from data import Config, Lang, Storage
-from botutils.converters import get_best_username as gbu, get_best_user
+from botutils.converters import get_best_username as gbu, get_best_user, convert_member
 from botutils.timeutils import hr_roughly
 from botutils.stringutils import paginate
-from botutils.utils import write_debug_channel, add_reaction, helpstring_helper
+from botutils.utils import write_debug_channel, add_reaction, helpstring_helper, execute_anything_sync
 from botutils.questionnaire import Questionnaire, Question, QuestionType, Cancelled
-from botutils.restclient import Client
 from botutils.setter import ConfigSetter
 from botutils.permchecks import check_mod_access, check_admin_access
 
 from plugins.lastfm.api import Api, UnexpectedResponse
 from plugins.lastfm.presence import LfmPresenceMessage
-from plugins.lastfm.lfm_base import Song
+from plugins.lastfm.lfm_base import Song, Layer
+from plugins.lastfm.spotify import Client as Spotify, AuthError
 
 
-BASEURL = "https://ws.audioscrobbler.com/2.0/"
 mention_p = re.compile(r"<@[^>]+>")
 
 
@@ -46,12 +44,6 @@ class NotRegistered(Exception):
         await ctx.send(Lang.lang(self.plugin, msg))
 
 
-class MostInterestingType(Enum):
-    TITLE = 0
-    ALBUM = 1
-    ARTIST = 2
-
-
 class Plugin(BasePlugin, name="LastFM"):
     def __init__(self, bot):
         super().__init__(bot)
@@ -59,7 +51,6 @@ class Plugin(BasePlugin, name="LastFM"):
         self.logger = logging.getLogger(__name__)
         self.migrate()
         self.api = Api(self)
-        self.client = Client(BASEURL)
         self.conf = Config.get(self)
         if not self.conf.get("apikey", ""):
             raise NotLoadable("API Key not found")
@@ -78,6 +69,7 @@ class Plugin(BasePlugin, name="LastFM"):
             "min_artist": [float, 0.5],
             "min_album": [float, 0.4],
             "min_title": [float, 0.5],
+            "mi_enable_downgrade": [bool, True],
             "mi_downgrade": [float, 1.5],
             "quote_p": [float, 0.5],
             "max_quote_length": [int, 100],
@@ -86,17 +78,24 @@ class Plugin(BasePlugin, name="LastFM"):
             "presence_tick": [int, 60],
             "presence_include_listener": [bool, True],
             "presence_artist_only": [bool, False],
-            "presence_title_only": [bool, False],
-            "presence_artist_and_title": [bool, True],
+            "presence_title_only": [bool, True],
+            "presence_artist_and_title": [bool, False],
             "presence_order_artist_title": [bool, False],
-            "presence_order_user_song": [bool, True],
+            "presence_order_user_song": [bool, False],
             "presence_optout": [bool, True],
+            "spotify_is_default": [bool, False]
         }
         self.config_setter = ConfigSetter(self, self.base_config)
         self.config_setter.add_switch("presence_title_only", "presence_artist_only", "presence_artist_and_title")
 
         # Presence
         self.presence_handler = LfmPresenceMessage(self)
+
+        # Spotify
+        self.spotify = Spotify(self)
+        sptf_cfg = Config.get(self, container="spotify")
+        c = self.spotify.set_credentials(sptf_cfg.get("client_id", None), sptf_cfg.get("client_secret", None))
+        execute_anything_sync(c)
 
         # Quote lang dicts
         self.lang_question = {
@@ -169,7 +168,7 @@ class Plugin(BasePlugin, name="LastFM"):
     def get_config(self, key):
         return Config.get(self).get(key, self.base_config[key][1])
 
-    def default_config(self):
+    def default_config(self, container=None):
         return {}
 
     def default_storage(self, container=None):
@@ -294,15 +293,43 @@ class Plugin(BasePlugin, name="LastFM"):
     def perf_timenow():
         return time.clock_gettime(time.CLOCK_MONOTONIC)
 
+    def parse_args(self, args, author) -> dict:
+        """
+        Parses a list of args that was passed to a regular output cmd. Fishes for a discord user and "spotify".
+        Ignores arguments that do not fit.
+
+        :param args: list of arguments
+        :param author: ctx.author (default case for "user")
+        :return: dict of resulting settings; keys: "spotify": bool, "user": discord.Member
+        """
+        r = {
+            "user": author,
+            "spotify": self.get_config("spotify_is_default")
+        }
+
+        user_found = False
+        for arg in args:
+            if arg.lower() == "spotify":
+                r["spotify"] = True
+                continue
+
+            member = convert_member(arg)
+            if member and not user_found:
+                user_found = True
+                r["user"] = member
+                continue
+
+        return r
+
     @commands.group(name="lastfm", invoke_without_command=True)
-    async def cmd_lastfm(self, ctx, user: Union[discord.Member, discord.User, str, None]):
+    async def cmd_lastfm(self, ctx, *args):
         self.perf_reset_timers()
         before = self.perf_timenow()
-        if user is None:
-            user = ctx.author
+
+        args = self.parse_args(args, ctx.author)
         try:
             async with ctx.typing():
-                await self.most_interesting(ctx, user)
+                await self.most_interesting(ctx, args["user"], spotify=args["spotify"])
         except (NotRegistered, UnexpectedResponse) as e:
             await e.default(ctx)
             return
@@ -614,36 +641,35 @@ class Plugin(BasePlugin, name="LastFM"):
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
     @cmd_lastfm.command(name="listening")
-    async def cmd_listening(self, ctx, user: Union[discord.Member, discord.User, str, None]):
+    async def cmd_listening(self, ctx, *args):
+        args = self.parse_args(args, ctx.author)
         if self.presence_handler.is_currently_shown:
             song = self.presence_handler.state.cur_song.format(reverse=True)
             listener = self.presence_handler.state.cur_listener_dc
-            await ctx.send(Lang.lang(self, "presence_listening", song, gbu(listener)))
+            msg = Lang.lang(self, "presence_listening", song, gbu(listener))
+
+            if args["spotify"]:
+                await self.spotify.enrich_song(song)
+                msg += "\n" + song.spotify_links[Layer.TITLE]
+
+            await ctx.send(msg)
             return
-        await self.cmd_now(ctx, user)
+        await self.cmd_now(ctx, *args)
 
     @cmd_lastfm.command(name="now")
-    async def cmd_now(self, ctx, user: Union[discord.Member, discord.User, str, None]):
+    async def cmd_now(self, ctx, *args):
         self.perf_reset_timers()
         before = self.perf_timenow()
-        lfmuser = user
+
+        args = self.parse_args(args, ctx.author)
         sg3p = False
-        if user is None:
+        if args["user"] != ctx.author:
             sg3p = True
-            user = ctx.author
-        if isinstance(user, (discord.Member, discord.User)):
-            try:
-                lfmuser = self.get_lastfm_user(user)
-            except NotRegistered as e:
-                await e.default(ctx, sg3p=sg3p)
-                return
-        else:
-            # user is a str
-            userinfo = await self.api.get_user_info(user)
-            if userinfo is None:
-                await add_reaction(ctx.message, Lang.CMDERROR)
-                await ctx.send(Lang.lang(self, "user_not_found", user))
-                return
+        try:
+            lfmuser = self.get_lastfm_user(args["user"])
+        except NotRegistered as e:
+            await e.default(ctx, sg3p=sg3p)
+            return
 
         async with ctx.typing():
             try:
@@ -652,7 +678,14 @@ class Plugin(BasePlugin, name="LastFM"):
                 await e.default(ctx)
                 return
 
-        await ctx.send(self.listening_msg(user, song))
+            msg = self.listening_msg(args["user"], song)
+
+            if args["spotify"]:
+                await self.spotify.enrich_song(song)
+                msg += "\n" + song.spotify_links[Layer.TITLE]
+
+        await ctx.send(msg)
+
         after = self.perf_timenow()
         self.perf_add_total_time(after - before)
 
@@ -723,23 +756,82 @@ class Plugin(BasePlugin, name="LastFM"):
             msg = "{} _{}_".format(msg, quote)
         return msg
 
+    @commands.group(name="spotify", invoke_without_command=True)
+    async def cmd_spotify(self, ctx):
+        async with ctx.typing():
+            # Get user
+            try:
+                lfmuser = self.get_lastfm_user(ctx.author)
+            except NotRegistered:
+                await self.bot.helpsys.cmd_help(ctx, self, ctx.command)
+                return
+
+            # Fetch song from lastfm
+            try:
+                song = (await self.api.get_recent_tracks(lfmuser, pagelen=1))[0]
+            except UnexpectedResponse as e:
+                await e.default(ctx)
+                return
+
+            # Fetch same song from spotify
+            await self.spotify.enrich_song(song)
+            await ctx.send(song.spotify_links[Layer.TITLE])
+
+    @cmd_spotify.command(name="credentials", hidden=True)
+    async def cmd_spotify_credentials(self, ctx, client_id: str, client_secret: str):
+        if not check_admin_access(ctx.author):
+            await add_reaction(ctx.message, Lang.CMDNOPERMISSIONS)
+            return
+
+        # reset to no credentials
+        if not client_id or not client_secret:
+            client_id = None
+            client_secret = None
+
+        Config.get(self, container="spotify")["client_id"] = client_id
+        Config.get(self, container="spotify")["client_secret"] = client_secret
+        Config.save(self, container="spotify")
+
+        try:
+            await self.spotify.set_credentials(client_id, client_secret)
+        except AuthError:
+            await add_reaction(ctx.message, Lang.CMDERROR)
+            return
+        await add_reaction(ctx.message, Lang.CMDSUCCESS)
+
+    @cmd_spotify.group(name="search", invoke_without_command=True)
+    async def cmd_spotify_search(self, ctx, *, searchterm):
+        await self.spotify.cmd_search(ctx, searchterm, Layer.TITLE)
+
+    @cmd_spotify_search.command(name="artist", aliases=["interpret"], hidden=True)
+    async def cmd_spotify_search_artist(self, ctx, *, searchterm):
+        await self.spotify.cmd_search(ctx, searchterm, Layer.ARTIST)
+
+    @cmd_spotify_search.command(name="album", hidden=True)
+    async def cmd_spotify_search_album(self, ctx, *, searchterm):
+        await self.spotify.cmd_search(ctx, searchterm, Layer.ALBUM)
+
+    @cmd_spotify_search.command(name="title", aliases=["song", "track"], hidden=True)
+    async def cmd_spotify_search_title(self, ctx, *, searchterm):
+        await self.spotify.cmd_search(ctx, searchterm, Layer.TITLE)
+
     @staticmethod
     def interest_match(song, criterion, example):
         """
         Checks whether a song is in the same mi type criterion category as another.
 
         :param song: Song object
-        :param criterion: MostInterestingType object
+        :param criterion: Layer object
         :param example:
         :return: True if `song` and `example` have matching categories according to `criterion`
         """
-        if criterion == MostInterestingType.ARTIST:
+        if criterion == Layer.ARTIST:
             return song["artist"] == example["artist"]
 
-        if criterion == MostInterestingType.ALBUM:
+        if criterion == Layer.ALBUM:
             return song["artist"] == example["artist"] and song["album"] == example["album"]
 
-        if criterion == MostInterestingType.TITLE:
+        if criterion == Layer.TITLE:
             return song["artist"] == example["artist"] and song["title"] == example["title"]
 
         return None
@@ -757,7 +849,7 @@ class Plugin(BasePlugin, name="LastFM"):
         """
         return current_matches / current_index > (top_matches - 2) / top_index
 
-    async def expand(self, lfmuser, page_len, so_far, criterion, example):
+    async def expand(self, lfmuser, page_len, so_far, layer, example):
         """
         Expands a streak on the first page to the longest it can find across multiple pages.
         Potentially downgrades the criterion layer if the lower layer has far more matches.
@@ -765,7 +857,7 @@ class Plugin(BasePlugin, name="LastFM"):
         :param lfmuser: Last.fm user name
         :param page_len: Last.fm request page length
         :param so_far: First page of songs
-        :param criterion: MostInteresting instance
+        :param layer: Layer instance
         :param example: Example song
         :return: `(count, out_of, criterion, repr)` with count being the amount of matches for criterion it found,
             `out_of` being the amount of scrobbles that were looked at, `criterion` the (new, potentially downgraded)
@@ -781,9 +873,9 @@ class Plugin(BasePlugin, name="LastFM"):
             "repr": None,
         }
         counters = {
-            MostInterestingType.ARTIST: prototype,
-            MostInterestingType.ALBUM: prototype.copy(),
-            MostInterestingType.TITLE: prototype.copy(),
+            Layer.ARTIST: prototype,
+            Layer.ALBUM: prototype.copy(),
+            Layer.TITLE: prototype.copy(),
         }
         current_index = 0
         current_page = so_far
@@ -791,7 +883,7 @@ class Plugin(BasePlugin, name="LastFM"):
             improved = False
             for song in current_page:
                 current_index += 1
-                for current_criterion in MostInterestingType:
+                for current_criterion in Layer:
                     if self.interest_match(song, current_criterion, example):
                         c = counters[current_criterion]
 
@@ -827,21 +919,24 @@ class Plugin(BasePlugin, name="LastFM"):
 
         self.logger.debug("counters: %s", str(counters))
 
+        if not self.get_config("mi_enable_downgrade"):
+            return counters[layer]["top_matches"], counters[layer]["top_index"], layer, example
+
         # Downgrade if necessary
-        top_index = counters[criterion]["top_index"]
-        top_matches = counters[criterion]["top_matches"]
-        for el in [MostInterestingType.ALBUM, MostInterestingType.ARTIST]:
+        top_index = counters[layer]["top_index"]
+        top_matches = counters[layer]["top_matches"]
+        for el in [Layer.ALBUM, Layer.ARTIST]:
             downgrade_value = counters[el]["top_matches"] / self.get_config("mi_downgrade")
-            self.logger.debug("Checking downgrade from %s to %s", str(criterion), str(el))
+            self.logger.debug("Checking downgrade from %s to %s", str(layer), str(el))
             self.logger.debug("Downgrade values: %s, %s", str(top_matches), str(downgrade_value))
             if top_matches <= downgrade_value:
-                self.logger.debug("mi downgrade from %s to %s", str(criterion), str(el))
-                criterion = el
+                self.logger.debug("mi downgrade from %s to %s", str(layer), str(el))
+                layer = el
                 example = counters[el]["repr"]
                 top_index = counters[el]["top_index"]
                 top_matches = counters[el]["top_matches"]
 
-        return top_matches, top_index, criterion, example
+        return top_matches, top_index, layer, example
 
     def tiebreaker(self, scores, songs, mitype):
         """
@@ -858,11 +953,11 @@ class Plugin(BasePlugin, name="LastFM"):
         found = False
         for song in songs:
             fact = None
-            if mitype == MostInterestingType.ARTIST:
+            if mitype == Layer.ARTIST:
                 fact = song["artist"]
-            elif mitype == MostInterestingType.ALBUM:
+            elif mitype == Layer.ALBUM:
                 fact = song["artist"], song["album"]
-            elif mitype == MostInterestingType.TITLE:
+            elif mitype == Layer.TITLE:
                 fact = song["artist"], song["title"]
             if fact in first:
                 first.remove(fact)
@@ -918,18 +1013,19 @@ class Plugin(BasePlugin, name="LastFM"):
             i += 1
 
         # Tie-breakers
-        self.tiebreaker(r["artists"], songs, MostInterestingType.ARTIST)
-        self.tiebreaker(r["albums"], songs, MostInterestingType.ALBUM)
-        self.tiebreaker(r["titles"], songs, MostInterestingType.TITLE)
+        self.tiebreaker(r["artists"], songs, Layer.ARTIST)
+        self.tiebreaker(r["albums"], songs, Layer.ALBUM)
+        self.tiebreaker(r["titles"], songs, Layer.TITLE)
 
         return r
 
-    async def most_interesting(self, ctx, user):
+    async def most_interesting(self, ctx, user, spotify=False):
         """
         Finds the most current, most interesting facts in a user's history and sends them to ctx.
 
         :param ctx: Context
         :param user: User that whose history we are interested in
+        :param spotify: Include a spotify link
         :raises RuntimeError: Unexpected error (bug)
         """
         pagelen = 10
@@ -956,22 +1052,27 @@ class Plugin(BasePlugin, name="LastFM"):
         # mi_score = 0
         mi_example = None
         if best_artist_count >= min_artist:
-            mi = MostInterestingType.ARTIST
+            mi = Layer.ARTIST
             # mi_score = best_artist_count
             mi_example = best_artist
         if best_album_count >= min_album:
-            mi = MostInterestingType.ALBUM
+            mi = Layer.ALBUM
             # mi_score = best_album_count
             mi_example = best_album
         if best_title_count >= min_title:
-            mi = MostInterestingType.TITLE
+            mi = Layer.TITLE
             # mi_score = best_title_count
             mi_example = best_title
         if mi is None:
             # Nothing interesting found, send single song msg
-            await ctx.send(self.listening_msg(user, songs[0]))
+            msg = self.listening_msg(user, songs[0])
+            if spotify:
+                await self.spotify.enrich_song(songs[0])
+                msg += "\n" + songs[0].spotify_links[Layer.TITLE]
+            await ctx.send(msg)
             return
         matches, total, mi, mi_example = await self.expand(lfmuser, pagelen, songs, mi, mi_example)
+        mi_example.layer = mi
 
         # build msg
         if matches == total:
@@ -1002,11 +1103,11 @@ class Plugin(BasePlugin, name="LastFM"):
             else:
                 vp = Lang.lang(self, "most_interesting_base_past", gbu(user), "{}")
 
-        if mi == MostInterestingType.ARTIST:
+        if mi == Layer.ARTIST:
             content = Lang.lang(self, "most_interesting_artist", mi_example.artist, matches, total)
-        elif mi == MostInterestingType.ALBUM:
+        elif mi == Layer.ALBUM:
             content = Lang.lang(self, "most_interesting_album", mi_example.album, mi_example.artist, matches, total)
-        elif mi == MostInterestingType.TITLE:
+        elif mi == Layer.TITLE:
             song = mi_example.format_song()
             content = Lang.lang(self, "most_interesting_song", song, matches, total)
         else:
@@ -1016,6 +1117,10 @@ class Plugin(BasePlugin, name="LastFM"):
         quote = mi_example.quote()
         if quote is not None:
             msg = "{} _{}_".format(msg, quote)
+
+        if spotify:
+            await self.spotify.enrich_song(mi_example)
+            msg += "\n" + mi_example.spotify_links[mi]
         await ctx.send(msg)
 
 

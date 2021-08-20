@@ -26,6 +26,14 @@
     "desc_lastfm_presence": "Regelt, ob deine Scrobbles im Bot-Status erscheinen können.",
     "del_restricted": " Du kannst nur Zitate löschen, die du auch erstellt hast. (Diese Einschränkungen gilt nicht für Mods oder Bot-Admins.)",
 
+    "help_spotify": "Spotify-Anbindung",
+    "desc_spotify": "Kommandos zur Nutzung von Spotify.",
+    "usage_spotify_credentials": "<client id> <client secret>",
+    "help_spotify_credentials": "Setzt Client ID und Client Secret für die Spotify-API.",
+    "usage_spotify_search": "[title|album|artist] <search terms>",
+    "help_spotify_search": "Durchsucht Spotify",
+    "desc_spotify_search": "Durchsucht Spotify und gibt das erste Ergebnis aus. Stelle \"title\", \"album\" oder \"artist\" voran, um die Such-Ebene zu ändern (Standard ist title).",
+
     "#1": "Errors",
     "not_registered": "Ich kenne leider dein last.fm-Profil nicht.",
     "not_registered_sg3p": "Ich kenne leider das last.fm-Profil des Users nicht.",

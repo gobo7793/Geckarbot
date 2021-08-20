@@ -39,7 +39,7 @@ def in_channel(channel_id):
     return commands.check(predicate)
 
 
-def _check_access(user: discord.User, roles):
+def _check_access(user: discord.User, roles) -> bool:
     """Performs the access check if a user has any of the given roles"""
     if not isinstance(user, discord.Member):
         user = discord.utils.get(Config().bot.guild.members, id=user.id)
@@ -51,7 +51,7 @@ def _check_access(user: discord.User, roles):
     return False
 
 
-def check_admin_access(user: discord.User):
+def check_admin_access(user: discord.User) -> bool:
     """
     Checks if the user has admin access to bot commands. If you can, use
     `@commands.has_any_role(*Config().ADMIN_ROLES)` instead.
@@ -59,7 +59,7 @@ def check_admin_access(user: discord.User):
     return _check_access(user, Config().ADMIN_ROLES)
 
 
-def check_mod_access(user: discord.User):
+def check_mod_access(user: discord.User) -> bool:
     """
     Checks if the user has mod access to bot commands. If you can, use
     `@commands.has_any_role(*Config().MOD_ROLES)` instead.
@@ -67,7 +67,7 @@ def check_mod_access(user: discord.User):
     return _check_access(user, Config().MOD_ROLES)
 
 
-def is_botadmin(user: discord.User):
+def is_botadmin(user: discord.User) -> bool:
     """
     Checks if the user has bot admin role.
     """

@@ -1,4 +1,5 @@
 from urllib.error import HTTPError
+from typing import List, Optional
 
 from botutils.restclient import Client
 from botutils.utils import add_reaction
@@ -50,7 +51,7 @@ class Api:
         self.plugin.perf_add_lastfm_time(after - before)
         return r
 
-    def build_songs(self, response, append_to=None, first=True):
+    def build_songs(self, response, append_to=None, first=True) -> List[Song]:
         """
         Builds song dicts out of a response.
 
@@ -67,14 +68,15 @@ class Api:
         r = [] if append_to is None else append_to
         done = False
         for el in tracks:
-            song = Song.from_response(self.plugin, el)
+            song = Song.from_lastfm_response(self.plugin, el)
             if not first and not done and song.nowplaying:
                 done = True
                 continue
-            r.append(Song.from_response(self.plugin, el))
+            r.append(Song.from_lastfm_response(self.plugin, el))
         return r
 
-    async def get_recent_tracks(self, lfmuser, page=1, pagelen=10, extended: bool = False, first: bool = True):
+    async def get_recent_tracks(self, lfmuser, page=1, pagelen=10,
+                                extended: bool = False, first: bool = True) -> List[Song]:
         """
         Gets a list of lfmuser's recent scrobbles
 
@@ -95,7 +97,7 @@ class Api:
         }
         return self.build_songs(await self.request(params), first=first)
 
-    async def get_current_scrobble(self, lfmuser):
+    async def get_current_scrobble(self, lfmuser) -> Optional[Song]:
         """
         Gets the song lfmuser is currently scrobbling.
 
