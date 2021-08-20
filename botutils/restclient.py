@@ -124,6 +124,7 @@ class Client:
 
         :param username: Username
         :param password: Password
+        :raises RuntimeError: If auth was already set to a different auth method
         """
         if self.auth not in (Auth.BASIC, None):
             raise RuntimeError("auth was already set to {}".format(self.auth))
@@ -136,6 +137,7 @@ class Client:
         Sets authentication header for authentication via bearer token.
 
         :param bearer_token: Bearer token
+        :raises RuntimeError: If auth was already set to a different auth method
         """
         if self.auth not in (Auth.BEARER, None):
             raise RuntimeError("auth was already set to {}".format(self.auth))
@@ -249,7 +251,8 @@ class Client:
                                          data=data, headers=headers, method=method)
 
         self.logger.debug("Doing sync http request to %s", url)
-        response = urllib.request.urlopen(request).read().decode("utf-8")
+        with urllib.request.urlopen(request) as r:
+            response = r.read().decode("utf-8")
         self.logger.debug("Response: %s", response)
 
         if parse_json:
