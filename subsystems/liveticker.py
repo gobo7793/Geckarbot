@@ -735,12 +735,11 @@ class CoroRegistrationBase(ABC):
         """Returns datetime of the next timer execution"""
         return self.league_reg.next_execution()
 
-    async def update(self, job: Job):
+    async def update(self, matches: List[MatchBase]):
         """
         Coroutine used by the interval timer during matches. Manufactures the LivetickerUpdate for the coro.
         """
         self.logger.debug("CoroReg updates.")
-        matches = self.league_reg.extract_kickoffs_with_matches()[job.data['start']]
         new_events = {}
         for m in matches:
             if m.match_id not in self.last_events:
@@ -805,22 +804,26 @@ class LeagueRegistrationBase(ABC):
         self.matches = []
         self.finished = []
 
+    @property
+    def intervals(self):
+        return [c_reg.interval for c_reg in self.registrations]
+
     @classmethod
     async def create(cls, listener, league: str, source: LTSource):
         """New LeagueRegistration"""
-        l_reg = LeagueRegistrationBase(listener, league, source)
+        l_reg = cls(listener, league, source)
         await l_reg.schedule_kickoffs(until=listener.semiweekly_timer.next_execution())
         return l_reg
 
     @classmethod
     async def restore(cls, listener, league: str, source: LTSource):
         """Restored LeagueRegistration"""
-        l_reg = LeagueRegistrationBase(listener, league, source)
+        l_reg = cls(listener, league, source)
         kickoff_data = Storage().get(listener)['registrations'][source.value][league]['kickoffs']
         for raw_kickoff, matches in kickoff_data.items():
             time_kickoff = datetime.datetime.strptime(raw_kickoff, "%Y-%m-%d %H:%M")
             matches_ = [MatchStubStorage(time_kickoff, m) for m in matches]
-            await l_reg.schedule_kickoff_single(time_kickoff, matches_)
+            l_reg.kickoffs[time_kickoff] = matches_
         return l_reg
 
     @abstractmethod
@@ -916,72 +919,25 @@ class LeagueRegistrationBase(ABC):
         :param until: datetime of the day before the next semi-weekly execution
         :raises ValueError: if source does not provide support scheduling of kickoffs
         """
-        kickoffs = {}
+        self.kickoffs = {}
         now = datetime.datetime.now()
         Storage().get(self.listener)['registrations'][self.source.value][self.league]['kickoffs'] = {}
 
         matches: List[MatchBase] = await self.get_matches_by_date(from_day=now, until_day=until)
 
+        # Group by kickoff
         for match in matches:
-            # Group by kickoff
-            if match.status in [MatchStatus.COMPLETED, MatchStatus.POSTPONED]:
+            if match.status in [MatchStatus.COMPLETED, MatchStatus.POSTPONED] or match.kickoff > until:
                 continue
-            if match.kickoff not in kickoffs:
-                kickoffs[match.kickoff] = []
-            kickoffs[match.kickoff].append(match)
+            if match.kickoff not in self.kickoffs:
+                self.kickoffs[match.kickoff] = []
+            self.kickoffs[match.kickoff].append(match)
 
-        for time_kickoff, matches_ in kickoffs.items():
-            # Actual scheduling
-            if time_kickoff > until:
-                continue  # Kickoff not in this period
-            await self.schedule_kickoff_single(time_kickoff, matches_)
-            storage_kickoffs = Storage().get(self.listener)['registrations'][self.source.value][self.league]['kickoffs']
-            storage_kickoffs[time_kickoff.strftime("%Y-%m-%d %H:%M")] = [m.to_storage() for m in matches_]
+        # Store matches
+        for time_kickoff, matches_ in self.kickoffs.items():
+            Storage().get(self.listener)['registrations'][self.source.value][self.league]['kickoffs'][
+                time_kickoff.strftime("%Y-%m-%d %H:%M")] = [m.to_storage() for m in matches_]
         Storage().save(self.listener)
-
-    async def schedule_kickoff_single(self, time_kickoff: datetime.datetime, matches: list):
-        """Schedules a single kickoff time."""
-        now = datetime.datetime.now()
-        self.logger.debug(time_kickoff)
-        if time_kickoff > now:
-            # Kickoff in the future
-            kickoff_timer = self.listener.bot.timers.schedule(
-                coro=self._schedule_match_timer,
-                td=timers.timedict(year=time_kickoff.year, month=time_kickoff.month, monthday=time_kickoff.day,
-                                   hour=time_kickoff.hour, minute=time_kickoff.minute),
-                data={'start': time_kickoff, 'matches': matches})
-            self.kickoff_timers.append(kickoff_timer)
-        elif (now - time_kickoff) < datetime.timedelta(hours=2):
-            # Kickoff in the past, match running
-            await self._schedule_match_timer(kickoff=time_kickoff, matches=matches)
-            for coro_reg in self.registrations:
-                await coro_reg.update_kickoff(time_kickoff, matches)
-
-    async def _schedule_match_timer(self, job: Job = None, kickoff: datetime.datetime = None, matches: list = None):
-        """
-        Schedules the timer for the match updates
-
-        :param job: is used if this method is called by the timer
-        :param kickoff: is used if the match is actually running
-        :param matches: is used if the match is actually running
-        """
-        now = datetime.datetime.now().replace(second=0, microsecond=0)
-        if job:
-            kickoff = job.data['start']
-            matches = job.data['matches']
-            job.cancel()
-        if not kickoff:
-            return
-
-        interval_set = {c.interval for c in self.registrations}
-        td = timers.timedict(minute=[(x + kickoff.minute) % 60 for x in range(0, 60) if 0 in
-                                     (x % y for y in interval_set)])
-        match_timer = self.listener.bot.timers.schedule(coro=self.update_periodic_coros, td=td,
-                                                        data={'start': kickoff, 'matches': matches})
-        self.intermediate_timers.append(match_timer)
-        await self.update_kickoff_coros(match_timer)
-        if match_timer.next_execution() <= now:
-            match_timer.execute()
 
     def next_kickoff(self):
         """Returns datetime of the next match"""
@@ -1008,34 +964,49 @@ class LeagueRegistrationBase(ABC):
         for coro_reg in self.registrations:
             await coro_reg.update_kickoff(job.data['start'], job.data['matches'])
 
-    async def update_periodic_coros(self, job: Job):
+    async def update_periodic_coros(self, kickoffs: List[datetime.datetime]):
         """
         Regularly updates coros and checks if matches are still running.
 
-        :param job:
+        :param kickoffs: List of kickoff datetimes
         :return:
         """
-        if job.data['start'] == datetime.datetime.now().replace(second=0, microsecond=0):
-            return
         new_finished = []
+        matches = []
+        now = datetime.datetime.now().replace(second=0, microsecond=0)
         await self.update_matches()
-        matches = self.extract_kickoffs_with_matches()[job.data['start']]
-        if job.data['start'] + datetime.timedelta(hours=3.5) < datetime.datetime.now():
-            new_finished = matches
-            self.finished.extend([m.match_id for m in matches])
-        else:
-            for match in matches:
-                if match.status == MatchStatus.COMPLETED and match.match_id not in self.finished:
-                    new_finished.append(match)
-                    self.finished.append(match.match_id)
-        for coro_reg in self.registrations:
-            if coro_reg.periodic and \
-                    ((datetime.datetime.now() - job.data['start']).seconds // 60) % coro_reg.interval == 0:
-                await coro_reg.update(job)
+        for kickoff in kickoffs[:]:
+            if kickoff == now:
+                kickoffs.remove(kickoff)
+            elif datetime.datetime.now() - kickoff > datetime.timedelta(hours=3.5):
+                matches_ = self.kickoffs.pop(kickoff)
+                kickoffs.remove(kickoff)
+                new_finished.extend(matches_)
+                self.finished.extend([m.match_id for m in matches_])
+            else:
+                matches.extend(self.kickoffs[kickoff])
+
+        if not matches:
+            return
+
+        for match in matches:
+            if match.status == MatchStatus.COMPLETED and match.match_id not in self.finished:
+                new_finished.append(match)
+                self.finished.append(match.match_id)
+
+        for c_reg in self.registrations:
+            c_reg_matches = []
+            for kickoff in kickoffs:
+                if ((now - kickoff).seconds // 60) % c_reg.interval == 0:
+                    c_reg_matches.extend(self.kickoffs[kickoff])
+            if c_reg_matches and c_reg.periodic:
+                await c_reg.update(c_reg_matches)
             if new_finished:
-                await coro_reg.update_finished(new_finished)
-        if len([m for m in matches if m.match_id not in self.finished]) == 0:
-            job.cancel()
+                await c_reg.update_finished(new_finished)
+
+        for kickoff in kickoffs:
+            if not [m for m in self.kickoffs[kickoff] if m.status in (MatchStatus.RUNNING, MatchStatus.UPCOMING)]:
+                self.kickoffs.pop(kickoff)
 
     def __str__(self):
         next_exec = self.next_execution()
@@ -1151,6 +1122,8 @@ class Liveticker(BaseSubsystem):
         self.registrations = {x: {} for x in LTSource}
         self.teamname_converter = TeamnameConverter(self)
         self.restored = False
+        self.match_timer = None
+        self.hourly_timer = None
         self.semiweekly_timer = None
 
         # Update storage
@@ -1172,12 +1145,16 @@ class Liveticker(BaseSubsystem):
             plugins = self.bot.get_normalplugins()
             await self.restore(plugins)
             self.restored = True
+            # Semiweekly timer to get coming matches
             self.semiweekly_timer = self.bot.timers.schedule(coro=self._semiweekly_timer_coro,
-                                                             td=timers.timedict(weekday=[2, 5], hour=[4], minute=[0]))
+                                                             td=timers.timedict(weekday=[2, 5], hour=[3], minute=[55]))
             if Storage().get(self).get('next_semiweekly') is None or \
                     datetime.datetime.strptime(Storage().get(self)['next_semiweekly'], "%Y-%m-%d %H:%M") \
                     < datetime.datetime.now():
                 self.semiweekly_timer.execute()
+            # Hourly timer to schedule the timer the LeagueReg updates
+            self.hourly_timer = self.bot.timers.schedule(coro=self._hourly_timer_coro, td=timers.timedict(minute=0))
+            self.hourly_timer.execute()
 
     def default_storage(self, container=None):
         if container == 'teamname':
@@ -1211,10 +1188,11 @@ class Liveticker(BaseSubsystem):
             Storage().get(self)['registrations'][source.value][league] = {'kickoffs': {}, 'coro_regs': []}
             Storage().save(self)
         if league not in self.registrations[source]:
+            l_reg_class = LeagueRegistrationESPN if source == LTSource.ESPN else LeagueRegistrationOLDB
             if league_exists:
-                self.registrations[source][league] = await LeagueRegistrationBase.restore(self, league, source)
+                self.registrations[source][league] = await l_reg_class.restore(self, league, source)
             else:
-                self.registrations[source][league] = await LeagueRegistrationBase.create(self, league, source)
+                self.registrations[source][league] = await l_reg_class.create(self, league, source)
         coro_reg = await self.registrations[source][league].register(plugin, coro, interval, periodic)
         return coro_reg
 
@@ -1334,6 +1312,45 @@ class Liveticker(BaseSubsystem):
                 await league_reg.schedule_kickoffs(until)
         Storage().get(self)['next_semiweekly'] = until.strftime("%Y-%m-%d %H:%M")
         Storage().save(self)
+
+    async def _hourly_timer_coro(self, _job):
+        """
+        Coroutine used be the hourly timer to set the minutes in the following hour when one or more LeagueRegistrations
+        should update.
+
+        :param _job: timer job
+        :return: None
+        """
+        self.logger.debug("Hourly timer schedules timer.")
+        if self.match_timer:
+            self.match_timer.cancel()
+        update_minutes = {x: {} for x in range(61)}
+        end_of_hour = (datetime.datetime.now() + datetime.timedelta(hours=1)).replace(second=0, microsecond=0)
+        for source in LTSource:
+            for l_reg in self.registrations[source].values():
+                for kickoff in l_reg.kickoffs:
+                    if kickoff < end_of_hour:
+                        max_min = ((end_of_hour - kickoff).seconds // 3600 + 1) * 60
+                        minutes = set(e % 60 for s in (range(kickoff.minute, max_min, ival) for ival in l_reg.intervals)
+                                      for e in s if e >= max_min - 60)
+                        for m in minutes:
+                            if l_reg not in update_minutes[m]:
+                                update_minutes[m][l_reg] = []
+                            update_minutes[m][l_reg].append(kickoff)
+        for k, v in list(update_minutes.items()):
+            if not v:
+                update_minutes.pop(k)
+        self.match_timer = self.bot.timers.schedule(coro=self._update_league_registrations,
+                                                    td=timers.timedict(minute=list(update_minutes.keys())),
+                                                    data=update_minutes)
+        if self.match_timer.next_execution() <= datetime.datetime.now():
+            self.match_timer.execute()
+
+    @staticmethod
+    async def _update_league_registrations(job):
+        l_regs = job.data[datetime.datetime.now().minute]
+        for l_reg, kickoffs in l_regs.items():
+            l_reg.update_periodic_coros(kickoffs[:])
 
     @staticmethod
     async def get_standings(league: str, source: LTSource) -> Tuple[str, Dict[str, List[TableEntryBase]]]:
