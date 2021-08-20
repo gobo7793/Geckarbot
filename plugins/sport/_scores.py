@@ -42,7 +42,7 @@ class _Scores:
         await ctx.send(embed=embed)
 
     @commands.command(name="fußball", aliases=["fusselball"])
-    async def cmd_soccer_livescores(self, ctx, league: str, raw_source: str = None, allmatches=None):
+    async def cmd_soccer_livescores(self, ctx, league: str, raw_source: str = "espn", allmatches=None):
         source = None
         if raw_source:
             try:
