@@ -54,6 +54,10 @@ class Client:
 
     @property
     def credentials(self):
+        """
+        :return: client_id, client_secret
+        :raises NoCredentials: If API credentials are not set
+        """
         r = (self._client_id, self._client_secret)
         if None in r:
             raise NoCredentials
@@ -97,7 +101,8 @@ class Client:
         :param headers: headers
         :param data: data
         :param method: HTTP method
-        :return:
+        :return: response structure
+        :raises ApiError: If the API returned an error (indicated by an "error" entry)
         """
         had_auth_error = False
         r = None

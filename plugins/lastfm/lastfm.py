@@ -169,6 +169,8 @@ class Plugin(BasePlugin, name="LastFM"):
         return Config.get(self).get(key, self.base_config[key][1])
 
     def default_config(self, container=None):
+        if container and container != "spotify":
+            raise RuntimeError("Unknown config container {}".format(container))
         return {}
 
     def default_storage(self, container=None):
@@ -182,7 +184,7 @@ class Plugin(BasePlugin, name="LastFM"):
                 "version": 2,
                 "quotes": {}
             }
-        raise RuntimeError("unknown storage container {}".format(container))
+        raise RuntimeError("Unknown storage container {}".format(container))
 
     def command_help_string(self, command):
         return helpstring_helper(self, command, "help")
@@ -622,11 +624,11 @@ class Plugin(BasePlugin, name="LastFM"):
 
         # Show quotes the user is allowed to delete
         msgs = []
-        for el in quotes:
-            author = get_best_user(quotes[el]["author"])
+        for key, quote in quotes.items():
+            author = get_best_user(quote["author"])
             author = gbu(author) if author is not None else Lang.lang(self, "quote_unknown_user")
-            msg = Lang.lang(self, "quote_list_entry", quotes[el]["quote"], author)
-            msgs.append("**#{}** {}".format(el, msg))
+            msg = Lang.lang(self, "quote_list_entry", quote["quote"], author)
+            msgs.append("**#{}** {}".format(key, msg))
         for msg in paginate(msgs, prefix=Lang.lang(self, "quote_del_list_prefix") + "\n"):
             await user.send(msg)
 
@@ -717,9 +719,8 @@ class Plugin(BasePlugin, name="LastFM"):
             if userlist[userid].get(key, not self.get_config(key)):
                 await ctx.send(Lang.lang(self, "presence_status_optout"))
                 return
-            else:
-                await ctx.send(Lang.lang(self, "presence_status_optin"))
-                return
+            await ctx.send(Lang.lang(self, "presence_status_optin"))
+            return
 
         # set status
         err = False
