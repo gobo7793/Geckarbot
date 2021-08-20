@@ -49,19 +49,15 @@ class _Liveticker:
                     for emoji in actions:
                         await msg.remove_reaction(emoji, self.bot.user)
                     react.deregister()
-                logger.debug("ENDE")
             else:
                 # Start liveticker
                 msg = await ctx.send(Lang.lang(self, 'liveticker_start'))
                 for source, leagues in Config().get(self)['liveticker']['leagues'].items():
                     for league in leagues:
-                        reg_ = await self.bot.liveticker.register(
+                        await self.bot.liveticker.register(
                             league=league, raw_source=source, plugin=self, coro=self._live_coro, periodic=True,
                             interval=Config().get(self)['liveticker']['interval'])
-                        next_exec = reg_.next_execution()
-                        if next_exec:
-                            next_exec = next_exec[0].strftime('%d.%m.%Y - %H:%M')
-                        await msg.edit(content="{}\n{} - Next: {}".format(msg.content, league, next_exec))
+                        await msg.edit(content="{}\n{}".format(msg.content, league))
                 Config().get(self)['sport_chan'] = ctx.channel.id
                 Config().save(self)
                 await add_reaction(ctx.message, Lang.CMDSUCCESS)
