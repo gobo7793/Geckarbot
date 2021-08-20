@@ -52,7 +52,7 @@ class PresenceState:
                 s0 = self.cur_song_f
             self.cur_song_f = " ".join((s0, s1))
 
-    async def reset(self) -> PresenceState:
+    async def reset(self):
         """
         Resets the state of the presence message, i.e. fetches a new random scrobble or skips the presence message
         if necessary

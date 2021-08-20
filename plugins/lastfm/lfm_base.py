@@ -82,33 +82,54 @@ class Song:
 
         return cls(plugin, artist, album, title, nowplaying=nowplaying, timestamp=ts, loved=loved)
 
-    @classmethod
-    def from_spotify_response(cls, plugin, element):
+    @staticmethod
+    def parse_artists(element):
         """
-        Builds a Song object from a spotify API response.
 
-        :param plugin: Plugin object
-        :param element: response["tracks"]["items"][i]
-        :return: Song object that represents `element`
+        :param element: spotify response element r["artists"]
+        :return: artist name, featurings list
         """
-        # Artists
-        first = True
         artist = None
         featurings = []
-        for el in element["artists"]:
+        first = True
+        for el in element:
             if first:
                 first = False
                 artist = el["name"]
             else:
                 featurings.append(el["name"])
+        return artist, featurings
 
-        # Album
-        album = element["album"]["name"]
+    @classmethod
+    def from_spotify_response(cls, plugin, element, layer=Layer.TITLE):
+        """
+        Builds a Song object from a spotify API response.
 
-        # Title
-        title = element["name"]
+        :param plugin: Plugin object
+        :param element: response["tracks"]["items"][i]
+        :param layer: layer that was requested from spotify
+        :return: Song object that represents `element`
+        """
+        title = None
+        album = None
+        artist = None
+        featurings = None
 
-        r = cls(plugin, artist, album, title)
+        # Request was for title
+        if layer == layer.TITLE:
+            title = element["name"]
+            album = element["album"]["name"]
+            artist, featurings = cls.parse_artists(element["artists"])
+
+        # Request was for album
+        if layer == layer.ALBUM:
+            album = element["name"]
+            artist, featurings = cls.parse_artists(element["artists"])
+
+        if layer == layer.ARTIST:
+            artist = element["name"]
+
+        r = cls(plugin, artist, album, title, layer=layer)
         r.set_spotify_links_from_response(element)
         return r
 
@@ -152,9 +173,17 @@ class Song:
 
         :param element: response["tracks"]["items"][i]
         """
-        self.spotify_links[Layer.ARTIST] = element["artists"][0]["external_urls"]["spotify"]
-        self.spotify_links[Layer.ALBUM] = element["album"]["external_urls"]["spotify"]
-        self.spotify_links[Layer.TITLE] = element["external_urls"]["spotify"]
+        if self.layer == Layer.TITLE:
+            self.spotify_links[Layer.ARTIST] = element["artists"][0]["external_urls"]["spotify"]
+            self.spotify_links[Layer.ALBUM] = element["album"]["external_urls"]["spotify"]
+            self.spotify_links[Layer.TITLE] = element["external_urls"]["spotify"]
+        elif self.layer == Layer.ALBUM:
+            self.spotify_links[Layer.ARTIST] = element["artists"][0]["external_urls"]["spotify"]
+            self.spotify_links[Layer.ALBUM] = element["external_urls"]["spotify"]
+        elif self.layer == Layer.ARTIST:
+            self.spotify_links[Layer.ARTIST] = element["external_urls"]["spotify"]
+        else:
+            assert False, "unknown layer {}".format(self.layer)
 
     def __getitem__(self, key):
         if key == "artist":

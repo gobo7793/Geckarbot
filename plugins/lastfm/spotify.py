@@ -133,7 +133,18 @@ class Client:
             "limit": 1,
         }
         r = await self.spotify_request("search", params=params, headers=self.headers)
-        return Song.from_spotify_response(self.plugin, r["tracks"]["items"][0])
+
+        if layer == layer.TITLE:
+            return Song.from_spotify_response(self.plugin, r["tracks"]["items"][0])
+        if layer == layer.ALBUM:
+            return Song.from_spotify_response(self.plugin, r["albums"]["items"][0], layer=Layer.ALBUM)
+        if layer == layer.ARTIST:
+            return Song.from_spotify_response(self.plugin, r["artists"]["items"][0], layer=Layer.ARTIST)
+        assert False, "unknown layer {}".format(layer)
+
+    async def cmd_search(self, ctx, searchstring: str, layer: Layer):
+        r = await self.search(searchstring, layer=layer)
+        await ctx.send(r.spotify_links.get(layer, "no link found"))
 
     async def enrich_song(self, song: Song):
         """

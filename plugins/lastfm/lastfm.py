@@ -15,7 +15,6 @@ from botutils.timeutils import hr_roughly
 from botutils.stringutils import paginate
 from botutils.utils import write_debug_channel, add_reaction, helpstring_helper, execute_anything_sync
 from botutils.questionnaire import Questionnaire, Question, QuestionType, Cancelled
-from botutils.restclient import Client
 from botutils.setter import ConfigSetter
 from botutils.permchecks import check_mod_access, check_admin_access
 
@@ -25,7 +24,6 @@ from plugins.lastfm.lfm_base import Song, Layer
 from plugins.lastfm.spotify import Client as Spotify, AuthError
 
 
-BASEURL = "https://ws.audioscrobbler.com/2.0/"
 mention_p = re.compile(r"<@[^>]+>")
 
 
@@ -53,7 +51,6 @@ class Plugin(BasePlugin, name="LastFM"):
         self.logger = logging.getLogger(__name__)
         self.migrate()
         self.api = Api(self)
-        self.client = Client(BASEURL)
         self.conf = Config.get(self)
         if not self.conf.get("apikey", ""):
             raise NotLoadable("API Key not found")
@@ -744,7 +741,7 @@ class Plugin(BasePlugin, name="LastFM"):
             await self.spotify.enrich_song(song)
             await ctx.send(song.spotify_links[Layer.TITLE])
 
-    @cmd_spotify.command(name="credentials")
+    @cmd_spotify.command(name="credentials", hidden=True)
     async def cmd_spotify_credentials(self, ctx, client_id: str, client_secret: str):
         if not check_admin_access(ctx.author):
             await add_reaction(ctx.message, Lang.CMDNOPERMISSIONS)
@@ -765,6 +762,22 @@ class Plugin(BasePlugin, name="LastFM"):
             await add_reaction(ctx.message, Lang.CMDERROR)
             return
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
+
+    @cmd_spotify.group(name="search", invoke_without_command=True)
+    async def cmd_spotify_search(self, ctx, *, searchterm):
+        await self.spotify.cmd_search(ctx, searchterm, Layer.TITLE)
+
+    @cmd_spotify_search.command(name="artist", aliases=["interpret"], hidden=True)
+    async def cmd_spotify_search_artist(self, ctx, *, searchterm):
+        await self.spotify.cmd_search(ctx, searchterm, Layer.ARTIST)
+
+    @cmd_spotify_search.command(name="album", hidden=True)
+    async def cmd_spotify_search_album(self, ctx, *, searchterm):
+        await self.spotify.cmd_search(ctx, searchterm, Layer.ALBUM)
+
+    @cmd_spotify_search.command(name="title", aliases=["song", "track"], hidden=True)
+    async def cmd_spotify_search_title(self, ctx, *, searchterm):
+        await self.spotify.cmd_search(ctx, searchterm, Layer.TITLE)
 
     @staticmethod
     def interest_match(song, criterion, example):
