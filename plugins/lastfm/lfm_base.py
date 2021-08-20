@@ -157,9 +157,9 @@ class Song:
         :return: Nice readable representation of the song according to lang string
         """
         if not reverse:
-            r = Lang.lang(self.plugin, "listening_song_base", self.title, self.artist)
+            r = Lang.lang(self.plugin, "listening_song_base", self.artist, self.title)
         else:
-            r = Lang.lang(self.plugin, "listening_song_base_reverse", self.artist, self.title)
+            r = Lang.lang(self.plugin, "listening_song_base_reverse", self.title, self.artist)
         if loved and self.loved:
             r = "{} {}".format(Lang.lang(self.plugin, "loved"), r)
         return r

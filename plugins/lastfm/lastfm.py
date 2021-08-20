@@ -10,7 +10,7 @@ from discord.ext import commands
 
 from base import BasePlugin, NotLoadable
 from data import Config, Lang, Storage
-from botutils.converters import get_best_username as gbu, get_best_user
+from botutils.converters import get_best_username as gbu, get_best_user, convert_member
 from botutils.timeutils import hr_roughly
 from botutils.stringutils import paginate
 from botutils.utils import write_debug_channel, add_reaction, helpstring_helper, execute_anything_sync
@@ -69,6 +69,7 @@ class Plugin(BasePlugin, name="LastFM"):
             "min_artist": [float, 0.5],
             "min_album": [float, 0.4],
             "min_title": [float, 0.5],
+            "mi_enable_downgrade": [bool, True],
             "mi_downgrade": [float, 1.5],
             "quote_p": [float, 0.5],
             "max_quote_length": [int, 100],
@@ -77,11 +78,12 @@ class Plugin(BasePlugin, name="LastFM"):
             "presence_tick": [int, 60],
             "presence_include_listener": [bool, True],
             "presence_artist_only": [bool, False],
-            "presence_title_only": [bool, False],
-            "presence_artist_and_title": [bool, True],
+            "presence_title_only": [bool, True],
+            "presence_artist_and_title": [bool, False],
             "presence_order_artist_title": [bool, False],
-            "presence_order_user_song": [bool, True],
+            "presence_order_user_song": [bool, False],
             "presence_optout": [bool, True],
+            "spotify_is_default": [bool, False]
         }
         self.config_setter = ConfigSetter(self, self.base_config)
         self.config_setter.add_switch("presence_title_only", "presence_artist_only", "presence_artist_and_title")
@@ -291,15 +293,43 @@ class Plugin(BasePlugin, name="LastFM"):
     def perf_timenow():
         return time.clock_gettime(time.CLOCK_MONOTONIC)
 
+    def parse_args(self, args, author) -> dict:
+        """
+        Parses a list of args that was passed to a regular output cmd. Fishes for a discord user and "spotify".
+        Ignores arguments that do not fit.
+
+        :param args: list of arguments
+        :param author: ctx.author (default case for "user")
+        :return: dict of resulting settings; keys: "spotify": bool, "user": discord.Member
+        """
+        r = {
+            "user": author,
+            "spotify": self.get_config("spotify_is_default")
+        }
+
+        user_found = False
+        for arg in args:
+            if arg.lower() == "spotify":
+                r["spotify"] = True
+                continue
+
+            member = convert_member(arg)
+            if member and not user_found:
+                user_found = True
+                r["user"] = member
+                continue
+
+        return r
+
     @commands.group(name="lastfm", invoke_without_command=True)
-    async def cmd_lastfm(self, ctx, user: Union[discord.Member, discord.User, str, None]):
+    async def cmd_lastfm(self, ctx, *args):
         self.perf_reset_timers()
         before = self.perf_timenow()
-        if user is None:
-            user = ctx.author
+
+        args = self.parse_args(args, ctx.author)
         try:
             async with ctx.typing():
-                await self.most_interesting(ctx, user)
+                await self.most_interesting(ctx, args["user"], spotify=args["spotify"])
         except (NotRegistered, UnexpectedResponse) as e:
             await e.default(ctx)
             return
@@ -611,36 +641,35 @@ class Plugin(BasePlugin, name="LastFM"):
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
     @cmd_lastfm.command(name="listening")
-    async def cmd_listening(self, ctx, user: Union[discord.Member, discord.User, str, None]):
+    async def cmd_listening(self, ctx, *args):
+        args = self.parse_args(args, ctx.author)
         if self.presence_handler.is_currently_shown:
             song = self.presence_handler.state.cur_song.format(reverse=True)
             listener = self.presence_handler.state.cur_listener_dc
-            await ctx.send(Lang.lang(self, "presence_listening", song, gbu(listener)))
+            msg = Lang.lang(self, "presence_listening", song, gbu(listener))
+
+            if args["spotify"]:
+                await self.spotify.enrich_song(song)
+                msg += "\n" + song.spotify_links[Layer.TITLE]
+
+            await ctx.send(msg)
             return
-        await self.cmd_now(ctx, user)
+        await self.cmd_now(ctx, *args)
 
     @cmd_lastfm.command(name="now")
-    async def cmd_now(self, ctx, user: Union[discord.Member, discord.User, str, None]):
+    async def cmd_now(self, ctx, *args):
         self.perf_reset_timers()
         before = self.perf_timenow()
-        lfmuser = user
+
+        args = self.parse_args(args, ctx.author)
         sg3p = False
-        if user is None:
+        if args["user"] != ctx.author:
             sg3p = True
-            user = ctx.author
-        if isinstance(user, (discord.Member, discord.User)):
-            try:
-                lfmuser = self.get_lastfm_user(user)
-            except NotRegistered as e:
-                await e.default(ctx, sg3p=sg3p)
-                return
-        else:
-            # user is a str
-            userinfo = await self.api.get_user_info(user)
-            if userinfo is None:
-                await add_reaction(ctx.message, Lang.CMDERROR)
-                await ctx.send(Lang.lang(self, "user_not_found", user))
-                return
+        try:
+            lfmuser = self.get_lastfm_user(args["user"])
+        except NotRegistered as e:
+            await e.default(ctx, sg3p=sg3p)
+            return
 
         async with ctx.typing():
             try:
@@ -649,7 +678,14 @@ class Plugin(BasePlugin, name="LastFM"):
                 await e.default(ctx)
                 return
 
-        await ctx.send(self.listening_msg(user, song))
+            msg = self.listening_msg(args["user"], song)
+
+            if args["spotify"]:
+                await self.spotify.enrich_song(song)
+                msg += "\n" + song.spotify_links[Layer.TITLE]
+
+        await ctx.send(msg)
+
         after = self.perf_timenow()
         self.perf_add_total_time(after - before)
 
@@ -813,7 +849,7 @@ class Plugin(BasePlugin, name="LastFM"):
         """
         return current_matches / current_index > (top_matches - 2) / top_index
 
-    async def expand(self, lfmuser, page_len, so_far, criterion, example):
+    async def expand(self, lfmuser, page_len, so_far, layer, example):
         """
         Expands a streak on the first page to the longest it can find across multiple pages.
         Potentially downgrades the criterion layer if the lower layer has far more matches.
@@ -821,7 +857,7 @@ class Plugin(BasePlugin, name="LastFM"):
         :param lfmuser: Last.fm user name
         :param page_len: Last.fm request page length
         :param so_far: First page of songs
-        :param criterion: MostInteresting instance
+        :param layer: Layer instance
         :param example: Example song
         :return: `(count, out_of, criterion, repr)` with count being the amount of matches for criterion it found,
             `out_of` being the amount of scrobbles that were looked at, `criterion` the (new, potentially downgraded)
@@ -883,21 +919,24 @@ class Plugin(BasePlugin, name="LastFM"):
 
         self.logger.debug("counters: %s", str(counters))
 
+        if not self.get_config("mi_enable_downgrade"):
+            return counters[layer]["top_matches"], counters[layer]["top_index"], layer, example
+
         # Downgrade if necessary
-        top_index = counters[criterion]["top_index"]
-        top_matches = counters[criterion]["top_matches"]
+        top_index = counters[layer]["top_index"]
+        top_matches = counters[layer]["top_matches"]
         for el in [Layer.ALBUM, Layer.ARTIST]:
             downgrade_value = counters[el]["top_matches"] / self.get_config("mi_downgrade")
-            self.logger.debug("Checking downgrade from %s to %s", str(criterion), str(el))
+            self.logger.debug("Checking downgrade from %s to %s", str(layer), str(el))
             self.logger.debug("Downgrade values: %s, %s", str(top_matches), str(downgrade_value))
             if top_matches <= downgrade_value:
-                self.logger.debug("mi downgrade from %s to %s", str(criterion), str(el))
-                criterion = el
+                self.logger.debug("mi downgrade from %s to %s", str(layer), str(el))
+                layer = el
                 example = counters[el]["repr"]
                 top_index = counters[el]["top_index"]
                 top_matches = counters[el]["top_matches"]
 
-        return top_matches, top_index, criterion, example
+        return top_matches, top_index, layer, example
 
     def tiebreaker(self, scores, songs, mitype):
         """
@@ -980,12 +1019,13 @@ class Plugin(BasePlugin, name="LastFM"):
 
         return r
 
-    async def most_interesting(self, ctx, user):
+    async def most_interesting(self, ctx, user, spotify=False):
         """
         Finds the most current, most interesting facts in a user's history and sends them to ctx.
 
         :param ctx: Context
         :param user: User that whose history we are interested in
+        :param spotify: Include a spotify link
         :raises RuntimeError: Unexpected error (bug)
         """
         pagelen = 10
@@ -1025,9 +1065,14 @@ class Plugin(BasePlugin, name="LastFM"):
             mi_example = best_title
         if mi is None:
             # Nothing interesting found, send single song msg
-            await ctx.send(self.listening_msg(user, songs[0]))
+            msg = self.listening_msg(user, songs[0])
+            if spotify:
+                await self.spotify.enrich_song(songs[0])
+                msg += "\n" + songs[0].spotify_links[Layer.TITLE]
+            await ctx.send(msg)
             return
         matches, total, mi, mi_example = await self.expand(lfmuser, pagelen, songs, mi, mi_example)
+        mi_example.layer = mi
 
         # build msg
         if matches == total:
@@ -1072,6 +1117,10 @@ class Plugin(BasePlugin, name="LastFM"):
         quote = mi_example.quote()
         if quote is not None:
             msg = "{} _{}_".format(msg, quote)
+
+        if spotify:
+            await self.spotify.enrich_song(mi_example)
+            msg += "\n" + mi_example.spotify_links[mi]
         await ctx.send(msg)
 
 
