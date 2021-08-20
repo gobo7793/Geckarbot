@@ -1,5 +1,5 @@
 import calendar
-from datetime import datetime, timedelta
+import datetime
 
 import discord
 from discord.ext import commands
@@ -7,7 +7,7 @@ from discord.ext import commands
 from botutils import restclient
 from botutils.utils import add_reaction
 from data import Lang, Config
-from subsystems.liveticker import LTSource, MatchStatus, MatchOLDB, MatchESPN, MatchBase
+from subsystems.liveticker import LTSource, MatchStatus, MatchOLDB, MatchBase, LeagueRegistrationESPN
 
 
 class _Scores:
@@ -17,7 +17,7 @@ class _Scores:
 
     @commands.command(name="kicker")
     async def cmd_kicker_table(self, ctx):
-        now = datetime.now()
+        now = datetime.datetime.now()
         if now.month < 3 or now.month > 7:
             at_values = "[{}]({})".format(Lang.lang(self, 'kicker_ATBL'), Lang.lang(self, 'kicker_ATBL_link'))
         else:
@@ -61,9 +61,8 @@ class _Scores:
                 await add_reaction(ctx.message, Lang.CMDERROR)
                 return
         elif source == LTSource.ESPN:
-            raw_matches = await restclient.Client("http://site.api.espn.com/apis/site/v2/sports").request(
-                f"/soccer/{league}/scoreboard", params={'dates': datetime.today().strftime("%Y%m%d")})
-            matches = [MatchESPN(m) for m in raw_matches.get('events', [])]
+            matches = LeagueRegistrationESPN.get_matches_by_date(league=league, until_day=datetime.date.today() +
+                                                                                          datetime.timedelta(days=2))
         else:
             await ctx.send(Lang.lang(self, 'source_not_supported', source))
             return
@@ -142,13 +141,13 @@ class _Scores:
                 league_msg = ""
                 for match in matches:
                     try:
-                        time = datetime.strptime(match.get('MatchDateTime'), "%Y-%m-%dT%H:%M:%S")
+                        time = datetime.datetime.strptime(match.get('MatchDateTime'), "%Y-%m-%dT%H:%M:%S")
                     except (ValueError, TypeError):
                         continue
                     else:
-                        now = datetime.now()
+                        now = datetime.datetime.now()
                         if not match.get('MatchIsFinished', True) \
-                                and now + timedelta(hours=-2) < time < now + timedelta(days=1):
+                                and now + datetime.timedelta(hours=-2) < time < now + datetime.timedelta(days=1):
                             league_msg += "{} {} | {} - {}\n".format(
                                 calendar.day_abbr[time.weekday()],
                                 time.strftime("%H:%M Uhr"),

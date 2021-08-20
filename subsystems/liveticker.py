@@ -877,15 +877,17 @@ class LeagueRegistrationBase(ABC):
 
     async def update_matches(self):
         """Updates and returns the matches and current standings of the league"""
-        self.matches = await self.get_matches_by_date()
+        self.matches = await self.get_matches_by_date(self.league)
         return self.matches
 
+    @staticmethod
     @abstractmethod
-    async def get_matches_by_date(self, from_day: datetime.date = None, until_day: datetime.date = None) \
-            -> List[MatchBase]:
+    async def get_matches_by_date(league: str,
+                                  from_day: datetime.date = None, until_day: datetime.date = None) -> List[MatchBase]:
         """
         Requests match data for a specific data range.
 
+        :param league: league key
         :param from_day: start of the date range
         :param until_day: end of the date range
         :return: List of corresponding matches
@@ -919,7 +921,7 @@ class LeagueRegistrationBase(ABC):
         now = datetime.datetime.now()
         Storage().get(self.listener)['registrations'][self.source.value][self.league]['kickoffs'] = {}
 
-        matches: List[MatchBase] = await self.get_matches_by_date(from_day=now, until_day=until)
+        matches: List[MatchBase] = await self.get_matches_by_date(league=self.league, from_day=now, until_day=until)
 
         # Group by kickoff
         for match in matches:
@@ -1004,13 +1006,9 @@ class LeagueRegistrationESPN(LeagueRegistrationBase):
         reg = CoroRegistrationESPN(self, plugin=plugin, coro=coro, interval=interval, periodic=periodic)
         await self.register_reg(reg)
 
-    async def get_matches_by_date(self, from_day: datetime.date = None, until_day: datetime.date = None) \
-            -> List[MatchESPN]:
-        """Requests espn match data for a specified date range
-
-        :param from_day: start of the date range.
-        :param until_day: end of the date range.
-        :return: List of the corresponding matches"""
+    @staticmethod
+    async def get_matches_by_date(league: str,
+                                  from_day: datetime.date = None, until_day: datetime.date = None) -> List[MatchESPN]:
         if from_day is None:
             from_day = datetime.date.today()
         if until_day is None:
@@ -1018,10 +1016,10 @@ class LeagueRegistrationESPN(LeagueRegistrationBase):
 
         dates = "{}-{}".format(from_day.strftime("%Y%m%d"), until_day.strftime("%Y%m%d"))
         _ = await restclient.Client("http://site.api.espn.com/apis/site/v2/sports") \
-            .request(f"/soccer/{self.league}/scoreboard", params={'dates': dates})
+            .request(f"/soccer/{league}/scoreboard", params={'dates': dates})
         await asyncio.sleep(5)
         data = await restclient.Client("http://site.api.espn.com/apis/site/v2/sports") \
-            .request(f"/soccer/{self.league}/scoreboard", params={'dates': dates})
+            .request(f"/soccer/{league}/scoreboard", params={'dates': dates})
         matches = [MatchESPN(x) for x in data['events']]
         return matches
 
@@ -1032,12 +1030,14 @@ class LeagueRegistrationOLDB(LeagueRegistrationBase):
         reg = CoroRegistrationOLDB(self, plugin=plugin, coro=coro, interval=interval, periodic=periodic)
         await self.register_reg(reg)
 
-    async def get_matches_by_date(self, from_day: datetime.date = None, until_day: datetime.date = None,
-                                       limit: int = 5) -> List[MatchOLDB]:
+    @staticmethod
+    async def get_matches_by_date(league: str, from_day: datetime.date = None, until_day: datetime.date = None,
+                                  limit: int = 5) -> List[MatchOLDB]:
         """
         Requests openligadb match data for a specified date range. Doesn't support past days or dates too far into
         future since it is all matchday-based and starts from the present matchday.
 
+        :param league: league key
         :param from_day: start of the date range. No past days supported.
         :param until_day: end of the date range.
         :param limit: maximum number of requests respectivly the number of matchdays checked for fitting matches.
@@ -1048,7 +1048,7 @@ class LeagueRegistrationOLDB(LeagueRegistrationBase):
         if until_day is None:
             until_day = from_day
 
-        data = await restclient.Client("https://www.openligadb.de/api").request("/getmatchdata/{}".format(self.league))
+        data = await restclient.Client("https://www.openligadb.de/api").request("/getmatchdata/{}".format(league))
         matches = []
         if not data:
             return []
@@ -1060,16 +1060,19 @@ class LeagueRegistrationOLDB(LeagueRegistrationBase):
                 matches.append(match)
         else:
             for _ in range(1, limit):
-                add_matches = await self.get_matches_by_matchday(matchday=matches[-1].matchday)
+                add_matches = await LeagueRegistrationOLDB.get_matches_by_matchday(league=league,
+                                                                                   matchday=matches[-1].matchday)
                 if not add_matches:
                     break
                 matches.extend(add_matches)
         return matches
 
-    async def get_matches_by_matchday(self, matchday: int, season: int = None) -> List[MatchOLDB]:
+    @staticmethod
+    async def get_matches_by_matchday(league: str, matchday: int, season: int = None) -> List[MatchOLDB]:
         """
         Requests openligadb match data for a specified matchday
 
+        :param league: league key
         :param matchday: Requested matchday
         :param season: season/year
         :return: List of the corresponding matches
@@ -1078,7 +1081,7 @@ class LeagueRegistrationOLDB(LeagueRegistrationBase):
             date = datetime.date.today()
             season = date.year if date.month > 6 else date.year - 1
         data = await restclient.Client("https://www.openligadb.de/api").request(
-            f"/getmatchdata/{self.league}/{season}/{matchday}")
+            f"/getmatchdata/{league}/{season}/{matchday}")
         return [MatchOLDB(m) for m in data]
 
     def matchday(self):
