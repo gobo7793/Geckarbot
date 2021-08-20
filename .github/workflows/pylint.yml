@@ -3,12 +3,12 @@ name: Linting
 on:
   pull_request:
     branches:
-      - develop
+      - development
       - release
       - hotfix
   push:
     branches:
-      - develop
+      - development
       - release
       - hotfix
 
