@@ -1,16 +1,16 @@
 name: Linting
 
 on:
-    pull_request:
-        branches:
-        - develop
-        - release
-        - hotfix
-    push:
-        branches:
-        - develop
-        - release
-        - hotfix
+  pull_request:
+    branches:
+      - develop
+      - release
+      - hotfix
+  push:
+    branches:
+      - develop
+      - release
+      - hotfix
 
 jobs:
   pylint:
