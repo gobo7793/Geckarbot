@@ -133,6 +133,19 @@ class Song:
         r.set_spotify_links_from_response(element)
         return r
 
+    def get_layer_name(self, layer: Layer):
+        """
+
+        :param layer: Layer
+        :return: title, artist or album corresponding to `layer`
+        """
+        if layer == Layer.TITLE:
+            return self.title
+        if layer == Layer.ALBUM:
+            return self.album
+        if layer == Layer.ARTIST:
+            return self.artist
+
     def quote(self, p: float = None):
         """
         Returns a random quote if there is one.

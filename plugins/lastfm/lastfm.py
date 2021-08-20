@@ -207,6 +207,12 @@ class Plugin(BasePlugin, name="LastFM"):
             for cmd in subcommands:
                 if cmd.name == el:
                     r.append(cmd)
+
+        # Add !spotify
+        for cmd in self.get_commands():
+            if cmd.name == "spotify":
+                r.append(cmd)
+
         return r
 
     @property
@@ -1072,6 +1078,7 @@ class Plugin(BasePlugin, name="LastFM"):
             await ctx.send(msg)
             return
         matches, total, mi, mi_example = await self.expand(lfmuser, pagelen, songs, mi, mi_example)
+        self.logger.debug("Setting song layer to %s", mi)
         mi_example.layer = mi
 
         # build msg
@@ -1108,10 +1115,10 @@ class Plugin(BasePlugin, name="LastFM"):
         elif mi == Layer.ALBUM:
             content = Lang.lang(self, "most_interesting_album", mi_example.album, mi_example.artist, matches, total)
         elif mi == Layer.TITLE:
-            song = mi_example.format_song()
+            song = mi_example.format()
             content = Lang.lang(self, "most_interesting_song", song, matches, total)
         else:
-            raise RuntimeError("PANIC")
+            assert False, "unknown layer {}".format(mi)
         msg = vp.format(content)
 
         quote = mi_example.quote()
