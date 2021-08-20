@@ -69,7 +69,7 @@ class _Scores:
             return
 
         if len(matches) == 0:
-            await add_reaction(ctx.message, Lang.CMDERROR)
+            await ctx.send(Lang.lang(self, 'no_matches_found'))
             return
         finished = [m for m in matches if m.status == MatchStatus.COMPLETED]
         running = [m for m in matches if m.status == MatchStatus.RUNNING]
