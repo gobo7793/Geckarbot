@@ -42,24 +42,15 @@ class _Scores:
         await ctx.send(embed=embed)
 
     @commands.command(name="fußball", aliases=["fusselball"])
-    async def cmd_soccer_livescores(self, ctx, league: str, raw_source: str = "espn", allmatches=None):
-        source = None
-        if raw_source:
-            try:
-                source = LTSource(raw_source)
-            except ValueError:
-                if allmatches is None:
-                    allmatches = True
-                else:
-                    await add_reaction(ctx.message, Lang.CMDERROR)
-                    return
-        if source is None:
-            try:
-                league, raw_source = Config().get(self)['league_aliases'].get(league, [])
-                source = LTSource(raw_source)
-            except ValueError:
-                await add_reaction(ctx.message, Lang.CMDERROR)
-                return
+    async def cmd_soccer_livescores(self, ctx, league: str, raw_source: str = None, allmatches=None):
+        if raw_source is None:
+            # Look for alts
+            league, raw_source = Config().get(self)['league_aliases'].get(league, (league, "espn"))
+        try:
+            source = LTSource(raw_source)
+        except ValueError:
+            await ctx.send(Lang.lang(self, 'source_not_found', ", ".join(s.value for s in LTSource)))
+            return
 
         if source == LTSource.OPENLIGADB:
             try:
@@ -74,7 +65,8 @@ class _Scores:
                 f"/soccer/{league}/scoreboard", params={'dates': datetime.today().strftime("%Y%m%d")})
             matches = [MatchESPN(m) for m in raw_matches.get('events', [])]
         else:
-            raise ValueError('Invalid source. Should not happen.')
+            await ctx.send(Lang.lang(self, 'source_not_supported', source))
+            return
 
         if len(matches) == 0:
             await add_reaction(ctx.message, Lang.CMDERROR)
