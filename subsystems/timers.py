@@ -85,13 +85,14 @@ class Job:
         self._lock = asyncio.Lock()
         self._task = None
 
-        self.data = data
-        self._is_scheduled = False
-        self._last_tts = 0
         """
         Opaque value guaranteed to never be overwritten.
         It can be used to store arbitrary information to be used by the coroutine.
         """
+        self.data = data
+
+        self._is_scheduled = False
+        self._last_tts = 0
 
         self._cached_next_exec = next_occurence(self._timedict, ignore_now=True)
         self._last_exec = None

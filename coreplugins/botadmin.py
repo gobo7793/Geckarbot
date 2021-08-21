@@ -40,7 +40,7 @@ class Plugin(BasePlugin, name="Bot status commands for monitoring and debug purp
     def get_configurable_type(self):
         return ConfigurableType.COREPLUGIN
 
-    def default_config(self):
+    def default_config(self, container=None):
         return {
             'max_dump': 4  # maximum storage/configdump messages to show
         }

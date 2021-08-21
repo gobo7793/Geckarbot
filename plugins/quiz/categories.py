@@ -92,10 +92,16 @@ class CategoryController(BaseCategoryController):
                 return cat
         return None
 
-    def get_name_by_category_key(self, quizapi: Type[BaseQuizAPI], catkey):
+    def get_name_by_category_key(self, quizapi: Type[BaseQuizAPI], catkey) -> str:
+        """
+        :param quizapi: QuizAPI class
+        :param catkey: category key
+        :return: Category name that correspons to the category key
+        """
         for _, category in self.categories.items():
             if quizapi in category.supporters and category.supporters[quizapi] == catkey:
                 return category.name
+        raise RuntimeError("Category {} not found".format(catkey))
 
     def get_supporters(self, category: DefaultCategory) -> list:
         return list(self.categories[category].supporters.keys())

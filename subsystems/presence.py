@@ -168,7 +168,7 @@ class Presence(BaseSubsystem):
                 activity = discord.Activity(type=activitymap["playing"], name=Config.get(self)["loading_msg"])
             await self.bot.change_presence(activity=activity)
 
-    def default_config(self):
+    def default_config(self, container=None):
         return {
             "update_period_min": 10,
             "loading_msg": "Loading..."

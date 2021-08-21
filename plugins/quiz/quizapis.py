@@ -14,7 +14,7 @@ from botutils import restclient
 
 from plugins.quiz.controllers import QuizEnded
 from plugins.quiz.base import BaseQuizAPI, BaseCategoryController, Difficulty, Question
-from plugins.quiz.categories import DefaultCategory, CategoryController
+from plugins.quiz.categories import DefaultCategory
 
 
 class QuizAPIError(Exception):

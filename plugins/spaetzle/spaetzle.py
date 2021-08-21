@@ -40,7 +40,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
         self.teamname_dict = TeamnameDict(self)
         self.userbridge = UserBridge(self)
 
-    def default_config(self):
+    def default_config(self, container=None):
         return {
             'manager': [],
             'trusted': [],
@@ -427,7 +427,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                     replace = c.find_and_replace(find="ST {}".format(Storage().get(self)['matchday'] - 1),
                                                  replace="ST {}".format(Storage().get(self)['matchday']),
                                                  include_formulas=True, sheet="Aktuell",
-                                                 range=Config().get(self)['findreplace_matchday_range'])
+                                                 cellrange=Config().get(self)['findreplace_matchday_range'])
         if duplicate and clear and replace:
             Storage().get(self)['matchday'] += 1
             Storage().save(self)
@@ -491,8 +491,8 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                 values[Storage().get(self)['match_ids'].index(match_id)] = [*match['score']]
 
         # Put scores into spreadsheet
-        c.update(range="Aktuell!{}".format(CellRange.from_a1(Config.get(self)['matches_range']).expand(top=-2, left=-4)
-                                           .rangename()),
+        c.update(cellrange="Aktuell!{}".format(CellRange.from_a1(Config.get(self)['matches_range'])
+                                               .expand(top=-2, left=-4).rangename()),
                  values=values)
         self.logger.debug("Spätzle score update finished.")
 
@@ -571,7 +571,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                     return
 
                 cellrange = CellRange.from_a1(Config().get(self)['matches_range']).expand(top=-index, left=-4)
-                c.update(range="Aktuell!{}".format(cellrange.rangename()), values=[values], raw=False)
+                c.update(cellrange="Aktuell!{}".format(cellrange.rangename()), values=[values], raw=False)
 
             await add_reaction(ctx.message, Lang.CMDSUCCESS)
 

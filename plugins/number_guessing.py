@@ -156,9 +156,9 @@ class Plugin(BasePlugin, name="A simple number guessing game"):
         text = ["**Channel games**"]
 
         if channel_id is None:
-            for channel_id_ in self.games_channel:
+            for channel_id_, el in self.games_channel.items():
                 name = str(self.bot.get_channel(channel_id_))
-                game = self.games_channel[channel_id_]
+                game = el
                 text.append(self.format_line(name, game, ind))
                 ind += 1
         else:
@@ -177,9 +177,9 @@ class Plugin(BasePlugin, name="A simple number guessing game"):
         text = ["**Single games**"]
 
         if user_id is None:
-            for user_id_ in self.games_user:
+            for user_id_, el in self.games_user.items():
                 name = str(self.bot.get_user(user_id_))
-                game = self.games_user[user_id_]
+                game = el
                 text.append(self.format_line(name, game, ind))
                 ind += 1
         else:

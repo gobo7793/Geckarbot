@@ -267,11 +267,11 @@ class PointsQuizController(BaseQuizController):
         question = self.quizapi.current_question()
 
         # Normalize answers
-        for el in self.registered_participants:
-            if len(self.registered_participants[el]) != 1:
-                self.registered_participants[el] = None
+        for key, el in self.registered_participants.items():
+            if len(el) != 1:
+                self.registered_participants[key] = None
             else:
-                self.registered_participants[el] = self.registered_participants[el][0]
+                self.registered_participants[key] = el[0]
 
         # Increment scores
         correctly_answered = []
@@ -596,8 +596,8 @@ class PointsQuizController(BaseQuizController):
         return not self.havent_answered_hr()
 
     def havent_answered_hr(self):
-        return [get_best_username(Storage().get(self.plugin), el)
-                for el in self.registered_participants if len(self.registered_participants[el]) != 1]
+        return [get_best_username(Storage().get(self.plugin), key)
+                for key, el in self.registered_participants.items() if len(el) != 1]
 
 
 class RushQuizController(BaseQuizController):
@@ -711,8 +711,8 @@ class RushQuizController(BaseQuizController):
 
         # Übergangslösung
         points = self.score.points()
-        for user in points:
-            self.plugin.update_ladder(user, points[user])
+        for user, userpoints in points.items():
+            self.plugin.update_ladder(user, userpoints)
 
         msgkey = "quiz_end"
         if len(winners) > 1:

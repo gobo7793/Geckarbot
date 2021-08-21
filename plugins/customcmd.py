@@ -224,7 +224,7 @@ class Plugin(BasePlugin, name="Custom CMDs"):
                 and permchecks.debug_user_check(msg.author)):
             await self._process_message(msg)
 
-    def default_config(self):
+    def default_config(self, container=None):
         return {
             "cfgversion": 3,
             "prefix": "+",
@@ -319,8 +319,8 @@ class Plugin(BasePlugin, name="Custom CMDs"):
     def _save(self):
         """Saves the commands to the storage and the plugin config"""
         cmd_dict = {}
-        for k in self.commands:
-            cmd_dict[k] = self.commands[k].serialize()
+        for k, cmd in self.commands.items():
+            cmd_dict[k] = cmd.serialize()
 
         Storage.set(self, cmd_dict)
         Storage.save(self)
@@ -431,13 +431,13 @@ class Plugin(BasePlugin, name="Custom CMDs"):
         suffix = Lang.lang(self, 'list_suffix') if full else ""
         prefix = self.prefix if incl_prefix else ""
 
-        for k in self.commands:
+        for k, cmd in self.commands.items():
             if full:
                 arg_lens = []
-                for t in self.commands[k].texts:
+                for t in cmd.texts:
                     arg_list = arg_list_re.findall(str(t))
                     arg_lens.append(len(arg_list))
-                cmds.append(Lang.lang(self, 'list_full_data', prefix, k, len(self.commands[k].texts), max(arg_lens)))
+                cmds.append(Lang.lang(self, 'list_full_data', prefix, k, len(cmd.texts), max(arg_lens)))
 
             else:
                 cmds.append("{}{}".format(prefix, k))

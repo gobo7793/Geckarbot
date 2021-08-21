@@ -28,7 +28,7 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
                 self.bot.helpsys.default_category(DefaultCategories.USER).add_command(cmd)
                 self.bot.helpsys.default_category(DefaultCategories.MOD).remove_command(cmd)
 
-    def default_config(self):
+    def default_config(self, container=None):
         return {
             'repo_link': "https://github.com/gobo7793/Geckarbot/",
             'bot_info_link': "",

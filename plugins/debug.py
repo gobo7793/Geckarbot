@@ -5,7 +5,7 @@ import discord
 from discord.ext import commands
 
 from base import BasePlugin
-from botutils import utils, converters, setter
+from botutils import utils, converters, setter, stringutils
 from data import Config, Lang
 from subsystems.helpsys import DefaultCategories
 from subsystems.ignoring import UserBlockedCommand
@@ -49,7 +49,7 @@ class Plugin(BasePlugin, name="Testing and debug things"):
     def default_storage(self, container=None):
         return {}
 
-    def default_config(self):
+    def default_config(self, container=None):
         return {
             "version": 1,
             "switch1_a": True,
@@ -120,25 +120,10 @@ class Plugin(BasePlugin, name="Testing and debug things"):
         result = self.bot.presence.deregister_id(presence_id)
         await ctx.send("deregistered with result {}".format(result))
 
-    @commands.command(name="presencestart", help="Starts the presence timer", hidden=True)
-    async def cmd_start_presence(self, ctx):
-        if not self.bot.presence.is_timer_up:
-            await self.bot.presence.start()
-        else:
-            await ctx.send("Timer already started")
-
     @commands.command(name="presencestop", help="Stops the presence timer in debug mode", hidden=True)
     async def cmd_stop_presence(self, ctx):
         if self.bot.presence.is_timer_up:
             self.bot.presence.stop()
-        else:
-            await ctx.send("Timer not started")
-
-    @commands.command(name="presencenext", help="Sets the next presence message", hidden=True)
-    async def cmd_next_presence(self, ctx):
-        if self.bot.presence.is_timer_up:
-            self.bot.presence.execute_change()
-            await utils.add_reaction(ctx.message, Lang.CMDSUCCESS)
         else:
             await ctx.send("Timer not started")
 
@@ -295,3 +280,23 @@ class Plugin(BasePlugin, name="Testing and debug things"):
     async def cmd_rolebymention(self, ctx, role: discord.Role):
         # role = await commands.RoleConverter().convert(ctx, role)
         await ctx.send(role.mention)
+
+    @commands.command(name="timersinfo", hidden=True)
+    async def cmd_debugtimers(self, ctx):
+        # pylint: disable=protected-access
+        msgs = []
+        for i in range(len(self.bot.timers.jobs)):
+            job = self.bot.timers.jobs[i]
+            msgs.append("")
+            msgs.append("**#{}:**".format(i))
+            msgs.append("  **td:** {}".format(job._timedict))
+            msgs.append("  **coro:** {}".format(job._coro))
+            msgs.append("  **lock is locked:** {}".format(job._lock.locked()))
+            msgs.append("  **is scheduled:** {}".format(job._is_scheduled))
+            msgs.append("  **cancelled:** {}".format(job._cancelled))
+            msgs.append("  **last exec:** {}".format(job._last_exec))
+            msgs.append("  **task:** {}".format(job._task))
+            msgs.append("  **task done:** {}".format(job._task.done()))
+
+        for msg in stringutils.paginate(msgs):
+            await ctx.send(msg)
