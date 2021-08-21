@@ -7,7 +7,6 @@ from urllib.error import HTTPError
 from urllib.parse import urljoin, urlparse
 
 import discord
-import requests
 from bs4 import BeautifulSoup
 from discord.ext import commands
 from discord.ext.commands import MissingRequiredArgument
@@ -273,8 +272,9 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
         botmessage = await ctx.send(Lang.lang(self, 'scrape_start', url))
         async with ctx.typing():
             while True:
-                response = requests.get(url, headers=Config().get(self)['user_agent'])
-                soup = BeautifulSoup(response.text, "html.parser")
+                response = await restclient.Client("https://www.transfermarkt.de").request(urlparse(url).path,
+                                                                                           parse_json=False)
+                soup = BeautifulSoup(response, "html.parser")
 
                 posts = soup.find_all('div', 'box')
                 for p in posts:
