@@ -241,7 +241,7 @@ class GeckiHelp(BaseSubsystem):
                                                   order=CategoryOrder.LAST, defaultcat=True),
         }
 
-        self._categories = [self.default_categories[x] for x in self.default_categories]
+        self._categories = list(self.default_categories.values())
 
         # Setup help cmd
         self.bot.remove_command("help")
@@ -665,9 +665,9 @@ class GeckiHelp(BaseSubsystem):
 
         :param ctx: Context
         """
-        debug = True if "debug" in args else False
-        hidden = True if "hidden" in args else False
-        recursive = True if "recursive" in args else False
+        debug = "debug" in args
+        hidden = "hidden" in args
+        recursive = "recursive" in args
         cmds = self.all_commands(include_hidden=hidden, include_debug=debug, flatten=recursive)
         prefix = Lang.lang(self, "help_all_length", len(cmds)) + "\n"
         for msg in paginate(cmds, prefix=prefix, msg_prefix="```", msg_suffix="```", prefix_within_msg_prefix=False):
@@ -679,7 +679,7 @@ class GeckiHelp(BaseSubsystem):
 
         :param ctx: Context
         """
-        debug = True if "debug" in args else False
+        debug = "debug" in args
         msgs = self.all_commands(hidden_only=True, include_hidden=True, include_debug=debug, flatten=True)
         for msg in paginate(msgs, msg_prefix="```", msg_suffix="```"):
             await ctx.send(msg)

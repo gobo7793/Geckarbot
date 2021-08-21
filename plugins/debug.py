@@ -5,7 +5,7 @@ import discord
 from discord.ext import commands
 
 from base import BasePlugin
-from botutils import utils, converters, setter
+from botutils import utils, converters, setter, stringutils
 from data import Config, Lang
 from subsystems.helpsys import DefaultCategories
 from subsystems.ignoring import UserBlockedCommand
@@ -298,5 +298,5 @@ class Plugin(BasePlugin, name="Testing and debug things"):
             msgs.append("  **task:** {}".format(job._task))
             msgs.append("  **task done:** {}".format(job._task.done()))
 
-        for msg in utils.paginate(msgs):
+        for msg in stringutils.paginate(msgs):
             await ctx.send(msg)
