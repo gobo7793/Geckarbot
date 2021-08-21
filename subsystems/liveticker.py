@@ -1176,6 +1176,8 @@ class Liveticker(BaseSubsystem):
             else:
                 self.registrations[source][league] = await l_reg_class.create(self, league, source)
         coro_reg = await self.registrations[source][league].register(plugin, coro, interval, periodic)
+        if self.restored:
+            await self.build_match_timer()
         return coro_reg
 
     def deregister(self, reg: LeagueRegistrationBase):
@@ -1304,10 +1306,14 @@ class Liveticker(BaseSubsystem):
         :return: None
         """
         self.logger.debug("Hourly timer schedules timer.")
+        await self.build_match_timer()
+
+    async def build_match_timer(self):
+        self.logger.debug("Updating match timer")
         if self.match_timer:
             self.match_timer.cancel()
         update_minutes = {x: {} for x in range(61)}
-        end_of_hour = (datetime.datetime.now() + datetime.timedelta(hours=1)).replace(second=0, microsecond=0)
+        end_of_hour = (datetime.datetime.now() + datetime.timedelta(hours=1)).replace(minute=0, second=0, microsecond=0)
         for source in LTSource:
             for l_reg in self.registrations[source].values():
                 for kickoff in l_reg.kickoffs:
