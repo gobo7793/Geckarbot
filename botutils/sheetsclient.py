@@ -394,6 +394,7 @@ class Client(restclient.Client):
         :param rows: number of rows
         :param columns: number of columns
         :return: AddSheetResponse if successful, None instead
+        :raises NotLoadable: If Google API packages are not installed
         """
         # pylint: disable=import-outside-toplevel
         body = {
@@ -432,12 +433,13 @@ class Client(restclient.Client):
         :param sheet: name or id of the sheet
         :param new_title: title of the resulting duplicate
         :return: DuplicateSheetResponse if successful, None instead
+        :raises NotLoadable: If google API packages are not installed
         """
         # pylint: disable=import-outside-toplevel
         properties = self._get_sheet_properties(sheet)
         if properties is None:
             return None
-        if type(sheet) == int:
+        if isinstance(sheet, int):
             sheet_id = sheet
         else:
             sheet_id = properties.get('sheetId')
@@ -463,8 +465,8 @@ class Client(restclient.Client):
                 return response
             except HttpError:
                 return None
-        except ImportError:
-            raise NotLoadable("Google API modules not installed.")
+        except ImportError as e:
+            raise NotLoadable("Google API modules not installed.") from e
 
     def duplicate_and_archive_sheet(self, sheet, new_title: str = None, index: int = None, new_id: int = None):
         """
