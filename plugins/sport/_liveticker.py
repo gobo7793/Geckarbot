@@ -188,6 +188,17 @@ class _Liveticker:
             c_reg.interval = new_interval
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
+    @cmd_liveticker.command(name="matches", aliases=["spiele"])
+    async def cmd_liveticker_matches(self, ctx):
+        msg_lines = []
+        for l_reg in self.bot.liveticker.search_league():
+            msg_lines.append(f"**{l_reg.league}**")
+            for kickoff, matches in l_reg.kickoffs.items():
+                msg_lines.append(f"{kickoff:%a. %d.%m.%Y, %H:%M Uhr}")
+                msg_lines.extend(f"- {m.home_team.long_name} - {m.away_team.long_name}" for m in matches)
+        for msg in paginate(msg_lines, if_empty=Lang.lang(self, 'no_matches_found')):
+            await ctx.send(msg)
+
     async def _live_coro(self, event):
         sport = Config().bot.get_channel(Config().get(self)['sport_chan'])
         if isinstance(event, LivetickerKickoff):
