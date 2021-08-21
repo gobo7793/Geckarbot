@@ -1328,6 +1328,8 @@ class Liveticker(BaseSubsystem):
         for k, v in list(update_minutes.items()):
             if not v:
                 update_minutes.pop(k)
+        if not update_minutes:
+            return
         self.match_timer = self.bot.timers.schedule(coro=self._update_league_registrations,
                                                     td=timers.timedict(minute=list(update_minutes.keys())),
                                                     data=update_minutes)
