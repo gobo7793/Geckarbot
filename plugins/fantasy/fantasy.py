@@ -52,7 +52,7 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
         # self._load()
         # self._start_score_timer()
 
-    def default_config(self):
+    def default_config(self, container=None):
         return {
             "version": 7,
             "channel_id": 0,
@@ -77,7 +77,6 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
         }
 
     def default_storage(self, container=None):
-        # pylint: disable=arguments-differ
         if container is None:
             return {
                 "supercommish": 0,

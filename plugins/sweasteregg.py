@@ -27,7 +27,7 @@ class Plugin(BasePlugin):
         else:
             self._prepare()
 
-    def default_config(self):
+    def default_config(self, container=None):
         return {
             "version": 1,
             "mtimer_min": 60,  # in minutes per hour

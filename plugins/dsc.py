@@ -52,7 +52,7 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
         self._fill_rule_link()
         Storage().save(self)
 
-    def default_config(self):
+    def default_config(self, container=None):
         return {
             'rule_cell': "Aktuell!E2",
             'contestdoc_id': "1HH42s5DX4FbuEeJPdm8l1TK70o2_EKADNOLkhu5qRa8",

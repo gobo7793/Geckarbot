@@ -20,7 +20,7 @@ class Plugin(BasePlugin, name="TIL"):
         bot.register(self, category=DefaultCategories.MISC)
         self.can_reload = True
 
-    def default_config(self):
+    def default_config(self, container=None):
         return {
             "manager": 0
         }

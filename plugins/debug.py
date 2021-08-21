@@ -283,6 +283,7 @@ class Plugin(BasePlugin, name="Testing and debug things"):
 
     @commands.command(name="timersinfo", hidden=True)
     async def cmd_debugtimers(self, ctx):
+        # pylint: disable=protected-access
         msgs = []
         for i in range(len(self.bot.timers.jobs)):
             job = self.bot.timers.jobs[i]

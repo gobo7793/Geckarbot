@@ -40,7 +40,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
         self.teamname_dict = TeamnameDict(self)
         self.userbridge = UserBridge(self)
 
-    def default_config(self):
+    def default_config(self, container=None):
         return {
             'manager': [],
             'trusted': [],

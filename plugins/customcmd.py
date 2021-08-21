@@ -224,7 +224,7 @@ class Plugin(BasePlugin, name="Custom CMDs"):
                 and permchecks.debug_user_check(msg.author)):
             await self._process_message(msg)
 
-    def default_config(self):
+    def default_config(self, container=None):
         return {
             "cfgversion": 3,
             "prefix": "+",

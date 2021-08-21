@@ -25,7 +25,7 @@ class Plugin(BasePlugin, _Liveticker, _Predgame, _Scores, name="Sport"):
 
         self.today_timer = self.bot.timers.schedule(coro=self._today_coro, td=timers.timedict(hour=1, minute=0))
 
-    def default_config(self):
+    def default_config(self, container=None):
         return {
             'cfg_version': 4,
             'sport_chan': 0,
