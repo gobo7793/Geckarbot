@@ -13,6 +13,11 @@ from subsystems import timers
 from subsystems.timers import Job
 
 
+class LeagueNotExist(Exception):
+    """Exception if league does not exist"""
+    pass
+
+
 class LTSource(Enum):
     """Data source"""
     OPENLIGADB = "oldb"
@@ -1358,7 +1363,7 @@ class Liveticker(BaseSubsystem):
             data = await restclient.Client("https://site.api.espn.com/apis/v2/sports").request(
                 f"/soccer/{league}/standings")
             if 'children' not in data:
-                raise ValueError(f"Unable to retrieve any standings information for {league}")
+                raise LeagueNotExist(f"Unable to retrieve any standings information for {league}")
             groups = data['children']
             for group in groups:
                 entries = group['standings']['entries']
@@ -1369,7 +1374,7 @@ class Liveticker(BaseSubsystem):
             data = await restclient.Client("https://www.openligadb.de/api").request(f"/getbltable/{league}/{year}")
             table = []
             if not data:
-                raise ValueError(f"Unable to retrieve any standings information for {league}")
+                raise LeagueNotExist(f"Unable to retrieve any standings information for {league}")
             for i in range(len(data)):
                 data[i]['rank'] = i + 1
                 table.append(TableEntryOLDB(data[i]))

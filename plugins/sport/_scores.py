@@ -7,7 +7,7 @@ from discord.ext import commands
 from botutils import restclient
 from botutils.utils import add_reaction
 from data import Lang, Config
-from subsystems.liveticker import LTSource, MatchStatus, MatchOLDB, MatchBase, LeagueRegistrationESPN
+from subsystems.liveticker import LTSource, MatchStatus, MatchOLDB, MatchBase, LeagueRegistrationESPN, LeagueNotExist
 
 
 class _Scores:
@@ -108,13 +108,19 @@ class _Scores:
     async def cmd_table(self, ctx, league: str, raw_source: str = "espn"):
         try:
             league_name, tables = await self.bot.liveticker.get_standings(league, LTSource(raw_source))
+        except LeagueNotExist:
+            await ctx.send(Lang.lang(self, 'league_not_exist', league))
         except ValueError:
-            await add_reaction(ctx.message, Lang.CMDERROR)
+            await ctx.send(Lang.lang(self, 'source_not_found', ", ".join(s.value for s in LTSource)))
+            return
         else:
             embed = discord.Embed(title=Lang.lang(self, 'table_title', league_name))
             for group_name, table in tables.items():
                 table.sort(key=lambda x: x.rank)
                 tables[group_name] = [x.display() for x in table]
+            if len(tables) == 0:
+                await ctx.send(Lang.lang(self, 'table_not_exist'))
+                return
             if len(tables) == 1:
                 table = list(tables.values())[0]
                 if len(table) > 10:
