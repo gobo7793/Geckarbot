@@ -96,6 +96,7 @@
         "pred_pinguser_not_found": "User {} not found in pinglist",
         "pred_pinguser_empty": "The pinglist is empty",
         "pred_pinguser_list": "Users in pinglist: {}",
+        "pred_overview": "Overview: {}",
 
         "#2": "actually de strings",
         "kicker_title": "Kicker.de - Links - Spieltage",
@@ -219,6 +220,7 @@
         "pred_pinguser_not_found": "User {} ist nicht in der Pingliste",
         "pred_pinguser_empty": "Die Pingliste ist leer",
         "pred_pinguser_list": "Folgende User sind in der Pingliste: {}",
+        "pred_overview": "Übersicht: {}",
 
         "#2": "actually de strings",
         "kicker_title": "Kicker.de - Links - Spieltage",

@@ -87,17 +87,20 @@ class _Predgame:
 
         return len(msgs)
 
-    @cmd_predgame.group(name="sheet", aliases=["sheets"])
+    @cmd_predgame.group(name="sheet", aliases=["sheets", "overview"])
     async def cmd_predgame_sheet(self, ctx):
+        msgs = []
         if Config.get(self)["predictions_overview_sheet"]:
-            msg = "Overview: <https://docs.google.com/spreadsheets/d/{}/edit?usp=sharing>".format(
-                Config.get(self)["predictions_overview_sheet"])
-            await ctx.send(msg)
+            msgs.append(Lang.lang(self, "pred_overview",
+                                  "<https://docs.google.com/spreadsheets/d/{}/edit?usp=sharing>"
+                                  .format(Config.get(self)["predictions_overview_sheet"])))
 
         for league in Storage.get(self)["predictions"]:
-            msg = "{}: <https://docs.google.com/spreadsheets/d/{}/edit?usp=sharing>".format(
+            msgs.append("{}: <https://docs.google.com/spreadsheets/d/{}/edit?usp=sharing>".format(
                 Storage.get(self)["predictions"][league]['name'],
-                Storage.get(self)["predictions"][league]['sheet'])
+                Storage.get(self)["predictions"][league]['sheet']))
+
+        for msg in paginate(msgs):
             await ctx.send(msg)
 
     @cmd_predgame.command(name="preds", aliases=["tipps"])
@@ -303,7 +306,7 @@ class _Predgame:
             await add_reaction(ctx.message, Lang.CMDERROR)
             ctx.send(Lang.lang(self, "pred_cant_find_league", name))
 
-    @cmd_predgame_set.command(name="sheet")
+    @cmd_predgame_set.command(name="sheet", aliases=["overview"])
     async def cmd_predgame_set_sheet(self, ctx, sheet_id: str = ""):
         Config.get(self)["predictions_overview_sheet"] = sheet_id
         Config.save(self)
