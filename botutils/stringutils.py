@@ -264,7 +264,7 @@ def table(tablelist: list, header: bool = False, prefix: str = "```", suffix: st
     cellwidths = []
     for j in range(width):
         for i in range(height):
-            candidate = len(tablelist[i][j])
+            candidate = len(str(tablelist[i][j]))
             if i == 0:
                 cellwidths.append(candidate)
                 continue
@@ -285,7 +285,7 @@ def table(tablelist: list, header: bool = False, prefix: str = "```", suffix: st
         # Build table row
         row = []
         for j in range(width):
-            item = tablelist[i][j]
+            item = str(tablelist[i][j])
             item = " " + item + " " * (cellwidths[j]+1 - len(item))
             row.append(item)
         r.append("|".join(row))
