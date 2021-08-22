@@ -1,4 +1,4 @@
-import datetime
+from datetime import datetime, timedelta
 import logging
 from itertools import groupby
 from operator import itemgetter
@@ -65,7 +65,7 @@ class _Predgame:
         msgs = []
         for league in Storage.get(self)["predictions"]:
             result = await restclient.Client("http://site.api.espn.com/apis/site/v2/sports/soccer") \
-                .request(f"/{league}/scoreboard", params={'dates': datetime.datetime.today().strftime("%Y%m%d")})
+                .request(f"/{league}/scoreboard", params={'dates': datetime.today().strftime("%Y%m%d")})
 
             for m in result.get('events', []):
                 match = MatchESPN(m)
@@ -101,24 +101,27 @@ class _Predgame:
             await ctx.send(msg)
 
     @cmd_predgame.command(name="preds", aliases=["tipps"])
-    async def cmd_predgame_preds(self, ctx, team1: str, team2: str, date: str = None, time: str = None):
+    async def cmd_predgame_preds(self, ctx, team1: str = "", team2: str = "", date: str = None, time: str = None):
         kickoff = None if date is None else timeutils.parse_time_input(date, time)
         team1_dict = self.bot.liveticker.teamname_converter.get(team1)
         team2_dict = self.bot.liveticker.teamname_converter.get(team2)
-        if team1_dict is None:
+        if team1_dict is None and team2_dict is not None:
             await ctx.send(Lang.lang(self, "pred_cant_find_team", team1))
             return
-        if team2_dict is None:
+        if team1_dict is not None and team2_dict is None:
             await ctx.send(Lang.lang(self, "pred_cant_find_team", team2))
             return
 
         msg = await self._get_predictions(team1_dict, team2_dict, kickoff)
         if msg:
             await ctx.send(msg)
-        else:
+        elif team1_dict is not None and team2_dict is not None:
             await ctx.send(Lang.lang(self, "pred_cant_find_match", team1_dict.short_name, team2_dict.short_name))
+        else:
+            pass
 
-    async def _get_predictions(self, team1: TeamnameDict, team2: TeamnameDict, kickoff: datetime = None) -> str:
+    async def _get_predictions(self, team1: TeamnameDict = None, team2: TeamnameDict = None,
+                               kickoff: datetime = None) -> str:
         """Returns a list of the predictions for the first found match
 
         :param kickoff: kickoff datetime object
@@ -134,6 +137,7 @@ class _Predgame:
                                                  Storage.get(self)["predictions"][league]["prediction_range"]])
             people = [x for x in people_range[0] if x != ""]
             for row in data[1:]:
+                # parse data from sheet
                 row.extend([None] * (len(data[0]) + 1 - len(row)))
                 if kickoff is not None and \
                         (not row[0].endswith(kickoff.strftime("%d.%m.")) or
@@ -143,13 +147,25 @@ class _Predgame:
                     continue
                 pred_team1 = self.bot.liveticker.teamname_converter.get(row[2])
                 pred_team2 = self.bot.liveticker.teamname_converter.get(row[5])
-                if pred_team1 is None or pred_team2 is None or \
-                        team1.long_name != pred_team1.long_name or team2.long_name != pred_team2.long_name:
+
+                # decide what to show
+                if pred_team1 is None or pred_team2 is None:
                     continue
+                if team1 is None or team2 is None:
+                    now = datetime.now()
+                    kickoff_dt = datetime.strptime(f"{row[0][-6:]} {row[1]} {now.year}", "%d.%m. %H:%M %Y")
+                    time_diff = now - kickoff_dt
+                    if time_diff < timedelta(minutes=-30) or time_diff > timedelta(hours=2):
+                        continue
+
+                elif team1.long_name != pred_team1.long_name or team2.long_name != pred_team2.long_name:
+                    continue
+
+                # put match into string
                 preds = ["{} {}:{}".format(people[x], row[6 + x * 2] if row[6 + x * 2] else "-",
                                            row[7 + x * 2] if row[7 + x * 2] else "-")
                          for x in range(len(people))]
-                return "{} - {} // {}".format(team1.short_name, team2.short_name, " / ".join(preds))
+                match_msg += "{} - {} // {}\n".format(pred_team1.short_name, pred_team2.short_name, " / ".join(preds))
 
         return match_msg
 
