@@ -10,7 +10,6 @@ from botutils import restclient
 from botutils.converters import get_plugin_by_name
 from data import Storage, Lang, Config
 from subsystems import timers
-from subsystems.timers import Job
 
 
 class LeagueNotExist(Exception):
@@ -949,10 +948,6 @@ class LeagueRegistrationBase(ABC):
             return min(kickoffs)
         return None
 
-    async def update_kickoff_coros(self, job: Job):
-        for coro_reg in self.registrations:
-            await coro_reg.update_kickoff(job.data['start'], job.data['matches'])
-
     async def update_periodic_coros(self, kickoffs: List[datetime.datetime]):
         """
         Regularly updates coros and checks if matches are still running.
@@ -966,6 +961,8 @@ class LeagueRegistrationBase(ABC):
         await self.update_matches()
         for kickoff in kickoffs[:]:
             if kickoff == now:
+                for coro_reg in self.registrations:
+                    await coro_reg.update_kickoff(kickoff, self.kickoffs[kickoff])
                 kickoffs.remove(kickoff)
             elif datetime.datetime.now() - kickoff > datetime.timedelta(hours=3.5):
                 matches_ = self.kickoffs.pop(kickoff)
@@ -1333,6 +1330,7 @@ class Liveticker(BaseSubsystem):
         for k, v in list(update_minutes.items()):
             if not v:
                 update_minutes.pop(k)
+        self.logger.debug(f"Minutes: {list(update_minutes.keys())}")
         if not update_minutes:
             return
         self.match_timer = self.bot.timers.schedule(coro=self._update_league_registrations,
@@ -1345,7 +1343,7 @@ class Liveticker(BaseSubsystem):
     async def _update_league_registrations(job):
         l_regs = job.data[datetime.datetime.now().minute]
         for l_reg, kickoffs in l_regs.items():
-            l_reg.update_periodic_coros(kickoffs[:])
+            await l_reg.update_periodic_coros(kickoffs[:])
 
     @staticmethod
     async def get_standings(league: str, source: LTSource) -> Tuple[str, Dict[str, List[TableEntryBase]]]:
