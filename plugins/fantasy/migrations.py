@@ -11,6 +11,7 @@ def migrate(plugin):
     Migrates the config versions of the fantasy plugin
 
     :param plugin: The class:`plugins.fantasy.fantasy.Plugin` instance
+    :type plugin: Plugin
     """
     if Config.get(plugin)["version"] == 2:
         _2_to_3(plugin)

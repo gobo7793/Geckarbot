@@ -121,11 +121,10 @@ class Plugin(BasePlugin):
 
     def _prepare(self):
         """Prepares the easteregg"""
-        start_date = date(year=date.today().year, month=5, day=3)
-        otd = timedict(year=start_date.year, month=start_date.month, monthday=start_date.day,
-                       hour=23, minute=0)
+        otd = timedict(month=5, monthday=3, hour=23, minute=0)
         self.orga_timer = self.bot.timers.schedule(self._start, otd, repeat=False)
         Config.get(self)["last_meme_index"] = -1
+        Config.save(self)
 
     async def _start(self, _job=None):
         """Starts the easteregg"""

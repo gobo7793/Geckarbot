@@ -108,7 +108,7 @@ class Plugin(BasePlugin, name="Bot status commands for monitoring and debug purp
                                 if_empty="None"):
                 await ctx.send(msg)
 
-    async def _dump(self, ctx, iodir, iodir_str, name, container=None):
+    async def _dump(self, ctx, iodir, name, container=None):
         plugin = converters.get_plugin_by_name(name)
         if plugin is None:
             if name == "ignoring":
@@ -168,12 +168,12 @@ class Plugin(BasePlugin, name="Bot status commands for monitoring and debug purp
     @commands.command(name="storagedump", help="Dumps plugin storage", usage="<plugin name> [container]")
     @commands.has_any_role(Config().BOT_ADMIN_ROLE_ID)
     async def cmd_storagedump(self, ctx, name, container=None):
-        await self._dump(ctx, Storage, "storage", name, container=container)
+        await self._dump(ctx, Storage, name, container=container)
 
     @commands.command(name="configdump", help="Dumps plugin config", usage="<plugin name> [container]")
     @commands.has_any_role(Config().BOT_ADMIN_ROLE_ID)
     async def cmd_configdump(self, ctx, name, container=None):
-        await self._dump(ctx, Config, "config", name, container=container)
+        await self._dump(ctx, Config, name, container=container)
 
     @commands.command(name="date", help="Current date and time")
     async def cmd_date(self, ctx):
