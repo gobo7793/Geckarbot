@@ -112,7 +112,7 @@ class PresenceMessage:
         """
         pass
 
-    def serialize(self):
+    def serialize(self) -> dict:
         """
         :return: A dict with the keys id, message, priority
         """
@@ -129,8 +129,11 @@ class PresenceMessage:
         Constructs a PressenceMessage object from a dict.
 
         :param bot: The bot reference
+        :type bot: Geckarbot.Geckarbot
         :param d: dict made by serialize()
+        :type d: dict
         :return: PressenceMessage object
+        :rtype: PresenceMessage
         """
         activity = "playing"
         if "activity" in d:
@@ -183,7 +186,7 @@ class Presence(BaseSubsystem):
     def is_timer_up(self):
         return self._timer_job is not None and not self._timer_job.cancelled
 
-    def get_new_id(self):
+    def get_new_id(self) -> int:
         """
         Acquires a new presence message id
 
@@ -191,7 +194,7 @@ class Presence(BaseSubsystem):
         """
         return max(self.messages) + 1
 
-    def get_next_id(self, start_id: int, priority: PresencePriority = None):
+    def get_next_id(self, start_id: int, priority: PresencePriority = None) -> int:
         """
         Returns the next existing unique presence message ID starting on the given id.
         If the given ID is the last existing ID, the first ID will be returned.
@@ -213,7 +216,7 @@ class Presence(BaseSubsystem):
             if current_id > self.highest_id:
                 current_id = -1
 
-    def get_ran_id(self, excluded_id: int, priority: PresencePriority = None):
+    def get_ran_id(self, excluded_id: int, priority: PresencePriority = None) -> int:
         """
         Returns a random existing unique presence message ID, excluding the excluded_id
         If the given ID is the last existing ID, the first ID will be returned.
@@ -267,15 +270,15 @@ class Presence(BaseSubsystem):
         Config.save(self)
         Storage.save(self)
 
-    def register(self, message,
-                 activity: str = "playing", priority: PresencePriority = PresencePriority.DEFAULT):
+    def register(self, message: str, activity: str = "playing",
+                 priority: PresencePriority = PresencePriority.DEFAULT) -> PresenceMessage:
         """
         Registers the given message to the given priority.
         Priority LOW is for customized messages which are unrelated from plugins or other bot functions.
         Priority DEFAULT is for messages provided by plugins e.g. displaying a current status.
         Priority HIGH is for special messages, which will be displayed instantly and only if some are registered.
 
-        :param message: The message
+        :param message: The message content
         :param activity: The activity type as a string (such as `"playing"`, "`listening`" etc)
         :param priority: The priority
         :return: The PresenceMessage dataset object of the new registered presence message
@@ -284,7 +287,7 @@ class Presence(BaseSubsystem):
         self.register_msg(presence)
         return presence
 
-    def register_msg(self, presence_msg):
+    def register_msg(self, presence_msg: PresenceMessage):
         """
         Registers the given PresenceMessage object as a presence.
 
@@ -300,7 +303,7 @@ class Presence(BaseSubsystem):
         if presence_msg.priority == PresencePriority.HIGH:
             self.execute_change()
 
-    def deregister_id(self, message_id: int):
+    def deregister_id(self, message_id: int) -> bool:
         """
         Deregisters the presence message with the given id and updates the displayed message if
         priority of the removed message was HIGH.
@@ -312,7 +315,7 @@ class Presence(BaseSubsystem):
             return False
         return self.deregister(self.messages[message_id])
 
-    def deregister(self, dataset: PresenceMessage):
+    def deregister(self, dataset: PresenceMessage) -> bool:
         """
         Deregisters the given PresenceMessage dataset and updates the displayed message if
         priority of the removed message was HIGH.

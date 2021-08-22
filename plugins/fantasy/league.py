@@ -32,7 +32,7 @@ class FantasyLeague(ABC):
         self.commish = None  # type: Optional[discord.User]
 
     @classmethod
-    async def create(cls, plugin, league_id: int, commish: discord.User = None, init=False):
+    async def create(cls, plugin, league_id: int, commish: discord.User = None):
         """
         Creates a new FantasyLeague dataset instance
 
@@ -178,7 +178,7 @@ class FantasyLeague(ABC):
         }
 
 
-async def create_league(plugin, platform: Platform, league_id: int, commish: discord.User = None, init=False)\
+async def create_league(plugin, platform: Platform, league_id: int, commish: discord.User = None)\
         -> FantasyLeague:
     """
     Creates a FantasyLeague object based on the given platform
@@ -191,9 +191,9 @@ async def create_league(plugin, platform: Platform, league_id: int, commish: dis
     :return: The created FantasyLeague object for the given platform
     """
     if platform == Platform.ESPN:
-        return await EspnLeague.create(plugin, league_id, commish, init)
+        return await EspnLeague.create(plugin, league_id, commish)
     if platform == Platform.SLEEPER:
-        return await SleeperLeague.create(plugin, league_id, commish, init)
+        return await SleeperLeague.create(plugin, league_id, commish)
 
 
 async def deserialize_league(plugin, d: dict) -> FantasyLeague:
@@ -205,7 +205,7 @@ async def deserialize_league(plugin, d: dict) -> FantasyLeague:
     :param d: dict made by FantasyLeague.serialize()
     :return: FantasyLeague object
     """
-    return await create_league(plugin, d["platform"], d['league_id'], get_best_user(d['commish']), init=True)
+    return await create_league(plugin, d["platform"], d['league_id'], get_best_user(d['commish']))
 
 
 class EspnLeague(FantasyLeague):

@@ -6,6 +6,7 @@ def migrate_0_to_1(plugin):
     Migrates the storage from version 0 to 1
 
     :param plugin: Plugin reference
+    :type plugin: Plugin
     """
     structure = Storage.get(plugin)
     for uid in structure["ladder"]:
@@ -23,7 +24,9 @@ def migration(plugin, logger):
     Does all necessary storage migrations
 
     :param plugin: Plugin reference
+    :type plugin: Plugin
     :param logger: logger reference
+    :type logger: Logger
     """
     migrations = {
         0: migrate_0_to_1

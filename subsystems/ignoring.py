@@ -98,6 +98,9 @@ class IgnoreDataset:
         :param until: The datetime on which the ignoring entry will be auto-removed. Possible for all types.
         :param job: The timer subsystem job for auto-remove
         :param ignoring_instance: The instance of the ignoring subsystem. Only necessary for to_message().
+        :type ignoring_instance: Ignoring
+
+        :raises ValueError: If ignore_type and given parameter don't fit
         """
         if (ignore_type == IgnoreType.USER
                 and (user is None
@@ -149,7 +152,7 @@ class IgnoreDataset:
         return "<ignoring.IgnoreDataset; {}, user: {}, command: {}, channel: {}, until: {}>".format(
             str(IgnoreType(self.ignore_type)), self.user, self.command_name, self.channel, self.until)
 
-    def serialize(self):
+    def serialize(self) -> dict:
         """
         Serializes the dataset to a dict
 
@@ -176,16 +179,20 @@ class IgnoreDataset:
         Constructs a IgnoreDataset object from a dict.
 
         :param bot: Geckarbot reference
+        :type bot: Geckarbot.Geckarbot
         :param d: dict made by serialize()
+        :type d: dict
         :param ignoring_instance: The ignoring subsystem instance, only necessary for to_message()
+        :type ignoring_instance: Ignoring
         :return: IgnoreDataset object
+        :rtype: IgnoreDataset
         """
         user = get_best_user(d["userid"])
         channel = bot.get_channel(d["channelid"])
         return IgnoreDataset(d["type"], user, d["command_name"], channel, d["until"],
                              ignoring_instance=ignoring_instance)
 
-    def to_message(self):
+    def to_message(self) -> str:
         """
         Builds an well formatted output message for listing the entries on ignore list.
 
@@ -309,7 +316,7 @@ class Ignoring(BaseSubsystem):
     # Adding
     #######
 
-    def add(self, dataset: IgnoreDataset, disable_save_file=False):
+    def add(self, dataset: IgnoreDataset, disable_save_file: bool = False) -> IgnoreEditResult:
         """
         Adds a IgnoreDataset to ignore list and schedules necessary timers for auto-remove
 
@@ -337,7 +344,7 @@ class Ignoring(BaseSubsystem):
         self.log.info("Added to ignore list: %s", dataset)
         return IgnoreEditResult.SUCCESS
 
-    def add_user(self, user: discord.User, until: datetime = datetime.max):
+    def add_user(self, user: discord.User, until: datetime = datetime.max) -> IgnoreEditResult:
         """
         Adds the user to the ignore list to block all interactions between the user with the bot.
 
@@ -348,7 +355,7 @@ class Ignoring(BaseSubsystem):
         dataset = IgnoreDataset(IgnoreType.USER, user=user, until=until, ignoring_instance=self)
         return self.add(dataset)
 
-    def add_user_id(self, user_id: int, until: datetime = datetime.max):
+    def add_user_id(self, user_id: int, until: datetime = datetime.max) -> IgnoreEditResult:
         """
         Adds the user to the ignore list to block all interactions between the user with the bot.
 
@@ -359,7 +366,8 @@ class Ignoring(BaseSubsystem):
         user = self.bot.get_user(user_id)
         return self.add_user(user, until)
 
-    def add_command(self, command_name: str, channel: discord.TextChannel, until: datetime = datetime.max):
+    def add_command(self, command_name: str, channel: discord.TextChannel,
+                    until: datetime = datetime.max) -> IgnoreEditResult:
         """
         Adds the command in the ignore list to disable the command in the specific channel.
 
@@ -372,7 +380,7 @@ class Ignoring(BaseSubsystem):
                                 channel=channel, until=until, ignoring_instance=self)
         return self.add(dataset)
 
-    def add_command_id(self, command_name: str, channel_id: int, until: datetime = datetime.max):
+    def add_command_id(self, command_name: str, channel_id: int, until: datetime = datetime.max) -> IgnoreEditResult:
         """
         Adds the command in the ignore list to disable the command in the specific channel.
 
@@ -384,7 +392,7 @@ class Ignoring(BaseSubsystem):
         channel = self.bot.get_channel(channel_id)
         return self.add_command(command_name, channel, until)
 
-    def add_passive(self, user: discord.User, command_name: str, until: datetime = datetime.max):
+    def add_passive(self, user: discord.User, command_name: str, until: datetime = datetime.max) -> IgnoreEditResult:
         """
         Adds a active and passive usage block for the user for the command to ignore list
         to block any interactions of the user with the specific command.
@@ -399,7 +407,7 @@ class Ignoring(BaseSubsystem):
                                 command_name=command_name, until=until, ignoring_instance=self)
         return self.add(dataset)
 
-    def add_passive_uid(self, user_id: int, command_name: str, until: datetime = datetime.max):
+    def add_passive_uid(self, user_id: int, command_name: str, until: datetime = datetime.max) -> IgnoreEditResult:
         """
         Adds a active and passive usage block for the user for the command to ignore list
         to block any interactions of the user with the specific command.
@@ -413,7 +421,7 @@ class Ignoring(BaseSubsystem):
         user = self.bot.get_user(user_id)
         return self.add_passive(user, command_name, until)
 
-    def add_active(self, user: discord.User, command_name: str, until: datetime = datetime.max):
+    def add_active(self, user: discord.User, command_name: str, until: datetime = datetime.max) -> IgnoreEditResult:
         """
         Adds a active usage block for the user for the command to ignore list
         to block the usage of the command for the specific user.
@@ -427,7 +435,7 @@ class Ignoring(BaseSubsystem):
                                 command_name=command_name, until=until, ignoring_instance=self)
         return self.add(dataset)
 
-    def add_active_uid(self, user_id: int, command_name: str, until: datetime = datetime.max):
+    def add_active_uid(self, user_id: int, command_name: str, until: datetime = datetime.max) -> IgnoreEditResult:
         """
         Adds a active usage block for the user for the command to ignore list
         to block the usage of the command for the specific user.
@@ -444,7 +452,7 @@ class Ignoring(BaseSubsystem):
     # Removing
     #######
 
-    def remove(self, dataset: IgnoreDataset):
+    def remove(self, dataset: IgnoreDataset) -> IgnoreEditResult:
         """
         Removes a IgnoreDataset from ignore list and removes it's scheduled timer
 
@@ -474,7 +482,7 @@ class Ignoring(BaseSubsystem):
         msg = "Attempt auto-removing {}, Result: {}".format(job.data, str(remove_result))
         await utils.write_mod_channel(msg)
 
-    def remove_user(self, user: discord.User):
+    def remove_user(self, user: discord.User) -> IgnoreEditResult:
         """
         Removes the user from the ignore list and re-enables all interactions between the user with the bot.
 
@@ -484,7 +492,7 @@ class Ignoring(BaseSubsystem):
         dataset = IgnoreDataset(IgnoreType.USER, user=user)
         return self.remove(dataset)
 
-    def remove_user_id(self, user_id: int):
+    def remove_user_id(self, user_id: int) -> IgnoreEditResult:
         """
         Removes the user from the ignore list and re-enables all interactions between the user with the bot.
 
@@ -494,7 +502,7 @@ class Ignoring(BaseSubsystem):
         user = self.bot.get_user(user_id)
         return self.remove_user(user)
 
-    def remove_command(self, command_name: str, channel: discord.TextChannel):
+    def remove_command(self, command_name: str, channel: discord.TextChannel) -> IgnoreEditResult:
         """
         Removes the command from the ignore list to re-enable the command in the specific channel.
 
@@ -505,7 +513,7 @@ class Ignoring(BaseSubsystem):
         dataset = IgnoreDataset(IgnoreType.COMMAND, command_name=command_name, channel=channel)
         return self.remove(dataset)
 
-    def remove_command_id(self, command_name: str, channel_id: int):
+    def remove_command_id(self, command_name: str, channel_id: int) -> IgnoreEditResult:
         """
         Removes the command from the ignore list to re-enable the command in the specific channel.
 
@@ -516,7 +524,7 @@ class Ignoring(BaseSubsystem):
         channel = self.bot.get_channel(channel_id)
         return self.remove_command(command_name, channel)
 
-    def remove_passive(self, user: discord.User, command_name: str):
+    def remove_passive(self, user: discord.User, command_name: str) -> IgnoreEditResult:
         """
         Removes the active and passive usage block for the user for the command from ignore list to re-enable any
         interactions of the user with the specific command.
@@ -529,7 +537,7 @@ class Ignoring(BaseSubsystem):
         dataset = IgnoreDataset(IgnoreType.PASSIVE_USAGE, user=user, command_name=command_name)
         return self.remove(dataset)
 
-    def remove_passive_uid(self, user_id: int, command_name: str):
+    def remove_passive_uid(self, user_id: int, command_name: str) -> IgnoreEditResult:
         """
         Removes the active and passive usage block for the user for the command from ignore list to re-enable any
         interactions of the user with the specific command.
@@ -542,7 +550,7 @@ class Ignoring(BaseSubsystem):
         user = self.bot.get_user(user_id)
         return self.remove_passive(user, command_name)
 
-    def remove_active(self, user: discord.User, command_name: str):
+    def remove_active(self, user: discord.User, command_name: str) -> IgnoreEditResult:
         """
         Removes the active usage block for the user for the command from ignore list to re-enable any
         interactions of the user with the specific command.
@@ -554,7 +562,7 @@ class Ignoring(BaseSubsystem):
         dataset = IgnoreDataset(IgnoreType.ACTIVE_USAGE, user=user, command_name=command_name)
         return self.remove(dataset)
 
-    def remove_active_uid(self, user_id: int, command_name: str):
+    def remove_active_uid(self, user_id: int, command_name: str) -> IgnoreEditResult:
         """
         Removes the active usage block for the user for the command from ignore list to re-enable any
         interactions of the user with the specific command.
@@ -580,7 +588,7 @@ class Ignoring(BaseSubsystem):
         """The user id check function"""
         return user.id
 
-    def _check_user(self, user_to_check, user_check_func):
+    def _check_user(self, user_to_check, user_check_func) -> bool:
         """
         Performs the check if all bot interaction with user should be blocked.
 
@@ -594,7 +602,7 @@ class Ignoring(BaseSubsystem):
                 return True
         return False
 
-    def check_user_id(self, user_id: int):
+    def check_user_id(self, user_id: int) -> bool:
         """
         Checks if all bot interaction with user should be blocked
 
@@ -603,7 +611,7 @@ class Ignoring(BaseSubsystem):
         """
         return self._check_user(user_id, self._user_id_check_func)
 
-    def check_user_name(self, user_name: str):
+    def check_user_name(self, user_name: str) -> bool:
         """
         Checks if all bot interaction with user should be blocked
 
@@ -612,7 +620,7 @@ class Ignoring(BaseSubsystem):
         """
         return self._check_user(user_name, self._user_name_check_func)
 
-    def check_user(self, user: discord.User):
+    def check_user(self, user: discord.User) -> bool:
         """
         Checks if all bot interaction with user should be blocked
 
@@ -621,7 +629,7 @@ class Ignoring(BaseSubsystem):
         """
         return self.check_user_id(user.id)
 
-    def check_command_name(self, command_name: str, channel: discord.TextChannel):
+    def check_command_name(self, command_name: str, channel: discord.TextChannel) -> bool:
         """
         Checks if the command is on the ignore list for the channel
 
@@ -635,7 +643,7 @@ class Ignoring(BaseSubsystem):
                 return True
         return False
 
-    def check_command(self, ctx: commands.Context):
+    def check_command(self, ctx: commands.Context) -> bool:
         """
         Checks if the context is invoked by a command which is on the ignore list
         for the channel in which the command was called.
@@ -646,7 +654,7 @@ class Ignoring(BaseSubsystem):
         cmd_name = ctx.command.qualified_name
         return self.check_command_name(cmd_name, ctx.channel)
 
-    def _check_passive_usage(self, user_to_check, user_check_func, command_name: str):
+    def _check_passive_usage(self, user_to_check, user_check_func, command_name: str) -> bool:
         """
         Performs the check if a command is active and passive blocked for the specific user.
 
@@ -663,7 +671,7 @@ class Ignoring(BaseSubsystem):
                 return True
         return False
 
-    def check_passive_usage_uid(self, user_id: int, command_name: str):
+    def check_passive_usage_uid(self, user_id: int, command_name: str) -> bool:
         """
         Checks if a command is active and passive blocked for the specific user id.
 
@@ -674,7 +682,7 @@ class Ignoring(BaseSubsystem):
 
         return self._check_passive_usage(user_id, self._user_id_check_func, command_name)
 
-    def check_passive_usage_uname(self, user_name: str, command_name: str):
+    def check_passive_usage_uname(self, user_name: str, command_name: str) -> bool:
         """
         Checks if a command is active and passive blocked for the specific user name.
 
@@ -685,7 +693,7 @@ class Ignoring(BaseSubsystem):
 
         return self._check_passive_usage(user_name, self._user_name_check_func, command_name)
 
-    def check_passive_usage(self, user: discord.User, command_name: str):
+    def check_passive_usage(self, user: discord.User, command_name: str) -> bool:
         """
         Checks if a command is active and passive blocked for the specific user.
 
@@ -695,7 +703,7 @@ class Ignoring(BaseSubsystem):
         """
         return self.check_passive_usage_uid(user.id, command_name)
 
-    def _check_active_usage(self, user_to_check, user_check_func, command_name: str):
+    def _check_active_usage(self, user_to_check, user_check_func, command_name: str) -> bool:
         """
         Performs the check if a active command usage is blocked for the specific user.
 
@@ -712,7 +720,7 @@ class Ignoring(BaseSubsystem):
                 return True
         return False
 
-    def check_active_usage_uid(self, user_id: int, command_name: str):
+    def check_active_usage_uid(self, user_id: int, command_name: str) -> bool:
         """
         Checks if a active command usage is blocked for the specific user id.
 
@@ -723,7 +731,7 @@ class Ignoring(BaseSubsystem):
 
         return self._check_active_usage(user_id, self._user_id_check_func, command_name)
 
-    def check_active_usage_uname(self, user_name: str, command_name: str):
+    def check_active_usage_uname(self, user_name: str, command_name: str) -> bool:
         """
         Checks if a active command usage is blocked for the specific user name.
 
@@ -734,7 +742,7 @@ class Ignoring(BaseSubsystem):
 
         return self._check_active_usage(user_name, self._user_name_check_func, command_name)
 
-    def check_active_usage(self, user: discord.User, command_name: str):
+    def check_active_usage(self, user: discord.User, command_name: str) -> bool:
         """
         Checks if a active command usage is blocked for the specific user.
 

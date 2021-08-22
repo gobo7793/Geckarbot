@@ -486,7 +486,7 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
                 await ctx.send(embed=embed)
 
             except (IndexError, ValueError):
-                await ctx.send(Lang.lang(self, "api_error", self.leagues[k].name))
+                await ctx.send(Lang.lang(self, "api_error", el.name))
 
     @cmd_fantasy.command(name="info")
     async def cmd_info(self, ctx, league_name=None):

@@ -4,7 +4,7 @@
         "mod_role_id": "The role id for the fantasymaster role must be a valid role id on this server.",
         "key_not_exists": "A key `{}` doesn't exists.",
         "info_date_str": " until {}",
-        "until_strf": "%Y-%m-%d, %-I:%M %p",
+        "until_strf": "%x %X",
         "supercommish": "Organiser",
         "commish": "League Commissioner",
         "invalid_phase": "Invalid state.",
