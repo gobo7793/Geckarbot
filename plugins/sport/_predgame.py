@@ -24,9 +24,19 @@ class _Predgame:
         self.bot = bot
 
     @commands.group(name="predgame", aliases=["tippspiel"], invoke_without_command=True)
-    async def cmd_predgame(self, ctx):
-        if ctx.invoked_subcommand is None:
-            await ctx.invoke(self.bot.get_command("predgame points"))
+    async def cmd_predgame(self, ctx, *args):
+        if len(args) >= 2:
+            team1_dict = self.bot.liveticker.teamname_converter.get(args[0])
+            team2_dict = self.bot.liveticker.teamname_converter.get(args[1])
+            if team1_dict is not None and team2_dict is not None:
+                date = args[2] if len(args) >= 3 else None
+                time = args[3] if len(args) >= 4 else None
+
+                await ctx.invoke(self.bot.get_command("predgame preds"),
+                                 team1_dict.long_name, team2_dict.long_name, date, time)
+                return
+
+        await ctx.invoke(self.bot.get_command("predgame points"), *args)
 
     @cmd_predgame.command(name="today", aliases=["heute"])
     async def cmd_predgame_today(self, ctx):
