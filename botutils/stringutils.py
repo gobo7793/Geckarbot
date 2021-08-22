@@ -74,7 +74,7 @@ def format_number(n: typing.Union[Number, int, float], decplaces: int = 2, split
 
 def paginate(items: list, prefix: str = "", suffix: str = "", msg_prefix: str = "", msg_suffix: str = "",
              delimiter: str = "\n", f: typing.Callable = lambda x: x,
-             if_empty: typing.Any = None, prefix_within_msg_prefix: bool = True) -> str:
+             if_empty: typing.Any = None, prefix_within_msg_prefix: bool = True, threshold: int = 1900) -> str:
     """
     Generator for pagination. Compiles the entries in `items` into strings that are shorter than 2000 (discord max
     message length). If a single item is longer than 2000, it is put into its own message.
@@ -87,15 +87,15 @@ def paginate(items: list, prefix: str = "", suffix: str = "", msg_prefix: str = 
     :param delimiter: Delimiter for the list entries.
     :param f: function that is invoked on every `items` entry.
     :param prefix_within_msg_prefix: If this is True, `msg_prefix` comes before `prefix` in the first message.
-    If not, `prefix` comes before `msg_prefix` in the first message.
+        If not, `prefix` comes before `msg_prefix` in the first message.
     :param if_empty: If the list of items is empty, this one is inserted as the only item. Caution: f is executed
-    on this.
+        on this.
+    :param threshold: Threshold to split messages. Useful for embed field values which have a max. length of 1024.
     :return: The paginated string to send in discord messages
     :raises RuntimeError: If `items` is a string
     """
     if isinstance(items, str):
         raise RuntimeError("Pagination does not work on strings")
-    threshold = 1900
     current_msg = []
     remaining = None
     first = True
