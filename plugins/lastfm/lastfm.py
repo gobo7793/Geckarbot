@@ -71,6 +71,7 @@ class Plugin(BasePlugin, name="LastFM"):
             "min_title": [float, 0.5],
             "mi_enable_downgrade": [bool, True],
             "mi_downgrade": [float, 1.5],
+            "mi_nowplaying_bonus": [bool, True],
             "quote_p": [float, 0.5],
             "max_quote_length": [int, 100],
             "quote_restrict_del": [bool, True],
@@ -990,34 +991,61 @@ class Plugin(BasePlugin, name="LastFM"):
             "titles": {},
         }
         i = 0
+        nowplaying = None
         for song in songs:
-            if song["artist"] in r["artists"]:
-                r["artists"][song["artist"]]["count"] += 1
-            elif i < min_artist:
-                r["artists"][song["artist"]] = {
+            if song.nowplaying:
+                nowplaying = song
+
+            if song.artist in r["artists"]:
+                r["artists"][song.artist]["count"] += 1
+                r["artists"][song.artist]["score"] += 1
+            # elif i < min_artist:
+            else:
+                r["artists"][song.artist] = {
                     "count": 1,
+                    "score": 1,
                     "distance": i,
                     "song": song
                 }
 
-            if (song["artist"], song["album"]) in r["albums"]:
-                r["albums"][song["artist"], song["album"]]["count"] += 1
-            elif i < min_album:
-                r["albums"][song["artist"], song["album"]] = {
+            if (song.artist, song.album) in r["albums"]:
+                r["albums"][song.artist, song.album]["count"] += 1
+                r["albums"][song.artist, song.album]["score"] += 1
+            # elif i < min_album:
+            else:
+                r["albums"][song.artist, song.album] = {
                     "count": 1,
+                    "score": 1,
                     "distance": i,
                     "song": song
                 }
 
-            if (song["artist"], song["title"]) in r["titles"]:
-                r["titles"][song["artist"], song["title"]]["count"] += 1
-            elif i < min_title:
-                r["titles"][song["artist"], song["title"]] = {
+            if (song.artist, song.title) in r["titles"]:
+                r["titles"][song.artist, song.title]["count"] += 1
+                r["titles"][song.artist, song.title]["score"] += 1
+            # elif i < min_title:
+            else:
+                r["titles"][song.artist, song.title] = {
                     "count": 1,
+                    "score": 1,
                     "distance": i,
                     "song": song
                 }
             i += 1
+
+        # Bonus for nowplaying
+        if nowplaying and self.get_config("mi_nowplaying_bonus"):
+            artist = r["artists"][nowplaying.artist]
+            if artist["count"] >= self.get_config("min_artist") * len(songs):
+                artist["score"] *= 2
+            album = r["albums"][nowplaying.artist, nowplaying.album]
+            if album["count"] >= self.get_config("min_album") * len(songs):
+                album["score"] *= 2
+            title = r["titles"][nowplaying.artist, nowplaying.title]
+            if title["count"] >= self.get_config("min_title") * len(songs):
+                title["score"] *= 2
+
+        self.logger.debug("scores: %s", r)
 
         # Tie-breakers
         self.tiebreaker(r["artists"], songs, Layer.ARTIST)
@@ -1044,13 +1072,13 @@ class Plugin(BasePlugin, name="LastFM"):
 
         # Calc counts
         scores = self.calc_scores(songs[:pagelen], min_artist, min_album, min_title)
-        best_artist = sorted(scores["artists"].keys(), key=lambda x: scores["artists"][x]["count"], reverse=True)[0]
+        best_artist = sorted(scores["artists"].keys(), key=lambda x: scores["artists"][x]["score"], reverse=True)[0]
         best_artist_count = scores["artists"][best_artist]["count"]
         best_artist = scores["artists"][best_artist]["song"]
-        best_album = sorted(scores["albums"].keys(), key=lambda x: scores["albums"][x]["count"], reverse=True)[0]
+        best_album = sorted(scores["albums"].keys(), key=lambda x: scores["albums"][x]["score"], reverse=True)[0]
         best_album_count = scores["albums"][best_album]["count"]
         best_album = scores["albums"][best_album]["song"]
-        best_title = sorted(scores["titles"].keys(), key=lambda x: scores["titles"][x]["count"], reverse=True)[0]
+        best_title = sorted(scores["titles"].keys(), key=lambda x: scores["titles"][x]["score"], reverse=True)[0]
         best_title_count = scores["titles"][best_title]["count"]
         best_title = scores["titles"][best_title]["song"]
 
