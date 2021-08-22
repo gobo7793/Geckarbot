@@ -358,8 +358,8 @@ class TableEntryOLDB(TableEntryBase):
         self.points = data['Points']
 
 
-class MatchStubBase:
-    """Base class of a match stub with minimal info"""
+class MatchBase(ABC):
+    """Abstract base class of a match with additional info"""
 
     match_id: str
     kickoff: datetime.datetime
@@ -367,41 +367,44 @@ class MatchStubBase:
     away_team: TeamnameDict
     home_team_id: str
     away_team_id: str
-
-    def display(self):
-        return f"{self.home_team.emoji} {self.home_team.long_name} - {self.away_team.emoji} {self.away_team.long_name}"
-
-    def to_storage(self):
-        """Transforms the data for the storage"""
-        return {"teams": {self.home_team_id: self.home_team.long_name, self.away_team_id: self.away_team.long_name},
-                "match_id": self.match_id}
-
-class MatchStubStorage(MatchStubBase):
-    """
-    MatchStub generated from stored data
-
-    :param kickoff: kickoff of the match
-    :param m: dict with the remaining data
-    """
-
-    def __init__(self, kickoff: datetime.datetime, m: dict):
-        (home_team_id, home_team), (away_team_id, away_team) = m.get("teams", m).items()
-        self.kickoff = kickoff
-        self.home_team = Config().bot.liveticker.teamname_converter.get(home_team, add_if_nonexist=True)
-        self.away_team = Config().bot.liveticker.teamname_converter.get(away_team, add_if_nonexist=True)
-        self.home_team_id = home_team_id
-        self.away_team_id = away_team_id
-
-
-class MatchBase(MatchStubBase, ABC):
-    """Abstract base class of a match with additional info"""
-
     minute: str
     status: MatchStatus
     raw_events: list
     new_events: list
     venue: Tuple[str, str]
     score: Dict[str, int]
+    matchday: int
+
+    @classmethod
+    def from_storage(cls, m: dict):
+        cls.match_id = m['match_id']
+        cls.kickoff = datetime.datetime.fromisoformat(m['kickoff'])
+        cls.home_team_id, cls.away_team_id = m['teams']
+        cls.home_team = Config.bot.liveticker.teamname_converter.get(m['teams'][cls.home_team_id])
+        cls.away_team = Config.bot.liveticker.teamname_converter.get(m['teams'][cls.away_team_id])
+        cls.minute = m['minute']
+        cls.status = MatchStatus[m['status']]
+        cls.raw_events = []
+        cls.new_events = []
+        cls.venue = m['venue']
+        cls.score = m['score']
+        cls.matchday = m['matchday']
+        return cls
+
+    def to_storage(self):
+        return {
+            'match_id': self.match_id,
+            'teams': {
+                self.home_team_id: self.home_team.long_name,
+                self.away_team_id: self.away_team.long_name
+            },
+            'kickoff': self.kickoff.isoformat(),
+            'minute': self.minute,
+            'status': self.status.name,
+            'venue': self.venue,
+            'score': self.score,
+            'matchday': self.matchday
+        }
 
     @abstractmethod
     def transform_events(self, last_events: list):
@@ -466,6 +469,7 @@ class MatchESPN(MatchBase):
         self.venue = (competition.get('venue', {}).get('fullName'),
                       competition.get('venue', {}).get('address', {}).get('city'))
         self.status = MatchStatus.get(m, LTSource.ESPN)
+        self.matchday = -1
 
     def transform_events(self, last_events: list):
         events = []
@@ -485,8 +489,6 @@ class MatchOLDB(MatchBase):
 
     :param m: raw data from the request
     """
-
-    matchday: int
 
     def __init__(self, m: dict, new_events: list = None):
         if new_events is None:
@@ -798,15 +800,16 @@ class LeagueRegistrationBase(ABC):
         self.source = source
         self.registrations = []
         self.logger = logging.getLogger(__name__)
-        self.kickoffs = {}
-        self.kickoff_timers = []
-        self.intermediate_timers = []
-        self.matches = []
+        self.kickoffs: Dict[datetime.datetime, List[MatchBase]] = {}
         self.finished = []
 
     @property
     def intervals(self):
         return [c_reg.interval for c_reg in self.registrations]
+
+    @property
+    def matches(self):
+        return [i for s in self.kickoffs.values() for i in s]
 
     @classmethod
     async def create(cls, listener, league: str, source: LTSource):
@@ -822,13 +825,18 @@ class LeagueRegistrationBase(ABC):
         kickoff_data = Storage().get(listener)['registrations'][source.value][league]['kickoffs']
         for raw_kickoff, matches in kickoff_data.items():
             time_kickoff = datetime.datetime.strptime(raw_kickoff, "%Y-%m-%d %H:%M")
-            matches_ = [MatchStubStorage(time_kickoff, m) for m in matches]
+            matches_ = [cls.get_matchclass().from_storage(m) for m in matches]
             l_reg.kickoffs[time_kickoff] = matches_
         return l_reg
 
     @abstractmethod
     async def register(self, plugin, coro, interval: int, periodic: bool):
         """Builds and registers a CoroReg for this league"""
+        pass
+
+    @staticmethod
+    @abstractmethod
+    def get_matchclass():
         pass
 
     async def register_reg(self, reg: CoroRegistrationBase):
@@ -840,24 +848,14 @@ class LeagueRegistrationBase(ABC):
             if reg_storage not in league_reg['coro_regs']:
                 league_reg['coro_regs'].append(reg_storage)
                 Storage().save(self.listener)
-            for match_timer in self.intermediate_timers:
-                await reg.update_kickoff(match_timer.data['start'], match_timer.data['matches'])
         return reg
 
     def deregister(self):
         """Deregisters this LeagueReg correctly"""
-        for job in self.kickoff_timers:
-            job.cancel()
-        for job in self.intermediate_timers:
-            job.cancel()
         self.listener.deregister(self)
 
     def unload(self):
         """Unloads this LeagueRegistration"""
-        for job in self.kickoff_timers:
-            job.cancel()
-        for job in self.intermediate_timers:
-            job.cancel()
         self.listener.unload(self)
 
     def deregister_coro(self, coro: CoroRegistrationBase):
@@ -881,7 +879,16 @@ class LeagueRegistrationBase(ABC):
 
     async def update_matches(self):
         """Updates and returns the matches and current standings of the league"""
-        self.matches = await self.get_matches_by_date(self.league)
+        matches = await self.get_matches_by_date(self.league)
+        kickoffs = {}
+        for match in matches:
+            if match.status in [MatchStatus.COMPLETED, MatchStatus.POSTPONED]:
+                continue
+            if match.kickoff not in kickoffs:
+                kickoffs[match.kickoff] = []
+            kickoffs[match.kickoff].append(match)
+        for kickoff, matches_ in kickoffs.items():
+            self.kickoffs[kickoff] = matches_
         return self.matches
 
     @staticmethod
@@ -1025,6 +1032,10 @@ class LeagueRegistrationESPN(LeagueRegistrationBase):
         matches = [MatchESPN(x) for x in data['events']]
         return matches
 
+    @staticmethod
+    def get_matchclass():
+        return MatchESPN
+
 
 class LeagueRegistrationOLDB(LeagueRegistrationBase):
 
@@ -1094,6 +1105,10 @@ class LeagueRegistrationOLDB(LeagueRegistrationBase):
                 if md:
                     return md
         return None
+
+    @staticmethod
+    def get_matchclass():
+        return MatchOLDB
 
 
 class Liveticker(BaseSubsystem):
