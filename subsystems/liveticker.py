@@ -380,8 +380,8 @@ class MatchBase(ABC):
         cls.match_id = m['match_id']
         cls.kickoff = datetime.datetime.fromisoformat(m['kickoff'])
         cls.home_team_id, cls.away_team_id = m['teams']
-        cls.home_team = Config.bot.liveticker.teamname_converter.get(m['teams'][cls.home_team_id])
-        cls.away_team = Config.bot.liveticker.teamname_converter.get(m['teams'][cls.away_team_id])
+        cls.home_team = Config().bot.liveticker.teamname_converter.get(m['teams'][cls.home_team_id])
+        cls.away_team = Config().bot.liveticker.teamname_converter.get(m['teams'][cls.away_team_id])
         cls.minute = m['minute']
         cls.status = MatchStatus[m['status']]
         cls.raw_events = []
@@ -882,7 +882,7 @@ class LeagueRegistrationBase(ABC):
         matches = await self.get_matches_by_date(self.league)
         kickoffs = {}
         for match in matches:
-            if match.status in [MatchStatus.COMPLETED, MatchStatus.POSTPONED]:
+            if match.status == MatchStatus.POSTPONED:
                 continue
             if match.kickoff not in kickoffs:
                 kickoffs[match.kickoff] = []
@@ -1327,7 +1327,7 @@ class Liveticker(BaseSubsystem):
 
     async def build_match_timer(self):
         self.logger.debug("Updating match timer")
-        if self.match_timer:
+        if self.match_timer and not self.match_timer.cancelled:
             self.match_timer.cancel()
         update_minutes = {x: {} for x in range(61)}
         end_of_hour = (datetime.datetime.now() + datetime.timedelta(hours=1)).replace(minute=0, second=0, microsecond=0)
