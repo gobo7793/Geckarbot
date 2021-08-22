@@ -246,7 +246,7 @@ def table(tablelist: list, header: bool = False, prefix: str = "```", suffix: st
 
     :param tablelist: List of lines.
     :param header: Flag to format the first line in a way that displays it as the header line. If False, tablelist
-    is interpreted as if there was no header line.
+        is interpreted as if there was no header line.
     :param prefix: table prefix, defaults to ```
     :param suffix: table suffix, defaults to ```
     :return: Formatted
