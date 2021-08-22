@@ -96,7 +96,7 @@
 
         "Help": "",
         "help_cmd": "Erstellt und verwaltet Benutzer-Kommandos.",
-        "desc_cmd": "Fügt neue Benutzer-Kommandos hinzu, listet sie auf oder löscht sie. Benutzer-Kommandos können jederzeit bearbeitet werden. Um ein Benutzer-Kommando zu nutzen, muss die Nachricht mit dem entsprechenden Präfix beginnen, welches mithilfe von '!cmd prefix' ausgegeben oder bearbeitet werden kann.\nMehr Informationen über das hinzufügen von Benutzer-Kommandos sind mithilfe von '!help cmd add' ersichtlich.",
+        "desc_cmd": "Fügt neue Benutzer-Kommandos hinzu, listet sie auf oder löscht sie. Benutzer-Kommandos können jederzeit bearbeitet werden. Um ein Benutzer-Kommando zu nutzen, muss die Nachricht mit dem entsprechenden Präfix beginnen, welches mithilfe von '!cmd prefix' ausgegeben oder bearbeitet werden kann.\nMehr Informationen über das Hinzufügen von Benutzer-Kommandos sind mithilfe von '!help cmd add' ersichtlich.",
         "help_cmd_list_prefix": "Unterkommandos:",
         "help_custom_cmd_list_prefix": "Folgende Benutzer-Kommandos sind vorhanden:",
         "help_cmd_prefix": "Gibt das Präfix zurück oder setzt es",
