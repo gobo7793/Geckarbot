@@ -2,6 +2,7 @@ import inspect
 import re
 import random
 import logging
+from typing import Optional
 
 import discord
 from discord.ext import commands
@@ -389,7 +390,7 @@ class Plugin(BasePlugin, name="Custom CMDs"):
 
         await msg.channel.send(cmd_content)
 
-    def _find_cmd(self, name):
+    def _find_cmd(self, name) -> Optional[Cmd]:
         """
         Finds a cmd by name or alias.
 
