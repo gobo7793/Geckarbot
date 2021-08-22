@@ -336,11 +336,14 @@ class _Predgame:
             await ctx.send(Lang.lang(self, "pred_pinguser_empty"))
 
     @cmd_predgame_pinglist.command(name="add")
-    async def cmd_predgame_pinglist_add(self, ctx, user: Union[discord.User, discord.Member]):
+    async def cmd_predgame_pinglist_add(self, ctx, user: Union[discord.User, discord.Member] = None):
         if user.id in Config.get(self)["predgame"]["pinglist"]:
             await add_reaction(ctx.message, Lang.CMDERROR)
             await ctx.send(Lang.lang(self, "pred_pinguser_already", get_best_username(user)))
             return
+
+        if user is None:
+            user = ctx.author
 
         Config.get(self)["predgame"]["pinglist"].append(user.id)
         Config.save(self)
@@ -350,10 +353,7 @@ class _Predgame:
     @cmd_predgame_pinglist.command(name="del")
     async def cmd_predgame_pinglist_del(self, ctx, user: Union[discord.User, discord.Member] = None):
         if user is None:
-            Config.get(self)["predgame"]["pinglist"].clear()
-            logger.info("All users removed von predgame pinglist")
-            await add_reaction(ctx.message, Lang.CMDSUCCESS)
-            return
+            user = ctx.author
 
         if user.id in Config.get(self)["predgame"]["pinglist"]:
             Config.get(self)["predgame"]["pinglist"].remove(user.id)
