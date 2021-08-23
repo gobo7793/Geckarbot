@@ -47,8 +47,9 @@
         "help_predgame_pinglist": "Shows users in pinglist",
         "desc_predgame_pinglist": "Shows all users who are in the pinglist which are mentioned in the message containing todays matches to predict.",
         "help_predgame_pinglist_add": "Add a user to pinglist",
+        "desc_predgame_pinglist_add": "Add a user to pinglist. If no user is given, the user self will be added.",
         "help_predgame_pinglist_del": "Removes a user from pinglist",
-        "desc_predgame_pinglist_del": "Removes a user from pinglist. If no user is given, all users will be removed.",
+        "desc_predgame_pinglist_del": "Removes a user from pinglist. If no user is given, the user self will removed.",
 
         "#1": "",
         "and": "and",
@@ -96,6 +97,7 @@
         "pred_pinguser_not_found": "User {} not found in pinglist",
         "pred_pinguser_empty": "The pinglist is empty",
         "pred_pinguser_list": "Users in pinglist: {}",
+        "pred_overview": "Overview: {}",
 
         "#2": "actually de strings",
         "kicker_title": "Kicker.de - Links - Spieltage",
@@ -170,8 +172,9 @@
         "help_predgame_pinglist": "Zeigt alle User in der Pingliste an",
         "desc_predgame_pinglist": "Zeigt alle User in der Pingliste an, die bei der automatischen Nachricht der heutigen zu tippenden Spiele erwähnt bzw. gepingt werden.",
         "help_predgame_pinglist_add": "Fügt einen User zur Pingliste hinzu",
+        "desc_predgame_pinglist_add": "Fügt einen User zur Pingliste hinzu. Wenn kein User angegeben wird, wird der ausführende User selbst hinzugefügt.",
         "help_predgame_pinglist_del": "Entfernt einen User von der Pingliste",
-        "desc_predgame_pinglist_del": "Entfernt einen User von der Pingliste. Wenn kein User angegeben ist, werden alle User aus der Pingliste entfernt.",
+        "desc_predgame_pinglist_del": "Entfernt einen User von der Pingliste. Wenn kein User angegeben ist, wird der ausführende User selbst entfernt.",
 
         "#1": "",
         "and": "und",
@@ -219,6 +222,7 @@
         "pred_pinguser_not_found": "User {} ist nicht in der Pingliste",
         "pred_pinguser_empty": "Die Pingliste ist leer",
         "pred_pinguser_list": "Folgende User sind in der Pingliste: {}",
+        "pred_overview": "Übersicht: {}",
 
         "#2": "actually de strings",
         "kicker_title": "Kicker.de - Links - Spieltage",

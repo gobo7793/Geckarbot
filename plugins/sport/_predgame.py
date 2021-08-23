@@ -1,4 +1,4 @@
-import datetime
+from datetime import datetime, timedelta
 import logging
 from itertools import groupby
 from operator import itemgetter
@@ -24,9 +24,19 @@ class _Predgame:
         self.bot = bot
 
     @commands.group(name="predgame", aliases=["tippspiel"], invoke_without_command=True)
-    async def cmd_predgame(self, ctx):
-        if ctx.invoked_subcommand is None:
-            await ctx.invoke(self.bot.get_command("predgame points"))
+    async def cmd_predgame(self, ctx, *args):
+        if len(args) >= 2:
+            team1_dict = self.bot.liveticker.teamname_converter.get(args[0])
+            team2_dict = self.bot.liveticker.teamname_converter.get(args[1])
+            if team1_dict is not None and team2_dict is not None:
+                date = args[2] if len(args) >= 3 else None
+                time = args[3] if len(args) >= 4 else None
+
+                await ctx.invoke(self.bot.get_command("predgame preds"),
+                                 team1_dict.long_name, team2_dict.long_name, date, time)
+                return
+
+        await ctx.invoke(self.bot.get_command("predgame points"), *args)
 
     @cmd_predgame.command(name="today", aliases=["heute"])
     async def cmd_predgame_today(self, ctx):
@@ -55,7 +65,7 @@ class _Predgame:
         msgs = []
         for league in Storage.get(self)["predictions"]:
             result = await restclient.Client("http://site.api.espn.com/apis/site/v2/sports/soccer") \
-                .request(f"/{league}/scoreboard", params={'dates': datetime.datetime.today().strftime("%Y%m%d")})
+                .request(f"/{league}/scoreboard", params={'dates': datetime.today().strftime("%Y%m%d")})
 
             for m in result.get('events', []):
                 match = MatchESPN(m)
@@ -77,38 +87,44 @@ class _Predgame:
 
         return len(msgs)
 
-    @cmd_predgame.group(name="sheet", aliases=["sheets"])
+    @cmd_predgame.group(name="sheet", aliases=["sheets", "overview"])
     async def cmd_predgame_sheet(self, ctx):
+        msgs = []
         if Config.get(self)["predictions_overview_sheet"]:
-            msg = "Overview: <https://docs.google.com/spreadsheets/d/{}/edit?usp=sharing>".format(
-                Config.get(self)["predictions_overview_sheet"])
-            await ctx.send(msg)
+            msgs.append(Lang.lang(self, "pred_overview",
+                                  "<https://docs.google.com/spreadsheets/d/{}/edit?usp=sharing>"
+                                  .format(Config.get(self)["predictions_overview_sheet"])))
 
         for league in Storage.get(self)["predictions"]:
-            msg = "{}: <https://docs.google.com/spreadsheets/d/{}/edit?usp=sharing>".format(
+            msgs.append("{}: <https://docs.google.com/spreadsheets/d/{}/edit?usp=sharing>".format(
                 Storage.get(self)["predictions"][league]['name'],
-                Storage.get(self)["predictions"][league]['sheet'])
+                Storage.get(self)["predictions"][league]['sheet']))
+
+        for msg in paginate(msgs):
             await ctx.send(msg)
 
     @cmd_predgame.command(name="preds", aliases=["tipps"])
-    async def cmd_predgame_preds(self, ctx, team1: str, team2: str, date: str = None, time: str = None):
+    async def cmd_predgame_preds(self, ctx, team1: str = "", team2: str = "", date: str = None, time: str = None):
         kickoff = None if date is None else timeutils.parse_time_input(date, time)
         team1_dict = self.bot.liveticker.teamname_converter.get(team1)
         team2_dict = self.bot.liveticker.teamname_converter.get(team2)
-        if team1_dict is None:
+        if team1_dict is None and team2_dict is not None:
             await ctx.send(Lang.lang(self, "pred_cant_find_team", team1))
             return
-        if team2_dict is None:
+        if team1_dict is not None and team2_dict is None:
             await ctx.send(Lang.lang(self, "pred_cant_find_team", team2))
             return
 
         msg = await self._get_predictions(team1_dict, team2_dict, kickoff)
         if msg:
             await ctx.send(msg)
-        else:
+        elif team1_dict is not None and team2_dict is not None:
             await ctx.send(Lang.lang(self, "pred_cant_find_match", team1_dict.short_name, team2_dict.short_name))
+        else:
+            pass
 
-    async def _get_predictions(self, team1: TeamnameDict, team2: TeamnameDict, kickoff: datetime = None) -> str:
+    async def _get_predictions(self, team1: TeamnameDict = None, team2: TeamnameDict = None,
+                               kickoff: datetime = None) -> str:
         """Returns a list of the predictions for the first found match
 
         :param kickoff: kickoff datetime object
@@ -124,6 +140,7 @@ class _Predgame:
                                                  Storage.get(self)["predictions"][league]["prediction_range"]])
             people = [x for x in people_range[0] if x != ""]
             for row in data[1:]:
+                # parse data from sheet
                 row.extend([None] * (len(data[0]) + 1 - len(row)))
                 if kickoff is not None and \
                         (not row[0].endswith(kickoff.strftime("%d.%m.")) or
@@ -133,13 +150,25 @@ class _Predgame:
                     continue
                 pred_team1 = self.bot.liveticker.teamname_converter.get(row[2])
                 pred_team2 = self.bot.liveticker.teamname_converter.get(row[5])
-                if pred_team1 is None or pred_team2 is None or \
-                        team1.long_name != pred_team1.long_name or team2.long_name != pred_team2.long_name:
+
+                # decide what to show
+                if pred_team1 is None or pred_team2 is None:
                     continue
+                if team1 is None or team2 is None:
+                    now = datetime.now()
+                    kickoff_dt = datetime.strptime(f"{row[0][-6:]} {row[1]} {now.year}", "%d.%m. %H:%M %Y")
+                    time_diff = now - kickoff_dt
+                    if time_diff < timedelta(minutes=-30) or time_diff > timedelta(hours=2):
+                        continue
+
+                elif team1.long_name != pred_team1.long_name or team2.long_name != pred_team2.long_name:
+                    continue
+
+                # put match into string
                 preds = ["{} {}:{}".format(people[x], row[6 + x * 2] if row[6 + x * 2] else "-",
                                            row[7 + x * 2] if row[7 + x * 2] else "-")
                          for x in range(len(people))]
-                return "{} - {} // {}".format(team1.short_name, team2.short_name, " / ".join(preds))
+                match_msg += "{} - {} // {}\n".format(pred_team1.short_name, pred_team2.short_name, " / ".join(preds))
 
         return match_msg
 
@@ -277,7 +306,7 @@ class _Predgame:
             await add_reaction(ctx.message, Lang.CMDERROR)
             ctx.send(Lang.lang(self, "pred_cant_find_league", name))
 
-    @cmd_predgame_set.command(name="sheet")
+    @cmd_predgame_set.command(name="sheet", aliases=["overview"])
     async def cmd_predgame_set_sheet(self, ctx, sheet_id: str = ""):
         Config.get(self)["predictions_overview_sheet"] = sheet_id
         Config.save(self)
@@ -307,11 +336,14 @@ class _Predgame:
             await ctx.send(Lang.lang(self, "pred_pinguser_empty"))
 
     @cmd_predgame_pinglist.command(name="add")
-    async def cmd_predgame_pinglist_add(self, ctx, user: Union[discord.User, discord.Member]):
+    async def cmd_predgame_pinglist_add(self, ctx, user: Union[discord.User, discord.Member] = None):
         if user.id in Config.get(self)["predgame"]["pinglist"]:
             await add_reaction(ctx.message, Lang.CMDERROR)
             await ctx.send(Lang.lang(self, "pred_pinguser_already", get_best_username(user)))
             return
+
+        if user is None:
+            user = ctx.author
 
         Config.get(self)["predgame"]["pinglist"].append(user.id)
         Config.save(self)
@@ -321,10 +353,7 @@ class _Predgame:
     @cmd_predgame_pinglist.command(name="del")
     async def cmd_predgame_pinglist_del(self, ctx, user: Union[discord.User, discord.Member] = None):
         if user is None:
-            Config.get(self)["predgame"]["pinglist"].clear()
-            logger.info("All users removed von predgame pinglist")
-            await add_reaction(ctx.message, Lang.CMDSUCCESS)
-            return
+            user = ctx.author
 
         if user.id in Config.get(self)["predgame"]["pinglist"]:
             Config.get(self)["predgame"]["pinglist"].remove(user.id)
