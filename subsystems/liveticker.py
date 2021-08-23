@@ -1,4 +1,3 @@
-import asyncio
 import datetime
 import logging
 from abc import ABC, abstractmethod
@@ -1020,11 +1019,9 @@ class LeagueRegistrationESPN(LeagueRegistrationBase):
             until_day = from_day
 
         dates = "{}-{}".format(from_day.strftime("%Y%m%d"), until_day.strftime("%Y%m%d"))
-        _ = await restclient.Client("http://site.api.espn.com/apis/site/v2/sports") \
-            .request(f"/soccer/{league}/scoreboard", params={'dates': dates})
-        await asyncio.sleep(5)
         data = await restclient.Client("http://site.api.espn.com/apis/site/v2/sports") \
-            .request(f"/soccer/{league}/scoreboard", params={'dates': dates})
+            .request(f"/soccer/{league}/scoreboard", params={'dates': dates,
+                                                             'geckirandom': datetime.datetime.now().microsecond})
         matches = [MatchESPN(x) for x in data['events']]
         return matches
 
@@ -1377,7 +1374,7 @@ class Liveticker(BaseSubsystem):
         league_name = league
         if source == LTSource.ESPN:
             data = await restclient.Client("https://site.api.espn.com/apis/v2/sports").request(
-                f"/soccer/{league}/standings")
+                f"/soccer/{league}/standings", params={'geckirandom': datetime.datetime.now().microsecond})
             if 'children' not in data:
                 raise LeagueNotExist(f"Unable to retrieve any standings information for {league}")
             groups = data['children']
