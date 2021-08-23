@@ -29,6 +29,7 @@ class MatchStatus(Enum):
     RUNNING = ":green_square:"
     UPCOMING = ":clock4:"
     POSTPONED = ":no_entry_sign:"
+    ABANDONED = ":fire:"
     UNKNOWN = "❔"
 
     @staticmethod
@@ -51,6 +52,8 @@ class MatchStatus(Enum):
             if status == "post":
                 if m.get('status', {}).get('type', {}).get('completed'):
                     return MatchStatus.COMPLETED
+                if m.get('status', {}).get('detail') == "Abandoned":
+                    return MatchStatus.ABANDONED
                 return MatchStatus.POSTPONED
             return MatchStatus.UNKNOWN
         if src == LTSource.OPENLIGADB:
@@ -936,7 +939,8 @@ class LeagueRegistrationBase(ABC):
 
         # Group by kickoff
         for match in matches:
-            if match.status in [MatchStatus.COMPLETED, MatchStatus.POSTPONED] or match.kickoff > until:
+            if match.status in [MatchStatus.COMPLETED, MatchStatus.POSTPONED, MatchStatus.ABANDONED] \
+                    or match.kickoff > until:
                 continue
             if match.kickoff not in self.kickoffs:
                 self.kickoffs[match.kickoff] = []
@@ -983,7 +987,7 @@ class LeagueRegistrationBase(ABC):
             return
 
         for match in matches:
-            if match.status == MatchStatus.COMPLETED and match.match_id not in self.finished:
+            if match.status in [MatchStatus.COMPLETED, MatchStatus.ABANDONED] and match.match_id not in self.finished:
                 new_finished.append(match)
                 self.finished.append(match.match_id)
 
