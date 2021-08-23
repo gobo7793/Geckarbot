@@ -1119,18 +1119,7 @@ class Liveticker(BaseSubsystem):
         self.hourly_timer = None
         self.semiweekly_timer = None
 
-        # Update storage
-        if not Storage().get(self).get('storage_version'):
-            self.logger.debug("default storage set")
-            regs = Storage().get(self)
-            for src, l_regs in regs.items():
-                for league, c_regs in l_regs.items():
-                    regs[src][league] = {
-                        'kickoffs': {},
-                        'coro_regs': c_regs
-                    }
-            Storage().set(self, {'storage_version': 1, 'registrations': regs, 'next_semiweekly': None})
-            Storage().save(self)
+        self.update_storage()
 
         # pylint: disable=unused-variable
         @bot.listen()
@@ -1160,6 +1149,25 @@ class Liveticker(BaseSubsystem):
         for src in LTSource.__members__.values():
             storage['registrations'][src.value] = {}
         return storage
+
+    def update_storage(self):
+        # Update storage
+        if not Storage().get(self).get('storage_version'):
+            self.logger.debug("default storage set")
+            regs = Storage().get(self)
+            for src, l_regs in regs.items():
+                for league, c_regs in l_regs.items():
+                    regs[src][league] = {
+                        'kickoffs': {},
+                        'coro_regs': c_regs
+                    }
+            Storage().set(self, {'storage_version': 1, 'registrations': regs, 'next_semiweekly': None})
+        if Storage().get(self).get('storage_version') < 2:
+            for src in Storage().get(self)['registrations'].values():
+                for reg in src.values():
+                    reg['kickoffs'] = {kickoff: [] for kickoff in reg['kickoffs']}
+            Storage().get(self)['storage_version'] = 2
+        Storage().save(self)
 
     async def register(self, league: str, raw_source: str, plugin: BasePlugin,
                        coro, interval: int = 15, periodic: bool = True) -> CoroRegistrationBase:
