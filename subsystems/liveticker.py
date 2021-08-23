@@ -352,16 +352,16 @@ class TableEntryOLDB(TableEntryBase):
 
     def __init__(self, data: dict):
         self.rank = data['rank']
-        self.team = Config().bot.liveticker.teamname_converter.get(data['TeamName'])
+        self.team = Config().bot.liveticker.teamname_converter.get(data['teamName'])
         if not self.team:
-            self.team = Config().bot.liveticker.teamname_converter.add(long_name=data['TeamName'],
-                                                                       short_name=data['ShortName'])
-        self.won = data['Won']
-        self.draw = data['Draw']
-        self.lost = data['Lost']
-        self.goals = data['Goals']
-        self.goals_against = data['OpponentGoals']
-        self.points = data['Points']
+            self.team = Config().bot.liveticker.teamname_converter.add(long_name=data['teamName'],
+                                                                       short_name=data['shortName'])
+        self.won = data['won']
+        self.draw = data['draw']
+        self.lost = data['lost']
+        self.goals = data['goals']
+        self.goals_against = data['opponentGoals']
+        self.points = data['points']
 
 
 class MatchBase(ABC):
@@ -1392,7 +1392,7 @@ class Liveticker(BaseSubsystem):
                 tables[group_name] = [TableEntryESPN(entry) for entry in entries]
         elif source == LTSource.OPENLIGADB:
             year = (datetime.datetime.today() - datetime.timedelta(days=180)).year
-            data = await restclient.Client("https://www.openligadb.de/api").request(f"/getbltable/{league}/{year}")
+            data = await restclient.Client("https://api.openligadb.de").request(f"/getbltable/{league}/{year}")
             table = []
             if not data:
                 raise LeagueNotExist(f"Unable to retrieve any standings information for {league}")
