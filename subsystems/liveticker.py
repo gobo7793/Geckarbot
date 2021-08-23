@@ -908,22 +908,6 @@ class LeagueRegistrationBase(ABC):
         """
         pass
 
-    def extract_kickoffs_with_matches(self) -> dict:
-        """
-        Groups the matches by their kickoff times
-
-        :return: dict with the kickoff as the key and a list of matches as value
-        """
-        kickoff_dict = {}
-        for match in self.matches:
-            if match.status == MatchStatus.POSTPONED:
-                continue
-            if match.kickoff in kickoff_dict:  # Insert at kickoff
-                kickoff_dict[match.kickoff].append(match)
-            else:
-                kickoff_dict[match.kickoff] = [match]
-        return kickoff_dict
-
     async def schedule_kickoffs(self, until: datetime.datetime):
         """
         Schedules timers for the kickoffs of the matches until the specified date
