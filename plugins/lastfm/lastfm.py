@@ -21,8 +21,7 @@ from botutils.permchecks import check_mod_access, check_admin_access
 from plugins.lastfm.api import Api, UnexpectedResponse
 from plugins.lastfm.presence import LfmPresenceMessage
 from plugins.lastfm.lfm_base import Song, Layer
-from plugins.lastfm.spotify import Client as Spotify, AuthError
-
+from plugins.lastfm.spotify import Client as Spotify, AuthError, EmptyResult
 
 mention_p = re.compile(r"<@[^>]+>")
 
@@ -649,6 +648,23 @@ class Plugin(BasePlugin, name="LastFM"):
         await user.send(Lang.lang(self, "quote_del_success", q_del.answer))
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
+    async def append_spotify_link(self, msg: str, song: Song, layer: Layer) -> str:
+        """
+        Appends the corresponding spotify layer link to a lastfm message.
+        Does nothing if the spotify search fails.
+
+        :param msg: Existing lastfm message
+        :param song: song
+        :param layer: Specified layer
+        :return: New message (ideally including the spotify link)
+        """
+        try:
+            await self.spotify.enrich_song(song)
+            return msg + "\n" + song.spotify_links[layer]
+        except EmptyResult:
+            pass
+        return msg
+
     @cmd_lastfm.command(name="listening")
     async def cmd_listening(self, ctx, *args):
         args = self.parse_args(args, ctx.author)
@@ -658,8 +674,7 @@ class Plugin(BasePlugin, name="LastFM"):
             msg = Lang.lang(self, "presence_listening", song, gbu(listener))
 
             if args["spotify"]:
-                await self.spotify.enrich_song(song)
-                msg += "\n" + song.spotify_links[Layer.TITLE]
+                msg = await self.append_spotify_link(msg, self.presence_handler.state.cur_song, Layer.TITLE)
 
             await ctx.send(msg)
             return
@@ -690,8 +705,7 @@ class Plugin(BasePlugin, name="LastFM"):
             msg = self.listening_msg(args["user"], song)
 
             if args["spotify"]:
-                await self.spotify.enrich_song(song)
-                msg += "\n" + song.spotify_links[Layer.TITLE]
+                msg = await self.append_spotify_link(msg, song, Layer.TITLE)
 
         await ctx.send(msg)
 
@@ -1155,8 +1169,7 @@ class Plugin(BasePlugin, name="LastFM"):
             msg = "{} _{}_".format(msg, quote)
 
         if spotify:
-            await self.spotify.enrich_song(mi_example)
-            msg += "\n" + mi_example.spotify_links[mi]
+            msg = await self.append_spotify_link(msg, mi_example, mi)
         await ctx.send(msg)
 
 

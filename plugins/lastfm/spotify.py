@@ -1,6 +1,8 @@
 import logging
 
 from botutils.restclient import Client as RestClient
+from botutils.utils import add_reaction
+from data import Lang
 
 from plugins.lastfm.lfm_base import Song, Layer
 
@@ -30,6 +32,13 @@ class AuthError(Exception):
 class ApiError(Exception):
     """
     Raised when the API returns an error.
+    """
+    pass
+
+
+class EmptyResult(Exception):
+    """
+    Raised when a spotify API call returns no results.
     """
     pass
 
@@ -130,14 +139,21 @@ class Client:
         :param response: Spotify API response
         :param layer: API request layer
         :return: element that we're interested in
+        :raises EmptyResult: If there is no element to be located in the response
         """
         if layer == layer.TITLE:
-            return response["tracks"]["items"][0]
-        if layer == layer.ALBUM:
-            return response["albums"]["items"][0]
-        if layer == layer.ARTIST:
-            return response["artists"]["items"][0]
-        assert False, "unknown layer {}".format(layer)
+            key = "tracks"
+        elif layer == layer.ALBUM:
+            key = "albums"
+        elif layer == layer.ARTIST:
+            key = "artists"
+        else:
+            assert False, "unknown layer {}".format(layer)
+
+        r = response[key]["items"]
+        if len(r) == 0:
+            raise EmptyResult
+        return r[0]
 
     async def search(self, searchstring, layer=Layer.TITLE):
         """
@@ -147,6 +163,7 @@ class Client:
         :param searchstring: Search string
         :param layer: layer that is to be searched in
         :return: First song that is found with searchstring
+        :raises EmptyResult: If the search returns no results
         """
         params = {
             "q": searchstring,
@@ -158,7 +175,12 @@ class Client:
         return Song.from_spotify_response(self.plugin, r, layer=layer)
 
     async def cmd_search(self, ctx, searchstring: str, layer: Layer):
-        r = await self.search(searchstring, layer=layer)
+        try:
+            r = await self.search(searchstring, layer=layer)
+        except EmptyResult:
+            await add_reaction(ctx.message, Lang.CMDERROR)
+            await ctx.send(Lang.lang(self.plugin, "spotify_no_result"))
+            return
         await ctx.send(r.spotify_links.get(layer, "no link found"))
 
     async def enrich_song(self, song: Song):
@@ -166,6 +188,7 @@ class Client:
         Adds spotify links to a song by fetching them from the API.
 
         :param song: Song object to be enriched
+        :raises EmptyResult: If enrichment fails because spotify search returns no results
         """
         self.logger.debug("Enriching song %s; layer: %s", song, song.layer)
         if song.layer == Layer.ARTIST:
