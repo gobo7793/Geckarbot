@@ -352,16 +352,16 @@ class TableEntryOLDB(TableEntryBase):
 
     def __init__(self, data: dict):
         self.rank = data['rank']
-        self.team = Config().bot.liveticker.teamname_converter.get(data['TeamName'])
+        self.team = Config().bot.liveticker.teamname_converter.get(data['teamName'])
         if not self.team:
-            self.team = Config().bot.liveticker.teamname_converter.add(long_name=data['TeamName'],
-                                                                       short_name=data['ShortName'])
-        self.won = data['Won']
-        self.draw = data['Draw']
-        self.lost = data['Lost']
-        self.goals = data['Goals']
-        self.goals_against = data['OpponentGoals']
-        self.points = data['Points']
+            self.team = Config().bot.liveticker.teamname_converter.add(long_name=data['teamName'],
+                                                                       short_name=data['shortName'])
+        self.won = data['won']
+        self.draw = data['draw']
+        self.lost = data['lost']
+        self.goals = data['goals']
+        self.goals_against = data['opponentGoals']
+        self.points = data['points']
 
 
 class MatchBase(ABC):
@@ -502,7 +502,7 @@ class MatchOLDB(MatchBase):
         if new_events is None:
             new_events = []
         try:
-            kickoff = datetime.datetime.strptime(m.get('MatchDateTimeUTC'), "%Y-%m-%dT%H:%M:%SZ") \
+            kickoff = datetime.datetime.strptime(m.get('matchDateTimeUTC'), "%Y-%m-%dT%H:%M:%SZ") \
                 .replace(tzinfo=datetime.timezone.utc).astimezone().replace(tzinfo=None)
         except (ValueError, TypeError):
             kickoff = None
@@ -514,23 +514,23 @@ class MatchOLDB(MatchBase):
         else:
             minute = None
 
-        self.match_id = m.get('MatchID')
+        self.match_id = m.get('matchID')
         self.kickoff = kickoff
         self.minute = str(minute)
-        self.home_team = Config().bot.liveticker.teamname_converter.get(m.get('Team1', {}).get('TeamName'),
+        self.home_team = Config().bot.liveticker.teamname_converter.get(m.get('team1', {}).get('teamName'),
                                                                         add_if_nonexist=True)
-        self.home_team_id = m.get('Team1', {}).get('TeamId')
-        self.away_team = Config().bot.liveticker.teamname_converter.get(m.get('Team2', {}).get('TeamName'),
+        self.home_team_id = m.get('team1', {}).get('teamId')
+        self.away_team = Config().bot.liveticker.teamname_converter.get(m.get('team2', {}).get('teamName'),
                                                                         add_if_nonexist=True)
-        self.away_team_id = m.get('Team2', {}).get('TeamId')
-        self.score = {self.home_team_id: max(0, 0, *(g.get('ScoreTeam1', 0) for g in m.get('Goals', []))),
-                      self.away_team_id: max(0, 0, *(g.get('ScoreTeam2', 0) for g in m.get('Goals', [])))}
-        self.raw_events = m.get('Goals')
-        self.venue = (m['Location'].get('LocationStadium'), m['Location'].get('LocationCity')) \
-            if 'Location' in m else (None, None)
+        self.away_team_id = m.get('team2', {}).get('teamId')
+        self.score = {self.home_team_id: max(0, 0, *(g.get('scoreTeam1', 0) for g in m.get('goals', []))),
+                      self.away_team_id: max(0, 0, *(g.get('scoreTeam2', 0) for g in m.get('goals', [])))}
+        self.raw_events = m.get('goals')
+        self.venue = (m['location'].get('locationStadium'), m['location'].get('locationCity')) \
+            if 'location' in m and m['location'] is not None else (None, None)
         self.status = MatchStatus.get(m, LTSource.OPENLIGADB)
         self.new_events = new_events
-        self.matchday = m.get('Group', {}).get('GroupOrderID')
+        self.matchday = m.get('group', {}).get('groupOrderID')
 
     def transform_events(self, last_events: list):
         events = []
@@ -600,13 +600,13 @@ class GoalOLDB(GoalBase):
     """
 
     def __init__(self, g: dict, home_id: str, away_id: str):
-        self.event_id = g.get('GoalID')
-        self.player = g.get('GoalGetterName')
-        self.minute = g.get('MatchMinute')
-        self.score = {home_id: g.get('ScoreTeam1'), away_id: g.get('ScoreTeam2')}
-        self.is_owngoal = g.get('IsOwnGoal')
-        self.is_penalty = g.get('IsPenalty')
-        self.is_overtime = g.get('IsOvertime')
+        self.event_id = g.get('goalID')
+        self.player = g.get('goalGetterName')
+        self.minute = g.get('matchMinute')
+        self.score = {home_id: g.get('scoreTeam1'), away_id: g.get('scoreTeam2')}
+        self.is_owngoal = g.get('isOwnGoal')
+        self.is_penalty = g.get('isPenalty')
+        self.is_overtime = g.get('isOvertime')
 
 
 class YellowCardBase(PlayerEvent, ABC):
@@ -838,7 +838,7 @@ class LeagueRegistrationBase(ABC):
         return l_reg
 
     @abstractmethod
-    async def register(self, plugin, coro, interval: int, periodic: bool):
+    async def register(self, plugin, coro, interval: int, periodic: bool) -> CoroRegistrationBase:
         """Builds and registers a CoroReg for this league"""
         pass
 
@@ -1008,7 +1008,7 @@ class LeagueRegistrationESPN(LeagueRegistrationBase):
 
     async def register(self, plugin, coro, interval: int, periodic: bool):
         reg = CoroRegistrationESPN(self, plugin=plugin, coro=coro, interval=interval, periodic=periodic)
-        await self.register_reg(reg)
+        return await self.register_reg(reg)
 
     @staticmethod
     async def get_matches_by_date(league: str, from_day: datetime.date = None, until_day: datetime.date = None,
@@ -1035,7 +1035,7 @@ class LeagueRegistrationOLDB(LeagueRegistrationBase):
 
     async def register(self, plugin, coro, interval: int, periodic: bool):
         reg = CoroRegistrationOLDB(self, plugin=plugin, coro=coro, interval=interval, periodic=periodic)
-        await self.register_reg(reg)
+        return await self.register_reg(reg)
 
     @staticmethod
     async def get_matches_by_date(league: str, from_day: datetime.date = None, until_day: datetime.date = None,
@@ -1055,7 +1055,7 @@ class LeagueRegistrationOLDB(LeagueRegistrationBase):
         if until_day is None:
             until_day = from_day
 
-        data = await restclient.Client("https://www.openligadb.de/api").request("/getmatchdata/{}".format(league))
+        data = await restclient.Client("https://api.openligadb.de").request("/getmatchdata/{}".format(league))
         matches = []
         if not data:
             return []
@@ -1087,7 +1087,7 @@ class LeagueRegistrationOLDB(LeagueRegistrationBase):
         if season is None:
             date = datetime.date.today()
             season = date.year if date.month > 6 else date.year - 1
-        data = await restclient.Client("https://www.openligadb.de/api").request(
+        data = await restclient.Client("https://api.openligadb.de").request(
             f"/getmatchdata/{league}/{season}/{matchday}")
         return [MatchOLDB(m) for m in data]
 
@@ -1392,7 +1392,7 @@ class Liveticker(BaseSubsystem):
                 tables[group_name] = [TableEntryESPN(entry) for entry in entries]
         elif source == LTSource.OPENLIGADB:
             year = (datetime.datetime.today() - datetime.timedelta(days=180)).year
-            data = await restclient.Client("https://www.openligadb.de/api").request(f"/getbltable/{league}/{year}")
+            data = await restclient.Client("https://api.openligadb.de").request(f"/getbltable/{league}/{year}")
             table = []
             if not data:
                 raise LeagueNotExist(f"Unable to retrieve any standings information for {league}")
