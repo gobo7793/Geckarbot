@@ -2,6 +2,7 @@ import inspect
 import re
 import random
 import logging
+from typing import Optional
 
 import discord
 from discord.ext import commands
@@ -224,7 +225,7 @@ class Plugin(BasePlugin, name="Custom CMDs"):
                 and permchecks.debug_user_check(msg.author)):
             await self._process_message(msg)
 
-    def default_config(self):
+    def default_config(self, container=None):
         return {
             "cfgversion": 3,
             "prefix": "+",
@@ -319,8 +320,8 @@ class Plugin(BasePlugin, name="Custom CMDs"):
     def _save(self):
         """Saves the commands to the storage and the plugin config"""
         cmd_dict = {}
-        for k in self.commands:
-            cmd_dict[k] = self.commands[k].serialize()
+        for k, cmd in self.commands.items():
+            cmd_dict[k] = cmd.serialize()
 
         Storage.set(self, cmd_dict)
         Storage.save(self)
@@ -389,7 +390,7 @@ class Plugin(BasePlugin, name="Custom CMDs"):
 
         await msg.channel.send(cmd_content)
 
-    def _find_cmd(self, name):
+    def _find_cmd(self, name) -> Optional[Cmd]:
         """
         Finds a cmd by name or alias.
 
@@ -431,13 +432,13 @@ class Plugin(BasePlugin, name="Custom CMDs"):
         suffix = Lang.lang(self, 'list_suffix') if full else ""
         prefix = self.prefix if incl_prefix else ""
 
-        for k in self.commands:
+        for k, cmd in self.commands.items():
             if full:
                 arg_lens = []
-                for t in self.commands[k].texts:
+                for t in cmd.texts:
                     arg_list = arg_list_re.findall(str(t))
                     arg_lens.append(len(arg_list))
-                cmds.append(Lang.lang(self, 'list_full_data', prefix, k, len(self.commands[k].texts), max(arg_lens)))
+                cmds.append(Lang.lang(self, 'list_full_data', prefix, k, len(cmd.texts), max(arg_lens)))
 
             else:
                 cmds.append("{}{}".format(prefix, k))
@@ -490,6 +491,7 @@ class Plugin(BasePlugin, name="Custom CMDs"):
     @cmd.command(name="info")
     async def cmd_raw(self, ctx, cmd_name, index=None):
         cmd_name = cmd_name.lower()
+        cmd = self._find_cmd(cmd_name)
 
         # Parse index
         single_page = True  # index != "17++"
@@ -500,6 +502,8 @@ class Plugin(BasePlugin, name="Custom CMDs"):
                 index = index[:-2]
             elif index.endswith("+"):
                 index = index[:-1]
+            elif index.lower() == "last":
+                index = len(cmd.texts)
             else:
                 single_text = True
             try:
@@ -511,7 +515,6 @@ class Plugin(BasePlugin, name="Custom CMDs"):
             index = 0
 
         # Error handling
-        cmd = self._find_cmd(cmd_name)
         if not cmd:
             await ctx.send(Lang.lang(self, "raw_doesnt_exist", cmd_name))
             return

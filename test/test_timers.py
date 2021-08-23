@@ -6,7 +6,7 @@ from subsystems import timers
 
 # pylint: disable=missing-function-docstring
 
-DEBUG = True
+DEBUG = False
 
 if DEBUG:
     logging.basicConfig(level=logging.DEBUG)

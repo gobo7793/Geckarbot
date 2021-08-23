@@ -293,11 +293,11 @@ class Score:
 
         # two-step sorting
         s = {}
-        for user in firstsort:
-            if firstsort[user] in s:
-                s[firstsort[user]].append(user)
+        for user, el in firstsort.items():
+            if el in s:
+                s[el].append(user)
             else:
-                s[firstsort[user]] = [user]
+                s[el] = [user]
         for score in s:
             s[score] = sorted(s[score], key=lambda x: secondsort[x], reverse=True)
         keys = sorted(s.keys(), reverse=True)

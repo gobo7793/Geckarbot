@@ -11,7 +11,7 @@ from discord.ext.commands import ChannelNotFound, TextChannelConverter, RoleConv
 from base import BasePlugin, NotFound
 from botutils import permchecks, sheetsclient, utils, timeutils
 from botutils.converters import get_best_user, get_plugin_by_name
-from botutils.stringutils import paginate, clear_link
+from botutils.stringutils import paginate, clear_link, table
 from data import Storage, Lang, Config
 
 
@@ -52,7 +52,7 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
         self._fill_rule_link()
         Storage().save(self)
 
-    def default_config(self):
+    def default_config(self, container=None):
         return {
             'rule_cell': "Aktuell!E2",
             'contestdoc_id': "1HH42s5DX4FbuEeJPdm8l1TK70o2_EKADNOLkhu5qRa8",
@@ -133,11 +133,18 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
 
     @cmd_dsc.command(name="winners")
     async def cmd_dsc_winners(self, ctx):
-        c = self.get_api_client()
-        winners = c.get(Config.get(self)['winners_range'])
+        async with ctx.typing():
+            c = self.get_api_client()
+            winners = c.get(Config.get(self)['winners_range'])
 
-        w_msgs = []
         regex = re.compile(r"\d+")
+        w_table = [[Lang.lang(self, 'winner_msg_no'),
+                    Lang.lang(self, 'winner_msg_winner'),
+                    Lang.lang(self, 'winner_msg_pts'),
+                    Lang.lang(self, 'winner_msg_max'),
+                    Lang.lang(self, 'winner_msg_pts_perc'),
+                    Lang.lang(self, 'winner_msg_participants'),
+                    Lang.lang(self, 'winner_msg_month')]]
         for w in winners[1:]:
             if w[0] is None or not w[0]:
                 continue
@@ -145,18 +152,29 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
             m0 = regex.findall(w[0])
             m2 = regex.findall(w[2])
             no = m0[0]
-            dt = datetime(int(m0[2]), int(m0[1]), 1)
+            year = int(m0[2])
+            month = int(m0[1])
             participator_coutn = m0[3]
             winner_name = w[1]
             pts_winner = int(m2[0])
             pts_max = int(m2[1])
             pts_percentage = round(pts_winner / pts_max * 100)
 
-            w_msgs.append(Lang.lang(self, 'winner_msg', no, winner_name, pts_winner, pts_max, pts_percentage,
-                                    participator_coutn, dt.month, dt.year))
+            w_table.append([no, winner_name, pts_winner, pts_max, f"{pts_percentage:>3} %",
+                            participator_coutn, f"{month:>2}/{year:>2}"])
 
-        for m in paginate(w_msgs, Lang.lang(self, 'winner_prefix')):
-            await ctx.send(m)
+        table_msg = table(w_table, True, prefix="", suffix="")
+        values = list(paginate(table_msg.split("\n"), msg_prefix="```", msg_suffix="```", threshold=900))
+        embed = discord.Embed(title=Lang.lang(self, 'winner_prefix'))
+        prev_last = 0
+        for i in range(len(values)):
+            line_cnt = values[i].count("\n") + 1  # assuming, paginate doesn't add a \n char at the last line
+            if i == 0:
+                line_cnt -= 2
+            last = prev_last + line_cnt
+            embed.add_field(name=f"#{prev_last + 1} - #{last}", value=values[i], inline=False)
+            prev_last = last
+        await ctx.send(embed=embed)
 
     @cmd_dsc.command(name="info")
     async def cmd_dsc_info(self, ctx):

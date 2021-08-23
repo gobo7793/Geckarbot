@@ -18,6 +18,9 @@ class NoCredentials(NotLoadable):
 
 
 class Cell:
+    """
+    Representation of a sheet cell
+    """
     def __init__(self, column: int, row: int, grid=None):
         """
         Representation of a single cell. Note: rows and columns in a grid begin at 1!
@@ -78,6 +81,9 @@ class Cell:
 
 
 class CellRange:
+    """
+    Represents a range of cells
+    """
     def __init__(self, start_cell: Cell, width: int, height: int):
         """
         Representation of a range of cells. Note: rows and columns in a grid begin at 1!
@@ -93,6 +99,12 @@ class CellRange:
 
     @classmethod
     def from_a1(cls, a1_notation: str):
+        """
+        Builds a CellRange object from "A1:B4" notation
+
+        :param a1_notation: notation string
+        :return: Corresponding CellRange object
+        """
         extract = re.search("(?P<cell1>[A-Z]+\\d+):(?P<cell2>[A-Z]+\\d+)", a1_notation)
         if extract:
             groupdict = extract.groupdict()
@@ -101,6 +113,13 @@ class CellRange:
 
     @classmethod
     def from_cells(cls, start_cell: Cell, end_cell: Cell):
+        """
+        Builds a CellRange object by passing two corners of the range rectangle.
+
+        :param start_cell: top left
+        :param end_cell: bottom right
+        :return: Corresponding CellRange object
+        """
         width = end_cell.column - start_cell.column + 1
         height = end_cell.row - start_cell.row + 1
         return cls(start_cell, width, height)
@@ -130,10 +149,12 @@ class CellRange:
         if self.column <= left or self.row <= top or left + right <= -self.width or top + bottom <= -self.height:
             raise ValueError
         return CellRange(start_cell=Cell(column=self.column - left, row=self.row - top),
-                             width=self.width + left + right,
-                             height=self.height + top + bottom)
+                         width=self.width + left + right,
+                         height=self.height + top + bottom)
+
 
 def get_service():
+    # pylint: disable=import-outside-toplevel
     try:
         from google.oauth2 import service_account
         from googleapiclient import discovery
@@ -142,10 +163,10 @@ def get_service():
         secret_file = os.path.join(os.getcwd(), "config/google_service_account.json")
         credentials = service_account.Credentials.from_service_account_file(secret_file, scopes=scopes)
         service = discovery.build('sheets', 'v4', credentials=credentials)
-    except ImportError:
-        raise NotLoadable("Google API modules not installed.")
-    except Exception:
-        raise NoCredentials()
+    except ImportError as e:
+        raise NotLoadable("Google API modules not installed.") from e
+    except Exception as e:
+        raise NoCredentials() from e
     else:
         return service
 
@@ -165,7 +186,7 @@ class Client(restclient.Client):
         :param spreadsheet_id: The ID of the spreadsheet
         """
 
-        super(Client, self).__init__("https://sheets.googleapis.com/v4/spreadsheets/")
+        super().__init__("https://sheets.googleapis.com/v4/spreadsheets/")
 
         self.bot = bot
         self.spreadsheet_id = spreadsheet_id
@@ -176,6 +197,8 @@ class Client(restclient.Client):
     def _params_add_api_key(self, params=None):
         """
         Adds the API key to the params dictionary
+
+        :raises NoApiKey: If the Google API key is not set
         """
         if not self.bot.GOOGLE_API_KEY:
             raise NoApiKey()
@@ -217,6 +240,7 @@ class Client(restclient.Client):
             properties = sh.get('properties', {})
             if sheet == properties.get('title') or sheet == properties.get('sheetId'):
                 return properties
+        return None
 
     def _get_sheet_id(self, sheet):
         """
@@ -224,25 +248,25 @@ class Client(restclient.Client):
 
         :return: sheet id
         """
-        if type(sheet) == int:
+        if isinstance(sheet, int):
             return sheet
         return self._get_sheet_properties(sheet).get('sheetId')
 
-    def get(self, range, formatted: bool = True) -> list:
+    def get(self, cellrange, formatted: bool = True) -> list:
         """
         Reads a single range
 
-        :param range: rangename
+        :param cellrange: rangename
         :param formatted: whether the cell values should be read formatted/as seen in the sheet or not
         :return: values of that range
         """
         value_render_option = "FORMATTED_VALUE" if formatted else "UNFORMATTED_VALUE"
         if self.bot.GOOGLE_API_KEY:
-            route = "{}/values/{}".format(self.spreadsheet_id, range)
+            route = "{}/values/{}".format(self.spreadsheet_id, cellrange)
             response = self._make_request(route, params=[('valueRenderOption', value_render_option)])
         else:
             response = get_service().spreadsheets().values().get(
-                spreadsheetId=self.spreadsheet_id, range=range, valueRenderOption=value_render_option).execute()
+                spreadsheetId=self.spreadsheet_id, range=cellrange, valueRenderOption=value_render_option).execute()
             self.logger.debug("Response: %s", response)
 
         values = response.get('values', [])
@@ -260,8 +284,8 @@ class Client(restclient.Client):
         if self.bot.GOOGLE_API_KEY:
             route = "{}/values:batchGet".format(self.spreadsheet_id)
             params = [('valueRenderOption', value_render_option)]
-            for range in ranges:
-                params.append(("ranges", range))
+            for cellrange in ranges:
+                params.append(("ranges", cellrange))
             response = self._make_request(route, params=params)
         else:
             response = get_service().spreadsheets().values().batchGet(
@@ -274,11 +298,11 @@ class Client(restclient.Client):
             values.append(vrange.get('values', []))
         return values
 
-    def update(self, range, values, raw: bool = True) -> dict:
+    def update(self, cellrange, values, raw: bool = True) -> dict:
         """
         Updates the content of a range
 
-        :param range: range to update
+        :param cellrange: range to update
         :param values: values as a matrix of cells [[cells...], rows...]
         :param raw: if True, values are put in 'raw', if False as 'user_entered'
         :return: UpdateValuesResponse
@@ -288,7 +312,8 @@ class Client(restclient.Client):
         }
         value_input_option = 'RAW' if raw else 'USER_ENTERED'
         response = get_service().spreadsheets().values().update(
-            spreadsheetId=self.spreadsheet_id, range=range, valueInputOption=value_input_option, body=data).execute()
+            spreadsheetId=self.spreadsheet_id, range=cellrange,
+            valueInputOption=value_input_option, body=data).execute()
         self.logger.debug("Response: %s", response)
         return response
 
@@ -369,7 +394,9 @@ class Client(restclient.Client):
         :param rows: number of rows
         :param columns: number of columns
         :return: AddSheetResponse if successful, None instead
+        :raises NotLoadable: If Google API packages are not installed
         """
+        # pylint: disable=import-outside-toplevel
         body = {
             "requests": [
                 {
@@ -389,12 +416,12 @@ class Client(restclient.Client):
             from googleapiclient.errors import HttpError
             try:
                 response = get_service().spreadsheets().batchUpdate(spreadsheetId=self.spreadsheet_id,
-                                                                         body=body).execute()
+                                                                    body=body).execute()
                 return response
             except HttpError:
                 return None
-        except ImportError:
-            raise NotLoadable("Google API modules not installed.")
+        except ImportError as e:
+            raise NotLoadable("Google API modules not installed.") from e
 
     def duplicate_sheet(self, sheet, new_title: str = None, index: int = None, new_id: int = None):
         """
@@ -406,11 +433,13 @@ class Client(restclient.Client):
         :param sheet: name or id of the sheet
         :param new_title: title of the resulting duplicate
         :return: DuplicateSheetResponse if successful, None instead
+        :raises NotLoadable: If google API packages are not installed
         """
+        # pylint: disable=import-outside-toplevel
         properties = self._get_sheet_properties(sheet)
         if properties is None:
             return None
-        if type(sheet) == int:
+        if isinstance(sheet, int):
             sheet_id = sheet
         else:
             sheet_id = properties.get('sheetId')
@@ -436,8 +465,8 @@ class Client(restclient.Client):
                 return response
             except HttpError:
                 return None
-        except ImportError:
-            raise NotLoadable("Google API modules not installed.")
+        except ImportError as e:
+            raise NotLoadable("Google API modules not installed.") from e
 
     def duplicate_and_archive_sheet(self, sheet, new_title: str = None, index: int = None, new_id: int = None):
         """
@@ -456,16 +485,16 @@ class Client(restclient.Client):
             return None
         # Get content
         properties = duplicate.get('replies', [{}])[0].get('duplicateSheet', {}).get('properties', {})
-        range = "{}!A1:{}".format(properties.get('title'),
-                                  Cell(properties.get('gridProperties', {}).get('columnCount'),
-                                       properties.get('gridProperties', {}).get('rowCount')).cellname())
-        values = self.get(range, formatted=True)
+        cellrange = "{}!A1:{}".format(properties.get('title'),
+                                      Cell(properties.get('gridProperties', {}).get('columnCount'),
+                                           properties.get('gridProperties', {}).get('rowCount')).cellname())
+        values = self.get(cellrange, formatted=True)
         # Insert raw again
-        response = self.update(range, values, raw=True)
+        response = self.update(cellrange, values, raw=True)
         return duplicate, response
 
     def find_and_replace(self, find, replace, match_case: bool = True, match_entire_cell: bool = False,
-                         search_by_regex: bool = False, include_formulas: bool = False, range=None, sheet=None,
+                         search_by_regex: bool = False, include_formulas: bool = False, cellrange=None, sheet=None,
                          all_sheets: bool = False):
         """
         Find a string and replace by another. Scope to find/replace over can be set in 3 different ways:
@@ -478,11 +507,12 @@ class Client(restclient.Client):
         :param search_by_regex: True if the find value is a regex
         :param include_formulas: True if the search should include cells with formulas. False to skip cells with
                                  formulas
-        :param range: The range to find/replace over. Use sheet for the sheet id/name.
+        :param cellrange: The range to find/replace over. Use sheet for the sheet id/name.
         :param sheet: The sheet to find/replace over.
         :param all_sheets: True to find/replace over all sheets. Overwrites range and sheet
         :return: FindReplaceResponse
         """
+        # pylint: disable=import-outside-toplevel
         request = {
             "find": find,
             "replacement": replace,
@@ -493,11 +523,11 @@ class Client(restclient.Client):
         }
         if all_sheets:
             request['allSheets'] = True
-        elif sheet and range:
+        elif sheet and cellrange:
             sheet_id = self._get_sheet_id(sheet)
             if sheet_id:
                 try:
-                    cell_range = CellRange.from_a1(range)
+                    cell_range = CellRange.from_a1(cellrange)
                 except ValueError:
                     return None
                 else:
@@ -531,5 +561,5 @@ class Client(restclient.Client):
                 return response
             except HttpError as e:
                 return e
-        except ImportError:
-            raise NotLoadable("Google API modules not installed.")
+        except ImportError as e:
+            raise NotLoadable("Google API modules not installed.") from e

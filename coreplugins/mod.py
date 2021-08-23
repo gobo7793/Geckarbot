@@ -1,6 +1,8 @@
 import platform
 from datetime import datetime
+from typing import Tuple, Union, Optional
 
+import discord
 from discord.ext import commands
 from discord.ext.commands import MemberConverter, UserConverter
 
@@ -28,7 +30,7 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
                 self.bot.helpsys.default_category(DefaultCategories.USER).add_command(cmd)
                 self.bot.helpsys.default_category(DefaultCategories.MOD).remove_command(cmd)
 
-    def default_config(self):
+    def default_config(self, container=None):
         return {
             'repo_link': "https://github.com/gobo7793/Geckarbot/",
             'bot_info_link': "",
@@ -359,7 +361,7 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
         if final_msg is not None:
             await ctx.send(final_msg)
 
-    def _get_full_cmd_name(self, command):
+    def _get_full_cmd_name(self, command) -> str:
         """
         Returns the full qualified command name for native commands or it's custom command name.
         Doesn't check if command name is valid.
@@ -372,7 +374,7 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
             return native_cmd.qualified_name
         return command
 
-    def _is_valid_command(self, command):
+    def _is_valid_command(self, command) -> bool:
         """
         Checks if the command is a valid and registered, existing command
 
@@ -386,7 +388,7 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
             return True
         return False
 
-    async def _pre_cmd_checks(self, message, command):
+    async def _pre_cmd_checks(self, message, command) -> bool:
         """
         Some pre-checks for command disabling including output to the channel of the message
 
@@ -404,7 +406,8 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
             return False
         return True
 
-    async def _parse_mod_args(self, ctx, *args):
+    async def _parse_mod_args(self, ctx, *args)\
+            -> Tuple[Union[discord.Member, discord.User, None], Optional[str], Optional[datetime]]:
         """
         Parses the input args for valid command names, users and until datetime input.
 

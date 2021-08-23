@@ -2,6 +2,7 @@ import logging
 import random
 import string
 from datetime import datetime, timezone, timedelta
+from math import pi
 
 import discord
 from discord.ext import commands
@@ -9,7 +10,8 @@ from discord.ext import commands
 from botutils import restclient, utils, timeutils
 from botutils.converters import get_best_username
 from botutils.utils import add_reaction
-from data import Lang, Config
+from botutils.stringutils import table, parse_number, format_number, Number
+from data import Lang, Config, Storage
 from base import BasePlugin
 from subsystems.helpsys import DefaultCategories
 
@@ -27,7 +29,7 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
         bot.register(self, DefaultCategories.MISC)
 
         # Add commands to help category 'utils'
-        to_add = ("dice", "choose", "multichoose", "money")
+        to_add = ("dice", "choose", "multichoose", "money", "pizza")
         for cmd in self.get_commands():
             if cmd.name in to_add:
                 self.bot.helpsys.default_category(DefaultCategories.UTILS).add_command(cmd)
@@ -43,6 +45,9 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
 
     def command_usage(self, command):
         return utils.helpstring_helper(self, command, "usage")
+
+    def default_storage(self, container=None):
+        return {'stopwatch': {}}
 
     @commands.command(name="dice")
     async def cmd_dice(self, ctx, number_of_sides: int = 6, number_of_dice: int = 1):
@@ -176,3 +181,93 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
         else:
             text = Lang.lang(self, "bully_msg", get_best_username(bully))
         await ctx.send(text)
+
+    @commands.command(name="stopwatch", aliases=["stoppuhr", "stopuhr"])
+    async def cmd_stopwatch(self, ctx):
+        if ctx.author.id in Storage().get(self)['stopwatch']:
+            timediff = datetime.now() - datetime.fromisoformat(Storage().get(self)['stopwatch'].pop(ctx.author.id))
+            timediff_parts = [timediff.days, timediff.seconds // 3600, timediff.seconds // 60 % 60,
+                              timediff.seconds % 60 + round(timediff.microseconds / 1_000_000, 2)]
+            timediff_zip = zip(timediff_parts, Lang.lang(self, 'stopwatch_units').split("|"))
+            msg = ", ".join(f"{x} {y}" for x, y in timediff_zip if x != 0)
+            await ctx.send(msg)
+        else:
+            Storage().get(self)['stopwatch'][ctx.author.id] = str(datetime.now())
+            await ctx.send(Lang.lang(self, 'stopwatch_started'))
+        Storage().save(self)
+
+    @commands.command(name="pizza")
+    async def cmd_pizza(self, ctx, *args):
+        if len(args) % 2 == 1:
+            await add_reaction(ctx.message, Lang.CMDERROR)
+            await ctx.send(Lang.lang(self, "pizza_argsdim", args[-1]))
+            return
+
+        if len(args) == 0:
+            await add_reaction(ctx.message, Lang.CMDERROR)
+            await self.bot.helpsys.cmd_help(ctx, self, ctx.command)
+            return
+
+        pizzas = []
+        single_d_unit = None
+        single_relprice = None
+        single_relunit = None
+        single_priceunit = None
+        for i in range(len(args) // 2):
+            prepizza = [None, None]
+            for j in range(2):
+                arg = args[i*2 + j]
+                try:
+                    prepizza[j] = parse_number(arg)
+                except ValueError:
+                    await add_reaction(ctx.message, Lang.CMDERROR)
+                    await ctx.send(Lang.lang(self, "pizza_nan", arg))
+                    return
+            pizzas.append([prepizza[0], prepizza[1], None])
+
+        # Calc
+        for i in range(len(pizzas)):
+            d, price, _ = pizzas[i]
+            rel = price.number / (pi * (d.number / 2)**2)
+            single_relprice = rel
+            unit = ""
+            if d.unit:
+                single_d_unit = d.unit + "²"
+                if price.unit:
+                    unit = "{}/{}²".format(price.unit, d.unit)
+                    single_relunit = unit
+            if price.unit:
+                single_priceunit = price.unit
+            pizzas[i][2] = Number(rel, unit)
+
+        # Sort
+        pizzas = sorted(pizzas, key=lambda x: x[2].number)
+
+        # Format to string in-place
+        for i in range(len(pizzas)):
+            for j in range(len(pizzas[0])):
+                split_unit = not j == 0
+                decpl = 4 if j == 2 else 2
+                pizzas[i][j] = format_number(pizzas[i][j], decplaces=decpl, split_unit=split_unit)
+
+        # Format table or print single result
+        if len(pizzas) == 1:
+            # Format units
+            if single_relunit:
+                a = single_relunit
+            elif single_d_unit:
+                a = Lang.lang(self, "pizza_a_unit", single_d_unit)
+            else:
+                a = Lang.lang(self, "pizza_a")
+            if single_priceunit and not single_relunit:
+                single_relprice = Number(single_relprice, single_priceunit)
+
+            single_relprice = format_number(single_relprice, decplaces=4)
+            await ctx.send(Lang.lang(self, "pizza_single_result", single_relprice, a))
+        else:
+            # Add table header
+            h = [Lang.lang(self, "pizza_header_d"),
+                 Lang.lang(self, "pizza_header_price"),
+                 Lang.lang(self, "pizza_header_rel")]
+            pizzas.insert(0, h)
+            await ctx.send(table(pizzas, header=True))

@@ -2,6 +2,7 @@
   "de_DE": {
     "#0": "Help",
     "cat_desc": "Anbindung an Last.fm",
+    "usage_lastfm": "[spotify] [User]",
     "help_lastfm": "Last.fm-Anbindung",
     "desc_lastfm": "Gibt die interessanteste Häufung in den letzten Scrobbles aus.",
     "help_lastfm_register": "Registriert dein last.fm-Profil",
@@ -11,13 +12,28 @@
     "desc_lastfm_deregister": "Entfernt deinen last.fm-Profilnamen aus dem Register. Andere lastfm-Kommandos können dann nicht mehr genutzt werden.",
     "help_lastfm_profile": "Gibt das Last.fm-Profil eines Users aus",
     "desc_lastfm_profile": "Gibt einen Link zum Last.fm-Profil eines Users aus, sofern dieser sich registriert hat.",
+    "usage_lastfm_now": "[spotify] [User]",
     "help_lastfm_now": "Teilt mit, was du gerade hörst",
     "desc_lastfm_now": "Teilt mit, was du gerade hörst.",
+    "usage_lastfm_listening": "[spotify] [User]",
+    "help_lastfm_listening": "Teilt mit, mit wem ich gerade höre.",
+    "desc_lastfm_listening": "Teilt mit, was ich gerade mit wem höre. Falls ich mit niemandem höre, verhält es sich wie !lastfm now.",
     "help_lastfm_quote": "Fügt ein Liedzitat hinzu",
     "desc_lastfm_quote": "Eröffnet einen DM-Dialog mit Gecki, in dem ein Liedzitat hinzugefügt werden kann. Gecki erklärt dort das Prozedere Schritt für Schritt.",
     "help_lastfm_quote_del": "Löscht ein Liedzitat",
     "desc_lastfm_quote_del": "Eröffnet einen DM-Dialog mit Gecki, in dem ein Liedzitat gelöscht werden kann. Gecki erklärt dort das Prozedere Schritt für Schritt.{}",
+    "usage_lastfm_presence": "<optin|optout|default>",
+    "help_lastfm_presence": "Opt-out oder opt-in für Botstatus",
+    "desc_lastfm_presence": "Regelt, ob deine Scrobbles im Bot-Status erscheinen können.",
     "del_restricted": " Du kannst nur Zitate löschen, die du auch erstellt hast. (Diese Einschränkungen gilt nicht für Mods oder Bot-Admins.)",
+
+    "help_spotify": "Spotify-Anbindung",
+    "desc_spotify": "Kommandos zur Nutzung von Spotify.",
+    "usage_spotify_credentials": "<client id> <client secret>",
+    "help_spotify_credentials": "Setzt Client ID und Client Secret für die Spotify-API.",
+    "usage_spotify_search": "[title|album|artist] <search terms>",
+    "help_spotify_search": "Durchsucht Spotify",
+    "desc_spotify_search": "Durchsucht Spotify und gibt das erste Ergebnis aus. Stelle \"title\", \"album\" oder \"artist\" voran, um die Such-Ebene zu ändern (Standard ist title).",
 
     "#1": "Errors",
     "not_registered": "Ich kenne leider dein last.fm-Profil nicht.",
@@ -29,9 +45,12 @@
     "#2": "Output",
     "all": "alle",
     "loved": "❤️",
+    "by": "von",
+    "with": "mit",
     "listening_base_present": "{} hört gerade {}.",
     "listening_base_past": "{} hörte zuletzt {}.",
-    "listening_song_base": "**{}** von **{}**",
+    "listening_song_base": "**{}** - **{}**",
+    "listening_song_base_reverse": "**{}** von **{}**",
     "listening_song_album": "{} aus dem Album **{}**",
     "most_interesting_base_present": "{} hört gerade {}",
     "most_interesting_base_past": "{} hörte zuletzt {}",
@@ -86,6 +105,11 @@
     "quote_err_dmkill": "Deine DM-Registrierung wurde gekillt, wir müssen hier daher abbrechen.",
     "quote_existing_quotes": "Ich kenne bereits folgende Zitate für diesen Song:",
     "quote_unknown_user": "einem unbekannten User",
-    "quote_list_entry": "_{}_ (hinzugefügt von {})"
+    "quote_list_entry": "_{}_ (hinzugefügt von {})",
+
+    "#5": "Presence",
+    "presence_listening": "Ich höre gerade {} mit {}.",
+    "presence_status_optin": "Deine Scrobbles können in der Bot-Presence erscheinen.",
+    "presence_status_optout": "Deine Scrobbles können _nicht_ in der Bot-Presence erscheinen."
   }
 }

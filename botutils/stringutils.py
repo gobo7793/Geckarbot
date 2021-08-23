@@ -1,13 +1,80 @@
 import typing
-from typing import Optional
+import re
+import locale
+from collections import namedtuple
 
 import emoji
 from discord.ext import commands
 
 
+Number = namedtuple("Number", "number unit")
+_pattern = re.compile(r"(-?)(\d*)[.,]?(\d*)\s*(.*)")
+
+
+def parse_number(s: str) -> Number:
+    """
+    Parses any string of the form "4,43cm", "4", ".3 m" or "4 cm" into a `Number` object. Accepts both `.` and `,` as
+    decimal points.
+    A Number object has the attributes `number` (can be int or float) and `unit` (can be any string, including "").
+
+    :param s: string to parse
+    :return: `Number` object that represents the parsed number
+    :raise ValueError: If `Number.number` cannot be filled, i.e. `s` does not begin with a decimal.
+    """
+    sign, i, f, unit = _pattern.match(s.strip()).groups()
+    if i:
+        i = int(i)
+    elif f:
+        i = 0
+    else:
+        raise ValueError("s is not a number string")
+
+    sign = -1 if sign else 1
+    i = sign * i
+
+    if f:
+        lf = len(f)
+        f = int(f)
+        if f != 0:
+            r = i + sign * (int(f) / (10 ** lf))
+        else:
+            r = i
+    else:
+        r = i
+    return Number(r, unit)
+
+
+def format_number(n: typing.Union[Number, int, float], decplaces: int = 2, split_unit: bool = True) -> str:
+    """
+    Formats a number into a nice-looking string.
+
+    :param n: number
+    :param decplaces: amount of decimal places to be displayed
+    :param split_unit: Splits number and unit with a whitespace if True (and len(unit) > 1).
+    :return:
+    """
+    if isinstance(n, Number):
+        n, unit = n
+    else:
+        unit = None
+
+    if isinstance(n, int):
+        r = str(n)
+    else:
+        r = locale.format_string("%.{}f".format(decplaces), n)
+
+    if unit:
+        if len(unit) == 1 or not split_unit:
+            r = "{}{}".format(r, unit)
+        else:
+            r = "{} {}".format(r, unit)
+
+    return r
+
+
 def paginate(items: list, prefix: str = "", suffix: str = "", msg_prefix: str = "", msg_suffix: str = "",
              delimiter: str = "\n", f: typing.Callable = lambda x: x,
-             if_empty: typing.Any = None, prefix_within_msg_prefix: bool = True) -> str:
+             if_empty: typing.Any = None, prefix_within_msg_prefix: bool = True, threshold: int = 1900) -> str:
     """
     Generator for pagination. Compiles the entries in `items` into strings that are shorter than 2000 (discord max
     message length). If a single item is longer than 2000, it is put into its own message.
@@ -20,15 +87,15 @@ def paginate(items: list, prefix: str = "", suffix: str = "", msg_prefix: str = 
     :param delimiter: Delimiter for the list entries.
     :param f: function that is invoked on every `items` entry.
     :param prefix_within_msg_prefix: If this is True, `msg_prefix` comes before `prefix` in the first message.
-    If not, `prefix` comes before `msg_prefix` in the first message.
+        If not, `prefix` comes before `msg_prefix` in the first message.
     :param if_empty: If the list of items is empty, this one is inserted as the only item. Caution: f is executed
-    on this.
+        on this.
+    :param threshold: Threshold to split messages. Useful for embed field values which have a max. length of 1024.
     :return: The paginated string to send in discord messages
     :raises RuntimeError: If `items` is a string
     """
     if isinstance(items, str):
         raise RuntimeError("Pagination does not work on strings")
-    threshold = 1900
     current_msg = []
     remaining = None
     first = True
@@ -89,7 +156,7 @@ def paginate(items: list, prefix: str = "", suffix: str = "", msg_prefix: str = 
 
 
 def format_andlist(andlist: list, ands: str = "and", emptylist: str = "nobody", fulllist: str = "everyone",
-                   fulllen: Optional[int] = None) -> str:
+                   fulllen: typing.Optional[int] = None) -> str:
     """
     Builds a string such as "a, b, c and d".
 
@@ -169,3 +236,58 @@ def clear_link(link: str) -> str:
     if link.endswith('>'):
         link = link[:-1]
     return link
+
+
+def table(tablelist: list, header: bool = False, prefix: str = "```", suffix: str = "```") -> str:
+    """
+    Takes a list of the form [[0, 1], [2, 3], [4, 5]], interprets it as a list of table lines and formats it into
+    a string that (assuming monospace) looks like a table.
+    Does not support max table width or any sort of line break.
+
+    :param tablelist: List of lines.
+    :param header: Flag to format the first line in a way that displays it as the header line. If False, tablelist
+        is interpreted as if there was no header line.
+    :param prefix: table prefix, defaults to ```
+    :param suffix: table suffix, defaults to ```
+    :return: Formatted
+    :raises RuntimeError: If the table rows do not have the same length (i.e. table is not a rectangle)
+    """
+    # dim check
+    for i in range(1, len(tablelist)):
+        if len(tablelist[i]) != len(tablelist[i-1]):
+            raise RuntimeError("Table does not have uniform dimensions: {}")
+
+    width = len(tablelist[0])
+    height = len(tablelist)
+
+    # Calc cell widths
+    cellwidths = []
+    for j in range(width):
+        for i in range(height):
+            candidate = len(str(tablelist[i][j]))
+            if i == 0:
+                cellwidths.append(candidate)
+                continue
+
+            if candidate > cellwidths[j]:
+                cellwidths[j] = candidate
+
+    # Build lines
+    r = []
+    for i in range(height):
+        # underline header
+        if header and i == 1:
+            h = []
+            for j in range(width):
+                h.append("-" * (cellwidths[j] + 2))
+            r.append("+".join(h))
+
+        # Build table row
+        row = []
+        for j in range(width):
+            item = str(tablelist[i][j])
+            item = " " + item + " " * (cellwidths[j]+1 - len(item))
+            row.append(item)
+        r.append("|".join(row))
+
+    return prefix + "\n".join(r) + suffix

@@ -9,7 +9,6 @@ import pkgutil
 import pprint
 import sys
 import traceback
-from enum import Enum
 from logging import handlers
 from pathlib import Path
 from typing import List, Union
@@ -31,7 +30,7 @@ class Geckarbot(commands.Bot):
     Basic bot info
     """
     NAME = "Geckarbot"
-    VERSION = "2.12.3"
+    VERSION = "2.13.0"
     PLUGIN_DIR = "plugins"
     CORE_PLUGIN_DIR = "coreplugins"
     CONFIG_DIR = "config"

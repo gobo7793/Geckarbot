@@ -1,5 +1,5 @@
 import calendar
-from datetime import datetime, timedelta
+import datetime
 
 import discord
 from discord.ext import commands
@@ -7,15 +7,17 @@ from discord.ext import commands
 from botutils import restclient
 from botutils.utils import add_reaction
 from data import Lang, Config
-from subsystems.liveticker import LTSource, MatchStatus, MatchOLDB, MatchESPN, MatchBase
+from subsystems.liveticker import LTSource, MatchStatus, MatchOLDB, MatchBase, LeagueRegistrationESPN, LeagueNotExist
 
 
-# pylint: disable=no-member
-class _Livescores:
+class _Scores:
+
+    def __init__(self, bot):
+        self.bot = bot
 
     @commands.command(name="kicker")
     async def cmd_kicker_table(self, ctx):
-        now = datetime.now()
+        now = datetime.datetime.now()
         if now.month < 3 or now.month > 7:
             at_values = "[{}]({})".format(Lang.lang(self, 'kicker_ATBL'), Lang.lang(self, 'kicker_ATBL_link'))
         else:
@@ -41,23 +43,14 @@ class _Livescores:
 
     @commands.command(name="fußball", aliases=["fusselball"])
     async def cmd_soccer_livescores(self, ctx, league: str, raw_source: str = None, allmatches=None):
-        source = None
-        if raw_source:
-            try:
-                source = LTSource(raw_source)
-            except ValueError:
-                if allmatches is None:
-                    allmatches = True
-                else:
-                    await add_reaction(ctx.message, Lang.CMDERROR)
-                    return
-        if source is None:
-            try:
-                league, raw_source = Config().get(self)['league_aliases'].get(league, [])
-                source = LTSource(raw_source)
-            except ValueError:
-                await add_reaction(ctx.message, Lang.CMDERROR)
-                return
+        if raw_source is None:
+            # Look for alts
+            league, raw_source = Config().get(self)['league_aliases'].get(league, (league, "espn"))
+        try:
+            source = LTSource(raw_source)
+        except ValueError:
+            await ctx.send(Lang.lang(self, 'source_not_found', ", ".join(s.value for s in LTSource)))
+            return
 
         if source == LTSource.OPENLIGADB:
             try:
@@ -68,14 +61,14 @@ class _Livescores:
                 await add_reaction(ctx.message, Lang.CMDERROR)
                 return
         elif source == LTSource.ESPN:
-            raw_matches = await restclient.Client("http://site.api.espn.com/apis/site/v2/sports").request(
-                f"/soccer/{league}/scoreboard", params={'dates': datetime.today().strftime("%Y%m%d")})
-            matches = [MatchESPN(m) for m in raw_matches.get('events', [])]
+            matches = LeagueRegistrationESPN.get_matches_by_date(league=league, until_day=datetime.date.today() +
+                                                                                          datetime.timedelta(days=2))
         else:
-            raise ValueError('Invalid source. Should not happen.')
+            await ctx.send(Lang.lang(self, 'source_not_supported', source))
+            return
 
         if len(matches) == 0:
-            await add_reaction(ctx.message, Lang.CMDERROR)
+            await ctx.send(Lang.lang(self, 'no_matches_found'))
             return
         finished = [m for m in matches if m.status == MatchStatus.COMPLETED]
         running = [m for m in matches if m.status == MatchStatus.RUNNING]
@@ -115,13 +108,19 @@ class _Livescores:
     async def cmd_table(self, ctx, league: str, raw_source: str = "espn"):
         try:
             league_name, tables = await self.bot.liveticker.get_standings(league, LTSource(raw_source))
+        except LeagueNotExist:
+            await ctx.send(Lang.lang(self, 'league_not_exist', league))
         except ValueError:
-            await add_reaction(ctx.message, Lang.CMDERROR)
+            await ctx.send(Lang.lang(self, 'source_not_found', ", ".join(s.value for s in LTSource)))
+            return
         else:
             embed = discord.Embed(title=Lang.lang(self, 'table_title', league_name))
             for group_name, table in tables.items():
                 table.sort(key=lambda x: x.rank)
                 tables[group_name] = [x.display() for x in table]
+            if len(tables) == 0:
+                await ctx.send(Lang.lang(self, 'table_not_exist'))
+                return
             if len(tables) == 1:
                 table = list(tables.values())[0]
                 if len(table) > 10:
@@ -148,13 +147,13 @@ class _Livescores:
                 league_msg = ""
                 for match in matches:
                     try:
-                        time = datetime.strptime(match.get('MatchDateTime'), "%Y-%m-%dT%H:%M:%S")
+                        time = datetime.datetime.strptime(match.get('MatchDateTime'), "%Y-%m-%dT%H:%M:%S")
                     except (ValueError, TypeError):
                         continue
                     else:
-                        now = datetime.now()
+                        now = datetime.datetime.now()
                         if not match.get('MatchIsFinished', True) \
-                                and now + timedelta(hours=-2) < time < now + timedelta(days=1):
+                                and now + datetime.timedelta(hours=-2) < time < now + datetime.timedelta(days=1):
                             league_msg += "{} {} | {} - {}\n".format(
                                 calendar.day_abbr[time.weekday()],
                                 time.strftime("%H:%M Uhr"),

@@ -1,4 +1,5 @@
 import asyncio
+import logging
 
 import discord
 from discord.ext import commands
@@ -10,9 +11,15 @@ from subsystems.liveticker import TeamnameDict, LTSource, PlayerEventEnum, Livet
     LivetickerFinish
 from subsystems.reactions import ReactionAddedEvent
 
+logger = logging.getLogger(__name__)
 
-# pylint: disable=no-member
+
 class _Liveticker:
+
+    def __init__(self, bot, get_name, _get_predictions):
+        self.bot = bot
+        self.get_name = get_name
+        self._get_predictions = _get_predictions
 
     @commands.group(name="liveticker")
     async def cmd_liveticker(self, ctx):
@@ -42,19 +49,15 @@ class _Liveticker:
                     for emoji in actions:
                         await msg.remove_reaction(emoji, self.bot.user)
                     react.deregister()
-                self.logger.debug("ENDE")
             else:
                 # Start liveticker
                 msg = await ctx.send(Lang.lang(self, 'liveticker_start'))
                 for source, leagues in Config().get(self)['liveticker']['leagues'].items():
                     for league in leagues:
-                        reg_ = await self.bot.liveticker.register(
+                        await self.bot.liveticker.register(
                             league=league, raw_source=source, plugin=self, coro=self._live_coro, periodic=True,
                             interval=Config().get(self)['liveticker']['interval'])
-                        next_exec = reg_.next_execution()
-                        if next_exec:
-                            next_exec = next_exec[0].strftime('%d.%m.%Y - %H:%M')
-                        await msg.edit(content="{}\n{} - Next: {}".format(msg.content, league, next_exec))
+                        await msg.edit(content="{}\n{}".format(msg.content, league))
                 Config().get(self)['sport_chan'] = ctx.channel.id
                 Config().save(self)
                 await add_reaction(ctx.message, Lang.CMDSUCCESS)
@@ -181,9 +184,20 @@ class _Liveticker:
     async def cmd_liveticker_interval(self, ctx, new_interval: int):
         Config().get(self)['liveticker']['interval'] = new_interval
         Config().save(self)
-        for _, _, c_reg in list(self.bot.liveticker.search_coro(plugins=[self.get_name()])):
+        for _, _, c_reg in list(self.bot.liveticker.search_coro(plugins=[super.get_name()])):
             c_reg.interval = new_interval
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
+
+    @cmd_liveticker.command(name="matches", aliases=["spiele"])
+    async def cmd_liveticker_matches(self, ctx):
+        msg_lines = []
+        for l_reg in self.bot.liveticker.search_league():
+            msg_lines.append(f"**{l_reg.league}**")
+            for kickoff, matches in l_reg.kickoffs.items():
+                msg_lines.append(f"{kickoff:%a. %d.%m.%Y, %H:%M Uhr}")
+                msg_lines.extend(f"- {m.home_team.long_name} - {m.away_team.long_name}" for m in matches)
+        for msg in paginate(msg_lines, if_empty=Lang.lang(self, 'no_matches_found')):
+            await ctx.send(msg)
 
     async def _live_coro(self, event):
         sport = Config().bot.get_channel(Config().get(self)['sport_chan'])
@@ -227,7 +241,7 @@ class _Liveticker:
                     other_matches.append(match_msg)
             if other_matches:
                 match_msgs.append("{}: {}".format(Lang.lang(self, 'liveticker_unchanged'),
-                                                      " \u2014 ".join(other_matches)))
+                                                  " \u2014 ".join(other_matches)))
             msgs = paginate(match_msgs, prefix=Lang.lang(self, 'liveticker_prefix', event.league))
             for msg in msgs:
                 await sport.send(msg)

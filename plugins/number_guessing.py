@@ -1,6 +1,7 @@
 import random
 import logging
 from enum import Enum
+from typing import List
 
 import discord
 from discord.ext import commands
@@ -19,6 +20,132 @@ class ReturnCode(Enum):
 class Gamemode(Enum):
     SINGLE = 0
     CHANNEL = 1
+
+
+class NumberGuessing:
+    """Represents a number guessing game instance
+
+    :param plugin: the plugin instance
+    :param gamemode: the gamemode of the game
+    """
+
+    def __init__(self, plugin, gamemode: Gamemode):
+        self.plugin = plugin
+        self.player = None
+        self.is_playing = False
+        self.number: int = 0
+        self.guess_count: int = 0
+        self.gamemode = gamemode
+        self.msg = None
+        self.min = 0
+        self.max = 0
+
+    async def guess(self, msg, guess: str = None, arg1: str = None, arg2: str = None) -> ReturnCode:
+        """Handle a guess message to guess the number, start or stop a game
+
+        :param msg: the message object
+        :param guess: the guess
+        :param arg1: if no arg2 given, the end of guessing range, else the start of the guessing range
+        :param arg2: the end of the guessing range
+        :return: the status of the message handling
+        """
+        self.msg = msg
+        # logging.info("Gamemode: {}".format(self.gamemode))
+        # logging.info("guess: {}, arg1: {}, arg2: {}".format(guess, arg1, arg2))
+        if guess is None:
+            await self.start()
+            return ReturnCode.CONTINUING
+        if guess == "start":
+            try:
+                if arg1 and arg2:
+                    await self.start(int(arg1), int(arg2))
+                else:
+                    await self.start(range_to=int(arg1))
+            except (TypeError, ValueError):
+                await self.start()
+            return ReturnCode.CONTINUING
+        if guess == "stop":
+            await self.stop()
+            return ReturnCode.STOPPED
+
+        try:
+            guess = int(guess)
+        except (TypeError, ValueError):
+            await self.send_message(Lang.lang(self.plugin, 'invalid_number'))
+            return ReturnCode.ERROR
+
+        if self.is_playing is False:
+            await self.start()
+
+        if guess < 1:
+            await self.send_message(Lang.lang(self.plugin, 'invalid_number'))
+        else:
+            self.guess_count += 1
+            if guess == self.number:
+                await self.send_message(
+                    Lang.lang(self.plugin, 'guess_won', self.number, self.guess_count))
+                self.reset()  # sets the variables back to start a new game
+                return ReturnCode.STOPPED
+            if guess < self.number:
+                await self.send_message(Lang.lang(self.plugin, 'guess_too_low', guess))
+            else:
+                await self.send_message(Lang.lang(self.plugin, 'guess_too_big', guess))
+            return ReturnCode.CONTINUING
+        return ReturnCode.ERROR
+
+    # @guess.command(name="start", help="Starts a game if not already running")
+    async def start(self, range_from: int = 1, range_to: int = 100):
+        """Starts a game if not already running
+
+        :param range_from: the start of the guessing range
+        :param range_to: the end of the guessing range
+        """
+        if self.is_playing is False:
+            range_from = max(range_from, 1)
+            range_to = max(range_to, range_from)
+            self.number = random.choice(range(range_from, range_to + 1))
+            self.is_playing = True
+            self.min = range_from
+            self.max = range_to
+            await self.send_message(Lang.lang(self.plugin, 'guess_started', range_from, range_to))
+            logging.info("Identifier: %s Number: %d", self.msg.author.name, self.number)
+        else:
+            await self.send_message(Lang.lang(self.plugin, 'guess_already_started'))
+
+    # @guess.command(name="stop", help="Stops a game and shows the number that should have been guessed")
+    async def stop(self):
+        """Stops a game and shows the number that should have been guessed"""
+        if self.is_playing is True:
+            await self.send_message(
+                Lang.lang(self.plugin, 'guess_stopped', self.number, self.guess_count))
+            self.reset()  # sets the variables back to start a new game
+        else:
+            await self.send_message(Lang.lang(self.plugin, 'guess_cannot_stop'))
+
+    def reset(self):
+        self.number = 0
+        self.guess_count = 0
+        self.is_playing = False
+
+    async def send_message(self, content: str):
+        """Sends a message to the channel of the start message
+
+        :param content: the message content
+        """
+        if self.gamemode == Gamemode.SINGLE:
+            message = "[{}] ".format(self.msg.author.name) + content
+        else:
+            message = "[channel] " + content
+        await self.msg.send(message)
+
+    def get_tries(self):
+        return self.guess_count
+
+    def get_min(self):
+        return self.min
+
+    def get_max(self):
+        return self.max
 
 
 class Plugin(BasePlugin, name="A simple number guessing game"):
@@ -146,19 +273,23 @@ class Plugin(BasePlugin, name="A simple number guessing game"):
         return game
 
     def start_channel(self, channel_id):
-        # logging.info("Starting Channelgame: {}".format(channel_game))
         game = NumberGuessing(self, Gamemode.CHANNEL)
         self.games_channel[channel_id] = game
         return game
 
-    def append_channel_games(self, channel_id=None):
-        ind = int(1)
+    def append_channel_games(self, channel_id: int = None) -> List[str]:
+        """Builds the game info status message for running channel games
+
+        :param channel_id: channel id
+        :return: the status message lines
+        """
+        ind = 1
         text = ["**Channel games**"]
 
         if channel_id is None:
-            for channel_id_ in self.games_channel:
+            for channel_id_, el in self.games_channel.items():
                 name = str(self.bot.get_channel(channel_id_))
-                game = self.games_channel[channel_id_]
+                game = el
                 text.append(self.format_line(name, game, ind))
                 ind += 1
         else:
@@ -172,14 +303,19 @@ class Plugin(BasePlugin, name="A simple number guessing game"):
 
         return text
 
-    def append_user_games(self, user_id=None):
-        ind = int(1)
+    def append_user_games(self, user_id: int = None) -> List[str]:
+        """Builds the game info to status message for running single games
+
+        :param user_id: user id of player
+        :return: the status message lines
+        """
+        ind = 1
         text = ["**Single games**"]
 
         if user_id is None:
-            for user_id_ in self.games_user:
+            for user_id_, el in self.games_user.items():
                 name = str(self.bot.get_user(user_id_))
-                game = self.games_user[user_id_]
+                game = el
                 text.append(self.format_line(name, game, ind))
                 ind += 1
         else:
@@ -193,7 +329,14 @@ class Plugin(BasePlugin, name="A simple number guessing game"):
 
         return text
 
-    def format_line(self, name, game, ind=int(0)):
+    def format_line(self, name: str, game: NumberGuessing, ind: int = 0) -> str:
+        """Formats the output line for game infos
+
+        :param name: player name
+        :param game: the game instance
+        :param ind: running game index
+        :return: the formatted line
+        """
         tries = game.get_tries()
         minimum = game.get_min()
         maximum = game.get_max()
@@ -203,106 +346,3 @@ class Plugin(BasePlugin, name="A simple number guessing game"):
             line += "{}: ".format(ind)
         line += Lang.lang(self, 'game_statistics', name, tries, minimum, maximum, amount)
         return line
-
-
-class NumberGuessing:
-
-    def __init__(self, plugin, gamemode):
-        self.plugin = plugin
-        self.player = None
-        self.is_playing = False
-        self.number: int = 0
-        self.guess_count: int = 0
-        self.gamemode = gamemode
-        self.msg = None
-        self.min = 0
-        self.max = 0
-
-    async def guess(self, msg, guess=None, arg1=None, arg2=None):
-        self.msg = msg
-        # logging.info("Gamemode: {}".format(self.gamemode))
-        # logging.info("guess: {}, arg1: {}, arg2: {}".format(guess, arg1, arg2))
-        if guess is None:
-            await self.start()
-            return ReturnCode.CONTINUING
-        if guess == "start":
-            try:
-                if arg1 and arg2:
-                    await self.start(int(arg1), int(arg2))
-                else:
-                    await self.start(range_to=int(arg1))
-            except (TypeError, ValueError):
-                await self.start()
-            return ReturnCode.CONTINUING
-        if guess == "stop":
-            await self.stop()
-            return ReturnCode.STOPPED
-
-        try:
-            guess = int(guess)
-        except (TypeError, ValueError):
-            await self.send_message(Lang.lang(self.plugin, 'invalid_number'))
-            return
-
-        if self.is_playing is False:
-            await self.start()
-
-        if guess < 1:
-            await self.send_message(Lang.lang(self.plugin, 'invalid_number'))
-        else:
-            self.guess_count += 1
-            if guess == self.number:
-                await self.send_message(
-                    Lang.lang(self.plugin, 'guess_won', self.number, self.guess_count))
-                self.reset()  # sets the variables back to start a new game
-                return ReturnCode.STOPPED
-            if guess < self.number:
-                await self.send_message(Lang.lang(self.plugin, 'guess_too_low', guess))
-            else:
-                await self.send_message(Lang.lang(self.plugin, 'guess_too_big', guess))
-            return ReturnCode.CONTINUING
-        return ReturnCode.ERROR
-
-    # @guess.command(name="start", help="Starts a game if not already running")
-    async def start(self, range_from: int = 1, range_to: int = 100):
-        if self.is_playing is False:
-            range_from = max(range_from, 1)
-            range_to = max(range_to, range_from)
-            self.number = random.choice(range(range_from, range_to + 1))
-            self.is_playing = True
-            self.min = range_from
-            self.max = range_to
-            await self.send_message(Lang.lang(self.plugin, 'guess_started', range_from, range_to))
-            logging.info("Identifier: %s Number: %d", self.msg.author.name, self.number)
-        else:
-            await self.send_message(Lang.lang(self.plugin, 'guess_already_started'))
-
-    # @guess.command(name="stop", help="Stops a game and shows the number that should have been guessed")
-    async def stop(self):
-        if self.is_playing is True:
-            await self.send_message(
-                Lang.lang(self.plugin, 'guess_stopped', self.number, self.guess_count))
-            self.reset()  # sets the variables back to start a new game
-        else:
-            await self.send_message(Lang.lang(self.plugin, 'guess_cannot_stop'))
-
-    def reset(self):
-        self.number = 0
-        self.guess_count = 0
-        self.is_playing = False
-
-    async def send_message(self, content: str):
-        if self.gamemode == Gamemode.SINGLE:
-            message = "[{}] ".format(self.msg.author.name) + content
-        else:
-            message = "[channel] " + content
-        await self.msg.send(message)
-
-    def get_tries(self):
-        return self.guess_count
-
-    def get_min(self):
-        return self.min
-
-    def get_max(self):
-        return self.max

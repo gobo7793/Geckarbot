@@ -72,8 +72,7 @@ class DMListener(BaseSubsystem):
         :raises KeyError: If a blocking listener is to be registered but there already is a regular listener for `user`.
         """
         # find blocking violations
-        for key in self.registrations:
-            cb = self.registrations[key]
+        for cb in self.registrations.values():
             if cb.user == user:
                 if cb.blocking:
                     raise RuntimeError("A blocking DM listener for user {} is already registered.".format(user))
@@ -96,8 +95,8 @@ class DMListener(BaseSubsystem):
 
         :param registration: Registration object that is to be unregistered
         """
-        for key in self.registrations:
-            if registration == self.registrations[key]:
+        for key, cb in self.registrations.items():
+            if registration == cb:
                 del self.registrations[key]
                 break
 
@@ -108,8 +107,8 @@ class DMListener(BaseSubsystem):
         :param user: User to be checked
         :return: Returns whether there is a registered DM listener for `user`.
         """
-        for key in self.registrations:
-            if self.registrations[key].user == user:
+        for cb in self.registrations.values():
+            if cb.user == user:
                 return True
         return False
 
@@ -120,8 +119,7 @@ class DMListener(BaseSubsystem):
         :param user: User to be checked
         :return: Returns True if there is a blocking listener for `user`, False otherwise.
         """
-        for key in self.registrations:
-            cb = self.registrations[key]
+        for cb in self.registrations.values():
             if cb.blocking and user == cb.user:
                 return True
         return False
@@ -132,8 +130,7 @@ class DMListener(BaseSubsystem):
         :return: True if this was a blocking listener, False if not.
         """
         todo = []
-        for key in self.registrations:
-            cb = self.registrations[key]
+        for cb in self.registrations.values():
             if cb.user == message.author:
                 todo.append(cb)
 

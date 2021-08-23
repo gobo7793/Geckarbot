@@ -7,9 +7,9 @@ from discord.ext import commands
 from discord.errors import HTTPException
 
 from base import BasePlugin
-from botutils.stringutils import paginate
 from data import Storage, Lang, Config
 from botutils import permchecks
+from botutils.stringutils import paginate
 from botutils.utils import sort_commands_helper, add_reaction, helpstring_helper
 from botutils.setter import ConfigSetter
 from subsystems.helpsys import DefaultCategories
@@ -347,28 +347,27 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
             return
 
         # Table format
-        else:
-            longest_cat = len("Category")
-            longest_arg = len("Argument")
-            entries = [("Category", "Argument")]
-            for cat in self.category_controller.categories.values():
-                arg = cat.args[0]
-                if len(cat.name) > longest_cat:
-                    longest_cat = len(cat.name)
-                if len(arg) > longest_arg:
-                    longest_arg = len(arg)
-                entries.append((cat.name, arg))
+        longest_cat = len("Category")
+        longest_arg = len("Argument")
+        entries = [("Category", "Argument")]
+        for cat in self.category_controller.categories.values():
+            arg = cat.args[0]
+            if len(cat.name) > longest_cat:
+                longest_cat = len(cat.name)
+            if len(arg) > longest_arg:
+                longest_arg = len(arg)
+            entries.append((cat.name, arg))
 
-            for i in range(len(entries)):
-                name = entries[i][0]
-                name = name + " " * (1 + longest_cat - len(name))
-                entries[i] = name + "| " + entries[i][1]
+        for i in range(len(entries)):
+            name = entries[i][0]
+            name = name + " " * (1 + longest_cat - len(name))
+            entries[i] = name + "| " + entries[i][1]
 
-            underline = "-" * (1 + longest_cat) + "+" + "-" * longest_cat
-            entries = entries[:1] + [underline] + entries[1:]
+        underline = "-" * (1 + longest_cat) + "+" + "-" * longest_cat
+        entries = entries[:1] + [underline] + entries[1:]
 
-            for msg in paginate(entries, prefix="```", suffix="```"):
-                await ctx.send(msg)
+        for msg in paginate(entries, prefix="```", suffix="```"):
+            await ctx.send(msg)
 
     @cmd_kwiss.command(name="question")
     async def cmd_question(self, ctx, *args):
@@ -503,21 +502,21 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
         # Ranked constraints
         if args["ranked"] and not args["debug"]:
             if controller != self.default_controller:
-                self.logger.debug("Ranked constraints violated: controller {} != {}"
-                                  .format(controller, self.default_controller))
-                return "ranked_constraints",
+                self.logger.debug("Ranked constraints violated: controller %s != %s",
+                                  controller, self.default_controller)
+                return ["ranked_constraints"]
             #if args["category"] != self.defaults["category"]:
             #    self.logger.debug("Ranked constraints violated: cat {} != {}"
             #                      .format(args["category"], self.defaults["category"]))
             #    return "ranked_constraints"
             if args["difficulty"] != self.defaults["difficulty"]:
-                self.logger.debug("Ranked constraints violated: difficulty {} != {}"
-                                  .format(args["difficulty"], self.defaults["difficulty"]))
-                return "ranked_constraints",
+                self.logger.debug("Ranked constraints violated: difficulty %s != %s",
+                                  args["difficulty"], self.defaults["difficulty"])
+                return ["ranked_constraints"]
             if args["questions"] < self.get_config("ranked_min_questions"):
                 return "ranked_questioncount", self.get_config("ranked_min_questions")
             if not self.bot.DEBUG_MODE and args["gecki"]:
-                return "ranked_gecki",
+                return ["ranked_gecki"]
 
         # Category support
         if args["quizapi"] not in self.category_controller.get_supporters(args["category"]):
@@ -535,7 +534,7 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
         """
         if args["ranked"]:
             return Rankedness.RANKED
-        elif args["unranked"] or not self.get_config("ranked_auto"):
+        if args["unranked"] or not self.get_config("ranked_auto"):
             return Rankedness.UNRANKED
 
         # ranked constraints
@@ -563,16 +562,16 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
 
         # Fish for subcommand
         subcmd = None
-        for el in self.registered_subcommands:
+        for key, el in self.registered_subcommands.items():
             if not subcommands:
                 break
-            if el is not None and el != channel:
+            if key is not None and key != channel:
                 continue
             for arg in args:
-                if arg in self.registered_subcommands[el]:
+                if arg in el:
                     if subcmd is not None:
                         raise QuizInitError(self, "duplicate_subcmd_arg")
-                    subcmd = self.registered_subcommands[el][arg]
+                    subcmd = el[arg]
         if subcmd is not None:
             raise SubCommandEncountered(subcmd, args)
 
@@ -595,11 +594,11 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
 
             # Quiz database
             quizapi_found = False
-            for db in quizapis:
-                if arg == db:
+            for db_arg, apiclass in quizapis.items():
+                if arg == db_arg:
                     if found["quizapi"]:
                         raise QuizInitError(self, "duplicate_db_arg")
-                    parsed["quizapi"] = quizapis[db]
+                    parsed["quizapi"] = apiclass
                     found["quizapi"] = True
                     quizapi_found = True
                     continue
@@ -629,11 +628,11 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
                 pass
 
             # controller
-            for el in self.controller_mapping:
-                if arg in self.controller_mapping[el]:
+            for key, key in self.controller_mapping.items():
+                if arg in key:
                     if controller_found:
                         raise QuizInitError(self, "duplicate_controller_arg")
-                    controller = el
+                    controller = key
                     controller_found = True
                     break
             if controller_found:

@@ -4,6 +4,7 @@ import json
 import urllib.request
 import urllib.error
 from urllib.parse import urlencode
+from enum import Enum
 import base64
 import logging
 import asyncio
@@ -13,6 +14,11 @@ import aiohttp
 
 class AuthError(Exception):
     """Raisen on authentication errors"""
+
+
+class Auth(Enum):
+    BASIC = 0
+    BEARER = 1
 
 
 class Client:
@@ -118,10 +124,25 @@ class Client:
 
         :param username: Username
         :param password: Password
+        :raises RuntimeError: If auth was already set to a different auth method
         """
+        if self.auth not in (Auth.BASIC, None):
+            raise RuntimeError("auth was already set to {}".format(self.auth))
         self.credentials["username"] = username
         self.credentials["password"] = password
-        self.auth = "basic"
+        self.auth = Auth.BASIC
+
+    def auth_bearer(self, bearer_token):
+        """
+        Sets authentication header for authentication via bearer token.
+
+        :param bearer_token: Bearer token
+        :raises RuntimeError: If auth was already set to a different auth method
+        """
+        if self.auth not in (Auth.BEARER, None):
+            raise RuntimeError("auth was already set to {}".format(self.auth))
+        self.credentials["bearer_token"] = bearer_token
+        self.auth = Auth.BEARER
 
     @staticmethod
     def _build_session_cookie(session) -> dict:
@@ -136,7 +157,7 @@ class Client:
             headers_to_add.update(self.cookie)
 
         # basic auth
-        if self.auth == "basic":
+        if self.auth == Auth.BASIC:
             auth = self.credentials["username"] + ":" + self.credentials["password"]
             auth = base64.encodebytes(auth.encode("utf-8"))
             auth = "Basic ".encode("utf-8") + auth
@@ -144,13 +165,19 @@ class Client:
             auth = {"Authorization": auth}
             headers_to_add.update(auth)
 
+        elif self.auth == Auth.BEARER:
+            auth = "Bearer {}".format(self.credentials["bearer_token"])
+            auth = {"Authorization": auth}
+            headers_to_add.update(auth)
+
         # Build headers
         headers = headers.copy()
         headers.update(headers_to_add)
+        self.logger.debug("Headers: %s", headers)
         return headers
 
     async def request(self, endpoint, appendix=None, params=None, data=None,
-                      headers=None, method="GET", parse_json=True):
+                      headers=None, method="GET", parse_json=True, encode_json=True):
         """
         Sends a http request.
 
@@ -161,12 +188,14 @@ class Client:
         :param headers: http headers dict
         :param method: http method ("GET", "POST" etc)
         :param parse_json: Treat response as json and parse it
+        :param encode_json: Treat data as structure that is to be encoded in json
         :return: parsed response
         :raises RuntimeError: Raised if method is an unknown http method
         """
         headers = self._build_headers(headers)
         url = self.url(endpoint=endpoint, appendix=appendix, params=params)
-        data = self.parse_request_data(data)
+        if encode_json:
+            data = self.parse_request_data(data)
         self._maskprint(data, prefix="data: ")
 
         if method == "GET":
@@ -195,7 +224,7 @@ class Client:
         return response
 
     def make_request(self, endpoint, appendix=None, params=None, data=None,
-                     headers=None, method="GET", parse_json=True):
+                     headers=None, method="GET", parse_json=True, encode_json=True):
         """
         Sends a http request.
 
@@ -206,12 +235,15 @@ class Client:
         :param headers: http headers dict
         :param method: http method ("GET", "POST" etc)
         :param parse_json: Treat response as json and parse it
+        :param encode_json: Treat data as structure that is to be encoded in json
         :return: parsed response
         """
         if data is not None:
-            data = self.parse_request_data(data)
+            if encode_json:
+                data = self.parse_request_data(data)
             data = data.encode("utf-8")
-            self._maskprint(self.decoder.decode(data.decode("utf-8")), prefix="data: ")
+            if encode_json:
+                self._maskprint(self.decoder.decode(data.decode("utf-8")), prefix="data: ")
 
         headers = self._build_headers(headers)
         url = self.url(endpoint=endpoint, appendix=appendix, params=params)
@@ -219,7 +251,8 @@ class Client:
                                          data=data, headers=headers, method=method)
 
         self.logger.debug("Doing sync http request to %s", url)
-        response = urllib.request.urlopen(request).read().decode("utf-8")
+        with urllib.request.urlopen(request) as r:
+            response = r.read().decode("utf-8")
         self.logger.debug("Response: %s", response)
 
         if parse_json:

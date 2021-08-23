@@ -52,7 +52,7 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
         # self._load()
         # self._start_score_timer()
 
-    def default_config(self):
+    def default_config(self, container=None):
         return {
             "version": 7,
             "channel_id": 0,
@@ -77,7 +77,6 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
         }
 
     def default_storage(self, container=None):
-        # pylint: disable=arguments-differ
         if container is None:
             return {
                 "supercommish": 0,
@@ -138,7 +137,7 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
             "end": self.end_date,
             "timers": self.use_timers,
             "def_league": self.default_league,
-            "leagues": {k: self.leagues[k].serialize() for k in self.leagues}
+            "leagues": {k: el.serialize() for k, el in self.leagues.items()}
         }
         Storage.set(self, storage_d)
         Storage.save(self)
@@ -247,12 +246,12 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
                 return
 
         # league name
-        for k in self.leagues:
+        for league in self.leagues.values():
             try:
                 if args[-1].lower() == "all":
                     league_name = "all"
-                elif args[-1].lower() in self.leagues[k].name.lower():
-                    league_name = self.leagues[k].name
+                elif args[-1].lower() in league.name.lower():
+                    league_name = league.name
                     break
             except IndexError:
                 break
@@ -297,15 +296,15 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
                     results.append(res)
 
             if not results:
-                for k in self.leagues:
+                for k, el in self.leagues.items():
                     if league_name is not None and league_name.lower() != "all" and \
                             (k == self.default_league or
                              (league_name is not None and league_name
-                              and league_name.lower() != self.leagues[k].name.lower())):
+                              and league_name.lower() != el.name.lower())):
                         # default league already done directly above
                         continue
 
-                    res = await self._write_scores_league_perform(self.leagues[k], week,
+                    res = await self._write_scores_league_perform(el, week,
                                                                   previous_week, team_name)
                     if res is not None:
                         results.append(res)
@@ -466,12 +465,12 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
             await ctx.send(Lang.lang(self, "no_leagues"))
             return
 
-        for k in self.leagues:
+        for k, el in self.leagues.items():
             try:
                 if self.can_skip_league(k, league_name):
                     continue
 
-                league = self.leagues[k]
+                league = el
                 embed = discord.Embed(title=league.name)
                 embed.url = league.standings_url
 
@@ -487,7 +486,7 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
                 await ctx.send(embed=embed)
 
             except (IndexError, ValueError):
-                await ctx.send(Lang.lang(self, "api_error", self.leagues[k].name))
+                await ctx.send(Lang.lang(self, "api_error", el.name))
 
     @cmd_fantasy.command(name="info")
     async def cmd_info(self, ctx, league_name=None):
@@ -498,11 +497,11 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
 
         date_out_str = Lang.lang(self, 'info_date_str', self.date.strftime(Lang.lang(self, "until_strf")))
 
-        for k in self.leagues:
+        for k, el in self.leagues.items():
             if self.can_skip_league(k, league_name):
                 continue
 
-            league = self.leagues[k]
+            league = el
             embed = discord.Embed(title=league.name)
             embed.url = league.league_url
 
@@ -585,12 +584,12 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
     async def cmd_fantasy_reload(self, ctx):
         has_errors = False
         async with ctx.typing():
-            for k in self.leagues:
+            for league in self.leagues.values():
                 try:
-                    await self.leagues[k].reload()
+                    await league.reload()
                 except (ValueError, IndexError):
                     has_errors = True
-                    ctx.send(Lang.lang(self, "api_error", self.leagues[k].name))
+                    ctx.send(Lang.lang(self, "api_error", league.name))
         if has_errors:
             await add_reaction(ctx.message, Lang.CMDERROR)
         else:
@@ -773,8 +772,8 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
         if platform is None:
             return
 
-        for k in self.leagues:
-            if self.leagues[k].league_id == league_id and self.leagues[k].platform == platform:
+        for k, el in self.leagues.items():
+            if el.league_id == league_id and el.platform == platform:
                 self.default_league = k
                 self.save()
                 await add_reaction(ctx.message, Lang.CMDSUCCESS)
@@ -820,15 +819,15 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
         platform = await self.parse_platform(platform_name, ctx)
         to_remove_key = None
         to_remove_league = None
-        for k in self.leagues:
-            if self.leagues[k].league_id != league_id:
+        for k, el in self.leagues.items():
+            if el.league_id != league_id:
                 continue
 
-            if platform is not None and self.leagues[k].platform != platform:
+            if platform is not None and el.platform != platform:
                 continue
 
             to_remove_key = k
-            to_remove_league = self.leagues[k]
+            to_remove_league = el
 
         if to_remove_key is None:
             await add_reaction(ctx.message, Lang.CMDERROR)

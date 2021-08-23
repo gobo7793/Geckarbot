@@ -53,7 +53,6 @@ class Configurable:
     """Defines a class which the config of its instances can be managed by Config class"""
 
     def __init__(self, bot):
-        super().__init__()
         self.iodirs = {}
         self.bot = bot
         self.can_configdump = True
@@ -64,7 +63,7 @@ class Configurable:
         Effects main config/ storage and every container.
         """
 
-    def default_config(self):
+    def default_config(self, container=None):
         """
         Returns an empty default config
         """

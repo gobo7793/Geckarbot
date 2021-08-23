@@ -165,7 +165,7 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
     def get_config(self, key):
         return Config.get(self).get(key, self.base_config[key][1])
 
-    def default_config(self):
+    def default_config(self, container=None):
         return {}
 
     def command_help_string(self, command):

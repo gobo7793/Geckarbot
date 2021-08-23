@@ -25,6 +25,13 @@ activitymap = {
 }
 
 
+class SkipPresence(Exception):
+    """
+    To be raised by PresenceMessage.set implementations if the presence message is to be skipped instead of set.
+    """
+    pass
+
+
 class PresencePriority(IntEnum):
     """Priority enumeration for presence messages"""
 
@@ -50,20 +57,23 @@ class PresencePriority(IntEnum):
 class PresenceMessage:
     """Presence message dataset"""
 
-    def __init__(self, bot, presence_id: int, message: str,
+    def __init__(self, bot, presence_id: Optional[int], message: str,
                  priority: PresencePriority = PresencePriority.DEFAULT, activity: str = "playing"):
         """
         Creates a new PresenceMessage
 
         :param bot: The bot reference
-        :param presence_id: the unique presence message id
+        :param presence_id: the unique presence message id. If set to None, one is determined automatically.
         :param message: the message to display
         :param priority: the priority of the message
         :param activity: presence mode (listening, playing, ...); one out of activitymap
         :raises RuntimeError: Invalid activity
         """
         self.bot = bot
-        self.presence_id = presence_id
+        if presence_id is not None:
+            self.presence_id = presence_id
+        else:
+            self.presence_id = self.bot.presence.get_new_id()
         self._activity_str = activity
         self.priority = priority
 
@@ -89,7 +99,20 @@ class PresenceMessage:
     def activity_type(self):
         return self._activity
 
-    def serialize(self):
+    async def set(self):
+        """
+        Is called when this presence message is set. This method is expected to set the bot's presence.
+        """
+        self.bot.presence.log.debug("Change displayed message to: %s", self.message)
+        await self.bot.change_presence(activity=self.activity_type)
+
+    async def unset(self):
+        """
+        Called when this message is being un-set (aka the next msg is set).
+        """
+        pass
+
+    def serialize(self) -> dict:
         """
         :return: A dict with the keys id, message, priority
         """
@@ -106,8 +129,11 @@ class PresenceMessage:
         Constructs a PressenceMessage object from a dict.
 
         :param bot: The bot reference
+        :type bot: Geckarbot.Geckarbot
         :param d: dict made by serialize()
+        :type d: dict
         :return: PressenceMessage object
+        :rtype: PresenceMessage
         """
         activity = "playing"
         if "activity" in d:
@@ -145,7 +171,7 @@ class Presence(BaseSubsystem):
                 activity = discord.Activity(type=activitymap["playing"], name=Config.get(self)["loading_msg"])
             await self.bot.change_presence(activity=activity)
 
-    def default_config(self):
+    def default_config(self, container=None):
         return {
             "update_period_min": 10,
             "loading_msg": "Loading..."
@@ -160,7 +186,7 @@ class Presence(BaseSubsystem):
     def is_timer_up(self):
         return self._timer_job is not None and not self._timer_job.cancelled
 
-    def get_new_id(self):
+    def get_new_id(self) -> int:
         """
         Acquires a new presence message id
 
@@ -168,7 +194,7 @@ class Presence(BaseSubsystem):
         """
         return max(self.messages) + 1
 
-    def get_next_id(self, start_id: int, priority: PresencePriority = None):
+    def get_next_id(self, start_id: int, priority: PresencePriority = None) -> int:
         """
         Returns the next existing unique presence message ID starting on the given id.
         If the given ID is the last existing ID, the first ID will be returned.
@@ -190,7 +216,7 @@ class Presence(BaseSubsystem):
             if current_id > self.highest_id:
                 current_id = -1
 
-    def get_ran_id(self, excluded_id: int, priority: PresencePriority = None):
+    def get_ran_id(self, excluded_id: int, priority: PresencePriority = None) -> int:
         """
         Returns a random existing unique presence message ID, excluding the excluded_id
         If the given ID is the last existing ID, the first ID will be returned.
@@ -244,33 +270,40 @@ class Presence(BaseSubsystem):
         Config.save(self)
         Storage.save(self)
 
-    def register(self, message,
-                 activity: str = "playing", priority: PresencePriority = PresencePriority.DEFAULT):
+    def register(self, message: str, activity: str = "playing",
+                 priority: PresencePriority = PresencePriority.DEFAULT) -> PresenceMessage:
         """
         Registers the given message to the given priority.
         Priority LOW is for customized messages which are unrelated from plugins or other bot functions.
         Priority DEFAULT is for messages provided by plugins e.g. displaying a current status.
         Priority HIGH is for special messages, which will be displayed instantly and only if some are registered.
 
-        :param message: The message
+        :param message: The message content
         :param activity: The activity type as a string (such as `"playing"`, "`listening`" etc)
         :param priority: The priority
         :return: The PresenceMessage dataset object of the new registered presence message
         """
-        new_id = self.get_new_id()
-        presence = PresenceMessage(self.bot, new_id, message, priority=priority, activity=activity)
-        self.messages[new_id] = presence
+        presence = PresenceMessage(self.bot, None, message, priority=priority, activity=activity)
+        self.register_msg(presence)
+        return presence
+
+    def register_msg(self, presence_msg: PresenceMessage):
+        """
+        Registers the given PresenceMessage object as a presence.
+
+        :param presence_msg: PresenceMessage
+        """
+        self.messages[presence_msg.presence_id] = presence_msg
 
         self.save()
 
-        self.log.debug("Message registered, Priority: %s, ID %d: %s", priority, new_id, message)
+        self.log.debug("Message registered, Priority: %s, ID %d: %s",
+                       presence_msg.priority, presence_msg.presence_id, presence_msg.message)
 
-        if priority == PresencePriority.HIGH:
+        if presence_msg.priority == PresencePriority.HIGH:
             self.execute_change()
 
-        return presence
-
-    def deregister_id(self, message_id: int):
+    def deregister_id(self, message_id: int) -> bool:
         """
         Deregisters the presence message with the given id and updates the displayed message if
         priority of the removed message was HIGH.
@@ -282,7 +315,7 @@ class Presence(BaseSubsystem):
             return False
         return self.deregister(self.messages[message_id])
 
-    def deregister(self, dataset: PresenceMessage):
+    def deregister(self, dataset: PresenceMessage) -> bool:
         """
         Deregisters the given PresenceMessage dataset and updates the displayed message if
         priority of the removed message was HIGH.
@@ -313,8 +346,9 @@ class Presence(BaseSubsystem):
         self._timer_job = self.bot.timers.schedule(self._change_callback, time_dict, repeat=True)
         job_data = {
             "current_id": -1,
+            "current_msg": None,
             "last_prio": PresencePriority.DEFAULT,
-            "id_before_high": -1
+            "id_before_high": -1,
         }
         self._timer_job.data = job_data
         await self._change_callback(self._timer_job)
@@ -334,11 +368,6 @@ class Presence(BaseSubsystem):
             raise RuntimeError
         await self._change_callback(self._timer_job)
 
-    async def _set_presence(self, pmessage):
-        """Sets the presence message based on pmessage activity"""
-        self.log.debug("Change displayed message to: %s", pmessage.message)
-        await self.bot.change_presence(activity=pmessage.activity_type)
-
     def _execute_removing_change(self, removed_id: int):
         """Executes _change_callback() w/o awaiting with special handling for removed presence messages"""
         if self.is_timer_up and (self._timer_job.data["last_prio"] == PresencePriority.HIGH
@@ -351,26 +380,35 @@ class Presence(BaseSubsystem):
             asyncio.run_coroutine_threadsafe(self._change_callback(self._timer_job), self.bot.loop)
 
     async def _change_callback(self, job):
-        """The callback method for the timer subsystem to change the presence message"""
+        """
+        The callback method for the timer subsystem to change the presence message.
+        Sets a presence with the following conditions:
+            1. Prio as high as possible
+            2. Not the same presence as before (if possible within the prio list)
+            3. Randomly chosen
+            4. If the presence message raises SkipPresence, tries again
+        """
+        self.log.debug("Executing presence change callback")
+        prio = None
+        if len(self.filter_messages_list(PresencePriority.HIGH)) > 0:
+            prio = PresencePriority.HIGH
 
-        last_id = job.data["current_id"]
-        high_list = self.filter_messages_list(PresencePriority.HIGH)
+        # Search for new presence msg
+        while True:
+            last_id = job.data["current_id"]
+            next_id = self.get_ran_id(last_id, priority=prio)
+            if next_id == last_id:
+                return  # do nothing if the same message should be displayed again
 
-        if len(high_list) > 0:
-            next_prio = PresencePriority.HIGH
-        else:
-            next_prio = None
-            if job.data["last_prio"] == PresencePriority.HIGH:
-                last_id = job.data["id_before_high"] - 1  # restore last message before high
+            new_msg = self.messages[next_id]
+            try:
+                await new_msg.set()
+            except SkipPresence:
+                self.log.debug("%s raised SkipPresence; skipping", new_msg)
+                continue
+            break
 
-        next_id = self.get_ran_id(last_id, next_prio)
-
-        if next_id == last_id:
-            return  # do nothing if the same message should be displayed again
-
-        job.data["id_before_high"] = last_id
-        new_msg = self.messages[next_id]
-        await self._set_presence(new_msg)
-
-        job.data["last_prio"] = new_msg.priority
+        if job.data["current_msg"]:
+            await job.data["current_msg"].unset()
         job.data["current_id"] = next_id
+        job.data["current_msg"] = new_msg
