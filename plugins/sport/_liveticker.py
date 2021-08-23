@@ -49,19 +49,15 @@ class _Liveticker:
                     for emoji in actions:
                         await msg.remove_reaction(emoji, self.bot.user)
                     react.deregister()
-                logger.debug("ENDE")
             else:
                 # Start liveticker
                 msg = await ctx.send(Lang.lang(self, 'liveticker_start'))
                 for source, leagues in Config().get(self)['liveticker']['leagues'].items():
                     for league in leagues:
-                        reg_ = await self.bot.liveticker.register(
+                        await self.bot.liveticker.register(
                             league=league, raw_source=source, plugin=self, coro=self._live_coro, periodic=True,
                             interval=Config().get(self)['liveticker']['interval'])
-                        next_exec = reg_.next_execution()
-                        if next_exec:
-                            next_exec = next_exec[0].strftime('%d.%m.%Y - %H:%M')
-                        await msg.edit(content="{}\n{} - Next: {}".format(msg.content, league, next_exec))
+                        await msg.edit(content="{}\n{}".format(msg.content, league))
                 Config().get(self)['sport_chan'] = ctx.channel.id
                 Config().save(self)
                 await add_reaction(ctx.message, Lang.CMDSUCCESS)
@@ -191,6 +187,17 @@ class _Liveticker:
         for _, _, c_reg in list(self.bot.liveticker.search_coro(plugins=[super.get_name()])):
             c_reg.interval = new_interval
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
+
+    @cmd_liveticker.command(name="matches", aliases=["spiele"])
+    async def cmd_liveticker_matches(self, ctx):
+        msg_lines = []
+        for l_reg in self.bot.liveticker.search_league():
+            msg_lines.append(f"**{l_reg.league}**")
+            for kickoff, matches in l_reg.kickoffs.items():
+                msg_lines.append(f"{kickoff:%a. %d.%m.%Y, %H:%M Uhr}")
+                msg_lines.extend(f"- {m.home_team.long_name} - {m.away_team.long_name}" for m in matches)
+        for msg in paginate(msg_lines, if_empty=Lang.lang(self, 'no_matches_found')):
+            await ctx.send(msg)
 
     async def _live_coro(self, event):
         sport = Config().bot.get_channel(Config().get(self)['sport_chan'])
