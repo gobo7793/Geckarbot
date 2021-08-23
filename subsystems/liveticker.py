@@ -17,6 +17,10 @@ class LeagueNotExist(Exception):
     pass
 
 
+class SourceNotSupperted(Exception):
+    """Exception if given source is not supperted by the function"""
+    pass
+
 class LTSource(Enum):
     """Data source"""
     OPENLIGADB = "oldb"
@@ -395,6 +399,7 @@ class MatchBase(ABC):
         return cls
 
     def to_storage(self):
+        """Transforming the info to a dict"""
         return {
             'match_id': self.match_id,
             'teams': {
@@ -896,14 +901,15 @@ class LeagueRegistrationBase(ABC):
 
     @staticmethod
     @abstractmethod
-    async def get_matches_by_date(league: str,
-                                  from_day: datetime.date = None, until_day: datetime.date = None) -> List[MatchBase]:
+    async def get_matches_by_date(league: str, from_day: datetime.date = None, until_day: datetime.date = None,
+                                  limit_pages: int = 5) -> List[MatchBase]:
         """
         Requests match data for a specific data range.
 
         :param league: league key
         :param from_day: start of the date range
         :param until_day: end of the date range
+        :param limit_pages: maximum number of requests to get the matches in this range.
         :return: List of corresponding matches
         """
         pass
@@ -998,14 +1004,15 @@ class LeagueRegistrationBase(ABC):
 
 
 class LeagueRegistrationESPN(LeagueRegistrationBase):
+    """LeagueRegistration for ESPN sources"""
 
     async def register(self, plugin, coro, interval: int, periodic: bool):
         reg = CoroRegistrationESPN(self, plugin=plugin, coro=coro, interval=interval, periodic=periodic)
         await self.register_reg(reg)
 
     @staticmethod
-    async def get_matches_by_date(league: str,
-                                  from_day: datetime.date = None, until_day: datetime.date = None) -> List[MatchESPN]:
+    async def get_matches_by_date(league: str, from_day: datetime.date = None, until_day: datetime.date = None,
+                                  limit_pages: int = 1) -> List[MatchESPN]:
         if from_day is None:
             from_day = datetime.date.today()
         if until_day is None:
@@ -1026,6 +1033,7 @@ class LeagueRegistrationESPN(LeagueRegistrationBase):
 
 
 class LeagueRegistrationOLDB(LeagueRegistrationBase):
+    """LeagueRegistration for OpenLigaDB sources"""
 
     async def register(self, plugin, coro, interval: int, periodic: bool):
         reg = CoroRegistrationOLDB(self, plugin=plugin, coro=coro, interval=interval, periodic=periodic)
@@ -1033,7 +1041,7 @@ class LeagueRegistrationOLDB(LeagueRegistrationBase):
 
     @staticmethod
     async def get_matches_by_date(league: str, from_day: datetime.date = None, until_day: datetime.date = None,
-                                  limit: int = 5) -> List[MatchOLDB]:
+                                  limit_pages: int = 5) -> List[MatchOLDB]:
         """
         Requests openligadb match data for a specified date range. Doesn't support past days or dates too far into
         future since it is all matchday-based and starts from the present matchday.
@@ -1041,7 +1049,7 @@ class LeagueRegistrationOLDB(LeagueRegistrationBase):
         :param league: league key
         :param from_day: start of the date range. No past days supported.
         :param until_day: end of the date range.
-        :param limit: maximum number of requests respectivly the number of matchdays checked for fitting matches.
+        :param limit_pages: maximum number of requests respectivly the number of matchdays checked for fitting matches.
         :return: List of the corresponding matches
         """
         if from_day is None:
@@ -1060,7 +1068,7 @@ class LeagueRegistrationOLDB(LeagueRegistrationBase):
             if match.kickoff.date() >= from_day:
                 matches.append(match)
         else:
-            for _ in range(1, limit):
+            for _ in range(1, limit_pages):
                 add_matches = await LeagueRegistrationOLDB.get_matches_by_matchday(league=league,
                                                                                    matchday=matches[-1].matchday)
                 if not add_matches:
@@ -1314,6 +1322,9 @@ class Liveticker(BaseSubsystem):
         await self.build_match_timer()
 
     async def build_match_timer(self):
+        """
+        Updates the match timer with the needed minutes and LeagueRegistrations it needs to updates at those minutes
+        """
         self.logger.debug("Updating match timer")
         if self.match_timer and not self.match_timer.cancelled:
             self.match_timer.cancel()
@@ -1322,18 +1333,20 @@ class Liveticker(BaseSubsystem):
         for source in LTSource:
             for l_reg in self.registrations[source].values():
                 for kickoff in l_reg.kickoffs:
-                    if kickoff < end_of_hour:
-                        max_min = ((end_of_hour - kickoff).seconds // 3600 + 1) * 60
-                        minutes = set(e % 60 for s in (range(kickoff.minute, max_min, ival) for ival in l_reg.intervals)
-                                      for e in s if e >= max_min - 60)
-                        for m in minutes:
-                            if l_reg not in update_minutes[m]:
-                                update_minutes[m][l_reg] = []
-                            update_minutes[m][l_reg].append(kickoff)
+                    if kickoff >= end_of_hour:
+                        continue
+                    max_min = ((end_of_hour - kickoff).seconds // 3600 + 1) * 60
+                    minutes = set(e % 60 for s in (range(kickoff.minute, max_min, ival) for ival in l_reg.intervals)
+                                  for e in s if e >= max_min - 60)
+                    for m in minutes:
+                        if l_reg not in update_minutes[m]:
+                            update_minutes[m][l_reg] = []
+                        update_minutes[m][l_reg].append(kickoff)
+
         for k, v in list(update_minutes.items()):
             if not v:
                 update_minutes.pop(k)
-        self.logger.debug(f"Minutes: {list(update_minutes.keys())}")
+        self.logger.debug("Minutes: %s", list(update_minutes.keys()))
         if not update_minutes:
             return
         self.match_timer = self.bot.timers.schedule(coro=self._update_league_registrations,
@@ -1355,7 +1368,8 @@ class Liveticker(BaseSubsystem):
 
         :param league: league key
         :param source: data source
-        :raises ValueError: if unable to retrieve any standings information
+        :raises SourceNotSupperted: if source type is not covered
+        :raises LeagueNotExist: if league key doesnt lead to a valid league
         :return: league name and current standings per group
         """
         tables = {}
@@ -1381,5 +1395,5 @@ class Liveticker(BaseSubsystem):
                 table.append(TableEntryOLDB(data[i]))
             tables[league] = table
         else:
-            raise ValueError("Invalid source")
+            raise SourceNotSupperted
         return league_name, tables
