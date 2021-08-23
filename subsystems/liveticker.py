@@ -44,7 +44,7 @@ class MatchStatus(Enum):
         :param src: data source
         :return: MatchStatus
         :rtype: MatchStatus
-        :raises ValueError: if source is not valid
+        :raises SourceNotSupported: if source is not valid
         """
         if src == LTSource.ESPN:
             status = m.get('status', {}).get('type', {}).get('state')
@@ -55,7 +55,7 @@ class MatchStatus(Enum):
             if status == "post":
                 if m.get('status', {}).get('type', {}).get('completed'):
                     return MatchStatus.COMPLETED
-                if m.get('status', {}).get('detail') == "Abandoned":
+                if m.get('status', {}).get('name') == "STATUS_ABANDONED":
                     return MatchStatus.ABANDONED
                 return MatchStatus.POSTPONED
             return MatchStatus.UNKNOWN
@@ -71,7 +71,7 @@ class MatchStatus(Enum):
                 if kickoff < datetime.datetime.now():
                     return MatchStatus.RUNNING
                 return MatchStatus.UPCOMING
-        raise ValueError("Source {} is not supported.".format(src))
+        raise SourceNotSupperted
 
 
 class TeamnameDict:
