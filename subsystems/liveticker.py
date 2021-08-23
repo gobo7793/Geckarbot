@@ -384,6 +384,7 @@ class MatchBase(ABC):
 
     @classmethod
     def from_storage(cls, m: dict):
+        """Build match from storage"""
         cls.match_id = m['match_id']
         cls.kickoff = datetime.datetime.fromisoformat(m['kickoff'])
         cls.home_team_id, cls.away_team_id = m['teams']
