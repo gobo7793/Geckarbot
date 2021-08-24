@@ -193,6 +193,8 @@ class _Liveticker:
         msg_lines = []
         for l_reg in self.bot.liveticker.search_league():
             msg_lines.append(f"**{l_reg.league}**")
+            if len(l_reg.kickoffs) == 0:
+                msg_lines.append(Lang.lang(self, 'no_matches'))
             for kickoff, matches in l_reg.kickoffs.items():
                 msg_lines.append(f"{kickoff:%a. %d.%m.%Y, %H:%M Uhr}")
                 msg_lines.extend(f"- {m.home_team.long_name} - {m.away_team.long_name}" for m in matches)
