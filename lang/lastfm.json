@@ -41,6 +41,7 @@
     "error": "Sorry, ich kann dir hier nicht helfen.",
     "user_not_found": "Den Last.fm-User \"{}\" gibt es nicht.",
     "api_error": "Sorry, Last.fm zickt gerade rum.",
+    "spotify_no_result": "Zu deiner Suchanfrage wurde kein Ergebnis gefunden.",
 
     "#2": "Output",
     "all": "alle",
