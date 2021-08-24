@@ -1335,7 +1335,8 @@ class Liveticker(BaseSubsystem):
         if self.match_timer and not self.match_timer.cancelled:
             self.match_timer.cancel()
         update_minutes = {x: {} for x in range(61)}
-        end_of_hour = (datetime.datetime.now() + datetime.timedelta(hours=1)).replace(minute=0, second=0, microsecond=0)
+        now = datetime.datetime.now()
+        end_of_hour = (now + datetime.timedelta(hours=1)).replace(minute=0, second=0, microsecond=0)
         for source in LTSource:
             for l_reg in self.registrations[source].values():
                 for kickoff in l_reg.kickoffs:
@@ -1356,9 +1357,10 @@ class Liveticker(BaseSubsystem):
         if not update_minutes:
             return
         self.match_timer = self.bot.timers.schedule(coro=self._update_league_registrations,
-                                                    td=timers.timedict(minute=list(update_minutes.keys())),
+                                                    td=timers.timedict(hour=now.hour,
+                                                                       minute=list(update_minutes.keys())),
                                                     data=update_minutes)
-        if self.match_timer.next_execution() <= datetime.datetime.now():
+        if now.minute in update_minutes or self.match_timer.next_execution() <= now:
             self.match_timer.execute()
 
     @staticmethod
