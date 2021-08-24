@@ -24,7 +24,7 @@ from plugins.spaetzle.utils import pointdiff_possible, determine_winner, MatchRe
     get_user_league, get_user_cell, get_schedule, get_schedule_opponent, UserNotFound, \
     convert_to_datetime, get_participant_history, duel_points
 from subsystems.helpsys import DefaultCategories
-from subsystems.liveticker import MatchStatus
+from subsystems.liveticker import MatchStatus, LeagueRegistrationOLDB
 
 
 class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
@@ -156,40 +156,33 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
         async with ctx.typing():
             # Request data
             if matchday:
-                if not season:
-                    day = datetime.today()
-                    season = day.year if day.month > 6 else day.year - 1
-                match_list = restclient.Client("https://www.openligadb.de/api").make_request(
-                    f"/getmatchdata/bl1/{season}/{matchday}")
                 for _, _, c_reg in list(self.bot.liveticker.search_coro(plugins=[self.get_name()])):
                     c_reg.unload()
             else:
-                reg = await self._start_liveticker()
-                matchday = reg.league_reg.matchday()
-                match_list = reg.league_reg.matches
+                matchday = Storage().get(self)['matchday']
+            match_list = await LeagueRegistrationOLDB.get_matches_by_matchday(league="bl1", matchday=matchday,
+                                                                              season=season)
 
             # Extract matches
             c = self.get_api_client()
             values = [[matchday], [None]]
             match_ids = []
             for match in match_list:
-                match_ids.append(match.get('MatchID'))
+                match_ids.append(match.match_id)
 
-                date_time = datetime.strptime(match.get('MatchDateTime', '0001-01-01T01:01:01'), "%Y-%m-%dT%H:%M:%S")
-                date_formula = '=IF(DATE({};{};{}) + TIME({};{};0) < F12;0;"")'.format(*list(date_time.timetuple()))
-                if date_time < datetime.now():
-                    score1 = max(0, 0, *(g.get('ScoreTeam1', 0) for g in match.get('Goals', [])))
-                    score2 = max(0, 0, *(g.get('ScoreTeam2', 0) for g in match.get('Goals', [])))
+                date_formula = '=IF(DATE({};{};{}) + TIME({};{};0) < F12;0;"")'.format(*list(match.kickoff.timetuple()))
+                if match.kickoff < datetime.now():
+                    score1, score2 = match.score.values()
                 else:
                     score1, score2 = date_formula, date_formula
                 values.append([
-                    ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'][date_time.weekday()],
-                    date_time.strftime("%d.%m.%Y"),
-                    date_time.strftime("%H:%M"),
-                    self.bot.liveticker.teamname_converter.get(match.get('Team1', {}).get('TeamName')).long_name,
+                    ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'][match.kickoff.weekday()],
+                    match.kickoff.strftime("%d.%m.%Y"),
+                    match.kickoff.strftime("%H:%M"),
+                    match.home_team.long_name,
                     score1,
                     score2,
-                    self.bot.liveticker.teamname_converter.get(match.get('Team2', {}).get('TeamName')).long_name])
+                    match.away_team.long_name])
 
             # Put matches into spreadsheet
             c.update("Aktuell!{}".format(Config().get(self)['matches_range']), values, raw=False)
