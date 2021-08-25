@@ -184,7 +184,7 @@ class _Liveticker:
     async def cmd_liveticker_interval(self, ctx, new_interval: int):
         Config().get(self)['liveticker']['interval'] = new_interval
         Config().save(self)
-        for _, _, c_reg in list(self.bot.liveticker.search_coro(plugins=[super.get_name()])):
+        for _, _, c_reg in list(self.bot.liveticker.search_coro(plugins=[self.get_name()])):
             c_reg.interval = new_interval
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
