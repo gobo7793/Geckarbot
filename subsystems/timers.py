@@ -11,8 +11,7 @@ import struct
 import datetime
 
 from base import BaseSubsystem
-from botutils.utils import write_debug_channel, execute_anything_sync, execute_anything
-
+from botutils.utils import write_debug_channel, execute_anything_sync, execute_anything, log_exception
 
 timedictformat = ["year", "month", "monthday", "weekday", "hour", "minute"]
 
@@ -153,7 +152,13 @@ class Job:
                 self.logger.debug("Job was cancelled, cancelling loop")
                 break
             self.logger.debug("Executing job %s", self)
-            await execute_anything(self._coro, self)
+            try:
+                await execute_anything(self._coro, self)
+            except Exception as e:
+                fields = {
+                    "timedict": self._timedict
+                }
+                await log_exception(e, title=":x: Timer error", fields=fields)
             if not self._repeat:
                 break
 
