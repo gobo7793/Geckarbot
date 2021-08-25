@@ -182,6 +182,7 @@
         "usage_predgame_set_today": "[true|false]",
         "help_predgame_pinglist": "Zeigt alle User in der Pingliste an",
         "desc_predgame_pinglist": "Zeigt alle User in der Pingliste an, die bei der automatischen Nachricht der heutigen zu tippenden Spiele erwähnt bzw. gepingt werden.",
+        "usage_predgame_pinglist_add": "[User]",
         "help_predgame_pinglist_add": "Fügt einen User zur Pingliste hinzu",
         "desc_predgame_pinglist_add": "Fügt einen User zur Pingliste hinzu. Wenn kein User angegeben wird, wird der ausführende User selbst hinzugefügt.",
         "help_predgame_pinglist_del": "Entfernt einen User von der Pingliste",
