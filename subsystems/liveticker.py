@@ -1342,7 +1342,7 @@ class Liveticker(BaseSubsystem):
                 for kickoff in l_reg.kickoffs:
                     if kickoff >= end_of_hour:
                         continue
-                    max_min = ((end_of_hour - kickoff).seconds // 3600 + 1) * 60
+                    max_min = ((end_of_hour - kickoff).seconds // 3600) * 60
                     minutes = set(e % 60 for s in (range(kickoff.minute, max_min, ival) for ival in l_reg.intervals)
                                   for e in s if e >= max_min - 60)
                     for m in minutes:
