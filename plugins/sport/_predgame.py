@@ -345,9 +345,6 @@ class _Predgame:
             await ctx.send(Lang.lang(self, "pred_pinguser_already", get_best_username(user)))
             return
 
-        if user is None:
-            user = ctx.author
-
         Config.get(self)["predgame"]["pinglist"].append(user.id)
         Config.save(self)
         logger.info("User %s added to predgame pinglist", user.id)
