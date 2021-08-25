@@ -472,35 +472,7 @@ class Geckarbot(commands.Bot):
 
         # Other errors
         else:
-            # error handling
-            embed = discord.Embed(title=':x: Command Error', colour=0xe74c3c)  # Red
-            embed.add_field(name='Error', value=exception)
-            embed.add_field(name='Command', value=context.command)
-            embed.add_field(name='Message', value=context.message.clean_content)
-            if isinstance(context.channel, discord.TextChannel):
-                embed.add_field(name='Channel', value=context.channel.name)
-            if isinstance(context.channel, discord.DMChannel):
-                embed.add_field(name='Channel', value=context.channel.recipient)
-            if isinstance(context.channel, discord.GroupChannel):
-                embed.add_field(name='Channel', value=context.channel.recipients)
-            embed.add_field(name='Author', value=context.author.display_name)
-            embed.url = context.message.jump_url
-            embed.timestamp = datetime.datetime.utcnow()
-
-            # gather traceback
-            ex_tb = "".join(traceback.TracebackException.from_exception(exception).format())
-            is_tb_own_msg = len(ex_tb) > 2000
-            if is_tb_own_msg:
-                embed.description = "Exception Traceback see next message."
-                ex_tb = stringutils.paginate(ex_tb.split("\n"), msg_prefix="```python\n", msg_suffix="```")
-            else:
-                embed.description = f"```python\n{ex_tb}```"
-
-            # send messages
-            await utils.write_debug_channel(embed)
-            if is_tb_own_msg:
-                for msg in ex_tb:
-                    await utils.write_debug_channel(msg)
+            await utils.log_exception(exception, context=context)
             await utils.add_reaction(context.message, Lang.CMDERROR)
             await send_error_to_ctx(context, exception, default="Unknown error while executing command.")
 
