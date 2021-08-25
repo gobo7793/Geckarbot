@@ -16,6 +16,13 @@ from botutils.utils import write_debug_channel, execute_anything_sync, execute_a
 timedictformat = ["year", "month", "monthday", "weekday", "hour", "minute"]
 
 
+class NoFutureExec(Exception):
+    """
+    Raised by Mothership.schedule() when there is no execution in the future (i.e. all execs are in the past).
+    """
+    pass
+
+
 class LastExecution(Exception):
     """
     Flow Control for non-repeating job execution
@@ -45,11 +52,11 @@ class Mothership(BaseSubsystem):
         :param td: Timedict that specifies the execution schedule
         :param data: Opaque object that is set as job.data
         :param repeat: If set to False, the job runs only once.
-        :raises RuntimeError: raised if td is in the past
+        :raises NoFutureExec: raised if td is in the past
         """
         td = normalize_td(td)
         if next_occurence(td) is None:
-            raise RuntimeError("td {} is in the past".format(td))
+            raise NoFutureExec("td {} is in the past".format(td))
         job = Job(self.bot, td, coro, data=data, repeat=repeat)
         self.logger.info("Scheduling %s", job)
         self.jobs.append(job)
@@ -62,7 +69,7 @@ class Mothership(BaseSubsystem):
 
 class Job:
     """The scheduled Job representation"""
-    def __init__(self, bot, td, f, data=None, repeat=True):
+    def __init__(self, bot, td, f, data=None, repeat=True, run=True):
         """
         cron-like. Takes timedict elements as arguments.
 
@@ -70,6 +77,7 @@ class Job:
         :param td: Timedict that specifies the execution schedule
         :param data: Opaque object that is set as job.data
         :param repeat: If set to False, the job runs only once.
+        :param run: Set to False to not automatically start this job
         :raises RuntimeError: raised if td is in the past
         """
         self.logger = logging.getLogger(__name__)
@@ -96,7 +104,8 @@ class Job:
         self._cached_next_exec = next_occurence(self._timedict, ignore_now=True)
         self._last_exec = None
 
-        self._task = asyncio.get_event_loop().create_task(self._loop())
+        if run:
+            self._task = asyncio.get_event_loop().create_task(self._loop())
 
     @property
     def timedict(self):
