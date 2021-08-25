@@ -1,5 +1,6 @@
 import asyncio
 from typing import Union
+from datetime import datetime
 
 import discord
 from discord.ext import commands
@@ -194,6 +195,25 @@ class Plugin(BasePlugin, name="Testing and debug things"):
     @commands.command(name="doerror", hidden=True)
     async def cmd_do_error(self, ctx):
         raise commands.CommandError("Testerror")
+
+    @staticmethod
+    async def error_cb(job):
+        await job.data.send("Bang! Bang!")
+        raise Exception("Bang! Bang!")
+
+    @commands.command(name="timererror", hidden=True)
+    async def cmd_timer_error(self, ctx):
+        now = datetime.now()
+        td = {
+            "year": now.year,
+            "month": now.month,
+            "monthday": now.day,
+            "hour": now.hour,
+            "minute": now.minute + 1
+        }
+        self.bot.timers.schedule(self.error_cb, td, data=ctx)
+        await ctx.send(str(td))
+        await utils.add_reaction(ctx.message, Lang.CMDSUCCESS)
 
     @commands.command(name="writelogs", hidden=True)
     async def cmd_write_logs(self, ctx):

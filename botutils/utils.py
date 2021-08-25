@@ -203,7 +203,7 @@ async def log_to_mod_channel(context):
     await _log_to_channel(context, write_mod_channel)
 
 
-async def log_exception(exception, context: Optional[Context], title=":x: Command Error", fields: dict = None):
+async def log_exception(exception, context: Optional[Context] = None, title=":x: Command Error", fields: dict = None):
     """
     Logs an exception to the debug channel, including traceback.
 
