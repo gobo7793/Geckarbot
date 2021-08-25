@@ -779,11 +779,13 @@ class Plugin(BasePlugin, name="LastFM"):
         return msg
 
     @commands.group(name="spotify", invoke_without_command=True)
-    async def cmd_spotify(self, ctx):
+    async def cmd_spotify(self, ctx, *args):
+        user = self.parse_args(args, ctx.author)["author"]
+
         async with ctx.typing():
             # Get user
             try:
-                lfmuser = self.get_lastfm_user(ctx.author)
+                lfmuser = self.get_lastfm_user(user)
             except NotRegistered:
                 await self.bot.helpsys.cmd_help(ctx, self, ctx.command)
                 return

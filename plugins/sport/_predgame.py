@@ -327,7 +327,7 @@ class _Predgame:
             await add_reaction(ctx.message, Lang.EMOJI['mute'])
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
-    @cmd_predgame.group(name="pinglist", invoke_without_command=True)
+    @cmd_predgame.group(name="pinglist", aliases=["pingliste"], invoke_without_command=True)
     async def cmd_predgame_pinglist(self, ctx):
         if Config.get(self)["predgame"]["pinglist"]:
             users = ", ".join([get_username_from_id(u) for u in Config.get(self)["predgame"]["pinglist"]])
@@ -337,13 +337,13 @@ class _Predgame:
 
     @cmd_predgame_pinglist.command(name="add")
     async def cmd_predgame_pinglist_add(self, ctx, user: Union[discord.User, discord.Member] = None):
+        if user is None:
+            user = ctx.author
+
         if user.id in Config.get(self)["predgame"]["pinglist"]:
             await add_reaction(ctx.message, Lang.CMDERROR)
             await ctx.send(Lang.lang(self, "pred_pinguser_already", get_best_username(user)))
             return
-
-        if user is None:
-            user = ctx.author
 
         Config.get(self)["predgame"]["pinglist"].append(user.id)
         Config.save(self)

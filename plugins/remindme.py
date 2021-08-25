@@ -229,6 +229,9 @@ class Plugin(BasePlugin):
         rid = job.data['id']
         self.explain_history[user] = job.data['link']
 
+        if channel is None:
+            raise RuntimeError("Channel with id {} is None".format(job.data['chan']))
+
         if text:
             remind_text = Lang.lang(self, 'remind_callback', user.mention, text)
         else:
