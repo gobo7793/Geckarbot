@@ -185,8 +185,12 @@ class Plugin(BasePlugin):
 
         timedict = timers.timedict(year=remind_time.year, month=remind_time.month, monthday=remind_time.day,
                                    hour=remind_time.hour, minute=remind_time.minute)
-        job = self.bot.timers.schedule(self._reminder_callback, timedict, repeat=False)
-        job.data = job_data
+        try:
+            job = self.bot.timers.schedule(self._reminder_callback, timedict, data=job_data, repeat=False)
+        except timers.NoFutureExec:
+            job = timers.Job(self.bot, timedict, self._reminder_callback, data=job_data, repeat=False, run=False)
+            utils.execute_anything_sync(self._reminder_callback, job)
+            return False
 
         self.reminders[reminder_id] = job
         if not is_restart:
