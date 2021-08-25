@@ -320,3 +320,12 @@ class Plugin(BasePlugin, name="Testing and debug things"):
 
         for msg in stringutils.paginate(msgs):
             await ctx.send(msg)
+
+    @staticmethod
+    async def spam_cb(job):
+        await job.data.send("SPAM")
+
+    # @commands.command(name="spam", hidden=True)
+    async def cmd_spam(self, ctx):
+        td = {"minute": [x for x in range(60)]}
+        self.bot.timers.schedule(self.spam_cb, td, data=ctx)

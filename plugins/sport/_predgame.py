@@ -339,7 +339,7 @@ class _Predgame:
     async def cmd_predgame_pinglist_add(self, ctx, user: Union[discord.User, discord.Member] = None):
         if user is None:
             user = ctx.author
-            
+
         if user.id in Config.get(self)["predgame"]["pinglist"]:
             await add_reaction(ctx.message, Lang.CMDERROR)
             await ctx.send(Lang.lang(self, "pred_pinguser_already", get_best_username(user)))
