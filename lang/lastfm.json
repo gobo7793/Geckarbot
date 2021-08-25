@@ -27,6 +27,7 @@
     "desc_lastfm_presence": "Regelt, ob deine Scrobbles im Bot-Status erscheinen können.",
     "del_restricted": " Du kannst nur Zitate löschen, die du auch erstellt hast. (Diese Einschränkungen gilt nicht für Mods oder Bot-Admins.)",
 
+    "usage_spotify": "[User]",
     "help_spotify": "Spotify-Anbindung",
     "desc_spotify": "Kommandos zur Nutzung von Spotify.",
     "usage_spotify_credentials": "<client id> <client secret>",
