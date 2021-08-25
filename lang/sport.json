@@ -48,6 +48,7 @@
         "usage_predgame_set_today": "[true|false]",
         "help_predgame_pinglist": "Shows users in pinglist",
         "desc_predgame_pinglist": "Shows all users who are in the pinglist which are mentioned in the message containing todays matches to predict.",
+        "usage_predgame_pinglist_add": "[User]",
         "help_predgame_pinglist_add": "Add a user to pinglist",
         "desc_predgame_pinglist_add": "Add a user to pinglist. If no user is given, the user self will be added.",
         "help_predgame_pinglist_del": "Removes a user from pinglist",
