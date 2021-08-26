@@ -4,6 +4,8 @@ import re
 import urllib.parse
 from typing import Optional, Dict, Tuple, Union, List
 
+from googleapiclient.discovery import Resource
+
 from botutils import restclient
 from base import NotLoadable
 
@@ -42,6 +44,9 @@ class Cell:
         Building the cell from the A1-notation.
 
         :param a1_notation: A1-notation of the cell e.g. "A4" or "BE34"
+        :rtype: Cell
+        :return: Cell
+        :raises ValueError: if invalid notation
         """
         extract = re.search("(?P<col>[A-Z]+)(?P<row>\\d+)", a1_notation)
         if extract:
@@ -74,6 +79,7 @@ class Cell:
 
         :param columns: number of columns the cell should be moved
         :param rows: number of rows the rows the cell should be moved
+        :rtype: Cell
         :return: resulting cell
         """
         return Cell(column=self.column + columns,
@@ -104,7 +110,9 @@ class CellRange:
         Builds a CellRange object from "A1:B4" notation
 
         :param a1_notation: notation string
+        :rtype: CellRange
         :return: Corresponding CellRange object
+        :raises ValueError: if invalid notation
         """
         extract = re.search("(?P<cell1>[A-Z]+\\d+):(?P<cell2>[A-Z]+\\d+)", a1_notation)
         if extract:
@@ -119,13 +127,14 @@ class CellRange:
 
         :param start_cell: top left
         :param end_cell: bottom right
+        :rtype: CellRange
         :return: Corresponding CellRange object
         """
         width = end_cell.column - start_cell.column + 1
         height = end_cell.row - start_cell.row + 1
         return cls(start_cell, width, height)
 
-    def rangename(self):
+    def rangename(self) -> str:
         """Returns cell range in A1-notation"""
         return "{}:{}".format(Cell(self.column, self.row).cellname(),
                               Cell(self.column + self.width - 1, self.row + self.height - 1).cellname())
@@ -136,6 +145,7 @@ class CellRange:
 
         :param columns: number of columns the range should be moved
         :param rows: number of rows the rows the range should be moved
+        :rtype: CellRange
         :return: resulting cell range
         """
         return CellRange(start_cell=Cell(column=self.column + columns,
@@ -154,7 +164,7 @@ class CellRange:
                          height=self.height + top + bottom)
 
 
-def get_service():
+def get_service() -> Resource:
     """Returns the service for the google sheets"""
     # pylint: disable=import-outside-toplevel
     try:
@@ -196,10 +206,12 @@ class Client(restclient.Client):
         self.logger = logging.getLogger(__name__)
         self.logger.debug("Building Sheets API Client for spreadsheet %s", self.spreadsheet_id)
 
-    def _params_add_api_key(self, params=None):
+    def _params_add_api_key(self, params: list = None) -> List:
         """
         Adds the API key to the params dictionary
 
+        :param params: List of params
+        :return: List of params
         :raises NoApiKey: If the Google API key is not set
         """
         if not self.bot.GOOGLE_API_KEY:
@@ -209,7 +221,7 @@ class Client(restclient.Client):
         params.append(('key', self.bot.GOOGLE_API_KEY))
         return params
 
-    def _make_request(self, route: str, params=None):
+    def _make_request(self, route: str, params=None) -> Dict:
         """
         Makes a Sheets Request
         """
@@ -220,7 +232,7 @@ class Client(restclient.Client):
         # self.logger.debug("Response: {}".format(response))
         return response
 
-    def _get_sheets(self):
+    def _get_sheets(self) -> List:
         """
         Gets all sheets
 
@@ -230,7 +242,7 @@ class Client(restclient.Client):
         sheets = info.get('sheets', [])
         return sheets
 
-    def _get_sheet_properties(self, sheet: str):
+    def _get_sheet_properties(self, sheet: str) -> Optional[Dict]:
         """
         Returns properties of the specified sheet
 
@@ -244,7 +256,7 @@ class Client(restclient.Client):
                 return properties
         return None
 
-    def _get_sheet_id(self, sheet: Union[int, str]):
+    def _get_sheet_id(self, sheet: Union[int, str]) -> int:
         """
         Converts the title of a sheet into the coresponding sheet id
 
@@ -330,10 +342,10 @@ class Client(restclient.Client):
         """
 
         data = []
-        for range in data_dict:
+        for cellrange in data_dict:
             data.append({
-                'range': range,
-                'values': data_dict[range]
+                'range': cellrange,
+                'values': data_dict[cellrange]
             })
         value_input_option = 'RAW' if raw else 'USER_ENTERED'
         body = {
@@ -345,7 +357,7 @@ class Client(restclient.Client):
         self.logger.debug("Response: %s", response)
         return response
 
-    def append(self, cellrange: str, values, raw: bool = True) -> Dict:
+    def append(self, cellrange: str, values: List[List[str]], raw: bool = True) -> Dict:
         """
         Appends values to a table (Warning: can maybe overwrite cells below the table)
 
