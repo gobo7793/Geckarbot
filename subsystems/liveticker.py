@@ -17,7 +17,7 @@ class LeagueNotExist(Exception):
     pass
 
 
-class SourceNotSupperted(Exception):
+class SourceNotSupported(Exception):
     """Exception if given source is not supperted by the function"""
     pass
 
@@ -72,7 +72,7 @@ class MatchStatus(Enum):
                 if kickoff < datetime.datetime.now():
                     return MatchStatus.RUNNING
                 return MatchStatus.UPCOMING
-        raise SourceNotSupperted
+        raise SourceNotSupported
 
 
 class TeamnameDict:
@@ -1153,7 +1153,7 @@ class Liveticker(BaseSubsystem):
         return storage
 
     def update_storage(self):
-        # Update storage
+        """Storage update at version jump"""
         if not Storage().get(self).get('storage_version'):
             self.logger.debug("default storage set")
             regs = Storage().get(self)
@@ -1408,5 +1408,5 @@ class Liveticker(BaseSubsystem):
                 table.append(TableEntryOLDB(data[i]))
             tables[league] = table
         else:
-            raise SourceNotSupperted
+            raise SourceNotSupported
         return league_name, tables
