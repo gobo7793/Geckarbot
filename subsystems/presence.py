@@ -418,6 +418,6 @@ class Presence(BaseSubsystem):
         to_unset = job.data["current_msg"]
         job.data["current_id"] = next_id
         job.data["current_msg"] = new_msg
-        
+
         if to_unset:
             await job.data["current_msg"].unset()

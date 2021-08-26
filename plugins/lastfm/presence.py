@@ -133,7 +133,7 @@ class LfmPresenceMessage(PresenceMessage):
         """
         self.logger.debug("Presence message was unset")
         self.is_currently_shown = False
-        if self.state is not None and self.state.timer is not None:
+        if self.state is not None and self.state.timer is not None and not self.state.timer.has_run:
             self.state.timer.cancel()
         self.state = None
 
