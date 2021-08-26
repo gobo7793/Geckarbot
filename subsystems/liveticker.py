@@ -9,6 +9,7 @@ from botutils import restclient
 from botutils.converters import get_plugin_by_name
 from data import Storage, Lang, Config
 from subsystems import timers
+from subsystems.timers import HasAlreadyRun
 
 
 class LeagueNotExist(Exception):
@@ -1334,7 +1335,10 @@ class Liveticker(BaseSubsystem):
         """
         self.logger.debug("Updating match timer")
         if self.match_timer and not self.match_timer.cancelled:
-            self.match_timer.cancel()
+            try:
+                self.match_timer.cancel()
+            except (RuntimeError, HasAlreadyRun):
+                pass
         update_minutes = {x: {} for x in range(61)}
         now = datetime.datetime.now()
         end_of_hour = (now + datetime.timedelta(hours=1)).replace(minute=0, second=0, microsecond=0)
