@@ -9,6 +9,7 @@ from botutils import restclient
 from botutils.converters import get_plugin_by_name
 from data import Storage, Lang, Config
 from subsystems import timers
+from subsystems.timers import HasAlreadyRun
 
 
 class LeagueNotExist(Exception):
@@ -16,7 +17,7 @@ class LeagueNotExist(Exception):
     pass
 
 
-class SourceNotSupperted(Exception):
+class SourceNotSupported(Exception):
     """Exception if given source is not supperted by the function"""
     pass
 
@@ -71,7 +72,7 @@ class MatchStatus(Enum):
                 if kickoff < datetime.datetime.now():
                     return MatchStatus.RUNNING
                 return MatchStatus.UPCOMING
-        raise SourceNotSupperted
+        raise SourceNotSupported
 
 
 class TeamnameDict:
@@ -925,7 +926,8 @@ class LeagueRegistrationBase(ABC):
         now = datetime.datetime.now()
         Storage().get(self.listener)['registrations'][self.source.value][self.league]['kickoffs'] = {}
 
-        matches: List[MatchBase] = await self.get_matches_by_date(league=self.league, from_day=now, until_day=until)
+        matches: List[MatchBase] = await self.get_matches_by_date(league=self.league, from_day=now.date(),
+                                                                  until_day=until.date())
 
         # Group by kickoff
         for match in matches:
@@ -1151,7 +1153,7 @@ class Liveticker(BaseSubsystem):
         return storage
 
     def update_storage(self):
-        # Update storage
+        """Storage update at version jump"""
         if not Storage().get(self).get('storage_version'):
             self.logger.debug("default storage set")
             regs = Storage().get(self)
@@ -1333,15 +1335,19 @@ class Liveticker(BaseSubsystem):
         """
         self.logger.debug("Updating match timer")
         if self.match_timer and not self.match_timer.cancelled:
-            self.match_timer.cancel()
+            try:
+                self.match_timer.cancel()
+            except (RuntimeError, HasAlreadyRun):
+                pass
         update_minutes = {x: {} for x in range(61)}
-        end_of_hour = (datetime.datetime.now() + datetime.timedelta(hours=1)).replace(minute=0, second=0, microsecond=0)
+        now = datetime.datetime.now()
+        end_of_hour = (now + datetime.timedelta(hours=1)).replace(minute=0, second=0, microsecond=0)
         for source in LTSource:
             for l_reg in self.registrations[source].values():
                 for kickoff in l_reg.kickoffs:
                     if kickoff >= end_of_hour:
                         continue
-                    max_min = ((end_of_hour - kickoff).seconds // 3600 + 1) * 60
+                    max_min = ((end_of_hour - kickoff).seconds // 3600) * 60
                     minutes = set(e % 60 for s in (range(kickoff.minute, max_min, ival) for ival in l_reg.intervals)
                                   for e in s if e >= max_min - 60)
                     for m in minutes:
@@ -1356,9 +1362,10 @@ class Liveticker(BaseSubsystem):
         if not update_minutes:
             return
         self.match_timer = self.bot.timers.schedule(coro=self._update_league_registrations,
-                                                    td=timers.timedict(minute=list(update_minutes.keys())),
+                                                    td=timers.timedict(hour=now.hour,
+                                                                       minute=list(update_minutes.keys())),
                                                     data=update_minutes)
-        if self.match_timer.next_execution() <= datetime.datetime.now():
+        if now.minute in update_minutes or self.match_timer.next_execution() <= now:
             self.match_timer.execute()
 
     @staticmethod
@@ -1374,7 +1381,7 @@ class Liveticker(BaseSubsystem):
 
         :param league: league key
         :param source: data source
-        :raises SourceNotSupperted: if source type is not covered
+        :raises SourceNotSupported: if source type is not covered
         :raises LeagueNotExist: if league key doesnt lead to a valid league
         :return: league name and current standings per group
         """
@@ -1401,5 +1408,5 @@ class Liveticker(BaseSubsystem):
                 table.append(TableEntryOLDB(data[i]))
             tables[league] = table
         else:
-            raise SourceNotSupperted
+            raise SourceNotSupported
         return league_name, tables
