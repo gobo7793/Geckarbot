@@ -4,7 +4,7 @@ import re
 import urllib.parse
 from typing import Optional, Dict, Tuple, Union, List
 
-from googleapiclient.discovery import Resource
+import googleapiclient.discovery
 
 from botutils import restclient
 from base import NotLoadable
@@ -164,7 +164,7 @@ class CellRange:
                          height=self.height + top + bottom)
 
 
-def get_service() -> Resource:
+def get_service() -> googleapiclient.discovery.Resource:
     """Returns the service for the google sheets"""
     # pylint: disable=import-outside-toplevel
     try:
@@ -238,6 +238,7 @@ class Client(restclient.Client):
 
         :return: List of sheets
         """
+        # pylint: disable=no-member
         info = get_service().spreadsheets().get(spreadsheetId=self.spreadsheet_id).execute()
         sheets = info.get('sheets', [])
         return sheets
@@ -279,6 +280,7 @@ class Client(restclient.Client):
             route = "{}/values/{}".format(self.spreadsheet_id, cellrange)
             response = self._make_request(route, params=[('valueRenderOption', value_render_option)])
         else:
+            # pylint: disable=no-member
             response = get_service().spreadsheets().values().get(
                 spreadsheetId=self.spreadsheet_id, range=cellrange, valueRenderOption=value_render_option).execute()
             self.logger.debug("Response: %s", response)
@@ -302,6 +304,7 @@ class Client(restclient.Client):
                 params.append(("ranges", cellrange))
             response = self._make_request(route, params=params)
         else:
+            # pylint: disable=no-member
             response = get_service().spreadsheets().values().batchGet(
                 spreadsheetId=self.spreadsheet_id, ranges=ranges, valueRenderOption=value_render_option).execute()
             self.logger.debug("Response: %s", response)
@@ -325,6 +328,7 @@ class Client(restclient.Client):
             'values': values
         }
         value_input_option = 'RAW' if raw else 'USER_ENTERED'
+        # pylint: disable=no-member
         response = get_service().spreadsheets().values().update(
             spreadsheetId=self.spreadsheet_id, range=cellrange,
             valueInputOption=value_input_option, body=data).execute()
@@ -352,6 +356,7 @@ class Client(restclient.Client):
             'valueInputOption': value_input_option,
             'data': data
         }
+        # pylint: disable=no-member
         response = get_service().spreadsheets().values().batchUpdate(
             spreadsheetId=self.spreadsheet_id, body=body).execute()
         self.logger.debug("Response: %s", response)
@@ -370,6 +375,7 @@ class Client(restclient.Client):
             'values': values
         }
         value_input_option = 'RAW' if raw else 'USER_ENTERED'
+        # pylint: disable=no-member
         response = get_service().spreadsheets().values().append(
             spreadsheetId=self.spreadsheet_id, range=cellrange, valueInputOption=value_input_option,
             body=data).execute()
@@ -383,6 +389,7 @@ class Client(restclient.Client):
         :param cellrange: range to be cleared
         :return: response
         """
+        # pylint: disable=no-member
         response = get_service().spreadsheets().values().clear(
             spreadsheetId=self.spreadsheet_id, range=cellrange).execute()
         return response
@@ -397,6 +404,7 @@ class Client(restclient.Client):
         body = {
             'ranges': ranges
         }
+        # pylint: disable=no-member
         response = get_service().spreadsheets().values().batchClear(
             spreadsheetId=self.spreadsheet_id, body=body).execute()
         return response
@@ -430,6 +438,7 @@ class Client(restclient.Client):
         try:
             from googleapiclient.errors import HttpError
             try:
+                # pylint: disable=no-member
                 response = get_service().spreadsheets().batchUpdate(spreadsheetId=self.spreadsheet_id,
                                                                     body=body).execute()
                 return response
@@ -476,6 +485,7 @@ class Client(restclient.Client):
         try:
             from googleapiclient.errors import HttpError
             try:
+                # pylint: disable=no-member
                 response = get_service().spreadsheets().batchUpdate(
                     spreadsheetId=self.spreadsheet_id, body=body).execute()
                 return response
@@ -574,6 +584,7 @@ class Client(restclient.Client):
         try:
             from googleapiclient.errors import HttpError
             try:
+                # pylint: disable=no-member
                 response = get_service().spreadsheets().batchUpdate(
                     spreadsheetId=self.spreadsheet_id, body=body).execute()
                 return response
