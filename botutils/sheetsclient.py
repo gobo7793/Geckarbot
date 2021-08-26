@@ -4,8 +4,6 @@ import re
 import urllib.parse
 from typing import Optional, Dict, Tuple, Union, List
 
-import googleapiclient.discovery
-
 from botutils import restclient
 from base import NotLoadable
 
@@ -164,7 +162,8 @@ class CellRange:
                          height=self.height + top + bottom)
 
 
-def get_service() -> googleapiclient.discovery.Resource:
+# pylint: disable=missing-return-type-doc
+def get_service():
     """Returns the service for the google sheets"""
     # pylint: disable=import-outside-toplevel
     try:
@@ -280,8 +279,7 @@ class Client(restclient.Client):
             route = "{}/values/{}".format(self.spreadsheet_id, cellrange)
             response = self._make_request(route, params=[('valueRenderOption', value_render_option)])
         else:
-            # pylint: disable=no-member
-            response = get_service().spreadsheets().values().get(
+            response = get_service().spreadsheets().values().get(  # pylint: disable=no-member
                 spreadsheetId=self.spreadsheet_id, range=cellrange, valueRenderOption=value_render_option).execute()
             self.logger.debug("Response: %s", response)
 
@@ -304,8 +302,7 @@ class Client(restclient.Client):
                 params.append(("ranges", cellrange))
             response = self._make_request(route, params=params)
         else:
-            # pylint: disable=no-member
-            response = get_service().spreadsheets().values().batchGet(
+            response = get_service().spreadsheets().values().batchGet(  # pylint: disable=no-member
                 spreadsheetId=self.spreadsheet_id, ranges=ranges, valueRenderOption=value_render_option).execute()
             self.logger.debug("Response: %s", response)
 
