@@ -188,7 +188,7 @@ class Client(restclient.Client):
     Further infos: https://developers.google.com/sheets/api
     """
 
-    def __init__(self, bot, spreadsheet_id: int):
+    def __init__(self, bot, spreadsheet_id: str):
         """
         Creates a new REST Client for Google Sheets API using the API Key given in Geckarbot.json.
         If no API Key is given, the Client can't set up.
