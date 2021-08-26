@@ -1381,7 +1381,7 @@ class Liveticker(BaseSubsystem):
 
         :param league: league key
         :param source: data source
-        :raises SourceNotSupperted: if source type is not covered
+        :raises SourceNotSupported: if source type is not covered
         :raises LeagueNotExist: if league key doesnt lead to a valid league
         :return: league name and current standings per group
         """
