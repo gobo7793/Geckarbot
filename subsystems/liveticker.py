@@ -925,7 +925,8 @@ class LeagueRegistrationBase(ABC):
         now = datetime.datetime.now()
         Storage().get(self.listener)['registrations'][self.source.value][self.league]['kickoffs'] = {}
 
-        matches: List[MatchBase] = await self.get_matches_by_date(league=self.league, from_day=now, until_day=until)
+        matches: List[MatchBase] = await self.get_matches_by_date(league=self.league, from_day=now.date(),
+                                                                  until_day=until.date())
 
         # Group by kickoff
         for match in matches:
