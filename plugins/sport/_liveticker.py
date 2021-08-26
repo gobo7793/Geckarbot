@@ -184,7 +184,7 @@ class _Liveticker:
     async def cmd_liveticker_interval(self, ctx, new_interval: int):
         Config().get(self)['liveticker']['interval'] = new_interval
         Config().save(self)
-        for _, _, c_reg in list(self.bot.liveticker.search_coro(plugins=[super.get_name()])):
+        for _, _, c_reg in list(self.bot.liveticker.search_coro(plugins=[self.get_name()])):
             c_reg.interval = new_interval
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
@@ -193,6 +193,8 @@ class _Liveticker:
         msg_lines = []
         for l_reg in self.bot.liveticker.search_league():
             msg_lines.append(f"**{l_reg.league}**")
+            if len(l_reg.kickoffs) == 0:
+                msg_lines.append(Lang.lang(self, 'no_matches'))
             for kickoff, matches in l_reg.kickoffs.items():
                 msg_lines.append(f"{kickoff:%a. %d.%m.%Y, %H:%M Uhr}")
                 msg_lines.extend(f"- {m.home_team.long_name} - {m.away_team.long_name}" for m in matches)

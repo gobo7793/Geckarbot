@@ -162,5 +162,5 @@ class _Scores:
                 if league_msg:
                     msg += "{}\n{}\n".format(matches[0].get('LeagueName', league), league_msg)
             if not msg:
-                msg = Lang.lang(self, 'no_matches_24h')
+                msg = Lang.lang(self, 'no_matches')
         await ctx.send(msg)
