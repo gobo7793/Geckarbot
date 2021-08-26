@@ -61,8 +61,8 @@ class _Scores:
                 await add_reaction(ctx.message, Lang.CMDERROR)
                 return
         elif source == LTSource.ESPN:
-            matches = LeagueRegistrationESPN.get_matches_by_date(league=league, until_day=datetime.date.today() +
-                                                                                          datetime.timedelta(days=2))
+            matches = await LeagueRegistrationESPN.get_matches_by_date(
+                league=league, until_day=datetime.date.today() + datetime.timedelta(days=2))
         else:
             await ctx.send(Lang.lang(self, 'source_not_supported', source))
             return
