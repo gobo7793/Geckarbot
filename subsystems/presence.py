@@ -420,4 +420,4 @@ class Presence(BaseSubsystem):
         job.data["current_msg"] = new_msg
 
         if to_unset:
-            await job.data["current_msg"].unset()
+            await to_unset.unset()
