@@ -61,7 +61,8 @@ class MatchStatus(Enum):
                     return MatchStatus.COMPLETED
                 if m.get('status', {}).get('name') == "STATUS_ABANDONED":
                     return MatchStatus.ABANDONED
-                return MatchStatus.POSTPONED
+                if m.get('status', {}).get('name') == "STATUS_POSTPONED":
+                    return MatchStatus.POSTPONED
             return MatchStatus.UNKNOWN
         if src == LTSource.OPENLIGADB:
             if m.get('MatchIsFinished'):
