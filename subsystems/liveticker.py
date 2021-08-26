@@ -2,7 +2,7 @@ import datetime
 import logging
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import List, Generator, Tuple, Optional, Dict, Iterable
+from typing import List, Generator, Tuple, Optional, Dict, Iterable, Coroutine, Any
 
 from base import BaseSubsystem, BasePlugin
 from botutils import restclient
@@ -20,6 +20,7 @@ class LeagueNotExist(Exception):
 class SourceNotSupported(Exception):
     """Exception if given source is not supperted by the function"""
     pass
+
 
 class LTSource(Enum):
     """Data source"""
@@ -915,6 +916,19 @@ class LeagueRegistrationBase(ABC):
         """
         pass
 
+    @staticmethod
+    @abstractmethod
+    async def get_standings(league: str) -> Dict[str, List[TableEntryBase]]:
+        """
+        Returns the current standings of that league
+
+        :param league: key of the league
+        :raises SourceNotSupported: if source type is not covered
+        :raises LeagueNotExist: if league key doesnt lead to a valid league
+        :return: league name and current standings per group
+        """
+        pass
+
     async def schedule_kickoffs(self, until: datetime.datetime):
         """
         Schedules timers for the kickoffs of the matches until the specified date
@@ -1028,6 +1042,20 @@ class LeagueRegistrationESPN(LeagueRegistrationBase):
         return matches
 
     @staticmethod
+    async def get_standings(league: str):
+        tables = {}
+        data = await restclient.Client("https://site.api.espn.com/apis/v2/sports").request(
+            f"/soccer/{league}/standings", params={'geckirandom': datetime.datetime.now().microsecond})
+        if 'children' not in data:
+            raise LeagueNotExist(f"Unable to retrieve any standings information for {league}")
+        groups = data['children']
+        for group in groups:
+            entries = group['standings']['entries']
+            group_name = group['name']
+            tables[group_name] = [TableEntryESPN(entry) for entry in entries]
+        return tables
+
+    @staticmethod
     def get_matchclass():
         return MatchESPN
 
@@ -1092,6 +1120,20 @@ class LeagueRegistrationOLDB(LeagueRegistrationBase):
         data = await restclient.Client("https://api.openligadb.de").request(
             f"/getmatchdata/{league}/{season}/{matchday}")
         return [MatchOLDB(m) for m in data]
+
+    @staticmethod
+    async def get_standings(league: str):
+        tables = {}
+        year = (datetime.datetime.today() - datetime.timedelta(days=180)).year
+        data = await restclient.Client("https://api.openligadb.de").request(f"/getbltable/{league}/{year}")
+        table = []
+        if not data:
+            raise LeagueNotExist(f"Unable to retrieve any standings information for {league}")
+        for i in range(len(data)):
+            data[i]['rank'] = i + 1
+            table.append(TableEntryOLDB(data[i]))
+        tables[league] = table
+        return tables
 
     def matchday(self):
         """Returns the current matchday (OLDB only)"""
@@ -1375,7 +1417,8 @@ class Liveticker(BaseSubsystem):
             await l_reg.update_periodic_coros(kickoffs[:])
 
     @staticmethod
-    async def get_standings(league: str, source: LTSource) -> Tuple[str, Dict[str, List[TableEntryBase]]]:
+    async def get_standings(league: str, source: LTSource) \
+            -> Tuple[str, Coroutine[Any, Any, Dict[str, List[TableEntryBase]]]]:
         """
         Returns the current standings of that league
 
@@ -1385,28 +1428,10 @@ class Liveticker(BaseSubsystem):
         :raises LeagueNotExist: if league key doesnt lead to a valid league
         :return: league name and current standings per group
         """
-        tables = {}
-        league_name = league
         if source == LTSource.ESPN:
-            data = await restclient.Client("https://site.api.espn.com/apis/v2/sports").request(
-                f"/soccer/{league}/standings", params={'geckirandom': datetime.datetime.now().microsecond})
-            if 'children' not in data:
-                raise LeagueNotExist(f"Unable to retrieve any standings information for {league}")
-            groups = data['children']
-            for group in groups:
-                entries = group['standings']['entries']
-                group_name = group['name']
-                tables[group_name] = [TableEntryESPN(entry) for entry in entries]
+            tables = await LeagueRegistrationESPN.get_standings(league)
         elif source == LTSource.OPENLIGADB:
-            year = (datetime.datetime.today() - datetime.timedelta(days=180)).year
-            data = await restclient.Client("https://api.openligadb.de").request(f"/getbltable/{league}/{year}")
-            table = []
-            if not data:
-                raise LeagueNotExist(f"Unable to retrieve any standings information for {league}")
-            for i in range(len(data)):
-                data[i]['rank'] = i + 1
-                table.append(TableEntryOLDB(data[i]))
-            tables[league] = table
+            tables = await LeagueRegistrationOLDB.get_standings(league)
         else:
             raise SourceNotSupported
-        return league_name, tables
+        return league, tables
