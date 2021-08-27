@@ -1,3 +1,4 @@
+import asyncio
 import datetime
 import logging
 from abc import ABC, abstractmethod
@@ -7,6 +8,7 @@ from typing import List, Generator, Tuple, Optional, Dict, Iterable, Coroutine, 
 from base import BaseSubsystem, BasePlugin
 from botutils import restclient
 from botutils.converters import get_plugin_by_name
+from botutils.utils import execute_anything_sync
 from data import Storage, Lang, Config
 from subsystems import timers
 from subsystems.timers import HasAlreadyRun
@@ -733,9 +735,18 @@ class CoroRegistrationBase(ABC):
         self.plugin_name = plugin.get_name()
         self.coro = coro
         self.periodic = periodic
-        self.interval = interval  # TODO setter method for changing timers
+        self.__interval = interval
         self.last_events = {}
         self.logger = logging.getLogger(__name__)
+
+    @property
+    def interval(self):
+        return self.__interval
+
+    @interval.setter
+    def interval(self, interval):
+        self.__interval = interval
+        execute_anything_sync(self.league_reg.listener.request_match_timer_update)
 
     def deregister(self):
         self.league_reg.deregister_coro(self)
@@ -1160,6 +1171,7 @@ class Liveticker(BaseSubsystem):
         self.teamname_converter = TeamnameConverter(self)
         self.restored = False
         self.match_timer = None
+        self.__last_match_timer_update = datetime.datetime.min
         self.hourly_timer = None
         self.semiweekly_timer = None
 
@@ -1240,7 +1252,7 @@ class Liveticker(BaseSubsystem):
                 self.registrations[source][league] = await l_reg_class.create(self, league, source)
         coro_reg = await self.registrations[source][league].register(plugin, coro, interval, periodic)
         if self.restored:
-            await self.build_match_timer()
+            await self.request_match_timer_update()
         return coro_reg
 
     def deregister(self, reg: LeagueRegistrationBase):
@@ -1369,9 +1381,29 @@ class Liveticker(BaseSubsystem):
         :return: None
         """
         self.logger.debug("Hourly timer schedules timer.")
-        await self.build_match_timer()
+        await self.request_match_timer_update()
 
-    async def build_match_timer(self):
+    async def request_match_timer_update(self):
+        """
+        Requests an update of the match timer, but ensures that it doesn't update too close to the last update
+        """
+        time_diff = datetime.datetime.now() - self.__last_match_timer_update
+        self.logger.debug("Timediff: %s", time_diff)
+        if time_diff >= datetime.timedelta(seconds=10):
+            # Update instantly
+            self.__last_match_timer_update = datetime.datetime.now()
+            await self._build_match_timer()
+        elif time_diff > datetime.timedelta(0):
+            # Last update too close, wait!
+            self.__last_match_timer_update += datetime.timedelta(seconds=10)
+            self.logger.debug("Wait for %s seconds.", 10 - time_diff.total_seconds())
+            await asyncio.sleep(10 - time_diff.seconds)
+            await self._build_match_timer()
+        else:
+            # Update already scheduled, no actions needed
+            return
+
+    async def _build_match_timer(self):
         """
         Updates the match timer with the needed minutes and LeagueRegistrations it needs to updates at those minutes
         """
