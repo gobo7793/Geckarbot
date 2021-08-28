@@ -71,15 +71,26 @@ class Plugin(BasePlugin):
         to_remove = []
         for rid, reminder in Storage().get(self)['reminders'].items():
             try:
+                if reminder['chan'] is None:
+                    raise NotFound
                 chan = converters.deserialize_channel(reminder['chan'])
+
+            # Channel Error
             except NotFound:
-                storage_chan = Storage().get(self)['reminders'][rid]['chan']
                 embed = discord.Embed(title=":x: Reminders error", colour=0xe74c3c)
                 embed.description = "Channel for reminder could not be retrieved\n(removing reminder)"
                 embed.add_field(name="Reminder id", value=str(rid))
+
+                storage_chan = reminder['chan']
                 if storage_chan is not None:
                     embed.add_field(name="Channel type", value=storage_chan['type'])
                     embed.add_field(name="Channel id", value=storage_chan['id'])
+
+                user = converters.get_best_user(reminder['user'])
+                embed.add_field(name="User", value=converters.get_best_username(user))
+                t = reminder['time']
+                t = "{}-{}-{} {}:{}".format(t.year, t.month, t.day, t.hour, t.minute)
+                embed.add_field(name="Remind time", value=t)
                 to_remove.append(rid)
                 utils.execute_anything_sync(utils.write_debug_channel(embed))
                 continue
