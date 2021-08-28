@@ -988,7 +988,9 @@ class LeagueRegistrationBase(ABC):
         now = datetime.datetime.now().replace(second=0, microsecond=0)
         await self.update_matches()
         for kickoff in kickoffs[:]:
-            if kickoff == now:
+            if kickoff not in self.kickoffs:
+                kickoffs.remove(kickoff)
+            elif kickoff == now:
                 for coro_reg in self.registrations:
                     await coro_reg.update_kickoff(kickoff, self.kickoffs[kickoff])
                 kickoffs.remove(kickoff)
