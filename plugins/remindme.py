@@ -21,7 +21,7 @@ class Plugin(BasePlugin):
         self.migrate()
 
         self.reminders = {}  # type: Dict[int, timers.Job]
-        self.load_reminders()
+        utils.execute_anything_sync(self.load_reminders())
 
         self.explain_history = {}
 
@@ -64,7 +64,7 @@ class Plugin(BasePlugin):
             'reminders': {}
         }
 
-    def load_reminders(self):
+    async def load_reminders(self):
         """
         Loads the reminders from storage into memory.
         """
@@ -73,7 +73,7 @@ class Plugin(BasePlugin):
             try:
                 if reminder['chan'] is None:
                     raise NotFound
-                chan = converters.deserialize_channel(reminder['chan'])
+                chan = await converters.deserialize_channel(reminder['chan'])
 
             # Channel Error
             except NotFound:

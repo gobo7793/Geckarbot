@@ -155,7 +155,7 @@ def serialize_channel(channel: Union[discord.DMChannel, discord.TextChannel]) ->
     raise RuntimeError("Channel {} not supported".format(channel))
 
 
-def deserialize_channel(channeldict: dict) -> Union[discord.DMChannel, discord.TextChannel]:
+async def deserialize_channel(channeldict: dict) -> Union[discord.DMChannel, discord.TextChannel]:
     """
     Deserializes channel from a dict that was created by serialize_channel.
 
@@ -167,7 +167,10 @@ def deserialize_channel(channeldict: dict) -> Union[discord.DMChannel, discord.T
         user = get_best_user(channeldict["id"])
         if user is None:
             raise NotFound
-        return user.dm_channel
+        r = user.dm_channel
+        if r is None:
+            r = await user.create_dm()
+        return r
 
     if channeldict["type"] == "text":
         r = Config().bot.guild.get_channel(channeldict["id"])
