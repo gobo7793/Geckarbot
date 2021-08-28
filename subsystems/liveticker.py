@@ -746,6 +746,7 @@ class CoroRegistrationBase(ABC):
     @interval.setter
     def interval(self, interval):
         self.__interval = interval
+        self.league_reg.store_c_regs()
         execute_anything_sync(self.league_reg.listener.request_match_timer_update)
 
     async def deregister(self):
@@ -860,16 +861,12 @@ class LeagueRegistrationBase(ABC):
     def get_matchclass():
         pass
 
-    async def register_reg(self, reg: CoroRegistrationBase):
+    async def register_c_reg(self, c_reg: CoroRegistrationBase):
         """Registers the registration"""
-        if reg not in self.registrations:
-            self.registrations.append(reg)
-            reg_storage = reg.storage()
-            league_reg = Storage().get(self.listener)['registrations'][self.source.value][self.league]
-            if reg_storage not in league_reg['coro_regs']:
-                league_reg['coro_regs'].append(reg_storage)
-                Storage().save(self.listener)
-        return reg
+        if c_reg not in self.registrations:
+            self.registrations.append(c_reg)
+            self.store_c_regs()
+        return c_reg
 
     async def deregister(self):
         """Deregisters this LeagueReg correctly"""
@@ -879,15 +876,11 @@ class LeagueRegistrationBase(ABC):
         """Unloads this LeagueRegistration"""
         await self.listener.unload(self)
 
-    async def deregister_coro(self, coro: CoroRegistrationBase):
+    async def deregister_coro(self, c_reg: CoroRegistrationBase):
         """Finishes the deregistration of a CoroRegistration"""
-        reg_storage = coro.storage()
-        leag_reg = Storage().get(self.listener)['registrations'][self.source.value][self.league]
-        if reg_storage in leag_reg['coro_regs']:
-            leag_reg['coro_regs'].remove(reg_storage)
-            Storage().save(self.listener)
-        if coro in self.registrations:
-            self.registrations.remove(coro)
+        if c_reg in self.registrations:
+            self.registrations.remove(c_reg)
+            self.store_c_regs()
         if not self.registrations:
             await self.deregister()
 
@@ -897,6 +890,22 @@ class LeagueRegistrationBase(ABC):
             self.registrations.remove(coro)
         if not self.registrations:
             await self.unload()
+
+    def store_c_regs(self):
+        """Updates the storage in terms of the CoroRegistrations registrated"""
+        l_storage = Storage().get(self.listener)['registrations'][self.source.value][self.league]
+        c_storages = []
+        # Rescue unloaded c_regs
+        loaded_plugins = self.listener.bot.get_normalplugins()
+        for c_storage in l_storage['coro_regs']:
+            if c_storage['plugin'] not in loaded_plugins:
+                c_storages.append(c_storage)
+        # Store loaded c_regs
+        for c_reg in self.registrations:
+            c_storages.append(c_reg.storage())
+        # Save to storage
+        l_storage['coro_regs'] = c_storages
+        Storage().save(self.listener)
 
     async def update_matches(self):
         """Updates and returns the matches and current standings of the league"""
@@ -983,6 +992,7 @@ class LeagueRegistrationBase(ABC):
         :param kickoffs: List of kickoff datetimes
         :return:
         """
+        self.logger.debug("update_periodic_coro for kickoffs %s", kickoffs)
         new_finished = []
         matches = []
         now = datetime.datetime.now().replace(second=0, microsecond=0)
@@ -1038,7 +1048,7 @@ class LeagueRegistrationESPN(LeagueRegistrationBase):
 
     async def register(self, plugin, coro, interval: int, periodic: bool):
         reg = CoroRegistrationESPN(self, plugin=plugin, coro=coro, interval=interval, periodic=periodic)
-        return await self.register_reg(reg)
+        return await self.register_c_reg(reg)
 
     @staticmethod
     async def get_matches_by_date(league: str, from_day: datetime.date = None, until_day: datetime.date = None,
@@ -1079,7 +1089,7 @@ class LeagueRegistrationOLDB(LeagueRegistrationBase):
 
     async def register(self, plugin, coro, interval: int, periodic: bool):
         reg = CoroRegistrationOLDB(self, plugin=plugin, coro=coro, interval=interval, periodic=periodic)
-        return await self.register_reg(reg)
+        return await self.register_c_reg(reg)
 
     @staticmethod
     async def get_matches_by_date(league: str, from_day: datetime.date = None, until_day: datetime.date = None,
