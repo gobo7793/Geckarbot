@@ -1394,31 +1394,37 @@ class Liveticker(BaseSubsystem):
         :return: None
         """
         self.logger.debug("Hourly timer schedules timer.")
-        await self.request_match_timer_update()
+        await self.request_match_timer_update(from_hourly_timer=True)
 
-    async def request_match_timer_update(self):
+    async def request_match_timer_update(self, from_hourly_timer: bool = False):
         """
         Requests an update of the match timer, but ensures that it doesn't update too close to the last update
+
+        :param from_hourly_timer: Trigger an update if the current minute is valid for update. Only used by hourly
+        timer.
         """
         time_diff = datetime.datetime.now() - self.__last_match_timer_update
         self.logger.debug("Timediff: %s", time_diff)
         if time_diff >= datetime.timedelta(seconds=10):
             # Update instantly
             self.__last_match_timer_update = datetime.datetime.now()
-            self._build_match_timer()
+            self._build_match_timer(from_hourly_timer)
         elif time_diff > datetime.timedelta(0):
             # Last update too close, wait!
             self.__last_match_timer_update += datetime.timedelta(seconds=10)
             self.logger.debug("Wait for %s seconds.", 10 - time_diff.total_seconds())
             await asyncio.sleep(10 - time_diff.seconds)
-            self._build_match_timer()
+            self._build_match_timer(from_hourly_timer)
         else:
             # Update already scheduled, no actions needed
             return
 
-    def _build_match_timer(self):
+    def _build_match_timer(self, from_hourly_timer: bool = False):
         """
         Updates the match timer with the needed minutes and LeagueRegistrations it needs to updates at those minutes
+
+        :param from_hourly_timer: Trigger an update if the current minute is valid for update. Only used by hourly
+        timer.
         """
         self.logger.debug("Updating match timer")
 
@@ -1460,7 +1466,7 @@ class Liveticker(BaseSubsystem):
                                                     td=timers.timedict(hour=now.hour,
                                                                        minute=list(update_minutes.keys())),
                                                     data=update_minutes)
-        if now.minute in update_minutes or self.match_timer.next_execution() <= now:
+        if from_hourly_timer and (now.minute in update_minutes or self.match_timer.next_execution() <= now):
             self.match_timer.execute()
 
     @staticmethod
