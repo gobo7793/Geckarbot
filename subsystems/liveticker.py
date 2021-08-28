@@ -3,7 +3,7 @@ import datetime
 import logging
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import List, Generator, Tuple, Optional, Dict, Iterable, Coroutine, Any
+from typing import List, Generator, Tuple, Optional, Dict, Iterable, Coroutine, Any, Set
 
 from base import BaseSubsystem, BasePlugin
 from botutils import restclient
@@ -976,7 +976,7 @@ class LeagueRegistrationBase(ABC):
             return min(kickoffs)
         return None
 
-    async def update_periodic_coros(self, kickoffs: List[datetime.datetime]):
+    async def update_periodic_coros(self, kickoffs: Set[datetime.datetime]):
         """
         Regularly updates coros and checks if matches are still running.
 
@@ -987,7 +987,7 @@ class LeagueRegistrationBase(ABC):
         matches = []
         now = datetime.datetime.now().replace(second=0, microsecond=0)
         await self.update_matches()
-        for kickoff in kickoffs[:]:
+        for kickoff in kickoffs.copy():
             if kickoff not in self.kickoffs:
                 kickoffs.remove(kickoff)
             elif kickoff == now:
@@ -1410,27 +1410,35 @@ class Liveticker(BaseSubsystem):
         Updates the match timer with the needed minutes and LeagueRegistrations it needs to updates at those minutes
         """
         self.logger.debug("Updating match timer")
+
+        # Cancel old timer
         if self.match_timer and not self.match_timer.cancelled:
             try:
                 self.match_timer.cancel()
             except (RuntimeError, HasAlreadyRun):
                 pass
+
+        # Calculate minutes
         update_minutes = {x: {} for x in range(61)}
         now = datetime.datetime.now()
-        end_of_hour = (now + datetime.timedelta(hours=1)).replace(minute=0, second=0, microsecond=0)
-        for source in LTSource:
-            for l_reg in self.registrations[source].values():
-                for kickoff in l_reg.kickoffs:
-                    if kickoff >= end_of_hour:
-                        continue
-                    max_min = ((end_of_hour - kickoff).seconds // 3600) * 60
-                    minutes = set(e % 60 for s in (range(kickoff.minute, max_min, ival) for ival in l_reg.intervals)
-                                  for e in s if e >= max_min - 60)
-                    for m in minutes:
-                        if l_reg not in update_minutes[m]:
-                            update_minutes[m][l_reg] = []
-                        update_minutes[m][l_reg].append(kickoff)
+        hour_start = now.replace(minute=0, second=0, microsecond=0)
+        hour_end = hour_start + datetime.timedelta(hours=1)
 
+        data = []
+        for l_regs in self.registrations.values():
+            for l_reg in l_regs.values():
+                for kickoff in l_reg.kickoffs:
+                    if kickoff < hour_end:
+                        data.extend((l_reg, kickoff, ival) for ival in l_reg.intervals)
+        for l_reg, kickoff, ival in data:
+            for minute in range((kickoff - hour_start) // datetime.timedelta(minutes=1), 60, ival):
+                if minute < 0:
+                    continue
+                if l_reg not in update_minutes[minute]:
+                    update_minutes[minute][l_reg] = set()
+                update_minutes[minute][l_reg].add(kickoff)
+
+        # Clean and schedule
         for k, v in list(update_minutes.items()):
             if not v:
                 update_minutes.pop(k)
@@ -1448,7 +1456,7 @@ class Liveticker(BaseSubsystem):
     async def _update_league_registrations(job):
         l_regs = job.data[datetime.datetime.now().minute]
         for l_reg, kickoffs in l_regs.items():
-            await l_reg.update_periodic_coros(kickoffs[:])
+            await l_reg.update_periodic_coros(kickoffs.copy())
 
     @staticmethod
     async def get_standings(league: str, source: LTSource) \
