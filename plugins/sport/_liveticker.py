@@ -83,7 +83,7 @@ class _Liveticker:
             elif event.emoji.name == "🚫":
                 # Stopping liveticker
                 for _, _, c_reg in list(self.bot.liveticker.search_coro(plugins=[self.get_name()])):
-                    c_reg.deregister()
+                    await c_reg.deregister()
             event.data['react'] = True
             event.callback.deregister()
             for emoji in actions:
@@ -118,7 +118,7 @@ class _Liveticker:
 
             for _, _, c_reg in self.bot.liveticker.search_coro(leagues=[league], sources=[LTSource(source)],
                                                                plugins=[self.get_name()]):
-                c_reg.deregister()
+                await c_reg.deregister()
                 break
             await add_reaction(ctx.message, Lang.CMDSUCCESS)
         else:
@@ -177,7 +177,7 @@ class _Liveticker:
     @cmd_liveticker.command(name="stop")
     async def cmd_liveticker_stop(self, ctx):
         for _, _, c_reg in list(self.bot.liveticker.search_coro(plugins=[self.get_name()])):
-            c_reg.deregister()
+            await c_reg.deregister()
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
     @cmd_liveticker.command(name="interval")
