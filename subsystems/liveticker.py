@@ -1,6 +1,6 @@
-import asyncio
 import datetime
 import logging
+import time
 from abc import ABC, abstractmethod
 from enum import Enum
 from typing import List, Generator, Tuple, Optional, Dict, Iterable, Coroutine, Any, Set
@@ -8,7 +8,6 @@ from typing import List, Generator, Tuple, Optional, Dict, Iterable, Coroutine, 
 from base import BaseSubsystem, BasePlugin
 from botutils import restclient
 from botutils.converters import get_plugin_by_name
-from botutils.utils import execute_anything_sync
 from data import Storage, Lang, Config
 from subsystems import timers
 from subsystems.timers import HasAlreadyRun
@@ -746,7 +745,7 @@ class CoroRegistrationBase(ABC):
     @interval.setter
     def interval(self, interval):
         self.__interval = interval
-        execute_anything_sync(self.league_reg.listener.request_match_timer_update)
+        self.league_reg.listener.request_match_timer_update()
 
     def deregister(self):
         self.league_reg.deregister_coro(self)
@@ -1023,6 +1022,7 @@ class LeagueRegistrationBase(ABC):
         for kickoff in kickoffs:
             if not [m for m in self.kickoffs[kickoff] if m.status in (MatchStatus.RUNNING, MatchStatus.UPCOMING)]:
                 self.kickoffs.pop(kickoff)
+                self.listener.request_match_timer_update()
 
     def __str__(self):
         return f"<liveticker.LeagueRegistration; league={self.league}; src={self.source.value}; " \
@@ -1254,7 +1254,7 @@ class Liveticker(BaseSubsystem):
                 self.registrations[source][league] = await l_reg_class.create(self, league, source)
         coro_reg = await self.registrations[source][league].register(plugin, coro, interval, periodic)
         if self.restored:
-            await self.request_match_timer_update()
+            self.request_match_timer_update()
         return coro_reg
 
     def deregister(self, reg: LeagueRegistrationBase):
@@ -1268,6 +1268,7 @@ class Liveticker(BaseSubsystem):
         if reg.league in Storage().get(self)['registrations'][reg.source.value]:
             Storage().get(self)['registrations'][reg.source.value].pop(reg.league)
             Storage().save(self)
+        self.request_match_timer_update()
 
     def unload(self, reg: LeagueRegistrationBase):
         if reg.league in self.registrations[reg.source]:
@@ -1383,9 +1384,9 @@ class Liveticker(BaseSubsystem):
         :return: None
         """
         self.logger.debug("Hourly timer schedules timer.")
-        await self.request_match_timer_update()
+        self.request_match_timer_update()
 
-    async def request_match_timer_update(self):
+    def request_match_timer_update(self):
         """
         Requests an update of the match timer, but ensures that it doesn't update too close to the last update
         """
@@ -1394,18 +1395,18 @@ class Liveticker(BaseSubsystem):
         if time_diff >= datetime.timedelta(seconds=10):
             # Update instantly
             self.__last_match_timer_update = datetime.datetime.now()
-            await self._build_match_timer()
+            self._build_match_timer()
         elif time_diff > datetime.timedelta(0):
             # Last update too close, wait!
             self.__last_match_timer_update += datetime.timedelta(seconds=10)
             self.logger.debug("Wait for %s seconds.", 10 - time_diff.total_seconds())
-            await asyncio.sleep(10 - time_diff.seconds)
-            await self._build_match_timer()
+            time.sleep(10 - time_diff.seconds)
+            self._build_match_timer()
         else:
             # Update already scheduled, no actions needed
             return
 
-    async def _build_match_timer(self):
+    def _build_match_timer(self):
         """
         Updates the match timer with the needed minutes and LeagueRegistrations it needs to updates at those minutes
         """
