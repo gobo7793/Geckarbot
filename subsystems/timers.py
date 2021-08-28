@@ -449,14 +449,18 @@ class Timer:
         self.kwargs = kwargs
 
         self.cancelled = False
-        self.has_run = False
+        self._has_run = False
 
         self.task = asyncio.create_task(self._task())
         self.logger.debug("Scheduled timer; t: %d, cb: %s", self.t, str(self.callback))
 
+    @property
+    def has_run(self):
+        return self._has_run
+
     async def _task(self):
         await asyncio.sleep(self.t)
-        self.has_run = True
+        self._has_run = True
         execute_anything_sync(self.callback, *self.args, **self.kwargs)
 
     def skip(self):
@@ -468,7 +472,7 @@ class Timer:
         if self.has_run:
             raise HasAlreadyRun(self.callback)
         self.task.cancel()
-        self.has_run = True
+        self._has_run = True
         execute_anything_sync(self.callback, *self.args, **self.kwargs)
 
     def cancel(self):
