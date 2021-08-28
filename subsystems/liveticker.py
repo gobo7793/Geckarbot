@@ -1,6 +1,6 @@
+import asyncio
 import datetime
 import logging
-import time
 from abc import ABC, abstractmethod
 from enum import Enum
 from typing import List, Generator, Tuple, Optional, Dict, Iterable, Coroutine, Any, Set
@@ -8,6 +8,7 @@ from typing import List, Generator, Tuple, Optional, Dict, Iterable, Coroutine, 
 from base import BaseSubsystem, BasePlugin
 from botutils import restclient
 from botutils.converters import get_plugin_by_name
+from botutils.utils import execute_anything_sync
 from data import Storage, Lang, Config
 from subsystems import timers
 from subsystems.timers import HasAlreadyRun
@@ -745,13 +746,13 @@ class CoroRegistrationBase(ABC):
     @interval.setter
     def interval(self, interval):
         self.__interval = interval
-        self.league_reg.listener.request_match_timer_update()
+        execute_anything_sync(self.league_reg.listener.request_match_timer_update)
 
-    def deregister(self):
-        self.league_reg.deregister_coro(self)
+    async def deregister(self):
+        await self.league_reg.deregister_coro(self)
 
-    def unload(self):
-        self.league_reg.unload_coro(self)
+    async def unload(self):
+        await self.league_reg.unload_coro(self)
 
     def next_kickoff(self):
         """Returns datetime of the next match"""
@@ -870,15 +871,15 @@ class LeagueRegistrationBase(ABC):
                 Storage().save(self.listener)
         return reg
 
-    def deregister(self):
+    async def deregister(self):
         """Deregisters this LeagueReg correctly"""
-        self.listener.deregister(self)
+        await self.listener.deregister(self)
 
-    def unload(self):
+    async def unload(self):
         """Unloads this LeagueRegistration"""
-        self.listener.unload(self)
+        await self.listener.unload(self)
 
-    def deregister_coro(self, coro: CoroRegistrationBase):
+    async def deregister_coro(self, coro: CoroRegistrationBase):
         """Finishes the deregistration of a CoroRegistration"""
         reg_storage = coro.storage()
         leag_reg = Storage().get(self.listener)['registrations'][self.source.value][self.league]
@@ -888,14 +889,14 @@ class LeagueRegistrationBase(ABC):
         if coro in self.registrations:
             self.registrations.remove(coro)
         if not self.registrations:
-            self.deregister()
+            await self.deregister()
 
-    def unload_coro(self, coro: CoroRegistrationBase):
+    async def unload_coro(self, coro: CoroRegistrationBase):
         """Finishes the unloading of a CoroRegistration"""
         if coro in self.registrations:
             self.registrations.remove(coro)
         if not self.registrations:
-            self.unload()
+            await self.unload()
 
     async def update_matches(self):
         """Updates and returns the matches and current standings of the league"""
@@ -1022,7 +1023,7 @@ class LeagueRegistrationBase(ABC):
         for kickoff in kickoffs:
             if not [m for m in self.kickoffs[kickoff] if m.status in (MatchStatus.RUNNING, MatchStatus.UPCOMING)]:
                 self.kickoffs.pop(kickoff)
-                self.listener.request_match_timer_update()
+                await self.listener.request_match_timer_update()
 
     def __str__(self):
         return f"<liveticker.LeagueRegistration; league={self.league}; src={self.source.value}; " \
@@ -1254,25 +1255,24 @@ class Liveticker(BaseSubsystem):
                 self.registrations[source][league] = await l_reg_class.create(self, league, source)
         coro_reg = await self.registrations[source][league].register(plugin, coro, interval, periodic)
         if self.restored:
-            self.request_match_timer_update()
+            await self.request_match_timer_update()
         return coro_reg
 
-    def deregister(self, reg: LeagueRegistrationBase):
+    async def deregister(self, reg: LeagueRegistrationBase):
         """
         Finishes the deregistration of a LeagueRegistration
 
         :param reg: LeagueRegistration
         """
-        if reg.league in self.registrations[reg.source]:
-            self.registrations[reg.source].pop(reg.league)
+        await self.unload(reg)
         if reg.league in Storage().get(self)['registrations'][reg.source.value]:
             Storage().get(self)['registrations'][reg.source.value].pop(reg.league)
             Storage().save(self)
-        self.request_match_timer_update()
 
-    def unload(self, reg: LeagueRegistrationBase):
+    async def unload(self, reg: LeagueRegistrationBase):
         if reg.league in self.registrations[reg.source]:
             self.registrations[reg.source].pop(reg.league)
+        await self.request_match_timer_update()
 
     def search_league(self, sources=None, leagues=None) -> Generator[LeagueRegistrationBase, None, None]:
         """
@@ -1384,9 +1384,9 @@ class Liveticker(BaseSubsystem):
         :return: None
         """
         self.logger.debug("Hourly timer schedules timer.")
-        self.request_match_timer_update()
+        await self.request_match_timer_update()
 
-    def request_match_timer_update(self):
+    async def request_match_timer_update(self):
         """
         Requests an update of the match timer, but ensures that it doesn't update too close to the last update
         """
@@ -1400,7 +1400,7 @@ class Liveticker(BaseSubsystem):
             # Last update too close, wait!
             self.__last_match_timer_update += datetime.timedelta(seconds=10)
             self.logger.debug("Wait for %s seconds.", 10 - time_diff.total_seconds())
-            time.sleep(10 - time_diff.seconds)
+            await asyncio.sleep(10 - time_diff.seconds)
             self._build_match_timer()
         else:
             # Update already scheduled, no actions needed
