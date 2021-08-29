@@ -1008,7 +1008,6 @@ class LeagueRegistrationBase(ABC):
                 matches_ = self.kickoffs.pop(kickoff)
                 kickoffs.remove(kickoff)
                 new_finished.extend(matches_)
-                self.finished.extend([m.match_id for m in matches_])
             else:
                 matches.extend(self.kickoffs[kickoff])
 
@@ -1018,7 +1017,7 @@ class LeagueRegistrationBase(ABC):
         for match in matches:
             if match.status in [MatchStatus.COMPLETED, MatchStatus.ABANDONED] and match.match_id not in self.finished:
                 new_finished.append(match)
-                self.finished.append(match.match_id)
+        new_finished = [e for e in new_finished if e.match_id not in self.finished]
 
         for c_reg in self.registrations:
             c_reg_matches = []
@@ -1028,6 +1027,7 @@ class LeagueRegistrationBase(ABC):
             if c_reg_matches and c_reg.periodic:
                 await c_reg.update(c_reg_matches)
             if new_finished:
+                self.finished.extend([m.match_id for m in new_finished])
                 await c_reg.update_finished(new_finished)
 
         for kickoff in kickoffs:
