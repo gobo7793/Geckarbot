@@ -845,10 +845,12 @@ class LeagueRegistrationBase(ABC):
         """Restored LeagueRegistration"""
         l_reg = cls(listener, league, source)
         kickoff_data = Storage().get(listener)['registrations'][source.value][league]['kickoffs']
-        for raw_kickoff, matches in kickoff_data.items():
+        for raw_kickoff, matches_ in kickoff_data.items():
             time_kickoff = datetime.datetime.strptime(raw_kickoff, "%Y-%m-%d %H:%M")
-            matches_ = [cls.get_matchclass().from_storage(m) for m in matches]
-            l_reg.kickoffs[time_kickoff] = matches_
+            matches = []
+            for m in matches_:
+                matches.append(cls.get_matchclass().from_storage(m))
+            l_reg.kickoffs[time_kickoff] = matches
         return l_reg
 
     @abstractmethod
