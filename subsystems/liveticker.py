@@ -385,22 +385,26 @@ class MatchBase(ABC):
     score: Dict[str, int]
     matchday: int
 
+    def __init__(self, _, **kwargs):
+        pass
+
     @classmethod
     def from_storage(cls, m: dict):
         """Build match from storage"""
-        cls.match_id = m['match_id']
-        cls.kickoff = datetime.datetime.fromisoformat(m['kickoff'])
-        cls.home_team_id, cls.away_team_id = m['teams']
-        cls.home_team = Config().bot.liveticker.teamname_converter.get(m['teams'][cls.home_team_id])
-        cls.away_team = Config().bot.liveticker.teamname_converter.get(m['teams'][cls.away_team_id])
-        cls.minute = m['minute']
-        cls.status = MatchStatus[m['status']]
-        cls.raw_events = []
-        cls.new_events = []
-        cls.venue = m['venue']
-        cls.score = m['score']
-        cls.matchday = m['matchday']
-        return cls
+        match = cls(m, from_storage=True)
+        match.match_id = m['match_id']
+        match.kickoff = datetime.datetime.fromisoformat(m['kickoff'])
+        match.home_team_id, match.away_team_id = m['teams']
+        match.home_team = Config().bot.liveticker.teamname_converter.get(m['teams'][match.home_team_id])
+        match.away_team = Config().bot.liveticker.teamname_converter.get(m['teams'][match.away_team_id])
+        match.minute = m['minute']
+        match.status = MatchStatus[m['status']]
+        match.raw_events = []
+        match.new_events = []
+        match.venue = m['venue']
+        match.score = m['score']
+        match.matchday = m['matchday']
+        return match
 
     def to_storage(self):
         """Transforming the info to a dict"""
@@ -437,7 +441,10 @@ class MatchESPN(MatchBase):
     :param new_events:
     """
 
-    def __init__(self, m: dict, new_events: list = None):
+    def __init__(self, m: dict, new_events: list = None, *, from_storage: bool = False):
+        super().__init__(from_storage)
+        if from_storage:
+            return
         # Extract kickoff into datetime object
         try:
             kickoff = datetime.datetime.strptime(m.get('date'), "%Y-%m-%dT%H:%MZ") \
@@ -502,7 +509,10 @@ class MatchOLDB(MatchBase):
     :param m: raw data from the request
     """
 
-    def __init__(self, m: dict, new_events: list = None):
+    def __init__(self, m: dict, new_events: list = None, *, from_storage: bool = False):
+        super().__init__(from_storage)
+        if from_storage:
+            return
         if new_events is None:
             new_events = []
         try:
