@@ -1033,8 +1033,7 @@ class LeagueRegistrationBase(ABC):
                 for match in self.kickoffs[kickoff].values():
                     if match.status in (MatchStatus.COMPLETED, MatchStatus.POSTPONED, MatchStatus.ABANDONED):
                         new_finished.append(match)
-                    else:
-                        matches.append(match)
+                    matches.append(match)
         # Update matches c_reg
         for c_reg in self.registrations:
             c_reg_matches = []
