@@ -855,8 +855,13 @@ class LeagueRegistrationBase(ABC):
         """Restored LeagueRegistration"""
         l_reg = cls(listener, league, source)
         kickoff_data = Storage().get(listener)['registrations'][source.value][league]['kickoffs']
-        for raw_kickoff, matches_ in kickoff_data.items():
+        for raw_kickoff, matches_ in list(kickoff_data.items()):
             time_kickoff = datetime.datetime.strptime(raw_kickoff, "%Y-%m-%d %H:%M")
+            if datetime.datetime.now() - time_kickoff > datetime.timedelta(hours=3.5):
+                l_reg.logger.debug("Discard old kickoff %s. Timed out.", raw_kickoff)
+                Storage().get(listener)['registrations'][source.value][league]['kickoffs'].pop(raw_kickoff)
+                Storage().save(listener)
+                continue
             matches = {}
             for m in matches_:
                 match = cls.get_matchclass().from_storage(m)
@@ -1003,49 +1008,54 @@ class LeagueRegistrationBase(ABC):
         :param kickoffs: List of kickoff datetimes
         :return:
         """
+
         self.logger.debug("update_periodic_coro for kickoffs %s", kickoffs)
-        new_finished = []
-        matches = []
-        now = datetime.datetime.now().replace(second=0, microsecond=0)
         await self.update_matches()
+        # Sort matches
+        matches = []
+        new_finished = []
+        now = datetime.datetime.now().replace(second=0, microsecond=0)
         for kickoff in kickoffs.copy():
             if kickoff not in self.kickoffs:
-                kickoffs.remove(kickoff)
-            elif kickoff == now:
-                for coro_reg in self.registrations:
-                    await coro_reg.update_kickoff(kickoff, self.kickoffs[kickoff].values())
+                # NotFound
                 kickoffs.remove(kickoff)
             elif datetime.datetime.now() - kickoff > datetime.timedelta(hours=3.5):
-                matches_ = self.kickoffs.pop(kickoff).values()
+                # Timeout
+                new_finished.extend(self.kickoffs[kickoff].values())
                 kickoffs.remove(kickoff)
-                new_finished.extend(matches_)
+            elif kickoff == now:
+                # Kickoff
+                for c_reg in self.registrations:
+                    await c_reg.update_kickoff(kickoff, self.kickoffs[kickoff].values())
+                kickoffs.remove(kickoff)
             else:
-                matches.extend(self.kickoffs[kickoff].values())
-
-        if not matches:
-            return
-
-        for match in matches:
-            if match.status in [MatchStatus.COMPLETED, MatchStatus.ABANDONED] and match.match_id not in self.finished:
-                new_finished.append(match)
-        new_finished = [e for e in new_finished if e.match_id not in self.finished]
-
+                # Update
+                for match in self.kickoffs[kickoff].values():
+                    if match.status in (MatchStatus.COMPLETED, MatchStatus.POSTPONED, MatchStatus.ABANDONED):
+                        new_finished.append(match)
+                    else:
+                        matches.append(match)
+        # Update matches c_reg
         for c_reg in self.registrations:
             c_reg_matches = []
-            for kickoff in kickoffs:
-                if ((now - kickoff).seconds // 60) % c_reg.interval == 0:
-                    c_reg_matches.extend(self.kickoffs[kickoff].values())
+            for match in matches:
+                if ((now - match.kickoff) // datetime.timedelta(minutes=1)) % c_reg.interval == 0:
+                    c_reg_matches.append(match)
             if c_reg_matches and c_reg.periodic:
                 await c_reg.update(c_reg_matches)
-            if new_finished:
-                self.finished.extend([m.match_id for m in new_finished])
-                await c_reg.update_finished(new_finished)
-
-        for kickoff in kickoffs:
-            if not [m for m in self.kickoffs[kickoff].values()
-                    if m.status in (MatchStatus.RUNNING, MatchStatus.UPCOMING)]:
-                self.kickoffs.pop(kickoff)
-                await self.listener.request_match_timer_update()
+        # Clear finished matches
+        do_request: bool = False
+        new_finished = [e for e in new_finished if e.match_id not in self.finished]  # Just to be safe
+        self.finished.extend([m.match_id for m in new_finished])
+        for match in new_finished:
+            self.kickoffs[match.kickoff].pop(match.match_id)
+            if len(self.kickoffs[match.kickoff]) == 0:
+                do_request = True
+                self.kickoffs.pop(match.kickoff)
+        for c_reg in self.registrations:
+            await c_reg.update_finished(new_finished)
+        if do_request:
+            await self.listener.request_match_timer_update()
 
     def __str__(self):
         return f"<liveticker.LeagueRegistration; league={self.league}; src={self.source.value}; " \

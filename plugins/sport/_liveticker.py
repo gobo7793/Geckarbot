@@ -197,7 +197,7 @@ class _Liveticker:
                 msg_lines.append(Lang.lang(self, 'no_matches'))
             for kickoff, matches in l_reg.kickoffs.items():
                 msg_lines.append(f"{kickoff:%a. %d.%m.%Y, %H:%M Uhr}")
-                msg_lines.extend(f"- {m.home_team.long_name} - {m.away_team.long_name}" for m in matches)
+                msg_lines.extend(f"- {m.home_team.long_name} - {m.away_team.long_name}" for m in matches.values())
         for msg in paginate(msg_lines, if_empty=Lang.lang(self, 'no_matches_found')):
             await ctx.send(msg)
 
