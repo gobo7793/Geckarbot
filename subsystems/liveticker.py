@@ -699,13 +699,13 @@ class PlayerEventEnum(Enum):
 
 
 class LivetickerEvent:
-    def __init__(self, league, matches):
+    def __init__(self, league: str, matches: Iterable[MatchBase]):
         self.league = league
         self.matches = matches
 
 
 class LivetickerKickoff(LivetickerEvent):
-    def __init__(self, league, matches, kickoff):
+    def __init__(self, league: str, matches: Iterable[MatchBase], kickoff: datetime.datetime):
         super().__init__(league, matches)
         self.kickoff = kickoff
 
@@ -719,7 +719,7 @@ class LivetickerUpdate(LivetickerEvent):
     :param new_events: dictionary of the new events per match
     """
 
-    def __init__(self, league: str, matches: List[MatchBase], new_events: dict):
+    def __init__(self, league: str, matches: Iterable[MatchBase], new_events: dict):
         m_list = []
         for m in matches:
             m.new_events = new_events.get(m.match_id)
@@ -783,7 +783,7 @@ class CoroRegistrationBase(ABC):
             self.last_events[m.match_id].extend([e.event_id for e in events])
         await self.coro(LivetickerUpdate(self.league_reg.league, matches, new_events))
 
-    async def update_kickoff(self, time_kickoff: datetime.datetime, matches: list):
+    async def update_kickoff(self, time_kickoff: datetime.datetime, matches: Iterable[MatchBase]):
         await self.coro(LivetickerKickoff(self.league_reg.league, matches, time_kickoff))
 
     async def update_finished(self, match_list):
@@ -830,9 +830,9 @@ class LeagueRegistrationBase(ABC):
         self.listener = listener
         self.league = league
         self.source = source
-        self.registrations = []
+        self.registrations: List[CoroRegistrationBase] = []
         self.logger = logging.getLogger(__name__)
-        self.kickoffs: Dict[datetime.datetime, List[MatchBase]] = {}
+        self.kickoffs: Dict[datetime.datetime, Dict[str, MatchBase]] = {}
         self.finished = []
 
     @property
@@ -841,7 +841,7 @@ class LeagueRegistrationBase(ABC):
 
     @property
     def matches(self):
-        return [i for s in self.kickoffs.values() for i in s]
+        return [s[i] for s in self.kickoffs.values() for i in s]
 
     @classmethod
     async def create(cls, listener, league: str, source: LTSource):
@@ -857,9 +857,10 @@ class LeagueRegistrationBase(ABC):
         kickoff_data = Storage().get(listener)['registrations'][source.value][league]['kickoffs']
         for raw_kickoff, matches_ in kickoff_data.items():
             time_kickoff = datetime.datetime.strptime(raw_kickoff, "%Y-%m-%d %H:%M")
-            matches = []
+            matches = {}
             for m in matches_:
-                matches.append(cls.get_matchclass().from_storage(m))
+                match = cls.get_matchclass().from_storage(m)
+                matches[match.match_id] = match
             l_reg.kickoffs[time_kickoff] = matches
         return l_reg
 
@@ -920,17 +921,15 @@ class LeagueRegistrationBase(ABC):
         Storage().save(self.listener)
 
     async def update_matches(self):
-        """Updates and returns the matches and current standings of the league"""
+        """Updates and returns the matches and current standings of the league. No new matches inserted!"""
         matches = await self.get_matches_by_date(self.league)
-        kickoffs = {}
+
         for match in matches:
-            if match.status == MatchStatus.POSTPONED:
+            if match.kickoff not in self.kickoffs:
                 continue
-            if match.kickoff not in kickoffs:
-                kickoffs[match.kickoff] = []
-            kickoffs[match.kickoff].append(match)
-        for kickoff, matches_ in kickoffs.items():
-            self.kickoffs[kickoff] = matches_
+            if match.match_id not in self.kickoffs[match.kickoff]:
+                continue
+            self.kickoffs[match.kickoff][match.match_id] = match
         return self.matches
 
     @staticmethod
@@ -968,7 +967,7 @@ class LeagueRegistrationBase(ABC):
         :param until: datetime of the day before the next semi-weekly execution
         :raises ValueError: if source does not provide support scheduling of kickoffs
         """
-        self.kickoffs = {}
+        self.kickoffs: Dict[datetime.datetime, Dict[str, MatchBase]] = {}
         now = datetime.datetime.now()
         Storage().get(self.listener)['registrations'][self.source.value][self.league]['kickoffs'] = {}
 
@@ -981,13 +980,13 @@ class LeagueRegistrationBase(ABC):
                     or match.kickoff > until:
                 continue
             if match.kickoff not in self.kickoffs:
-                self.kickoffs[match.kickoff] = []
-            self.kickoffs[match.kickoff].append(match)
+                self.kickoffs[match.kickoff] = {}
+            self.kickoffs[match.kickoff][match.match_id] = match
 
         # Store matches
         for time_kickoff, matches_ in self.kickoffs.items():
             Storage().get(self.listener)['registrations'][self.source.value][self.league]['kickoffs'][
-                time_kickoff.strftime("%Y-%m-%d %H:%M")] = [m.to_storage() for m in matches_]
+                time_kickoff.strftime("%Y-%m-%d %H:%M")] = [m.to_storage() for m in matches_.values()]
         Storage().save(self.listener)
 
     def next_kickoff(self):
@@ -1014,14 +1013,14 @@ class LeagueRegistrationBase(ABC):
                 kickoffs.remove(kickoff)
             elif kickoff == now:
                 for coro_reg in self.registrations:
-                    await coro_reg.update_kickoff(kickoff, self.kickoffs[kickoff])
+                    await coro_reg.update_kickoff(kickoff, self.kickoffs[kickoff].values())
                 kickoffs.remove(kickoff)
             elif datetime.datetime.now() - kickoff > datetime.timedelta(hours=3.5):
-                matches_ = self.kickoffs.pop(kickoff)
+                matches_ = self.kickoffs.pop(kickoff).values()
                 kickoffs.remove(kickoff)
                 new_finished.extend(matches_)
             else:
-                matches.extend(self.kickoffs[kickoff])
+                matches.extend(self.kickoffs[kickoff].values())
 
         if not matches:
             return
@@ -1035,7 +1034,7 @@ class LeagueRegistrationBase(ABC):
             c_reg_matches = []
             for kickoff in kickoffs:
                 if ((now - kickoff).seconds // 60) % c_reg.interval == 0:
-                    c_reg_matches.extend(self.kickoffs[kickoff])
+                    c_reg_matches.extend(self.kickoffs[kickoff].values())
             if c_reg_matches and c_reg.periodic:
                 await c_reg.update(c_reg_matches)
             if new_finished:
@@ -1043,7 +1042,8 @@ class LeagueRegistrationBase(ABC):
                 await c_reg.update_finished(new_finished)
 
         for kickoff in kickoffs:
-            if not [m for m in self.kickoffs[kickoff] if m.status in (MatchStatus.RUNNING, MatchStatus.UPCOMING)]:
+            if not [m for m in self.kickoffs[kickoff].values()
+                    if m.status in (MatchStatus.RUNNING, MatchStatus.UPCOMING)]:
                 self.kickoffs.pop(kickoff)
                 await self.listener.request_match_timer_update()
 
