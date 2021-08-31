@@ -97,7 +97,11 @@ class Plugin(BasePlugin, name="Bot status commands for monitoring and debug purp
                 await ctx.send(msg)
 
         if not subsystem or subsystem == "liveticker":
-            liveticker_list = []
+            minutes = []
+            match_timer = self.bot.liveticker.match_timer
+            if match_timer:
+                minutes = match_timer.timedict.get("minute")
+            liveticker_list = [f"***Liveticker minutes:*** {minutes}"]
             for src in self.bot.liveticker.registrations.values():
                 for leag in src.values():
                     liveticker_list.append("\u2b1c {}".format(str(leag)))
