@@ -1490,9 +1490,12 @@ class Liveticker(BaseSubsystem):
         if from_hourly_timer and (now.minute in update_minutes or self.match_timer.next_execution() <= now):
             self.match_timer.execute()
 
-    @staticmethod
-    async def _update_league_registrations(job):
-        l_regs = job.data[datetime.datetime.now().minute]
+    async def _update_league_registrations(self, job):
+        try:
+            l_regs = job.data[(datetime.datetime.now() + datetime.timedelta(seconds=2)).minute]
+        except KeyError:
+            self.logger.debug("INVALID UPDATE MINUTE")
+            return
         for l_reg, kickoffs in l_regs.items():
             await l_reg.update_periodic_coros(kickoffs.copy())
 
