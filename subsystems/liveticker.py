@@ -1437,13 +1437,13 @@ class Liveticker(BaseSubsystem):
         if time_diff >= datetime.timedelta(seconds=10):
             # Update instantly
             self.__last_match_timer_update = datetime.datetime.now()
-            self._build_match_timer(from_hourly_timer)
+            self._build_match_timer(from_hourly_timer=from_hourly_timer)
         elif time_diff > datetime.timedelta(0):
             # Last update too close, wait!
             self.__last_match_timer_update += datetime.timedelta(seconds=10)
             self.logger.debug("Wait for %s seconds.", 10 - time_diff.total_seconds())
             await asyncio.sleep(10 - time_diff.seconds)
-            self._build_match_timer(from_hourly_timer)
+            self._build_match_timer(from_hourly_timer=from_hourly_timer)
         else:
             # Update already scheduled, no actions needed
             return
