@@ -925,6 +925,13 @@ class LeagueRegistrationBase(ABC):
         l_storage['coro_regs'] = c_storages
         Storage().save(self.listener)
 
+    def store_matches(self):
+        Storage().get(self.listener)['registrations'][self.source.value][self.league]['kickoffs'] = {}
+        for kickoff, matches in self.kickoffs.items():
+            Storage().get(self.listener)['registrations'][self.source.value][self.league]['kickoffs'][
+                kickoff.strftime("%Y-%m-%d %H:%M")] = [m.to_storage() for m in matches.values()]
+        Storage().save(self.listener)
+
     async def update_matches(self):
         """Updates and returns the matches and current standings of the league. No new matches inserted!"""
         matches = await self.get_matches_by_date(self.league)
@@ -935,6 +942,7 @@ class LeagueRegistrationBase(ABC):
             if match.match_id not in self.kickoffs[match.kickoff]:
                 continue
             self.kickoffs[match.kickoff][match.match_id] = match
+        self.store_matches()
         return self.matches
 
     @staticmethod
@@ -989,10 +997,7 @@ class LeagueRegistrationBase(ABC):
             self.kickoffs[match.kickoff][match.match_id] = match
 
         # Store matches
-        for time_kickoff, matches_ in self.kickoffs.items():
-            Storage().get(self.listener)['registrations'][self.source.value][self.league]['kickoffs'][
-                time_kickoff.strftime("%Y-%m-%d %H:%M")] = [m.to_storage() for m in matches_.values()]
-        Storage().save(self.listener)
+        self.store_matches()
 
     def next_kickoff(self):
         """Returns datetime of the next match"""
@@ -1051,6 +1056,8 @@ class LeagueRegistrationBase(ABC):
             if len(self.kickoffs[match.kickoff]) == 0:
                 do_request = True
                 self.kickoffs.pop(match.kickoff)
+        if new_finished:
+            self.store_matches()
         for c_reg in self.registrations:
             await c_reg.update_finished(new_finished)
         if do_request:
