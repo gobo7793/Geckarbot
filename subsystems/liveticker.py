@@ -926,6 +926,7 @@ class LeagueRegistrationBase(ABC):
         Storage().save(self.listener)
 
     def store_matches(self):
+        """Updates the storage in terms of the matches saved"""
         Storage().get(self.listener)['registrations'][self.source.value][self.league]['kickoffs'] = {}
         for kickoff, matches in self.kickoffs.items():
             Storage().get(self.listener)['registrations'][self.source.value][self.league]['kickoffs'][
