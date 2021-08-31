@@ -7,6 +7,7 @@ from discord.ext import commands
 
 from base import BasePlugin
 from botutils import utils, converters, setter, stringutils
+from botutils.utils import execute_anything_sync, add_reaction
 from data import Config, Lang
 from subsystems.helpsys import DefaultCategories
 from subsystems.ignoring import UserBlockedCommand
@@ -197,8 +198,9 @@ class Plugin(BasePlugin, name="Testing and debug things"):
         raise commands.CommandError("Testerror")
 
     @staticmethod
-    async def error_cb(job):
-        await job.data.send("Bang! Bang!")
+    async def error_cb(job=None):
+        if job:
+            await job.data.send("Bang! Bang!")
         raise Exception("Bang! Bang!")
 
     @commands.command(name="timererror", hidden=True)
@@ -329,3 +331,8 @@ class Plugin(BasePlugin, name="Testing and debug things"):
     async def cmd_spam(self, ctx):
         td = {"minute": [x for x in range(60)]}
         self.bot.timers.schedule(self.spam_cb, td, data=ctx)
+
+    @commands.command(name="execerror", hidden=True)
+    async def cmd_execerror(self, ctx):
+        execute_anything_sync(self.error_cb)
+        await add_reaction(ctx.message, Lang.CMDSUCCESS)

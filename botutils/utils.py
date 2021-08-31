@@ -1,4 +1,4 @@
-from typing import Union, Optional
+from typing import Union, Optional, Coroutine
 import datetime
 import random
 import inspect
@@ -288,6 +288,18 @@ def trueshuffle(p: list):
         p[choice] = toswap
 
 
+async def coro_wrapper(coro: Coroutine):
+    """
+    Executes coro and logs exceptions to the debug channel.
+
+    :param coro: Coroutine that is ready to be awaited.
+    """
+    try:
+        await coro
+    except Exception as e:
+        await log_exception(e, title=":x: Task error")
+
+
 def execute_anything_sync(f, *args, **kwargs):
     """
     Executes functions, coroutine functions and coroutines, returns their return values and raises their exceptions.
@@ -300,7 +312,7 @@ def execute_anything_sync(f, *args, **kwargs):
     if inspect.iscoroutinefunction(f):
         f = f(*args, **kwargs)
     if inspect.iscoroutine(f):
-        return asyncio.get_event_loop().create_task(f)
+        return asyncio.get_event_loop().create_task(coro_wrapper(f))
     return f(*args, **kwargs)
 
 
