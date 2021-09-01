@@ -667,13 +667,13 @@ class Plugin(BasePlugin, name="LastFM"):
 
     @cmd_lastfm.command(name="listening")
     async def cmd_listening(self, ctx, *args):
-        args = self.parse_args(args, ctx.author)
+        args_d = self.parse_args(args, ctx.author)
         if self.presence_handler.is_currently_shown:
             song = self.presence_handler.state.cur_song.format(reverse=True)
             listener = self.presence_handler.state.cur_listener_dc
             msg = Lang.lang(self, "presence_listening", song, gbu(listener))
 
-            if args["spotify"]:
+            if args_d["spotify"]:
                 msg = await self.append_spotify_link(msg, self.presence_handler.state.cur_song, Layer.TITLE)
 
             await ctx.send(msg)

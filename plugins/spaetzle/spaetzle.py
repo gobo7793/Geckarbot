@@ -455,22 +455,8 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
         return await self.bot.liveticker.register(league="bl1", raw_source="oldb", plugin=self,
                                                   coro=self._liveticker_coro, periodic=True)
 
-    async def _liveticker_coro(self, matches, *_):
-        self.logger.debug("Spätzle score update started.")
-        c = self.get_api_client()
-        values = [[]] * 9
-
-        # Build values
-        for match_id, match in matches.items():
-            if match_id in Storage().get(self)['match_ids'] and match['kickoff_time'] and \
-                    match['kickoff_time'] < datetime.now() and not match['is_finished']:
-                values[Storage().get(self)['match_ids'].index(match_id)] = [*match['score']]
-
-        # Put scores into spreadsheet
-        c.update(cellrange="Aktuell!{}".format(CellRange.from_a1(Config.get(self)['matches_range'])
-                                               .expand(top=-2, left=-4).rangename()),
-                 values=values)
-        self.logger.debug("Spätzle score update finished.")
+    async def _liveticker_coro(self, update):
+        pass  # TODO: automatic score updating
 
     @cmd_spaetzle_set.command(name="config", usage="<path...> <value>")
     async def cmd_set_config(self, ctx, *args):

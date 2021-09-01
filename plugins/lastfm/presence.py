@@ -8,7 +8,6 @@ from subsystems.presence import PresenceMessage, PresencePriority, activitymap
 from subsystems.timers import Timer
 from data import Storage, Lang
 from botutils.converters import get_best_user, get_best_username as gbu
-from botutils.utils import write_debug_channel
 
 
 class PresenceState:
@@ -60,7 +59,6 @@ class PresenceState:
 
         :return: This PresenceState
         """
-        await write_debug_channel("Lastfm presence reset")
         rnd = await self.presence_msg.get_random_lastfm_listener()
         self.cur_listener_dc, self.cur_listener_lfm, self.cur_song = rnd
         if self.cur_song is not None:
@@ -96,7 +94,6 @@ class LfmPresenceMessage(PresenceMessage):
         """
         Is called by presence subsys to indicate that we are up
         """
-        await write_debug_channel("Lastfm presence coming up")
         self.is_currently_shown = True
         await self.update()
 
@@ -106,18 +103,15 @@ class LfmPresenceMessage(PresenceMessage):
         presence is up.
         :return:
         """
-        await write_debug_channel("Lastfm presence update")
         if not self.is_currently_shown:
             return
 
         # first run, fill stuff
         first = False
         if self.state is None:
-            await write_debug_channel("Lastfm presence first")
             first = True
             self.state = await PresenceState(self).reset()
             if not self.state.is_set():
-                await write_debug_channel("Lastfm presence skipping")
                 await self.bot.presence.skip()
                 return
 
@@ -126,11 +120,9 @@ class LfmPresenceMessage(PresenceMessage):
             if not song == self.state.cur_song:
                 await self.state.reset()
                 if not self.state.is_set():
-                    await write_debug_channel("Lastfm presence skipping")
                     await self.bot.presence.skip()
                     return
 
-        await write_debug_channel("Lastfm presence change bot presence")
         self._activity = discord.Activity(type=self._activity_type, name=self.state.cur_song_f)
         await self.bot.change_presence(activity=self.activity_type)
         self.state.timer = Timer(self.bot, self.plugin.get_config("presence_tick"), self.update)
