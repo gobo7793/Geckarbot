@@ -4,7 +4,7 @@ from typing import Optional, Union
 import discord
 from discord.ext import commands
 
-from base import BasePlugin
+from base import BasePlugin, NotFound
 from data import Config
 
 _id_regex = re.compile(r'([0-9]{15,21})$')
@@ -130,3 +130,50 @@ def get_embed_str(embed: Union[discord.Embed, str]) -> Union[discord.Embed, str]
         m += ", Field {}={}".format(f.name, f.value)
 
     return m
+
+
+def serialize_channel(channel: Union[discord.DMChannel, discord.TextChannel]) -> dict:
+    """
+    Serializes channel into a dict that can be deserialized by deserialize_channel().
+
+    :param channel: Channel to be serialized. Currently only supports `DMChannel` and `TextChannels`.
+    :return: dict{type: typestring, id: id}
+    :raises RuntimeError: If channel is of a type that is not supported
+    """
+    if isinstance(channel, discord.DMChannel):
+        return {
+            "type": "dm",
+            "id": channel.recipient.id
+        }
+
+    if isinstance(channel, discord.TextChannel):
+        return {
+            "type": "text",
+            "id": channel.id
+        }
+
+    raise RuntimeError("Channel {} not supported".format(channel))
+
+
+async def deserialize_channel(channeldict: dict) -> Union[discord.DMChannel, discord.TextChannel]:
+    """
+    Deserializes channel from a dict that was created by serialize_channel.
+
+    :param channeldict: dict created by serialize_channel
+    :return: Channel that was serialized before
+    :raises NotFound: If the channel could not be found for whatever reason
+    """
+    if channeldict["type"] == "dm":
+        user = get_best_user(channeldict["id"])
+        if user is None:
+            raise NotFound
+        r = user.dm_channel
+        if r is None:
+            r = await user.create_dm()
+        return r
+
+    if channeldict["type"] == "text":
+        r = Config().bot.guild.get_channel(channeldict["id"])
+        if r is None:
+            raise NotFound
+        return r
