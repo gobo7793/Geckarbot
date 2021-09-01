@@ -167,7 +167,7 @@ class Job:
                 fields = {
                     "timedict": self._timedict
                 }
-                await log_exception(e, title=":x: Timer error", fields=fields)
+                await log_exception(e, title=":x: Timer error (scheduled)", fields=fields)
             if not self._repeat:
                 break
 
@@ -461,7 +461,10 @@ class Timer:
     async def _task(self):
         await asyncio.sleep(self.t)
         self._has_run = True
-        execute_anything_sync(self.callback, *self.args, **self.kwargs)
+        try:
+            await execute_anything(self.callback, *self.args, **self.kwargs)
+        except Exception as e:
+            await log_exception(e, title=":x: Timer error")
 
     def skip(self):
         """
