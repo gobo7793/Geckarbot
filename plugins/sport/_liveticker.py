@@ -6,7 +6,7 @@ from discord.ext import commands
 
 from botutils.stringutils import paginate
 from botutils.utils import add_reaction
-from data import Lang, Config
+from data import Lang, Config, Storage
 from subsystems.liveticker import TeamnameDict, LTSource, PlayerEventEnum, LivetickerKickoff, LivetickerUpdate, \
     LivetickerFinish
 from subsystems.reactions import ReactionAddedEvent
@@ -207,8 +207,9 @@ class _Liveticker:
             # Kickoff-Event
             match_msgs = []
             for match in event.matches:
-                predictions = await self._get_predictions(match.home_team,
-                                                          match.away_team, match.kickoff)
+                predictions = None
+                if match.league_key in Storage().get(self)['predictions']:
+                    predictions = await self._get_predictions(match.home_team, match.away_team, match.kickoff)
                 match_msg = f"{match.home_team.emoji} {match.home_team.long_name} - " \
                             f"{match.away_team.emoji} {match.away_team.long_name}"
                 if predictions:
