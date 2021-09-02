@@ -372,6 +372,7 @@ class MatchBase(ABC):
     """Abstract base class of a match with additional info"""
 
     match_id: str
+    league_key: str
     kickoff: datetime.datetime
     home_team: TeamnameDict
     away_team: TeamnameDict
@@ -385,13 +386,13 @@ class MatchBase(ABC):
     score: Dict[str, int]
     matchday: int
 
-    def __init__(self, _, **kwargs):
+    def __init__(self, _m, _league, **kwargs):
         pass
 
     @classmethod
-    def from_storage(cls, m: dict):
+    def from_storage(cls, m: dict, league_key: str):
         """Build match from storage"""
-        match = cls(m, from_storage=True)
+        match = cls(m, league_key, from_storage=True)
         match.match_id = m['match_id']
         match.kickoff = datetime.datetime.fromisoformat(m['kickoff'])
         match.home_team_id, match.away_team_id = m['teams']
@@ -441,8 +442,8 @@ class MatchESPN(MatchBase):
     :param new_events:
     """
 
-    def __init__(self, m: dict, new_events: list = None, *, from_storage: bool = False):
-        super().__init__(from_storage)
+    def __init__(self, m: dict, league_key: str, new_events: list = None, *, from_storage: bool = False):
+        super().__init__(m, league_key, from_storage=from_storage)
         if from_storage:
             return
         # Extract kickoff into datetime object
@@ -476,6 +477,7 @@ class MatchESPN(MatchBase):
 
         # Put all informations together
         self.match_id = m.get('uid')
+        self.league_key = league_key
         self.kickoff = kickoff
         self.minute = m.get('status', {}).get('displayClock')
         self.home_team = home_team
@@ -509,8 +511,8 @@ class MatchOLDB(MatchBase):
     :param m: raw data from the request
     """
 
-    def __init__(self, m: dict, new_events: list = None, *, from_storage: bool = False):
-        super().__init__(from_storage)
+    def __init__(self, m: dict, league_key: str, new_events: list = None, *, from_storage: bool = False):
+        super().__init__(m, league_key, from_storage=from_storage)
         if from_storage:
             return
         if new_events is None:
@@ -529,6 +531,7 @@ class MatchOLDB(MatchBase):
             minute = None
 
         self.match_id = m.get('matchID')
+        self.league_key = league_key
         self.kickoff = kickoff
         self.minute = str(minute)
         self.home_team = Config().bot.liveticker.teamname_converter.get(m.get('team1', {}).get('teamName'),
@@ -864,7 +867,7 @@ class LeagueRegistrationBase(ABC):
                 continue
             matches = {}
             for m in matches_:
-                match = cls.get_matchclass().from_storage(m)
+                match = cls.get_matchclass().from_storage(m, league)
                 matches[match.match_id] = match
             l_reg.kickoffs[time_kickoff] = matches
         return l_reg
@@ -1091,7 +1094,7 @@ class LeagueRegistrationESPN(LeagueRegistrationBase):
         data = await restclient.Client("http://site.api.espn.com/apis/site/v2/sports") \
             .request(f"/soccer/{league}/scoreboard", params={'dates': dates,
                                                              'geckirandom': datetime.datetime.now().microsecond})
-        matches = [MatchESPN(x) for x in data['events']]
+        matches = [MatchESPN(x, league) for x in data['events']]
         return matches
 
     @staticmethod
@@ -1143,7 +1146,7 @@ class LeagueRegistrationOLDB(LeagueRegistrationBase):
         if not data:
             return []
         for m in data:
-            match = MatchOLDB(m)
+            match = MatchOLDB(m, league)
             if match.kickoff.date() > until_day:
                 break
             if match.kickoff.date() >= from_day:
@@ -1172,7 +1175,7 @@ class LeagueRegistrationOLDB(LeagueRegistrationBase):
             season = date.year if date.month > 6 else date.year - 1
         data = await restclient.Client("https://api.openligadb.de").request(
             f"/getmatchdata/{league}/{season}/{matchday}")
-        return [MatchOLDB(m) for m in data]
+        return [MatchOLDB(m, league) for m in data]
 
     @staticmethod
     async def get_standings(league: str):
