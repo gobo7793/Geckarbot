@@ -7,7 +7,6 @@ from urllib.parse import urlencode
 from enum import Enum
 import base64
 import logging
-import asyncio
 
 import aiohttp
 
