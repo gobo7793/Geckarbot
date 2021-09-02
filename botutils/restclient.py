@@ -11,6 +11,8 @@ import asyncio
 
 import aiohttp
 
+from botutils.utils import execute_anything_sync
+
 
 class AuthError(Exception):
     """Raisen on authentication errors"""
@@ -260,7 +262,7 @@ class Client:
         return response
 
     def __del__(self):
-        asyncio.create_task(self.aiosession.close())
+        execute_anything_sync(self.aiosession.close())
 
     def _maskprint(self, d, prefix=""):
         """

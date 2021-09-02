@@ -1,4 +1,3 @@
-import asyncio
 from copy import deepcopy
 
 import discord
@@ -8,7 +7,7 @@ from discord.ext import commands
 
 from base import BasePlugin, NotFound
 from botutils import utils, permchecks, converters, stringutils
-from botutils.utils import add_reaction
+from botutils.utils import add_reaction, execute_anything_sync
 from data import Storage, Config, Lang
 from subsystems import reactions
 from subsystems.helpsys import DefaultCategories
@@ -82,7 +81,7 @@ class Plugin(BasePlugin, name="Role Management"):
                 bot.reaction_listener.register(await self.get_init_msg(), self.update_reaction_based_user_role)
 
         # asyncio.run_coroutine_threadsafe(get_init_msg_data(), self.bot.loop)
-        asyncio.get_event_loop().create_task(get_init_msg_data())
+        execute_anything_sync(get_init_msg_data())
 
     def default_storage(self, container=None):
         if container is not None:
