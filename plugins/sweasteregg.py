@@ -5,7 +5,7 @@ from discord import TextChannel
 from discord.ext import commands
 
 from base import BasePlugin, NotFound
-from botutils.utils import add_reaction
+from botutils.utils import add_reaction, execute_anything_sync
 from data import Config, Storage, Lang
 from subsystems import helpsys
 from subsystems.presence import PresenceMessage, PresencePriority
@@ -23,7 +23,7 @@ class Plugin(BasePlugin):
         self.channel = self.bot.guild.get_channel(Config.get(self)["channel_id"])
 
         if Config.get(self)["is_running"]:
-            self.bot.loop.create_task(self._start())
+            execute_anything_sync(self._start())
         else:
             self._prepare()
 

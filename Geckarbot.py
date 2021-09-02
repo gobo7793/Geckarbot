@@ -347,7 +347,7 @@ class Geckarbot(commands.Bot):
             if plugin is None:
                 return None
 
-            self.loop.create_task(plugin.shutdown())
+            execute_anything_sync(self.loop.create_task(plugin.shutdown()))
             if save_config:
                 Config.save(plugin)
                 Storage.save(plugin)
