@@ -56,7 +56,7 @@ class _Scores:
             try:
                 raw_matches = await restclient.Client("https://www.openligadb.de/api") \
                     .request(f"/getmatchdata/{league}")
-                matches = [MatchOLDB(m) for m in raw_matches]
+                matches = [MatchOLDB(m, league) for m in raw_matches]
             except (ValueError, AttributeError):
                 await add_reaction(ctx.message, Lang.CMDERROR)
                 return
