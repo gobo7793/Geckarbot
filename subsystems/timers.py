@@ -467,7 +467,8 @@ class Timer:
         try:
             await execute_anything(self.callback, *self.args, **self.kwargs)
         except Exception as e:
-            await log_exception(e, title=":x: Timer error")
+            fields = {"Callback": "`{}`".format(self.callback)}
+            await log_exception(e, title=":x: Timer error", fields=fields)
 
     def skip(self):
         """
