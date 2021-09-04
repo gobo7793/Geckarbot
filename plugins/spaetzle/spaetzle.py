@@ -156,7 +156,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
         async with ctx.typing():
             # Request data
             if matchday:
-                for _, _, c_reg in list(self.bot.liveticker.search_coro(plugins=[self.get_name()])):
+                for c_reg in list(self.bot.liveticker.search_coro(plugin_names=[self.get_name()])):
                     c_reg.unload()
             else:
                 matchday = Storage().get(self)['matchday']
@@ -517,14 +517,14 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                     row = data[i]
                     if len(row) >= 7:
                         if row[3] == name.long_name:
-                            values = [goals if goals is not None else row[4] + 1 if row[4] else 1,
+                            values = [goals if goals is not None else int(row[4]) + 1 if row[4] else 1,
                                       goals_other if goals_other is not None else row[5] if row[5] else 0]
                             await ctx.send("{} [**{}**:{}] {}".format(row[3], *values, row[6]))
                             index = i
                             break
                         if row[6] == name.long_name:
                             values = [goals_other if goals_other is not None else row[4] if row[4] else 0,
-                                      goals if goals is not None else row[5] + 1 if row[5] else 1]
+                                      goals if goals is not None else int(row[5]) + 1 if row[5] else 1]
                             await ctx.send("{} [{}:**{}**] {}".format(row[3], *values, row[6]))
                             index = i
                             break
