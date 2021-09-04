@@ -27,7 +27,7 @@ class _Liveticker:
             liveticker_regs = list(self.bot.liveticker.search_coro(plugins=[self.get_name()]))
             if liveticker_regs:
                 # Show dialog for actions
-                leagues = (c_reg.league_reg.league for _, _, c_reg in liveticker_regs)
+                leagues = (c_reg.league_reg.league_key for _, _, c_reg in liveticker_regs)
                 actions = "🔀", "🚫"
                 description = Lang.lang(self, 'liveticker_running',
                                         Config().bot.get_channel(Config().get(self)['sport_chan']).mention,
@@ -192,7 +192,7 @@ class _Liveticker:
     async def cmd_liveticker_matches(self, ctx):
         msg_lines = []
         for l_reg in self.bot.liveticker.search_league():
-            msg_lines.append(f"**{l_reg.league}**")
+            msg_lines.append(f"**{l_reg.league_key}**")
             if len(l_reg.kickoffs) == 0:
                 msg_lines.append(Lang.lang(self, 'no_matches'))
             for kickoff, matches in l_reg.kickoffs.items():
