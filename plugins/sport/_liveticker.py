@@ -24,10 +24,10 @@ class _Liveticker:
     @commands.group(name="liveticker")
     async def cmd_liveticker(self, ctx):
         if ctx.invoked_subcommand is None:
-            liveticker_regs = list(self.bot.liveticker.search_coro(plugins=[self.get_name()]))
+            liveticker_regs = list(self.bot.liveticker.search_coro(plugin_names=[self.get_name()]))
             if liveticker_regs:
                 # Show dialog for actions
-                leagues = (c_reg.league_reg.league_key for _, _, c_reg in liveticker_regs)
+                leagues = (c_reg.league_reg.league_key for c_reg in liveticker_regs)
                 actions = "🔀", "🚫"
                 description = Lang.lang(self, 'liveticker_running',
                                         Config().bot.get_channel(Config().get(self)['sport_chan']).mention,
@@ -82,7 +82,7 @@ class _Liveticker:
                     Config().save(self)
             elif event.emoji.name == "🚫":
                 # Stopping liveticker
-                for _, _, c_reg in list(self.bot.liveticker.search_coro(plugins=[self.get_name()])):
+                for c_reg in list(self.bot.liveticker.search_coro(plugin_names=[self.get_name()])):
                     await c_reg.deregister()
             event.data['react'] = True
             event.callback.deregister()
@@ -103,7 +103,7 @@ class _Liveticker:
                     Config().get(self)['liveticker']['leagues'][source] = []
                 Config().get(self)['liveticker']['leagues'][source].append(league)
                 Config().save(self)
-            if list(self.bot.liveticker.search_coro(plugins=[self.get_name()])):
+            if list(self.bot.liveticker.search_coro(plugin_names=[self.get_name()])):
                 await self.bot.liveticker.register(league=league, raw_source=source, plugin=self,
                                                    coro=self._live_coro, periodic=True,
                                                    interval=Config().get(self)['liveticker'].get('interval', 15))
@@ -116,8 +116,8 @@ class _Liveticker:
             Config().get(self)['liveticker']['leagues'][source].remove(league)
             Config().save(self)
 
-            for _, _, c_reg in self.bot.liveticker.search_coro(leagues=[league], sources=[LTSource(source)],
-                                                               plugins=[self.get_name()]):
+            for c_reg in self.bot.liveticker.search_coro(league_keys=[league], sources=[LTSource(source)],
+                                                         plugin_names=[self.get_name()]):
                 await c_reg.deregister()
                 break
             await add_reaction(ctx.message, Lang.CMDSUCCESS)
@@ -176,7 +176,7 @@ class _Liveticker:
 
     @cmd_liveticker.command(name="stop")
     async def cmd_liveticker_stop(self, ctx):
-        for _, _, c_reg in list(self.bot.liveticker.search_coro(plugins=[self.get_name()])):
+        for c_reg in list(self.bot.liveticker.search_coro(plugin_names=[self.get_name()])):
             await c_reg.deregister()
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
@@ -184,7 +184,7 @@ class _Liveticker:
     async def cmd_liveticker_interval(self, ctx, new_interval: int):
         Config().get(self)['liveticker']['interval'] = new_interval
         Config().save(self)
-        for _, _, c_reg in list(self.bot.liveticker.search_coro(plugins=[self.get_name()])):
+        for c_reg in list(self.bot.liveticker.search_coro(plugin_names=[self.get_name()])):
             c_reg.interval = new_interval
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
