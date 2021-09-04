@@ -963,11 +963,11 @@ class LeagueRegistrationBase(ABC):
         """Unloads this LeagueRegistration"""
         await self.listener.unload_league(self)
 
-    def store_matches(self):  # TODO
+    def store_matches(self):
         """Updates the storage in terms of the matches saved"""
-        Storage().get(self.listener)['registrations'][self.source.value][self.league_key]['kickoffs'] = {}
+        Storage().get(self.listener)['league_regs'][f"{self.source.value}/{self.league_key}"]['kickoffs'] = {}
         for kickoff, matches in self.kickoffs.items():
-            Storage().get(self.listener)['registrations'][self.source.value][self.league_key]['kickoffs'][
+            Storage().get(self.listener)['league_regs'][f"{self.source.value}/{self.league_key}"]['kickoffs'][
                 kickoff.strftime("%Y-%m-%d %H:%M")] = [m.to_storage() for m in matches.values()]
         Storage().save(self.listener)
 
@@ -1021,7 +1021,7 @@ class LeagueRegistrationBase(ABC):
         """
         self.kickoffs: Dict[datetime.datetime, Dict[str, MatchBase]] = {}
         now = datetime.datetime.now()
-        Storage().get(self.listener)['registrations'][self.source.value][self.league_key]['kickoffs'] = {}
+        Storage().get(self.listener)['league_regs'][f"{self.source.value}/{self.league_key}"]['kickoffs'] = {}
 
         matches: List[MatchBase] = await self.get_matches_by_date(league=self.league_key, from_day=now.date(),
                                                                   until_day=until.date())
@@ -1276,14 +1276,12 @@ class Liveticker(BaseSubsystem):
     def default_storage(self, container=None):
         if container == 'teamname':
             return {}
-        storage = {
-            'storage_version': 1,
-            'registrations': {},
+        return {
+            'storage_version': 3,
+            'league_regs': {},
+            'coro_regs': {},
             'next_semiweekly': None
         }
-        for src in LTSource.__members__.values():
-            storage['registrations'][src.value] = {}
-        return storage
 
     def update_storage(self):
         """Storage update at version jump"""
@@ -1369,7 +1367,7 @@ class Liveticker(BaseSubsystem):
             self.league_regs[league] = await LeagueRegistrationOLDB.create(self, league.key)
         else:
             raise SourceNotSupported
-        Storage().get(self)['registrations'][league.source.value][league.key] = {'kickoffs': {}}
+        Storage().get(self)['league_regs'][f"{league.source.value}/{league}"] = {'kickoffs': {}}
         Storage().save(self)
 
     async def deregister_league(self, l_reg: LeagueRegistrationBase):
@@ -1379,9 +1377,9 @@ class Liveticker(BaseSubsystem):
         :param l_reg: LeagueRegistration
         """
         await self.unload_league(l_reg)
-        if l_reg.league_key in Storage().get(self)['registrations'][l_reg.source.value]:
-            Storage().get(self)['registrations'][l_reg.source.value].pop(l_reg.league_key)
-            Storage().save(self)
+        key = f"{l_reg.source.value}/{l_reg.league_key}"
+        if key in Storage().get(self)['league_regs']:
+            Storage().get(self)['league_regs'].pop(key)
 
     async def unload_league(self, l_reg: LeagueRegistrationBase):
         if l_reg.league_key in self.league_regs[l_reg.source]:
