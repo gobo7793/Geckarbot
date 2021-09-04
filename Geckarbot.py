@@ -30,7 +30,7 @@ class Geckarbot(commands.Bot):
     Basic bot info
     """
     NAME = "Geckarbot"
-    VERSION = "2.13.7"
+    VERSION = "2.13.8"
     PLUGIN_DIR = "plugins"
     CORE_PLUGIN_DIR = "coreplugins"
     CONFIG_DIR = "config"
@@ -347,7 +347,7 @@ class Geckarbot(commands.Bot):
             if plugin is None:
                 return None
 
-            self.loop.create_task(plugin.shutdown())
+            execute_anything_sync(self.loop.create_task(plugin.shutdown()))
             if save_config:
                 Config.save(plugin)
                 Storage.save(plugin)

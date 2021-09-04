@@ -105,7 +105,7 @@ class Job:
         self._last_exec = None
 
         if run:
-            self._task = asyncio.get_event_loop().create_task(self._loop())
+            self._task = execute_anything_sync(self._loop())
 
     @property
     def timedict(self):
@@ -451,7 +451,7 @@ class Timer:
         self.cancelled = False
         self._has_run = False
 
-        self.task = asyncio.create_task(self._task())
+        self.task = execute_anything_sync(self._task())
         self.logger.debug("Scheduled timer; t: %d, cb: %s", self.t, str(self.callback))
 
     @property
@@ -459,12 +459,16 @@ class Timer:
         return self._has_run
 
     async def _task(self):
+        """
+        Executes the timer's callback after waiting `t` seconds.
+        """
         await asyncio.sleep(self.t)
         self._has_run = True
         try:
             await execute_anything(self.callback, *self.args, **self.kwargs)
         except Exception as e:
-            await log_exception(e, title=":x: Timer error")
+            fields = {"Callback": "`{}`".format(self.callback)}
+            await log_exception(e, title=":x: Timer error", fields=fields)
 
     def skip(self):
         """

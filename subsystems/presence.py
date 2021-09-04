@@ -2,7 +2,6 @@
 This subsystem provides changing presence messages for the user list on servers
 """
 
-import asyncio
 import logging
 import random
 from enum import IntEnum
@@ -12,7 +11,7 @@ import discord
 
 from base import BaseSubsystem, NotFound
 from data import Config, Storage
-from botutils.utils import log_exception
+from botutils.utils import log_exception, execute_anything_sync
 from subsystems.timers import Job, timedict
 
 
@@ -378,7 +377,7 @@ class Presence(BaseSubsystem):
     def execute_change(self):
         """Executes _change_callback() w/o awaiting (every time this method is called)"""
         if self.is_timer_up:
-            asyncio.run_coroutine_threadsafe(self._change_callback(self._timer_job), self.bot.loop)
+            execute_anything_sync(self._change_callback(self._timer_job))
 
     async def _change_callback(self, job):
         """

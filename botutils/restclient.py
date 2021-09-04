@@ -7,9 +7,10 @@ from urllib.parse import urlencode
 from enum import Enum
 import base64
 import logging
-import asyncio
 
 import aiohttp
+
+from botutils.utils import execute_anything_sync
 
 
 class AuthError(Exception):
@@ -260,7 +261,7 @@ class Client:
         return response
 
     def __del__(self):
-        asyncio.create_task(self.aiosession.close())
+        execute_anything_sync(self.aiosession.close())
 
     def _maskprint(self, d, prefix=""):
         """
