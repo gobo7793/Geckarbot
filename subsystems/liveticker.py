@@ -964,9 +964,13 @@ class LeagueRegistrationBase(ABC):
         """Unloads this LeagueRegistration"""
         await self.liveticker.unload_league(self)
 
-    def store_matches(self):
+    def store(self):
         """Updates the storage in terms of the matches saved"""
-        Storage().get(self.liveticker)['league_regs'][self.storage_key]['kickoffs'] = {}
+        Storage().get(self.liveticker)['league_regs'][self.storage_key] = {
+            "source": self.league.source.value,
+            "key": self.league.key,
+            "kickoffs": {}
+        }
         for kickoff, matches in self.kickoffs.items():
             Storage().get(self.liveticker)['league_regs'][self.storage_key]['kickoffs'][
                 kickoff.strftime("%Y-%m-%d %H:%M")] = [m.to_storage() for m in matches.values()]
@@ -982,7 +986,7 @@ class LeagueRegistrationBase(ABC):
             if match.match_id not in self.kickoffs[match.kickoff]:
                 continue
             self.kickoffs[match.kickoff][match.match_id] = match
-        self.store_matches()
+        self.store()
         return self.matches
 
     @staticmethod
@@ -1037,7 +1041,7 @@ class LeagueRegistrationBase(ABC):
             self.kickoffs[match.kickoff][match.match_id] = match
 
         # Store matches
-        self.store_matches()
+        self.store()
 
     def next_kickoff(self):
         """Returns datetime of the next match"""
@@ -1097,7 +1101,7 @@ class LeagueRegistrationBase(ABC):
                 do_request = True
                 self.kickoffs.pop(match.kickoff)
         if new_finished:
-            self.store_matches()
+            self.store()
         for c_reg in self.registrations:
             await c_reg.update_finished(new_finished)
         if do_request:
@@ -1350,9 +1354,10 @@ class Liveticker(BaseSubsystem):
         c_reg = CoroRegistration(self, reg_id=reg_id, plugin=plugin, coro=coro, interval=interval,
                                  l_regs=[self.league_regs[league] for league in leagues])
         self.coro_regs[reg_id] = c_reg
+        c_reg.store()
         return c_reg
 
-    async def register_league(self, league: League):
+    async def register_league(self, league: League) -> LeagueRegistrationBase:
         """
         Adds a new league to the registrations
 
@@ -1365,8 +1370,8 @@ class Liveticker(BaseSubsystem):
         else:
             raise SourceNotSupported
         self.league_regs[league] = l_reg
-        Storage().get(self)['league_regs'][l_reg.storage_key] = {'kickoffs': {}}
-        Storage().save(self)
+        l_reg.store()
+        return l_reg
 
     async def deregister_league(self, l_reg: LeagueRegistrationBase):
         """
