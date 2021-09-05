@@ -695,24 +695,26 @@ class PlayerEventEnum(Enum):
 class LivetickerEvent:
     def __init__(self, league, matches: Iterable[MatchBase]):
         """
+        Base class of the different Liveticker updates
 
-        :param league:
+        :param league: league of the event
         :type league: League
-        :param matches:
+        :param matches: corresponding matches
         """
         self.league = league
         self.matches = matches
 
 
 class LivetickerKickoff(LivetickerEvent):
-    def __init__(self, league, matches: Iterable[MatchBase], kickoff: datetime.datetime):
-        """
+    """
+    Kickoff event
 
-        :param league:
-        :type league: League
-        :param matches:
-        :param kickoff:
-        """
+    :param league: league of the event
+    :type league: League
+    :param matches: corresponding matches
+    :param kickoff: datetime of the kickoff
+    """
+    def __init__(self, league, matches: Iterable[MatchBase], kickoff: datetime.datetime):
         super().__init__(league, matches)
         self.kickoff = kickoff
 
@@ -723,7 +725,6 @@ class LivetickerMidgame(LivetickerEvent):
 
     :param league: league of the Registration
     :type league: League
-
     """
 
     def __init__(self, league, events_per_match: Dict[MatchBase, List[PlayerEvent]]):
@@ -732,6 +733,7 @@ class LivetickerMidgame(LivetickerEvent):
 
 
 class LivetickerFinish(LivetickerEvent):
+    """LivetickerEvent for finished matches"""
     pass
 
 
