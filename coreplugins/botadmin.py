@@ -101,11 +101,17 @@ class Plugin(BasePlugin, name="Bot status commands for monitoring and debug purp
             match_timer = self.bot.liveticker.match_timer
             if match_timer:
                 minutes = match_timer.timedict.get("minute")
-            liveticker_list = [f"***Liveticker minutes:*** {minutes}"]
-            for src in self.bot.liveticker.registrations.values():
-                for leag in src.values():
-                    liveticker_list.append("\u2b1c {}".format(str(leag)))
-                    liveticker_list.extend("\u25ab {}".format(str(lt_reg)) for lt_reg in leag.registrations)
+            liveticker_list = [f"Liveticker minutes: {minutes}", "**LeagueRegistrations:**"]
+            l_reg_lines = [f"{l_reg.storage_key}: {l_reg}" for l_reg in self.bot.liveticker.league_regs.values()]
+            liveticker_list.extend(l_reg_lines)
+            if not l_reg_lines:
+                liveticker_list.append("None")
+            liveticker_list.append("**CoroRegistrations:**")
+            c_reg_lines = [f"{c_reg.id}: {c_reg}" for c_reg in self.bot.liveticker.coro_regs.values()]
+            liveticker_list.extend(c_reg_lines)
+            if not c_reg_lines:
+                liveticker_list.append("None")
+
             for msg in paginate(liveticker_list,
                                 prefix="**Liveticker Registrations:**\n",
                                 suffix="\n",

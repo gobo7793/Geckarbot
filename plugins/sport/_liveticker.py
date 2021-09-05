@@ -207,7 +207,7 @@ class _Liveticker:
         match_msgs = []
         for event in updates:
             if isinstance(event, LivetickerKickoff):
-                match_msgs.extend(self.kickoff_msg(event))
+                match_msgs.extend(await self.kickoff_msg(event))
             elif isinstance(event, LivetickerMidgame):
                 if not Config().get(self)['liveticker'].get('do_intermediate_updates', True):
                     continue
@@ -221,7 +221,7 @@ class _Liveticker:
         for msg in msgs:
             await sport.send(msg)
 
-    def kickoff_msg(self, event: LivetickerKickoff) -> List[str]:
+    async def kickoff_msg(self, event: LivetickerKickoff) -> List[str]:
         """Returns the message for a kickoff event"""
         match_msgs = [Lang.lang(self, 'liveticker_prefix_kickoff', event.league, event.kickoff.strftime('%H:%M'))]
         for match in event.matches:
