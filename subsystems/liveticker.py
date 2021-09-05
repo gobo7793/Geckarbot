@@ -717,7 +717,7 @@ class LivetickerKickoff(LivetickerEvent):
         self.kickoff = kickoff
 
 
-class LivetickerUpdate(LivetickerEvent):
+class LivetickerMidgame(LivetickerEvent):
     """
     LivetickerEvent for the mid-game update
 
@@ -1029,7 +1029,7 @@ class LeagueRegistrationBase(ABC):
                     c_reg_matches.append(match)
             if c_reg_matches:
                 event_dict = c_reg.filter_events(c_reg_matches)
-                c_reg.append_update(LivetickerUpdate(self.league, event_dict))
+                c_reg.append_update(LivetickerMidgame(self.league, event_dict))
         # Clear finished matches
         do_request: bool = False
         new_finished = [e for e in new_finished if e.match_id not in self.finished]  # Just to be safe

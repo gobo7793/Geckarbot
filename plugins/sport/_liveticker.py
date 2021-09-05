@@ -1,5 +1,6 @@
 import asyncio
 import logging
+from typing import List
 
 import discord
 from discord.ext import commands
@@ -7,8 +8,8 @@ from discord.ext import commands
 from botutils.stringutils import paginate
 from botutils.utils import add_reaction
 from data import Lang, Config
-from subsystems.liveticker import TeamnameDict, LTSource, PlayerEventEnum, LivetickerKickoff, LivetickerUpdate, \
-    LivetickerFinish
+from subsystems.liveticker import TeamnameDict, LTSource, PlayerEventEnum, LivetickerKickoff, LivetickerMidgame, \
+    LivetickerFinish, LivetickerEvent
 from subsystems.reactions import ReactionAddedEvent
 
 logger = logging.getLogger(__name__)
@@ -201,63 +202,68 @@ class _Liveticker:
         for msg in paginate(msg_lines, if_empty=Lang.lang(self, 'no_matches_found')):
             await ctx.send(msg)
 
-    async def _live_coro(self, event):
+    async def _live_coro(self, updates: List[LivetickerEvent]):
         sport = Config().bot.get_channel(Config().get(self)['sport_chan'])
-        if isinstance(event, LivetickerKickoff):
-            # Kickoff-Event
-            match_msgs = []
-            for match in event.matches:
-                predictions = await self._get_predictions(match.home_team,
-                                                          match.away_team, match.kickoff)
-                match_msg = f"{match.home_team.emoji} {match.home_team.long_name} - " \
-                            f"{match.away_team.emoji} {match.away_team.long_name}"
-                if predictions:
-                    match_msg += f"\n{predictions}"
-                match_msgs.append(match_msg)
-            msgs = paginate(match_msgs,
-                            prefix=Lang.lang(self, 'liveticker_prefix_kickoff', event.league,
-                                             event.kickoff.strftime('%H:%M')))
-            for msg in msgs:
-                await sport.send(msg)
-        elif isinstance(event, LivetickerUpdate):
-            # Intermediate-Event
-            if not Config().get(self)['liveticker'].get('do_intermediate_updates', True):
-                return
-            if not event.matches:
-                return
-            event_filter = Config().get(self)['liveticker']['tracked_events']
-            match_msgs = []
-            other_matches = []
-            for match in event.matches:
-                events_msg = " / ".join(e.display() for e in match.new_events
-                                        if PlayerEventEnum(type(e).__base__).name in event_filter)
-                if events_msg:
-                    match_msg = "{} | {} {} - {} {} | {}:{}".format(match.minute, match.home_team.emoji,
-                                                                    match.home_team.long_name, match.away_team.emoji,
-                                                                    match.away_team.long_name, *match.score.values())
-                    match_msgs.append("**{}**\n{}".format(match_msg, events_msg))
-                else:
-                    match_msg = "{2}-{3} {0} - {1} | {5}:{6} ({4})".format(match.home_team.abbr, match.away_team.abbr,
-                                                                           match.home_team.emoji, match.away_team.emoji,
-                                                                           match.minute, *match.score.values())
-                    other_matches.append(match_msg)
-            if other_matches:
-                match_msgs.append("{}: {}".format(Lang.lang(self, 'liveticker_unchanged'),
-                                                  " \u2014 ".join(other_matches)))
-            msgs = paginate(match_msgs, prefix=Lang.lang(self, 'liveticker_prefix', event.league))
-            for msg in msgs:
-                await sport.send(msg)
-        elif isinstance(event, LivetickerFinish):
-            # Finished-Event
-            match_msgs = []
-            for match in event.matches:
-                match_msgs.append(f"{match.score[match.home_team_id]}:{match.score[match.away_team_id]} | "
-                                  f"{match.home_team.emoji} {match.home_team.short_name} - {match.away_team.emoji} "
-                                  f"{match.away_team.short_name}")
-            msgs = paginate(match_msgs,
-                            prefix=Lang.lang(self, 'liveticker_prefix_finished', event.league))
-            for msg in msgs:
-                await sport.send(msg)
+        match_msgs = []
+        for event in updates:
+            if isinstance(event, LivetickerKickoff):
+                match_msgs.extend(self.kickoff_msg(event))
+            elif isinstance(event, LivetickerMidgame):
+                if not Config().get(self)['liveticker'].get('do_intermediate_updates', True):
+                    continue
+                if not event.matches:
+                    continue
+                match_msgs.extend(self.midgame_msg(event=event,
+                                                   event_filter=Config().get(self)['liveticker']['tracked_events']))
+            elif isinstance(event, LivetickerFinish):
+                match_msgs.extend(self.finished_msg(event))
+        msgs = paginate(match_msgs)
+        for msg in msgs:
+            await sport.send(msg)
+
+    def kickoff_msg(self, event: LivetickerKickoff) -> List[str]:
+        """Returns the message for a kickoff event"""
+        match_msgs = [Lang.lang(self, 'liveticker_prefix_kickoff', event.league, event.kickoff.strftime('%H:%M'))]
+        for match in event.matches:
+            predictions = await self._get_predictions(match.home_team,
+                                                      match.away_team, match.kickoff)
+            match_msg = f"{match.home_team.emoji} {match.home_team.long_name} - " \
+                        f"{match.away_team.emoji} {match.away_team.long_name}"
+            if predictions:
+                match_msg += f"\n{predictions}"
+            match_msgs.append(match_msg)
+        return match_msgs
+
+    def midgame_msg(self, event: LivetickerMidgame, event_filter: List[str]) -> List[str]:
+        """Returns the message for a midgame event"""
+        match_msgs = [Lang.lang(self, 'liveticker_prefix', event.league)]
+        other_matches = []
+        for match in event.matches:
+            events_msg = " / ".join(e.display() for e in event.event_dict[match]
+                                    if PlayerEventEnum(type(e).__base__).name in event_filter)
+            if events_msg:
+                match_msg = "{} | {} {} - {} {} | {}:{}".format(match.minute, match.home_team.emoji,
+                                                                match.home_team.long_name, match.away_team.emoji,
+                                                                match.away_team.long_name, *match.score.values())
+                match_msgs.append("**{}**\n{}".format(match_msg, events_msg))
+            else:
+                match_msg = "{2}-{3} {0} - {1} | {5}:{6} ({4})".format(match.home_team.abbr, match.away_team.abbr,
+                                                                       match.home_team.emoji, match.away_team.emoji,
+                                                                       match.minute, *match.score.values())
+                other_matches.append(match_msg)
+        if other_matches:
+            match_msgs.append("{}: {}".format(Lang.lang(self, 'liveticker_unchanged'),
+                                              " \u2014 ".join(other_matches)))
+        return match_msgs
+
+    def finished_msg(self, event: LivetickerFinish) -> List[str]:
+        """Returns the message for a finished event"""
+        match_msgs = [Lang.lang(self, 'liveticker_prefix_finished', event.league)]
+        for match in event.matches:
+            match_msgs.append(f"{match.score[match.home_team_id]}:{match.score[match.away_team_id]} | "
+                              f"{match.home_team.emoji} {match.home_team.short_name} - {match.away_team.emoji} "
+                              f"{match.away_team.short_name}")
+        return match_msgs
 
     @commands.group(name="teamname")
     async def cmd_teamname(self, ctx):
