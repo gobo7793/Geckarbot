@@ -382,7 +382,6 @@ class MatchBase(ABC):
     minute: str
     status: MatchStatus
     raw_events: list
-    new_events: list
     venue: Tuple[str, str]
     score: Dict[str, int]
     matchday: int
@@ -402,7 +401,6 @@ class MatchBase(ABC):
         match.minute = m['minute']
         match.status = MatchStatus[m['status']]
         match.raw_events = []
-        match.new_events = []
         match.venue = m['venue']
         match.score = m['score']
         match.matchday = m['matchday']
@@ -425,8 +423,10 @@ class MatchBase(ABC):
         }
 
     @abstractmethod
-    def transform_events(self, last_events: list):
-        """Transforms the raw event data and returns the resulting events"""
+    def transform_events(self):
+        """Transforms the raw event data and returns the resulting events
+
+        :rtype: List[PlayerEvent]"""
         pass
 
     def display(self):
@@ -440,10 +440,9 @@ class MatchESPN(MatchBase):
     Match from an ESPN source
 
     :param m: raw data from the request
-    :param new_events:
     """
 
-    def __init__(self, m: dict, league_key: str, new_events: list = None, *, from_storage: bool = False):
+    def __init__(self, m: dict, league_key: str, *, from_storage: bool = False):
         super().__init__(m, league_key, from_storage=from_storage)
         if from_storage:
             return
@@ -486,22 +485,20 @@ class MatchESPN(MatchBase):
         self.away_team = away_team
         self.away_team_id = away_id
         self.score = {home_id: home_score, away_id: away_score}
-        self.new_events = new_events
         self.raw_events = m.get('competitions', [{}])[0].get('details')
         self.venue = (competition.get('venue', {}).get('fullName'),
                       competition.get('venue', {}).get('address', {}).get('city'))
         self.status = MatchStatus.get(m, LTSource.ESPN)
         self.matchday = -1
 
-    def transform_events(self, last_events: list):
+    def transform_events(self):
         events = []
         tmp_score = {self.home_team_id: 0, self.away_team_id: 0}
         for e in self.raw_events:
             event = PlayerEventEnum.build_player_event_espn(e, tmp_score.copy())
             if isinstance(event, GoalBase):
                 tmp_score = event.score
-            if event.event_id not in last_events:
-                events.append(event)
+            events.append(event)
         return events
 
 
@@ -512,12 +509,10 @@ class MatchOLDB(MatchBase):
     :param m: raw data from the request
     """
 
-    def __init__(self, m: dict, league_key: str, new_events: list = None, *, from_storage: bool = False):
+    def __init__(self, m: dict, league_key: str, *, from_storage: bool = False):
         super().__init__(m, league_key, from_storage=from_storage)
         if from_storage:
             return
-        if new_events is None:
-            new_events = []
         try:
             kickoff = datetime.datetime.strptime(m.get('matchDateTimeUTC'), "%Y-%m-%dT%H:%M:%SZ") \
                 .replace(tzinfo=datetime.timezone.utc).astimezone().replace(tzinfo=None)
@@ -547,15 +542,13 @@ class MatchOLDB(MatchBase):
         self.venue = (m['location'].get('locationStadium'), m['location'].get('locationCity')) \
             if 'location' in m and m['location'] is not None else (None, None)
         self.status = MatchStatus.get(m, LTSource.OPENLIGADB)
-        self.new_events = new_events
         self.matchday = m.get('group', {}).get('groupOrderID')
 
-    def transform_events(self, last_events: list):
+    def transform_events(self):
         events = []
         for g in self.raw_events:
             goal = GoalOLDB(g, self.home_team_id, self.away_team_id)
-            if goal.event_id not in last_events:
-                events.append(goal)
+            events.append(goal)
         return events
 
 
@@ -703,13 +696,26 @@ class PlayerEventEnum(Enum):
 
 
 class LivetickerEvent:
-    def __init__(self, league: str, matches: Iterable[MatchBase]):
+    def __init__(self, league, matches: Iterable[MatchBase]):
+        """
+
+        :param league:
+        :type league: League
+        :param matches:
+        """
         self.league = league
         self.matches = matches
 
 
 class LivetickerKickoff(LivetickerEvent):
-    def __init__(self, league: str, matches: Iterable[MatchBase], kickoff: datetime.datetime):
+    def __init__(self, league, matches: Iterable[MatchBase], kickoff: datetime.datetime):
+        """
+
+        :param league:
+        :type league: League
+        :param matches:
+        :param kickoff:
+        """
         super().__init__(league, matches)
         self.kickoff = kickoff
 
@@ -719,16 +725,13 @@ class LivetickerUpdate(LivetickerEvent):
     LivetickerEvent for the mid-game update
 
     :param league: league of the Registration
-    :param matches: current matches
-    :param new_events: dictionary of the new events per match
+    :type league: League
+
     """
 
-    def __init__(self, league: str, matches: Iterable[MatchBase], new_events: dict):
-        m_list = []
-        for m in matches:
-            m.new_events = new_events.get(m.match_id)
-            m_list.append(m)
-        super().__init__(league, m_list)
+    def __init__(self, league, events_per_match: Dict[MatchBase, List[PlayerEvent]]):
+        super().__init__(league, events_per_match.keys())
+        self.event_dict = events_per_match
 
 
 class LivetickerFinish(LivetickerEvent):
@@ -756,7 +759,11 @@ class CoroRegistration:
         self.l_regs = l_regs
         self.__interval = interval
         self.updates: List[LivetickerEvent] = []
+        self.last_events: Dict[str, str] = {}  # List of event id's per match id
         self.logger = logging.getLogger(__name__)
+
+        for l_reg in self.l_regs:
+            l_reg.registrations.append(self)
 
     @classmethod
     def from_storage(cls, liveticker, c_store: dict):
@@ -788,15 +795,30 @@ class CoroRegistration:
         self.store()
         execute_anything_sync(self.liveticker.request_match_timer_update)
 
+    def append_update(self, update: LivetickerEvent):
+        """Appends a LivetickerEvent to the updates"""
+        self.updates.append(update)
+
+    def filter_events(self, matches: Iterable[MatchBase]):
+        """Filters new events"""
+        event_dict = {}
+        for match in matches:
+            events = match.transform_events()
+            event_dict[match] = [e for e in events if e.event_id not in self.last_events[match.match_id]]
+        return event_dict
+
     async def update(self):
+        """Notifies the coroutine with the new updates"""
         if self.updates:
             await self.coro(self.updates)
 
     def store(self):
+        """Saves the CoroRegistration to the storage"""
         Storage().get(self.liveticker)['coro_regs'][self.id] = self.to_dict()
         Storage().save(self.liveticker)
 
     def to_dict(self):
+        """Returns a dict for storing"""
         return {
             'id': self.id,
             'plugin': self.plugin_name,
@@ -809,84 +831,6 @@ class CoroRegistration:
         leagues = [l_reg.league.key for l_reg in self.l_regs]
         return f"<CoroRegistration(id={self.id}, interval={self.interval}, " \
                f"coro={self.plugin_name}.{self.coro.__name__}, leagues={leagues})>"
-
-
-class CoroRegistrationBase(ABC):
-    """Registration for a single Coroutine. Liveticker updates for the specified league will be transmitted to the
-    specified coro
-
-    :param league_reg: Registration of the corresponding league
-    :type league_reg: LeagueRegistrationBase
-    :param coro: Coroutine which receives the LivetickerEvents
-    :param periodic: whether the registration should receive mid-game updates"""
-
-    def __init__(self, league_reg, plugin, coro, interval: int, periodic: bool = False):
-        self.league_reg = league_reg
-        self.plugin_name = plugin.get_name()
-        self.coro = coro
-        self.periodic = periodic
-        self.__interval = interval
-        self.last_events = {}
-        self.logger = logging.getLogger(__name__)
-
-    @property
-    def interval(self):
-        return self.__interval
-
-    @interval.setter
-    def interval(self, interval):
-        self.__interval = interval
-        execute_anything_sync(self.league_reg.liveticker.request_match_timer_update)
-
-    def next_kickoff(self):
-        """Returns datetime of the next match"""
-        return self.league_reg.next_kickoff()
-
-    async def update(self, matches: List[MatchBase]):
-        """
-        Coroutine used by the interval timer during matches. Manufactures the LivetickerUpdate for the coro.
-        """
-        self.logger.debug("CoroReg updates.")
-        new_events = {}
-        for m in matches:
-            if m.match_id not in self.last_events:
-                self.last_events[m.match_id] = []
-            events = m.transform_events(self.last_events[m.match_id])
-            new_events[m.match_id] = events
-            self.last_events[m.match_id].extend([e.event_id for e in events])
-        await self.coro(LivetickerUpdate(self.league_reg.league.key, matches, new_events))
-
-    async def update_kickoff(self, time_kickoff: datetime.datetime, matches: Iterable[MatchBase]):
-        await self.coro(LivetickerKickoff(self.league_reg.league.key, matches, time_kickoff))
-
-    async def update_finished(self, match_list):
-        await self.coro(LivetickerFinish(self.league_reg.league.key, match_list))
-
-    def storage(self):
-        return {
-            'plugin': self.plugin_name,
-            'coro': self.coro.__name__,
-            'interval': self.interval,
-            'periodic': self.periodic
-        }
-
-    def __eq__(self, other):
-        return self.coro == other.coro and self.periodic == other.periodic
-
-    def __str__(self):
-        return "<liveticker.CoroRegistration; coro={}; periodic={}; interval={}>" \
-            .format(self.coro, self.periodic, self.interval)
-
-    def __bool__(self):
-        return self.league_reg.__bool__()
-
-
-class CoroRegistrationESPN(CoroRegistrationBase):
-    pass
-
-
-class CoroRegistrationOLDB(CoroRegistrationBase):
-    pass
 
 
 class League(NamedTuple):
@@ -908,7 +852,7 @@ class LeagueRegistrationBase(ABC):
     def __init__(self, liveticker, league_key: str):
         self.liveticker = liveticker
         self.league = League(self._source, league_key)
-        self.registrations: List[CoroRegistrationBase] = []
+        self.registrations: List[CoroRegistration] = []
         self.logger = logging.getLogger(__name__)
         self.kickoffs: Dict[datetime.datetime, Dict[str, MatchBase]] = {}
         self.finished = []
@@ -946,7 +890,7 @@ class LeagueRegistrationBase(ABC):
                 continue
             matches = {}
             for m in matches_:
-                match = cls.get_matchclass().from_storage(m, league)
+                match = cls.get_matchclass().from_storage(m, l_reg.league.key)
                 matches[match.match_id] = match
             l_reg.kickoffs[time_kickoff] = matches
         return l_reg
@@ -959,10 +903,6 @@ class LeagueRegistrationBase(ABC):
     async def deregister(self):
         """Deregisters this LeagueReg correctly"""
         await self.liveticker.deregister_league(self)
-
-    async def unload(self):
-        """Unloads this LeagueRegistration"""
-        await self.liveticker.unload_league(self)
 
     def store(self):
         """Updates the storage in terms of the matches saved"""
@@ -1074,8 +1014,9 @@ class LeagueRegistrationBase(ABC):
                 kickoffs.remove(kickoff)
             elif kickoff == now:
                 # Kickoff
+                kickoff_event = LivetickerKickoff(self.league, self.kickoffs[kickoff].values(), kickoff)
                 for c_reg in self.registrations:
-                    await c_reg.update_kickoff(kickoff, self.kickoffs[kickoff].values())
+                    c_reg.append_update(kickoff_event)
                 kickoffs.remove(kickoff)
             else:
                 # Update
@@ -1089,8 +1030,9 @@ class LeagueRegistrationBase(ABC):
             for match in matches:
                 if ((now - match.kickoff) // datetime.timedelta(minutes=1)) % c_reg.interval == 0:
                     c_reg_matches.append(match)
-            if c_reg_matches and c_reg.periodic:
-                await c_reg.update(c_reg_matches)
+            if c_reg_matches:
+                event_dict = c_reg.filter_events(c_reg_matches)
+                c_reg.append_update(LivetickerUpdate(self.league, event_dict))
         # Clear finished matches
         do_request: bool = False
         new_finished = [e for e in new_finished if e.match_id not in self.finished]  # Just to be safe
@@ -1102,8 +1044,13 @@ class LeagueRegistrationBase(ABC):
                 self.kickoffs.pop(match.kickoff)
         if new_finished:
             self.store()
+            finish_event = LivetickerFinish(self.league, new_finished)
+            for c_reg in self.registrations:
+                c_reg.append_update(finish_event)
+        # Trigger update
         for c_reg in self.registrations:
-            await c_reg.update_finished(new_finished)
+            await c_reg.update()
+        # Other
         if do_request:
             await self.liveticker.request_match_timer_update()
 
@@ -1335,6 +1282,32 @@ class Liveticker(BaseSubsystem):
             Storage().get(self)['storage_version'] = 3
         Storage().save(self)
 
+    async def restore(self):
+        """
+        Restores saved registrations from the storage
+        """
+        failed = 0
+        # League Registrations
+        for l_store in Storage().get(self)['league_regs'].values():
+            source = LTSource(l_store['source'])
+            if source == LTSource.ESPN:
+                l_reg = await LeagueRegistrationESPN.restore(self, l_store)
+            elif source == LTSource.OPENLIGADB:
+                l_reg = await LeagueRegistrationOLDB.restore(self, l_store)
+            else:
+                raise SourceNotSupported
+            self.league_regs[l_reg.league] = l_reg
+        # Coro Registrations
+        for c_id, c_store in Storage().get(self)['coro_regs'].items():
+            try:
+                c_reg = CoroRegistration.from_storage(self, c_store)
+            except AttributeError:
+                failed += 1
+            else:
+                self.coro_regs[c_id] = c_reg
+        self.logger.debug('%d League registrations and %d Coro registrations restored. %d failed.',
+                          len(self.league_regs), len(self.coro_regs), failed)
+
     async def register_coro(self, plugin: BasePlugin, coro, leagues: Iterable[League],
                             interval: int = 15) -> CoroRegistration:
         """
@@ -1375,27 +1348,33 @@ class Liveticker(BaseSubsystem):
 
     async def deregister_league(self, l_reg: LeagueRegistrationBase):
         """
-        Finishes the deregistration of a LeagueRegistration
+        Deregisters a LeagueRegistration and modifies the match_timer
 
-        :param l_reg: LeagueRegistration
+        :param l_reg: LeagueRegistration to deregister
         """
-        await self.unload_league(l_reg)
-        if l_reg.storage_key in Storage().get(self)['league_regs']:
-            Storage().get(self)['league_regs'].pop(l_reg.storage_key)
-
-    async def unload_league(self, l_reg: LeagueRegistrationBase):
-        if l_reg.league in self.league_regs:
-            self.league_regs.pop(l_reg.league)
+        self.league_regs.pop(l_reg.league)
+        for c_reg in l_reg.registrations:
+            if l_reg in c_reg.l_regs:
+                c_reg.l_regs.remove(l_reg)
         await self.request_match_timer_update()
 
-    def search_league(self, sources=None, leagues=None) -> Generator[LeagueRegistrationBase, None, None]:
+    def unload_plugin(self, plugin_name: str):
+        """
+        Unloads all active registrations belonging to the specified plugin
+
+        :param plugin_name: name of the plugin
+        """
+        for c_reg in self.search_coro(plugin_names=[plugin_name]):
+            self.coro_regs.pop(c_reg.id)
+        self.logger.debug('Liveticker for plugin %s unloaded', plugin_name)
+
+    def search_league(self, sources: List[LTSource] = None, leagues: List[str] = None) -> \
+            Generator[LeagueRegistrationBase, None, None]:
         """
         Searches all LeagueRegistrations fulfilling the requirements
 
         :param sources: list of sources
-        :type sources: List[LTSource]
         :param leagues: list of league keys
-        :type leagues: List[str]
         :return: LeagueRegistration
         """
         for src, league in self.league_regs:
@@ -1423,42 +1402,6 @@ class Liveticker(BaseSubsystem):
             if league_keys and all(l_reg.league.key not in league_keys for l_reg in c_reg.l_regs):
                 continue
             yield c_reg
-
-    async def restore(self):
-        """
-        Restores saved registrations from the storage
-        """
-        failed = 0
-        # League Registrations
-        for l_store in Storage().get(self)['league_regs'].values():
-            source = LTSource(l_store['source'])
-            if source == LTSource.ESPN:
-                l_reg = await LeagueRegistrationESPN.restore(self, l_store)
-            elif source == LTSource.OPENLIGADB:
-                l_reg = await LeagueRegistrationOLDB.restore(self, l_store)
-            else:
-                raise SourceNotSupported
-            self.league_regs[l_reg.league] = l_reg
-        # Coro Registrations
-        for c_id, c_store in Storage().get(self)['coro_regs'].items():
-            try:
-                c_reg = CoroRegistration.from_storage(self, c_store)
-            except AttributeError:
-                failed += 1
-            else:
-                self.coro_regs[c_id] = c_reg
-        self.logger.debug('%d League registrations and %d Coro registrations restored. %d failed.',
-                          len(self.league_regs), len(self.coro_regs), failed)
-
-    def unload_plugin(self, plugin_name: str):
-        """
-        Unloads all active registrations belonging to the specified plugin
-
-        :param plugin_name: name of the plugin
-        """
-        for _, _, c_reg in self.search_coro(plugin_names=[plugin_name]):
-            c_reg.unload()
-        self.logger.debug('Liveticker for plugin %s unloaded', plugin_name)
 
     async def _semiweekly_timer_coro(self, _job):
         """
