@@ -1,6 +1,6 @@
 import asyncio
 from typing import Union
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import discord
 from discord.ext import commands
@@ -12,6 +12,7 @@ from data import Config, Lang
 from subsystems.helpsys import DefaultCategories
 from subsystems.ignoring import UserBlockedCommand
 from subsystems.presence import PresencePriority
+from subsystems.timers import timedict_by_datetime
 
 
 class Plugin(BasePlugin, name="Testing and debug things"):
@@ -327,7 +328,7 @@ class Plugin(BasePlugin, name="Testing and debug things"):
     async def spam_cb(job):
         await job.data.send("SPAM")
 
-    # @commands.command(name="spam", hidden=True)
+    @commands.command(name="spam", hidden=True)
     async def cmd_spam(self, ctx):
         td = {"minute": [x for x in range(60)]}
         self.bot.timers.schedule(self.spam_cb, td, data=ctx)
@@ -336,3 +337,14 @@ class Plugin(BasePlugin, name="Testing and debug things"):
     async def cmd_execerror(self, ctx):
         execute_anything_sync(self.error_cb)
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
+
+    @staticmethod
+    async def timerexec_cb(job):
+        await job.data.send("blub")
+
+    @commands.command(name="timerexec", hidden=True)
+    async def cmd_timerexec(self, ctx):
+        self.channel = ctx.channel
+        td = timedict_by_datetime(datetime.now())
+        job = self.bot.timers.schedule(self.timerexec_cb, td, data=ctx)
+        job.execute()
