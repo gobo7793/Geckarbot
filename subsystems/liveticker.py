@@ -761,7 +761,7 @@ class CoroRegistration:
         self.l_regs = l_regs
         self.__interval = interval
         self.updates: List[LivetickerEvent] = []
-        self.last_events: Dict[str, str] = {}  # List of event id's per match id
+        self.last_events: Dict[str, List[str]] = {}  # List of event id's per match id
         self.logger = logging.getLogger(__name__)
 
         for l_reg in self.l_regs:
@@ -801,13 +801,19 @@ class CoroRegistration:
         """Appends a LivetickerEvent to the updates"""
         self.updates.append(update)
 
-    def filter_events(self, matches: Iterable[MatchBase]):
+    def filter_events(self, matches: Iterable[MatchBase]) -> Dict[MatchBase, List[PlayerEvent]]:
         """Filters new events"""
         event_dict = {}
         for match in matches:
             events = match.transform_events()
-            event_dict[match] = [e for e in events if e.event_id not in self.last_events[match.match_id]]
+            event_dict[match] = [e for e in events if e.event_id not in self.last_events.get(match.match_id, [])]
         return event_dict
+
+    def save_events(self, event_dict: Dict[MatchBase, List[PlayerEvent]]):
+        for match, events in event_dict.items():
+            if match.match_id not in self.last_events:
+                self.last_events[match.match_id] = []
+            self.last_events[match.match_id].extend(e.event_id for e in events)
 
     async def update(self):
         """Notifies the coroutine with the new updates"""
@@ -1034,6 +1040,7 @@ class LeagueRegistrationBase(ABC):
                     c_reg_matches.append(match)
             if c_reg_matches:
                 event_dict = c_reg.filter_events(c_reg_matches)
+                c_reg.save_events(event_dict)
                 c_reg.append_update(LivetickerMidgame(self.league, event_dict))
         # Clear finished matches
         do_request: bool = False
