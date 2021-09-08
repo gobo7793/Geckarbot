@@ -6,6 +6,7 @@ import discord
 from discord.ext import commands
 
 from botutils import utils, timeutils, converters
+from botutils.timeutils import to_unix_str, TimestampStyle
 from data import Storage, Lang
 from base import BasePlugin, NotFound
 from subsystems import timers
@@ -150,7 +151,7 @@ class Plugin(BasePlugin):
                 else:
                     reminder_text = Lang.lang(self, 'remind_list_no_message')
                 reminders_msg += Lang.lang(self, 'remind_list_element',
-                                           job.next_execution().strftime('%d.%m.%Y %H:%M'),
+                                           to_unix_str(job.next_execution(), style=TimestampStyle.DATETIME_SHORT),
                                            reminder_text, job.data['id'])
 
         if not reminders_msg:
