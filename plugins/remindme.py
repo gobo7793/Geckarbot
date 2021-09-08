@@ -136,7 +136,8 @@ class Plugin(BasePlugin):
 
         rlink = ctx.message.jump_url
         if self._register_reminder(ctx.channel, ctx.author.id, remind_time, reminder_id, rtext, rlink):
-            await ctx.send(Lang.lang(self, 'remind_set', remind_time.strftime('%d.%m.%Y %H:%M'), reminder_id))
+            await ctx.send(Lang.lang(self, 'remind_set', to_unix_str(remind_time, style=TimestampStyle.DATETIME_SHORT),
+                                     reminder_id))
         else:
             await utils.add_reaction(ctx.message, Lang.CMDERROR)
 
