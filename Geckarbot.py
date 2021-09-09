@@ -11,14 +11,14 @@ import sys
 import traceback
 from logging import handlers
 from pathlib import Path
-from typing import List, Union
+from typing import List, Union, Optional
 
 import discord
 from discord.ext import commands
 
 import injections
 import subsystems
-from base import BasePlugin, NotLoadable, ConfigurableType, PluginClassNotFound, Exitcode
+from base import BasePlugin, NotLoadable, ConfigurableType, PluginClassNotFound, Exitcode, Configurable
 from botutils import utils, permchecks, converters, stringutils
 from botutils.utils import execute_anything_sync
 from data import Config, Lang, Storage, ConfigurableData
@@ -167,7 +167,7 @@ class Geckarbot(commands.Bot):
         return self.NAME.lower()
 
     @staticmethod
-    def configure(plugin):
+    def configure(plugin: Configurable):
         """
         Loads Config, Storage and Lang data for given plugin
 
@@ -177,7 +177,7 @@ class Geckarbot(commands.Bot):
         Storage().load(plugin)
         Lang().remove_from_cache(plugin)
 
-    def register(self, plugin_class,
+    def register(self, plugin_class: BasePlugin,
                  category: Union[str, helpsys.DefaultCategories, helpsys.HelpCategory, None] = None,
                  category_desc: str = None) -> bool:
         """
@@ -289,7 +289,7 @@ class Geckarbot(commands.Bot):
         if not found:
             raise PluginClassNotFound(members)
 
-    def load_plugin(self, plugin_dir, plugin_name):
+    def load_plugin(self, plugin_dir, plugin_name) -> Optional[bool]:
         """
         Loads a plugin and performs instantiating and registering of the plugin
 
@@ -334,7 +334,7 @@ class Geckarbot(commands.Bot):
             execute_anything_sync(self.liveticker.restore, [plugin_name])
         return True
 
-    def unload_plugin(self, plugin_name, save_config=True):
+    def unload_plugin(self, plugin_name, save_config=True) -> Optional[bool]:
         """
         Unloads a plugin and performs plugin cleanup and saving the config and storage data
 
@@ -498,7 +498,7 @@ class Geckarbot(commands.Bot):
 
         await super().process_commands(message)
 
-    async def command_disabled(self, ctx):
+    async def command_disabled(self, ctx) -> True:
         """
         Checks if a command is disabled or blocked for user.
         This check will be executed before other command checks.
