@@ -3,6 +3,7 @@
 import json
 import urllib.request
 import urllib.error
+from typing import Any, Optional
 from urllib.parse import urlencode
 from enum import Enum
 import base64
@@ -74,7 +75,7 @@ class Client:
         """
         self.url_appendix = Client._normalize_url_part(s)
 
-    def parse_response(self, response: str):
+    def parse_response(self, response: str) -> Any:
         """
         Parses a json response from the API.
 
@@ -83,7 +84,7 @@ class Client:
         """
         return self.decoder.decode(response)
 
-    def parse_request_data(self, data: dict):
+    def encode_request_data(self, data: dict) -> Optional[str]:
         """
         Parses a dict to urlencoded json
 
@@ -94,7 +95,7 @@ class Client:
             return None
         return self.encoder.encode(data)
 
-    def url(self, endpoint: str = "", appendix: str = None, params: dict = None):
+    def url(self, endpoint: str = "", appendix: str = None, params: dict = None) -> str:
         """
         Build the URL with url, appendix and endpoint
 
@@ -133,7 +134,7 @@ class Client:
         self.credentials["password"] = password
         self.auth = Auth.BASIC
 
-    def auth_bearer(self, bearer_token):
+    def auth_bearer(self, bearer_token: str):
         """
         Sets authentication header for authentication via bearer token.
 
@@ -177,8 +178,9 @@ class Client:
         self.logger.debug("Headers: %s", headers)
         return headers
 
-    async def request(self, endpoint, appendix=None, params=None, data=None,
-                      headers=None, method="GET", parse_json=True, encode_json=True):
+    async def request(self, endpoint: str, appendix: str = None, params: dict = None, data: Any = None,
+                      headers: dict = None, method: str = "GET",
+                      parse_json: bool = True, encode_json: bool = True) -> Any:
         """
         Sends a http request.
 
@@ -196,7 +198,7 @@ class Client:
         headers = self._build_headers(headers)
         url = self.url(endpoint=endpoint, appendix=appendix, params=params)
         if encode_json:
-            data = self.parse_request_data(data)
+            data = self.encode_request_data(data)
         self._maskprint(data, prefix="data: ")
 
         if method == "GET":
@@ -224,8 +226,9 @@ class Client:
             response = json.loads(response)
         return response
 
-    def make_request(self, endpoint, appendix=None, params=None, data=None,
-                     headers=None, method="GET", parse_json=True, encode_json=True):
+    def make_request(self, endpoint: str, appendix: str = None, params: dict = None, data: Any = None,
+                     headers: dict = None, method: str = "GET",
+                     parse_json: bool = True, encode_json: bool = True) -> Any:
         """
         Sends a http request.
 
@@ -241,7 +244,7 @@ class Client:
         """
         if data is not None:
             if encode_json:
-                data = self.parse_request_data(data)
+                data = self.encode_request_data(data)
             data = data.encode("utf-8")
             if encode_json:
                 self._maskprint(self.decoder.decode(data.decode("utf-8")), prefix="data: ")
