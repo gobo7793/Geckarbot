@@ -1,6 +1,6 @@
 import asyncio
 from typing import Union
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import discord
 from discord.ext import commands
@@ -13,6 +13,7 @@ from data import Config, Lang
 from subsystems.helpsys import DefaultCategories
 from subsystems.ignoring import UserBlockedCommand
 from subsystems.presence import PresencePriority
+from subsystems.timers import timedict_by_datetime
 
 
 class Plugin(BasePlugin, name="Testing and debug things"):
@@ -344,3 +345,14 @@ class Plugin(BasePlugin, name="Testing and debug things"):
         for style in TimestampStyle:
             msg.append(f"{style}: {to_unix_str(timestamp=datetime.now(), style=style)}")
         await ctx.send("\n".join(msg))
+    
+    @staticmethod
+    async def timerexec_cb(job):
+        await job.data.send("blub")
+
+    @commands.command(name="timerexec", hidden=True)
+    async def cmd_timerexec(self, ctx):
+        self.channel = ctx.channel
+        td = timedict_by_datetime(datetime.now())
+        job = self.bot.timers.schedule(self.timerexec_cb, td, data=ctx)
+        job.execute()

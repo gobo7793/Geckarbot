@@ -9,8 +9,10 @@ from discord.ext.commands import MemberConverter, UserConverter
 from base import BasePlugin, ConfigurableType
 from botutils import utils
 from botutils.converters import get_best_username, get_plugin_by_name
+from botutils.setter import ConfigSetter
 from botutils.stringutils import paginate
 from botutils.timeutils import parse_time_input
+from botutils.utils import add_reaction, write_mod_channel
 from data import Config, Lang
 from subsystems.helpsys import DefaultCategories
 from subsystems.ignoring import IgnoreEditResult, IgnoreType
@@ -29,6 +31,19 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
             if cmd.name in ["presence", "about"]:
                 self.bot.helpsys.default_category(DefaultCategories.USER).add_command(cmd)
                 self.bot.helpsys.default_category(DefaultCategories.MOD).remove_command(cmd)
+
+        # Config setter
+        self.base_config = {
+            "leave_notification": [bool, True],
+        }
+        self.config_setter = ConfigSetter(self, self.base_config)
+
+        @bot.event
+        async def on_member_remove(member):
+            if not self.config_setter.get_config("leave_notification"):
+                return
+
+            await write_mod_channel(Lang.lang(self, "leave_notification", get_best_username(member)))
 
     def default_config(self, container=None):
         return {
@@ -54,6 +69,17 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
     #####
     # Misc commands
     #####
+
+    @commands.has_role(Config().MOD_ROLES)
+    @commands.command(name="set", aliases=["config"])
+    async def cmd_set(self, ctx, key=None, value=None):
+        if key is None:
+            await self.config_setter.list(ctx)
+            return
+        if value is None:
+            await add_reaction(ctx.message, Lang.CMDERROR)
+            return
+        await self.config_setter.set_cmd(ctx, key, value)
 
     @commands.command(name="about", aliases=["git", "github"])
     async def cmd_about(self, ctx):

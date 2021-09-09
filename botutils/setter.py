@@ -107,7 +107,7 @@ class ConfigSetter:
         self.switches.append(tuple(keys))
 
     @staticmethod
-    def parse_bool_str(s):
+    def parse_bool_str(s: str) -> bool:
         """
         Accepts strings like "True" or "false" and returns the corresponding boolean value.
 

@@ -44,7 +44,7 @@ class Mothership(BaseSubsystem):
         self.jobs = []
         self.logger = logging.getLogger(__name__)
 
-    def schedule(self, coro, td, data=None, repeat=True):
+    def schedule(self, coro, td, data=None, repeat=True, ignore_now=False):
         """
         cron-like. Takes timedict elements as arguments.
 
@@ -52,12 +52,13 @@ class Mothership(BaseSubsystem):
         :param td: Timedict that specifies the execution schedule
         :param data: Opaque object that is set as job.data
         :param repeat: If set to False, the job runs only once.
+        :param ignore_now: If set to True, skips the current minute for timer execution
         :raises NoFutureExec: raised if td is in the past
         """
         td = normalize_td(td)
         if next_occurence(td) is None:
             raise NoFutureExec("td {} is in the past".format(td))
-        job = Job(self.bot, td, coro, data=data, repeat=repeat)
+        job = Job(self.bot, td, coro, data=data, repeat=repeat, ignore_now=ignore_now)
         self.logger.info("Scheduling %s", job)
         self.jobs.append(job)
         return job
@@ -69,7 +70,7 @@ class Mothership(BaseSubsystem):
 
 class Job:
     """The scheduled Job representation"""
-    def __init__(self, bot, td, f, data=None, repeat=True, run=True):
+    def __init__(self, bot, td, f, data=None, repeat=True, run=True, ignore_now=False):
         """
         cron-like. Takes timedict elements as arguments.
 
@@ -78,6 +79,7 @@ class Job:
         :param data: Opaque object that is set as job.data
         :param repeat: If set to False, the job runs only once.
         :param run: Set to False to not automatically start this job
+        :param ignore_now: If set to True, the timer is not executed in the current minute.
         :raises RuntimeError: raised if td is in the past
         """
         self.logger = logging.getLogger(__name__)
@@ -87,6 +89,7 @@ class Job:
         self._coro = f
         self._repeat = repeat
         self._passthrough = False
+        self._ignore_now = ignore_now
 
         self._timer = None
         self._lock = asyncio.Lock()
@@ -138,16 +141,25 @@ class Job:
 
     async def _loop(self):
         await self._lock.acquire()
-        while self.next_execution() is not None:
-            tts = (self.next_execution() - datetime.datetime.now()).total_seconds()
+        first = True
+        while True:
+            ignore_now = True
+            if first:
+                ignore_now = self._ignore_now
+                first = False
+            next_exec = self.next_execution(ignore_now=ignore_now)
+            if next_exec is None:
+                break
+
+            tts = (next_exec - datetime.datetime.now()).total_seconds()
             self._last_tts = int(tts)
-            self.logger.debug("Scheduling job for %s", self.next_execution())
+            self.logger.debug("Scheduling job for %s", next_exec)
 
             # check if tts is too big
             bitness = struct.calcsize("P") * 8
             if 2 ** (bitness - 3) < (365 * 24 * (60/2) * (60/2)):
                 await write_debug_channel("Unable to sleep for {} years; job: {}"
-                                          .format(self.next_execution().year, self))
+                                          .format(next_exec.year, self))
                 break
 
             # Schedule
@@ -179,25 +191,23 @@ class Job:
         Executes this job. Does not check if it is actually scheduled to be executed.
         """
         self.logger.debug("Executing job %s ahead of schedule", self)
-        if self._timer is not None:
-            # happens if execute() is called immediately after job creation as self._timer is not built yet
+        execute_anything_sync(self._coro, self)
+        if not self._repeat and self._timer:
             self._timer.cancel()
-            self._lock.release()
-        else:
-            self._passthrough = True
 
-    def next_execution(self):
+    def next_execution(self, ignore_now=True):
         """
         Returns a `datetime.datetime` object specifying the next execution of the job coroutine.
         Returns None if there is no future execution.
 
+        :param ignore_now: Ignores the current minute
         :return: The datetime object of the next execution or None if no future execution.
         """
         now = datetime.datetime.now()
         delta = datetime.timedelta(seconds=10)
         if self._cached_next_exec is None or self._cached_next_exec - now < delta:
             self.logger.debug("Next occurence cache invalid")
-            self._cached_next_exec = next_occurence(self._timedict, now=now + delta, ignore_now=True)
+            self._cached_next_exec = next_occurence(self._timedict, now=now + delta, ignore_now=ignore_now)
         self.logger.debug("Next execution: %s", self._cached_next_exec)
         return self._cached_next_exec
 
@@ -216,6 +226,22 @@ def timedict(year=None, month=None, monthday=None, weekday=None, hour=None, minu
         "hour": hour,
         "minute": minute,
     }
+
+
+def timedict_by_datetime(dt):
+    """
+    Creates a timedict that corresponds to a datetime object and can be used by schedule().
+
+    :param dt: datetime.datetime or datetime.date object
+    :return: corresponding timedict to be used by schedule()
+    :raises TypeError: If dt is not a datetime or date object
+    """
+    if isinstance(dt, datetime.datetime):
+        return timedict(year=dt.year, month=dt.month, monthday=dt.day, hour=dt.hour, minute=dt.minute)
+    if isinstance(dt, datetime.date):
+        return timedict(year=dt.year, month=dt.month, monthday=dt.day)
+    else:
+        raise TypeError
 
 
 def normalize_td(td):

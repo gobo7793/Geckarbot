@@ -4,6 +4,7 @@ from typing import Optional
 
 import discord
 
+from plugins.lastfm.api import UnexpectedResponse
 from subsystems.presence import PresenceMessage, PresencePriority, activitymap
 from subsystems.timers import Timer
 from data import Storage, Lang
@@ -110,7 +111,12 @@ class LfmPresenceMessage(PresenceMessage):
         first = False
         if self.state is None:
             first = True
-            self.state = await PresenceState(self).reset()
+            try:
+                self.state = await PresenceState(self).reset()
+            except UnexpectedResponse:
+                # caught in next if; is_set() is not set when the api fails
+                pass
+
             if not self.state.is_set():
                 await self.bot.presence.skip()
                 return
@@ -118,7 +124,11 @@ class LfmPresenceMessage(PresenceMessage):
         if not first:
             song = await self.plugin.api.get_current_scrobble(self.state.cur_listener_lfm)
             if song is None or not song == self.state.cur_song:
-                await self.state.reset()
+                try:
+                    await self.state.reset()
+                except UnexpectedResponse:
+                    pass
+                
                 if not self.state.is_set():
                     await self.bot.presence.skip()
                     return

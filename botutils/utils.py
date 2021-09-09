@@ -1,4 +1,4 @@
-from typing import Union, Optional, Coroutine
+from typing import Union, Optional, Coroutine, Any
 import datetime
 import random
 import inspect
@@ -9,7 +9,7 @@ import traceback
 import discord
 from discord.ext.commands import Command, Context
 
-from base import NotFound
+from base import NotFound, BasePlugin, Configurable
 from data import Config, Lang
 from botutils.converters import get_embed_str
 from botutils.timeutils import to_local_time
@@ -294,13 +294,14 @@ async def coro_wrapper(coro: Coroutine):
 
     :param coro: Coroutine that is ready to be awaited.
     """
+    # pylint: disable=broad-except
     try:
         await coro
     except Exception as e:
         await log_exception(e, title=":x: Task error")
 
 
-def execute_anything_sync(f, *args, **kwargs):
+def execute_anything_sync(f, *args, **kwargs) -> Any:
     """
     Executes functions, coroutine functions and coroutines, returns their return values and raises their exceptions.
 
@@ -316,7 +317,7 @@ def execute_anything_sync(f, *args, **kwargs):
     return f(*args, **kwargs)
 
 
-async def execute_anything(f, *args, **kwargs):
+async def execute_anything(f, *args, **kwargs) -> Any:
     """
     Executes functions, coroutine functions and coroutines, returns their return values and raises their exceptions.
 
@@ -332,7 +333,7 @@ async def execute_anything(f, *args, **kwargs):
     return f(*args, **kwargs)
 
 
-def get_plugin_by_cmd(cmd: Command):
+def get_plugin_by_cmd(cmd: Command) -> BasePlugin:
     """
     Returns the plugin object which contains the given command
 
@@ -347,7 +348,7 @@ def get_plugin_by_cmd(cmd: Command):
     raise NotFound
 
 
-def helpstring_helper(plugin, command, prefix):
+def helpstring_helper(plugin: Configurable, command: Command, prefix: str) -> str:
     """
     Helper to retrieve help strings (help, description etc) from a plugin's lang file.
     The lang identifier is expected to be of the format `"prefix_command_subcommand"`,
