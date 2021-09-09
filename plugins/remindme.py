@@ -6,6 +6,7 @@ import discord
 from discord.ext import commands
 
 from botutils import utils, timeutils, converters
+from botutils.timeutils import to_unix_str, TimestampStyle
 from data import Storage, Lang
 from base import BasePlugin, NotFound
 from subsystems import timers
@@ -135,7 +136,8 @@ class Plugin(BasePlugin):
 
         rlink = ctx.message.jump_url
         if self._register_reminder(ctx.channel, ctx.author.id, remind_time, reminder_id, rtext, rlink):
-            await ctx.send(Lang.lang(self, 'remind_set', remind_time.strftime('%d.%m.%Y %H:%M'), reminder_id))
+            await ctx.send(Lang.lang(self, 'remind_set', to_unix_str(remind_time, style=TimestampStyle.DATETIME_SHORT),
+                                     reminder_id))
         else:
             await utils.add_reaction(ctx.message, Lang.CMDERROR)
 
@@ -150,7 +152,7 @@ class Plugin(BasePlugin):
                 else:
                     reminder_text = Lang.lang(self, 'remind_list_no_message')
                 reminders_msg += Lang.lang(self, 'remind_list_element',
-                                           job.next_execution().strftime('%d.%m.%Y %H:%M'),
+                                           to_unix_str(job.next_execution(), style=TimestampStyle.DATETIME_SHORT),
                                            reminder_text, job.data['id'])
 
         if not reminders_msg:

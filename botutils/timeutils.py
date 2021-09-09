@@ -1,4 +1,6 @@
 from datetime import timezone, date, datetime, time, timedelta
+from enum import Enum
+
 from botutils.stringutils import sg_pl
 
 
@@ -10,6 +12,29 @@ def to_local_time(timestamp: datetime) -> datetime:
     :return: The timestamp w/o timezone information for local time
     """
     return timestamp.replace(tzinfo=timezone.utc).astimezone(tz=None)
+
+
+class TimestampStyle(Enum):
+    """Enum for the different possible style formats for a unix timestamp"""
+    DATE_SHORT     = "d"  # 20/04/2021
+    DATE_LONG      = "D"  # 20 April 2021
+    DATETIME_SHORT = "f"  # 20 April 2021 16:20
+    DATETIME_LONG  = "F"  # Tuesday, 20 April 2021 16:20
+    RELATIVE       = "R"  # 2 months ago
+    TIME_SHORT     = "t"  # 16:20
+    TIME_LONG      = "T"  # 16:20:30
+
+
+def to_unix_str(timestamp: datetime, style: TimestampStyle = TimestampStyle.DATETIME_SHORT) -> str:
+    """
+    Converts the given timestamp to a discord unix str
+
+    :param timestamp: The datetime instance of the timestamp
+    :param style: style of the outputted str
+    :return: The string for this datetime
+    """
+    seconds = int((timestamp.astimezone(timezone.utc) - datetime(1970, 1, 1, tzinfo=timezone.utc)).total_seconds())
+    return f"<t:{seconds}:{style.value}>"
 
 
 def from_epoch_ms(timestamp: int) -> datetime:

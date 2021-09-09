@@ -7,6 +7,7 @@ from discord.ext import commands
 
 from base import BasePlugin
 from botutils import utils, converters, setter, stringutils
+from botutils.timeutils import to_unix_str, TimestampStyle
 from botutils.utils import execute_anything_sync, add_reaction
 from data import Config, Lang
 from subsystems.helpsys import DefaultCategories
@@ -328,7 +329,7 @@ class Plugin(BasePlugin, name="Testing and debug things"):
     async def spam_cb(job):
         await job.data.send("SPAM")
 
-    @commands.command(name="spam", hidden=True)
+    # @commands.command(name="spam", hidden=True)
     async def cmd_spam(self, ctx):
         td = {"minute": [x for x in range(60)]}
         self.bot.timers.schedule(self.spam_cb, td, data=ctx)
@@ -338,6 +339,13 @@ class Plugin(BasePlugin, name="Testing and debug things"):
         execute_anything_sync(self.error_cb)
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
+    @commands.command(name="unix")
+    async def cmd_unix(self, ctx):
+        msg = []
+        for style in TimestampStyle:
+            msg.append(f"{style}: {to_unix_str(timestamp=datetime.now(), style=style)}")
+        await ctx.send("\n".join(msg))
+    
     @staticmethod
     async def timerexec_cb(job):
         await job.data.send("blub")
