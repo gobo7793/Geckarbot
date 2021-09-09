@@ -345,8 +345,8 @@ class Plugin(BasePlugin, name="LastFM"):
         self.perf_add_total_time(after - before)
 
     @commands.has_role(Config().BOT_ADMIN_ROLE_ID)
-    @cmd_lastfm.command(name="config", aliases=["set"], hidden=True)
-    async def cmd_config(self, ctx, key=None, value=None):
+    @cmd_lastfm.command(name="set", aliases=["config"], hidden=True)
+    async def cmd_set(self, ctx, key=None, value=None):
         if key is None:
             await self.config_setter.list(ctx)
             return
