@@ -765,7 +765,7 @@ class CoroRegistration:
         self.logger = logging.getLogger(__name__)
 
         for l_reg in self.l_regs:
-            l_reg.registrations.append(self)
+            l_reg.c_regs.append(self)
 
     @classmethod
     def from_storage(cls, liveticker, c_store: dict):
@@ -798,9 +798,34 @@ class CoroRegistration:
         execute_anything_sync(self.liveticker.request_match_timer_update)
 
     def deregister(self):
+        """Deregisters this registration"""
         for l_reg in self.l_regs:
             l_reg.deregister_coro(self)
         self.liveticker.deregister_coro(self)
+
+    async def add_league(self, league):
+        """
+        Adds an observed league to this registration
+
+        :param league: new league to observe
+        :type league: League
+        """
+        l_reg = await self.liveticker.register_league(league=league)
+        if l_reg not in self.l_regs:
+            self.l_regs.append(l_reg)
+            l_reg.c_regs.append(self)
+
+    def remove_league(self, league):
+        """
+        Remove a league from this registration
+
+        :param league: league to remove
+        :type league: League
+        """
+        l_reg = self.liveticker.league_regs.get(league)
+        if l_reg in self.l_regs:
+            self.l_regs.remove(l_reg)
+            l_reg.c_regs.remove(self)
 
     def append_update(self, update: LivetickerEvent):
         """Appends a LivetickerEvent to the updates"""
@@ -865,14 +890,14 @@ class LeagueRegistrationBase(ABC):
     def __init__(self, liveticker, league_key: str):
         self.liveticker = liveticker
         self.league = League(self._source, league_key)
-        self.registrations: List[CoroRegistration] = []
+        self.c_regs: List[CoroRegistration] = []
         self.logger = logging.getLogger(__name__)
         self.kickoffs: Dict[datetime.datetime, Dict[str, MatchBase]] = {}
         self.finished = []
 
     @property
     def intervals(self):
-        return [c_reg.interval for c_reg in self.registrations]
+        return [c_reg.interval for c_reg in self.c_regs]
 
     @property
     def matches(self):
@@ -923,8 +948,8 @@ class LeagueRegistrationBase(ABC):
 
         :param c_reg: CoroReg to deregister
         """
-        if c_reg in self.registrations:
-            self.registrations.remove(c_reg)
+        if c_reg in self.c_regs:
+            self.c_regs.remove(c_reg)
 
     def store(self):
         """Updates the storage in terms of the matches saved"""
@@ -1037,7 +1062,7 @@ class LeagueRegistrationBase(ABC):
             elif kickoff == now:
                 # Kickoff
                 kickoff_event = LivetickerKickoff(self.league, self.kickoffs[kickoff].values(), kickoff)
-                for c_reg in self.registrations:
+                for c_reg in self.c_regs:
                     c_reg.append_update(kickoff_event)
                 kickoffs.remove(kickoff)
             else:
@@ -1047,7 +1072,7 @@ class LeagueRegistrationBase(ABC):
                         new_finished.append(match)
                     matches.append(match)
         # Update matches c_reg
-        for c_reg in self.registrations:
+        for c_reg in self.c_regs:
             c_reg_matches = []
             for match in matches:
                 if ((now - match.kickoff) // datetime.timedelta(minutes=1)) % c_reg.interval == 0:
@@ -1068,10 +1093,10 @@ class LeagueRegistrationBase(ABC):
         if new_finished:
             self.store()
             finish_event = LivetickerFinish(self.league, new_finished)
-            for c_reg in self.registrations:
+            for c_reg in self.c_regs:
                 c_reg.append_update(finish_event)
         # Trigger update
-        for c_reg in self.registrations:
+        for c_reg in self.c_regs:
             await c_reg.update()
         # Other
         if do_request:
@@ -1079,7 +1104,7 @@ class LeagueRegistrationBase(ABC):
 
     def __str__(self):
         return f"<liveticker.LeagueRegistration; league={self.league}; " \
-               f"regs={len(self.registrations)}; kickoffs={len(self.kickoffs)}>"
+               f"regs={len(self.c_regs)}; kickoffs={len(self.kickoffs)}>"
 
     def __bool__(self):
         return bool(self.kickoffs)
@@ -1355,10 +1380,13 @@ class Liveticker(BaseSubsystem):
 
     async def register_league(self, league: League) -> LeagueRegistrationBase:
         """
-        Adds a new league to the registrations
+        Adds a new league to the registrations or returns the existing one
 
         :param league: the league to observe
+        :return: corresponding LeagueRegistration
         """
+        if league in self.league_regs:
+            return self.league_regs[league]
         if league.source == LTSource.ESPN:
             l_reg = await LeagueRegistrationESPN.create(self, league.key)
         elif league.source == LTSource.OPENLIGADB:
@@ -1376,7 +1404,7 @@ class Liveticker(BaseSubsystem):
         :param l_reg: LeagueRegistration to deregister
         """
         self.league_regs.pop(l_reg.league)
-        for c_reg in l_reg.registrations:
+        for c_reg in l_reg.c_regs:
             if l_reg in c_reg.l_regs:
                 c_reg.l_regs.remove(l_reg)
         await self.request_match_timer_update()
