@@ -119,7 +119,7 @@ class _Liveticker:
 
             for c_reg in self.bot.liveticker.search_coro(league_keys=[league], sources=[LTSource(source)],
                                                          plugin_names=[self.get_name()]):
-                await c_reg.deregister()
+                c_reg.deregister()
                 break
             await add_reaction(ctx.message, Lang.CMDSUCCESS)
         else:

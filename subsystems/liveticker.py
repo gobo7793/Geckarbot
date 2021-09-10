@@ -797,6 +797,11 @@ class CoroRegistration:
         self.store()
         execute_anything_sync(self.liveticker.request_match_timer_update)
 
+    def deregister(self):
+        for l_reg in self.l_regs:
+            l_reg.deregister_coro(self)
+        self.liveticker.deregister_coro(self)
+
     def append_update(self, update: LivetickerEvent):
         """Appends a LivetickerEvent to the updates"""
         self.updates.append(update)
@@ -911,6 +916,15 @@ class LeagueRegistrationBase(ABC):
     async def deregister(self):
         """Deregisters this LeagueReg correctly"""
         await self.liveticker.deregister_league(self)
+
+    def deregister_coro(self, c_reg: CoroRegistration):
+        """
+        Deregisters the c_reg from this LeagueRegistration
+
+        :param c_reg: CoroReg to deregister
+        """
+        if c_reg in self.registrations:
+            self.registrations.remove(c_reg)
 
     def store(self):
         """Updates the storage in terms of the matches saved"""
@@ -1366,6 +1380,15 @@ class Liveticker(BaseSubsystem):
             if l_reg in c_reg.l_regs:
                 c_reg.l_regs.remove(l_reg)
         await self.request_match_timer_update()
+
+    def deregister_coro(self, c_reg: CoroRegistration):
+        """
+        Deregisters the CoroRegistration from the liveticker
+
+        :param c_reg: CoroRegistration to deregister
+        """
+        if c_reg.id in self.coro_regs:
+            self.coro_regs.pop(c_reg.id)
 
     def unload_plugin(self, plugin_name: str):
         """
