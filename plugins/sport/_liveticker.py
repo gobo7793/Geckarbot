@@ -9,7 +9,7 @@ from botutils.stringutils import paginate
 from botutils.utils import add_reaction
 from data import Lang, Config
 from subsystems.liveticker import TeamnameDict, LTSource, PlayerEventEnum, LivetickerKickoff, LivetickerMidgame, \
-    LivetickerFinish, LivetickerEvent
+    LivetickerFinish, LivetickerEvent, League
 from subsystems.reactions import ReactionAddedEvent
 
 logger = logging.getLogger(__name__)
@@ -52,13 +52,18 @@ class _Liveticker:
                     react.deregister()
             else:
                 # Start liveticker
-                msg = await ctx.send(Lang.lang(self, 'liveticker_start'))
-                for source, leagues in Config().get(self)['liveticker']['leagues'].items():
-                    for league in leagues:
-                        await self.bot.liveticker.register(
-                            league=league, raw_source=source, plugin=self, coro=self._live_coro, periodic=True,
-                            interval=Config().get(self)['liveticker']['interval'])
-                        await msg.edit(content="{}\n{}".format(msg.content, league))
+                await ctx.send(Lang.lang(self, 'liveticker_start'))
+                leagues = []
+                for raw_source, keys in Config().get(self)['liveticker']['leagues'].items():
+                    if not keys:
+                        continue
+                    source = LTSource(raw_source)
+                    leagues.extend([League(source=source, key=key) for key in keys])
+                if leagues:
+                    await self.bot.liveticker.register_coro(plugin=self, coro=self._live_coro, leagues=leagues,
+                                                            interval=Config().get(self)['liveticker']['interval'])
+                leagues_str = ", ".join(f"{league.source.value}/{league.key}" for league in leagues)
+                await ctx.send(Lang.lang(self, 'liveticker_started', len(leagues), leagues_str))
                 Config().get(self)['sport_chan'] = ctx.channel.id
                 Config().save(self)
                 await add_reaction(ctx.message, Lang.CMDSUCCESS)
