@@ -1,5 +1,6 @@
 import random
 import logging
+import re
 
 import discord
 from discord.ext import commands
@@ -161,6 +162,55 @@ class Plugin(BasePlugin, name="TIL"):
                 await ctx.send(msg)
         else:
             await ctx.send(prefix)
+
+    @cmd_til.command(name="search")
+    async def cmd_search(self, ctx, *searchterms):
+        if not self.config_setter.get_config("allow_search") and \
+                not await self._manager_check(ctx, show_errors=False) and not check_mod_access(ctx.author):
+            await add_reaction(ctx.message, Lang.CMDNOPERMISSIONS)
+            return
+
+        # Search for candidates
+        candidates_til = []
+        candidates_score = []
+        for til in Storage.get(self):
+            candidate = til.lower()
+            matches = 0
+            found = True
+            for term in searchterms:
+                found = len(re.findall(term.lower(), candidate))
+                if found == 0:
+                    found = False
+                    break
+                matches += found
+
+            if not found:
+                continue
+
+            candidates_til.append(til)
+            candidates_score.append(matches)
+
+        # Find best
+        best_til = None
+        best_score = 0
+        for i in range(len(candidates_til)):
+            til = candidates_til[i]
+            score = candidates_score[i]
+            if best_til is None:
+                best_til = candidates_til[i]
+                best_score = candidates_score[i]
+                continue
+
+            if score > best_score:
+                best_til = til
+                best_score = score
+
+        # Send result
+        if best_til is None:
+            await ctx.send(Lang.lang(self, "search_nothing_found"))
+            return
+
+        await ctx.send(best_til)
 
     @cmd_til.command(name="set", aliases=["config"])
     async def cmd_set(self, ctx, key=None, value=None):
