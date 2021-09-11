@@ -11,10 +11,16 @@ import struct
 import datetime
 
 from base import BaseSubsystem
-from botutils.utils import write_debug_channel, execute_anything_sync, execute_anything
-
+from botutils.utils import write_debug_channel, execute_anything_sync, execute_anything, log_exception
 
 timedictformat = ["year", "month", "monthday", "weekday", "hour", "minute"]
+
+
+class NoFutureExec(Exception):
+    """
+    Raised by Mothership.schedule() when there is no execution in the future (i.e. all execs are in the past).
+    """
+    pass
 
 
 class LastExecution(Exception):
@@ -46,11 +52,11 @@ class Mothership(BaseSubsystem):
         :param td: Timedict that specifies the execution schedule
         :param data: Opaque object that is set as job.data
         :param repeat: If set to False, the job runs only once.
-        :raises RuntimeError: raised if td is in the past
+        :raises NoFutureExec: raised if td is in the past
         """
         td = normalize_td(td)
         if next_occurence(td) is None:
-            raise RuntimeError("td {} is in the past".format(td))
+            raise NoFutureExec("td {} is in the past".format(td))
         job = Job(self.bot, td, coro, data=data, repeat=repeat)
         self.logger.info("Scheduling %s", job)
         self.jobs.append(job)
@@ -63,7 +69,7 @@ class Mothership(BaseSubsystem):
 
 class Job:
     """The scheduled Job representation"""
-    def __init__(self, bot, td, f, data=None, repeat=True):
+    def __init__(self, bot, td, f, data=None, repeat=True, run=True):
         """
         cron-like. Takes timedict elements as arguments.
 
@@ -71,6 +77,7 @@ class Job:
         :param td: Timedict that specifies the execution schedule
         :param data: Opaque object that is set as job.data
         :param repeat: If set to False, the job runs only once.
+        :param run: Set to False to not automatically start this job
         :raises RuntimeError: raised if td is in the past
         """
         self.logger = logging.getLogger(__name__)
@@ -97,7 +104,8 @@ class Job:
         self._cached_next_exec = next_occurence(self._timedict, ignore_now=True)
         self._last_exec = None
 
-        self._task = asyncio.get_event_loop().create_task(self._loop())
+        if run:
+            self._task = execute_anything_sync(self._loop())
 
     @property
     def timedict(self):
@@ -153,7 +161,13 @@ class Job:
                 self.logger.debug("Job was cancelled, cancelling loop")
                 break
             self.logger.debug("Executing job %s", self)
-            await execute_anything(self._coro, self)
+            try:
+                await execute_anything(self._coro, self)
+            except Exception as e:
+                fields = {
+                    "timedict": self._timedict
+                }
+                await log_exception(e, title=":x: Timer error (scheduled)", fields=fields)
             if not self._repeat:
                 break
 
@@ -435,15 +449,26 @@ class Timer:
         self.kwargs = kwargs
 
         self.cancelled = False
-        self.has_run = False
+        self._has_run = False
 
-        self.task = asyncio.create_task(self._task())
+        self.task = execute_anything_sync(self._task())
         self.logger.debug("Scheduled timer; t: %d, cb: %s", self.t, str(self.callback))
 
+    @property
+    def has_run(self):
+        return self._has_run
+
     async def _task(self):
+        """
+        Executes the timer's callback after waiting `t` seconds.
+        """
         await asyncio.sleep(self.t)
-        self.has_run = True
-        execute_anything_sync(self.callback, *self.args, **self.kwargs)
+        self._has_run = True
+        try:
+            await execute_anything(self.callback, *self.args, **self.kwargs)
+        except Exception as e:
+            fields = {"Callback": "`{}`".format(self.callback)}
+            await log_exception(e, title=":x: Timer error", fields=fields)
 
     def skip(self):
         """
@@ -454,7 +479,7 @@ class Timer:
         if self.has_run:
             raise HasAlreadyRun(self.callback)
         self.task.cancel()
-        self.has_run = True
+        self._has_run = True
         execute_anything_sync(self.callback, *self.args, **self.kwargs)
 
     def cancel(self):

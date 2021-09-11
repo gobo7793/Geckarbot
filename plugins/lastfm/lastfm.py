@@ -21,8 +21,7 @@ from botutils.permchecks import check_mod_access, check_admin_access
 from plugins.lastfm.api import Api, UnexpectedResponse
 from plugins.lastfm.presence import LfmPresenceMessage
 from plugins.lastfm.lfm_base import Song, Layer
-from plugins.lastfm.spotify import Client as Spotify, AuthError
-
+from plugins.lastfm.spotify import Client as Spotify, AuthError, EmptyResult
 
 mention_p = re.compile(r"<@[^>]+>")
 
@@ -71,6 +70,7 @@ class Plugin(BasePlugin, name="LastFM"):
             "min_title": [float, 0.5],
             "mi_enable_downgrade": [bool, True],
             "mi_downgrade": [float, 1.5],
+            "mi_nowplaying_bonus": [bool, True],
             "quote_p": [float, 0.5],
             "max_quote_length": [int, 100],
             "quote_restrict_del": [bool, True],
@@ -648,17 +648,33 @@ class Plugin(BasePlugin, name="LastFM"):
         await user.send(Lang.lang(self, "quote_del_success", q_del.answer))
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
+    async def append_spotify_link(self, msg: str, song: Song, layer: Layer) -> str:
+        """
+        Appends the corresponding spotify layer link to a lastfm message.
+        Does nothing if the spotify search fails.
+
+        :param msg: Existing lastfm message
+        :param song: song
+        :param layer: Specified layer
+        :return: New message (ideally including the spotify link)
+        """
+        try:
+            await self.spotify.enrich_song(song)
+            return msg + "\n" + song.spotify_links[layer]
+        except EmptyResult:
+            pass
+        return msg
+
     @cmd_lastfm.command(name="listening")
     async def cmd_listening(self, ctx, *args):
-        args = self.parse_args(args, ctx.author)
+        args_d = self.parse_args(args, ctx.author)
         if self.presence_handler.is_currently_shown:
             song = self.presence_handler.state.cur_song.format(reverse=True)
             listener = self.presence_handler.state.cur_listener_dc
             msg = Lang.lang(self, "presence_listening", song, gbu(listener))
 
-            if args["spotify"]:
-                await self.spotify.enrich_song(song)
-                msg += "\n" + song.spotify_links[Layer.TITLE]
+            if args_d["spotify"]:
+                msg = await self.append_spotify_link(msg, self.presence_handler.state.cur_song, Layer.TITLE)
 
             await ctx.send(msg)
             return
@@ -689,8 +705,7 @@ class Plugin(BasePlugin, name="LastFM"):
             msg = self.listening_msg(args["user"], song)
 
             if args["spotify"]:
-                await self.spotify.enrich_song(song)
-                msg += "\n" + song.spotify_links[Layer.TITLE]
+                msg = await self.append_spotify_link(msg, song, Layer.TITLE)
 
         await ctx.send(msg)
 
@@ -764,11 +779,13 @@ class Plugin(BasePlugin, name="LastFM"):
         return msg
 
     @commands.group(name="spotify", invoke_without_command=True)
-    async def cmd_spotify(self, ctx):
+    async def cmd_spotify(self, ctx, *args):
+        user = self.parse_args(args, ctx.author)["author"]
+
         async with ctx.typing():
             # Get user
             try:
-                lfmuser = self.get_lastfm_user(ctx.author)
+                lfmuser = self.get_lastfm_user(user)
             except NotRegistered:
                 await self.bot.helpsys.cmd_help(ctx, self, ctx.command)
                 return
@@ -990,34 +1007,61 @@ class Plugin(BasePlugin, name="LastFM"):
             "titles": {},
         }
         i = 0
+        nowplaying = None
         for song in songs:
-            if song["artist"] in r["artists"]:
-                r["artists"][song["artist"]]["count"] += 1
-            elif i < min_artist:
-                r["artists"][song["artist"]] = {
+            if song.nowplaying:
+                nowplaying = song
+
+            if song.artist in r["artists"]:
+                r["artists"][song.artist]["count"] += 1
+                r["artists"][song.artist]["score"] += 1
+            # elif i < min_artist:
+            else:
+                r["artists"][song.artist] = {
                     "count": 1,
+                    "score": 1,
                     "distance": i,
                     "song": song
                 }
 
-            if (song["artist"], song["album"]) in r["albums"]:
-                r["albums"][song["artist"], song["album"]]["count"] += 1
-            elif i < min_album:
-                r["albums"][song["artist"], song["album"]] = {
+            if (song.artist, song.album) in r["albums"]:
+                r["albums"][song.artist, song.album]["count"] += 1
+                r["albums"][song.artist, song.album]["score"] += 1
+            # elif i < min_album:
+            else:
+                r["albums"][song.artist, song.album] = {
                     "count": 1,
+                    "score": 1,
                     "distance": i,
                     "song": song
                 }
 
-            if (song["artist"], song["title"]) in r["titles"]:
-                r["titles"][song["artist"], song["title"]]["count"] += 1
-            elif i < min_title:
-                r["titles"][song["artist"], song["title"]] = {
+            if (song.artist, song.title) in r["titles"]:
+                r["titles"][song.artist, song.title]["count"] += 1
+                r["titles"][song.artist, song.title]["score"] += 1
+            # elif i < min_title:
+            else:
+                r["titles"][song.artist, song.title] = {
                     "count": 1,
+                    "score": 1,
                     "distance": i,
                     "song": song
                 }
             i += 1
+
+        # Bonus for nowplaying
+        if nowplaying and self.get_config("mi_nowplaying_bonus"):
+            artist = r["artists"][nowplaying.artist]
+            if artist["count"] >= self.get_config("min_artist") * len(songs):
+                artist["score"] *= 2
+            album = r["albums"][nowplaying.artist, nowplaying.album]
+            if album["count"] >= self.get_config("min_album") * len(songs):
+                album["score"] *= 2
+            title = r["titles"][nowplaying.artist, nowplaying.title]
+            if title["count"] >= self.get_config("min_title") * len(songs):
+                title["score"] *= 2
+
+        self.logger.debug("scores: %s", r)
 
         # Tie-breakers
         self.tiebreaker(r["artists"], songs, Layer.ARTIST)
@@ -1044,13 +1088,13 @@ class Plugin(BasePlugin, name="LastFM"):
 
         # Calc counts
         scores = self.calc_scores(songs[:pagelen], min_artist, min_album, min_title)
-        best_artist = sorted(scores["artists"].keys(), key=lambda x: scores["artists"][x]["count"], reverse=True)[0]
+        best_artist = sorted(scores["artists"].keys(), key=lambda x: scores["artists"][x]["score"], reverse=True)[0]
         best_artist_count = scores["artists"][best_artist]["count"]
         best_artist = scores["artists"][best_artist]["song"]
-        best_album = sorted(scores["albums"].keys(), key=lambda x: scores["albums"][x]["count"], reverse=True)[0]
+        best_album = sorted(scores["albums"].keys(), key=lambda x: scores["albums"][x]["score"], reverse=True)[0]
         best_album_count = scores["albums"][best_album]["count"]
         best_album = scores["albums"][best_album]["song"]
-        best_title = sorted(scores["titles"].keys(), key=lambda x: scores["titles"][x]["count"], reverse=True)[0]
+        best_title = sorted(scores["titles"].keys(), key=lambda x: scores["titles"][x]["score"], reverse=True)[0]
         best_title_count = scores["titles"][best_title]["count"]
         best_title = scores["titles"][best_title]["song"]
 
@@ -1127,8 +1171,7 @@ class Plugin(BasePlugin, name="LastFM"):
             msg = "{} _{}_".format(msg, quote)
 
         if spotify:
-            await self.spotify.enrich_song(mi_example)
-            msg += "\n" + mi_example.spotify_links[mi]
+            msg = await self.append_spotify_link(msg, mi_example, mi)
         await ctx.send(msg)
 
 

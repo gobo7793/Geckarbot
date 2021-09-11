@@ -491,6 +491,7 @@ class Plugin(BasePlugin, name="Custom CMDs"):
     @cmd.command(name="info")
     async def cmd_raw(self, ctx, cmd_name, index=None):
         cmd_name = cmd_name.lower()
+        cmd = self._find_cmd(cmd_name)
 
         # Parse index
         single_page = True  # index != "17++"
@@ -501,6 +502,8 @@ class Plugin(BasePlugin, name="Custom CMDs"):
                 index = index[:-2]
             elif index.endswith("+"):
                 index = index[:-1]
+            elif index.lower() == "last":
+                index = len(cmd.texts)
             else:
                 single_text = True
             try:
@@ -512,7 +515,6 @@ class Plugin(BasePlugin, name="Custom CMDs"):
             index = 0
 
         # Error handling
-        cmd = self._find_cmd(cmd_name)
         if not cmd:
             await ctx.send(Lang.lang(self, "raw_doesnt_exist", cmd_name))
             return

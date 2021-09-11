@@ -1,5 +1,5 @@
-from datetime import datetime, timedelta
 import logging
+from datetime import datetime, timedelta
 from itertools import groupby
 from operator import itemgetter
 from typing import List, Tuple, Union
@@ -8,12 +8,12 @@ import discord
 from discord import TextChannel
 from discord.ext import commands
 
-from botutils import sheetsclient, restclient, timeutils
+from botutils import sheetsclient, timeutils
 from botutils.converters import get_best_username, get_username_from_id, get_best_user
 from botutils.stringutils import paginate, format_andlist
 from botutils.utils import add_reaction
 from data import Lang, Config, Storage
-from subsystems.liveticker import TeamnameDict, MatchESPN
+from subsystems.liveticker import TeamnameDict, LeagueRegistrationESPN
 
 logger = logging.getLogger(__name__)
 
@@ -64,11 +64,8 @@ class _Predgame:
 
         msgs = []
         for league in Storage.get(self)["predictions"]:
-            result = await restclient.Client("http://site.api.espn.com/apis/site/v2/sports/soccer") \
-                .request(f"/{league}/scoreboard", params={'dates': datetime.today().strftime("%Y%m%d")})
-
-            for m in result.get('events', []):
-                match = MatchESPN(m)
+            matches = await LeagueRegistrationESPN.get_matches_by_date(league)
+            for match in matches:
                 kickoff = match.kickoff.strftime("%H:%M")
                 msgs.append(f"{Storage.get(self)['predictions'][league]['name']} | {kickoff} | "
                             f"{match.home_team.emoji} {match.away_team.emoji} "

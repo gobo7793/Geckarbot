@@ -55,7 +55,7 @@ class PresenceState:
     async def reset(self):
         """
         Resets the state of the presence message, i.e. fetches a new random scrobble or skips the presence message
-        if necessary
+        if there is no current scrobble among the users
 
         :return: This PresenceState
         """
@@ -117,7 +117,7 @@ class LfmPresenceMessage(PresenceMessage):
 
         if not first:
             song = await self.plugin.api.get_current_scrobble(self.state.cur_listener_lfm)
-            if not song == self.state.cur_song:
+            if song is None or not song == self.state.cur_song:
                 await self.state.reset()
                 if not self.state.is_set():
                     await self.bot.presence.skip()
@@ -131,9 +131,9 @@ class LfmPresenceMessage(PresenceMessage):
         """
         Called by presence subsys once this presence message is not up anymore.
         """
-        self.logger.debug("Presence message was unset")
+        self.logger.debug("Lastfm presence message was unset")
         self.is_currently_shown = False
-        if self.state is not None and self.state.timer is not None:
+        if self.state is not None and self.state.timer is not None and not self.state.timer.has_run:
             self.state.timer.cancel()
         self.state = None
 

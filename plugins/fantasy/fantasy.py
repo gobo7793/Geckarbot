@@ -1,5 +1,4 @@
 import logging
-from asyncio import create_task
 from datetime import datetime, timedelta
 from typing import Union, List, Dict, Optional
 
@@ -13,7 +12,7 @@ from botutils import stringutils, permchecks
 from botutils.converters import get_best_username, get_best_user
 from botutils.permchecks import WrongChannel
 from botutils.stringutils import paginate
-from botutils.utils import add_reaction, helpstring_helper
+from botutils.utils import add_reaction, helpstring_helper, execute_anything_sync
 from data import Config, Storage, Lang
 from plugins.fantasy import migrations
 from plugins.fantasy.league import FantasyLeague, deserialize_league, create_league
@@ -48,7 +47,7 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
         self.leagues = {}  # type: Dict[int, FantasyLeague]
         self._score_timer_jobs = []  # type: List[timers.Job]
 
-        create_task(self._load())
+        execute_anything_sync(self._load())
         # self._load()
         # self._start_score_timer()
 

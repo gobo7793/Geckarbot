@@ -1,13 +1,14 @@
 import logging
 
-from base import BasePlugin
+from base import BasePlugin, NotFound
 from botutils.utils import helpstring_helper
-from data import Config, Storage
+from data import Config, Storage, Lang
 from plugins.sport._scores import _Scores
 from plugins.sport._liveticker import _Liveticker
 from plugins.sport._predgame import _Predgame
 from subsystems import timers
 from subsystems.helpsys import DefaultCategories
+from subsystems.liveticker import LTSource
 
 logger = logging.getLogger(__name__)
 
@@ -60,6 +61,12 @@ class Plugin(BasePlugin, _Liveticker, _Predgame, _Scores, name="Sport"):
         return helpstring_helper(self, command, "help")
 
     def command_description(self, command):
+        if command.qualified_name in ("table", "fußball", "liveticker add", "liveticker del"):
+            try:
+                desc = helpstring_helper(self, command, "desc")
+            except NotFound:
+                desc = helpstring_helper(self, command, "help")
+            return f"{desc}\n{Lang.lang(self, 'available_sources', ', '.join(e.value for e in LTSource))}"
         return helpstring_helper(self, command, "desc")
 
     def command_usage(self, command):

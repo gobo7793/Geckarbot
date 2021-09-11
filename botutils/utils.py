@@ -1,12 +1,13 @@
-from typing import Union
+from typing import Union, Optional, Coroutine
 import datetime
 import random
 import inspect
 import logging
 import asyncio
+import traceback
 
 import discord
-from discord.ext.commands import Command
+from discord.ext.commands import Command, Context
 
 from base import NotFound
 from data import Config, Lang
@@ -202,6 +203,52 @@ async def log_to_mod_channel(context):
     await _log_to_channel(context, write_mod_channel)
 
 
+async def log_exception(exception, context: Optional[Context] = None, title=":x: Command Error", fields: dict = None):
+    """
+    Logs an exception to the debug channel, including traceback.
+
+    :param exception: Exception to be logged
+    :param context: Context; used to fill context-dependent fields (command, msg, author etc)
+    :param title: Embed title
+    :param fields: Additional embed fields (field: value)
+    """
+    embed = discord.Embed(title=title, colour=0xe74c3c)  # Red
+    embed.add_field(name='Error', value=exception)
+
+    if context:
+        embed.add_field(name='Command', value=context.command)
+        embed.add_field(name='Message', value=context.message.clean_content)
+        if isinstance(context.channel, discord.TextChannel):
+            embed.add_field(name='Channel', value=context.channel.name)
+        if isinstance(context.channel, discord.DMChannel):
+            embed.add_field(name='Channel', value=context.channel.recipient)
+        if isinstance(context.channel, discord.GroupChannel):
+            embed.add_field(name='Channel', value=context.channel.recipients)
+        embed.add_field(name='Author', value=context.author.display_name)
+        embed.url = context.message.jump_url
+
+    if fields:
+        for name, value in fields.items():
+            embed.add_field(name=str(name), value=str(value))
+
+    embed.timestamp = datetime.datetime.utcnow()
+
+    # gather traceback
+    ex_tb = "".join(traceback.TracebackException.from_exception(exception).format())
+    is_tb_own_msg = len(ex_tb) > 2000
+    if is_tb_own_msg:
+        embed.description = "Exception Traceback see next message."
+        ex_tb = paginate(ex_tb.split("\n"), msg_prefix="```python\n", msg_suffix="```")
+    else:
+        embed.description = f"```python\n{ex_tb}```"
+
+    # send messages
+    await write_debug_channel(embed)
+    if is_tb_own_msg:
+        for msg in ex_tb:
+            await write_debug_channel(msg)
+
+
 def sort_commands_helper(commands: list, order: list) -> list:
     """
     Sorts a list of commands in place according to a list of command names. If a command has no corresponding
@@ -241,6 +288,18 @@ def trueshuffle(p: list):
         p[choice] = toswap
 
 
+async def coro_wrapper(coro: Coroutine):
+    """
+    Executes coro and logs exceptions to the debug channel.
+
+    :param coro: Coroutine that is ready to be awaited.
+    """
+    try:
+        await coro
+    except Exception as e:
+        await log_exception(e, title=":x: Task error")
+
+
 def execute_anything_sync(f, *args, **kwargs):
     """
     Executes functions, coroutine functions and coroutines, returns their return values and raises their exceptions.
@@ -253,7 +312,7 @@ def execute_anything_sync(f, *args, **kwargs):
     if inspect.iscoroutinefunction(f):
         f = f(*args, **kwargs)
     if inspect.iscoroutine(f):
-        return asyncio.get_event_loop().create_task(f)
+        return asyncio.get_event_loop().create_task(coro_wrapper(f))
     return f(*args, **kwargs)
 
 

@@ -7,7 +7,6 @@ from urllib.error import HTTPError
 from urllib.parse import urljoin, urlparse
 
 import discord
-import requests
 from bs4 import BeautifulSoup
 from discord.ext import commands
 from discord.ext.commands import MissingRequiredArgument
@@ -21,11 +20,11 @@ from botutils.stringutils import paginate, format_andlist
 from botutils.utils import add_reaction, helpstring_helper
 from data import Config, Storage, Lang
 from plugins.spaetzle.subsystems import UserBridge, Observed, Trusted
-from plugins.spaetzle.utils import TeamnameDict, pointdiff_possible, determine_winner, MatchResult, match_status, \
+from plugins.spaetzle.utils import pointdiff_possible, determine_winner, MatchResult, match_status, \
     get_user_league, get_user_cell, get_schedule, get_schedule_opponent, UserNotFound, \
     convert_to_datetime, get_participant_history, duel_points
 from subsystems.helpsys import DefaultCategories
-from subsystems.liveticker import MatchStatus
+from subsystems.liveticker import MatchStatus, LeagueRegistrationOLDB
 
 
 class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
@@ -37,7 +36,6 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
         bot.register(self, category=DefaultCategories.SPORT)
 
         self.logger = logging.getLogger(__name__)
-        self.teamname_dict = TeamnameDict(self)
         self.userbridge = UserBridge(self)
 
     def default_config(self, container=None):
@@ -80,27 +78,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                 'predictions_thread': None,
                 'discord_user_bridge': {},
                 'observed_users': [],
-                'participants': {},
-                'teamnames': {
-                    "FC Bayern München": {'short_name': "FCB", 'other': ["FC Bayern", "Bayern", "München"]},
-                    "Borussia Dortmund": {'short_name': "BVB", 'other': ["Dortmund"]},
-                    "Rasenballsport Leipzig": {'short_name': "LPZ", 'other': ["Leipzig", "RB Leipzig", "RBL", "LEI"]},
-                    "Bor. Mönchengladbach": {'short_name': "BMG", 'other': ["Gladbach", "Borussia Mönchengladbach"]},
-                    "Bayer 04 Leverkusen": {'short_name': "LEV", 'other': ["Leverkusen", "Bayer Leverkusen", "B04"]},
-                    "TSG Hoffenheim": {'short_name': "HOF", 'other': ["Hoffenheim", "TSG 1899 Hoffenheim", "TSG"]},
-                    "VfL Wolfsburg": {'short_name': "WOB", 'other': ["Wolfsburg", "VFL"]},
-                    "SC Freiburg": {'short_name': "SCF", 'other': ["Freiburg"]},
-                    "Eintracht Frankfurt": {'short_name': "SGE", 'other': ["Frankfurt", "Eintracht", "FRA"]},
-                    "Hertha BSC": {'short_name': "BSC", 'other': ["Hertha"]},
-                    "1. FC Union Berlin": {'short_name': "FCU", 'other': ["Union", "Berlin"]},
-                    "FC Schalke 04": {'short_name': "S04", 'other': ["Schalke"]},
-                    "1. FSV Mainz 05": {'short_name': "M05", 'other': ["Mainz", "FSV"]},
-                    "1. FC Köln": {'short_name': "KOE", 'other': ["Köln", "FCK"]},
-                    "FC Augsburg": {'short_name': "FCA", 'other': ["Augsburg"]},
-                    "SV Werder Bremen": {'short_name': "SVW", 'other': ["Bremen", "Werder", "Werder Bremen", "BRE"]},
-                    "Arminia Bielefeld": {'short_name': "DSC", 'other': ["Bielefeld", "Arminia", "BIE"]},
-                    "VfB Stuttgart": {'short_name': "VFB", 'other': ["Stuttgart", "STU"]}
-                }
+                'participants': {}
             }
         if container == 'forumposts':
             return []
@@ -171,43 +149,40 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             await ctx.send_help(self.cmd_spaetzle_set)
 
     @cmd_spaetzle_set.command(name="matches", aliases=["spiele"])
-    async def cmd_set_matches(self, ctx, matchday: int = None):
+    async def cmd_set_matches(self, ctx, matchday: int = None, season: int = None):
         """Sets the matches of the upcoming or running matchday"""
         if not await Trusted(self).is_trusted(ctx):
             return
         async with ctx.typing():
             # Request data
             if matchday:
-                match_list = restclient.Client("https://www.openligadb.de/api").make_request(
-                    "/getmatchdata/bl1/2020/{}".format(str(matchday)))
-                for _, _, c_reg in self.bot.liveticker.search_coro(plugins=[self.get_name()]):
+                for _, _, c_reg in list(self.bot.liveticker.search_coro(plugins=[self.get_name()])):
                     c_reg.unload()
             else:
-                reg = await self._start_liveticker()
-                matchday = reg.league_reg.matchday()
-                match_list = reg.league_reg.matches
+                matchday = Storage().get(self)['matchday']
+            match_list = await LeagueRegistrationOLDB.get_matches_by_matchday(league="bl1", matchday=matchday,
+                                                                              season=season)
 
             # Extract matches
             c = self.get_api_client()
             values = [[matchday], [None]]
             match_ids = []
             for match in match_list:
-                match_ids.append(match.get('MatchID'))
+                match_ids.append(match.match_id)
 
-                date_time = datetime.strptime(match.get('MatchDateTime', '0001-01-01T01:01:01'), "%Y-%m-%dT%H:%M:%S")
-                date_formula = '=IF(DATE({};{};{}) + TIME({};{};0) < F12;0;"")'.format(*list(date_time.timetuple()))
-                if date_time < datetime.now():
-                    score1 = max(0, 0, *(g.get('ScoreTeam1', 0) for g in match.get('Goals', [])))
-                    score2 = max(0, 0, *(g.get('ScoreTeam2', 0) for g in match.get('Goals', [])))
+                date_formula = '=IF(DATE({};{};{}) + TIME({};{};0) < F12;0;"")'.format(*list(match.kickoff.timetuple()))
+                if match.kickoff < datetime.now():
+                    score1, score2 = match.score.values()
                 else:
                     score1, score2 = date_formula, date_formula
-                values.append([['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'][date_time.weekday()],
-                               date_time.strftime("%d.%m.%Y"),
-                               date_time.strftime("%H:%M"),
-                               self.teamname_dict.get_long(match.get('Team1', {}).get('TeamName', 'n.a.')),
-                               score1,
-                               score2,
-                               self.teamname_dict.get_long(match.get('Team2', {}).get('TeamName', 'n.a.'))])
+                values.append([
+                    ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'][match.kickoff.weekday()],
+                    match.kickoff.strftime("%d.%m.%Y"),
+                    match.kickoff.strftime("%H:%M"),
+                    match.home_team.long_name,
+                    score1,
+                    score2,
+                    match.away_team.long_name])
 
             # Put matches into spreadsheet
             c.update("Aktuell!{}".format(Config().get(self)['matches_range']), values, raw=False)
@@ -290,8 +265,9 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
         botmessage = await ctx.send(Lang.lang(self, 'scrape_start', url))
         async with ctx.typing():
             while True:
-                response = requests.get(url, headers=Config().get(self)['user_agent'])
-                soup = BeautifulSoup(response.text, "html.parser")
+                response = await restclient.Client("https://www.transfermarkt.de").request(urlparse(url).path,
+                                                                                           parse_json=False)
+                soup = BeautifulSoup(response, "html.parser")
 
                 posts = soup.find_all('div', 'box')
                 for p in posts:
@@ -479,22 +455,8 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
         return await self.bot.liveticker.register(league="bl1", raw_source="oldb", plugin=self,
                                                   coro=self._liveticker_coro, periodic=True)
 
-    async def _liveticker_coro(self, matches, *_):
-        self.logger.debug("Spätzle score update started.")
-        c = self.get_api_client()
-        values = [[]] * 9
-
-        # Build values
-        for match_id, match in matches.items():
-            if match_id in Storage().get(self)['match_ids'] and match['kickoff_time'] and \
-                    match['kickoff_time'] < datetime.now() and not match['is_finished']:
-                values[Storage().get(self)['match_ids'].index(match_id)] = [*match['score']]
-
-        # Put scores into spreadsheet
-        c.update(cellrange="Aktuell!{}".format(CellRange.from_a1(Config.get(self)['matches_range'])
-                                               .expand(top=-2, left=-4).rangename()),
-                 values=values)
-        self.logger.debug("Spätzle score update finished.")
+    async def _liveticker_coro(self, update):
+        pass  # TODO: automatic score updating
 
     @cmd_spaetzle_set.command(name="config", usage="<path...> <value>")
     async def cmd_set_config(self, ctx, *args):
@@ -544,8 +506,8 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
     @cmd_spaetzle.command(name="goal", hidden=True)
     async def cmd_goal(self, ctx, team, goals: int = None, goals_other: int = None):
         """Increments or sets the goal count in a given match"""
-        name = self.teamname_dict.get_long(team)
-        if name is None:
+        name = self.bot.liveticker.teamname_converter.get(team)
+        if not name:
             await ctx.send(Lang.lang(self, 'team_not_found', team))
         else:
             async with ctx.typing():
@@ -554,13 +516,13 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                 for i in range(2, len(data)):
                     row = data[i]
                     if len(row) >= 7:
-                        if row[3] == name:
+                        if row[3] == name.long_name:
                             values = [goals if goals is not None else row[4] + 1 if row[4] else 1,
                                       goals_other if goals_other is not None else row[5] if row[5] else 0]
                             await ctx.send("{} [**{}**:{}] {}".format(row[3], *values, row[6]))
                             index = i
                             break
-                        if row[6] == name:
+                        if row[6] == name.long_name:
                             values = [goals_other if goals_other is not None else row[4] if row[4] else 0,
                                       goals if goals is not None else row[5] + 1 if row[5] else 1]
                             await ctx.send("{} [{}:**{}**] {}".format(row[3], *values, row[6]))
@@ -646,8 +608,11 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                 pred_a = preds_a[i]
                 emoji = match_status(match[1], match[2]).value
                 msg += "{} `{} {}:{} {}\u0020\u0020\u0020\u0020{}:{}\u0020\u0020\u0020\u0020{}:{} `\n" \
-                    .format(emoji, self.teamname_dict.get_abbr(match[3]), match[4], match[5],
-                            self.teamname_dict.get_abbr(match[6]), pred_h[0], pred_h[1], pred_a[0], pred_a[1])
+                    .format(emoji,
+                            self.bot.liveticker.teamname_converter.get(match[3]).abbr,
+                            match[4], match[5],
+                            self.bot.liveticker.teamname_converter.get(match[6]).abbr,
+                            pred_h[0], pred_h[1], pred_a[0], pred_a[1])
 
             embed = discord.Embed(title="{} [{}:{}] {}".format(user, result[0][0], result[1][0], opponent))
             embed.description = msg

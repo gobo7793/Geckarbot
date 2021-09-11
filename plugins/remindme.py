@@ -1,11 +1,11 @@
-import asyncio
 import logging
 from datetime import datetime
-from typing import Dict
+from typing import Dict, Union
 
+import discord
 from discord.ext import commands
 
-from botutils import utils, timeutils
+from botutils import utils, timeutils, converters
 from data import Storage, Lang
 from base import BasePlugin, NotFound
 from subsystems import timers
@@ -21,11 +21,7 @@ class Plugin(BasePlugin):
         self.migrate()
 
         self.reminders = {}  # type: Dict[int, timers.Job]
-        for reminder_id in Storage().get(self)['reminders']:
-            reminder = Storage().get(self)['reminders'][reminder_id]
-            self._register_reminder(reminder['chan'], reminder['user'], reminder['time'],
-                                    reminder_id, reminder['text'], reminder['link'], True)
-        self._remove_old_reminders()
+        utils.execute_anything_sync(self.load_reminders())
 
         self.explain_history = {}
 
@@ -42,12 +38,23 @@ class Plugin(BasePlugin):
         """
         Migrates storage to current version:
             None -> 0: inserts jump link placeholders
+            0 -> 1: Change channel serialization
         """
-        if 'version' not in Storage().get(self):
+        version = Storage().get(self).get('version', None)
+        if version is None:
             Storage().get(self)['version'] = 0
             for rid in Storage().get(self)['reminders'].keys():
                 Storage().get(self)['reminders'][rid]['link'] = "Link not found (reminder made on old version)"
-            Storage().save(self)
+
+        if version == 0:
+            Storage().get(self)['version'] = 1
+            for rid, reminder in Storage().get(self)['reminders'].items():
+                chan = self.bot.get_channel(reminder['chan'])
+                if chan is not None:
+                    chan = converters.serialize_channel(chan)
+                reminder['chan'] = chan
+
+        Storage().save(self)
 
     def default_storage(self, container=None):
         if container is not None:
@@ -57,10 +64,47 @@ class Plugin(BasePlugin):
             'reminders': {}
         }
 
+    async def load_reminders(self):
+        """
+        Loads the reminders from storage into memory.
+        """
+        to_remove = []
+        for rid, reminder in Storage().get(self)['reminders'].items():
+            try:
+                if reminder['chan'] is None:
+                    raise NotFound
+                chan = await converters.deserialize_channel(reminder['chan'])
+
+            # Channel Error
+            except NotFound:
+                embed = discord.Embed(title=":x: Reminders error", colour=0xe74c3c)
+                embed.description = "Channel for reminder could not be retrieved\n(removing reminder)"
+                embed.add_field(name="Reminder id", value=str(rid))
+
+                storage_chan = reminder['chan']
+                if storage_chan is not None:
+                    embed.add_field(name="Channel type", value=storage_chan['type'])
+                    embed.add_field(name="Channel id", value=storage_chan['id'])
+
+                user = converters.get_best_user(reminder['user'])
+                embed.add_field(name="User", value=converters.get_best_username(user))
+                t = reminder['time']
+                t = "{}-{}-{} {}:{}".format(t.year, t.month, t.day, t.hour, t.minute)
+                embed.add_field(name="Remind time", value=t)
+                to_remove.append(rid)
+                utils.execute_anything_sync(utils.write_debug_channel(embed))
+                continue
+
+            r = self._register_reminder(chan, reminder['user'], reminder['time'],
+                                        rid, reminder['text'], reminder['link'], True)
+            if not r:
+                to_remove.append(r)
+
+        for rid in to_remove:
+            self._remove_reminder(rid)
+
     @commands.group(name="remindme", invoke_without_command=True)
     async def cmd_remindme(self, ctx, *args):
-        self._remove_old_reminders()
-
         if not args:
             await ctx.send(Lang.lang(self, 'remind_noargs'))
             return
@@ -90,15 +134,13 @@ class Plugin(BasePlugin):
             return
 
         rlink = ctx.message.jump_url
-        if self._register_reminder(ctx.channel.id, ctx.author.id, remind_time, reminder_id, rtext, rlink):
+        if self._register_reminder(ctx.channel, ctx.author.id, remind_time, reminder_id, rtext, rlink):
             await ctx.send(Lang.lang(self, 'remind_set', remind_time.strftime('%d.%m.%Y %H:%M'), reminder_id))
         else:
             await utils.add_reaction(ctx.message, Lang.CMDERROR)
 
     @cmd_remindme.command(name="list")
     async def cmd_reminder_list(self, ctx):
-        self._remove_old_reminders()
-
         msg = Lang.lang(self, 'remind_list_prefix')
         reminders_msg = ""
         for job in sorted(self.reminders.values(), key=lambda x: x.next_execution()):
@@ -117,8 +159,6 @@ class Plugin(BasePlugin):
 
     @cmd_remindme.command(name="cancel")
     async def cmd_reminder_cancel(self, ctx, reminder_id: int = -1):
-        self._remove_old_reminders()
-
         # remove reminder with id
         if reminder_id >= 0:
             if reminder_id not in self.reminders:
@@ -153,12 +193,12 @@ class Plugin(BasePlugin):
 
         await ctx.send(Lang.lang(self, "explain_message", self.explain_history[ctx.author]))
 
-    def _register_reminder(self, channel_id: int, user_id: int, remind_time: datetime,
-                           reminder_id: int, text, link: str, is_restart: bool = False) -> bool:
+    def _register_reminder(self, channel: Union[discord.DMChannel, discord.TextChannel, None], user_id: int,
+                           remind_time: datetime, reminder_id: int, text, link: str, is_restart: bool = False) -> bool:
         """
         Registers a reminder
 
-        :param channel_id: The id of the channel in which the reminder was set
+        :param channel: The channel in which the reminder was set
         :param user_id: The id of the user who sets the reminder
         :param remind_time: The remind time
         :param reminder_id: The reminder ID
@@ -175,7 +215,7 @@ class Plugin(BasePlugin):
                  reminder_id, user_id, remind_time, text)
 
         job_data = {
-            'chan': channel_id,
+            'chan': channel,
             'user': user_id,
             'time': remind_time,
             'text': text,
@@ -185,49 +225,46 @@ class Plugin(BasePlugin):
 
         timedict = timers.timedict(year=remind_time.year, month=remind_time.month, monthday=remind_time.day,
                                    hour=remind_time.hour, minute=remind_time.minute)
-        job = self.bot.timers.schedule(self._reminder_callback, timedict, repeat=False)
-        job.data = job_data
+        try:
+            job = self.bot.timers.schedule(self._reminder_callback, timedict, data=job_data, repeat=False)
+        except timers.NoFutureExec:
+            job = timers.Job(self.bot, timedict, self._reminder_callback, data=job_data, repeat=False, run=False)
+            utils.execute_anything_sync(self._reminder_callback, job)
+            return False
 
         self.reminders[reminder_id] = job
         if not is_restart:
-            Storage().get(self)['reminders'][reminder_id] = job_data
+            Storage().get(self)['reminders'][reminder_id] = job_data.copy()
+            Storage().get(self)['reminders'][reminder_id]['chan'] = converters.serialize_channel(job_data['chan'])
             Storage().save(self)
 
         return True
 
-    def _remove_old_reminders(self):
-        """
-        Auto-Removes all reminders in the past
-        """
-        old_reminders = []
-        for key, item in self.reminders.items():
-            if (item.next_execution() is None
-                    or item.next_execution() < datetime.now()):
-                old_reminders.append(key)
-        for el in old_reminders:
-            asyncio.run_coroutine_threadsafe(self._reminder_callback(self.reminders[el]), self.bot.loop)
-
-    def _remove_reminder(self, reminder_id):
+    def _remove_reminder(self, rid):
         """
         Removes the reminder if in config
 
-        :param reminder_id: the reminder ID
+        :param rid: the reminder ID
         """
-        if reminder_id in self.reminders:
-            del self.reminders[reminder_id]
-        if reminder_id in Storage().get(self)['reminders']:
-            del Storage().get(self)['reminders'][reminder_id]
+        if rid in self.reminders:
+            del self.reminders[rid]
+        if rid in Storage().get(self)['reminders']:
+            del Storage().get(self)['reminders'][rid]
+
         Storage().save(self)
-        log.info("Removed reminder %d", reminder_id)
+        log.debug("Removed reminder %d", rid)
 
     async def _reminder_callback(self, job):
-        log.info("Executing reminder %d", job.data['id'])
+        log.debug("Executing reminder %d", job.data['id'])
 
-        channel = self.bot.get_channel(job.data['chan'])
+        channel = job.data['chan']
         user = self.bot.get_user(job.data['user'])
         text = job.data['text']
         rid = job.data['id']
         self.explain_history[user] = job.data['link']
+
+        if channel is None:
+            raise RuntimeError("Channel is None for reminder with id {}".format(rid))
 
         if text:
             remind_text = Lang.lang(self, 'remind_callback', user.mention, text)

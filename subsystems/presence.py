@@ -2,7 +2,6 @@
 This subsystem provides changing presence messages for the user list on servers
 """
 
-import asyncio
 import logging
 import random
 from enum import IntEnum
@@ -12,6 +11,7 @@ import discord
 
 from base import BaseSubsystem, NotFound
 from data import Config, Storage
+from botutils.utils import log_exception, execute_anything_sync
 from subsystems.timers import Job, timedict
 
 
@@ -377,7 +377,7 @@ class Presence(BaseSubsystem):
     def execute_change(self):
         """Executes _change_callback() w/o awaiting (every time this method is called)"""
         if self.is_timer_up:
-            asyncio.run_coroutine_threadsafe(self._change_callback(self._timer_job), self.bot.loop)
+            execute_anything_sync(self._change_callback(self._timer_job))
 
     async def _change_callback(self, job):
         """
@@ -394,6 +394,7 @@ class Presence(BaseSubsystem):
             prio = PresencePriority.HIGH
 
         # Search for new presence msg
+        error = None
         while True:
             last_id = job.data["current_id"]
             next_id = self.get_ran_id(last_id, priority=prio)
@@ -406,9 +407,16 @@ class Presence(BaseSubsystem):
             except SkipPresence:
                 self.log.debug("%s raised SkipPresence; skipping", new_msg)
                 continue
+            except Exception as e:
+                error = e
             break
 
-        if job.data["current_msg"]:
-            await job.data["current_msg"].unset()
+        if error:
+            await log_exception(error, title=":x: Presence set error")
+
+        to_unset = job.data["current_msg"]
         job.data["current_id"] = next_id
         job.data["current_msg"] = new_msg
+
+        if to_unset:
+            await to_unset.unset()

@@ -97,7 +97,11 @@ class Plugin(BasePlugin, name="Bot status commands for monitoring and debug purp
                 await ctx.send(msg)
 
         if not subsystem or subsystem == "liveticker":
-            liveticker_list = []
+            minutes = []
+            match_timer = self.bot.liveticker.match_timer
+            if match_timer:
+                minutes = match_timer.timedict.get("minute")
+            liveticker_list = [f"***Liveticker minutes:*** {minutes}"]
             for src in self.bot.liveticker.registrations.values():
                 for leag in src.values():
                     liveticker_list.append("\u2b1c {}".format(str(leag)))
@@ -205,9 +209,11 @@ class Plugin(BasePlugin, name="Bot status commands for monitoring and debug purp
     @commands.command(name="livetickerkill", help="Kills all liveticker registrations")
     @commands.has_any_role(Config().BOT_ADMIN_ROLE_ID)
     async def cmd_liveticker_kill(self, ctx):
-        for src in self.bot.liveticker.registrations.values():
-            for reg in list(src.values()):
-                reg.deregister()
+        for _, _, c_reg in list(self.bot.liveticker.search_coro()):
+            c_reg.deregister()
+        for src in Storage().get(self.bot.liveticker)['registrations']:
+            Storage().get(self.bot.liveticker)['registrations'][src] = {}
+        Storage().save(self.bot.liveticker)
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
     @commands.command(name="dmreg")
