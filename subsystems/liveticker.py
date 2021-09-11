@@ -849,6 +849,7 @@ class CoroRegistration:
         """Notifies the coroutine with the new updates"""
         if self.updates:
             await self.coro(self.updates)
+            self.updates = []
 
     def store(self):
         """Saves the CoroRegistration to the storage"""
