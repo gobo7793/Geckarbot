@@ -116,11 +116,9 @@ class _Liveticker:
 
     @cmd_liveticker.command(name="del")
     async def cmd_liveticker_del(self, ctx, source, league):
-        if source in Config().get(self)['liveticker']['leagues'] and \
-                league in Config().get(self)['liveticker']['leagues'][source]:
+        if league in Config().get(self)['liveticker']['leagues'].get(source, []):
             Config().get(self)['liveticker']['leagues'][source].remove(league)
             Config().save(self)
-
             for c_reg in self.bot.liveticker.search_coro(league_keys=[league], sources=[LTSource(source)],
                                                          plugin_names=[self.get_name()]):
                 c_reg.deregister()
