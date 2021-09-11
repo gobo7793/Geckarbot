@@ -102,7 +102,7 @@ class Plugin(BasePlugin, name="Bot status commands for monitoring and debug purp
             if match_timer:
                 minutes = match_timer.timedict.get("minute")
             liveticker_list = [f"Liveticker minutes: {minutes}", "**LeagueRegistrations:**"]
-            l_reg_lines = [f"{l_reg.storage_key}: {l_reg}" for l_reg in self.bot.liveticker.league_regs.values()]
+            l_reg_lines = [f"{l_reg.league}: {l_reg}" for l_reg in self.bot.liveticker.league_regs.values()]
             liveticker_list.extend(l_reg_lines)
             if not l_reg_lines:
                 liveticker_list.append("None")

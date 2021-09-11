@@ -906,10 +906,6 @@ class LeagueRegistrationBase(ABC):
     def matches(self):
         return [s[i] for s in self.kickoffs.values() for i in s]
 
-    @property
-    def storage_key(self):
-        return f"{self.league.source.value}/{self.league.key}"
-
     @classmethod
     async def create(cls, liveticker, league_key: str):
         """New LeagueRegistration"""
@@ -927,7 +923,7 @@ class LeagueRegistrationBase(ABC):
             time_kickoff = datetime.datetime.strptime(raw_kickoff, "%Y-%m-%d %H:%M")
             if datetime.datetime.now() - time_kickoff > datetime.timedelta(hours=3.5):
                 l_reg.logger.debug("Discard old kickoff %s. Timed out.", raw_kickoff)
-                Storage().get(liveticker)['league_regs'][l_reg.storage_key]['kickoffs'].pop(raw_kickoff)
+                Storage().get(liveticker)['league_regs'][str(l_reg.league)]['kickoffs'].pop(raw_kickoff)
                 Storage().save(liveticker)
                 continue
             matches = {}
@@ -957,13 +953,13 @@ class LeagueRegistrationBase(ABC):
 
     def store(self):
         """Updates the storage in terms of the matches saved"""
-        Storage().get(self.liveticker)['league_regs'][self.storage_key] = {
+        Storage().get(self.liveticker)['league_regs'][str(self.league)] = {
             "source": self.league.source.value,
             "key": self.league.key,
             "kickoffs": {}
         }
         for kickoff, matches in self.kickoffs.items():
-            Storage().get(self.liveticker)['league_regs'][self.storage_key]['kickoffs'][
+            Storage().get(self.liveticker)['league_regs'][str(self.league)]['kickoffs'][
                 kickoff.strftime("%Y-%m-%d %H:%M")] = [m.to_storage() for m in matches.values()]
         Storage().save(self.liveticker)
 
@@ -1017,7 +1013,7 @@ class LeagueRegistrationBase(ABC):
         """
         self.kickoffs: Dict[datetime.datetime, Dict[str, MatchBase]] = {}
         now = datetime.datetime.now()
-        Storage().get(self.liveticker)['league_regs'][self.storage_key]['kickoffs'] = {}
+        Storage().get(self.liveticker)['league_regs'][str(self.league)]['kickoffs'] = {}
 
         matches: List[MatchBase] = await self.get_matches_by_date(league=self.league.key, from_day=now.date(),
                                                                   until_day=until.date())
