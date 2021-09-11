@@ -25,10 +25,9 @@ class _Liveticker:
     @commands.group(name="liveticker")
     async def cmd_liveticker(self, ctx):
         if ctx.invoked_subcommand is None:
-            liveticker_regs = list(self.bot.liveticker.search_coro(plugin_names=[self.get_name()]))
-            if liveticker_regs:
+            for c_reg in self.bot.liveticker.search_coro(plugin_names=[self.get_name()]):
                 # Show dialog for actions
-                leagues = (c_reg.league_reg.league_key for c_reg in liveticker_regs)
+                leagues = (str(l_reg.league) for l_reg in c_reg.l_regs)
                 actions = "🔀", "🚫"
                 description = Lang.lang(self, 'liveticker_running',
                                         Config().bot.get_channel(Config().get(self)['sport_chan']).mention,
@@ -50,6 +49,7 @@ class _Liveticker:
                     for emoji in actions:
                         await msg.remove_reaction(emoji, self.bot.user)
                     react.deregister()
+                break
             else:
                 # Start liveticker
                 await ctx.send(Lang.lang(self, 'liveticker_start'))
@@ -89,7 +89,7 @@ class _Liveticker:
             elif event.emoji.name == "🚫":
                 # Stopping liveticker
                 for c_reg in list(self.bot.liveticker.search_coro(plugin_names=[self.get_name()])):
-                    await c_reg.deregister()
+                    c_reg.deregister()
             event.data['react'] = True
             event.callback.deregister()
             for emoji in actions:

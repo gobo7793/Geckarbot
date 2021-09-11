@@ -875,6 +875,9 @@ class League(NamedTuple):
     source: LTSource
     key: str
 
+    def __str__(self):
+        return f"{self.source.value}/{self.key}"
+
 
 class LeagueRegistrationBase(ABC):
     """
@@ -911,6 +914,7 @@ class LeagueRegistrationBase(ABC):
     async def create(cls, liveticker, league_key: str):
         """New LeagueRegistration"""
         l_reg = cls(liveticker, league_key)
+        l_reg.store()
         await l_reg.schedule_kickoffs(until=liveticker.semiweekly_timer.next_execution())
         return l_reg
 
