@@ -103,7 +103,7 @@ class Client:
         self.api_client.auth_bearer(self.access_token)
 
     async def spotify_request(self, route: str, params: Optional[Dict[str, Any]] = None,
-                              headers: Optional[Dict[str, Any]] = None, data: Any = None, method: str = "GET"):
+                              headers: Optional[Dict[str, Any]] = None, data: Any = None, method: str = "GET") -> Any:
         """
         Wrapper for Client.request() that handles re-auth if necessary (todo).
 

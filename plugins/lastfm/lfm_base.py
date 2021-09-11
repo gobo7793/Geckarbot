@@ -103,7 +103,7 @@ class Song:
         return artist, featurings
 
     @classmethod
-    def from_spotify_response(cls, plugin: BasePlugin, element: Dict, layer=Layer.TITLE):
+    def from_spotify_response(cls, plugin: BasePlugin, element: Dict, layer: Layer = Layer.TITLE):
         """
         Builds a Song object from a spotify API response.
 
@@ -141,6 +141,7 @@ class Song:
 
         :param layer: Layer
         :return: title, artist or album corresponding to `layer`
+        :raises RuntimeError: if layer is not a Layer object
         """
         if layer == Layer.TITLE:
             return self.title
@@ -148,6 +149,7 @@ class Song:
             return self.album
         if layer == Layer.ARTIST:
             return self.artist
+        raise RuntimeError("{} is not a Layer".format(layer))
 
     def quote(self, p: float = None) -> Optional[str]:
         """
