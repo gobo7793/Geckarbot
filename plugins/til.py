@@ -1,15 +1,19 @@
 import random
+import logging
 
 import discord
 from discord.ext import commands
 
 from base import BasePlugin, NotFound
+from botutils.setter import ConfigSetter
 from data import Config, Storage, Lang
 from botutils.permchecks import check_mod_access
-from botutils.utils import add_reaction, helpstring_helper
+from botutils.utils import add_reaction, helpstring_helper, execute_anything_sync
 from botutils.converters import get_best_username
 from botutils.stringutils import paginate
 from subsystems.helpsys import DefaultCategories
+from subsystems.reactions import ReactionAddedEvent, BaseReactionEvent
+from subsystems.timers import Timer
 
 
 class Plugin(BasePlugin, name="TIL"):
@@ -19,6 +23,20 @@ class Plugin(BasePlugin, name="TIL"):
         super().__init__(bot)
         bot.register(self, category=DefaultCategories.MISC)
         self.can_reload = True
+        self.logger = logging.getLogger(__name__)
+
+        self.basecfg = {
+            "allow_search": [bool, True],
+            "redo_cooldown": [int, 5],
+        }
+        self.config_setter = ConfigSetter(self, self.basecfg)
+
+        # redo state handling
+        self.redo_emoji = Lang.lang(self, "redo_emoji")
+        self.redo_last_msg = None
+        self.redo_registration = None
+        self.redo_is_on_cd = False
+        self.redo_cd_timer = None
 
     def default_config(self, container=None):
         return {
@@ -49,13 +67,63 @@ class Plugin(BasePlugin, name="TIL"):
             await ctx.send(Lang.lang(self, "must_manager"))
         return False
 
-    @commands.group(name="til", invoke_without_command=True)
-    async def cmd_til(self, ctx):
+    def cooldown_cb(self):
+        self.redo_cd_timer = None
+        self.redo_is_on_cd = False
+
+    async def redo_cb(self, event: BaseReactionEvent):
+        """
+        Called by reaction listener to handle redo reactions
+
+        :param event: ReactionEvent
+        """
+        if not isinstance(event, ReactionAddedEvent) \
+                or str(event.emoji) != self.redo_emoji \
+                or event.user == self.bot.user:
+            return
+        if self.redo_is_on_cd:
+            self.logger.debug("TIL redo is on cd")
+            return
+
+        self.logger.debug("TIL redo reaction caught")
+        await self._send_til(self.redo_last_msg.channel)
+
+        # Setup cooldown
+        cd = self.config_setter.get_config("redo_cooldown")
+        if cd > 0:
+            self.redo_cd_timer = Timer(self.bot, cd, self.cooldown_cb)
+            self.redo_is_on_cd = True
+
+    async def _setup_redo_reaction(self, newmsg):
+        # Cleanup
+        if self.redo_registration:
+            self.redo_registration.deregister()
+        if self.redo_last_msg:
+            # avoid await to gracefully skip exceptions
+            execute_anything_sync(self.redo_last_msg.remove_reaction(self.redo_emoji, self.bot.user))
+
+        # Setup
+        self.redo_last_msg = newmsg
+        self.bot.reaction_listener.register(newmsg, self.redo_cb)
+        await add_reaction(newmsg, self.redo_emoji)
+
+    async def _send_til(self, channel):
+        self.logger.debug("Sending til to {}".format(channel))
         if not Storage.get(self):
-            await ctx.send(Lang.lang(self, "no_facts"))
+            await channel.send(Lang.lang(self, "no_facts"))
             return
         ran_fact = random.choice(Storage.get(self))
-        await ctx.send(ran_fact)
+        msg = await channel.send(ran_fact)
+        await self._setup_redo_reaction(msg)
+
+    @commands.group(name="til", invoke_without_command=True)
+    async def cmd_til(self, ctx):
+        await self._send_til(ctx.channel)
+
+        # Remove cooldown if necessary
+        if self.redo_is_on_cd:
+            self.redo_cd_timer.cancel()
+            self.cooldown_cb()
 
     @cmd_til.command(name="add")
     async def cmd_add(self, ctx, *, args):
@@ -93,6 +161,20 @@ class Plugin(BasePlugin, name="TIL"):
                 await ctx.send(msg)
         else:
             await ctx.send(prefix)
+
+    @cmd_til.command(name="set", aliases=["config"])
+    async def cmd_set(self, ctx, key=None, value=None):
+        if not await self._manager_check(ctx, show_errors=False) and not check_mod_access(ctx.author):
+            await add_reaction(ctx.message, Lang.CMDNOPERMISSIONS)
+            return
+
+        if key is None:
+            await self.config_setter.list(ctx)
+            return
+        if value is None:
+            await add_reaction(ctx.message, Lang.CMDERROR)
+            return
+        await self.config_setter.set_cmd(ctx, key, value)
 
     @cmd_til.command(name="manager")
     async def cmd_set_manger(self, ctx, user: discord.User):
