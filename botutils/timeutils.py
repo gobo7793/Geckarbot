@@ -46,7 +46,10 @@ def parse_time_input(*args, end_of_day: bool = False) -> datetime:
             for el in t:
                 arg_list += unpack_tuple(el)
         else:
-            return t.split(" ")
+            if t is not None:
+                return t.split(" ")
+            else:
+                return ""
         return arg_list
 
     def parse_time(t):

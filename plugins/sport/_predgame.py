@@ -102,7 +102,12 @@ class _Predgame:
 
     @cmd_predgame.command(name="preds", aliases=["tipps"])
     async def cmd_predgame_preds(self, ctx, team1: str = "", team2: str = "", date: str = None, time: str = None):
-        kickoff = None if date is None else timeutils.parse_time_input(date, time)
+        kickoff = None
+        if date is not None and time is None:
+            kickoff = timeutils.parse_time_input(date)
+        elif date is not None and time is not None:
+            kickoff = timeutils.parse_time_input(date, time)
+
         team1_dict = self.bot.liveticker.teamname_converter.get(team1)
         team2_dict = self.bot.liveticker.teamname_converter.get(team2)
         if team1_dict is None and team2_dict is not None:
@@ -139,9 +144,10 @@ class _Predgame:
             for row in data[1:]:
                 # parse data from sheet
                 row.extend([None] * (len(data[0]) + 1 - len(row)))
-                if kickoff is not None and \
-                        (not row[0].endswith(kickoff.strftime("%d.%m.")) or
-                         not row[1].endswith(kickoff.strftime("%H:%M"))):
+                if kickoff is not None and (
+                        (len(row) >= 1 and row[0] is not None and not row[0].endswith(kickoff.strftime("%d.%m."))) or
+                        (len(row) >= 2 and row[1] is not None and not row[1].endswith(kickoff.strftime("%H:%M")))
+                ):
                     continue
                 if not row[2] or not row[5]:
                     continue
