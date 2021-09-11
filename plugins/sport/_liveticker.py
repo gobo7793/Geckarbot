@@ -97,23 +97,22 @@ class _Liveticker:
             await add_reaction(event.message, Lang.CMDSUCCESS)
 
     @cmd_liveticker.command(name="add")
-    async def cmd_liveticker_add(self, ctx, source, league):
+    async def cmd_liveticker_add(self, ctx, raw_source, key):
         try:
-            LTSource(source)
+            source = LTSource(raw_source)
         except ValueError:
             await add_reaction(ctx.message, Lang.CMDERROR)
             await ctx.send(Lang.lang(self, "err_invalid_src"))
+            return
+        if key not in Config().get(self)['liveticker']['leagues'].get(raw_source, []):
+            Config().get(self)['liveticker']['leagues'].setdefault(raw_source, []).append(key)
+            Config().save(self)
+        for c_reg in self.bot.liveticker.search_coro(plugin_names=[self.get_name()]):
+            c_reg.add_league(League(source, key))
+            await ctx.send(Lang.lang(self, 'liveticker_added_running'))
+            break
         else:
-            if league not in Config().get(self)['liveticker']['leagues'].get(source, []):
-                if not Config().get(self)['liveticker']['leagues'].get(source):
-                    Config().get(self)['liveticker']['leagues'][source] = []
-                Config().get(self)['liveticker']['leagues'][source].append(league)
-                Config().save(self)
-            if list(self.bot.liveticker.search_coro(plugin_names=[self.get_name()])):
-                await self.bot.liveticker.register(league=league, raw_source=source, plugin=self,
-                                                   coro=self._live_coro, periodic=True,
-                                                   interval=Config().get(self)['liveticker'].get('interval', 15))
-            await add_reaction(ctx.message, Lang.CMDSUCCESS)
+            await ctx.send(Lang.lang(self, 'liveticker_added'))
 
     @cmd_liveticker.command(name="del")
     async def cmd_liveticker_del(self, ctx, source, league):
