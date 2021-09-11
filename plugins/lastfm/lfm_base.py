@@ -1,9 +1,10 @@
 from datetime import datetime
 from enum import Enum
-from typing import List
+from typing import List, Dict, Optional, Tuple, Any
 import pprint
 import random
 
+from base import BasePlugin
 from botutils.utils import write_debug_channel
 from data import Lang
 
@@ -18,7 +19,8 @@ class Song:
     """
     Represents an occurence of a title in a scrobble history, i.e. a scrobble.
     """
-    def __init__(self, plugin, artist, album, title, nowplaying=False, timestamp=None, loved=False, layer=Layer.TITLE):
+    def __init__(self, plugin, artist: str, album: str, title: str,
+                 nowplaying: bool = False, timestamp=None, loved: bool = False, layer: Layer = Layer.TITLE):
         self.plugin = plugin
         self.artist = artist
         self.album = album
@@ -33,7 +35,7 @@ class Song:
         self.featurings: List[str] = []
 
     @classmethod
-    def from_lastfm_response(cls, plugin, element):
+    def from_lastfm_response(cls, plugin, element: Dict):
         """
         Builds a song from a dict as returned by last.fm API.
 
@@ -83,7 +85,7 @@ class Song:
         return cls(plugin, artist, album, title, nowplaying=nowplaying, timestamp=ts, loved=loved)
 
     @staticmethod
-    def parse_artists(element):
+    def parse_artists(element: Any) -> Tuple[str, List[str]]:
         """
 
         :param element: spotify response element r["artists"]
@@ -101,7 +103,7 @@ class Song:
         return artist, featurings
 
     @classmethod
-    def from_spotify_response(cls, plugin, element, layer=Layer.TITLE):
+    def from_spotify_response(cls, plugin: BasePlugin, element: Dict, layer=Layer.TITLE):
         """
         Builds a Song object from a spotify API response.
 
@@ -109,6 +111,7 @@ class Song:
         :param element: response["tracks"]["items"][i]
         :param layer: layer that was requested from spotify
         :return: Song object that represents `element`
+        :rtype: Song
         """
         title = None
         album = None
@@ -133,7 +136,7 @@ class Song:
         r.set_spotify_links_from_response(element)
         return r
 
-    def get_layer_name(self, layer: Layer):
+    def get_layer_name(self, layer: Layer) -> str:
         """
 
         :param layer: Layer
@@ -146,7 +149,7 @@ class Song:
         if layer == Layer.ARTIST:
             return self.artist
 
-    def quote(self, p: float = None):
+    def quote(self, p: float = None) -> Optional[str]:
         """
         Returns a random quote if there is one.
 
@@ -163,7 +166,7 @@ class Song:
                 return quotes[qkey]["quote"]
         return None
 
-    def format(self, reverse=False, loved=True):
+    def format(self, reverse: bool = False, loved: bool = True) -> str:
         """
         :param reverse: Formats to something like "song by artist" instead of "artist - song"
         :param loved: Adds a heart emoji prefix if this song is loved
@@ -177,10 +180,10 @@ class Song:
             r = "{} {}".format(Lang.lang(self.plugin, "loved"), r)
         return r
 
-    def set_spotify_link(self, layer, link):
+    def set_spotify_link(self, layer: Layer, link: str):
         self.spotify_links[layer] = link
 
-    def set_spotify_links_from_response(self, element):
+    def set_spotify_links_from_response(self, element: Dict):
         """
         Gets all relevant spotify links out of element.
 

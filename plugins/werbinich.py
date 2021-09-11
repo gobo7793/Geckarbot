@@ -2,6 +2,7 @@ import logging
 import asyncio
 from enum import Enum
 from datetime import datetime
+from typing import Optional
 
 import discord
 from discord import ClientUser
@@ -17,7 +18,7 @@ from botutils.stringutils import format_andlist
 from botutils.utils import add_reaction
 from subsystems import presence
 from subsystems.helpsys import DefaultCategories
-from subsystems.reactions import ReactionAddedEvent
+from subsystems.reactions import ReactionAddedEvent, BaseReactionEvent
 
 
 class State(Enum):
@@ -108,7 +109,7 @@ class Participant:
         self.plugin.logger.debug("Sending DM to {}: {}".format(self.user, msg))
         return await self.user.send(msg)
 
-    def to_msg(self, show_assignees=True):
+    def to_msg(self, show_assignees=True) -> str:
         """
         :param show_assignees: Flag that determines whether the assignee is to be shown
         :return: String that contains info about this participant and his assignment
@@ -314,7 +315,7 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
     # Transitions
     ###
 
-    async def registering_phase(self):
+    async def registering_phase(self) -> Optional[State]:
         """
         Transition REGISTER -> [COLLECT, ABORT]
 
@@ -345,7 +346,7 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
         self.reg_start_time = datetime.now()
         await asyncio.sleep(to * 60)
         if self.statemachine.cancelled():
-            return
+            return None
 
         # Consume signup reactions
         self.participants = []
@@ -387,7 +388,7 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
             return State.ABORT
         return State.COLLECT
 
-    async def collecting_phase(self):
+    async def collecting_phase(self) -> Optional[State]:
         """
         Transition COLLECT -> [DELIVER, ABORT]
 
@@ -443,7 +444,7 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
                 return
         self.eval_event.set()
 
-    async def spoiler_dm(self, event):
+    async def spoiler_dm(self, event: BaseReactionEvent):
         """
         Callback for reaction listener that sends a spoiler DM.
 
@@ -467,7 +468,7 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
                 else:
                     self.spoilered_users.append(event.user)
 
-    async def delivering_phase(self):
+    async def delivering_phase(self) -> None:
         """
         Transition DELIVER -> None
 
@@ -505,7 +506,7 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
         """
         await self.cleanup()
 
-    async def cleanup(self, exception=None):
+    async def cleanup(self, exception: Exception = None):
         """
         Deregisters registrations, resets state and resets variables.
 

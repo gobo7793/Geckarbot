@@ -6,8 +6,8 @@ import discord
 from discord.ext import commands
 
 from base import BasePlugin, NotFound
-from botutils.setter import ConfigSetter
 from data import Config, Storage, Lang
+from botutils.setter import ConfigSetter
 from botutils.permchecks import check_mod_access
 from botutils.utils import add_reaction, helpstring_helper, execute_anything_sync
 from botutils.converters import get_best_username
@@ -109,7 +109,7 @@ class Plugin(BasePlugin, name="TIL"):
         await add_reaction(newmsg, self.redo_emoji)
 
     async def _send_til(self, channel):
-        self.logger.debug("Sending til to {}".format(channel))
+        self.logger.debug("Sending til to %s", str(channel))
         if not Storage.get(self):
             await channel.send(Lang.lang(self, "no_facts"))
             return
