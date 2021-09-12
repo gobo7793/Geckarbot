@@ -198,7 +198,7 @@ class _Liveticker:
     async def cmd_liveticker_matches(self, ctx):
         msg_lines = []
         for l_reg in self.bot.liveticker.search_league():
-            msg_lines.append(f"**{l_reg.league_key}**")
+            msg_lines.append(f"**{l_reg.league}**")
             if len(l_reg.kickoffs) == 0:
                 msg_lines.append(Lang.lang(self, 'no_matches'))
             for kickoff, matches in l_reg.kickoffs.items():
