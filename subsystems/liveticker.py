@@ -1557,9 +1557,8 @@ class Liveticker(BaseSubsystem):
         self.match_timer = self.bot.timers.schedule(coro=self._update_league_registrations,
                                                     td=timers.timedict(hour=now.hour,
                                                                        minute=list(update_minutes.keys())),
-                                                    data=update_minutes)
-        if from_hourly_timer and (now.minute in update_minutes or self.match_timer.next_execution() <= now):
-            self.match_timer.execute()
+                                                    data=update_minutes,
+                                                    ignore_now=not from_hourly_timer)
 
     async def _update_league_registrations(self, job):
         try:
