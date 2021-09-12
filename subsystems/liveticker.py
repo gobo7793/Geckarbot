@@ -867,9 +867,9 @@ class CoroRegistration:
         }
 
     def __repr__(self):
-        leagues = [l_reg.league.key for l_reg in self.l_regs]
+        leagues = [str(l_reg.league) for l_reg in self.l_regs]
         return f"<CoroRegistration(id={self.id}, interval={self.interval}, " \
-               f"coro={self.plugin_name}.{self.coro.__name__}, leagues={leagues})>"
+               f"coro={self.plugin_name}.{self.coro.__name__}, leagues=[{', '.join(leagues)}])>"
 
 
 class League(NamedTuple):
