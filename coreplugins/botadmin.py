@@ -52,8 +52,8 @@ class Plugin(BasePlugin, name="Bot status commands for monitoring and debug purp
     @commands.has_any_role(Config().BOT_ADMIN_ROLE_ID)
     async def cmd_subsys(self, ctx, subsystem=""):
         if not subsystem or subsystem == "reactions":
-            reaction_prefix = "**{} Reactions registrations:**\n".format(len(self.bot.reaction_listener.callbacks))
-            for msg in paginate(self.bot.reaction_listener.callbacks,
+            reaction_prefix = "**{} Reactions registrations:**\n".format(len(self.bot.reaction_listener.registrations))
+            for msg in paginate(self.bot.reaction_listener.registrations,
                                 prefix=reaction_prefix,
                                 suffix="\n",
                                 if_empty="None"):

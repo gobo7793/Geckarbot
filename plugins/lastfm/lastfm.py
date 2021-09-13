@@ -1002,6 +1002,7 @@ class Plugin(BasePlugin, name="LastFM"):
         :param min_title: Amount of songs that have to have the same artist and album
         :return: nested dict that contains scores for every artist, song and album
         """
+        # pylint: disable=unused-argument
         r = {
             "artists": {},
             "albums": {},

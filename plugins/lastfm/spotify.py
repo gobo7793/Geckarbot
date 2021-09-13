@@ -1,4 +1,5 @@
 import logging
+from typing import Tuple, Any, Dict, Optional
 
 from botutils.restclient import Client as RestClient
 from botutils.utils import add_reaction
@@ -62,7 +63,7 @@ class Client:
         }
 
     @property
-    def credentials(self):
+    def credentials(self) -> Tuple[str, str]:
         """
         :return: client_id, client_secret
         :raises NoCredentials: If API credentials are not set
@@ -72,7 +73,7 @@ class Client:
             raise NoCredentials
         return r
 
-    async def set_credentials(self, client_id, client_secret):
+    async def set_credentials(self, client_id: str, client_secret: str):
         """
         Sets client ID and client secret for authorization with the API.
 
@@ -101,7 +102,8 @@ class Client:
 
         self.api_client.auth_bearer(self.access_token)
 
-    async def spotify_request(self, route, params=None, headers=None, data=None, method="GET"):
+    async def spotify_request(self, route: str, params: Optional[Dict[str, Any]] = None,
+                              headers: Optional[Dict[str, Any]] = None, data: Any = None, method: str = "GET") -> Any:
         """
         Wrapper for Client.request() that handles re-auth if necessary (todo).
 
@@ -133,7 +135,7 @@ class Client:
         return r
 
     @staticmethod
-    def locate_response_element(response, layer):
+    def locate_response_element(response: Dict, layer: Layer) -> Any:
         """
 
         :param response: Spotify API response
@@ -141,11 +143,11 @@ class Client:
         :return: element that we're interested in
         :raises EmptyResult: If there is no element to be located in the response
         """
-        if layer == layer.TITLE:
+        if layer == Layer.TITLE:
             key = "tracks"
-        elif layer == layer.ALBUM:
+        elif layer == Layer.ALBUM:
             key = "albums"
-        elif layer == layer.ARTIST:
+        elif layer == Layer.ARTIST:
             key = "artists"
         else:
             assert False, "unknown layer {}".format(layer)
@@ -155,7 +157,7 @@ class Client:
             raise EmptyResult
         return r[0]
 
-    async def search(self, searchstring, layer=Layer.TITLE):
+    async def search(self, searchstring: str, layer: Layer = Layer.TITLE) -> Song:
         """
         Implements Spotify's search API. Submits a search string and returns the first element found in the specified
         layer.

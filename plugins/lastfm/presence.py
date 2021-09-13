@@ -59,6 +59,7 @@ class PresenceState:
         if there is no current scrobble among the users
 
         :return: This PresenceState
+        :rtype: PresenceState
         """
         rnd = await self.presence_msg.get_random_lastfm_listener()
         self.cur_listener_dc, self.cur_listener_lfm, self.cur_song = rnd
@@ -128,7 +129,7 @@ class LfmPresenceMessage(PresenceMessage):
                     await self.state.reset()
                 except UnexpectedResponse:
                     pass
-                
+
                 if not self.state.is_set():
                     await self.bot.presence.skip()
                     return
