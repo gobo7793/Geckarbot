@@ -171,39 +171,23 @@ class Plugin(BasePlugin, name="TIL"):
             return
 
         # Search for candidates
-        candidates_til = []
-        candidates_score = []
+        best_til, best_score = None, 0
         for til in Storage.get(self):
             candidate = til.lower()
             matches = 0
             found = True
             for term in searchterms:
                 found = len(re.findall(term.lower(), candidate))
-                if found == 0:
-                    found = False
+                if not found:
                     break
                 matches += found
 
             if not found:
                 continue
 
-            candidates_til.append(til)
-            candidates_score.append(matches)
-
-        # Find best
-        best_til = None
-        best_score = 0
-        for i in range(len(candidates_til)):
-            til = candidates_til[i]
-            score = candidates_score[i]
-            if best_til is None:
-                best_til = candidates_til[i]
-                best_score = candidates_score[i]
-                continue
-
-            if score > best_score:
+            if matches > best_score:
                 best_til = til
-                best_score = score
+                best_score = matches
 
         # Send result
         if best_til is None:
