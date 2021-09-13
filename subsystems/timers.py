@@ -104,7 +104,7 @@ class Job:
         self._is_scheduled = False
         self._last_tts = 0
 
-        self._cached_next_exec = next_occurence(self._timedict, ignore_now=True)
+        self._cached_next_exec = next_occurence(self._timedict, ignore_now=ignore_now)
         self._last_exec = None
 
         if run:
