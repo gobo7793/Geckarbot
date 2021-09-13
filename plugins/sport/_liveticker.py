@@ -126,7 +126,7 @@ class _Liveticker:
             await ctx.send(Lang.lang(self, "err_invalid_src"))
             return
         for c_reg in self.bot.liveticker.search_coro(plugin_names=[self.get_name()]):
-            c_reg.remove_league(League(source, key))
+            await c_reg.remove_league(League(source, key))
             break
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
@@ -197,7 +197,11 @@ class _Liveticker:
     @cmd_liveticker.command(name="matches", aliases=["spiele"])
     async def cmd_liveticker_matches(self, ctx):
         msg_lines = []
-        for l_reg in self.bot.liveticker.search_league():
+        for c_reg in self.bot.liveticker.search_coro(plugin_names=[self.get_name()]):
+            break
+        else:
+            return
+        for l_reg in c_reg.l_regs:
             msg_lines.append(f"**{l_reg.league}**")
             if len(l_reg.kickoffs) == 0:
                 msg_lines.append(Lang.lang(self, 'no_matches'))

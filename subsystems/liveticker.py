@@ -797,10 +797,10 @@ class CoroRegistration:
         self.store()
         execute_anything_sync(self.liveticker.request_match_timer_update)
 
-    def deregister(self):
+    async def deregister(self):
         """Deregisters this registration"""
         for l_reg in self.l_regs:
-            l_reg.deregister_coro(self)
+            await l_reg.deregister_coro(self)
         self.liveticker.deregister_coro(self)
 
     async def add_league(self, league):
@@ -815,7 +815,7 @@ class CoroRegistration:
             self.l_regs.append(l_reg)
             l_reg.c_regs.append(self)
 
-    def remove_league(self, league):
+    async def remove_league(self, league):
         """
         Remove a league from this registration
 
@@ -826,6 +826,8 @@ class CoroRegistration:
         if l_reg in self.l_regs:
             self.l_regs.remove(l_reg)
             l_reg.c_regs.remove(self)
+        if not self.l_regs:
+            await self.deregister()
 
     def append_update(self, update: LivetickerEvent):
         """Appends a LivetickerEvent to the updates"""
@@ -907,6 +909,10 @@ class LeagueRegistrationBase(ABC):
     def matches(self):
         return [s[i] for s in self.kickoffs.values() for i in s]
 
+    @property
+    def alive(self):
+        return bool(self.c_regs)
+
     @classmethod
     async def create(cls, liveticker, league_key: str):
         """New LeagueRegistration"""
@@ -943,7 +949,7 @@ class LeagueRegistrationBase(ABC):
         """Deregisters this LeagueReg correctly"""
         await self.liveticker.deregister_league(self)
 
-    def deregister_coro(self, c_reg: CoroRegistration):
+    async def deregister_coro(self, c_reg: CoroRegistration):
         """
         Deregisters the c_reg from this LeagueRegistration
 
@@ -951,6 +957,8 @@ class LeagueRegistrationBase(ABC):
         """
         if c_reg in self.c_regs:
             self.c_regs.remove(c_reg)
+        if not self.alive and not self.kickoffs:
+            await self.deregister()
 
     def store(self):
         """Updates the storage in terms of the matches saved"""
@@ -1045,7 +1053,8 @@ class LeagueRegistrationBase(ABC):
         :param kickoffs: List of kickoff datetimes
         :return:
         """
-
+        if not self.alive:
+            return
         self.logger.debug("update_periodic_coro for kickoffs %s", kickoffs)
         await self.update_matches()
         # Sort matches
@@ -1258,7 +1267,6 @@ class Liveticker(BaseSubsystem):
         @bot.listen()
         async def on_ready():
             await self.restore()
-            self.restored = True
             # Semiweekly timer to get coming matches
             self.semiweekly_timer = self.bot.timers.schedule(coro=self._semiweekly_timer_coro,
                                                              td=timers.timedict(weekday=[2, 5], hour=[3], minute=[55]))
@@ -1356,6 +1364,7 @@ class Liveticker(BaseSubsystem):
                 self.coro_regs[c_id] = c_reg
         self.logger.debug('%d League registrations and %d Coro registrations restored. %d failed.',
                           len(self.league_regs), len(self.coro_regs), failed)
+        self.restored = True
 
     async def register_coro(self, plugin: BasePlugin, coro, leagues: Iterable[League],
                             interval: int = 15) -> CoroRegistration:
@@ -1473,8 +1482,11 @@ class Liveticker(BaseSubsystem):
         """
         self.logger.debug("Semi-Weekly timer schedules matches.")
         until = self.semiweekly_timer.next_execution()
-        for l_reg in self.league_regs.values():
-            await l_reg.schedule_kickoffs(until)
+        for l_reg in list(self.league_regs.values()):
+            if not l_reg.alive:
+                self.league_regs.pop(l_reg.league)
+            else:
+                await l_reg.schedule_kickoffs(until)
         Storage().get(self)['next_semiweekly'] = until.strftime("%Y-%m-%d %H:%M")
         Storage().save(self)
 
@@ -1527,6 +1539,7 @@ class Liveticker(BaseSubsystem):
                 self.match_timer.cancel()
             except (RuntimeError, HasAlreadyRun):
                 pass
+            self.match_timer = None
 
         # Calculate minutes
         update_minutes = {x: {} for x in range(61)}
@@ -1536,6 +1549,8 @@ class Liveticker(BaseSubsystem):
 
         data = []
         for l_reg in self.league_regs.values():
+            if not l_reg.alive:
+                continue
             for kickoff in l_reg.kickoffs:
                 if kickoff < hour_end:
                     data.extend((l_reg, kickoff, ival) for ival in l_reg.intervals)
@@ -1567,6 +1582,8 @@ class Liveticker(BaseSubsystem):
             self.logger.debug("INVALID UPDATE MINUTE")
             return
         for l_reg, kickoffs in l_regs.items():
+            if not l_reg.alive:
+                continue
             await l_reg.update_periodic_coros(kickoffs.copy())
 
     @staticmethod
