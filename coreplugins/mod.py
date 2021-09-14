@@ -6,7 +6,7 @@ import discord
 from discord.ext import commands
 from discord.ext.commands import MemberConverter, UserConverter
 
-from base import BasePlugin, ConfigurableType
+from base.configurable import BasePlugin, ConfigurableType
 from botutils import utils
 from botutils.converters import get_best_username, get_plugin_by_name
 from botutils.setter import ConfigSetter
@@ -14,8 +14,8 @@ from botutils.stringutils import paginate
 from botutils.timeutils import parse_time_input
 from botutils.utils import add_reaction, write_mod_channel
 from data import Config, Lang
-from subsystems.helpsys import DefaultCategories
-from subsystems.ignoring import IgnoreEditResult, IgnoreType
+from services.helpsys import DefaultCategories
+from services.ignoring import IgnoreEditResult, IgnoreType
 
 
 class Plugin(BasePlugin, name="Bot Management Commands"):
@@ -116,7 +116,7 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
     async def cmd_plugins_list(self, ctx):
         coreplugins = self.bot.get_coreplugins()
         plugins = self.bot.get_normalplugins()
-        subsys = self.bot.get_subsystem_list()
+        subsys = self.bot.get_service_list()
 
         msgs = [
             "{}\n{}".format(Lang.lang(self, 'plugins_loaded_ss', len(subsys)), ", ".join(subsys)),

@@ -11,58 +11,27 @@ import sys
 import traceback
 from logging import handlers
 from pathlib import Path
-from typing import List, Union, Optional
+from typing import List, Union, Optional, Type
 
 import discord
 from discord.ext import commands
 
 import injections
-import subsystems
-from base import BasePlugin, NotLoadable, ConfigurableType, PluginClassNotFound, Exitcode, Configurable
+import services
+from base.configurable import BasePlugin, NotLoadable, ConfigurableType, PluginClassNotFound, Configurable
+from base.bot import Exitcode, BaseBot
 from botutils import utils, permchecks, converters, stringutils
 from botutils.utils import execute_anything_sync
 from data import Config, Lang, Storage, ConfigurableData
-from subsystems import timers, reactions, ignoring, dmlisteners, helpsys, presence, liveticker
+from services import timers, reactions, ignoring, dmlisteners, helpsys, presence, liveticker
 
 
-class Geckarbot(commands.Bot):
+class Geckarbot(BaseBot):
     """
     Basic bot info
     """
     NAME = "Geckarbot"
     VERSION = "2.13.8"
-    PLUGIN_DIR = "plugins"
-    CORE_PLUGIN_DIR = "coreplugins"
-    CONFIG_DIR = "config"
-    STORAGE_DIR = "storage"
-    LANG_DIR = "lang"
-    DEFAULT_LANG = "en_US"
-    RESOURCE_DIR = "resource"
-
-    """
-    Config
-    """
-    TOKEN = None
-    SERVER_ID = None
-    CHAN_IDS = None
-    ROLE_IDS = None
-    DEBUG_MODE = None
-    DEBUG_USERS = None
-    GOOGLE_API_KEY = None
-    WOLFRAMALPHA_API_KEY = None
-    LANGUAGE_CODE = None
-    PLUGINS = None
-
-    ADMIN_CHAN_ID = None
-    DEBUG_CHAN_ID = None
-    MOD_CHAN_ID = None
-    SERVER_ADMIN_ROLE_ID = None
-    BOT_ADMIN_ROLE_ID = None
-    MOD_ROLE_ID = None
-    ADMIN_ROLES = None
-    MOD_ROLES = None
-    LOAD_PLUGINS = None
-    NOT_LOAD_PLUGINS = None
 
     def __init__(self, *args, **kwargs):
         logging.info("Starting %s %s", self.NAME, self.VERSION)
@@ -156,10 +125,10 @@ class Geckarbot(commands.Bot):
                 if x not in self.get_normalplugins()]
 
     @staticmethod
-    def get_subsystem_list() -> List[str]:
-        """All normal plugins"""
+    def get_service_list() -> List[str]:
+        """All services"""
         subsys = []
-        for modname in pkgutil.iter_modules(subsystems.__path__):
+        for modname in pkgutil.iter_modules(services.__path__):
             subsys.append(modname.name)
         return subsys
 
@@ -177,7 +146,7 @@ class Geckarbot(commands.Bot):
         Storage().load(plugin)
         Lang().remove_from_cache(plugin)
 
-    def register(self, plugin_class: BasePlugin,
+    def register(self, plugin_class: Union[BasePlugin, Type[BasePlugin]],
                  category: Union[str, helpsys.DefaultCategories, helpsys.HelpCategory, None] = None,
                  category_desc: str = None) -> bool:
         """
@@ -616,7 +585,7 @@ def main():
 
         await utils.write_debug_channel("Geckarbot {} connected on {} with {} users.".
                                         format(bot.VERSION, guild.name, len(guild.members)))
-        subsys = bot.get_subsystem_list()
+        subsys = bot.get_service_list()
         await utils.write_debug_channel(f"Loaded {len(subsys)} subsystems: {', '.join(subsys)}")
         core_p = bot.get_coreplugins()
         await utils.write_debug_channel(f"Loaded {len(core_p)} coreplugins: {', '.join(core_p)}")

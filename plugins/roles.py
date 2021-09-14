@@ -5,12 +5,12 @@ import emoji
 from discord import Role
 from discord.ext import commands
 
-from base import BasePlugin, NotFound
+from base.configurable import BasePlugin, NotFound
 from botutils import utils, permchecks, converters, stringutils
 from botutils.utils import add_reaction, execute_anything_sync
 from data import Storage, Config, Lang
-from subsystems import reactions
-from subsystems.helpsys import DefaultCategories
+from services import reactions
+from services.helpsys import DefaultCategories
 
 
 async def add_user_role(member: discord.Member, role: discord.Role):

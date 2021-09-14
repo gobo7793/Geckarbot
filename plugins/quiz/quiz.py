@@ -6,13 +6,13 @@ import discord
 from discord.ext import commands
 from discord.errors import HTTPException
 
-from base import BasePlugin
+from base.configurable import BasePlugin
 from data import Storage, Lang, Config
 from botutils import permchecks
 from botutils.stringutils import paginate
 from botutils.utils import sort_commands_helper, add_reaction, helpstring_helper
 from botutils.setter import ConfigSetter
-from subsystems.helpsys import DefaultCategories
+from services.helpsys import DefaultCategories
 
 from plugins.quiz.controllers import RushQuizController, PointsQuizController
 from plugins.quiz.quizapis import quizapis, MetaQuizAPI

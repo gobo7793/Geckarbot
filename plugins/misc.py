@@ -12,8 +12,8 @@ from botutils.converters import get_best_username
 from botutils.utils import add_reaction
 from botutils.stringutils import table, parse_number, format_number, Number
 from data import Lang, Config, Storage
-from base import BasePlugin
-from subsystems.helpsys import DefaultCategories
+from base.configurable import BasePlugin
+from services.helpsys import DefaultCategories
 
 log = logging.getLogger(__name__)
 _KEYSMASH_CMD_NAME = "keysmash"

@@ -23,8 +23,8 @@ from plugins.spaetzle.subsystems import UserBridge, Observed, Trusted
 from plugins.spaetzle.utils import pointdiff_possible, determine_winner, MatchResult, match_status, \
     get_user_league, get_user_cell, get_schedule, get_schedule_opponent, UserNotFound, \
     convert_to_datetime, get_participant_history, duel_points
-from subsystems.helpsys import DefaultCategories
-from subsystems.liveticker import MatchStatus, LeagueRegistrationOLDB
+from services.helpsys import DefaultCategories
+from services.liveticker import MatchStatus, LeagueRegistrationOLDB
 
 
 class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):

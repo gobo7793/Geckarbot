@@ -7,7 +7,7 @@ from discord.ext import commands
 from discord.ext.commands import TextChannelConverter, ChannelNotFound, RoleConverter, RoleNotFound, Context
 
 import botutils.timeutils
-from base import BasePlugin
+from base.configurable import BasePlugin
 from botutils import stringutils, permchecks
 from botutils.converters import get_best_username, get_best_user
 from botutils.permchecks import WrongChannel
@@ -17,8 +17,8 @@ from data import Config, Storage, Lang
 from plugins.fantasy import migrations
 from plugins.fantasy.league import FantasyLeague, deserialize_league, create_league
 from plugins.fantasy.utils import pos_alphabet, FantasyState, Platform, Match, parse_platform
-from subsystems import timers
-from subsystems.helpsys import DefaultCategories
+from services import timers
+from services.helpsys import DefaultCategories
 
 log = logging.getLogger(__name__)
 

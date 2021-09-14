@@ -9,10 +9,10 @@ from typing import Optional, List, Dict
 
 import discord
 
-from base import BaseSubsystem, NotFound
+from base.configurable import BaseSubsystem, NotFound
 from data import Config, Storage
 from botutils.utils import log_exception, execute_anything_sync
-from subsystems.timers import Job, timedict
+from services.timers import Job, timedict
 
 
 activitymap = {

@@ -8,9 +8,9 @@ from discord.ext import commands
 from botutils import utils, timeutils, converters
 from botutils.timeutils import to_unix_str, TimestampStyle
 from data import Storage, Lang
-from base import BasePlugin, NotFound
-from subsystems import timers
-from subsystems.helpsys import DefaultCategories
+from base.configurable import BasePlugin, NotFound
+from services import timers
+from services.helpsys import DefaultCategories
 
 log = logging.getLogger(__name__)
 

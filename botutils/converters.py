@@ -4,7 +4,7 @@ from typing import Optional, Union
 import discord
 from discord.ext import commands
 
-from base import BasePlugin, NotFound
+from base.configurable import BasePlugin, NotFound
 from data import Config
 
 _id_regex = re.compile(r'([0-9]{15,21})$')

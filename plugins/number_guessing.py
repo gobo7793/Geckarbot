@@ -6,9 +6,9 @@ from typing import List
 import discord
 from discord.ext import commands
 
-from base import BasePlugin
+from base.configurable import BasePlugin
 from data import Lang
-from subsystems.helpsys import DefaultCategories
+from services.helpsys import DefaultCategories
 
 
 class ReturnCode(Enum):

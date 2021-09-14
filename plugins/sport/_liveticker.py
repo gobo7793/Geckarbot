@@ -7,9 +7,9 @@ from discord.ext import commands
 from botutils.stringutils import paginate
 from botutils.utils import add_reaction
 from data import Lang, Config, Storage
-from subsystems.liveticker import TeamnameDict, LTSource, PlayerEventEnum, LivetickerKickoff, LivetickerUpdate, \
+from services.liveticker import TeamnameDict, LTSource, PlayerEventEnum, LivetickerKickoff, LivetickerUpdate, \
     LivetickerFinish
-from subsystems.reactions import ReactionAddedEvent
+from services.reactions import ReactionAddedEvent
 
 logger = logging.getLogger(__name__)
 

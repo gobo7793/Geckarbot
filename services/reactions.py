@@ -3,7 +3,7 @@ This subsystem provides listeners for reactions on messages.
 """
 
 from enum import Enum
-from base import BaseSubsystem
+from base.configurable import BaseSubsystem
 from botutils.utils import log_exception
 
 
@@ -132,14 +132,14 @@ class ReactionListener(BaseSubsystem):
         self.registrations.append(reg)
         return reg
 
-    def deregister(self, callback):
+    def deregister(self, registration):
         """
         Deregisters the reaction listener for the given callback
 
-        :param callback: The callback object of the registration
+        :param registration: The registration object that was returned by register()
         """
         if self._checking:
-            self.to_del.append(callback)
+            self.to_del.append(registration)
         else:
-            if callback in self.registrations:
-                self.registrations.remove(callback)
+            if registration in self.registrations:
+                self.registrations.remove(registration)

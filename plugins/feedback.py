@@ -4,7 +4,7 @@ from datetime import datetime
 import discord.utils
 from discord.ext import commands
 
-from base import BasePlugin
+from base.configurable import BasePlugin
 from data import Storage, Config, Lang
 from botutils import converters
 from botutils.utils import add_reaction, helpstring_helper

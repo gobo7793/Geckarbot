@@ -5,16 +5,16 @@ import re
 import discord
 from discord.ext import commands
 
-from base import BasePlugin, NotFound
+from base.configurable import BasePlugin, NotFound
 from data import Config, Storage, Lang
 from botutils.setter import ConfigSetter
 from botutils.permchecks import check_mod_access
 from botutils.utils import add_reaction, helpstring_helper, execute_anything_sync
 from botutils.converters import get_best_username
 from botutils.stringutils import paginate
-from subsystems.helpsys import DefaultCategories
-from subsystems.reactions import ReactionAddedEvent, BaseReactionEvent
-from subsystems.timers import Timer
+from services.helpsys import DefaultCategories
+from services.reactions import ReactionAddedEvent, BaseReactionEvent
+from services.timers import Timer
 
 
 class Plugin(BasePlugin, name="TIL"):

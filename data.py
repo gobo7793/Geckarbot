@@ -4,7 +4,7 @@ import logging
 from enum import Enum
 from botutils import jsonutils
 
-from base import NotFound
+from base.configurable import NotFound
 
 
 class Const(Enum):

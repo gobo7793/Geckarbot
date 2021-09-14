@@ -4,7 +4,7 @@ from typing import List, Dict, Optional, Tuple, Any
 import pprint
 import random
 
-from base import BasePlugin
+from base.configurable import BasePlugin
 from botutils.utils import write_debug_channel
 from data import Lang
 

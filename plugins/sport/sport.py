@@ -1,14 +1,14 @@
 import logging
 
-from base import BasePlugin, NotFound
+from base.configurable import BasePlugin, NotFound
 from botutils.utils import helpstring_helper
 from data import Config, Storage, Lang
 from plugins.sport._scores import _Scores
 from plugins.sport._liveticker import _Liveticker
 from plugins.sport._predgame import _Predgame
-from subsystems import timers
-from subsystems.helpsys import DefaultCategories
-from subsystems.liveticker import LTSource
+from services import timers
+from services.helpsys import DefaultCategories
+from services.liveticker import LTSource
 
 logger = logging.getLogger(__name__)
 

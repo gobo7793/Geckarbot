@@ -2,12 +2,12 @@ import re
 
 from discord.ext import commands
 
-from base import BasePlugin
+from base.configurable import BasePlugin
 from data import Lang
 from botutils import utils
 from botutils.stringutils import paginate
-from subsystems.presence import PresencePriority, activitymap
-from subsystems.helpsys import DefaultCategories
+from services.presence import PresencePriority, activitymap
+from services.helpsys import DefaultCategories
 
 
 class Plugin(BasePlugin):

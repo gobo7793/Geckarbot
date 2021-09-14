@@ -5,15 +5,15 @@ from datetime import datetime
 import discord
 from discord.ext import commands
 
-from base import BasePlugin
+from base.configurable import BasePlugin
 from botutils import utils, converters, setter, stringutils
 from botutils.timeutils import to_unix_str, TimestampStyle
 from botutils.utils import execute_anything_sync, add_reaction
 from data import Config, Lang
-from subsystems.helpsys import DefaultCategories
-from subsystems.ignoring import UserBlockedCommand
-from subsystems.presence import PresencePriority
-from subsystems.timers import timedict_by_datetime, Job
+from services.helpsys import DefaultCategories
+from services.ignoring import UserBlockedCommand
+from services.presence import PresencePriority
+from services.timers import timedict_by_datetime, Job
 
 
 class Plugin(BasePlugin, name="Testing and debug things"):

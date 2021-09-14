@@ -8,7 +8,7 @@ import discord
 from discord.ext import commands
 from discord.ext.commands import ChannelNotFound, TextChannelConverter, RoleConverter, RoleNotFound
 
-from base import BasePlugin, NotFound
+from base.configurable import BasePlugin, NotFound
 from botutils import permchecks, sheetsclient, utils, timeutils
 from botutils.converters import get_best_user, get_plugin_by_name
 from botutils.stringutils import paginate, clear_link, table

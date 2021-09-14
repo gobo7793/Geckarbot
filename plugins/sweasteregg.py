@@ -4,12 +4,12 @@ from typing import List, Optional
 from discord import TextChannel
 from discord.ext import commands
 
-from base import BasePlugin, NotFound
+from base.configurable import BasePlugin, NotFound
 from botutils.utils import add_reaction, execute_anything_sync
 from data import Config, Storage, Lang
-from subsystems import helpsys
-from subsystems.presence import PresenceMessage, PresencePriority
-from subsystems.timers import Job, timedict
+from services import helpsys
+from services.presence import PresenceMessage, PresencePriority
+from services.timers import Job, timedict
 
 
 class Plugin(BasePlugin):

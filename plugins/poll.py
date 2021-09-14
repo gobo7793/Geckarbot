@@ -2,9 +2,9 @@ import logging
 
 from discord.ext import commands
 
-from base import BasePlugin
+from base.configurable import BasePlugin
 from botutils.questionnaire import Question, Questionnaire, QuestionType
-from subsystems.helpsys import DefaultCategories
+from services.helpsys import DefaultCategories
 
 
 protoquestions = [

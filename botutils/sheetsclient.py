@@ -5,7 +5,7 @@ import urllib.parse
 from typing import Optional, Dict, Tuple, Union, List
 
 from botutils import restclient
-from base import NotLoadable
+from base.configurable import NotLoadable
 
 
 class NoApiKey(NotLoadable):

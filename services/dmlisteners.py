@@ -5,7 +5,7 @@ It is instantiated as `bot.dm_listener`.
 
 import logging
 
-from base import BaseSubsystem
+from base.configurable import BaseSubsystem
 from botutils.utils import execute_anything
 
 

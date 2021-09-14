@@ -8,13 +8,14 @@ from enum import Enum
 
 from discord.ext import commands
 
-from base import BasePlugin, ConfigurableType, Exitcode
+from base.configurable import BasePlugin, ConfigurableType
+from base.bot import Exitcode
 from data import Config, Lang
 from botutils import restclient, utils, permchecks
 from botutils.stringutils import paginate
 from botutils.utils import sort_commands_helper, add_reaction
-from subsystems.helpsys import DefaultCategories
-from subsystems.presence import PresencePriority
+from services.helpsys import DefaultCategories
+from services.presence import PresencePriority
 
 # Assumed version numbering system:
 # 2.3.1
@@ -57,7 +58,7 @@ def consume_digits(s):
     Splits arg in 3 parts. The first part is the longest substring beginning at the start that has digits, the second
     part is everything that is not a letter, the third part is the rest. Everything is converted to lowercase. Examples:
 
-    "123abc" -> ("123", "", "abc")
+    "123abc" -> ("123", "", "base")
 
     "123-Abc4" -> ("123", "-", "abc4")
 
@@ -238,7 +239,6 @@ class State(Enum):
 class Plugin(BasePlugin, name="Bot updating system"):
     def __init__(self, bot):
         super().__init__(bot)
-        self.bot = bot
         self.client = restclient.Client(URL)
 
         self.bot.loop.run_until_complete(self.was_i_updated())

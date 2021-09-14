@@ -10,11 +10,11 @@ import discord
 from discord.ext import commands
 from discord.ext.commands import DisabledCommand
 
-from base import BaseSubsystem
+from base.configurable import BaseSubsystem
 from data import Storage, Lang
 from botutils import utils
 from botutils.converters import get_best_username, get_best_user
-from subsystems import timers
+from services import timers
 
 
 class UserBlockedCommand(DisabledCommand):
