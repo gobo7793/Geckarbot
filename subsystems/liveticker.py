@@ -1193,6 +1193,8 @@ class LeagueRegistrationOLDB(LeagueRegistrationBase):
             if match.kickoff.date() >= from_day:
                 matches.append(match)
         else:
+            if not matches:
+                return []
             for _ in range(1, limit_pages):
                 add_matches = await LeagueRegistrationOLDB.get_matches_by_matchday(league=league,
                                                                                    matchday=matches[-1].matchday)

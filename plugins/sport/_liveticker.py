@@ -274,7 +274,7 @@ class _Liveticker:
                               f"{match.away_team.short_name}")
         return match_msgs
 
-    @commands.group(name="teamname")
+    @commands.group(name="teamname", aliases=["teaminfo"])
     async def cmd_teamname(self, ctx):
         if ctx.invoked_subcommand is None:
             await ctx.send_help(self.cmd_teamname)
