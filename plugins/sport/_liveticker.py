@@ -277,7 +277,15 @@ class _Liveticker:
     @commands.group(name="teamname", aliases=["teaminfo"])
     async def cmd_teamname(self, ctx):
         if ctx.invoked_subcommand is None:
-            await ctx.send_help(self.cmd_teamname)
+            if not ctx.subcommand_passed:
+                await ctx.send_help(self.cmd_teamname)
+                return
+            start = ctx.message.content.find(ctx.subcommand_passed)
+            if start < 0:
+                await ctx.send_help(self.cmd_teamname)
+                return
+            team = ctx.message.content[start:]
+            await ctx.invoke(self.bot.get_command("teamname info"), team=team)
 
     @cmd_teamname.command(name="info")
     async def cmd_teamname_info(self, ctx, *, team: str):
