@@ -197,9 +197,11 @@ class _Liveticker:
     @cmd_liveticker.command(name="matches", aliases=["spiele"])
     async def cmd_liveticker_matches(self, ctx):
         msg_lines = []
-        for c_reg in self.bot.liveticker.search_coro(plugin_names=[self.get_name()]):
+        c_reg = None
+        for c_reg_ in self.bot.liveticker.search_coro(plugin_names=[self.get_name()]):
+            c_reg = c_reg_
             break
-        else:
+        if not c_reg:
             return
         for l_reg in c_reg.l_regs:
             msg_lines.append(f"**{l_reg.league}**")
