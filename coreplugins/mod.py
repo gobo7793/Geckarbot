@@ -21,10 +21,10 @@ from services.ignoring import IgnoreEditResult, IgnoreType
 class Plugin(BasePlugin, name="Bot Management Commands"):
     """Commands for moderation"""
 
-    def __init__(self, bot):
-        super().__init__(bot)
-        self.can_reload = True
-        bot.register(self, category=DefaultCategories.MOD)
+    def __init__(self):
+        super().__init__()
+        self.bot = Config().bot
+        self.bot.register(self, category=DefaultCategories.MOD)
 
         # Move commands to help category 'user'
         for cmd in self.get_commands():
@@ -38,7 +38,7 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
         }
         self.config_setter = ConfigSetter(self, self.base_config)
 
-        @bot.event
+        @self.bot.event
         async def on_member_remove(member):
             if not self.config_setter.get_config("leave_notification"):
                 return

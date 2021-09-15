@@ -3,7 +3,6 @@ from enum import Enum
 
 from discord.ext.commands import Cog, Command
 
-from base.bot import BaseBot
 
 # pylint: disable=import-outside-toplevel
 # pylint: disable=no-self-use
@@ -42,9 +41,8 @@ class ConfigurableType(Enum):
 class Configurable:
     """Defines a class which the config of its instances can be managed by Config class"""
 
-    def __init__(self, bot: BaseBot):
+    def __init__(self):
         self.iodirs = {}
-        self.bot: BaseBot = bot
         self.can_configdump = True
         """Enables or disables that !configdump can dump the config of the plugin"""
         self.dump_except_keys = []  # type: List[str]
@@ -110,14 +108,9 @@ class BaseSubsystem(Configurable):
 class BasePlugin(Cog, Configurable):
     """The base class for all plugins"""
 
-    def __init__(self, bot: BaseBot):
+    def __init__(self):
         Cog.__init__(self)
-        Configurable.__init__(self, bot)
-        self.resource_dir = None
-
-        ptype = self.get_configurable_type()
-        if ptype in (ConfigurableType.PLUGIN, ConfigurableType.COREPLUGIN):
-            self.resource_dir = "{}/{}".format(self.bot.RESOURCE_DIR, self.get_name())
+        Configurable.__init__(self)
 
     def get_configurable_type(self):
         """

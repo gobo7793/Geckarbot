@@ -3,7 +3,7 @@ import re
 from discord.ext import commands
 
 from base.configurable import BasePlugin
-from data import Lang
+from data import Lang, Config
 from botutils import utils
 from botutils.stringutils import paginate
 from services.presence import PresencePriority, activitymap
@@ -11,9 +11,10 @@ from services.helpsys import DefaultCategories
 
 
 class Plugin(BasePlugin):
-    def __init__(self, bot):
-        super().__init__(bot)
-        bot.register(self, DefaultCategories.USER)
+    def __init__(self):
+        super().__init__()
+        self.bot = Config().bot
+        self.bot.register(self, DefaultCategories.USER)
 
     def command_help_string(self, command):
         return utils.helpstring_helper(self, command, "help")

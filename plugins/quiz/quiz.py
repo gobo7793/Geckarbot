@@ -50,9 +50,11 @@ class Methods(Enum):
 
 
 class Plugin(BasePlugin, name="A trivia kwiss"):
-    def __init__(self, bot):
+    def __init__(self):
+        super().__init__()
+        self.bot = Config().bot
+        self.bot.register(self, category=DefaultCategories.GAMES)
         self.logger = logging.getLogger(__name__)
-        self.bot = bot
         self.controllers = {}
         self.registered_subcommands = {}
         self.category_controller = CategoryController()
@@ -101,9 +103,6 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
 
         # Undocumented subcommands
         self.register_subcommand(None, "info", self.cmd_info)
-
-        super().__init__(bot)
-        bot.register(self, category=DefaultCategories.GAMES)
 
         # Migrate data if necessary
         migration(self, self.logger)

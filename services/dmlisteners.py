@@ -7,6 +7,7 @@ import logging
 
 from base.configurable import BaseSubsystem
 from botutils.utils import execute_anything
+from data import Config
 
 
 class Registration:
@@ -49,9 +50,9 @@ class Registration:
 class DMListener(BaseSubsystem):
     """The DM Listener Subsystem"""
 
-    def __init__(self, bot):
-        super().__init__(bot)
-        self.bot = bot
+    def __init__(self):
+        super().__init__()
+        self.bot = Config().bot
         self.registrations = {}
 
     def register(self, user, coro, name, kill_coro=None, data=None, blocking=False):

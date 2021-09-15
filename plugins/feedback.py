@@ -104,9 +104,10 @@ def to_msg(el: Complaint):
 
 
 class Plugin(BasePlugin, name="Feedback"):
-    def __init__(self, bot):
-        super().__init__(bot)
-        bot.register(self, category_desc=Lang.lang(self, "cat_desc"))
+    def __init__(self):
+        super().__init__()
+        self.bot = Config().bot
+        self.bot.register(self, category_desc=Lang.lang(self, "cat_desc"))
 
         self.logger = logging.getLogger(__name__)
         self.storage = Storage.get(self)

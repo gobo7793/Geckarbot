@@ -7,7 +7,7 @@ import discord
 from discord.ext import commands
 
 from base.configurable import BasePlugin
-from data import Lang
+from data import Lang, Config
 from services.helpsys import DefaultCategories
 
 
@@ -150,8 +150,8 @@ class NumberGuessing:
 
 class Plugin(BasePlugin, name="A simple number guessing game"):
 
-    def __init__(self, bot):
-        self.bot = bot
+    def __init__(self):
+        self.bot = Config().bot
         self.player = None
         self.is_playing = False
         self.number: int = 0
@@ -159,8 +159,8 @@ class Plugin(BasePlugin, name="A simple number guessing game"):
         self.games_user = {}
         self.games_channel = {}
 
-        super().__init__(bot)
-        bot.register(self, DefaultCategories.GAMES)
+        super().__init__()
+        self.bot.register(self, DefaultCategories.GAMES)
 
     @commands.group(name="guess", help="Guess a number",
                     description="Start a game via '!guess start'")

@@ -208,9 +208,10 @@ class Cmd:
 class Plugin(BasePlugin, name="Custom CMDs"):
     """Provides custom cmds"""
 
-    def __init__(self, bot):
-        super().__init__(bot)
-        bot.register(self, DefaultCategories.USER)
+    def __init__(self):
+        super().__init__()
+        self.bot = Config().bot
+        self.bot.register(self, DefaultCategories.USER)
 
         self.prefix = Config.get(self)['prefix']
         self.commands = {}

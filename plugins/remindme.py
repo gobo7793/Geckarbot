@@ -7,7 +7,7 @@ from discord.ext import commands
 
 from botutils import utils, timeutils, converters
 from botutils.timeutils import to_unix_str, TimestampStyle
-from data import Storage, Lang
+from data import Storage, Lang, Config
 from base.configurable import BasePlugin, NotFound
 from services import timers
 from services.helpsys import DefaultCategories
@@ -16,9 +16,10 @@ log = logging.getLogger(__name__)
 
 
 class Plugin(BasePlugin):
-    def __init__(self, bot):
-        super().__init__(bot)
-        bot.register(self, DefaultCategories.UTILS)
+    def __init__(self):
+        super().__init__()
+        self.bot = Config().bot
+        self.bot.register(self, DefaultCategories.UTILS)
         self.migrate()
 
         self.reminders = {}  # type: Dict[int, timers.Job]

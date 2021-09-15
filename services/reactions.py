@@ -5,6 +5,7 @@ This subsystem provides listeners for reactions on messages.
 from enum import Enum
 from base.configurable import BaseSubsystem
 from botutils.utils import log_exception
+from data import Config
 
 
 class BaseReactionEvent:
@@ -84,19 +85,19 @@ class Registration:
 
 class ReactionListener(BaseSubsystem):
     """Reaction listener subsystem"""
-    def __init__(self, bot):
-        super().__init__(bot)
+    def __init__(self):
+        super().__init__()
         self.registrations = []
-        self.bot = bot
+        self.bot = Config().bot
         self.to_del = []
         self._checking = False
 
         # pylint: disable=unused-variable
-        @bot.listen()
+        @self.bot.listen()
         async def on_raw_reaction_add(payload):
             await self._check(payload, ReactionAction.ADD)
 
-        @bot.listen()
+        @self.bot.listen()
         async def on_raw_reaction_remove(payload):
             await self._check(payload, ReactionAction.REMOVE)
 

@@ -12,6 +12,7 @@ import datetime
 
 from base.configurable import BaseSubsystem
 from botutils.utils import write_debug_channel, execute_anything_sync, execute_anything, log_exception
+from data import Config
 
 timedictformat = ["year", "month", "monthday", "weekday", "hour", "minute"]
 
@@ -38,9 +39,9 @@ class Mothership(BaseSubsystem):
     Timers do not survive bot restarts.
     """
 
-    def __init__(self, bot):
-        BaseSubsystem.__init__(self, bot)
-        self.bot = bot
+    def __init__(self):
+        BaseSubsystem.__init__(self)
+        self.bot = Config().bot
         self.jobs = []
         self.logger = logging.getLogger(__name__)
 

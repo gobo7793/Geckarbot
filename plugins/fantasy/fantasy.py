@@ -30,9 +30,10 @@ log = logging.getLogger(__name__)
 class Plugin(BasePlugin, name="NFL Fantasy"):
     """Commands for the Fantasy game"""
 
-    def __init__(self, bot):
-        super().__init__(bot)
-        bot.register(self, category=DefaultCategories.SPORT)
+    def __init__(self):
+        super().__init__()
+        self.bot = Config().bot
+        self.bot.register(self, category=DefaultCategories.SPORT)
         self.dump_except_keys = ["espn_credentials"]
 
         self.supercommish = None

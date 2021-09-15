@@ -49,13 +49,13 @@ class Geckarbot(BaseBot):
 
         self.add_check(self.command_disabled)
 
-        self.reaction_listener = reactions.ReactionListener(self)
-        self.dm_listener = dmlisteners.DMListener(self)
-        self.timers = timers.Mothership(self)
-        self.ignoring = ignoring.Ignoring(self)
-        self.helpsys = helpsys.GeckiHelp(self)
-        self.presence = presence.Presence(self)
-        self.liveticker = liveticker.Liveticker(self)
+        self.reaction_listener = reactions.ReactionListener()
+        self.dm_listener = dmlisteners.DMListener()
+        self.timers = timers.Mothership()
+        self.ignoring = ignoring.Ignoring()
+        self.helpsys = helpsys.GeckiHelp()
+        self.presence = presence.Presence()
+        self.liveticker = liveticker.Liveticker()
 
     def load_config(self):
         """
@@ -167,7 +167,7 @@ class Geckarbot(BaseBot):
         if isinstance(plugin_class, commands.Cog):
             plugin_object = plugin_class
         else:
-            plugin_object = plugin_class(self)
+            plugin_object = plugin_class()
         self.add_cog(plugin_object)
 
         self.plugins.append(plugin_object)
@@ -254,7 +254,7 @@ class Geckarbot(BaseBot):
         for name, obj in members:
             if name == "Plugin":
                 found = True
-                obj(self)
+                obj()
         if not found:
             raise PluginClassNotFound(members)
 

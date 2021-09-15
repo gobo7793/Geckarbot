@@ -13,7 +13,7 @@ from base.bot import Exitcode
 from data import Config, Lang
 from botutils import restclient, utils, permchecks
 from botutils.stringutils import paginate
-from botutils.utils import sort_commands_helper, add_reaction
+from botutils.utils import sort_commands_helper, add_reaction, execute_anything_sync
 from services.helpsys import DefaultCategories
 from services.presence import PresencePriority
 
@@ -237,16 +237,17 @@ class State(Enum):
 
 
 class Plugin(BasePlugin, name="Bot updating system"):
-    def __init__(self, bot):
-        super().__init__(bot)
+    def __init__(self):
+        super().__init__()
+        self.bot = Config().bot
         self.client = restclient.Client(URL)
 
-        self.bot.loop.run_until_complete(self.was_i_updated())
+        execute_anything_sync(self.was_i_updated())
         self.state = State.IDLE
 
         self.to_log = None
         self.waiting_for_confirm = None
-        bot.register(self, category=DefaultCategories.ADMIN)
+        self.bot.register(self, category=DefaultCategories.ADMIN)
 
         # Add commands to help category 'user'
         to_add = ("version", "news")

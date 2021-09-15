@@ -221,6 +221,11 @@ class Config(IODirectory):
 
     @property
     def bot(self):
+        """
+
+        :return: bot ref
+        :rtype: base.bot.BaseBot
+        """
         return self._bot
 
     @bot.setter
@@ -269,7 +274,7 @@ class Config(IODirectory):
         """Returns the resource directory for the given plugin instance."""
         for el in cls().bot.plugins:
             if el is plugin:
-                return el.resource_dir
+                return "{}/{}".format(cls().bot.RESOURCE_DIR, plugin.get_name())
         return None
 
     @classmethod

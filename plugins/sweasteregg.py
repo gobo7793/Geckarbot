@@ -13,9 +13,10 @@ from services.timers import Job, timedict
 
 
 class Plugin(BasePlugin):
-    def __init__(self, bot):
-        super().__init__(bot)
-        bot.register(self, helpsys.DefaultCategories.MISC)
+    def __init__(self):
+        super().__init__()
+        self.bot = Config().bot
+        self.bot.register(self, helpsys.DefaultCategories.MISC)
 
         self.presences = []  # type: List[PresenceMessage]
         self.orga_timer = None  # type: Optional[Job]

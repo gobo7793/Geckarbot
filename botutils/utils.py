@@ -1,5 +1,4 @@
-from builtins import function
-from typing import Union, Optional, Coroutine, Any
+from typing import Union, Optional, Coroutine, Any, Callable
 import datetime
 import random
 import inspect
@@ -302,7 +301,7 @@ async def coro_wrapper(coro: Coroutine):
         await log_exception(e, title=":x: Task error")
 
 
-def execute_anything_sync(f: Union[function, Coroutine], *args, **kwargs) -> Any:
+def execute_anything_sync(f: Union[Callable, Coroutine], *args, **kwargs) -> Any:
     """
     Executes functions, coroutine functions and coroutines, returns their return values and raises their exceptions.
 
@@ -318,7 +317,7 @@ def execute_anything_sync(f: Union[function, Coroutine], *args, **kwargs) -> Any
     return f(*args, **kwargs)
 
 
-async def execute_anything(f: Union[function, Coroutine], *args, **kwargs) -> Any:
+async def execute_anything(f: Union[Callable, Coroutine], *args, **kwargs) -> Any:
     """
     Executes functions, coroutine functions and coroutines, returns their return values and raises their exceptions.
 

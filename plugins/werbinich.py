@@ -134,9 +134,10 @@ class Participant:
 
 
 class Plugin(BasePlugin, name="Wer bin ich?"):
-    def __init__(self, bot):
-        super().__init__(bot)
-        bot.register(self, DefaultCategories.GAMES)
+    def __init__(self):
+        super().__init__()
+        self.bot = Config().bot
+        self.bot.register(self, DefaultCategories.GAMES)
         self.logger = logging.getLogger(__name__)
 
         self.channel = None

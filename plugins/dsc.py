@@ -40,9 +40,10 @@ def _dsc_set_checks():
 class Plugin(BasePlugin, name="Discord Song Contest"):
     """Commands for the DSC"""
 
-    def __init__(self, bot):
-        super().__init__(bot)
-        bot.register(self, category="DSC", category_desc=Lang.lang(self, "cat_desc"))
+    def __init__(self):
+        super().__init__()
+        self.bot = Config().bot
+        self.bot.register(self, category="DSC", category_desc=Lang.lang(self, "cat_desc"))
         self.log = logging.getLogger(__name__)
 
         self.presence = None

@@ -18,11 +18,11 @@ from services.timers import timedict_by_datetime, Job
 
 class Plugin(BasePlugin, name="Testing and debug things"):
 
-    def __init__(self, bot):
-        self.bot = bot
+    def __init__(self):
+        self.bot = Config().bot
         self.timers = {}
-        super().__init__(bot)
-        bot.register(self, DefaultCategories.ADMIN)
+        super().__init__()
+        self.bot.register(self, DefaultCategories.ADMIN)
         self.sleeper = None
         self.channel = None
 

@@ -20,9 +20,10 @@ from services.timers import Timer
 class Plugin(BasePlugin, name="TIL"):
     """Provides custom cmds"""
 
-    def __init__(self, bot):
-        super().__init__(bot)
-        bot.register(self, category=DefaultCategories.MISC)
+    def __init__(self):
+        super().__init__()
+        self.bot = Config().bot
+        self.bot.register(self, category=DefaultCategories.MISC)
         self.can_reload = True
         self.logger = logging.getLogger(__name__)
 

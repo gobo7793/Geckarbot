@@ -16,13 +16,13 @@ from services.helpsys import DefaultCategories
 
 
 class Plugin(BasePlugin, name="Bot status commands for monitoring and debug purposes"):
-    def __init__(self, bot):
-        self.bot = bot
-        super().__init__(bot)
-        bot.register(self, DefaultCategories.ADMIN)
+    def __init__(self):
+        self.bot = Config().bot
+        super().__init__()
+        self.bot.register(self, DefaultCategories.ADMIN)
 
         # Write cmd deletions to debug chan
-        @bot.event
+        @self.bot.event
         async def on_message_delete(msg):
             if msg.content.startswith("!"):
                 event_name = "Command deletion"

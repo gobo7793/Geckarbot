@@ -30,10 +30,10 @@ from services.liveticker import MatchStatus, LeagueRegistrationOLDB
 class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
     """Plugin for the Spaetzle(s)-Tippspiel"""
 
-    def __init__(self, bot):
-        super().__init__(bot)
-        self.can_reload = True
-        bot.register(self, category=DefaultCategories.SPORT)
+    def __init__(self):
+        super().__init__()
+        self.bot = Config().bot
+        self.bot.register(self, category=DefaultCategories.SPORT)
 
         self.logger = logging.getLogger(__name__)
         self.userbridge = UserBridge(self)
@@ -157,7 +157,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             # Request data
             if matchday:
                 for _, _, c_reg in list(self.bot.liveticker.search_coro(plugins=[self.get_name()])):
-                    c_reg.unload()
+                    await c_reg.unload()
             else:
                 matchday = Storage().get(self)['matchday']
             match_list = await LeagueRegistrationOLDB.get_matches_by_matchday(league="bl1", matchday=matchday,

@@ -24,9 +24,10 @@ def _create_keysmash():
 
 
 class Plugin(BasePlugin, name="Funny/Misc Commands"):
-    def __init__(self, bot):
-        super().__init__(bot)
-        bot.register(self, DefaultCategories.MISC)
+    def __init__(self):
+        super().__init__()
+        self.bot = Config().bot
+        self.bot.register(self, DefaultCategories.MISC)
 
         # Add commands to help category 'utils'
         to_add = ("dice", "choose", "multichoose", "money", "pizza")

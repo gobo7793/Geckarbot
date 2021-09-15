@@ -16,12 +16,13 @@ logger = logging.getLogger(__name__)
 class Plugin(BasePlugin, _Liveticker, _Predgame, _Scores, name="Sport"):
     """Commands related to soccer or other sports"""
 
-    def __init__(self, bot):
-        BasePlugin.__init__(self, bot)
-        _Scores.__init__(self, bot)
-        _Predgame.__init__(self, bot)
-        _Liveticker.__init__(self, bot, self.get_name, self._get_predictions)
-        bot.register(self, category=DefaultCategories.SPORT)
+    def __init__(self):
+        self.bot = Config().bot
+        BasePlugin.__init__(self)
+        _Scores.__init__(self, self.bot)
+        _Predgame.__init__(self, self.bot)
+        _Liveticker.__init__(self, self.bot, self.get_name, self._get_predictions)
+        self.bot.register(self, category=DefaultCategories.SPORT)
         self._update_config()
 
         self.today_timer = self.bot.timers.schedule(coro=self._today_coro, td=timers.timedict(hour=1, minute=0))

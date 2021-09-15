@@ -1,6 +1,6 @@
 from enum import Enum
 from typing import Optional, Union, List
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 
 import discord
 from discord.ext.commands import Bot
@@ -14,7 +14,7 @@ from services.dmlisteners import DMListener
 from services.timers import Mothership
 
 
-class Exitcode(Enum, ABC):
+class Exitcode(Enum):
     """
     These exit codes are evaluated by the runscript and acted on accordingly.
     """
@@ -33,11 +33,11 @@ class BaseBot(Bot):
     """
     NAME: str = None
     VERSION: str = None
-    PLUGIN_DIR: str = "../plugins"
-    CORE_PLUGIN_DIR: str = "../coreplugins"
-    CONFIG_DIR: str = "../config"
-    STORAGE_DIR: str = "../storage"
-    LANG_DIR: str = "../lang"
+    PLUGIN_DIR: str = "plugins"
+    CORE_PLUGIN_DIR: str = "coreplugins"
+    CONFIG_DIR: str = "config"
+    STORAGE_DIR: str = "storage"
+    LANG_DIR: str = "lang"
     RESOURCE_DIR: str = "resource"
     DEFAULT_LANG: str = "en_US"
 
