@@ -314,7 +314,7 @@ class _Liveticker:
             await ctx.send(Lang.lang(self, 'team_not_found'))
             return
         if saved_team_new and saved_team_new != saved_team:
-            await ctx.send(Lang.lang(self, 'teamname_set_duplicate', new_name, saved_team.long_name))
+            await ctx.send(Lang.lang(self, 'teamname_set_duplicate', new_name, saved_team_new.long_name))
             return
         if variant in long:
             saved_team.update(long_name=new_name)
