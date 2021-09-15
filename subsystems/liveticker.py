@@ -696,14 +696,14 @@ class PlayerEventEnum(Enum):
 
 
 class LivetickerEvent:
-    def __init__(self, league, matches: Iterable[MatchBase]):
-        """
-        Base class of the different Liveticker updates
+    """
+    Base class of the different Liveticker updates
 
-        :param league: league of the event
-        :type league: League
-        :param matches: corresponding matches
-        """
+    :param league: league of the event
+    :type league: League
+    :param matches: corresponding matches
+    """
+    def __init__(self, league, matches: Iterable[MatchBase]):
         self.league = league
         self.matches = matches
 
@@ -776,6 +776,7 @@ class CoroRegistration:
         :type liveticker: Liveticker
         :param c_store: storage dict
         :return: CoroRegistration
+        :rtype: CoroRegistration
         :raises AttributeError: if coro or plugin is not found
         """
         plugin = get_plugin_by_name(c_store['plugin'])
@@ -842,6 +843,7 @@ class CoroRegistration:
         return event_dict
 
     def save_events(self, event_dict: Dict[MatchBase, List[PlayerEvent]]):
+        """Saves event_ids"""
         for match, events in event_dict.items():
             if match.match_id not in self.last_events:
                 self.last_events[match.match_id] = []
@@ -875,6 +877,7 @@ class CoroRegistration:
 
 
 class League(NamedTuple):
+    """Tuple for identifying a League by source and key"""
     source: LTSource
     key: str
 
@@ -1310,6 +1313,7 @@ class Liveticker(BaseSubsystem):
                     reg['kickoffs'] = {kickoff: [] for kickoff in reg['kickoffs']}
             Storage().get(self)['storage_version'] = 2
         # 2 -> 3
+        # pylint: disable=too-many-nested-blocks
         if Storage().get(self)['storage_version'] < 3:
             reg_data = Storage().get(self).pop('registrations')
             Storage().get(self)['league_regs'] = {}
@@ -1396,6 +1400,7 @@ class Liveticker(BaseSubsystem):
 
         :param league: the league to observe
         :return: corresponding LeagueRegistration
+        :raises SourceNotSupported: if league.source is not considered here
         """
         if league in self.league_regs:
             return self.league_regs[league]
