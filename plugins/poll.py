@@ -3,8 +3,8 @@ import logging
 from discord.ext import commands
 
 from base.configurable import BasePlugin
-from botutils.questionnaire import Question, Questionnaire, QuestionType
 from base.data import Config
+from botutils.questionnaire import Question, Questionnaire, QuestionType
 from services.helpsys import DefaultCategories
 
 
