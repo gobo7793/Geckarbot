@@ -5,8 +5,8 @@ import pprint
 import random
 
 from base.configurable import BasePlugin
-from botutils.utils import write_debug_channel
 from base.data import Lang
+from botutils.utils import write_debug_channel
 
 
 class Layer(Enum):

@@ -4,8 +4,8 @@ This subsystem provides listeners for reactions on messages.
 
 from enum import Enum
 from base.configurable import BaseSubsystem
-from botutils.utils import log_exception
 from base.data import Config
+from botutils.utils import log_exception
 
 
 class BaseReactionEvent:

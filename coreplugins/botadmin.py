@@ -6,12 +6,12 @@ import discord
 from discord.ext import commands
 
 from base.configurable import BasePlugin, ConfigurableType
+from base.data import Storage, Config, Lang
 from botutils import converters
 from botutils.permchecks import is_botadmin
 from botutils.stringutils import paginate
 from botutils.converters import get_best_username as gbu
 from botutils.utils import add_reaction, write_debug_channel
-from base.data import Storage, Config, Lang
 from services.helpsys import DefaultCategories
 
 

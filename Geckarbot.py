@@ -19,10 +19,10 @@ from discord.ext import commands
 import injections
 import services
 from base.configurable import BasePlugin, NotLoadable, ConfigurableType, PluginClassNotFound, Configurable
+from base.data import Config, Lang, Storage, ConfigurableData
 from base.bot import Exitcode, BaseBot
 from botutils import utils, permchecks, converters, stringutils
 from botutils.utils import execute_anything_sync
-from base.data import Config, Lang, Storage, ConfigurableData
 from services import timers, reactions, ignoring, dmlisteners, helpsys, presence, liveticker
 
 

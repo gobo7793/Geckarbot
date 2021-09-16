@@ -6,8 +6,8 @@ It is instantiated as `bot.dm_listener`.
 import logging
 
 from base.configurable import BaseSubsystem
-from botutils.utils import execute_anything
 from base.data import Config
+from botutils.utils import execute_anything
 
 
 class Registration:

@@ -7,13 +7,13 @@ from discord.ext import commands
 from discord.ext.commands import MemberConverter, UserConverter
 
 from base.configurable import BasePlugin, ConfigurableType
+from base.data import Config, Lang
 from botutils import utils
 from botutils.converters import get_best_username, get_plugin_by_name
 from botutils.setter import ConfigSetter
 from botutils.stringutils import paginate
 from botutils.timeutils import parse_time_input
 from botutils.utils import add_reaction, write_mod_channel
-from base.data import Config, Lang
 from services.helpsys import DefaultCategories
 from services.ignoring import IgnoreEditResult, IgnoreType
 
