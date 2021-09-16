@@ -58,7 +58,7 @@ def consume_digits(s):
     Splits arg in 3 parts. The first part is the longest substring beginning at the start that has digits, the second
     part is everything that is not a letter, the third part is the rest. Everything is converted to lowercase. Examples:
 
-    "123abc" -> ("123", "", "base")
+    "123abc" -> ("123", "", "abc")
 
     "123-Abc4" -> ("123", "-", "abc4")
 
