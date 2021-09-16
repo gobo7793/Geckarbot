@@ -4,7 +4,7 @@ from discord.ext import commands
 
 from base.configurable import BasePlugin
 from botutils.questionnaire import Question, Questionnaire, QuestionType
-from data import Config
+from base.data import Config
 from services.helpsys import DefaultCategories
 
 

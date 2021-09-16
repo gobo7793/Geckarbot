@@ -12,7 +12,7 @@ import datetime
 
 from base.configurable import BaseSubsystem
 from botutils.utils import write_debug_channel, execute_anything_sync, execute_anything, log_exception
-from data import Config
+from base.data import Config
 
 timedictformat = ["year", "month", "monthday", "weekday", "hour", "minute"]
 

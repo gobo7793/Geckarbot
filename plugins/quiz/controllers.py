@@ -10,7 +10,7 @@ from services import timers
 from botutils import statemachine
 from botutils.utils import add_reaction
 from botutils.stringutils import format_andlist
-from data import Storage, Lang
+from base.data import Storage, Lang
 
 from plugins.quiz.base import BaseQuizController, Score, InvalidAnswer, Difficulty, Rankedness
 from plugins.quiz.utils import get_best_username

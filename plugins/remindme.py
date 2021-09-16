@@ -7,7 +7,7 @@ from discord.ext import commands
 
 from botutils import utils, timeutils, converters
 from botutils.timeutils import to_unix_str, TimestampStyle
-from data import Storage, Lang, Config
+from base.data import Storage, Lang, Config
 from base.configurable import BasePlugin, NotFound
 from services import timers
 from services.helpsys import DefaultCategories

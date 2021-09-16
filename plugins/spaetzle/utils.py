@@ -4,7 +4,7 @@ from enum import Enum
 from typing import Tuple, Union, Optional
 
 from botutils.sheetsclient import Cell, CellRange
-from data import Storage
+from base.data import Storage
 from services.liveticker import MatchStatus
 
 

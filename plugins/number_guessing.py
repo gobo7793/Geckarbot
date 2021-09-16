@@ -7,7 +7,7 @@ import discord
 from discord.ext import commands
 
 from base.configurable import BasePlugin
-from data import Lang, Config
+from base.data import Lang, Config
 from services.helpsys import DefaultCategories
 
 

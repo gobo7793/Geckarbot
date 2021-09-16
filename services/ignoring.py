@@ -11,7 +11,7 @@ from discord.ext import commands
 from discord.ext.commands import DisabledCommand
 
 from base.configurable import BaseSubsystem
-from data import Storage, Lang, Config
+from base.data import Storage, Lang, Config
 from botutils import utils
 from botutils.converters import get_best_username, get_best_user
 from services import timers

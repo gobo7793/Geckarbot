@@ -8,7 +8,7 @@ import discord
 from discord.ext import commands
 
 from base.configurable import BasePlugin, NotFound
-from data import Storage, Lang, Config
+from base.data import Storage, Lang, Config
 from botutils import utils, converters, permchecks
 from botutils.stringutils import paginate
 from services.ignoring import UserBlockedCommand

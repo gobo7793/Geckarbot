@@ -5,7 +5,7 @@ from typing import List, Tuple, Optional, Union
 from discord.ext import commands
 
 from base.configurable import BaseSubsystem, NotFound, BasePlugin, ConfigurableType
-from data import Lang, Config
+from base.data import Lang, Config
 from botutils.utils import add_reaction, get_plugin_by_cmd, helpstring_helper
 from botutils.stringutils import paginate
 

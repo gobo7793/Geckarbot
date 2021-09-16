@@ -3,7 +3,7 @@ import re
 from discord.ext import commands
 
 from base.configurable import BasePlugin
-from data import Lang, Config
+from base.data import Lang, Config
 from botutils import utils
 from botutils.stringutils import paginate
 from services.presence import PresencePriority, activitymap

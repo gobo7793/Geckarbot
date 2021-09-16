@@ -10,7 +10,7 @@ from typing import Optional, List, Dict
 import discord
 
 from base.configurable import BaseSubsystem, NotFound
-from data import Config, Storage
+from base.data import Config, Storage
 from botutils.utils import log_exception, execute_anything_sync
 from services.timers import Job, timedict
 

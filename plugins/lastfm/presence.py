@@ -7,7 +7,7 @@ import discord
 from plugins.lastfm.api import UnexpectedResponse
 from services.presence import PresenceMessage, PresencePriority, activitymap
 from services.timers import Timer
-from data import Storage, Lang
+from base.data import Storage, Lang
 from botutils.converters import get_best_user, get_best_username as gbu
 
 

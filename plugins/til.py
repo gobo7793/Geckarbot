@@ -6,7 +6,7 @@ import discord
 from discord.ext import commands
 
 from base.configurable import BasePlugin, NotFound
-from data import Config, Storage, Lang
+from base.data import Config, Storage, Lang
 from botutils.setter import ConfigSetter
 from botutils.permchecks import check_mod_access
 from botutils.utils import add_reaction, helpstring_helper, execute_anything_sync

@@ -9,7 +9,7 @@ from base.configurable import BaseSubsystem, BasePlugin
 from botutils import restclient
 from botutils.converters import get_plugin_by_name
 from botutils.utils import execute_anything_sync
-from data import Storage, Lang, Config
+from base.data import Storage, Lang, Config
 from services import timers
 from services.timers import HasAlreadyRun
 

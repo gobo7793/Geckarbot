@@ -6,7 +6,7 @@ import random
 
 from base.configurable import BasePlugin
 from botutils.utils import write_debug_channel
-from data import Lang
+from base.data import Lang
 
 
 class Layer(Enum):

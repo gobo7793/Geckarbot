@@ -13,7 +13,7 @@ from botutils.converters import get_best_username, get_best_user
 from botutils.permchecks import WrongChannel
 from botutils.stringutils import paginate
 from botutils.utils import add_reaction, helpstring_helper, execute_anything_sync
-from data import Config, Storage, Lang
+from base.data import Config, Storage, Lang
 from plugins.fantasy import migrations
 from plugins.fantasy.league import FantasyLeague, deserialize_league, create_league
 from plugins.fantasy.utils import pos_alphabet, FantasyState, Platform, Match, parse_platform

@@ -22,7 +22,7 @@ from base.configurable import BasePlugin, NotLoadable, ConfigurableType, PluginC
 from base.bot import Exitcode, BaseBot
 from botutils import utils, permchecks, converters, stringutils
 from botutils.utils import execute_anything_sync
-from data import Config, Lang, Storage, ConfigurableData
+from base.data import Config, Lang, Storage, ConfigurableData
 from services import timers, reactions, ignoring, dmlisteners, helpsys, presence, liveticker
 
 

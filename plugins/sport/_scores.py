@@ -6,7 +6,7 @@ from discord.ext import commands
 
 from botutils import restclient
 from botutils.utils import add_reaction
-from data import Lang, Config
+from base.data import Lang, Config
 from services.liveticker import LTSource, MatchStatus, MatchOLDB, MatchBase, LeagueRegistrationESPN, LeagueNotExist
 
 

@@ -10,7 +10,7 @@ import discord
 from discord.ext.commands import Command, Context
 
 from base.configurable import NotFound, BasePlugin, Configurable
-from data import Config, Lang
+from base.data import Config, Lang
 from botutils.converters import get_embed_str
 from botutils.timeutils import to_local_time
 from botutils.stringutils import paginate

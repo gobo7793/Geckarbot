@@ -3,7 +3,7 @@ from typing import List, Optional, Any, Dict
 
 from botutils.restclient import Client
 from botutils.utils import add_reaction
-from data import Lang
+from base.data import Lang
 
 from plugins.lastfm.lfm_base import Song
 

@@ -11,7 +11,7 @@ from discord.http import HTTPException
 from discord.errors import Forbidden
 
 from base.configurable import BasePlugin, NotFound
-from data import Lang, Config
+from base.data import Lang, Config
 from botutils import utils, statemachine, stringutils
 from botutils.converters import get_best_username as gbu
 from botutils.stringutils import format_andlist

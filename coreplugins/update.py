@@ -10,7 +10,7 @@ from discord.ext import commands
 
 from base.configurable import BasePlugin, ConfigurableType
 from base.bot import Exitcode
-from data import Config, Lang
+from base.data import Config, Lang
 from botutils import restclient, utils, permchecks
 from botutils.stringutils import paginate
 from botutils.utils import sort_commands_helper, add_reaction, execute_anything_sync

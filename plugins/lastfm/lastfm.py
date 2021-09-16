@@ -9,7 +9,7 @@ import discord
 from discord.ext import commands
 
 from base.configurable import BasePlugin, NotLoadable
-from data import Config, Lang, Storage
+from base.data import Config, Lang, Storage
 from botutils.converters import get_best_username as gbu, get_best_user, convert_member
 from botutils.timeutils import to_unix_str, TimestampStyle, hr_roughly
 from botutils.stringutils import paginate

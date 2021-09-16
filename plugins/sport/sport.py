@@ -2,7 +2,7 @@ import logging
 
 from base.configurable import BasePlugin, NotFound
 from botutils.utils import helpstring_helper
-from data import Config, Storage, Lang
+from base.data import Config, Storage, Lang
 from plugins.sport._scores import _Scores
 from plugins.sport._liveticker import _Liveticker
 from plugins.sport._predgame import _Predgame
