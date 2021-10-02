@@ -5,9 +5,9 @@ from typing import Optional
 import discord
 
 from plugins.lastfm.api import UnexpectedResponse
-from subsystems.presence import PresenceMessage, PresencePriority, activitymap
-from subsystems.timers import Timer
-from data import Storage, Lang
+from services.presence import PresenceMessage, PresencePriority, activitymap
+from services.timers import Timer
+from base.data import Storage, Lang
 from botutils.converters import get_best_user, get_best_username as gbu
 
 

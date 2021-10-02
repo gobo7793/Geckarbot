@@ -11,9 +11,9 @@ from botutils import restclient, utils, timeutils
 from botutils.converters import get_best_username
 from botutils.utils import add_reaction
 from botutils.stringutils import table, parse_number, format_number, Number
-from data import Lang, Config, Storage
-from base import BasePlugin
-from subsystems.helpsys import DefaultCategories
+from base.data import Lang, Config, Storage
+from base.configurable import BasePlugin
+from services.helpsys import DefaultCategories
 
 log = logging.getLogger(__name__)
 _KEYSMASH_CMD_NAME = "keysmash"
@@ -24,9 +24,10 @@ def _create_keysmash():
 
 
 class Plugin(BasePlugin, name="Funny/Misc Commands"):
-    def __init__(self, bot):
-        super().__init__(bot)
-        bot.register(self, DefaultCategories.MISC)
+    def __init__(self):
+        super().__init__()
+        self.bot = Config().bot
+        self.bot.register(self, DefaultCategories.MISC)
 
         # Add commands to help category 'utils'
         to_add = ("dice", "choose", "multichoose", "money", "pizza")

@@ -4,8 +4,8 @@ from typing import List, Tuple, Optional, Union
 
 from discord.ext import commands
 
-from base import BaseSubsystem, NotFound, BasePlugin, ConfigurableType
-from data import Lang
+from base.configurable import BaseSubsystem, NotFound, BasePlugin, ConfigurableType
+from base.data import Lang, Config
 from botutils.utils import add_reaction, get_plugin_by_cmd, helpstring_helper
 from botutils.stringutils import paginate
 
@@ -44,10 +44,11 @@ class HelpCog(BasePlugin):
     """
     Cog for help commands
     """
-    def __init__(self, bot):
-        self.bot = bot
-        super().__init__(bot)
-        self.category = HelpCategory(bot, Lang.lang(self, "self_category_name"), desc=Lang.lang(self, "cat_desc_help"))
+    def __init__(self):
+        self.bot = Config().bot
+        super().__init__()
+        self.category = HelpCategory(self.bot, Lang.lang(self, "self_category_name"),
+                                     desc=Lang.lang(self, "cat_desc_help"))
         self.category.add_plugin(self)
 
     def command_help_string(self, command):
@@ -216,31 +217,31 @@ class GeckiHelp(BaseSubsystem):
     """
     Subsystem that handles the bot's `!help` command.
     """
-    def __init__(self, bot):
-        self.bot = bot
-        super().__init__(self.bot)
+    def __init__(self):
+        self.bot = Config().bot
+        super().__init__()
         self.logger = logging.getLogger(__name__)
 
         self.default_categories = {
-            DefaultCategories.UTILS: HelpCategory(bot, Lang.lang(self, "default_category_utils"),
+            DefaultCategories.UTILS: HelpCategory(self.bot, Lang.lang(self, "default_category_utils"),
                                                   desc=Lang.lang(self, "cat_desc_utils"),
                                                   order=CategoryOrder.FIRST, defaultcat=True),
-            DefaultCategories.GAMES: HelpCategory(bot, Lang.lang(self, "default_category_games"),
+            DefaultCategories.GAMES: HelpCategory(self.bot, Lang.lang(self, "default_category_games"),
                                                   desc=Lang.lang(self, "cat_desc_games"),
                                                   defaultcat=True),
-            DefaultCategories.SPORT: HelpCategory(bot, Lang.lang(self, "default_category_sport"),
+            DefaultCategories.SPORT: HelpCategory(self.bot, Lang.lang(self, "default_category_sport"),
                                                   desc=Lang.lang(self, "cat_desc_sport"),
                                                   defaultcat=True),
-            DefaultCategories.MISC: HelpCategory(bot, Lang.lang(self, "default_category_misc"),
+            DefaultCategories.MISC: HelpCategory(self.bot, Lang.lang(self, "default_category_misc"),
                                                  desc=Lang.lang(self, "cat_desc_misc"),
                                                  order=CategoryOrder.LAST, defaultcat=True),
-            DefaultCategories.USER: HelpCategory(bot, Lang.lang(self, "default_category_user"),
+            DefaultCategories.USER: HelpCategory(self.bot, Lang.lang(self, "default_category_user"),
                                                  desc=Lang.lang(self, "cat_desc_user"),
                                                  order=CategoryOrder.LAST, defaultcat=True),
-            DefaultCategories.MOD: HelpCategory(bot, Lang.lang(self, "default_category_mod"),
+            DefaultCategories.MOD: HelpCategory(self.bot, Lang.lang(self, "default_category_mod"),
                                                 desc=Lang.lang(self, "cat_desc_mod"),
                                                 order=CategoryOrder.LAST, defaultcat=True),
-            DefaultCategories.ADMIN: HelpCategory(bot, Lang.lang(self, "default_category_admin"),
+            DefaultCategories.ADMIN: HelpCategory(self.bot, Lang.lang(self, "default_category_admin"),
                                                   desc=Lang.lang(self, "cat_desc_admin"),
                                                   order=CategoryOrder.LAST, defaultcat=True),
         }
@@ -249,7 +250,7 @@ class GeckiHelp(BaseSubsystem):
 
         # Setup help cmd
         self.bot.remove_command("help")
-        self.cog = HelpCog(self.bot)
+        self.cog = HelpCog()
         self.bot.add_cog(self.cog)
         self.register_category(self.cog.category)
 

@@ -5,12 +5,12 @@ import emoji
 from discord import Role
 from discord.ext import commands
 
-from base import BasePlugin, NotFound
+from base.configurable import BasePlugin, NotFound
+from base.data import Storage, Config, Lang
 from botutils import utils, permchecks, converters, stringutils
 from botutils.utils import add_reaction, execute_anything_sync
-from data import Storage, Config, Lang
-from subsystems import reactions
-from subsystems.helpsys import DefaultCategories
+from services import reactions
+from services.helpsys import DefaultCategories
 
 
 async def add_user_role(member: discord.Member, role: discord.Role):
@@ -67,18 +67,18 @@ class Plugin(BasePlugin, name="Role Management"):
     key: role_id, value: {emoji: emoji str representation, modrole: mod_role_id}
     """
 
-    def __init__(self, bot):
-        super().__init__(bot)
-        self.can_reload = True
+    def __init__(self):
+        super().__init__()
+        self.bot = Config().bot
 
-        bot.register(self, DefaultCategories.MOD)
+        self.bot.register(self, DefaultCategories.MOD)
         for cmd in self.get_commands():
             if cmd.name == "role msg":
                 self.bot.helpsys.default_category(DefaultCategories.MISC).add_command(cmd)
 
         async def get_init_msg_data():
             if self.has_init_msg_set:
-                bot.reaction_listener.register(await self.get_init_msg(), self.update_reaction_based_user_role)
+                self.bot.reaction_listener.register(await self.get_init_msg(), self.update_reaction_based_user_role)
 
         # asyncio.run_coroutine_threadsafe(get_init_msg_data(), self.bot.loop)
         execute_anything_sync(get_init_msg_data())

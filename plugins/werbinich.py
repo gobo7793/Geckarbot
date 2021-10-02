@@ -10,15 +10,15 @@ from discord.ext import commands
 from discord.http import HTTPException
 from discord.errors import Forbidden
 
-from base import BasePlugin, NotFound
-from data import Lang, Config
+from base.configurable import BasePlugin, NotFound
+from base.data import Lang, Config
 from botutils import utils, statemachine, stringutils
 from botutils.converters import get_best_username as gbu
 from botutils.stringutils import format_andlist
 from botutils.utils import add_reaction
-from subsystems import presence
-from subsystems.helpsys import DefaultCategories
-from subsystems.reactions import ReactionAddedEvent, BaseReactionEvent
+from services import presence
+from services.helpsys import DefaultCategories
+from services.reactions import ReactionAddedEvent, BaseReactionEvent
 
 
 class State(Enum):
@@ -134,9 +134,10 @@ class Participant:
 
 
 class Plugin(BasePlugin, name="Wer bin ich?"):
-    def __init__(self, bot):
-        super().__init__(bot)
-        bot.register(self, DefaultCategories.GAMES)
+    def __init__(self):
+        super().__init__()
+        self.bot = Config().bot
+        self.bot.register(self, DefaultCategories.GAMES)
         self.logger = logging.getLogger(__name__)
 
         self.channel = None

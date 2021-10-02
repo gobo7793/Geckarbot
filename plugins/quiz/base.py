@@ -7,8 +7,8 @@ from typing import Type, List, Union
 
 import discord
 
-from base import BasePlugin
-from data import Lang, Storage
+from base.configurable import BasePlugin
+from base.data import Lang, Storage
 
 from plugins.quiz.utils import get_best_username
 

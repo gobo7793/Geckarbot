@@ -18,22 +18,22 @@ from botutils.permchecks import check_mod_access
 from botutils.sheetsclient import CellRange, Cell
 from botutils.stringutils import paginate, format_andlist
 from botutils.utils import add_reaction, helpstring_helper
-from data import Config, Storage, Lang
+from base.data import Config, Storage, Lang
 from plugins.spaetzle.subsystems import UserBridge, Observed, Trusted
 from plugins.spaetzle.utils import pointdiff_possible, determine_winner, MatchResult, match_status, \
     get_user_league, get_user_cell, get_schedule, get_schedule_opponent, UserNotFound, \
     convert_to_datetime, get_participant_history, duel_points
-from subsystems.helpsys import DefaultCategories
-from subsystems.liveticker import MatchStatus, LeagueRegistrationOLDB
+from services.helpsys import DefaultCategories
+from services.liveticker import MatchStatus, LeagueRegistrationOLDB
 
 
 class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
     """Plugin for the Spaetzle(s)-Tippspiel"""
 
-    def __init__(self, bot):
-        super().__init__(bot)
-        self.can_reload = True
-        bot.register(self, category=DefaultCategories.SPORT)
+    def __init__(self):
+        super().__init__()
+        self.bot = Config().bot
+        self.bot.register(self, category=DefaultCategories.SPORT)
 
         self.logger = logging.getLogger(__name__)
         self.userbridge = UserBridge(self)
@@ -157,7 +157,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             # Request data
             if matchday:
                 for _, _, c_reg in list(self.bot.liveticker.search_coro(plugins=[self.get_name()])):
-                    c_reg.unload()
+                    await c_reg.unload()
             else:
                 matchday = Storage().get(self)['matchday']
             match_list = await LeagueRegistrationOLDB.get_matches_by_matchday(league="bl1", matchday=matchday,

@@ -5,13 +5,13 @@ from abc import ABC, abstractmethod
 from enum import Enum
 from typing import List, Generator, Tuple, Optional, Dict, Iterable, Coroutine, Any, Set
 
-from base import BaseSubsystem, BasePlugin
+from base.configurable import BaseSubsystem, BasePlugin
+from base.data import Storage, Lang, Config
 from botutils import restclient
 from botutils.converters import get_plugin_by_name
 from botutils.utils import execute_anything_sync
-from data import Storage, Lang, Config
-from subsystems import timers
-from subsystems.timers import HasAlreadyRun
+from services import timers
+from services.timers import HasAlreadyRun
 
 
 class LeagueNotExist(Exception):
@@ -1208,9 +1208,9 @@ class LeagueRegistrationOLDB(LeagueRegistrationBase):
 class Liveticker(BaseSubsystem):
     """Subsystem for the registration and operation of sports livetickers"""
 
-    def __init__(self, bot):
-        super().__init__(bot)
-        self.bot = bot
+    def __init__(self):
+        super().__init__()
+        self.bot = Config().bot
         self.logger = logging.getLogger(__name__)
         self.registrations = {x: {} for x in LTSource}
         self.teamname_converter = TeamnameConverter(self)
@@ -1223,7 +1223,7 @@ class Liveticker(BaseSubsystem):
         self.update_storage()
 
         # pylint: disable=unused-variable
-        @bot.listen()
+        @self.bot.listen()
         async def on_ready():
             plugins = self.bot.get_normalplugins()
             await self.restore(plugins)

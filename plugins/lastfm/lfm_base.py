@@ -4,9 +4,9 @@ from typing import List, Dict, Optional, Tuple, Any
 import pprint
 import random
 
-from base import BasePlugin
+from base.configurable import BasePlugin
+from base.data import Lang
 from botutils.utils import write_debug_channel
-from data import Lang
 
 
 class Layer(Enum):

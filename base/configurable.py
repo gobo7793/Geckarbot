@@ -3,21 +3,10 @@ from enum import Enum
 
 from discord.ext.commands import Cog, Command
 
+
 # pylint: disable=import-outside-toplevel
 # pylint: disable=no-self-use
 # pylint: disable=unused-argument
-
-
-class Exitcode(Enum):
-    """
-    These exit codes are evaluated by the runscript and acted on accordingly.
-    """
-    SUCCESS = 0  # regular shutdown, doesn't come back up
-    ERROR = 1  # some generic error
-    HTTP = 2  # no connection to discord (not implemented)
-    UNDEFINED = 3  # if this is returned, the exit code was not set correctly
-    UPDATE = 10  # shutdown, update, restart
-    RESTART = 11  # simple restart
 
 
 class NotLoadable(Exception):
@@ -52,9 +41,8 @@ class ConfigurableType(Enum):
 class Configurable:
     """Defines a class which the config of its instances can be managed by Config class"""
 
-    def __init__(self, bot):
+    def __init__(self):
         self.iodirs = {}
-        self.bot = bot
         self.can_configdump = True
         """Enables or disables that !configdump can dump the config of the plugin"""
         self.dump_except_keys = []  # type: List[str]
@@ -108,7 +96,7 @@ class Configurable:
 
 
 class BaseSubsystem(Configurable):
-    """The base class for all subsystems"""
+    """The base class for all services"""
 
     def get_configurable_type(self):
         """
@@ -120,14 +108,9 @@ class BaseSubsystem(Configurable):
 class BasePlugin(Cog, Configurable):
     """The base class for all plugins"""
 
-    def __init__(self, bot):
+    def __init__(self):
         Cog.__init__(self)
-        Configurable.__init__(self, bot)
-        self.resource_dir = None
-
-        ptype = self.get_configurable_type()
-        if ptype in (ConfigurableType.PLUGIN, ConfigurableType.COREPLUGIN):
-            self.resource_dir = "{}/{}".format(self.bot.RESOURCE_DIR, self.get_name())
+        Configurable.__init__(self)
 
     def get_configurable_type(self):
         """
