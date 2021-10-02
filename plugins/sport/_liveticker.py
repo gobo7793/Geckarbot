@@ -350,3 +350,4 @@ class _Liveticker:
             await add_reaction(ctx.message, Lang.CMDERROR)
             await ctx.send(Lang.lang(self, 'team_not_found'))
         teamnamedict.remove(teamname)
+        await add_reaction(ctx.message, Lang.CMDSUCCESS)
