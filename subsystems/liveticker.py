@@ -3,7 +3,7 @@ import datetime
 import logging
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import List, Generator, Tuple, Optional, Dict, Iterable, Coroutine, Any, Set, NamedTuple
+from typing import List, Generator, Tuple, Dict, Iterable, Coroutine, Any, Set, NamedTuple
 
 from base import BaseSubsystem, BasePlugin
 from botutils import restclient
@@ -92,8 +92,16 @@ class TeamnameDict:
     :param other: additional variants of the teams name
     """
 
-    def __init__(self, converter, long_name: str, short_name: str = None, abbr: str = None, emoji: str = None,
+    def __init__(self, converter, long_name: str = None, short_name: str = None, abbr: str = None, emoji: str = None,
                  other: list = None):
+        if long_name is None:
+            self._converter = converter
+            self.long_name = None
+            self.short_name = None
+            self.abbr = None
+            self.emoji = None
+            self.other = []
+            return
         if short_name is None:
             short_name = long_name[:15]
         if abbr is None:
@@ -155,6 +163,9 @@ class TeamnameDict:
         for other in self.other:
             yield other
 
+    def __bool__(self):
+        return bool(self.long_name and self.short_name and self.abbr)
+
 
 class TeamnameConverter:
     """
@@ -168,7 +179,7 @@ class TeamnameConverter:
         self._teamnames = {}
         self._restore()
 
-    def get(self, team: str, add_if_nonexist: bool = False) -> Optional[TeamnameDict]:
+    def get(self, team: str, add_if_nonexist: bool = False) -> TeamnameDict:
         """
         Returns the saved TeamnameDict for the given team name or adds a new entry if wanted
 
@@ -177,8 +188,11 @@ class TeamnameConverter:
         :return: associated TeamnameDict
         """
         teamnamedict = self._teamnames.get(team.lower())
-        if teamnamedict is None and add_if_nonexist:
-            return self.add(team)
+        if teamnamedict is None:
+            if add_if_nonexist:
+                return self.add(team)
+            else:
+                return TeamnameDict(self)
         return teamnamedict
 
     def add(self, long_name: str, short_name: str = None, abbr: str = None, emoji: str = None,
