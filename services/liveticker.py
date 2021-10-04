@@ -146,7 +146,7 @@ class TeamnameDict:
         """Returns string prepared for display in the table"""
         if len(self.short_name) > 12:
             return f"{self.emoji} `{self.short_name[:11]}\u2026`"
-        return "{} `{}{}`".format(self.emoji, self.short_name, " " * (11 - len(self.short_name)))
+        return f"{self.emoji} `{self.short_name}{' ' * (11 - len(self.short_name))}`"
 
     def store(self, storage_path):
         """Saves this to the storage"""
@@ -191,8 +191,7 @@ class TeamnameConverter:
         if teamnamedict is None:
             if add_if_nonexist:
                 return self.add(team)
-            else:
-                return TeamnameDict(self)
+            return TeamnameDict(self)
         return teamnamedict
 
     def add(self, long_name: str, short_name: str = None, abbr: str = None, emoji: str = None,
@@ -587,11 +586,13 @@ class GoalBase(PlayerEvent, ABC):
     is_overtime: bool
 
     def display(self) -> str:
+        score_h, score_a = self.score.values()
+        symbol = ":soccer:"
         if self.is_owngoal:
-            return ":soccer::back: {}:{} {} ({})".format(*list(self.score.values())[0:2], self.player, self.minute)
+            symbol += ":back:"
         if self.is_penalty:
-            return ":soccer::goal: {}:{} {} ({})".format(*list(self.score.values())[0:2], self.player, self.minute)
-        return ":soccer: {}:{} {} ({})".format(*list(self.score.values())[0:2], self.player, self.minute)
+            symbol += ":goal:"
+        return f"{symbol} {score_h}:{score_h} {self.player} ({self.minute})"
 
 
 class GoalESPN(GoalBase):
@@ -638,7 +639,7 @@ class YellowCardBase(PlayerEvent, ABC):
     """Base class for yellow cards"""
 
     def display(self):
-        return ":yellow_square: {} ({})".format(self.player, self.minute)
+        return f":yellow_square: {self.player} ({self.minute})"
 
 
 class YellowCardESPN(YellowCardBase):
@@ -660,7 +661,7 @@ class RedCardBase(PlayerEvent, ABC):
     """Base class for red cards"""
 
     def display(self):
-        return ":red_square: {} ({})".format(self.player, self.minute)
+        return f":red_square: {self.player} ({self.minute})"
 
 
 class RedCardESPN(RedCardBase):
@@ -1068,7 +1069,6 @@ class LeagueRegistrationBase(ABC):
         Regularly updates coros and checks if matches are still running.
 
         :param kickoffs: List of kickoff datetimes
-        :return:
         """
         if not self.alive:
             return
@@ -1150,7 +1150,7 @@ class LeagueRegistrationESPN(LeagueRegistrationBase):
         if until_day is None:
             until_day = from_day
 
-        dates = "{}-{}".format(from_day.strftime("%Y%m%d"), until_day.strftime("%Y%m%d"))
+        dates = f"{from_day:%Y%m%d}-{until_day:%Y%m%d}"
         data = await restclient.Client("http://site.api.espn.com/apis/site/v2/sports") \
             .request(f"/soccer/{league}/scoreboard", params={'dates': dates,
                                                              'geckirandom': datetime.datetime.now().microsecond})
@@ -1199,7 +1199,7 @@ class LeagueRegistrationOLDB(LeagueRegistrationBase):
         if until_day is None:
             until_day = from_day
 
-        data = await restclient.Client("https://api.openligadb.de").request("/getmatchdata/{}".format(league))
+        data = await restclient.Client("https://api.openligadb.de").request(f"/getmatchdata/{league}")
         matches = []
         if not data:
             return []
