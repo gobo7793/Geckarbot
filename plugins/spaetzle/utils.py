@@ -4,8 +4,8 @@ from enum import Enum
 from typing import Tuple, Union, Optional
 
 from botutils.sheetsclient import Cell, CellRange
-from data import Storage
-from subsystems.liveticker import MatchStatus
+from base.data import Storage
+from services.liveticker import MatchStatus
 
 
 class LeagueNotFound(Exception):

@@ -6,13 +6,13 @@ import discord
 from discord.ext import commands
 from discord.errors import HTTPException
 
-from base import BasePlugin
-from data import Storage, Lang, Config
+from base.configurable import BasePlugin
+from base.data import Storage, Lang, Config
 from botutils import permchecks
 from botutils.stringutils import paginate
 from botutils.utils import sort_commands_helper, add_reaction, helpstring_helper
 from botutils.setter import ConfigSetter
-from subsystems.helpsys import DefaultCategories
+from services.helpsys import DefaultCategories
 
 from plugins.quiz.controllers import RushQuizController, PointsQuizController
 from plugins.quiz.quizapis import quizapis, MetaQuizAPI
@@ -50,9 +50,11 @@ class Methods(Enum):
 
 
 class Plugin(BasePlugin, name="A trivia kwiss"):
-    def __init__(self, bot):
+    def __init__(self):
+        super().__init__()
+        self.bot = Config().bot
+        self.bot.register(self, category=DefaultCategories.GAMES)
         self.logger = logging.getLogger(__name__)
-        self.bot = bot
         self.controllers = {}
         self.registered_subcommands = {}
         self.category_controller = CategoryController()
@@ -101,9 +103,6 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
 
         # Undocumented subcommands
         self.register_subcommand(None, "info", self.cmd_info)
-
-        super().__init__(bot)
-        bot.register(self, category=DefaultCategories.GAMES)
 
         # Migrate data if necessary
         migration(self, self.logger)

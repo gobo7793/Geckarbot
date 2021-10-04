@@ -5,9 +5,9 @@ from typing import Optional
 import discord
 
 from plugins.lastfm.api import UnexpectedResponse
-from subsystems.presence import PresenceMessage, PresencePriority, activitymap
-from subsystems.timers import Timer
-from data import Storage, Lang
+from services.presence import PresenceMessage, PresencePriority, activitymap
+from services.timers import Timer
+from base.data import Storage, Lang
 from botutils.converters import get_best_user, get_best_username as gbu
 
 
@@ -59,6 +59,7 @@ class PresenceState:
         if there is no current scrobble among the users
 
         :return: This PresenceState
+        :rtype: PresenceState
         """
         rnd = await self.presence_msg.get_random_lastfm_listener()
         self.cur_listener_dc, self.cur_listener_lfm, self.cur_song = rnd
@@ -128,7 +129,7 @@ class LfmPresenceMessage(PresenceMessage):
                     await self.state.reset()
                 except UnexpectedResponse:
                     pass
-                
+
                 if not self.state.is_set():
                     await self.bot.presence.skip()
                     return

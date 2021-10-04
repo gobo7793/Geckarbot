@@ -8,13 +8,14 @@ from enum import Enum
 
 from discord.ext import commands
 
-from base import BasePlugin, ConfigurableType, Exitcode
-from data import Config, Lang
+from base.configurable import BasePlugin, ConfigurableType
+from base.bot import Exitcode
+from base.data import Config, Lang
 from botutils import restclient, utils, permchecks
 from botutils.stringutils import paginate
-from botutils.utils import sort_commands_helper, add_reaction
-from subsystems.helpsys import DefaultCategories
-from subsystems.presence import PresencePriority
+from botutils.utils import sort_commands_helper, add_reaction, execute_anything_sync
+from services.helpsys import DefaultCategories
+from services.presence import PresencePriority
 
 # Assumed version numbering system:
 # 2.3.1
@@ -236,17 +237,17 @@ class State(Enum):
 
 
 class Plugin(BasePlugin, name="Bot updating system"):
-    def __init__(self, bot):
-        super().__init__(bot)
-        self.bot = bot
+    def __init__(self):
+        super().__init__()
+        self.bot = Config().bot
         self.client = restclient.Client(URL)
 
-        self.bot.loop.run_until_complete(self.was_i_updated())
+        execute_anything_sync(self.was_i_updated())
         self.state = State.IDLE
 
         self.to_log = None
         self.waiting_for_confirm = None
-        bot.register(self, category=DefaultCategories.ADMIN)
+        self.bot.register(self, category=DefaultCategories.ADMIN)
 
         # Add commands to help category 'user'
         to_add = ("version", "news")

@@ -3,7 +3,9 @@ This subsystem provides listeners for reactions on messages.
 """
 
 from enum import Enum
-from base import BaseSubsystem
+from base.configurable import BaseSubsystem
+from base.data import Config
+from botutils.utils import log_exception
 
 
 class BaseReactionEvent:
@@ -40,7 +42,7 @@ class ReactionAction(Enum):
     REMOVE = 1
 
 
-async def _build_reaction_event(bot, callback, payload, data, action, message=None):
+async def _build_reaction_event(bot, callback, payload, data, action, message=None) -> BaseReactionEvent:
     # Figure out event class
     if action == ReactionAction.ADD:
         eventclass = ReactionAddedEvent
@@ -58,7 +60,7 @@ async def _build_reaction_event(bot, callback, payload, data, action, message=No
     return eventclass(callback, data, user, member, channel, message, payload.emoji)
 
 
-class Callback:
+class Registration:
     """The callback which represents a reaction listener registration"""
     def __init__(self, listener, msg, coro, data):
         self.listener = listener
@@ -70,44 +72,51 @@ class Callback:
         """Deregisters the reaction listener"""
         self.listener.deregister(self)
 
+    async def execute(self, event):
+        try:
+            await self.coro(event)
+        except Exception as e:
+            fields = {"Coroutine": str(self.coro), "Event": event}
+            await log_exception(e, title=":x: Reaction Listener Error", fields=fields)
+
     def __str__(self):
         return "<reactions.Callback; coro: {}; msg: {}>".format(self.coro, self.message)
 
 
 class ReactionListener(BaseSubsystem):
     """Reaction listener subsystem"""
-    def __init__(self, bot):
-        super().__init__(bot)
-        self.callbacks = []
-        self.bot = bot
+    def __init__(self):
+        super().__init__()
+        self.registrations = []
+        self.bot = Config().bot
         self.to_del = []
         self._checking = False
 
         # pylint: disable=unused-variable
-        @bot.listen()
+        @self.bot.listen()
         async def on_raw_reaction_add(payload):
             await self._check(payload, ReactionAction.ADD)
 
-        @bot.listen()
+        @self.bot.listen()
         async def on_raw_reaction_remove(payload):
             await self._check(payload, ReactionAction.REMOVE)
 
     async def _check(self, payload, action: ReactionAction):
         for el in self.to_del:
-            if el in self.callbacks:
-                self.callbacks.remove(el)
+            if el in self.registrations:
+                self.registrations.remove(el)
         self.to_del = []
 
         self._checking = True
         found = []
-        for el in self.callbacks:
+        for el in self.registrations:
             if el.message.id == payload.message_id:
                 found.append(el)
 
         if found:
             for el in found:
                 event = await _build_reaction_event(self.bot, el, payload, el.data, action)
-                await el.coro(event)
+                await el.execute(event)
 
         self._checking = False
 
@@ -120,18 +129,18 @@ class ReactionListener(BaseSubsystem):
         :param data: Obaque object that will be part of the event object as event.data.
         :return: Callback object that can be used to unregister the listener.
         """
-        cb = Callback(self, message, coro, data)
-        self.callbacks.append(cb)
-        return cb
+        reg = Registration(self, message, coro, data)
+        self.registrations.append(reg)
+        return reg
 
-    def deregister(self, callback):
+    def deregister(self, registration):
         """
         Deregisters the reaction listener for the given callback
 
-        :param callback: The callback object of the registration
+        :param registration: The registration object that was returned by register()
         """
         if self._checking:
-            self.to_del.append(callback)
+            self.to_del.append(registration)
         else:
-            if callback in self.callbacks:
-                self.callbacks.remove(callback)
+            if registration in self.registrations:
+                self.registrations.remove(registration)

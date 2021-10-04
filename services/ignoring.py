@@ -10,11 +10,11 @@ import discord
 from discord.ext import commands
 from discord.ext.commands import DisabledCommand
 
-from base import BaseSubsystem
-from data import Storage, Lang
+from base.configurable import BaseSubsystem
+from base.data import Storage, Lang, Config
 from botutils import utils
 from botutils.converters import get_best_username, get_best_user
-from subsystems import timers
+from services import timers
 
 
 class UserBlockedCommand(DisabledCommand):
@@ -237,9 +237,10 @@ class IgnoreDataset:
 class Ignoring(BaseSubsystem):
     """Provides the ignoring subsystem"""
 
-    def __init__(self, bot):
-        super().__init__(bot)
-        bot.plugins.append(self)
+    def __init__(self):
+        super().__init__()
+        self.bot = Config().bot
+        self.bot.plugins.append(self)
         self.log = logging.getLogger(__name__)
 
         self.additional_cmds = []
@@ -250,7 +251,7 @@ class Ignoring(BaseSubsystem):
         self.active = []
 
         # pylint: disable=unused-variable
-        @bot.listen()
+        @self.bot.listen()
         async def on_ready():
             self._load()
 

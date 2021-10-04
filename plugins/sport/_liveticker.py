@@ -7,10 +7,10 @@ from discord.ext import commands
 
 from botutils.stringutils import paginate
 from botutils.utils import add_reaction
-from data import Lang, Config
-from subsystems.liveticker import TeamnameDict, LTSource, PlayerEventEnum, LivetickerKickoff, LivetickerMidgame, \
+from base.data import Lang, Config
+from services.liveticker import TeamnameDict, LTSource, PlayerEventEnum, LivetickerKickoff, LivetickerMidgame, \
     LivetickerFinish, LivetickerEvent, League
-from subsystems.reactions import ReactionAddedEvent
+from services.reactions import ReactionAddedEvent
 
 logger = logging.getLogger(__name__)
 

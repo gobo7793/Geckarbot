@@ -36,10 +36,10 @@
         "desc_plugin_load": "Load a plugin with the given name, if it is available. If the plugin can't be loaded, see log file for more details.",
         "desc_plugin_reload": "First unloads and then loads the plugin with the given name. Instead to 'unload' command, the plugin config won't be saved during unloading.\nCoreplugins and Subsystems can't be reloaded. If error occurs, see log file for more details.",
         "desc_plugin_available": "List all available plugins, which aren't loaded.",
-        "desc_set": "Sets configuration values. Available values:\n\nleave_notification [true|false] - defines whether a notification is to be sent to the mod channel when a user leaves the server.",
+        "desc_set": "Sets configuration values. Available values:\n  leave_notification [true|false] - defines whether a notification is to be sent to the mod channel when a user leaves the server.",
 
         "#2": "usage strings",
-        "usage_set": "<key> <value>",
+        "usage_set": "[<key> <value>]",
 
         "#3": "misc commands",
         "about_version": "Geckarbot {} on {}, licensed under GNU GPL v3.0. Hosted with ❤ on {} {} ({}).\n",
@@ -139,10 +139,10 @@
         "desc_plugin_load": "Lädt ein Plugin mit dem angegebenen Namen, sofern das Plugin verfügbar ist. Wenn das Plugin nicht geladen werden kann, stehen weitere Details in der Logdatei.",
         "desc_plugin_reload": "Fährt zuerst das Plugin mit dem angegebenen Namen herunter und lädt es anschließend neu. Im Gegensatz zum 'unload'-Kommando wird die Plugin-Konfiguration beim Runterfahren nicht gespeichert.\nCoreplugins und Subsysteme können nicht runtergefahren werden. Wenn Fehler auftreten, stehen weitere Details in der Logdatei.",
         "desc_plugin_available": "Listet alle verfügbaren Plugins, die nicht geladen sind.",
-        "desc_set": "Setzt Konfigurationsoptionen. Verfügbare Optionen:\n\nleave_notification [true|false] - definiert, ob eine Nachricht in den Mod-Channel gesendet werden soll, wenn ein Nutzer den Server verlässt.",
+        "desc_set": "Setzt Konfigurationsoptionen. Verfügbare Optionen:\n  leave_notification [true|false] - definiert, ob eine Nachricht in den Mod-Channel gesendet werden soll, wenn ein Nutzer den Server verlässt.",
 
         "#2": "Usage strings",
-        "usage_set": "<Option> <Wert>",
+        "usage_set": "[<Option> <Wert>]",
 
         "#3": "misc commands",
         "about_version": "Geckarbot {} auf dem Server {}, lizenziert unter GNU GPL v3.0. Gehostet mit ❤ auf {} {} ({}).\n",

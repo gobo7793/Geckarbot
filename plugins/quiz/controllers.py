@@ -5,12 +5,12 @@ from datetime import datetime
 
 import discord
 
-from subsystems.reactions import ReactionRemovedEvent
-from subsystems import timers
+from services.reactions import ReactionRemovedEvent, BaseReactionEvent
+from services import timers
 from botutils import statemachine
 from botutils.utils import add_reaction
 from botutils.stringutils import format_andlist
-from data import Storage, Lang
+from base.data import Storage, Lang
 
 from plugins.quiz.base import BaseQuizController, Score, InvalidAnswer, Difficulty, Rankedness
 from plugins.quiz.utils import get_best_username
@@ -40,7 +40,7 @@ class PointsQuizController(BaseQuizController):
     """
     Gamemode: every user with the correct answer gets a point
     """
-    def __init__(self, plugin, quizapi, channel, requester, **kwargs):
+    def __init__(self, plugin, quizapi, channel: discord.abc.Messageable, requester: discord.User, **kwargs):
         """
         :param plugin: Plugin object
         :param quizapi: Quiz API class that is to be used
@@ -180,7 +180,7 @@ class PointsQuizController(BaseQuizController):
         if len(self.registered_participants) == 0:
             # abort
             embed, msg = self.plugin.end_quiz(self.channel)
-            self.channel.send(msg, embed=embed)
+            await self.channel.send(msg, embed=embed)
             return
 
         for user in self.registered_participants:
@@ -194,7 +194,7 @@ class PointsQuizController(BaseQuizController):
         await asyncio.sleep(10)
         return Phases.QUESTION
 
-    async def pose_question(self):
+    async def pose_question(self) -> Phases:
         """
         QUESTION -> [EVAL, END]
 
@@ -241,7 +241,7 @@ class PointsQuizController(BaseQuizController):
         self.eval_event = None
         return Phases.EVAL
 
-    async def eval(self):
+    async def eval(self) -> Phases:
         """
         EVAL -> QUESTION
         Is called when the question is over. Evaluates scores and cancels the timer.
@@ -379,7 +379,7 @@ class PointsQuizController(BaseQuizController):
             self.plugin.logger.debug("Continuing after waiting for answers")
             self.eval_event.set()
 
-    async def on_reaction(self, event):
+    async def on_reaction(self, event: BaseReactionEvent):
         if event.member == self.plugin.bot.user:
             self.plugin.logger.debug("Caught self-reaction: {} on {}".format(event.emoji, event.message))
             return

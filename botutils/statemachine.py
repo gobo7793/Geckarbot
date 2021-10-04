@@ -1,5 +1,5 @@
 import logging
-from typing import Any, Optional, Coroutine
+from typing import Any, Optional, Coroutine, Callable, Union
 
 from botutils.utils import execute_anything
 
@@ -103,7 +103,7 @@ class StateMachine:
     def cancel(self):
         self._cancelled = True
 
-    def add_state(self, state: Any, coro: Optional[Coroutine],
+    def add_state(self, state: Any, coro: Optional[Union[Callable[[], Any], Coroutine]],
                   allowed_sources: Optional[list] = None, start: bool = False, end: bool = False):
         """
         Adds a state.

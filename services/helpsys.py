@@ -1,10 +1,11 @@
 from enum import Enum
 import logging
+from typing import List, Tuple, Optional, Union
 
 from discord.ext import commands
 
-from base import BaseSubsystem, NotFound, BasePlugin, ConfigurableType
-from data import Lang
+from base.configurable import BaseSubsystem, NotFound, BasePlugin, ConfigurableType
+from base.data import Lang, Config
 from botutils.utils import add_reaction, get_plugin_by_cmd, helpstring_helper
 from botutils.stringutils import paginate
 
@@ -43,10 +44,11 @@ class HelpCog(BasePlugin):
     """
     Cog for help commands
     """
-    def __init__(self, bot):
-        self.bot = bot
-        super().__init__(bot)
-        self.category = HelpCategory(bot, Lang.lang(self, "self_category_name"), desc=Lang.lang(self, "cat_desc_help"))
+    def __init__(self):
+        self.bot = Config().bot
+        super().__init__()
+        self.category = HelpCategory(self.bot, Lang.lang(self, "self_category_name"),
+                                     desc=Lang.lang(self, "cat_desc_help"))
         self.category.add_plugin(self)
 
     def command_help_string(self, command):
@@ -208,35 +210,38 @@ class HelpCategory:
             await ctx.send(msg)
 
 
+Category = Union[DefaultCategories, HelpCategory]
+
+
 class GeckiHelp(BaseSubsystem):
     """
     Subsystem that handles the bot's `!help` command.
     """
-    def __init__(self, bot):
-        self.bot = bot
-        super().__init__(self.bot)
+    def __init__(self):
+        self.bot = Config().bot
+        super().__init__()
         self.logger = logging.getLogger(__name__)
 
         self.default_categories = {
-            DefaultCategories.UTILS: HelpCategory(bot, Lang.lang(self, "default_category_utils"),
+            DefaultCategories.UTILS: HelpCategory(self.bot, Lang.lang(self, "default_category_utils"),
                                                   desc=Lang.lang(self, "cat_desc_utils"),
                                                   order=CategoryOrder.FIRST, defaultcat=True),
-            DefaultCategories.GAMES: HelpCategory(bot, Lang.lang(self, "default_category_games"),
+            DefaultCategories.GAMES: HelpCategory(self.bot, Lang.lang(self, "default_category_games"),
                                                   desc=Lang.lang(self, "cat_desc_games"),
                                                   defaultcat=True),
-            DefaultCategories.SPORT: HelpCategory(bot, Lang.lang(self, "default_category_sport"),
+            DefaultCategories.SPORT: HelpCategory(self.bot, Lang.lang(self, "default_category_sport"),
                                                   desc=Lang.lang(self, "cat_desc_sport"),
                                                   defaultcat=True),
-            DefaultCategories.MISC: HelpCategory(bot, Lang.lang(self, "default_category_misc"),
+            DefaultCategories.MISC: HelpCategory(self.bot, Lang.lang(self, "default_category_misc"),
                                                  desc=Lang.lang(self, "cat_desc_misc"),
                                                  order=CategoryOrder.LAST, defaultcat=True),
-            DefaultCategories.USER: HelpCategory(bot, Lang.lang(self, "default_category_user"),
+            DefaultCategories.USER: HelpCategory(self.bot, Lang.lang(self, "default_category_user"),
                                                  desc=Lang.lang(self, "cat_desc_user"),
                                                  order=CategoryOrder.LAST, defaultcat=True),
-            DefaultCategories.MOD: HelpCategory(bot, Lang.lang(self, "default_category_mod"),
+            DefaultCategories.MOD: HelpCategory(self.bot, Lang.lang(self, "default_category_mod"),
                                                 desc=Lang.lang(self, "cat_desc_mod"),
                                                 order=CategoryOrder.LAST, defaultcat=True),
-            DefaultCategories.ADMIN: HelpCategory(bot, Lang.lang(self, "default_category_admin"),
+            DefaultCategories.ADMIN: HelpCategory(self.bot, Lang.lang(self, "default_category_admin"),
                                                   desc=Lang.lang(self, "cat_desc_admin"),
                                                   order=CategoryOrder.LAST, defaultcat=True),
         }
@@ -245,21 +250,21 @@ class GeckiHelp(BaseSubsystem):
 
         # Setup help cmd
         self.bot.remove_command("help")
-        self.cog = HelpCog(self.bot)
+        self.cog = HelpCog()
         self.bot.add_cog(self.cog)
         self.register_category(self.cog.category)
 
     ######
     # Housekeeping methods
     ######
-    def default_category(self, const):
+    def default_category(self, const: DefaultCategories) -> HelpCategory:
         """
         :param const: One out of DefaultCategories
         :return: Corresponding registered category
         """
         return self.default_categories[const]
 
-    def category(self, name):
+    def category(self, name: str) -> Optional[HelpCategory]:
         """
         :param name: Category name
         :return: Returns the HelpCategory with name `name`. None if no such HelpCategory is found.
@@ -269,7 +274,7 @@ class GeckiHelp(BaseSubsystem):
                 return cat
         return None
 
-    def categories_by_plugin(self, plugin):
+    def categories_by_plugin(self, plugin: BasePlugin) -> List[HelpCategory]:
         """
         :param plugin: Plugin
         :return: List of HelpCategory objects that contain `plugin`
@@ -280,7 +285,7 @@ class GeckiHelp(BaseSubsystem):
                 r.append(cat)
         return r
 
-    def register_category_by_name(self, name, description=""):
+    def register_category_by_name(self, name: str, description: str = "") -> HelpCategory:
         """
         Creates and registers a help category by name only.
 
@@ -294,7 +299,7 @@ class GeckiHelp(BaseSubsystem):
             self.register_category(cat)
         return cat
 
-    def register_category(self, category):
+    def register_category(self, category: Category) -> HelpCategory:
         """
         Registers a category with Help. If a DefaultCategory is parsed, nothing is registered,
         but the corresponding registered HelpCategory is returned.
@@ -315,7 +320,7 @@ class GeckiHelp(BaseSubsystem):
         self._categories.append(category)
         return category
 
-    def deregister_category(self, category):
+    def deregister_category(self, category: Category):
         """
         Deregisters a help category. If a DefaultCategory is parsed, nothing is deregistered.
 
@@ -331,7 +336,7 @@ class GeckiHelp(BaseSubsystem):
 
         self._categories.remove(category)
 
-    def purge_plugin(self, plugin):
+    def purge_plugin(self, plugin: BasePlugin):
         """
         Removes a plugin and its commands from all help categories.
 
@@ -347,7 +352,7 @@ class GeckiHelp(BaseSubsystem):
     #######
     # Parsing methods
     #######
-    def find_command(self, args):
+    def find_command(self, args) -> Tuple[Optional[BasePlugin], Optional[commands.Command]]:
         """
         Finds the command that is resembled by `args`.
 
@@ -382,7 +387,7 @@ class GeckiHelp(BaseSubsystem):
         return None, None
 
     def all_commands(self, include_hidden: bool = False, hidden_only: bool = False, include_debug: bool = False,
-                     flatten=False):
+                     flatten: bool = False) -> List[str]:
         """
         :param include_hidden: Whether to include commands with the `hidden` flag set.
         :param hidden_only: Whether to only return commands with the `hidden` flag set. Requires `include_hidden`.
@@ -410,7 +415,7 @@ class GeckiHelp(BaseSubsystem):
     # Evaluation methods
     #####
     @staticmethod
-    def get_command_help(plugin, cmd):
+    def get_command_help(plugin: BasePlugin, cmd: commands.Command) -> str:
         """
         :param plugin: Plugin that `cmd` is in
         :param cmd: Command to get help string for
@@ -424,7 +429,7 @@ class GeckiHelp(BaseSubsystem):
                 r = cmd.help
         return r
 
-    def get_command_description(self, plugin, cmd):
+    def get_command_description(self, plugin: BasePlugin, cmd: commands.Command) -> str:
         """
         :param plugin: Plugin that `cmd` is in
         :param cmd: Command to get description string for
@@ -446,7 +451,7 @@ class GeckiHelp(BaseSubsystem):
     #####
     # Format methods
     #####
-    def append_command_leaves(self, cmds, cmd):
+    def _append_command_leaves(self, cmds: List[commands.Command], cmd: commands.Command):
         """
         Recursive helper function for `flattened_plugin_help()`.
 
@@ -459,9 +464,9 @@ class GeckiHelp(BaseSubsystem):
 
         # we are in a group
         for command in cmd.commands:
-            self.append_command_leaves(cmds, command)
+            self._append_command_leaves(cmds, command)
 
-    def flattened_plugin_help(self, plugin):
+    def flattened_plugin_help(self, plugin: BasePlugin) -> List[str]:
         """
         In the tree structure of existing commands and groups in a plugin, returns a list of all
         formatted leaf command help lines.
@@ -471,14 +476,14 @@ class GeckiHelp(BaseSubsystem):
         """
         cmds = []
         for cmd in plugin.get_commands():
-            self.append_command_leaves(cmds, cmd)
+            self._append_command_leaves(cmds, cmd)
 
         msg = []
         for cmd in cmds:
             msg.append(self.format_command_help_line(plugin, cmd))
         return msg
 
-    def format_command_help_line(self, plugin, command):
+    def format_command_help_line(self, plugin: BasePlugin, command: commands.Command) -> str:
         """
         :param plugin: BasePlugin object that this command belongs to
         :param command: Command that the help line concerns
@@ -492,7 +497,7 @@ class GeckiHelp(BaseSubsystem):
             return "{}{} - {}".format(self.bot.command_prefix, command.qualified_name, helpstr)
         return "{}{}".format(self.bot.command_prefix, command.qualified_name)
 
-    def format_subcmds(self, ctx, plugin, command):
+    def format_subcmds(self, ctx: commands.Context, plugin: BasePlugin, command: commands.Command) -> List[str]:
         """
         Brings the subcommands of a command in format to be used in a help message.
 
@@ -511,7 +516,7 @@ class GeckiHelp(BaseSubsystem):
                 r = [Lang.lang(self, "help_subcommands_prefix")] + r
         return r
 
-    def format_aliases(self, command):
+    def format_aliases(self, command: commands.Command) -> str:
         """
         Brings the aliases of a command in format to be used in a help message.
 
@@ -519,10 +524,9 @@ class GeckiHelp(BaseSubsystem):
         :return: Formatted list of aliases
         """
         aliases = ", ".join(command.aliases)
-        r = Lang.lang(self, "help_aliases", aliases) + "\n"
-        return r
+        return Lang.lang(self, "help_aliases", aliases) + "\n"
 
-    def format_usage(self, cmd, plugin=None):
+    def format_usage(self, cmd: commands.Command, plugin: BasePlugin = None) -> str:
         """
         Brings the usage of a command in format to be used in a help message.
 

@@ -8,8 +8,8 @@ import pprint
 import discord
 from discord.ext import commands
 
-from base import BasePlugin, NotLoadable
-from data import Config, Lang, Storage
+from base.configurable import BasePlugin, NotLoadable
+from base.data import Config, Lang, Storage
 from botutils.converters import get_best_username as gbu, get_best_user, convert_member
 from botutils.timeutils import to_unix_str, TimestampStyle, hr_roughly
 from botutils.stringutils import paginate
@@ -44,8 +44,9 @@ class NotRegistered(Exception):
 
 
 class Plugin(BasePlugin, name="LastFM"):
-    def __init__(self, bot):
-        super().__init__(bot)
+    def __init__(self):
+        super().__init__()
+        self.bot = Config().bot
 
         self.logger = logging.getLogger(__name__)
         self.migrate()
@@ -55,7 +56,7 @@ class Plugin(BasePlugin, name="LastFM"):
             raise NotLoadable("API Key not found")
         self.dump_except_keys = ["username", "password", "apikey", "sharedsecret"]
 
-        bot.register(self, category_desc=Lang.lang(self, "cat_desc"))
+        self.bot.register(self, category_desc=Lang.lang(self, "cat_desc"))
 
         self.perf_total_time = None
         self.perf_lastfm_time = None
@@ -1002,6 +1003,7 @@ class Plugin(BasePlugin, name="LastFM"):
         :param min_title: Amount of songs that have to have the same artist and album
         :return: nested dict that contains scores for every artist, song and album
         """
+        # pylint: disable=unused-argument
         r = {
             "artists": {},
             "albums": {},

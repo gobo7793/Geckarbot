@@ -12,8 +12,8 @@ from botutils import sheetsclient, timeutils
 from botutils.converters import get_best_username, get_username_from_id, get_best_user
 from botutils.stringutils import paginate, format_andlist
 from botutils.utils import add_reaction
-from data import Lang, Config, Storage
-from subsystems.liveticker import TeamnameDict, LeagueRegistrationESPN
+from base.data import Lang, Config, Storage
+from services.liveticker import TeamnameDict, LeagueRegistrationESPN
 
 logger = logging.getLogger(__name__)
 

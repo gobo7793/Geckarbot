@@ -5,7 +5,7 @@ from typing import List, Callable, Union
 
 from discord import User, Message
 
-from data import Lang
+from base.data import Lang
 from botutils.stringutils import paginate, format_andlist as ellist
 from botutils.utils import execute_anything, add_reaction
 

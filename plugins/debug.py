@@ -1,28 +1,28 @@
 import asyncio
-from typing import Union
-from datetime import datetime, timedelta
+from typing import Union, Optional
+from datetime import datetime
 
 import discord
 from discord.ext import commands
 
-from base import BasePlugin
 from botutils import utils, converters, setter, stringutils
 from botutils.timeutils import to_unix_str, TimestampStyle
 from botutils.utils import execute_anything_sync, add_reaction
-from data import Config, Lang
-from subsystems.helpsys import DefaultCategories
-from subsystems.ignoring import UserBlockedCommand
-from subsystems.presence import PresencePriority
-from subsystems.timers import timedict_by_datetime
+from base.configurable import BasePlugin
+from base.data import Config, Lang
+from services.helpsys import DefaultCategories
+from services.ignoring import UserBlockedCommand
+from services.presence import PresencePriority
+from services.timers import timedict_by_datetime, Job
 
 
 class Plugin(BasePlugin, name="Testing and debug things"):
 
-    def __init__(self, bot):
-        self.bot = bot
+    def __init__(self):
+        self.bot = Config().bot
         self.timers = {}
-        super().__init__(bot)
-        bot.register(self, DefaultCategories.ADMIN)
+        super().__init__()
+        self.bot.register(self, DefaultCategories.ADMIN)
         self.sleeper = None
         self.channel = None
 
@@ -136,7 +136,6 @@ class Plugin(BasePlugin, name="Testing and debug things"):
         await ctx.send(args)
 
     # Testing commands
-
     @commands.command(name="mentionuser", help="Mentions a user, supports user cmd disabling.", hidden=True)
     async def cmd_mentionuser(self, ctx, user: discord.Member):
         if self.bot.ignoring.check_passive_usage(user, ctx.command.qualified_name):
@@ -200,7 +199,12 @@ class Plugin(BasePlugin, name="Testing and debug things"):
         raise commands.CommandError("Testerror")
 
     @staticmethod
-    async def error_cb(job=None):
+    async def error_cb(job: Optional[Job] = None):
+        """
+        Raises an exception.
+
+        :param job: sends a msg to job.data
+        """
         if job:
             await job.data.send("Bang! Bang!")
         raise Exception("Bang! Bang!")
@@ -331,7 +335,7 @@ class Plugin(BasePlugin, name="Testing and debug things"):
 
     # @commands.command(name="spam", hidden=True)
     async def cmd_spam(self, ctx):
-        td = {"minute": [x for x in range(60)]}
+        td = {"minute": list(range(60))}
         self.bot.timers.schedule(self.spam_cb, td, data=ctx)
 
     @commands.command(name="execerror", hidden=True)
