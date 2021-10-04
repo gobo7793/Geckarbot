@@ -296,7 +296,7 @@ def get_participant_history(plugin, participant: str) -> list:
     cell = get_user_cell(plugin, participant)
     cell_range = CellRange(start_cell=cell.translate(0, 10), width=2, height=2).rangename()
     current = Storage.get(plugin)['matchday']
-    ranges = ["ST {}!{}".format(t, cell_range) for t in range((current - 1) // 17 * 17 + 1, current)]
+    ranges = [f"ST {t}!{cell_range}" for t in range((current - 1) // 17 * 17 + 1, current)]
     values = c.get_multiple(ranges=ranges)
     data = []
     for title, v in zip(range((current - 1) // 17 * 17 + 1, current), values):

@@ -162,9 +162,10 @@ class _Predgame:
                     continue
 
                 # put match into string
-                preds = ["{} {}:{}".format(people[x], row[6 + x * 2] if row[6 + x * 2] else "-",
-                                           row[7 + x * 2] if row[7 + x * 2] else "-")
-                         for x in range(len(people))]
+                preds = ["{} {}:{}".format(people[x],
+                                           row[6 + x * 2] if row[6 + x * 2] else "-",
+                                           row[7 + x * 2] if row[7 + x * 2] else "-"
+                                           ) for x in range(len(people))]
                 match_msg += "{} - {} // {}\n".format(pred_team1.short_name, pred_team2.short_name, " / ".join(preds))
 
         return match_msg

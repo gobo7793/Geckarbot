@@ -35,7 +35,7 @@ class _Liveticker:
                 embed = discord.Embed(title="Liveticker",
                                       description=description)
                 embed.add_field(name=Lang.lang(self, 'liveticker_action_title'),
-                                value="\n".join(Lang.lang(self, 'liveticker_action_{}'.format(x)) for x in actions))
+                                value="\n".join(Lang.lang(self, f'liveticker_action_{x}') for x in actions))
                 msg = await ctx.send(embed=embed)
                 for emoji in actions:
                     await add_reaction(msg, emoji)
@@ -76,7 +76,7 @@ class _Liveticker:
             embed = event.message.embeds[0]
             embed.clear_fields()
             embed.add_field(name=Lang.lang(self, 'liveticker_action_used'),
-                            value=Lang.lang(self, 'liveticker_action_{}'.format(event.emoji)))
+                            value=Lang.lang(self, f'liveticker_action_{event.emoji}'))
             await event.message.edit(embed=embed)
             if event.emoji.name == "🔀":
                 # Switching channels
@@ -256,7 +256,7 @@ class _Liveticker:
                 match_msg = "{} | {} {} - {} {} | {}:{}".format(match.minute, match.home_team.emoji,
                                                                 match.home_team.long_name, match.away_team.emoji,
                                                                 match.away_team.long_name, *match.score.values())
-                match_msgs.append("**{}**\n{}".format(match_msg, events_msg))
+                match_msgs.append(f"**{match_msg}**\n{events_msg}")
             else:
                 match_msg = "{2}-{3} {0} - {1} | {5}:{6} ({4})".format(match.home_team.abbr, match.away_team.abbr,
                                                                        match.home_team.emoji, match.away_team.emoji,
