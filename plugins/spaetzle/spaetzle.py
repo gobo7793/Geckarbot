@@ -157,7 +157,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             # Request data
             if matchday:
                 for c_reg in list(self.bot.liveticker.search_coro(plugin_names=[self.get_name()])):
-                    await c_reg.unload()
+                    await c_reg.deregister()
             else:
                 matchday = Storage().get(self)['matchday']
             match_list = await LeagueRegistrationOLDB.get_matches_by_matchday(league="bl1", matchday=matchday,
@@ -452,8 +452,9 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
 
     async def _start_liveticker(self):
         """Registers a liveticker"""
-        return await self.bot.liveticker.register(league="bl1", raw_source="oldb", plugin=self,
-                                                  coro=self._liveticker_coro, periodic=True)
+        pass  # TODO: automatic score updating
+        # return await self.bot.liveticker.register_coro(plugin=self, coro=self._liveticker_coro,
+        #                                                leagues=[League(source=LTSource.OPENLIGADB, key="bl1")])
 
     async def _liveticker_coro(self, update):
         pass  # TODO: automatic score updating
