@@ -592,7 +592,7 @@ class GoalBase(PlayerEvent, ABC):
             symbol += ":back:"
         if self.is_penalty:
             symbol += ":goal:"
-        return f"{symbol} {score_h}:{score_h} {self.player} ({self.minute})"
+        return f"{symbol} {score_h}:{score_a} {self.player} ({self.minute})"
 
 
 class GoalESPN(GoalBase):
