@@ -96,6 +96,8 @@ class DMListener(BaseSubsystem):
 
         :param registration: Registration object that is to be unregistered
         """
+        # pylint: disable=unnecessary-dict-index-lookup
+        # (false positive)
         for key, cb in self.registrations.items():
             if registration == cb:
                 del self.registrations[key]

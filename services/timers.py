@@ -144,6 +144,7 @@ class Job:
         await self._lock.acquire()
         first = True
         while True:
+            # pylint: disable=broad-except
             ignore_now = True
             if first:
                 ignore_now = self._ignore_now

@@ -39,7 +39,6 @@ class FantasyLeague(ABC):
         :param plugin: The fantasy plugin instance
         :param league_id: The league ID on the platform
         :param commish: The commissioner
-        :param init: True if league is loading from Storage
         :returns: The created league object
         :rtype: class:`FantasyLeague`
         """
