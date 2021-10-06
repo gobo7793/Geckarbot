@@ -453,7 +453,7 @@ class Plugin(BasePlugin, name="Custom CMDs"):
 
     @cmd.command(name="list")
     async def cmd_list(self, ctx, full=""):
-        if full in self.commands.keys():
+        if full in self.commands:
             return await ctx.invoke(self.bot.get_command("cmd info"), full)
 
         cmds = self._format_cmd_list(full=full)

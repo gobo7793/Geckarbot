@@ -534,7 +534,7 @@ class PointsQuizController(BaseQuizController):
         """
         Called when the status command is invoked.
         """
-        if self.state == Phases.INIT or self.state == Phases.REGISTERING:
+        if self.state in (Phases.INIT, Phases.REGISTERING):
             title = Lang.lang(self.plugin, "status_title_init")
         else:
             title = Lang.lang(self.plugin,

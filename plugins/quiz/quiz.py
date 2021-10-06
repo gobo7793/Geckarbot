@@ -627,11 +627,11 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
                 pass
 
             # controller
-            for key, key in self.controller_mapping.items():
-                if arg in key:
+            for ctrlclass, args in self.controller_mapping.items():
+                if arg in args:
                     if controller_found:
                         raise QuizInitError(self, "duplicate_controller_arg")
-                    controller = key
+                    controller = ctrlclass
                     controller_found = True
                     break
             if controller_found:

@@ -406,8 +406,8 @@ class Presence(BaseSubsystem):
             except SkipPresence:
                 self.log.debug("%s raised SkipPresence; skipping", new_msg)
                 continue
+            # pylint: disable=broad-except
             except Exception as e:
-                # pylint: disable=broad-except
                 error = e
             break
 

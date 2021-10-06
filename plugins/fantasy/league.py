@@ -434,7 +434,7 @@ class SleeperLeague(FantasyLeague):
         matches = {}
         for matchup in matchups_raw:
             home_match = None
-            if matchup["matchup_id"] in matches.keys():
+            if matchup["matchup_id"] in matches:
                 home_match = matches[matchup["matchup_id"]]
             score = matchup["points"]
             team = next(t for t in self.get_teams() if t.team_id == matchup["roster_id"])

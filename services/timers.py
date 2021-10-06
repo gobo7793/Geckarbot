@@ -493,6 +493,7 @@ class Timer:
         self._has_run = True
         try:
             await execute_anything(self.callback, *self.args, **self.kwargs)
+        # pylint: disable=broad-except
         except Exception as e:
             fields = {"Callback": "`{}`".format(self.callback)}
             await log_exception(e, title=":x: Timer error", fields=fields)

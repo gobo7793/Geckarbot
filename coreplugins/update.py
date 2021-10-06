@@ -456,7 +456,7 @@ class Plugin(BasePlugin, name="Bot updating system"):
             return
 
         # Check state and send error messages if necessary
-        if self.state == State.CHECKING or self.state == State.CONFIRMED or self.state == State.UPDATING:
+        if self.state in (State.CHECKING, State.CONFIRMED, State.UPDATING):
             await ctx.message.channel.send(Lang.lang(self, "err_already_updating"))
             return
         if self.state == State.WAITINGFORCONFIRM:

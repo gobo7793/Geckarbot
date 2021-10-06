@@ -204,6 +204,7 @@ class Plugin(BasePlugin, name="Testing and debug things"):
         Raises an exception.
 
         :param job: sends a msg to job.data
+        :raises Exception: that's the point
         """
         if job:
             await job.data.send("Bang! Bang!")
@@ -349,7 +350,7 @@ class Plugin(BasePlugin, name="Testing and debug things"):
         for style in TimestampStyle:
             msg.append(f"{style}: {to_unix_str(timestamp=datetime.now(), style=style)}")
         await ctx.send("\n".join(msg))
-    
+
     @staticmethod
     async def timerexec_cb(job):
         await job.data.send("blub")
