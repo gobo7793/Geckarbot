@@ -231,7 +231,7 @@ class Plugin(BasePlugin):
         try:
             job = self.bot.timers.schedule(self._reminder_callback, timedict, data=job_data, repeat=False)
         except timers.NoFutureExec:
-            job = timers.Job(self.bot, timedict, self._reminder_callback, data=job_data, repeat=False, run=False)
+            job = timers.Job(timedict, self._reminder_callback, data=job_data, repeat=False, run=False)
             utils.execute_anything_sync(self._reminder_callback, job)
             return False
 

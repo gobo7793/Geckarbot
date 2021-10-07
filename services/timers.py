@@ -9,6 +9,7 @@ import asyncio
 import logging
 import struct
 import datetime
+from typing import Optional, Union, List, Any, Awaitable, Callable
 
 from base.configurable import BaseSubsystem
 from base.data import Config
@@ -59,7 +60,7 @@ class Mothership(BaseSubsystem):
         td = normalize_td(td)
         if next_occurence(td) is None:
             raise NoFutureExec("td {} is in the past".format(td))
-        job = Job(self.bot, td, coro, data=data, repeat=repeat, ignore_now=ignore_now)
+        job = Job(td, coro, data=data, repeat=repeat, ignore_now=ignore_now)
         self.logger.info("Scheduling %s", job)
         self.jobs.append(job)
         return job
@@ -71,7 +72,8 @@ class Mothership(BaseSubsystem):
 
 class Job:
     """The scheduled Job representation"""
-    def __init__(self, bot, td, f, data=None, repeat=True, run=True, ignore_now=False):
+    def __init__(self, td: dict, f: Union[Callable, Awaitable],
+                 data: Any = None, repeat: bool = True, run: bool = True, ignore_now: bool = False):
         """
         cron-like. Takes timedict elements as arguments.
 
@@ -84,7 +86,7 @@ class Job:
         :raises RuntimeError: raised if td is in the past
         """
         self.logger = logging.getLogger(__name__)
-        self.bot = bot
+        self.bot = Config().bot
         self._timedict = normalize_td(td)
         self._cancelled = False
         self._coro = f
@@ -197,7 +199,7 @@ class Job:
         if not self._repeat and self._timer:
             self._timer.cancel()
 
-    def next_execution(self, ignore_now=True):
+    def next_execution(self, ignore_now: bool = True) -> Optional[datetime.datetime]:
         """
         Returns a `datetime.datetime` object specifying the next execution of the job coroutine.
         Returns None if there is no future execution.
@@ -218,7 +220,12 @@ class Job:
             self._coro, self._timedict, self._is_scheduled, self._last_tts, self._last_tts // (60*60*24))
 
 
-def timedict(year=None, month=None, monthday=None, weekday=None, hour=None, minute=None):
+def timedict(year: Union[List[int], int, None] = None,
+             month: Union[List[int], int, None] = None,
+             monthday: Union[List[int], int, None] = None,
+             weekday: Union[List[int], int, None] = None,
+             hour: Union[List[int], int, None] = None,
+             minute: Union[List[int], int, None] = None):
     """Creates a timedict object for scheduling a job"""
     return {
         "year": year,
@@ -230,7 +237,7 @@ def timedict(year=None, month=None, monthday=None, weekday=None, hour=None, minu
     }
 
 
-def timedict_by_datetime(dt):
+def timedict_by_datetime(dt: Union[datetime.datetime, datetime.date]) -> dict:
     """
     Creates a timedict that corresponds to a datetime object and can be used by schedule().
 
@@ -242,15 +249,15 @@ def timedict_by_datetime(dt):
         return timedict(year=dt.year, month=dt.month, monthday=dt.day, hour=dt.hour, minute=dt.minute)
     if isinstance(dt, datetime.date):
         return timedict(year=dt.year, month=dt.month, monthday=dt.day)
-    else:
-        raise TypeError
+    raise TypeError
 
 
-def normalize_td(td):
+def normalize_td(td: dict) -> dict:
     """
     Normalizes a timedict to consist of only lists. Also validates formats.
 
-    :return: Normalized timedict;
+    :param td: timedict to be normalized
+    :return: Normalized timedict. This is a new dict, normalization does not happen in-place.
     :raises TypeError: If td is not a valid timedict
     """
     ntd = {}
@@ -273,12 +280,18 @@ def normalize_td(td):
     return ntd
 
 
-def ringdistance(a, b, ringstart, ringend):
+def ringdistance(a: int, b: int, ringstart: int, ringend: int) -> int:
     """
     Returns the smallest positive forward-distance between b and a in a ring of the form ringstart..ringend, e.g.:
     ringdistance(1, 3, 1, 12) == 2   # january, march
     ringdistance(3, 1, 1, 12) == 10  # march, january
     ringdistance(21, 1, 0, 23) == 4  # 9 pm, 1 am
+
+    :param a: start of the distance
+    :param b: end of the distance
+    :param ringstart: first value of the space ring
+    :param ringend: last value of the space ring
+    :return: distance between a and b on the ring
     """
     if not ringstart <= b <= ringend or not ringstart <= a <= ringend:
         raise ValueError("Expecting {} and {} to be between {} and {}".format(b, a, ringstart, ringend))
@@ -288,10 +301,17 @@ def ringdistance(a, b, ringstart, ringend):
     return ringend - a + b - (ringstart - 1)
 
 
-def nearest_element(me, haystack, ringstart, ringend):
+def nearest_element(me: int, haystack: list, ringstart: int, ringend: int) -> int:
     """
     Finds the element in haystack that is the closest to me in a forward-distance. Assumes a ring of ringstart..ringend.
     If haystack is None, returns me. Distance of 0 counts.
+
+    :param me: Start value
+    :param haystack: haystack that is searched in
+    :param ringstart: first value of the space ring
+    :param ringend: last value of the space ring
+    :return: haystack element that is the closes to me in a forward direction. This means that
+        any haystack element > me is closer to me than anything < me.
     """
     if haystack is None:
         return me
@@ -306,7 +326,7 @@ def nearest_element(me, haystack, ringstart, ringend):
     return r
 
 
-def ring_iterator(haystack, startel, ringstart, ringend, startperiod):
+def ring_iterator(haystack: list, startel: int, ringstart: int, ringend: int, startperiod: int):
     """
     Iterates forever over all ring elements in haystack, beginning with startel. Assumes a ring of ringstart..ringend.
 
@@ -314,8 +334,9 @@ def ring_iterator(haystack, startel, ringstart, ringend, startperiod):
     :param startel: haystack element to start the loop with; this is always the first element to be yielded
     :param ringstart: first element of the ring
     :param ringend: last element of the ring, so the ring is ringstart..ringend
-    :param startperiod: This value is iterated every cycle and returned as endperiod.
+    :param startperiod: This value is incremented every cycle and returned as endperiod.
     :return: haystackelement, endperiod
+    :rtype: Tuple[int, int]
     :raises RuntimeError: If startel is not in haystack
     """
     logging.getLogger(__name__).debug("Called ringiterator(%s, %s, %s, %s, %s)",
@@ -339,7 +360,8 @@ def ring_iterator(haystack, startel, ringstart, ringend, startperiod):
         i += 1
 
 
-def next_occurence(ntd, now=None, ignore_now=False):
+def next_occurence(ntd: dict,
+                   now: Optional[datetime.datetime] = None, ignore_now: bool = False) -> Optional[datetime.datetime]:
     """
     Takes a normalized timedict and returns a datetime object that represents the next occurence of said timedict,
     taking now as starting point.
