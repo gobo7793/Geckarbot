@@ -1,4 +1,4 @@
-from typing import List, Any
+from typing import List, Any, Optional
 from enum import Enum
 
 from discord.ext.commands import Cog, Command
@@ -51,17 +51,21 @@ class Configurable:
         Effects main config/ storage and every container.
         """
 
-    def default_config(self, container=None) -> Any:
+    def default_config(self, container: Optional[str] = None) -> Any:
         """
         Returns an empty default config
+
+        :param container: config container name
+        :return: empty default config
         """
         return {}
 
-    def default_storage(self, container=None) -> Any:
+    def default_storage(self, container: Optional[str] = None) -> Any:
         """
         Returns an empty default storage
 
         :param container: storage container name
+        :return: empty default storage
         """
         return {}
 

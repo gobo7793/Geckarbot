@@ -1,14 +1,15 @@
 import asyncio
 import logging
+from typing import List
 
 import discord
 from discord.ext import commands
 
 from botutils.stringutils import paginate
 from botutils.utils import add_reaction
-from base.data import Lang, Config, Storage
-from services.liveticker import TeamnameDict, LTSource, PlayerEventEnum, LivetickerKickoff, LivetickerUpdate, \
-    LivetickerFinish
+from base.data import Lang, Config
+from services.liveticker import TeamnameDict, LTSource, PlayerEventEnum, LivetickerKickoff, LivetickerMidgame, \
+    LivetickerFinish, LivetickerEvent, League
 from services.reactions import ReactionAddedEvent
 
 logger = logging.getLogger(__name__)
@@ -24,10 +25,9 @@ class _Liveticker:
     @commands.group(name="liveticker")
     async def cmd_liveticker(self, ctx):
         if ctx.invoked_subcommand is None:
-            liveticker_regs = list(self.bot.liveticker.search_coro(plugins=[self.get_name()]))
-            if liveticker_regs:
+            for c_reg in self.bot.liveticker.search_coro(plugin_names=[self.get_name()]):
                 # Show dialog for actions
-                leagues = (c_reg.league_reg.league for _, _, c_reg in liveticker_regs)
+                leagues = (str(l_reg.league) for l_reg in c_reg.l_regs)
                 actions = "🔀", "🚫"
                 description = Lang.lang(self, 'liveticker_running',
                                         Config().bot.get_channel(Config().get(self)['sport_chan']).mention,
@@ -35,7 +35,7 @@ class _Liveticker:
                 embed = discord.Embed(title="Liveticker",
                                       description=description)
                 embed.add_field(name=Lang.lang(self, 'liveticker_action_title'),
-                                value="\n".join(Lang.lang(self, 'liveticker_action_{}'.format(x)) for x in actions))
+                                value="\n".join(Lang.lang(self, f'liveticker_action_{x}') for x in actions))
                 msg = await ctx.send(embed=embed)
                 for emoji in actions:
                     await add_reaction(msg, emoji)
@@ -49,15 +49,21 @@ class _Liveticker:
                     for emoji in actions:
                         await msg.remove_reaction(emoji, self.bot.user)
                     react.deregister()
+                break
             else:
                 # Start liveticker
-                msg = await ctx.send(Lang.lang(self, 'liveticker_start'))
-                for source, leagues in Config().get(self)['liveticker']['leagues'].items():
-                    for league in leagues:
-                        await self.bot.liveticker.register(
-                            league=league, raw_source=source, plugin=self, coro=self._live_coro, periodic=True,
-                            interval=Config().get(self)['liveticker']['interval'])
-                        await msg.edit(content="{}\n{}".format(msg.content, league))
+                await ctx.send(Lang.lang(self, 'liveticker_start'))
+                leagues = []
+                for raw_source, keys in Config().get(self)['liveticker']['leagues'].items():
+                    if not keys:
+                        continue
+                    source = LTSource(raw_source)
+                    leagues.extend([League(source=source, key=key) for key in keys])
+                if leagues:
+                    await self.bot.liveticker.register_coro(plugin=self, coro=self._live_coro, leagues=leagues,
+                                                            interval=Config().get(self)['liveticker']['interval'])
+                leagues_str = ", ".join(f"{league.source.value}/{league.key}" for league in leagues)
+                await ctx.send(Lang.lang(self, 'liveticker_started', len(leagues), leagues_str))
                 Config().get(self)['sport_chan'] = ctx.channel.id
                 Config().save(self)
                 await add_reaction(ctx.message, Lang.CMDSUCCESS)
@@ -70,7 +76,7 @@ class _Liveticker:
             embed = event.message.embeds[0]
             embed.clear_fields()
             embed.add_field(name=Lang.lang(self, 'liveticker_action_used'),
-                            value=Lang.lang(self, 'liveticker_action_{}'.format(event.emoji)))
+                            value=Lang.lang(self, f'liveticker_action_{event.emoji}'))
             await event.message.edit(embed=embed)
             if event.emoji.name == "🔀":
                 # Switching channels
@@ -82,8 +88,8 @@ class _Liveticker:
                     Config().save(self)
             elif event.emoji.name == "🚫":
                 # Stopping liveticker
-                for _, _, c_reg in list(self.bot.liveticker.search_coro(plugins=[self.get_name()])):
-                    await c_reg.deregister()
+                for c_reg in list(self.bot.liveticker.search_coro(plugin_names=[self.get_name()])):
+                    c_reg.deregister()
             event.data['react'] = True
             event.callback.deregister()
             for emoji in actions:
@@ -91,38 +97,38 @@ class _Liveticker:
             await add_reaction(event.message, Lang.CMDSUCCESS)
 
     @cmd_liveticker.command(name="add")
-    async def cmd_liveticker_add(self, ctx, source, league):
+    async def cmd_liveticker_add(self, ctx, raw_source, key):
         try:
-            LTSource(source)
+            source = LTSource(raw_source)
         except ValueError:
             await add_reaction(ctx.message, Lang.CMDERROR)
             await ctx.send(Lang.lang(self, "err_invalid_src"))
+            return
+        if key not in Config().get(self)['liveticker']['leagues'].get(raw_source, []):
+            Config().get(self)['liveticker']['leagues'].setdefault(raw_source, []).append(key)
+            Config().save(self)
+        for c_reg in self.bot.liveticker.search_coro(plugin_names=[self.get_name()]):
+            await c_reg.add_league(League(source, key))
+            await ctx.send(Lang.lang(self, 'liveticker_added_running'))
+            break
         else:
-            if league not in Config().get(self)['liveticker']['leagues'].get(source, []):
-                if not Config().get(self)['liveticker']['leagues'].get(source):
-                    Config().get(self)['liveticker']['leagues'][source] = []
-                Config().get(self)['liveticker']['leagues'][source].append(league)
-                Config().save(self)
-            if list(self.bot.liveticker.search_coro(plugins=[self.get_name()])):
-                await self.bot.liveticker.register(league=league, raw_source=source, plugin=self,
-                                                   coro=self._live_coro, periodic=True,
-                                                   interval=Config().get(self)['liveticker'].get('interval', 15))
-            await add_reaction(ctx.message, Lang.CMDSUCCESS)
+            await ctx.send(Lang.lang(self, 'liveticker_added'))
 
     @cmd_liveticker.command(name="del")
-    async def cmd_liveticker_del(self, ctx, source, league):
-        if source in Config().get(self)['liveticker']['leagues'] and \
-                league in Config().get(self)['liveticker']['leagues'][source]:
-            Config().get(self)['liveticker']['leagues'][source].remove(league)
+    async def cmd_liveticker_del(self, ctx, raw_source, key):
+        if key in Config().get(self)['liveticker']['leagues'].get(raw_source, []):
+            Config().get(self)['liveticker']['leagues'][raw_source].remove(key)
             Config().save(self)
-
-            for _, _, c_reg in self.bot.liveticker.search_coro(leagues=[league], sources=[LTSource(source)],
-                                                               plugins=[self.get_name()]):
-                await c_reg.deregister()
-                break
-            await add_reaction(ctx.message, Lang.CMDSUCCESS)
-        else:
-            await add_reaction(ctx.message, Lang.CMDNOCHANGE)
+        try:
+            source = LTSource(raw_source)
+        except ValueError:
+            await add_reaction(ctx.message, Lang.CMDERROR)
+            await ctx.send(Lang.lang(self, "err_invalid_src"))
+            return
+        for c_reg in self.bot.liveticker.search_coro(plugin_names=[self.get_name()]):
+            await c_reg.remove_league(League(source, key))
+            break
+        await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
     @cmd_liveticker.command(name="list")
     async def cmd_liveticker_list(self, ctx):
@@ -176,7 +182,7 @@ class _Liveticker:
 
     @cmd_liveticker.command(name="stop")
     async def cmd_liveticker_stop(self, ctx):
-        for _, _, c_reg in list(self.bot.liveticker.search_coro(plugins=[self.get_name()])):
+        for c_reg in list(self.bot.liveticker.search_coro(plugin_names=[self.get_name()])):
             await c_reg.deregister()
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
@@ -184,14 +190,20 @@ class _Liveticker:
     async def cmd_liveticker_interval(self, ctx, new_interval: int):
         Config().get(self)['liveticker']['interval'] = new_interval
         Config().save(self)
-        for _, _, c_reg in list(self.bot.liveticker.search_coro(plugins=[self.get_name()])):
+        for c_reg in list(self.bot.liveticker.search_coro(plugin_names=[self.get_name()])):
             c_reg.interval = new_interval
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
     @cmd_liveticker.command(name="matches", aliases=["spiele"])
     async def cmd_liveticker_matches(self, ctx):
         msg_lines = []
-        for l_reg in self.bot.liveticker.search_league():
+        c_reg = None
+        for c_reg_ in self.bot.liveticker.search_coro(plugin_names=[self.get_name()]):
+            c_reg = c_reg_
+            break
+        if not c_reg:
+            return
+        for l_reg in c_reg.l_regs:
             msg_lines.append(f"**{l_reg.league}**")
             if len(l_reg.kickoffs) == 0:
                 msg_lines.append(Lang.lang(self, 'no_matches'))
@@ -201,69 +213,81 @@ class _Liveticker:
         for msg in paginate(msg_lines, if_empty=Lang.lang(self, 'no_matches_found')):
             await ctx.send(msg)
 
-    async def _live_coro(self, event):
+    async def _live_coro(self, updates: List[LivetickerEvent]):
         sport = Config().bot.get_channel(Config().get(self)['sport_chan'])
-        if isinstance(event, LivetickerKickoff):
-            # Kickoff-Event
-            match_msgs = []
-            for match in event.matches:
-                predictions = None
-                if match.league_key in Storage().get(self)['predictions']:
-                    predictions = await self._get_predictions(match.home_team, match.away_team, match.kickoff)
-                match_msg = f"{match.home_team.emoji} {match.home_team.long_name} - " \
-                            f"{match.away_team.emoji} {match.away_team.long_name}"
-                if predictions:
-                    match_msg += f"\n{predictions}"
-                match_msgs.append(match_msg)
-            msgs = paginate(match_msgs,
-                            prefix=Lang.lang(self, 'liveticker_prefix_kickoff', event.league,
-                                             event.kickoff.strftime('%H:%M')))
-            for msg in msgs:
-                await sport.send(msg)
-        elif isinstance(event, LivetickerUpdate):
-            # Intermediate-Event
-            if not Config().get(self)['liveticker'].get('do_intermediate_updates', True):
-                return
-            if not event.matches:
-                return
-            event_filter = Config().get(self)['liveticker']['tracked_events']
-            match_msgs = []
-            other_matches = []
-            for match in event.matches:
-                events_msg = " / ".join(e.display() for e in match.new_events
-                                        if PlayerEventEnum(type(e).__base__).name in event_filter)
-                if events_msg:
-                    match_msg = "{} | {} {} - {} {} | {}:{}".format(match.minute, match.home_team.emoji,
-                                                                    match.home_team.long_name, match.away_team.emoji,
-                                                                    match.away_team.long_name, *match.score.values())
-                    match_msgs.append("**{}**\n{}".format(match_msg, events_msg))
-                else:
-                    match_msg = "{2}-{3} {0} - {1} | {5}:{6} ({4})".format(match.home_team.abbr, match.away_team.abbr,
-                                                                           match.home_team.emoji, match.away_team.emoji,
-                                                                           match.minute, *match.score.values())
-                    other_matches.append(match_msg)
-            if other_matches:
-                match_msgs.append("{}: {}".format(Lang.lang(self, 'liveticker_unchanged'),
-                                                  " \u2014 ".join(other_matches)))
-            msgs = paginate(match_msgs, prefix=Lang.lang(self, 'liveticker_prefix', event.league))
-            for msg in msgs:
-                await sport.send(msg)
-        elif isinstance(event, LivetickerFinish):
-            # Finished-Event
-            match_msgs = []
-            for match in event.matches:
-                match_msgs.append(f"{match.score[match.home_team_id]}:{match.score[match.away_team_id]} | "
-                                  f"{match.home_team.emoji} {match.home_team.short_name} - {match.away_team.emoji} "
-                                  f"{match.away_team.short_name}")
-            msgs = paginate(match_msgs,
-                            prefix=Lang.lang(self, 'liveticker_prefix_finished', event.league))
-            for msg in msgs:
-                await sport.send(msg)
+        match_msgs = []
+        for event in updates:
+            if isinstance(event, LivetickerKickoff):
+                match_msgs.extend(await self.kickoff_msg(event))
+            elif isinstance(event, LivetickerMidgame):
+                if not Config().get(self)['liveticker'].get('do_intermediate_updates', True):
+                    continue
+                if not event.matches:
+                    continue
+                match_msgs.extend(self.midgame_msg(event=event,
+                                                   event_filter=Config().get(self)['liveticker']['tracked_events']))
+            elif isinstance(event, LivetickerFinish):
+                match_msgs.extend(self.finished_msg(event))
+        msgs = paginate(match_msgs)
+        for msg in msgs:
+            await sport.send(msg)
 
-    @commands.group(name="teamname")
+    async def kickoff_msg(self, event: LivetickerKickoff) -> List[str]:
+        """Returns the message for a kickoff event"""
+        match_msgs = [Lang.lang(self, 'liveticker_prefix_kickoff', event.league, event.kickoff.strftime('%H:%M'))]
+        for match in event.matches:
+            predictions = await self._get_predictions(match.home_team,
+                                                      match.away_team, match.kickoff)
+            match_msg = f"{match.home_team.emoji} {match.home_team.long_name} - " \
+                        f"{match.away_team.emoji} {match.away_team.long_name}"
+            if predictions:
+                match_msg += f"\n{predictions}"
+            match_msgs.append(match_msg)
+        return match_msgs
+
+    def midgame_msg(self, event: LivetickerMidgame, event_filter: List[str]) -> List[str]:
+        """Returns the message for a midgame event"""
+        match_msgs = [Lang.lang(self, 'liveticker_prefix', event.league)]
+        other_matches = []
+        for match in event.matches:
+            events_msg = " / ".join(e.display() for e in event.event_dict[match]
+                                    if PlayerEventEnum(type(e).__base__).name in event_filter)
+            if events_msg:
+                match_msg = "{} | {} {} - {} {} | {}:{}".format(match.minute, match.home_team.emoji,
+                                                                match.home_team.long_name, match.away_team.emoji,
+                                                                match.away_team.long_name, *match.score.values())
+                match_msgs.append(f"**{match_msg}**\n{events_msg}")
+            else:
+                match_msg = "{2}-{3} {0} - {1} | {5}:{6} ({4})".format(match.home_team.abbr, match.away_team.abbr,
+                                                                       match.home_team.emoji, match.away_team.emoji,
+                                                                       match.minute, *match.score.values())
+                other_matches.append(match_msg)
+        if other_matches:
+            match_msgs.append("{}: {}".format(Lang.lang(self, 'liveticker_unchanged'),
+                                              " \u2014 ".join(other_matches)))
+        return match_msgs
+
+    def finished_msg(self, event: LivetickerFinish) -> List[str]:
+        """Returns the message for a finished event"""
+        match_msgs = [Lang.lang(self, 'liveticker_prefix_finished', event.league)]
+        for match in event.matches:
+            match_msgs.append(f"{match.score[match.home_team_id]}:{match.score[match.away_team_id]} | "
+                              f"{match.home_team.emoji} {match.home_team.short_name} - {match.away_team.emoji} "
+                              f"{match.away_team.short_name}")
+        return match_msgs
+
+    @commands.group(name="teamname", aliases=["teaminfo"])
     async def cmd_teamname(self, ctx):
         if ctx.invoked_subcommand is None:
-            await ctx.send_help(self.cmd_teamname)
+            if not ctx.subcommand_passed:
+                await Config().bot.helpsys.cmd_help(ctx, self, ctx.command)
+                return
+            start = ctx.message.content.find(ctx.subcommand_passed)
+            if start < 0:
+                await Config().bot.helpsys.cmd_help(ctx, self, ctx.command)
+                return
+            team = ctx.message.content[start:]
+            await ctx.invoke(self.bot.get_command("teamname info"), team=team)
 
     @cmd_teamname.command(name="info")
     async def cmd_teamname_info(self, ctx, *, team: str):
@@ -292,7 +316,7 @@ class _Liveticker:
             await ctx.send(Lang.lang(self, 'team_not_found'))
             return
         if saved_team_new and saved_team_new != saved_team:
-            await ctx.send(Lang.lang(self, 'teamname_set_duplicate', new_name, saved_team.long_name))
+            await ctx.send(Lang.lang(self, 'teamname_set_duplicate', new_name, saved_team_new.long_name))
             return
         if variant in long:
             saved_team.update(long_name=new_name)
@@ -326,3 +350,4 @@ class _Liveticker:
             await add_reaction(ctx.message, Lang.CMDERROR)
             await ctx.send(Lang.lang(self, 'team_not_found'))
         teamnamedict.remove(teamname)
+        await add_reaction(ctx.message, Lang.CMDSUCCESS)

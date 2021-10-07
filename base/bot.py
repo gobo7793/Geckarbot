@@ -110,8 +110,7 @@ class BaseBot(Bot):
         pass
 
     @abstractmethod
-    def register(self, plugin,
-                 category: Union[str, helpsys.DefaultCategories, helpsys.HelpCategory, None] = None,
+    def register(self, plugin, category: Union[str, helpsys.DefaultCategories, helpsys.HelpCategory, None] = None,
                  category_desc: str = None) -> bool:
         pass
 

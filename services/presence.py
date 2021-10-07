@@ -395,6 +395,7 @@ class Presence(BaseSubsystem):
         # Search for new presence msg
         error = None
         while True:
+            # pylint: disable=broad-except
             last_id = job.data["current_id"]
             next_id = self.get_ran_id(last_id, priority=prio)
             if next_id == last_id:
@@ -407,7 +408,6 @@ class Presence(BaseSubsystem):
                 self.log.debug("%s raised SkipPresence; skipping", new_msg)
                 continue
             except Exception as e:
-                # pylint: disable=broad-exception
                 error = e
             break
 

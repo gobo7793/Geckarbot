@@ -75,6 +75,7 @@ class Registration:
     async def execute(self, event):
         try:
             await self.coro(event)
+        # pylint: disable=broad-except
         except Exception as e:
             fields = {"Coroutine": str(self.coro), "Event": event}
             await log_exception(e, title=":x: Reaction Listener Error", fields=fields)

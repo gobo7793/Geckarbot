@@ -289,7 +289,7 @@ class Plugin(BasePlugin, name="Bot updating system"):
                 )
                 await utils.write_debug_channel(msg)
 
-        with open(TAGFILE, "w") as f:
+        with open(TAGFILE, "w", encoding="utf-8") as f:
             f.write(tag)
         await self.bot.shutdown(Exitcode.UPDATE)  # This signals the runscript
 
@@ -365,7 +365,7 @@ class Plugin(BasePlugin, name="Bot updating system"):
         :return: True if there was a successful update, False if not
         """
         try:
-            with open(TAGFILE) as f:
+            with open(TAGFILE, encoding="utf-8") as f:
                 lines = f.readlines()
         except FileNotFoundError:
             log.debug("I was not !update'd.")
@@ -456,7 +456,7 @@ class Plugin(BasePlugin, name="Bot updating system"):
             return
 
         # Check state and send error messages if necessary
-        if self.state == State.CHECKING or self.state == State.CONFIRMED or self.state == State.UPDATING:
+        if self.state in (State.CHECKING, State.CONFIRMED, State.UPDATING):
             await ctx.message.channel.send(Lang.lang(self, "err_already_updating"))
             return
         if self.state == State.WAITINGFORCONFIRM:

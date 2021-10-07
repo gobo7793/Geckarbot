@@ -3,6 +3,7 @@ import logging
 from typing import List, Tuple, Optional, Union
 
 from discord.ext import commands
+from discord.ext.commands import Context, Command
 
 from base.configurable import BaseSubsystem, NotFound, BasePlugin, ConfigurableType
 from base.data import Lang, Config
@@ -111,7 +112,7 @@ class HelpCategory:
     def name(self):
         return self._name
 
-    def match_name(self, name):
+    def match_name(self, name: str) -> bool:
         """
         :return: `True` if `name` is a valid name for this category, `False` otherwise.
         """
@@ -119,13 +120,13 @@ class HelpCategory:
             return True
         return False
 
-    def is_empty(self):
+    def is_empty(self) -> bool:
         """
         :return: True if this HelpCategory does not contain any plugins, False otherwise.
         """
         return len(self.plugins) == 0 and len(self.standalone_commands) == 0
 
-    def add_plugin(self, plugin):
+    def add_plugin(self, plugin: BasePlugin):
         """
         Adds a plugin to this HelpCategory.
 
@@ -133,7 +134,7 @@ class HelpCategory:
         """
         self.plugins.append(plugin)
 
-    def remove_plugin(self, plugin):
+    def remove_plugin(self, plugin: BasePlugin):
         """
         Removes a plugin from this HelpCategory.
 
@@ -148,7 +149,7 @@ class HelpCategory:
             except CategoryNotFound:
                 pass
 
-    def add_command(self, command):
+    def add_command(self, command: Command):
         """
         Adds a standalone command to this HelpCategory.
 
@@ -156,7 +157,7 @@ class HelpCategory:
         """
         self.standalone_commands.append(command)
 
-    def remove_command(self, command):
+    def remove_command(self, command: Command):
         """
         Removes a standalone command from this HelpCategory.
 
@@ -165,7 +166,7 @@ class HelpCategory:
         while command in self.standalone_commands:
             self.standalone_commands.remove(command)
 
-    def single_line(self):
+    def single_line(self) -> str:
         """
         :return: One-line string that represents this HelpCategory.
         """
@@ -185,7 +186,7 @@ class HelpCategory:
         # pylint: disable=no-self-use
         return sorted(cmds, key=lambda x: x.name)
 
-    def format_commands(self, ctx):
+    def format_commands(self, ctx) -> List[str]:
         """
         :return: Message list with all commands that this category contains to be consumed by paginate().
         """
@@ -677,11 +678,12 @@ class GeckiHelp(BaseSubsystem):
         for msg in paginate(cmds, prefix=prefix, msg_prefix="```", msg_suffix="```", prefix_within_msg_prefix=False):
             await ctx.send(msg)
 
-    async def hiddencmd(self, ctx, *args):
+    async def hiddencmd(self, ctx: Context, *args):
         """
         Handles and help hidden command.
 
         :param ctx: Context
+        :param args: Arguments of the "hidden" cmd; currently supported: debug
         """
         debug = "debug" in args
         msgs = self.all_commands(hidden_only=True, include_hidden=True, include_debug=debug, flatten=True)

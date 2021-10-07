@@ -55,7 +55,6 @@ async def remove_server_role(role: discord.Role):
     Deletes a role on the server
 
     :param role: the role to delete
-    :return: No exception in case of success
     """
     await role.delete()
 

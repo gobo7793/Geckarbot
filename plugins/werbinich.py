@@ -472,8 +472,6 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
     async def delivering_phase(self) -> None:
         """
         Transition DELIVER -> None
-
-        :return: None
         """
         for target in self.participants:
             todo = []
