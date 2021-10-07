@@ -9,7 +9,7 @@ import asyncio
 import logging
 import struct
 import datetime
-from typing import Optional, Union, List, Any, Awaitable, Callable
+from typing import Optional, Union, List, Any, Awaitable, Callable, Coroutine
 
 from base.configurable import BaseSubsystem
 from base.data import Config
@@ -46,7 +46,8 @@ class Mothership(BaseSubsystem):
         self.jobs = []
         self.logger = logging.getLogger(__name__)
 
-    def schedule(self, coro, td, data=None, repeat=True, ignore_now=False):
+    def schedule(self, coro: Union[Coroutine, Callable], td: dict,
+                 data: Any = None, repeat: bool = True, ignore_now: bool = False):
         """
         cron-like. Takes timedict elements as arguments.
 
@@ -55,6 +56,8 @@ class Mothership(BaseSubsystem):
         :param data: Opaque object that is set as job.data
         :param repeat: If set to False, the job runs only once.
         :param ignore_now: If set to True, skips the current minute for timer execution
+        :rtype: Job
+        :return: Job that was created
         :raises NoFutureExec: raised if td is in the past
         """
         td = normalize_td(td)
@@ -291,7 +294,8 @@ def ringdistance(a: int, b: int, ringstart: int, ringend: int) -> int:
     :param b: end of the distance
     :param ringstart: first value of the space ring
     :param ringend: last value of the space ring
-    :return: distance between a and b on the ring
+    :return: distance between a and b in the ring
+    :raises ValueError: If a and b are not in the ring.
     """
     if not ringstart <= b <= ringend or not ringstart <= a <= ringend:
         raise ValueError("Expecting {} and {} to be between {} and {}".format(b, a, ringstart, ringend))
