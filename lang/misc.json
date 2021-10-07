@@ -30,6 +30,8 @@
         "pizza_header_rel": "Rel. price",
 
         "#2": "Help",
+        "help_alpha": "Asks Wolfram|Alpha a question",
+        "desc_alpha": "Gives short textual answers for a query from Wolfram|Alpha's Short Answers API",
         "help_dice": "Rolls a dice",
         "desc_dice": "Alea iacta est! Simulates one or more dices.",
         "usage_dice": "[Number of sites] [Number of dices]",
@@ -90,6 +92,8 @@
         "pizza_header_rel": "rel. Preis",
 
         "#2": "Help",
+        "help_alpha": "Fragt Wolfram|Alpha etwas",
+        "desc_alpha": "Gibt kurze Antworten mithilfe der Wolfram|Alpha Short Answers API (www.wolframalpha.com). Eingabe in englischer Sprache.",
         "help_dice": "Wirft einen Würfel",
         "desc_dice": "Alea iacta est! Simuliert den Wurf einer oder mehrerer Würfel.",
         "usage_dice": "[Anzahl Seiten] [Anzahl Würfel]",
