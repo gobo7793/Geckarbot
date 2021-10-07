@@ -365,8 +365,7 @@ class GeckiHelp(BaseSubsystem):
         plugins = [self.cog] + [el for el in self.bot.plugin_objects(plugins_only=True)]
 
         # lower()
-        for i in range(len(args)):
-            args[i] = args[i].lower()
+        args = [el.lower() for el in args]
 
         # find plugin
         assert len(args) > 0

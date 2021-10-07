@@ -68,6 +68,10 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
         if not self.bot.WOLFRAMALPHA_API_KEY:
             await add_reaction(ctx.message, Lang.CMDERROR)
             return
+        if not args:
+            await Config().bot.helpsys.cmd_help(ctx, self, ctx.command)
+            return
+
         response = await restclient.Client("https://api.wolframalpha.com/v1/")\
             .request("result", params={'i': " ".join(args), 'appid': self.bot.WOLFRAMALPHA_API_KEY}, parse_json=False)
         await ctx.send(Lang.lang(self, 'alpha_response', response))
