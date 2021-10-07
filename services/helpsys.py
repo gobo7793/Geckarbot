@@ -364,6 +364,10 @@ class GeckiHelp(BaseSubsystem):
         # pylint: disable=unnecessary-comprehension
         plugins = [self.cog] + [el for el in self.bot.plugin_objects(plugins_only=True)]
 
+        # lower()
+        for i in range(len(args)):
+            args[i] = args[i].lower()
+
         # find plugin
         assert len(args) > 0
         plugin = None
