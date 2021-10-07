@@ -156,8 +156,8 @@ class _Liveticker:
             await ctx.send(msg)
 
     @cmd_liveticker.command(name="toggle")
-    async def cmd_liveticker_toggle(self, ctx, event: str):
-        if event == "list":
+    async def cmd_liveticker_toggle(self, ctx, event: str = None):
+        if event in (None, "list"):
             await self.cmd_liveticker_toggle_list(ctx)
             return
         event = event.upper()
@@ -181,7 +181,7 @@ class _Liveticker:
             await add_reaction(ctx.message, Lang.EMOJI['unmute'])
             await add_reaction(ctx.message, Lang.CMDSUCCESS)
         else:
-            await add_reaction(ctx.message, Lang.CMDERROR)
+            await self.cmd_liveticker_toggle_list(ctx)
 
     async def cmd_liveticker_toggle_list(self, ctx):
         events = []
