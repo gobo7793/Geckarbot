@@ -74,6 +74,8 @@ class Plugin(BasePlugin, name="Role Management"):
         for cmd in self.get_commands():
             if cmd.name == "role msg":
                 self.bot.helpsys.default_category(DefaultCategories.MISC).add_command(cmd)
+            elif cmd.name == "role":
+                self.bot.helpsys.default_category(DefaultCategories.BOTUSER).add_command(cmd)
 
         async def get_init_msg_data():
             if self.has_init_msg_set:
