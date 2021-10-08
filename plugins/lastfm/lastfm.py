@@ -43,13 +43,39 @@ class NotRegistered(Exception):
         await ctx.send(Lang.lang(self.plugin, msg))
 
 
+BASE_CONFIG = {
+    "limit": [int, 5],
+    "min_artist": [float, 0.5],
+    "min_album": [float, 0.4],
+    "min_title": [float, 0.5],
+    "mi_enable_downgrade": [bool, True],
+    "mi_downgrade": [float, 1.5],
+    "mi_nowplaying_bonus": [float, 2.0],
+    "timestampstyle_discord": [bool, True],
+    "quote_p": [float, 0.5],
+    "max_quote_length": [int, 100],
+    "quote_restrict_del": [bool, True],
+    "presence": [bool, True],
+    "presence_tick": [int, 60],
+    "presence_include_listener": [bool, True],
+    "presence_artist_only": [bool, False],
+    "presence_title_only": [bool, True],
+    "presence_artist_and_title": [bool, False],
+    "presence_order_artist_title": [bool, False],
+    "presence_order_user_song": [bool, False],
+    "presence_optout": [bool, True],
+    "spotify_is_default": [bool, False]
+}
+
+
 class Plugin(BasePlugin, name="LastFM"):
     def __init__(self):
         super().__init__()
         self.bot = Config().bot
 
         self.logger = logging.getLogger(__name__)
-        self.migrate()
+        self.migrate_config()
+        self.migrate_storage()
         self.api = Api(self)
         self.conf = Config.get(self)
         if not self.conf.get("apikey", ""):
@@ -64,30 +90,7 @@ class Plugin(BasePlugin, name="LastFM"):
         self.perf_reset_timers()
 
         # Config setter
-        self.base_config = {
-            "limit": [int, 5],
-            "min_artist": [float, 0.5],
-            "min_album": [float, 0.4],
-            "min_title": [float, 0.5],
-            "mi_enable_downgrade": [bool, True],
-            "mi_downgrade": [float, 1.5],
-            "mi_nowplaying_bonus": [bool, True],
-            "timestampstyle_discord": [bool, True],
-            "quote_p": [float, 0.5],
-            "max_quote_length": [int, 100],
-            "quote_restrict_del": [bool, True],
-            "presence": [bool, True],
-            "presence_tick": [int, 60],
-            "presence_include_listener": [bool, True],
-            "presence_artist_only": [bool, False],
-            "presence_title_only": [bool, True],
-            "presence_artist_and_title": [bool, False],
-            "presence_order_artist_title": [bool, False],
-            "presence_order_user_song": [bool, False],
-            "presence_optout": [bool, True],
-            "spotify_is_default": [bool, False]
-        }
-        self.config_setter = ConfigSetter(self, self.base_config)
+        self.config_setter = ConfigSetter(self, BASE_CONFIG)
         self.config_setter.add_switch("presence_title_only", "presence_artist_only", "presence_artist_and_title")
 
         # Presence
@@ -132,7 +135,7 @@ class Plugin(BasePlugin, name="LastFM"):
             "quote",
         ]
 
-    def migrate(self):
+    def migrate_storage(self):
         """
         Migrate quotes from version 1 to version 2
         """
@@ -167,13 +170,32 @@ class Plugin(BasePlugin, name="LastFM"):
             storage["version"] = 1
             Storage.save(self)
 
+    def migrate_config(self):
+        """
+        Migrate config to version 1
+        """
+        cfg = Config.get(self)
+        if "version" not in cfg:
+            # migrate nowplaying bonus from bool to float
+            k = "mi_nowplaying_bonus"
+            if k in cfg:
+                if cfg[k]:
+                    cfg[k] = BASE_CONFIG[k][1]
+                else:
+                    cfg[k] = 1.0
+
+            cfg["version"] = 1
+            Config.save(self)
+
     def get_config(self, key):
-        return Config.get(self).get(key, self.base_config[key][1])
+        return Config.get(self).get(key, BASE_CONFIG[key][1])
 
     def default_config(self, container=None):
         if container and container != "spotify":
             raise RuntimeError("Unknown config container {}".format(container))
-        return {}
+        return {
+            "version": 1
+        }
 
     def default_storage(self, container=None):
         if container is None:
@@ -1053,16 +1075,17 @@ class Plugin(BasePlugin, name="LastFM"):
             i += 1
 
         # Bonus for nowplaying
-        if nowplaying and self.get_config("mi_nowplaying_bonus"):
+        if nowplaying:
+            bonus = self.get_config("mi_nowplaying_bonus")
             artist = r["artists"][nowplaying.artist]
             if artist["count"] >= self.get_config("min_artist") * len(songs):
-                artist["score"] *= 2
+                artist["score"] *= bonus
             album = r["albums"][nowplaying.artist, nowplaying.album]
             if album["count"] >= self.get_config("min_album") * len(songs):
-                album["score"] *= 2
+                album["score"] *= bonus
             title = r["titles"][nowplaying.artist, nowplaying.title]
             if title["count"] >= self.get_config("min_title") * len(songs):
-                title["score"] *= 2
+                title["score"] *= bonus
 
         self.logger.debug("scores: %s", r)
 
