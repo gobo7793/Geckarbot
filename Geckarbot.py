@@ -31,7 +31,7 @@ class Geckarbot(BaseBot):
     Basic bot info
     """
     NAME = "Geckarbot"
-    VERSION = "2.13.8"
+    VERSION = "2.14.0"
 
     def __init__(self, *args, **kwargs):
         logging.info("Starting %s %s", self.NAME, self.VERSION)
