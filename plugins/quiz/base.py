@@ -3,11 +3,12 @@ import random
 import logging
 from enum import Enum
 from abc import ABC, abstractmethod
-from typing import Type
+from typing import Type, List, Union
 
 import discord
 
-from data import Lang, Storage
+from base.configurable import BasePlugin
+from base.data import Lang, Storage
 
 from plugins.quiz.utils import get_best_username
 
@@ -200,7 +201,7 @@ class Score:
     """
     Represents a quiz controller's current score.
     """
-    def __init__(self, plugin, question_count):
+    def __init__(self, plugin: BasePlugin, question_count: int):
         """
 
         :param plugin: Plugin reference
@@ -217,7 +218,7 @@ class Score:
         self.dd = self.divdiff(self.interpol_x, self.interpol_y)
 
     @staticmethod
-    def divdiff(x, f):
+    def divdiff(x, f) -> List[List]:
         """
         Divided differences as used for interpolation polynomial
 
@@ -243,7 +244,7 @@ class Score:
 
         return r
 
-    def f(self, a):
+    def f(self, a: Union[float, int]) -> Union[float, int]:
         """
         Function that is applied to every calculated score to improve the spread.
         :param a: Score value to be improved
@@ -254,7 +255,7 @@ class Score:
             r = r * (a - self.interpol_x[i]) + self.dd[i][0]
         return r
 
-    def calc_points(self, user):
+    def calc_points(self, user) -> int:
         """
         :param user: The user whose points are to be calculated
         :return: user's points
@@ -281,7 +282,7 @@ class Score:
     def score(self):
         return self._score.copy()
 
-    def ladder(self, sort_by_points=False):
+    def ladder(self, sort_by_points: bool = False) -> List:
         """
         :return: List of members in score, sorted by score or points, depending on sort_by_points
         """
@@ -309,7 +310,7 @@ class Score:
                 r.append(user)
         return r
 
-    def winners(self):
+    def winners(self) -> List:
         """
         :return: Return list of winners
         """
@@ -329,7 +330,7 @@ class Score:
                 assert False
         return r
 
-    def embed(self, end=False, sort_by_points=False):
+    def embed(self, end: bool = False, sort_by_points: bool = False) -> discord.Embed:
         """
         :param end: Set to true if this is the end score rather than an intermediate score
         :param sort_by_points: Set to true if the participants are to be sorted by score rather than questions
@@ -361,13 +362,13 @@ class Score:
 
         return embed
 
-    def increase(self, member, question, amount=1, totalcorr=1,):
+    def increase(self, member: discord.Member, question, amount: int = 1, totalcorr: int = 1):
         """
         Increases a participant's score by amount. Registers the participant if not present.
         :param member: Discord member
+        :param question: Question object (to determine the amount of questions correctly answered)
         :param amount: Amount to increase the member's score by; defaults to 1.
         :param totalcorr: Total amount of correct answers to the question
-        :param question: Question object (to determine the amount of questions correctly answered)
         """
         # Increment user score
         if member not in self._score:
@@ -382,7 +383,7 @@ class Score:
             elif question not in self.answered_questions:
                 self.answered_questions.append(question)
 
-    def add_participant(self, member):
+    def add_participant(self, member: discord.Member):
         """
         Adds a quiz participant to the score.
 
@@ -402,7 +403,8 @@ class Question:
     """
     Represents a question and its answers
     """
-    def __init__(self, quizapi, question, correct_answer, incorrect_answers, index=None, info=None):
+    def __init__(self, quizapi: BaseQuizAPI, question: str, correct_answer: str, incorrect_answers: List[str],
+                 index=None, info=None):
         """
         :param quizapi: QuizAPI object
         :param question: Question string (Usually ends with a "?" ;))
@@ -461,14 +463,14 @@ class Question:
         # Regular shuffling
         random.shuffle(self.all_answers)
 
-    def letter_mapping(self, index, emoji=False, reverse=False):
+    def letter_mapping(self, index, emoji: bool = False, reverse: bool = False):
         """
         Maps an answer index to the corresponding letter or letter emoji.
 
         :param index: Map index
         :param emoji: Switches map from ascii letters to emoji letters
         :param reverse: Reverses the mapping direction
-        :return:
+        :return: Mapping result (index or letter (possibly emoji)), depending on arguments. None when there is no result
         """
         if not reverse:
             if emoji:
@@ -487,7 +489,7 @@ class Question:
                 return i
         return None
 
-    async def pose(self, channel, emoji=False):
+    async def pose(self, channel: discord.abc.Messageable, emoji: bool = False):
         """
         Poses a question to a channel.
 
@@ -500,7 +502,7 @@ class Question:
         self.message = msg
         return msg
 
-    async def add_reactions(self, msg):
+    async def add_reactions(self, msg: discord.Message):
         """
         Adds answer emoji reactions to a question message. Expected to be called somewhat immediately after pose().
 
@@ -509,7 +511,7 @@ class Question:
         for i in range(len(self.all_answers)):
             await msg.add_reaction(Lang.EMOJI["lettermap"][i])  # this breaks if there are more than 26 answers
 
-    def embed(self, emoji=False, info=False):
+    def embed(self, emoji: bool = False, info: bool = False) -> discord.Embed:
         """
         :param emoji: Determines whether A/B/C/D are letters or emoji
         :param info: Adds additional info to the embed such as category and difficulty
@@ -528,7 +530,7 @@ class Question:
                 embed.add_field(name=key, value=str(self.info[key]))
         return embed
 
-    def answers_mc(self, emoji=False):
+    def answers_mc(self, emoji: bool = False):
         """
         :param emoji: If True, uses unicode emoji letters instead of regular uppercase letters
         :return: Generator for possible answers in a multiple-choice-fashion, e.g. "A: Jupiter"
@@ -540,7 +542,7 @@ class Question:
                 letter = "**{}:**".format(self.letter_mapping(i, emoji=emoji))
             yield "{} {}".format(letter, self.all_answers[i])
 
-    def check_answer(self, answer, emoji=False):
+    def check_answer(self, answer: str, emoji: bool = False) -> bool:
         """
         Called to check the answer to the most recent question that was retrieved via qet_question().
 
@@ -569,7 +571,7 @@ class Question:
             self._cached_emoji = Lang.EMOJI["lettermap"][:len(self.all_answers)]
         return self._cached_emoji
 
-    def is_valid_emoji(self, emoji):
+    def is_valid_emoji(self, emoji) -> bool:
         """
         Determines whether an emoji represents a valid answer.
 

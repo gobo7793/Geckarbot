@@ -11,7 +11,7 @@ from botutils.converters import get_best_user
 from botutils.jsonutils import Decoder
 from botutils.restclient import Client
 from botutils.timeutils import from_epoch_ms
-from data import Storage, Config, Lang
+from base.data import Storage, Config, Lang
 from plugins.fantasy.utils import Activity, TeamStanding, Team, Player, Match, Platform
 
 log = logging.getLogger(__name__)
@@ -39,7 +39,6 @@ class FantasyLeague(ABC):
         :param plugin: The fantasy plugin instance
         :param league_id: The league ID on the platform
         :param commish: The commissioner
-        :param init: True if league is loading from Storage
         :returns: The created league object
         :rtype: class:`FantasyLeague`
         """
@@ -434,7 +433,7 @@ class SleeperLeague(FantasyLeague):
         matches = {}
         for matchup in matchups_raw:
             home_match = None
-            if matchup["matchup_id"] in matches.keys():
+            if matchup["matchup_id"] in matches:
                 home_match = matches[matchup["matchup_id"]]
             score = matchup["points"]
             team = next(t for t in self.get_teams() if t.team_id == matchup["roster_id"])

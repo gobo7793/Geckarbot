@@ -1,6 +1,6 @@
 import logging
 
-from data import Config, Storage
+from base.data import Config, Storage
 from plugins.fantasy.utils import Platform
 
 log = logging.getLogger(__name__)

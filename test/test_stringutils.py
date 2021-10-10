@@ -2,6 +2,9 @@ from botutils.stringutils import parse_number, Number
 
 
 def test_parse_number():
+    """
+    Test cases for `botutils.stringutils.parse_number`
+    """
     cases = [
         ("4", Number(4, "")),
         ("4.0", Number(4.0, "")),

@@ -1,9 +1,9 @@
 from urllib.error import HTTPError
-from typing import List, Optional
+from typing import List, Optional, Any, Dict
 
 from botutils.restclient import Client
 from botutils.utils import add_reaction
-from data import Lang
+from base.data import Lang
 
 from plugins.lastfm.lfm_base import Song
 
@@ -31,7 +31,7 @@ class Api:
         self.plugin = plugin
         self.client = Client(BASEURL)
 
-    async def request(self, params, method="GET"):
+    async def request(self, params: Dict[str, Any], method: str = "GET") -> Any:
         """
         Does a request to last.fm API and parses the reponse to a dict.
 
@@ -51,7 +51,7 @@ class Api:
         self.plugin.perf_add_lastfm_time(after - before)
         return r
 
-    def build_songs(self, response, append_to=None, first: bool = True) -> List[Song]:
+    def build_songs(self, response: Dict, append_to: Optional[List] = None, first: bool = True) -> List[Song]:
         """
         Builds song dicts out of a response.
 
@@ -75,7 +75,7 @@ class Api:
             r.append(Song.from_lastfm_response(self.plugin, el))
         return r
 
-    async def get_recent_tracks(self, lfmuser, page=1, pagelen=10,
+    async def get_recent_tracks(self, lfmuser: str, page: int = 1, pagelen: int = 10,
                                 extended: bool = False, first: bool = True) -> List[Song]:
         """
         Gets a list of lfmuser's recent scrobbles
@@ -97,7 +97,7 @@ class Api:
         }
         return self.build_songs(await self.request(params), first=first)
 
-    async def get_current_scrobble(self, lfmuser) -> Optional[Song]:
+    async def get_current_scrobble(self, lfmuser: str) -> Optional[Song]:
         """
         Gets the song lfmuser is currently scrobbling.
 
@@ -109,7 +109,7 @@ class Api:
             return song
         return None
 
-    async def get_user_info(self, lfmuser):
+    async def get_user_info(self, lfmuser: str) -> Optional[Dict]:
         """
         Fetches info about a last.fm user
 

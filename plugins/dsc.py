@@ -8,11 +8,11 @@ import discord
 from discord.ext import commands
 from discord.ext.commands import ChannelNotFound, TextChannelConverter, RoleConverter, RoleNotFound
 
-from base import BasePlugin, NotFound
+from base.configurable import BasePlugin, NotFound
+from base.data import Storage, Lang, Config
 from botutils import permchecks, sheetsclient, utils, timeutils
 from botutils.converters import get_best_user, get_plugin_by_name
 from botutils.stringutils import paginate, clear_link, table
-from data import Storage, Lang, Config
 
 
 class DscState(IntEnum):
@@ -40,9 +40,10 @@ def _dsc_set_checks():
 class Plugin(BasePlugin, name="Discord Song Contest"):
     """Commands for the DSC"""
 
-    def __init__(self, bot):
-        super().__init__(bot)
-        bot.register(self, category="DSC", category_desc=Lang.lang(self, "cat_desc"))
+    def __init__(self):
+        super().__init__()
+        self.bot = Config().bot
+        self.bot.register(self, category="DSC", category_desc=Lang.lang(self, "cat_desc"))
         self.log = logging.getLogger(__name__)
 
         self.presence = None

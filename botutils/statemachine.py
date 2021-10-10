@@ -1,4 +1,5 @@
 import logging
+from typing import Any, Optional, Coroutine, Callable, Union
 
 from botutils.utils import execute_anything
 
@@ -102,7 +103,8 @@ class StateMachine:
     def cancel(self):
         self._cancelled = True
 
-    def add_state(self, state, coro, allowed_sources=None, start=False, end=False):
+    def add_state(self, state: Any, coro: Optional[Union[Callable[[], Any], Coroutine]],
+                  allowed_sources: Optional[list] = None, start: bool = False, end: bool = False):
         """
         Adds a state.
 
@@ -132,7 +134,7 @@ class StateMachine:
 
         self.states[state] = coro, allowed_sources
 
-    def set_cleanup(self, coro):
+    def set_cleanup(self, coro: Coroutine):
         """
         Sets a cleanup coroutine that is called when an exception happens during state coro execution.
         After calling the cleanup coroutine, the exception will be raised further.

@@ -11,26 +11,27 @@ import sys
 import traceback
 from logging import handlers
 from pathlib import Path
-from typing import List, Union
+from typing import List, Union, Optional, Type
 
 import discord
 from discord.ext import commands
 
 import injections
-import subsystems
-from base import BasePlugin, NotLoadable, ConfigurableType, PluginClassNotFound, Exitcode
+import services
+from base.configurable import BasePlugin, NotLoadable, ConfigurableType, PluginClassNotFound, Configurable
+from base.data import Config, Lang, Storage, ConfigurableData
+from base.bot import Exitcode, BaseBot
 from botutils import utils, permchecks, converters, stringutils
 from botutils.utils import execute_anything_sync
-from data import Config, Lang, Storage, ConfigurableData
-from subsystems import timers, reactions, ignoring, dmlisteners, helpsys, presence, liveticker
+from services import timers, reactions, ignoring, dmlisteners, helpsys, presence, liveticker
 
 
-class Geckarbot(commands.Bot):
+class Geckarbot(BaseBot):
     """
     Basic bot info
     """
     NAME = "Geckarbot"
-    VERSION = "2.13.9"
+    VERSION = "2.14.0"
     PLUGIN_DIR = "plugins"
     CORE_PLUGIN_DIR = "coreplugins"
     CONFIG_DIR = "config"
@@ -80,13 +81,13 @@ class Geckarbot(commands.Bot):
 
         self.add_check(self.command_disabled)
 
-        self.reaction_listener = reactions.ReactionListener(self)
-        self.dm_listener = dmlisteners.DMListener(self)
-        self.timers = timers.Mothership(self)
-        self.ignoring = ignoring.Ignoring(self)
-        self.helpsys = helpsys.GeckiHelp(self)
-        self.presence = presence.Presence(self)
-        self.liveticker = liveticker.Liveticker(self)
+        self.reaction_listener = reactions.ReactionListener()
+        self.dm_listener = dmlisteners.DMListener()
+        self.timers = timers.Mothership()
+        self.ignoring = ignoring.Ignoring()
+        self.helpsys = helpsys.GeckiHelp()
+        self.presence = presence.Presence()
+        self.liveticker = liveticker.Liveticker()
 
     def load_config(self):
         """
@@ -156,10 +157,10 @@ class Geckarbot(commands.Bot):
                 if x not in self.get_normalplugins()]
 
     @staticmethod
-    def get_subsystem_list() -> List[str]:
-        """All normal plugins"""
+    def get_service_list() -> List[str]:
+        """All services"""
         subsys = []
-        for modname in pkgutil.iter_modules(subsystems.__path__):
+        for modname in pkgutil.iter_modules(services.__path__):
             subsys.append(modname.name)
         return subsys
 
@@ -167,7 +168,7 @@ class Geckarbot(commands.Bot):
         return self.NAME.lower()
 
     @staticmethod
-    def configure(plugin):
+    def configure(plugin: Configurable):
         """
         Loads Config, Storage and Lang data for given plugin
 
@@ -177,7 +178,7 @@ class Geckarbot(commands.Bot):
         Storage().load(plugin)
         Lang().remove_from_cache(plugin)
 
-    def register(self, plugin_class,
+    def register(self, plugin_class: Union[BasePlugin, Type[BasePlugin]],
                  category: Union[str, helpsys.DefaultCategories, helpsys.HelpCategory, None] = None,
                  category_desc: str = None) -> bool:
         """
@@ -198,7 +199,7 @@ class Geckarbot(commands.Bot):
         if isinstance(plugin_class, commands.Cog):
             plugin_object = plugin_class
         else:
-            plugin_object = plugin_class(self)
+            plugin_object = plugin_class()
         self.add_cog(plugin_object)
 
         self.plugins.append(plugin_object)
@@ -285,11 +286,11 @@ class Geckarbot(commands.Bot):
         for name, obj in members:
             if name == "Plugin":
                 found = True
-                obj(self)
+                obj()
         if not found:
             raise PluginClassNotFound(members)
 
-    def load_plugin(self, plugin_dir, plugin_name):
+    def load_plugin(self, plugin_dir, plugin_name) -> Optional[bool]:
         """
         Loads a plugin and performs instantiating and registering of the plugin
 
@@ -334,7 +335,7 @@ class Geckarbot(commands.Bot):
             execute_anything_sync(self.liveticker.restore, [plugin_name])
         return True
 
-    def unload_plugin(self, plugin_name, save_config=True):
+    def unload_plugin(self, plugin_name, save_config=True) -> Optional[bool]:
         """
         Unloads a plugin and performs plugin cleanup and saving the config and storage data
 
@@ -498,7 +499,7 @@ class Geckarbot(commands.Bot):
 
         await super().process_commands(message)
 
-    async def command_disabled(self, ctx):
+    async def command_disabled(self, ctx) -> True:
         """
         Checks if a command is disabled or blocked for user.
         This check will be executed before other command checks.
@@ -616,7 +617,7 @@ def main():
 
         await utils.write_debug_channel("Geckarbot {} connected on {} with {} users.".
                                         format(bot.VERSION, guild.name, len(guild.members)))
-        subsys = bot.get_subsystem_list()
+        subsys = bot.get_service_list()
         await utils.write_debug_channel(f"Loaded {len(subsys)} subsystems: {', '.join(subsys)}")
         core_p = bot.get_coreplugins()
         await utils.write_debug_channel(f"Loaded {len(core_p)} coreplugins: {', '.join(core_p)}")

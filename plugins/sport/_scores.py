@@ -6,8 +6,8 @@ from discord.ext import commands
 
 from botutils import restclient
 from botutils.utils import add_reaction
-from data import Lang, Config
-from subsystems.liveticker import LTSource, MatchStatus, MatchOLDB, MatchBase, LeagueRegistrationESPN, LeagueNotExist
+from base.data import Lang, Config
+from services.liveticker import LTSource, MatchStatus, MatchOLDB, MatchBase, LeagueRegistrationESPN, LeagueNotExist
 
 
 class _Scores:
@@ -142,8 +142,7 @@ class _Scores:
         async with ctx.typing():
             msg = ""
             for league in Config().get(self)['leagues'].keys():
-                matches = restclient.Client("https://www.openligadb.de/api").make_request(
-                    "/getmatchdata/{}".format(league))
+                matches = restclient.Client("https://www.openligadb.de/api").make_request(f"/getmatchdata/{league}")
                 league_msg = ""
                 for match in matches:
                     try:
@@ -160,7 +159,7 @@ class _Scores:
                                 match.get('Team1', {}).get('TeamName'),
                                 match.get('Team2', {}).get('TeamName'))
                 if league_msg:
-                    msg += "{}\n{}\n".format(matches[0].get('LeagueName', league), league_msg)
+                    msg += f"{matches[0].get('LeagueName', league)}\n{league_msg}\n"
             if not msg:
                 msg = Lang.lang(self, 'no_matches')
         await ctx.send(msg)

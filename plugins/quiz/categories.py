@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Union, Sequence, Type
+from typing import Union, Sequence, Type, Any
 
 from plugins.quiz.base import BaseQuizAPI, BaseCategoryController
 
@@ -69,7 +69,7 @@ class CategoryController(BaseCategoryController):
             name, args = el.value
             self.categories[el] = Category(name, args)
 
-    def register_category_support(self, apiclass: Type[BaseQuizAPI], category: DefaultCategory, catkey):
+    def register_category_support(self, apiclass: Type[BaseQuizAPI], category: DefaultCategory, catkey: Any):
         """
         Registers the support of a specific default category for a quiz api class.
 
@@ -92,11 +92,12 @@ class CategoryController(BaseCategoryController):
                 return cat
         return None
 
-    def get_name_by_category_key(self, quizapi: Type[BaseQuizAPI], catkey) -> str:
+    def get_name_by_category_key(self, quizapi: Type[BaseQuizAPI], catkey: Any) -> str:
         """
         :param quizapi: QuizAPI class
         :param catkey: category key
         :return: Category name that correspons to the category key
+        :raises RuntimeError: If category that corresponds to catkey was not found
         """
         for _, category in self.categories.items():
             if quizapi in category.supporters and category.supporters[quizapi] == catkey:
@@ -106,7 +107,7 @@ class CategoryController(BaseCategoryController):
     def get_supporters(self, category: DefaultCategory) -> list:
         return list(self.categories[category].supporters.keys())
 
-    def get_category_key(self, quizapi: Type[BaseQuizAPI], category: DefaultCategory):
+    def get_category_key(self, quizapi: Type[BaseQuizAPI], category: DefaultCategory) -> Any:
         """
         Returns the category key that a quizapi registered its support with.
 

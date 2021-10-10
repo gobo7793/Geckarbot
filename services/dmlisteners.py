@@ -5,7 +5,8 @@ It is instantiated as `bot.dm_listener`.
 
 import logging
 
-from base import BaseSubsystem
+from base.configurable import BaseSubsystem
+from base.data import Config
 from botutils.utils import execute_anything
 
 
@@ -49,9 +50,9 @@ class Registration:
 class DMListener(BaseSubsystem):
     """The DM Listener Subsystem"""
 
-    def __init__(self, bot):
-        super().__init__(bot)
-        self.bot = bot
+    def __init__(self):
+        super().__init__()
+        self.bot = Config().bot
         self.registrations = {}
 
     def register(self, user, coro, name, kill_coro=None, data=None, blocking=False):
@@ -95,6 +96,8 @@ class DMListener(BaseSubsystem):
 
         :param registration: Registration object that is to be unregistered
         """
+        # pylint: disable=unnecessary-dict-index-lookup
+        # (false positive)
         for key, cb in self.registrations.items():
             if registration == cb:
                 del self.registrations[key]

@@ -1,6 +1,6 @@
 {
     "en_US": {
-        "#0": "help textes",
+        "#0": "help texts",
         "help_about": "Print the credits",
         "help_disable": "Disable commands",
         "help_disable_mod": "Disable commands or block users",
@@ -17,6 +17,7 @@
         "help_plugin_load": "Load a plugin",
         "help_plugin_reload": "Reload a plugin",
         "help_plugin_available": "List available plugins",
+        "help_set": "Sets configuration values",
 
         "#1": "help descs",
         "desc_about": "Print the credits.",
@@ -35,8 +36,12 @@
         "desc_plugin_load": "Load a plugin with the given name, if it is available. If the plugin can't be loaded, see log file for more details.",
         "desc_plugin_reload": "First unloads and then loads the plugin with the given name. Instead to 'unload' command, the plugin config won't be saved during unloading.\nCoreplugins and Subsystems can't be reloaded. If error occurs, see log file for more details.",
         "desc_plugin_available": "List all available plugins, which aren't loaded.",
+        "desc_set": "Sets configuration values. Available values:\n  leave_notification [true|false] - defines whether a notification is to be sent to the mod channel when a user leaves the server.",
 
-        "#2": "misc commands",
+        "#2": "usage strings",
+        "usage_set": "[<key> <value>]",
+
+        "#3": "misc commands",
         "about_version": "Geckarbot {} on {}, licensed under GNU GPL v3.0. Hosted with ❤ on {} {} ({}).\n",
         "about_general_info": "For general bot information on this server see <{}>.\n",
         "about_repo": "Github Repository for additional information and participation: <{}>\n",
@@ -64,8 +69,9 @@
         "errors_on_reload": "Error on reloading plugin `{}`.",
         "plugins_avail": "**{} additional plugins available**",
         "no_plugin_avail": "All available plugins already loaded. There are no more unloaded plugins available.",
+        "leave_notification": "{} has left the server.",
 
-        "#3": "ignore",
+        "#4": "ignore",
         "nothing_blocked": "No users or commands blocked.",
         "list_users": "**Blocked Users:**\n",
         "list_cmds": "**Blocked Commands:**\n",
@@ -81,7 +87,7 @@
         "user_unblocked": "{} is unblocked now.",
         "active_usage_unblocked": "{} can use command `{}` now.",
 
-        "#4": "ignoring errors",
+        "#5": "ignoring errors",
         "cmd_not_found": "I don't know a command `{}`.",
         "no_time_machine": "Sorry, but I don't have a time machine.",
         "enable_cant_blocked": "If you block `!enable` you can't unblock anything anymore. And I don't want so nasty.",
@@ -114,6 +120,7 @@
         "help_plugin_load": "Lädt ein Plugin",
         "help_plugin_reload": "Lädt ein Plugin neu",
         "help_plugin_available": "Listet alle verfügbaren Plugins",
+        "help_set": "Setzt Konfigurationsoptionen.",
 
         "#1": "help descs",
         "desc_about": "Zeigt die Credits an.",
@@ -132,8 +139,12 @@
         "desc_plugin_load": "Lädt ein Plugin mit dem angegebenen Namen, sofern das Plugin verfügbar ist. Wenn das Plugin nicht geladen werden kann, stehen weitere Details in der Logdatei.",
         "desc_plugin_reload": "Fährt zuerst das Plugin mit dem angegebenen Namen herunter und lädt es anschließend neu. Im Gegensatz zum 'unload'-Kommando wird die Plugin-Konfiguration beim Runterfahren nicht gespeichert.\nCoreplugins und Subsysteme können nicht runtergefahren werden. Wenn Fehler auftreten, stehen weitere Details in der Logdatei.",
         "desc_plugin_available": "Listet alle verfügbaren Plugins, die nicht geladen sind.",
+        "desc_set": "Setzt Konfigurationsoptionen. Verfügbare Optionen:\n  leave_notification [true|false] - definiert, ob eine Nachricht in den Mod-Channel gesendet werden soll, wenn ein Nutzer den Server verlässt.",
 
-        "#2": "misc commands",
+        "#2": "Usage strings",
+        "usage_set": "[<Option> <Wert>]",
+
+        "#3": "misc commands",
         "about_version": "Geckarbot {} auf dem Server {}, lizenziert unter GNU GPL v3.0. Gehostet mit ❤ auf {} {} ({}).\n",
         "about_general_info": "Für generelle Botinfos für diesen Server siehe <{}>.\n",
         "about_repo": "Weitere Informationen und Mitentwicklung im Github Repository: <{}>\n",
@@ -161,8 +172,9 @@
         "errors_on_reload": "Fehler beim Neuladen vom Plugin `{}`.",
         "plugins_avail": "**{} weitere Plugins verfügbar**",
         "no_plugin_avail": "Alle verfügbaren Plugins sind bereits geladen. Es sind keine weiteren Plugins verfügbar.",
+        "leave_notification": "{} hat den Server verlassen.",
 
-        "#3": "ignore",
+        "#4": "ignore",
         "nothing_blocked": "Keine User oder Kommandos blockiert.",
         "list_users": "**Blockierte User:**\n",
         "list_cmds": "**Blockierte Kommandos:**\n",
@@ -178,7 +190,7 @@
         "user_unblocked": "{} ist nun nicht mehr blockiert.",
         "active_usage_unblocked": "{0} kann das Kommando `{1}` nun wieder nutzen.",
 
-        "#4": "ignoring errors",
+        "#5": "ignoring errors",
         "cmd_not_found": "Ich kenn leider kein Kommando `{}`.",
         "no_time_machine": "Sorry, aber ich habe keine Zeitmaschine.",
         "enable_cant_blocked": "Wenn du `!enable` blockierst, kannst du nichts mehr entblocken. Und so fies möchte ich jetzt auch nicht sein",

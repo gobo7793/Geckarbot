@@ -6,18 +6,20 @@ import discord
 from discord.ext import commands
 
 from botutils import utils, timeutils, converters
-from data import Storage, Lang
-from base import BasePlugin, NotFound
-from subsystems import timers
-from subsystems.helpsys import DefaultCategories
+from botutils.timeutils import to_unix_str, TimestampStyle
+from base.data import Storage, Lang, Config
+from base.configurable import BasePlugin, NotFound
+from services import timers
+from services.helpsys import DefaultCategories
 
 log = logging.getLogger(__name__)
 
 
 class Plugin(BasePlugin):
-    def __init__(self, bot):
-        super().__init__(bot)
-        bot.register(self, DefaultCategories.UTILS)
+    def __init__(self):
+        super().__init__()
+        self.bot = Config().bot
+        self.bot.register(self, DefaultCategories.UTILS)
         self.migrate()
 
         self.reminders = {}  # type: Dict[int, timers.Job]
@@ -135,7 +137,8 @@ class Plugin(BasePlugin):
 
         rlink = ctx.message.jump_url
         if self._register_reminder(ctx.channel, ctx.author.id, remind_time, reminder_id, rtext, rlink):
-            await ctx.send(Lang.lang(self, 'remind_set', remind_time.strftime('%d.%m.%Y %H:%M'), reminder_id))
+            await ctx.send(Lang.lang(self, 'remind_set', to_unix_str(remind_time, style=TimestampStyle.DATETIME_SHORT),
+                                     reminder_id))
         else:
             await utils.add_reaction(ctx.message, Lang.CMDERROR)
 
@@ -150,7 +153,7 @@ class Plugin(BasePlugin):
                 else:
                     reminder_text = Lang.lang(self, 'remind_list_no_message')
                 reminders_msg += Lang.lang(self, 'remind_list_element',
-                                           job.next_execution().strftime('%d.%m.%Y %H:%M'),
+                                           to_unix_str(job.next_execution(), style=TimestampStyle.DATETIME_SHORT),
                                            reminder_text, job.data['id'])
 
         if not reminders_msg:
@@ -228,7 +231,7 @@ class Plugin(BasePlugin):
         try:
             job = self.bot.timers.schedule(self._reminder_callback, timedict, data=job_data, repeat=False)
         except timers.NoFutureExec:
-            job = timers.Job(self.bot, timedict, self._reminder_callback, data=job_data, repeat=False, run=False)
+            job = timers.Job(timedict, self._reminder_callback, data=job_data, repeat=False, run=False)
             utils.execute_anything_sync(self._reminder_callback, job)
             return False
 

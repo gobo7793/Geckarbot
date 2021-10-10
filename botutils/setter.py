@@ -5,7 +5,7 @@ from discord import TextChannel, Member, User, Role
 from discord.ext.commands.converter import TextChannelConverter, UserConverter, MemberConverter, RoleConverter
 from discord.ext.commands.errors import ChannelNotFound, UserNotFound, MemberNotFound, RoleNotFound
 
-from data import Config, Lang
+from base.data import Config, Lang
 from botutils.utils import paginate, add_reaction
 
 baselang = {
@@ -107,7 +107,7 @@ class ConfigSetter:
         self.switches.append(tuple(keys))
 
     @staticmethod
-    def parse_bool_str(s):
+    def parse_bool_str(s: str) -> bool:
         """
         Accepts strings like "True" or "false" and returns the corresponding boolean value.
 
