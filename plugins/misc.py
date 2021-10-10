@@ -3,6 +3,7 @@ import random
 import string
 from datetime import datetime, timezone, timedelta
 from math import pi
+from typing import List, Iterable
 
 import discord
 from discord.ext import commands
@@ -68,22 +69,53 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
         if not self.bot.WOLFRAMALPHA_API_KEY:
             await add_reaction(ctx.message, Lang.CMDERROR)
             return
+        if not args:
+            await Config().bot.helpsys.cmd_help(ctx, self, ctx.command)
+            return
+
         response = await restclient.Client("https://api.wolframalpha.com/v1/")\
             .request("result", params={'i': " ".join(args), 'appid': self.bot.WOLFRAMALPHA_API_KEY}, parse_json=False)
         await ctx.send(Lang.lang(self, 'alpha_response', response))
 
+    @staticmethod
+    def parse_rnd_args(args: Iterable) -> List[str]:
+        """
+        Parses the args that were parsed to an RNG function (e.g. !choose).
+
+        :param args: args
+        :return:
+        """
+        full_options_str = " ".join(args)
+        return [i for i in full_options_str.split("|") if i.strip() != ""]
+
     @commands.command(name="choose")
     async def cmd_choose(self, ctx, *args):
-        full_options_str = " ".join(args)
-        if "sabaton" in full_options_str.lower():
+        options = self.parse_rnd_args(args)
+        if "sabaton" in [el.lower() for el in options]:
             await ctx.send(Lang.lang(self, 'choose_sabaton'))
-
-        options = [i for i in full_options_str.split("|") if i.strip() != ""]
         if len(options) < 1:
             await ctx.send(Lang.lang(self, 'choose_noarg'))
             return
         result = random.choice(options)
         await ctx.send(Lang.lang(self, 'choose_msg') + result.strip())
+
+    @commands.command(name="multichoose")
+    async def cmd_multichoose(self, ctx, count: int, *args):
+        options = self.parse_rnd_args(args)
+        if count < 1 or len(options) < count:
+            await ctx.send(Lang.lang(self, 'choose_falsecount'))
+            return
+        result = random.sample(options, k=count)
+        await ctx.send(Lang.lang(self, 'choose_msg') + ", ".join(x.strip() for x in result))
+
+    @commands.command(name="shuffle")
+    async def cmd_shuffle(self, ctx, *args):
+        options = self.parse_rnd_args(args)
+        if len(options) < 1:
+            await ctx.send(Lang.lang(self, 'choose_noarg'))
+            return
+        random.shuffle(options)
+        await ctx.send(Lang.lang(self, 'choose_msg') + ", ".join(x.strip() for x in options))
 
     @commands.command(name="kw", aliases=["week"])
     async def cmd_week_number(self, ctx, *, date=None):
@@ -97,16 +129,6 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
             day = datetime.today()
         week = day.isocalendar()[1]
         await ctx.send(Lang.lang(self, 'week_number', week))
-
-    @commands.command(name="multichoose")
-    async def cmd_multichoose(self, ctx, count: int, *args):
-        full_options_str = " ".join(args)
-        options = [i for i in full_options_str.split("|") if i.strip() != ""]
-        if count < 1 or len(options) < count:
-            await ctx.send(Lang.lang(self, 'choose_falsecount'))
-            return
-        result = random.sample(options, k=count)
-        await ctx.send(Lang.lang(self, 'choose_msg') + ", ".join(x.strip() for x in result))
 
     @commands.command(name="mud")
     async def cmd_mud(self, ctx):

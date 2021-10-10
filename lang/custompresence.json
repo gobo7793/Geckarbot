@@ -10,7 +10,7 @@
         "#1": "help descs",
         "desc_presence": "Add or remove presence messages.",
         "desc_presence_list": "List all current user defined presence messages.",
-        "desc_presence_add": "Add a new user defined presence message. The message will be displayed in the user list periodically in addition to other user defined presence messages or messages which are defined by plugins or other bot functions. To set a presence mode other than \"is playing ...\", use the corresponding keyword (see usage).",
+        "desc_presence_add": "Add a new user defined presence message. The message will be displayed in the user list periodically in addition to other user defined presence messages or messages which are defined by plugins or other bot functions. To set a presence mode other than \"is playing ...\", use the corresponding keyword (see usage).\n\nThe presence modi are:\n  playing (playing ...)\n  listening (listening to ...)\n  watching (watching ...)\n  competing (competing in ...)",
         "desc_presence_del": "Removes a user defined presence message. To remove, the ID of the message is needed which can be get using the 'presence list' command.",
 
         "#2": "presence",
@@ -33,7 +33,7 @@
         "#1": "help descs",
         "desc_presence": "Fügt neue Statusnachrichten hinzu oder entfernt diese.",
         "desc_presence_list": "Zeigt alle aktuellen benutzerdefinierten Statusnachrichten an.",
-        "desc_presence_add": "Fügt eine neue benutzerdefinierte Statusnachricht hinzu. Die Nachricht wird abwechselnd mit anderen benutzerdefinierten oder von Plugins und anderen Botfunktionen gesteuerten Statusnachrichten in der Mitgliederliste angezeigt. Um einen anderen Presence-Modus als \"spielt ...\" zu nutzen (z.B. \"hört ... zu\"), nutze das entsprechende Schlüsselwort (siehe Usage).",
+        "desc_presence_add": "Fügt eine neue benutzerdefinierte Statusnachricht hinzu. Die Nachricht wird abwechselnd mit anderen benutzerdefinierten oder von Plugins und anderen Botfunktionen gesteuerten Statusnachrichten in der Mitgliederliste angezeigt. Um einen anderen Presence-Modus als \"spielt ...\" zu nutzen, nutze das entsprechende Schlüsselwort (siehe Usage).\n\nDie möglichen Presence-Modi sind:\n  playing (spielt ...)\n  listening (hört ... zu)\n  watching (schaut ...)\n  competing (tritt an in ...)",
         "desc_presence_del": "Entfernt eine benutzerdefinierte Statusnachricht. Die dafür notwendige ID der Nachricht kann mithilfe des Kommandos 'presence list' ermittelt werden.",
 
         "#2": "presence",
