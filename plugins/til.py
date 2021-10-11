@@ -68,6 +68,15 @@ class Plugin(BasePlugin, name="TIL"):
             await ctx.send(Lang.lang(self, "must_manager"))
         return False
 
+    def cleanup_redo_reaction(self):
+        if self.redo_registration:
+            self.redo_registration.deregister()
+            self.redo_registration = None
+        if self.redo_last_msg:
+            # avoid await to gracefully skip exceptions
+            execute_anything_sync(self.redo_last_msg.remove_reaction(self.redo_emoji, self.bot.user))
+            self.redo_last_msg = None
+
     async def redo_cb(self, event: BaseReactionEvent):
         """
         Called by reaction listener to handle redo reactions
@@ -80,19 +89,17 @@ class Plugin(BasePlugin, name="TIL"):
             return
 
         self.logger.debug("TIL redo reaction caught")
-        await self._send_til(self.redo_last_msg.channel)
+        if self.redo_registration:
+            chan = self.redo_last_msg.channel
+            self.cleanup_redo_reaction()
+            await self._send_til(chan)
 
     async def _setup_redo_reaction(self, newmsg):
-        # Cleanup
-        if self.redo_registration:
-            self.redo_registration.deregister()
-        if self.redo_last_msg:
-            # avoid await to gracefully skip exceptions
-            execute_anything_sync(self.redo_last_msg.remove_reaction(self.redo_emoji, self.bot.user))
+        self.cleanup_redo_reaction()
 
         # Setup
         self.redo_last_msg = newmsg
-        self.bot.reaction_listener.register(newmsg, self.redo_cb)
+        self.redo_registration = self.bot.reaction_listener.register(newmsg, self.redo_cb)
         await add_reaction(newmsg, self.redo_emoji)
 
     async def _send_til(self, channel):
