@@ -69,6 +69,9 @@ class Plugin(BasePlugin, name="TIL"):
         return False
 
     def cleanup_redo_reaction(self):
+        """
+        Removes the redo reaction, deregisters the listener and resets the redo-specific plugin state
+        """
         if self.redo_registration:
             self.redo_registration.deregister()
             self.redo_registration = None
