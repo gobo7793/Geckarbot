@@ -192,7 +192,7 @@ class Plugin(BasePlugin, name="TIL"):
 
         # Send result
         if best_til is None:
-            await ctx.send(Lang.lang(self, "search_nothing_found"))
+            await ctx.send(Lang.lang(self, "search_empty_result", " ".join(searchterms)))
             return
 
         await ctx.send(best_til)
