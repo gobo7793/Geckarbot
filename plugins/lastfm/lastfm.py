@@ -377,6 +377,19 @@ class Plugin(BasePlugin, name="LastFM"):
         if value is None:
             await add_reaction(ctx.message, Lang.CMDERROR)
             return
+
+        # Check that min_whatever < 1.0
+        if key.startswith("min_"):
+            try:
+                val_float = float(value)
+            except (ValueError, TypeError):
+                pass
+            else:
+                if val_float > 1.0:
+                    await add_reaction(ctx.message, Lang.CMDERROR)
+                    await ctx.send("{} > 1.0".format(val_float))
+                    return
+
         await self.config_setter.set_cmd(ctx, key, value)
 
         # specific handlers that have to do something on value change

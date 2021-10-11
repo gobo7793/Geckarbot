@@ -31,7 +31,7 @@ class Geckarbot(BaseBot):
     Basic bot info
     """
     NAME = "Geckarbot"
-    VERSION = "2.14.0"
+    VERSION = "2.14.1"
     PLUGIN_DIR = "plugins"
     CORE_PLUGIN_DIR = "coreplugins"
     CONFIG_DIR = "config"
@@ -39,31 +39,6 @@ class Geckarbot(BaseBot):
     LANG_DIR = "lang"
     DEFAULT_LANG = "en_US"
     RESOURCE_DIR = "resource"
-
-    """
-    Config
-    """
-    TOKEN = None
-    SERVER_ID = None
-    CHAN_IDS = None
-    ROLE_IDS = None
-    DEBUG_MODE = None
-    DEBUG_USERS = None
-    GOOGLE_API_KEY = None
-    WOLFRAMALPHA_API_KEY = None
-    LANGUAGE_CODE = None
-    PLUGINS = None
-
-    ADMIN_CHAN_ID = None
-    DEBUG_CHAN_ID = None
-    MOD_CHAN_ID = None
-    SERVER_ADMIN_ROLE_ID = None
-    BOT_ADMIN_ROLE_ID = None
-    MOD_ROLE_ID = None
-    ADMIN_ROLES = None
-    MOD_ROLES = None
-    LOAD_PLUGINS = None
-    NOT_LOAD_PLUGINS = None
 
     def __init__(self, *args, **kwargs):
         logging.info("Starting %s %s", self.NAME, self.VERSION)

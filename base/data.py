@@ -328,6 +328,7 @@ class Lang(metaclass=_Singleton):
     EMOJI = {
         "success": "✅",
         "error": "❌",
+        "nopermissions": "🚫",
         "nochange": "🤷‍♀️",
         "mute": "🔇",
         "unmute": "🔊",
@@ -365,7 +366,7 @@ class Lang(metaclass=_Singleton):
     CMDSUCCESS = EMOJI["success"]
     CMDERROR = EMOJI["error"]
     CMDNOCHANGE = EMOJI["nochange"]
-    CMDNOPERMISSIONS = EMOJI["error"]  # todo find something better
+    CMDNOPERMISSIONS = EMOJI["nopermissions"]
 
     def __init__(self):
         self._bot = None

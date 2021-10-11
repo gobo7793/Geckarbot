@@ -14,6 +14,7 @@ from botutils.setter import ConfigSetter
 from botutils.stringutils import paginate
 from botutils.timeutils import parse_time_input
 from botutils.utils import add_reaction, write_mod_channel
+from botutils import permchecks
 from services.helpsys import DefaultCategories
 from services.ignoring import IgnoreEditResult, IgnoreType
 
@@ -70,9 +71,11 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
     # Misc commands
     #####
 
-    @commands.has_role(Config().MOD_ROLES)
     @commands.command(name="set", aliases=["config"])
     async def cmd_set(self, ctx, key=None, value=None):
+        if not permchecks.check_mod_access(ctx.author):
+            await add_reaction(ctx.message, Lang.CMDNOPERMISSIONS)
+            return
         if key is None:
             await self.config_setter.list(ctx)
             return
