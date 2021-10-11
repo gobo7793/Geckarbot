@@ -6,7 +6,7 @@
         "invalid_id": "Sorry, but I don't know a fact with that ID.",
         "info_prefix": "I already learned {} moves, and I want learn more facts from {}!\n",
         "redo_emoji": "🔄",
-        "search_empty_result": "Nothing found.",
+        "search_empty_result": "Nothing found for _{}_.",
 
         "help_til": "Learn an interesting fact",
         "help_til_add": "Add a new fact",
@@ -28,7 +28,7 @@
         "invalid_id": "Sorry, aber ich kenne keinen Fakt mit der ID.",
         "info_prefix": "Ich habe bereits {} Attacken gelernt und möchte von {} mehr Fakten lernen!\n",
         "redo_emoji": "🔄",
-        "search_empty_result": "Nichts gefunden.",
+        "search_empty_result": "**Geckarbot setzt Gesichte ein. Keine Fakten erkannt.**\nEs gibt bisher keine Fakten mit _{}_.",
 
         "help_til": "Lerne einen neuen Fakt",
         "help_til_add": "Füge einen neuen Fakt hinzu",
