@@ -5,7 +5,7 @@ This subsystem provides changing presence messages for the user list on servers
 import logging
 import random
 from enum import IntEnum
-from typing import Optional, List, Dict
+from typing import Optional, List, Dict, Union
 
 import discord
 
@@ -58,7 +58,8 @@ class PresenceMessage:
     """Presence message dataset"""
 
     def __init__(self, bot, presence_id: Optional[int], message: str,
-                 priority: PresencePriority = PresencePriority.DEFAULT, activity: str = "playing"):
+                 priority: PresencePriority = PresencePriority.DEFAULT, activity: str = "playing",
+                 weight: Union[float, int] = 1):
         """
         Creates a new PresenceMessage
 
@@ -67,9 +68,11 @@ class PresenceMessage:
         :param message: the message to display
         :param priority: the priority of the message
         :param activity: presence mode (listening, playing, ...); one out of activitymap
+        :param weight: RNG weight for random choice, default is 1.0
         :raises RuntimeError: Invalid activity
         """
         self.bot = bot
+        self.weight = weight
         if presence_id is not None:
             self.presence_id = presence_id
         else:
@@ -234,8 +237,10 @@ class Presence(BaseSubsystem):
         if len(message_list) == 1:
             return message_list[0].presence_id
 
+        weights = [el.weight for el in message_list]
+
         while True:
-            select = random.choice(message_list)
+            select = random.choices(message_list, weights=weights)[0]
             if select.presence_id != excluded_id:
                 return select.presence_id
 
