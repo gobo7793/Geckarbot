@@ -1,3 +1,4 @@
+import locale
 import logging
 import random
 import string
@@ -237,6 +238,7 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
         single_relunit = None
         single_priceunit = None
         for i in range(len(args) // 2):
+            # format: direct arg parsing, i.e. [d, price]
             prepizza = [None, None]
             for j in range(2):
                 arg = args[i*2 + j]
@@ -246,6 +248,8 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
                     await add_reaction(ctx.message, Lang.CMDERROR)
                     await ctx.send(Lang.lang(self, "pizza_nan", arg))
                     return
+
+            # format: [d, price, relative]
             pizzas.append([prepizza[0], prepizza[1], None])
 
         # Calc
@@ -266,12 +270,23 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
         # Sort
         pizzas = sorted(pizzas, key=lambda x: x[2].number)
 
+        # build percentages
+        baserel = pizzas[0][2]
+        perct = [""]
+        for i in range(1, len(pizzas)):
+            p = (pizzas[i][2].number / baserel.number - 1) * 100
+            perct.append(" (+{}%)".format(locale.format_string("%.1f", p)))
+
         # Format to string in-place
         for i in range(len(pizzas)):
             for j in range(len(pizzas[0])):
                 split_unit = not j == 0
                 decpl = 4 if j == 2 else 2
                 pizzas[i][j] = format_number(pizzas[i][j], decplaces=decpl, split_unit=split_unit)
+
+                # add percentages
+                if j == len(pizzas[0]) - 1:
+                    pizzas[i][j] += perct[i]
 
         # Format table or print single result
         if len(pizzas) == 1:
