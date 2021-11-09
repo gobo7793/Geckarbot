@@ -18,7 +18,7 @@ from services.helpsys import DefaultCategories
 async def cmd_del_event(msg, title_suffix):
     """
     Prints info about a message if it contained a cmd. Used by edit/delete events.
-    
+
     :param msg: message before edit or delete
     :param title_suffix: "deletion" or "edit", appended to title
     :return:
