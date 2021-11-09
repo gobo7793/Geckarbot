@@ -30,6 +30,12 @@ class LTSource(Enum):
     ESPN = "espn"
 
 
+lt_source_links = {
+    LTSource.OPENLIGADB: "http://openligadb.de",
+    LTSource.ESPN: "http://espn.com"
+}
+
+
 class MatchStatus(Enum):
     """Current status of the match"""
     COMPLETED = ":ballot_box_with_check:"

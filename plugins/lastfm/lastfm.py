@@ -817,7 +817,7 @@ class Plugin(BasePlugin, name="LastFM"):
 
     @commands.group(name="spotify", invoke_without_command=True)
     async def cmd_spotify(self, ctx, *args):
-        user = self.parse_args(args, ctx.author)["author"]
+        user = self.parse_args(args, ctx.author)["user"]
 
         async with ctx.typing():
             # Get user
