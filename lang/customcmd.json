@@ -57,7 +57,7 @@
         "desc_cmd_del": "Deletes a custom command or one of its output texts. If the last output text was deleted, the whole command will be removed.\n\nIf an output text ID is given, only the text will be removed, otherwise the whole command. The IDs and creator can be get via '!cmd info <command>'.\n\nThe original command author and mods can delete the whole command and all texts, the output text authors only it's own texts.",
         "help_cmd_alias": "Adds an alias to a user command.",
         "usage_cmd_alias": "<command> <alias>",
-        "desc_cmd_alias": "Adds an alias to a user command. This command can then be invoked with the alias as well. Without arguments, this command lists all commands that have an alias.",
+        "desc_cmd_alias": "Adds an alias to a user command. This command can then be invoked with the alias as well. The order of the arguments is irrelevant. Without arguments, this command lists all commands that have an alias.",
         "help_cmd_aliasclear": "Removes all aliases from a user command.",
         "usage_cmd_aliasclear": "<command>",
         "desc_cmd_aliasclear": "Removes all aliases from a user command."
@@ -120,7 +120,7 @@
         "desc_cmd_del": "Löscht ein Benutzer-Kommando oder einen der Ausgabetexte. Wenn der letzte Ausgabetext entfernt wird, wird zudem das gesamte Benutzer-Kommando gelöscht.\n\nWird eine Ausgabetext-ID angegeben, wird nur dieser Ausgabetext gelöscht, andernfalls das gesamte Kommando. Die IDs und Ersteller können mithilfe von '!cmd info <Kommando-Name>' angezeigt werden.\n\nNur der ursprüngliche Ersteller eines Benutzer-Kommandos oder Moderatoren können ein Kommando und alle Ausgabetexte löschen, die Ersteller einzelner Ausgabetexte nur ihre jeweils eigenen.",
         "help_cmd_alias": "Fügt ein Alias zu einem Benutzer-Kommando hinzu.",
         "usage_cmd_alias": "<Kommando> <Alias>",
-        "desc_cmd_alias": "Fügt ein Alias zu einem Benutzer-Kommando hinzu. Dieses Kommando kann ab dann auch mit dem Alias angesteuert werden. Ohne Argumente listet dieses Kommando alle Benutzer-Kommandos auf, die ein Alias besitzen.",
+        "desc_cmd_alias": "Fügt ein Alias zu einem Benutzer-Kommando hinzu. Dieses Kommando kann ab dann auch mit dem Alias angesteuert werden. Die Reihenfolge der Argumente ist irrelevant. Ohne Argumente listet dieses Kommando alle Benutzer-Kommandos auf, die ein Alias besitzen.",
         "help_cmd_aliasclear": "Entfernt alle Alias von einem Benutzer-Kommando.",
         "usage_cmd_aliasclear": "<Kommando>",
         "desc_cmd_aliasclear": "Entfernt alle Alias von einem Benutzer-Komando."
