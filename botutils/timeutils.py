@@ -73,8 +73,7 @@ def parse_time_input(*args, end_of_day: bool = False) -> datetime:
         else:
             if t is not None:
                 return t.split(" ")
-            else:
-                return ""
+            return ""
         return arg_list
 
     def parse_time(t):

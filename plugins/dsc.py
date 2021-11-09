@@ -11,7 +11,7 @@ from discord.ext.commands import ChannelNotFound, TextChannelConverter, RoleConv
 from base.configurable import BasePlugin, NotFound
 from base.data import Storage, Lang, Config
 from botutils import permchecks, sheetsclient, utils, timeutils
-from botutils.converters import get_best_user, get_plugin_by_name, get_best_username
+from botutils.converters import get_best_user, get_plugin_by_name
 from botutils.stringutils import paginate, clear_link, table
 
 
@@ -122,13 +122,14 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
         """Deregisters the presence message"""
         self.bot.presence.deregister(self.presence)
 
-    async def build_info_embed(self, rules: bool = False, songmasters: bool = False):
+    async def build_info_embed(self, rules: bool = False, songmasters: bool = False) -> discord.Embed:
         """
         Builds an embed with stored dsc info.
 
         :param rules: Flag to include the rules link
         :param songmasters: Flag to include a list of songmasters
-        :return:
+        :return: Embed with info
+        :raises ConfigError: If a config key is missing
         """
         date_out_str = Lang.lang(self, 'info_date_str', Storage.get(self)['date'].strftime('%d.%m.%Y, %H:%M'))
         if not Storage.get(self)['host_id']:
