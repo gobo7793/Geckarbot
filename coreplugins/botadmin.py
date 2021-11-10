@@ -45,8 +45,9 @@ class Plugin(BasePlugin, name="Bot status commands for monitoring and debug purp
 
         # Write cmd deletions/edits to debug chan
         @self.bot.event
-        async def on_message_edit(before, _):
-            await cmd_del_event(before, "edit")
+        async def on_message_edit(before, after):
+            if before.content != after.content:
+                await cmd_del_event(before, "edit")
 
         @self.bot.event
         async def on_message_delete(msg):
