@@ -41,20 +41,26 @@ class Plugin(BasePlugin):
         Migrates storage to current version:
             None -> 0: inserts jump link placeholders
             0 -> 1: Change channel serialization
+            1 -> 2: Added reference
         """
-        version = Storage().get(self).get('version', None)
+        version = Storage().get(self).get('version')
         if version is None:
             Storage().get(self)['version'] = 0
             for rid in Storage().get(self)['reminders'].keys():
                 Storage().get(self)['reminders'][rid]['link'] = "Link not found (reminder made on old version)"
 
-        if version == 0:
+        if version < 1:
             Storage().get(self)['version'] = 1
             for rid, reminder in Storage().get(self)['reminders'].items():
                 chan = self.bot.get_channel(reminder['chan'])
                 if chan is not None:
                     chan = converters.serialize_channel(chan)
                 reminder['chan'] = chan
+
+        if version < 2:
+            Storage().get(self)['version'] = 2
+            for reminder in Storage().get(self)['reminders'].values():
+                reminder['reference'] = None
 
         Storage().save(self)
 
@@ -98,7 +104,7 @@ class Plugin(BasePlugin):
                 continue
 
             r = self._register_reminder(chan, reminder['user'], reminder['time'],
-                                        rid, reminder['text'], reminder['link'], True)
+                                        rid, reminder['text'], reminder['link'], True, reminder['reference'])
             if not r:
                 to_remove.append(r)
 
@@ -135,8 +141,10 @@ class Plugin(BasePlugin):
             await ctx.send(Lang.lang(self, 'remind_past'))
             return
 
-        rlink = ctx.message.jump_url
-        if self._register_reminder(ctx.channel, ctx.author.id, remind_time, reminder_id, rtext, rlink):
+        reference_id = ctx.message.reference.message_id if ctx.message.reference else None
+        if self._register_reminder(channel=ctx.channel, user_id=ctx.author.id, remind_time=remind_time,
+                                   reminder_id=reminder_id, text=rtext, link=ctx.message.jump_url,
+                                   ref_message_id=reference_id):
             await ctx.send(Lang.lang(self, 'remind_set', to_unix_str(remind_time, style=TimestampStyle.DATETIME_SHORT),
                                      reminder_id))
         else:
@@ -197,7 +205,8 @@ class Plugin(BasePlugin):
         await ctx.send(Lang.lang(self, "explain_message", self.explain_history[ctx.author]))
 
     def _register_reminder(self, channel: Union[discord.DMChannel, discord.TextChannel, None], user_id: int,
-                           remind_time: datetime, reminder_id: int, text, link: str, is_restart: bool = False) -> bool:
+                           remind_time: datetime, reminder_id: int, text, link: str, is_restart: bool = False,
+                           ref_message_id: int = None) -> bool:
         """
         Registers a reminder
 
@@ -208,6 +217,7 @@ class Plugin(BasePlugin):
         :param text: The reminder message text
         :param link: The reminder message jump link (or placeholder text)
         :param is_restart: True if reminder is restarting after bot (re)start
+        :param ref_message_id: The ID of the referenced message
         :returns: True if reminder is registered, otherwise False
         """
         if remind_time < datetime.now() and not is_restart:
@@ -223,6 +233,7 @@ class Plugin(BasePlugin):
             'time': remind_time,
             'text': text,
             'link': link,
+            'reference': ref_message_id,
             'id': reminder_id
         }
 
@@ -265,6 +276,7 @@ class Plugin(BasePlugin):
         text = job.data['text']
         rid = job.data['id']
         self.explain_history[user] = job.data['link']
+        reference = None
 
         if channel is None:
             raise RuntimeError("Channel is None for reminder with id {}".format(rid))
@@ -274,5 +286,11 @@ class Plugin(BasePlugin):
         else:
             remind_text = Lang.lang(self, 'remind_callback_no_msg', user.mention)
 
-        await channel.send(remind_text)
+        if job.data['reference']:
+            try:
+                reference = await channel.fetch_message(job.data['reference'])
+            except discord.errors.NotFound:
+                pass
+
+        await channel.send(remind_text, reference=reference, mention_author=False)
         self._remove_reminder(rid)
