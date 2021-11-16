@@ -9,9 +9,9 @@
         "search_empty_result": "Nothing found for _{}_.",
 
         "help_til": "Learn an interesting fact",
-        "help_til_add": "Add a new fact",
+        "help_til_add": "Adds a new fact",
         "help_til_del": "Removes a fact",
-        "help_til_info": "Show how many facts I have.",
+        "help_til_info": "Show how many facts I have",
         "desc_til_info": "Show how many facts I have\nIf you are a TIL manager, admin or botmaster, all facts are shown in a DM.",
         "help_til_manager": "Set the fact manager",
         "usage_til_set": "[<Option> <Wert>]",
