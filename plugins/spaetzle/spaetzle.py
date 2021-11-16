@@ -284,7 +284,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
 
                 await botmessage.edit(content="{}\n{}".format(botmessage.content,
                                                               Lang.lang(self, 'scrape_intermediate', len(data))))
-                next_page = soup.find_all('li', 'naechste-seite')
+                next_page = soup.find_all('li', 'tm-pagination__list-item--icon-next-page')
                 if next_page and next_page[0].a:
                     url = urljoin(Storage().get(self)['predictions_thread'], next_page[0].a['href'])
                 else:
