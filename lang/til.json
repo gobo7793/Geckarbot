@@ -31,9 +31,9 @@
         "search_empty_result": "**Geckarbot setzt Gesichte ein. Keine Fakten erkannt.**\nEs gibt bisher keine Fakten mit _{}_.",
 
         "help_til": "Lerne einen neuen Fakt",
-        "help_til_add": "Füge einen neuen Fakt hinzu",
+        "help_til_add": "Fügt einen neuen Fakt hinzu",
         "help_til_del": "Löscht einen Fakt",
-        "help_til_info": "Zeigt an, wieviele Fakten ich habe.",
+        "help_til_info": "Zeigt an, wieviele Fakten ich habe",
         "desc_til_info": "Zeigt an, wieviele Fakten ich habe.\nAlle Fakten werden nur in einer privaten Nachricht vom TIL-Manager oder einem Mod gezeigt.",
         "help_til_manager": "Setzt einen Faktenmanager",
         "usage_til_set": "[<Option> <Wert>]",
