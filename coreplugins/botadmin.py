@@ -235,10 +235,12 @@ class Plugin(BasePlugin, name="Bot status commands for monitoring and debug purp
     @commands.command(name="livetickerkill", help="Kills all liveticker registrations")
     @commands.has_any_role(Config().BOT_ADMIN_ROLE_ID)
     async def cmd_liveticker_kill(self, ctx):
-        for _, _, c_reg in list(self.bot.liveticker.search_coro()):
+        for c_reg in list(self.bot.liveticker.search_coro()):
             await c_reg.deregister()
-        for src in Storage().get(self.bot.liveticker)['registrations']:
-            Storage().get(self.bot.liveticker)['registrations'][src] = {}
+        for l_reg in list(self.bot.liveticker.search_league()):
+            await l_reg.deregister()
+        Storage().get(self.bot.liveticker)['coro_regs'] = {}
+        Storage().get(self.bot.liveticker)['league_regs'] = {}
         Storage().save(self.bot.liveticker)
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
