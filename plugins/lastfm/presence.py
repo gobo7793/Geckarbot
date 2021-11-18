@@ -69,9 +69,6 @@ class PresenceState:
             await self.presence_msg.plugin.bot.presence.skip()
         return self
 
-    def is_set(self) -> bool:
-        return self.cur_listener_dc is not None
-
 
 class LfmPresenceMessage(PresenceMessage):
     """
@@ -120,11 +117,6 @@ class LfmPresenceMessage(PresenceMessage):
                 self.logger.error("Lastfm presence state reset: Unexpected Lastfm API response")
                 pass
 
-            if not self.state.is_set():
-                self.logger.error("Lastfm presence: State not set, skipping")
-                await self.bot.presence.skip()
-                return
-
         if not first:
             song = await self.plugin.api.get_current_scrobble(self.state.cur_listener_lfm)
             if song is None or not song == self.state.cur_song:
@@ -132,10 +124,6 @@ class LfmPresenceMessage(PresenceMessage):
                     await self.state.reset()
                 except UnexpectedResponse:
                     pass
-
-                if not self.state.is_set():
-                    await self.bot.presence.skip()
-                    return
 
         self._activity = discord.Activity(type=self._activity_type, name=self.state.cur_song_f)
         await self.bot.change_presence(activity=self.activity_type)
