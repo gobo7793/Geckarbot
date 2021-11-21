@@ -3,7 +3,7 @@ import re
 import random
 import logging
 import abc
-from typing import Optional, Union
+from typing import Optional
 
 import discord
 from discord.ext import commands
@@ -173,11 +173,17 @@ class TextCmd(Cmd):
                        author_ids=d.get('authors', []), aliases=d.get('aliases', None))
 
     async def invoke(self, message: discord.Message, *arguments):
-        assert(len(self) > 0)
+        assert len(self) > 0
         text_id = random.choice(range(0, len(self)))
         await message.channel.send(self.get_formatted_text(text_id, message, *arguments))
 
     def add(self, author: discord.User, text: str):
+        """
+        Adds a command text.
+
+        :param author: Command text author
+        :param text: Command text
+        """
         to_replace = "/me"
         if text.startswith(to_replace):
             text = "_{}_".format(text[len(to_replace):])
