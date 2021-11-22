@@ -1,4 +1,4 @@
-from data import Storage
+from base.data import Storage
 
 
 def migrate_0_to_1(plugin):

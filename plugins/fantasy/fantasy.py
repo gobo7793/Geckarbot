@@ -7,18 +7,18 @@ from discord.ext import commands
 from discord.ext.commands import TextChannelConverter, ChannelNotFound, RoleConverter, RoleNotFound, Context
 
 import botutils.timeutils
-from base import BasePlugin
+from base.configurable import BasePlugin
+from base.data import Config, Storage, Lang
 from botutils import stringutils, permchecks
 from botutils.converters import get_best_username, get_best_user
 from botutils.permchecks import WrongChannel
 from botutils.stringutils import paginate
 from botutils.utils import add_reaction, helpstring_helper, execute_anything_sync
-from data import Config, Storage, Lang
 from plugins.fantasy import migrations
 from plugins.fantasy.league import FantasyLeague, deserialize_league, create_league
 from plugins.fantasy.utils import pos_alphabet, FantasyState, Platform, Match, parse_platform
-from subsystems import timers
-from subsystems.helpsys import DefaultCategories
+from services import timers
+from services.helpsys import DefaultCategories
 
 log = logging.getLogger(__name__)
 
@@ -30,9 +30,10 @@ log = logging.getLogger(__name__)
 class Plugin(BasePlugin, name="NFL Fantasy"):
     """Commands for the Fantasy game"""
 
-    def __init__(self, bot):
-        super().__init__(bot)
-        bot.register(self, category=DefaultCategories.SPORT)
+    def __init__(self):
+        super().__init__()
+        self.bot = Config().bot
+        self.bot.register(self, category=DefaultCategories.SPORT)
         self.dump_except_keys = ["espn_credentials"]
 
         self.supercommish = None

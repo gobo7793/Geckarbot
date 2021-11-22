@@ -5,12 +5,21 @@
         "no_facts": "I'm a dumb Treecko and don't know any interest facts :frowning:",
         "invalid_id": "Sorry, but I don't know a fact with that ID.",
         "info_prefix": "I already learned {} moves, and I want learn more facts from {}!\n",
+        "redo_emoji": "🔄",
+        "search_empty_result": "Nothing found for _{}_.",
 
         "help_til": "Learn an interesting fact",
-        "help_add": "Add a new fact",
-        "help_del": "Removes a fact",
-        "help_info": "Show how many facts I have\nI tell you all in a DM, if you're TIL manager, admin or botmaster",
-        "help_manager": "Set the fact manager"
+        "help_til_add": "Adds a new fact",
+        "help_til_del": "Removes a fact",
+        "help_til_info": "Show how many facts I have",
+        "desc_til_info": "Show how many facts I have\nIf you are a TIL manager, admin or botmaster, all facts are shown in a DM.",
+        "help_til_manager": "Set the fact manager",
+        "usage_til_set": "[<Option> <Wert>]",
+        "help_til_set": "Configures TIL",
+        "desc_til_set": "Configures TIL.\n\nAvailable options:\n  allow_search [true|false] - Allows users who are not a mod, admin or TIL manager the usage of !til search\n  redo_cooldown [integer] - sets the cooldown (in seconds) for the usage of the redo reaction",
+        "usage_til_search": "<search terms>",
+        "help_til_search": "Searches the facts",
+        "desc_til_search": "Searches the facts for search terms and returns the best result that contains all terms."
     },
     "de_DE": {
         "must_manager": "Ich werd dich das erst machen lassen, wenn du TIL-Manager bist.",
@@ -18,11 +27,20 @@
         "no_facts": "Ich bin ein dummes Geckarbor und kenne keine interessanten Fakten :frowning:",
         "invalid_id": "Sorry, aber ich kenne keinen Fakt mit der ID.",
         "info_prefix": "Ich habe bereits {} Attacken gelernt und möchte von {} mehr Fakten lernen!\n",
+        "redo_emoji": "🔄",
+        "search_empty_result": "**Geckarbot setzt Gesichte ein. Keine Fakten erkannt.**\nEs gibt bisher keine Fakten mit _{}_.",
 
         "help_til": "Lerne einen neuen Fakt",
-        "help_add": "Füge einen neuen Fakt hinzu",
-        "help_del": "Löscht einen Fakt",
-        "help_info": "Zeigt an wie viele Fakten ich habe\nAlle Fakten zeige ich dem TIL-Manager und den Mods nur in einer privaten Nachricht!",
-        "help_manager": "Setzt einen Faktenmanager"
+        "help_til_add": "Fügt einen neuen Fakt hinzu",
+        "help_til_del": "Löscht einen Fakt",
+        "help_til_info": "Zeigt an, wieviele Fakten ich habe",
+        "desc_til_info": "Zeigt an, wieviele Fakten ich habe.\nAlle Fakten werden nur in einer privaten Nachricht vom TIL-Manager oder einem Mod gezeigt.",
+        "help_til_manager": "Setzt einen Faktenmanager",
+        "usage_til_set": "[<Option> <Wert>]",
+        "help_til_set": "Konfiguriert TIL",
+        "desc_til_set": "Konfiguriert TIL.\n\nVerfügbare Optionen:\n  allow_search [true|false] - Erlaubt Usern, die nicht Mod, Admin oder TIL-Manager sind, den Zugang zu !til search\n  redo_cooldown [Ganzzahl] - setzt den Cooldown (in Sekunden) für die Nutzung der Redo-Reaction",
+        "usage_til_search": "<Suchbegriffe>",
+        "help_til_search": "Durchsucht die Fakten",
+        "desc_til_search": "Durchsucht die Fakten nach den Suchbegriffen und gibt das beste Suchergebnis aus, das alle Suchbegriffe enthält."
     }
 }

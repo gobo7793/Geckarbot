@@ -2,9 +2,10 @@ import logging
 
 from discord.ext import commands
 
-from base import BasePlugin
+from base.configurable import BasePlugin
+from base.data import Config
 from botutils.questionnaire import Question, Questionnaire, QuestionType
-from subsystems.helpsys import DefaultCategories
+from services.helpsys import DefaultCategories
 
 
 protoquestions = [
@@ -15,9 +16,9 @@ protoquestions = [
 
 
 class Plugin(BasePlugin):
-    def __init__(self, bot):
-        self.bot = bot
-        super().__init__(bot)
+    def __init__(self):
+        self.bot = Config().bot
+        super().__init__()
 
         self.answers = []
         self.logger = logging.getLogger(__name__)

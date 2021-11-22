@@ -1,24 +1,43 @@
+import asyncio
 import random
+import logging
+import re
 
 import discord
 from discord.ext import commands
 
-from base import BasePlugin, NotFound
-from data import Config, Storage, Lang
+from base.configurable import BasePlugin, NotFound
+from base.data import Config, Storage, Lang
+from botutils.setter import ConfigSetter
 from botutils.permchecks import check_mod_access
-from botutils.utils import add_reaction, helpstring_helper
+from botutils.utils import add_reaction, helpstring_helper, execute_anything_sync
 from botutils.converters import get_best_username
 from botutils.stringutils import paginate
-from subsystems.helpsys import DefaultCategories
+from services.helpsys import DefaultCategories
+from services.reactions import ReactionAddedEvent, BaseReactionEvent
 
 
 class Plugin(BasePlugin, name="TIL"):
     """Provides custom cmds"""
 
-    def __init__(self, bot):
-        super().__init__(bot)
-        bot.register(self, category=DefaultCategories.MISC)
+    def __init__(self):
+        super().__init__()
+        self.bot = Config().bot
+        self.bot.register(self, category=DefaultCategories.MISC)
         self.can_reload = True
+        self.logger = logging.getLogger(__name__)
+
+        self.basecfg = {
+            "allow_search": [bool, True],
+            "redo_cooldown": [int, 5],
+            "cooldown_message": [bool, True],
+        }
+        self.config_setter = ConfigSetter(self, self.basecfg)
+
+        # redo state handling
+        self.redo_emoji = Lang.lang(self, "redo_emoji")
+        self.redo_last_msg = None
+        self.redo_registration = None
 
     def default_config(self, container=None):
         return {
@@ -49,13 +68,59 @@ class Plugin(BasePlugin, name="TIL"):
             await ctx.send(Lang.lang(self, "must_manager"))
         return False
 
-    @commands.group(name="til", invoke_without_command=True)
-    async def cmd_til(self, ctx):
+    def cleanup_redo_reaction(self):
+        """
+        Removes the redo reaction, deregisters the listener and resets the redo-specific plugin state
+        """
+        if self.redo_registration:
+            self.redo_registration.deregister()
+            self.redo_registration = None
+        if self.redo_last_msg:
+            # avoid await to gracefully skip exceptions
+            execute_anything_sync(self.redo_last_msg.remove_reaction(self.redo_emoji, self.bot.user))
+            self.redo_last_msg = None
+
+    async def redo_cb(self, event: BaseReactionEvent):
+        """
+        Called by reaction listener to handle redo reactions
+
+        :param event: ReactionEvent
+        """
+        if not isinstance(event, ReactionAddedEvent) \
+                or str(event.emoji) != self.redo_emoji \
+                or event.user == self.bot.user:
+            return
+
+        self.logger.debug("TIL redo reaction caught")
+        if self.redo_registration:
+            chan = self.redo_last_msg.channel
+            self.cleanup_redo_reaction()
+            await self._send_til(chan)
+
+    async def _setup_redo_reaction(self, newmsg):
+        self.cleanup_redo_reaction()
+
+        # Setup
+        self.redo_last_msg = newmsg
+        self.redo_registration = self.bot.reaction_listener.register(newmsg, self.redo_cb)
+        await add_reaction(newmsg, self.redo_emoji)
+
+    async def _send_til(self, channel):
+        self.logger.debug("Sending til to %s", str(channel))
         if not Storage.get(self):
-            await ctx.send(Lang.lang(self, "no_facts"))
+            await channel.send(Lang.lang(self, "no_facts"))
             return
         ran_fact = random.choice(Storage.get(self))
-        await ctx.send(ran_fact)
+        msg = await channel.send(ran_fact)
+
+        cd = self.config_setter.get_config("redo_cooldown")
+        if cd > 0:
+            await asyncio.sleep(cd)
+        await self._setup_redo_reaction(msg)
+
+    @commands.group(name="til", invoke_without_command=True)
+    async def cmd_til(self, ctx):
+        await self._send_til(ctx.channel)
 
     @cmd_til.command(name="add")
     async def cmd_add(self, ctx, *, args):
@@ -93,6 +158,53 @@ class Plugin(BasePlugin, name="TIL"):
                 await ctx.send(msg)
         else:
             await ctx.send(prefix)
+
+    @cmd_til.command(name="search")
+    async def cmd_search(self, ctx, *searchterms):
+        if not self.config_setter.get_config("allow_search") and \
+                not await self._manager_check(ctx, show_errors=False) and not check_mod_access(ctx.author):
+            await add_reaction(ctx.message, Lang.CMDNOPERMISSIONS)
+            return
+
+        # Search for candidates
+        best_til, best_score = None, 0
+        for til in Storage.get(self):
+            candidate = til.lower()
+            matches = 0
+            found = True
+            for term in searchterms:
+                found = len(re.findall(term.lower(), candidate))
+                if not found:
+                    break
+                matches += found
+
+            if not found:
+                continue
+
+            if matches > best_score:
+                best_til = til
+                best_score = matches
+
+        # Send result
+        if best_til is None:
+            await ctx.send(Lang.lang(self, "search_empty_result", " ".join(searchterms)))
+            return
+
+        await ctx.send(best_til)
+
+    @cmd_til.command(name="set", aliases=["config"])
+    async def cmd_set(self, ctx, key=None, value=None):
+        if not await self._manager_check(ctx, show_errors=False) and not check_mod_access(ctx.author):
+            await add_reaction(ctx.message, Lang.CMDNOPERMISSIONS)
+            return
+
+        if key is None:
+            await self.config_setter.list(ctx)
+            return
+        if value is None:
+            await add_reaction(ctx.message, Lang.CMDERROR)
+            return
+        await self.config_setter.set_cmd(ctx, key, value)
 
     @cmd_til.command(name="manager")
     async def cmd_set_manger(self, ctx, user: discord.User):

@@ -1,14 +1,14 @@
 import logging
 
-from base import BasePlugin, NotFound
+from base.configurable import BasePlugin, NotFound
+from base.data import Config, Storage, Lang
 from botutils.utils import helpstring_helper
-from data import Config, Storage, Lang
 from plugins.sport._scores import _Scores
 from plugins.sport._liveticker import _Liveticker
 from plugins.sport._predgame import _Predgame
-from subsystems import timers
-from subsystems.helpsys import DefaultCategories
-from subsystems.liveticker import LTSource
+from services import timers
+from services.helpsys import DefaultCategories
+from services.liveticker import LTSource, lt_source_links
 
 logger = logging.getLogger(__name__)
 
@@ -16,12 +16,13 @@ logger = logging.getLogger(__name__)
 class Plugin(BasePlugin, _Liveticker, _Predgame, _Scores, name="Sport"):
     """Commands related to soccer or other sports"""
 
-    def __init__(self, bot):
-        BasePlugin.__init__(self, bot)
-        _Scores.__init__(self, bot)
-        _Predgame.__init__(self, bot)
-        _Liveticker.__init__(self, bot, self.get_name, self._get_predictions)
-        bot.register(self, category=DefaultCategories.SPORT)
+    def __init__(self):
+        self.bot = Config().bot
+        BasePlugin.__init__(self)
+        _Scores.__init__(self, self.bot)
+        _Predgame.__init__(self, self.bot)
+        _Liveticker.__init__(self, self.bot, self.get_name, self._get_predictions)
+        self.bot.register(self, category=DefaultCategories.SPORT)
         self._update_config()
 
         self.today_timer = self.bot.timers.schedule(coro=self._today_coro, td=timers.timedict(hour=1, minute=0))
@@ -66,7 +67,8 @@ class Plugin(BasePlugin, _Liveticker, _Predgame, _Scores, name="Sport"):
                 desc = helpstring_helper(self, command, "desc")
             except NotFound:
                 desc = helpstring_helper(self, command, "help")
-            return f"{desc}\n{Lang.lang(self, 'available_sources', ', '.join(e.value for e in LTSource))}"
+            sources = "\n".join(["  {} ({})".format(e.value, lt_source_links[e]) for e in LTSource])
+            return f"{desc}\n{Lang.lang(self, 'available_sources', sources)}"
         return helpstring_helper(self, command, "desc")
 
     def command_usage(self, command):

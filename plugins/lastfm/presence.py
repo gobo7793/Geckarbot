@@ -5,9 +5,9 @@ from typing import Optional
 import discord
 
 from plugins.lastfm.api import UnexpectedResponse
-from subsystems.presence import PresenceMessage, PresencePriority, activitymap
-from subsystems.timers import Timer
-from data import Storage, Lang
+from services.presence import PresenceMessage, PresencePriority, activitymap
+from services.timers import Timer
+from base.data import Storage, Lang
 from botutils.converters import get_best_user, get_best_username as gbu
 
 
@@ -59,6 +59,7 @@ class PresenceState:
         if there is no current scrobble among the users
 
         :return: This PresenceState
+        :rtype: PresenceState
         """
         rnd = await self.presence_msg.get_random_lastfm_listener()
         self.cur_listener_dc, self.cur_listener_lfm, self.cur_song = rnd
@@ -67,9 +68,6 @@ class PresenceState:
         elif self.presence_msg.show_presence:
             await self.presence_msg.plugin.bot.presence.skip()
         return self
-
-    def is_set(self) -> bool:
-        return self.cur_listener_dc is not None
 
 
 class LfmPresenceMessage(PresenceMessage):
@@ -112,26 +110,21 @@ class LfmPresenceMessage(PresenceMessage):
         if self.state is None:
             first = True
             try:
-                self.state = await PresenceState(self).reset()
+                self.state = PresenceState(self)
+                await self.state.reset()
             except UnexpectedResponse:
                 # caught in next if; is_set() is not set when the api fails
+                self.logger.error("Lastfm presence state reset: Unexpected Lastfm API response")
                 pass
 
-            if not self.state.is_set():
-                await self.bot.presence.skip()
-                return
-
         if not first:
-            song = await self.plugin.api.get_current_scrobble(self.state.cur_listener_lfm)
-            if song is None or not song == self.state.cur_song:
-                try:
+            try:
+                song = await self.plugin.api.get_current_scrobble(self.state.cur_listener_lfm)
+                if song is None or not song == self.state.cur_song:
                     await self.state.reset()
-                except UnexpectedResponse:
-                    pass
-                
-                if not self.state.is_set():
-                    await self.bot.presence.skip()
-                    return
+            except UnexpectedResponse:
+                # continue to use old values
+                pass
 
         self._activity = discord.Activity(type=self._activity_type, name=self.state.cur_song_f)
         await self.bot.change_presence(activity=self.activity_type)

@@ -4,7 +4,7 @@ import logging
 from enum import Enum
 from botutils import jsonutils
 
-from base import NotFound
+from base.configurable import NotFound
 
 
 class Const(Enum):
@@ -221,6 +221,11 @@ class Config(IODirectory):
 
     @property
     def bot(self):
+        """
+
+        :return: bot ref
+        :rtype: base.bot.BaseBot
+        """
         return self._bot
 
     @bot.setter
@@ -269,7 +274,7 @@ class Config(IODirectory):
         """Returns the resource directory for the given plugin instance."""
         for el in cls().bot.plugins:
             if el is plugin:
-                return el.resource_dir
+                return "{}/{}".format(cls().bot.RESOURCE_DIR, plugin.get_name())
         return None
 
     @classmethod
@@ -323,6 +328,7 @@ class Lang(metaclass=_Singleton):
     EMOJI = {
         "success": "✅",
         "error": "❌",
+        "nopermissions": "🚫",
         "nochange": "🤷‍♀️",
         "mute": "🔇",
         "unmute": "🔊",
@@ -360,7 +366,7 @@ class Lang(metaclass=_Singleton):
     CMDSUCCESS = EMOJI["success"]
     CMDERROR = EMOJI["error"]
     CMDNOCHANGE = EMOJI["nochange"]
-    CMDNOPERMISSIONS = EMOJI["error"]  # todo find something better
+    CMDNOPERMISSIONS = EMOJI["nopermissions"]
 
     def __init__(self):
         self._bot = None

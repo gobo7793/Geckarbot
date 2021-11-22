@@ -1,8 +1,10 @@
+import locale
 import logging
 import random
 import string
 from datetime import datetime, timezone, timedelta
 from math import pi
+from typing import List, Iterable
 
 import discord
 from discord.ext import commands
@@ -11,9 +13,9 @@ from botutils import restclient, utils, timeutils
 from botutils.converters import get_best_username
 from botutils.utils import add_reaction
 from botutils.stringutils import table, parse_number, format_number, Number
-from data import Lang, Config, Storage
-from base import BasePlugin
-from subsystems.helpsys import DefaultCategories
+from base.data import Lang, Config, Storage
+from base.configurable import BasePlugin
+from services.helpsys import DefaultCategories
 
 log = logging.getLogger(__name__)
 _KEYSMASH_CMD_NAME = "keysmash"
@@ -24,9 +26,10 @@ def _create_keysmash():
 
 
 class Plugin(BasePlugin, name="Funny/Misc Commands"):
-    def __init__(self, bot):
-        super().__init__(bot)
-        bot.register(self, DefaultCategories.MISC)
+    def __init__(self):
+        super().__init__()
+        self.bot = Config().bot
+        self.bot.register(self, DefaultCategories.MISC)
 
         # Add commands to help category 'utils'
         to_add = ("dice", "choose", "multichoose", "money", "pizza")
@@ -67,22 +70,53 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
         if not self.bot.WOLFRAMALPHA_API_KEY:
             await add_reaction(ctx.message, Lang.CMDERROR)
             return
+        if not args:
+            await Config().bot.helpsys.cmd_help(ctx, self, ctx.command)
+            return
+
         response = await restclient.Client("https://api.wolframalpha.com/v1/")\
             .request("result", params={'i': " ".join(args), 'appid': self.bot.WOLFRAMALPHA_API_KEY}, parse_json=False)
         await ctx.send(Lang.lang(self, 'alpha_response', response))
 
+    @staticmethod
+    def parse_rnd_args(args: Iterable) -> List[str]:
+        """
+        Parses the args that were parsed to an RNG function (e.g. !choose).
+
+        :param args: args
+        :return:
+        """
+        full_options_str = " ".join(args)
+        return [i for i in full_options_str.split("|") if i.strip() != ""]
+
     @commands.command(name="choose")
     async def cmd_choose(self, ctx, *args):
-        full_options_str = " ".join(args)
-        if "sabaton" in full_options_str.lower():
+        options = self.parse_rnd_args(args)
+        if "sabaton" in [el.lower() for el in options]:
             await ctx.send(Lang.lang(self, 'choose_sabaton'))
-
-        options = [i for i in full_options_str.split("|") if i.strip() != ""]
         if len(options) < 1:
             await ctx.send(Lang.lang(self, 'choose_noarg'))
             return
         result = random.choice(options)
         await ctx.send(Lang.lang(self, 'choose_msg') + result.strip())
+
+    @commands.command(name="multichoose")
+    async def cmd_multichoose(self, ctx, count: int, *args):
+        options = self.parse_rnd_args(args)
+        if count < 1 or len(options) < count:
+            await ctx.send(Lang.lang(self, 'choose_falsecount'))
+            return
+        result = random.sample(options, k=count)
+        await ctx.send(Lang.lang(self, 'choose_msg') + ", ".join(x.strip() for x in result))
+
+    @commands.command(name="shuffle")
+    async def cmd_shuffle(self, ctx, *args):
+        options = self.parse_rnd_args(args)
+        if len(options) < 1:
+            await ctx.send(Lang.lang(self, 'choose_noarg'))
+            return
+        random.shuffle(options)
+        await ctx.send(Lang.lang(self, 'choose_msg') + ", ".join(x.strip() for x in options))
 
     @commands.command(name="kw", aliases=["week"])
     async def cmd_week_number(self, ctx, *, date=None):
@@ -96,16 +130,6 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
             day = datetime.today()
         week = day.isocalendar()[1]
         await ctx.send(Lang.lang(self, 'week_number', week))
-
-    @commands.command(name="multichoose")
-    async def cmd_multichoose(self, ctx, count: int, *args):
-        full_options_str = " ".join(args)
-        options = [i for i in full_options_str.split("|") if i.strip() != ""]
-        if count < 1 or len(options) < count:
-            await ctx.send(Lang.lang(self, 'choose_falsecount'))
-            return
-        result = random.sample(options, k=count)
-        await ctx.send(Lang.lang(self, 'choose_msg') + ", ".join(x.strip() for x in result))
 
     @commands.command(name="mud")
     async def cmd_mud(self, ctx):
@@ -214,6 +238,7 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
         single_relunit = None
         single_priceunit = None
         for i in range(len(args) // 2):
+            # format: direct arg parsing, i.e. [d, price]
             prepizza = [None, None]
             for j in range(2):
                 arg = args[i*2 + j]
@@ -223,6 +248,8 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
                     await add_reaction(ctx.message, Lang.CMDERROR)
                     await ctx.send(Lang.lang(self, "pizza_nan", arg))
                     return
+
+            # format: [d, price, relative]
             pizzas.append([prepizza[0], prepizza[1], None])
 
         # Calc
@@ -243,12 +270,23 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
         # Sort
         pizzas = sorted(pizzas, key=lambda x: x[2].number)
 
+        # build percentages
+        baserel = pizzas[0][2]
+        perct = [""]
+        for i in range(1, len(pizzas)):
+            p = (pizzas[i][2].number / baserel.number - 1) * 100
+            perct.append(" (+{}%)".format(locale.format_string("%.1f", p)))
+
         # Format to string in-place
         for i in range(len(pizzas)):
             for j in range(len(pizzas[0])):
                 split_unit = not j == 0
                 decpl = 4 if j == 2 else 2
                 pizzas[i][j] = format_number(pizzas[i][j], decplaces=decpl, split_unit=split_unit)
+
+                # add percentages
+                if j == len(pizzas[0]) - 1:
+                    pizzas[i][j] += perct[i]
 
         # Format table or print single result
         if len(pizzas) == 1:

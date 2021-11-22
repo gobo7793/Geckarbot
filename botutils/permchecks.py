@@ -4,7 +4,7 @@ import discord
 from discord.ext import commands
 from discord.ext.commands import CheckFailure
 
-from data import Config
+from base.data import Config
 
 
 class WrongChannel(CheckFailure):

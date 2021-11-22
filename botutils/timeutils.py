@@ -73,8 +73,7 @@ def parse_time_input(*args, end_of_day: bool = False) -> datetime:
         else:
             if t is not None:
                 return t.split(" ")
-            else:
-                return ""
+            return ""
         return arg_list
 
     def parse_time(t):
@@ -85,9 +84,16 @@ def parse_time_input(*args, end_of_day: bool = False) -> datetime:
                          parsed.day if '%d' in dt_format else today.day,
                          parsed.hour if '%H' in dt_format else fill_time.hour,
                          parsed.minute if '%M' in dt_format else fill_time.minute)
-            # use next year instead if the year was not specified and the date would be in the past
+
+            # wraparounds / relative corrections
             if '%Y' not in dt_format and '%y' not in dt_format and r < datetime.now():
-                r = datetime(r.year + 1, r.month, r.day, r.hour, r.minute)
+                # use next day if time < now
+                if '%m' not in dt_format and '%d' not in dt_format:
+                    r = datetime(r.year, r.month, r.day + 1, r.hour, r.minute)
+
+                # use next year if month/day is specified
+                else:
+                    r = datetime(r.year + 1, r.month, r.day, r.hour, r.minute)
             return r
         except ValueError:
             return None

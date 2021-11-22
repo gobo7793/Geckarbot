@@ -69,7 +69,7 @@ def diff(filename: str) -> bool:
     :param filename: File name of the file to be diffed
     :return: `True` if violations were found, `False` otherwise
     """
-    with open("{}/{}".format(LANGDIR, filename)) as f:
+    with open("{}/{}".format(LANGDIR, filename), encoding="utf-8") as f:
         s = json.load(f)
 
     found = Found()

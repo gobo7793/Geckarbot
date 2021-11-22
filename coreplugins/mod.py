@@ -6,25 +6,26 @@ import discord
 from discord.ext import commands
 from discord.ext.commands import MemberConverter, UserConverter
 
-from base import BasePlugin, ConfigurableType
+from base.configurable import BasePlugin, ConfigurableType
+from base.data import Config, Lang
 from botutils import utils
 from botutils.converters import get_best_username, get_plugin_by_name
 from botutils.setter import ConfigSetter
 from botutils.stringutils import paginate
 from botutils.timeutils import parse_time_input
 from botutils.utils import add_reaction, write_mod_channel
-from data import Config, Lang
-from subsystems.helpsys import DefaultCategories
-from subsystems.ignoring import IgnoreEditResult, IgnoreType
+from botutils import permchecks
+from services.helpsys import DefaultCategories
+from services.ignoring import IgnoreEditResult, IgnoreType
 
 
 class Plugin(BasePlugin, name="Bot Management Commands"):
     """Commands for moderation"""
 
-    def __init__(self, bot):
-        super().__init__(bot)
-        self.can_reload = True
-        bot.register(self, category=DefaultCategories.MOD)
+    def __init__(self):
+        super().__init__()
+        self.bot = Config().bot
+        self.bot.register(self, category=DefaultCategories.MOD)
 
         # Move commands to help category 'user'
         for cmd in self.get_commands():
@@ -38,7 +39,7 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
         }
         self.config_setter = ConfigSetter(self, self.base_config)
 
-        @bot.event
+        @self.bot.event
         async def on_member_remove(member):
             if not self.config_setter.get_config("leave_notification"):
                 return
@@ -70,9 +71,11 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
     # Misc commands
     #####
 
-    @commands.has_role(Config().MOD_ROLES)
     @commands.command(name="set", aliases=["config"])
     async def cmd_set(self, ctx, key=None, value=None):
+        if not permchecks.check_mod_access(ctx.author):
+            await add_reaction(ctx.message, Lang.CMDNOPERMISSIONS)
+            return
         if key is None:
             await self.config_setter.list(ctx)
             return
@@ -116,7 +119,7 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
     async def cmd_plugins_list(self, ctx):
         coreplugins = self.bot.get_coreplugins()
         plugins = self.bot.get_normalplugins()
-        subsys = self.bot.get_subsystem_list()
+        subsys = self.bot.get_service_list()
 
         msgs = [
             "{}\n{}".format(Lang.lang(self, 'plugins_loaded_ss', len(subsys)), ", ".join(subsys)),

@@ -5,14 +5,14 @@ This subsystem provides changing presence messages for the user list on servers
 import logging
 import random
 from enum import IntEnum
-from typing import Optional, List, Dict
+from typing import Optional, List, Dict, Union
 
 import discord
 
-from base import BaseSubsystem, NotFound
-from data import Config, Storage
+from base.configurable import BaseSubsystem, NotFound
+from base.data import Config, Storage
 from botutils.utils import log_exception, execute_anything_sync
-from subsystems.timers import Job, timedict
+from services.timers import Job, timedict
 
 
 activitymap = {
@@ -58,7 +58,8 @@ class PresenceMessage:
     """Presence message dataset"""
 
     def __init__(self, bot, presence_id: Optional[int], message: str,
-                 priority: PresencePriority = PresencePriority.DEFAULT, activity: str = "playing"):
+                 priority: PresencePriority = PresencePriority.DEFAULT, activity: str = "playing",
+                 weight: Union[float, int] = 1):
         """
         Creates a new PresenceMessage
 
@@ -67,9 +68,11 @@ class PresenceMessage:
         :param message: the message to display
         :param priority: the priority of the message
         :param activity: presence mode (listening, playing, ...); one out of activitymap
+        :param weight: RNG weight for random choice, default is 1.0
         :raises RuntimeError: Invalid activity
         """
         self.bot = bot
+        self.weight = weight
         if presence_id is not None:
             self.presence_id = presence_id
         else:
@@ -124,12 +127,10 @@ class PresenceMessage:
         }
 
     @classmethod
-    def deserialize(cls, bot, d):
+    def deserialize(cls, d):
         """
         Constructs a PressenceMessage object from a dict.
 
-        :param bot: The bot reference
-        :type bot: Geckarbot.Geckarbot
         :param d: dict made by serialize()
         :type d: dict
         :return: PressenceMessage object
@@ -141,7 +142,7 @@ class PresenceMessage:
                 if d["activity"] == key:
                     activity = d["activity"]
 
-        return PresenceMessage(bot, d["id"], d["message"], priority=d["priority"], activity=activity)
+        return PresenceMessage(Config().bot, d["id"], d["message"], priority=d["priority"], activity=activity)
 
     def deregister(self):
         """Deregisters the current PresenceMessage and returns True if deregistering was successful"""
@@ -151,21 +152,22 @@ class PresenceMessage:
 class Presence(BaseSubsystem):
     """Provides the presence subsystem"""
 
-    def __init__(self, bot):
-        super().__init__(bot)
+    def __init__(self):
+        super().__init__()
+        self.bot = Config().bot
         self.log = logging.getLogger(__name__)
         self.messages = {}  # type: Dict[int, PresenceMessage]
         self.highest_id = None  # type: Optional[int]
         self._timer_job = None  # type: Optional[Job]
 
         self.log.info("Initializing presence subsystem")
-        bot.plugins.append(self)
+        self.bot.plugins.append(self)
         self._load()
 
         # pylint: disable=unused-variable
-        @bot.listen()
+        @self.bot.listen()
         async def on_connect():
-            if bot.DEBUG_MODE:
+            if self.bot.DEBUG_MODE:
                 activity = discord.Activity(type=activitymap["playing"], name="in debug mode")
             else:
                 activity = discord.Activity(type=activitymap["playing"], name=Config.get(self)["loading_msg"])
@@ -235,8 +237,10 @@ class Presence(BaseSubsystem):
         if len(message_list) == 1:
             return message_list[0].presence_id
 
+        weights = [el.weight for el in message_list]
+
         while True:
-            select = random.choice(message_list)
+            select = random.choices(message_list, weights=weights)[0]
             if select.presence_id != excluded_id:
                 return select.presence_id
 
@@ -254,7 +258,7 @@ class Presence(BaseSubsystem):
 
         self.messages[0] = PresenceMessage(self.bot, 0, "Version {}".format(self.bot.VERSION))
         for el in Storage.get(self):
-            presence_msg = PresenceMessage.deserialize(self.bot, el)
+            presence_msg = PresenceMessage.deserialize(el)
             self.messages[presence_msg.presence_id] = presence_msg
 
         self.log.info("Loaded %d messages", len(self.messages))
@@ -396,6 +400,7 @@ class Presence(BaseSubsystem):
         # Search for new presence msg
         error = None
         while True:
+            # pylint: disable=broad-except
             last_id = job.data["current_id"]
             next_id = self.get_ran_id(last_id, priority=prio)
             if next_id == last_id:

@@ -2,6 +2,7 @@ import logging
 import asyncio
 from enum import Enum
 from datetime import datetime
+from typing import Optional
 
 import discord
 from discord import ClientUser
@@ -9,15 +10,15 @@ from discord.ext import commands
 from discord.http import HTTPException
 from discord.errors import Forbidden
 
-from base import BasePlugin, NotFound
-from data import Lang, Config
+from base.configurable import BasePlugin, NotFound
+from base.data import Lang, Config
 from botutils import utils, statemachine, stringutils
 from botutils.converters import get_best_username as gbu
 from botutils.stringutils import format_andlist
 from botutils.utils import add_reaction
-from subsystems import presence
-from subsystems.helpsys import DefaultCategories
-from subsystems.reactions import ReactionAddedEvent
+from services import presence
+from services.helpsys import DefaultCategories
+from services.reactions import ReactionAddedEvent, BaseReactionEvent
 
 
 class State(Enum):
@@ -108,7 +109,7 @@ class Participant:
         self.plugin.logger.debug("Sending DM to {}: {}".format(self.user, msg))
         return await self.user.send(msg)
 
-    def to_msg(self, show_assignees=True):
+    def to_msg(self, show_assignees=True) -> str:
         """
         :param show_assignees: Flag that determines whether the assignee is to be shown
         :return: String that contains info about this participant and his assignment
@@ -133,9 +134,10 @@ class Participant:
 
 
 class Plugin(BasePlugin, name="Wer bin ich?"):
-    def __init__(self, bot):
-        super().__init__(bot)
-        bot.register(self, DefaultCategories.GAMES)
+    def __init__(self):
+        super().__init__()
+        self.bot = Config().bot
+        self.bot.register(self, DefaultCategories.GAMES)
         self.logger = logging.getLogger(__name__)
 
         self.channel = None
@@ -314,7 +316,7 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
     # Transitions
     ###
 
-    async def registering_phase(self):
+    async def registering_phase(self) -> Optional[State]:
         """
         Transition REGISTER -> [COLLECT, ABORT]
 
@@ -345,7 +347,7 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
         self.reg_start_time = datetime.now()
         await asyncio.sleep(to * 60)
         if self.statemachine.cancelled():
-            return
+            return None
 
         # Consume signup reactions
         self.participants = []
@@ -387,7 +389,7 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
             return State.ABORT
         return State.COLLECT
 
-    async def collecting_phase(self):
+    async def collecting_phase(self) -> Optional[State]:
         """
         Transition COLLECT -> [DELIVER, ABORT]
 
@@ -443,7 +445,7 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
                 return
         self.eval_event.set()
 
-    async def spoiler_dm(self, event):
+    async def spoiler_dm(self, event: BaseReactionEvent):
         """
         Callback for reaction listener that sends a spoiler DM.
 
@@ -467,11 +469,9 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
                 else:
                     self.spoilered_users.append(event.user)
 
-    async def delivering_phase(self):
+    async def delivering_phase(self) -> None:
         """
         Transition DELIVER -> None
-
-        :return: None
         """
         for target in self.participants:
             todo = []
@@ -505,7 +505,7 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
         """
         await self.cleanup()
 
-    async def cleanup(self, exception=None):
+    async def cleanup(self, exception: Exception = None):
         """
         Deregisters registrations, resets state and resets variables.
 

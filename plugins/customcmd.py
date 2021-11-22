@@ -7,12 +7,12 @@ from typing import Optional
 import discord
 from discord.ext import commands
 
-from base import BasePlugin, NotFound
-from data import Storage, Lang, Config
+from base.configurable import BasePlugin, NotFound
+from base.data import Storage, Lang, Config
 from botutils import utils, converters, permchecks
 from botutils.stringutils import paginate
-from subsystems.ignoring import UserBlockedCommand
-from subsystems.helpsys import DefaultCategories
+from services.ignoring import UserBlockedCommand
+from services.helpsys import DefaultCategories
 
 WILDCARD_USER = "%u"
 WILDCARD_UMENTION = "%um"
@@ -208,9 +208,10 @@ class Cmd:
 class Plugin(BasePlugin, name="Custom CMDs"):
     """Provides custom cmds"""
 
-    def __init__(self, bot):
-        super().__init__(bot)
-        bot.register(self, DefaultCategories.USER)
+    def __init__(self):
+        super().__init__()
+        self.bot = Config().bot
+        self.bot.register(self, DefaultCategories.USER)
 
         self.prefix = Config.get(self)['prefix']
         self.commands = {}
@@ -452,7 +453,7 @@ class Plugin(BasePlugin, name="Custom CMDs"):
 
     @cmd.command(name="list")
     async def cmd_list(self, ctx, full=""):
-        if full in self.commands.keys():
+        if full in self.commands:
             return await ctx.invoke(self.bot.get_command("cmd info"), full)
 
         cmds = self._format_cmd_list(full=full)

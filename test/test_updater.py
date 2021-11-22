@@ -8,7 +8,7 @@ class TestUpdater(unittest.TestCase):
     def test_updater_version_detection(self):
         """Test the version detection which version is newer"""
 
-        self.assertEqual(consume_digits("123abc"), ("123", "", "abc"))
+        self.assertEqual(consume_digits("123abc"), ("123", "", "base"))
         self.assertEqual(consume_digits("123-Abc4"), ("123", "-", "abc4"))
         self.assertEqual(consume_digits("-123"), ("", "-", "123"))
         self.assertEqual(consume_digits("abc4"), ("", "", "abc4"))

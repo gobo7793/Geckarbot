@@ -5,7 +5,7 @@ from discord import TextChannel, Member, User, Role
 from discord.ext.commands.converter import TextChannelConverter, UserConverter, MemberConverter, RoleConverter
 from discord.ext.commands.errors import ChannelNotFound, UserNotFound, MemberNotFound, RoleNotFound
 
-from data import Config, Lang
+from base.data import Config, Lang
 from botutils.utils import paginate, add_reaction
 
 baselang = {

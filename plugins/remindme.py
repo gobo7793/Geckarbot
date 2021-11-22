@@ -7,18 +7,19 @@ from discord.ext import commands
 
 from botutils import utils, timeutils, converters
 from botutils.timeutils import to_unix_str, TimestampStyle
-from data import Storage, Lang
-from base import BasePlugin, NotFound
-from subsystems import timers
-from subsystems.helpsys import DefaultCategories
+from base.data import Storage, Lang, Config
+from base.configurable import BasePlugin, NotFound
+from services import timers
+from services.helpsys import DefaultCategories
 
 log = logging.getLogger(__name__)
 
 
 class Plugin(BasePlugin):
-    def __init__(self, bot):
-        super().__init__(bot)
-        bot.register(self, DefaultCategories.UTILS)
+    def __init__(self):
+        super().__init__()
+        self.bot = Config().bot
+        self.bot.register(self, DefaultCategories.UTILS)
         self.migrate()
 
         self.reminders = {}  # type: Dict[int, timers.Job]
@@ -230,7 +231,7 @@ class Plugin(BasePlugin):
         try:
             job = self.bot.timers.schedule(self._reminder_callback, timedict, data=job_data, repeat=False)
         except timers.NoFutureExec:
-            job = timers.Job(self.bot, timedict, self._reminder_callback, data=job_data, repeat=False, run=False)
+            job = timers.Job(timedict, self._reminder_callback, data=job_data, repeat=False, run=False)
             utils.execute_anything_sync(self._reminder_callback, job)
             return False
 

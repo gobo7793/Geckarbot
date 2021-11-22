@@ -5,37 +5,52 @@ from typing import Union
 import discord
 from discord.ext import commands
 
-from base import BasePlugin, ConfigurableType
+from base.configurable import BasePlugin, ConfigurableType
+from base.data import Storage, Config, Lang
 from botutils import converters
 from botutils.permchecks import is_botadmin
 from botutils.stringutils import paginate
 from botutils.converters import get_best_username as gbu
 from botutils.utils import add_reaction, write_debug_channel
-from data import Storage, Config, Lang
-from subsystems.helpsys import DefaultCategories
+from services.helpsys import DefaultCategories
+
+
+async def cmd_del_event(msg, title_suffix):
+    """
+    Prints info about a message if it contained a cmd. Used by edit/delete events.
+
+    :param msg: message before edit or delete
+    :param title_suffix: "deletion" or "edit", appended to title
+    :return:
+    """
+    if msg.content.startswith("!"):
+        event_name = "Command " + title_suffix
+    elif msg.content.startswith("+"):
+        event_name = "Custom command " + title_suffix
+    else:
+        return
+    e = discord.Embed()
+    e.add_field(name="Event", value=event_name)
+    e.add_field(name="Author", value=gbu(msg.author))
+    e.add_field(name="Command", value=msg.content)
+    e.add_field(name="Channel", value=msg.channel)
+    await write_debug_channel(e)
 
 
 class Plugin(BasePlugin, name="Bot status commands for monitoring and debug purposes"):
-    def __init__(self, bot):
-        self.bot = bot
-        super().__init__(bot)
-        bot.register(self, DefaultCategories.ADMIN)
+    def __init__(self):
+        self.bot = Config().bot
+        super().__init__()
+        self.bot.register(self, DefaultCategories.ADMIN)
 
-        # Write cmd deletions to debug chan
-        @bot.event
+        # Write cmd deletions/edits to debug chan
+        @self.bot.event
+        async def on_message_edit(before, _):
+            await cmd_del_event(before, "edit")
+
+        @self.bot.event
         async def on_message_delete(msg):
-            if msg.content.startswith("!"):
-                event_name = "Command deletion"
-            elif msg.content.startswith("+"):
-                event_name = "Custom command deletion"
-            else:
-                return
-            e = discord.Embed()
-            e.add_field(name="Event", value=event_name)
-            e.add_field(name="Author", value=gbu(msg.author))
-            e.add_field(name="Command", value=msg.content)
-            e.add_field(name="Channel", value=msg.channel)
-            await write_debug_channel(e)
+            await cmd_del_event(msg, "deletion")
 
     def get_configurable_type(self):
         return ConfigurableType.COREPLUGIN
@@ -45,15 +60,19 @@ class Plugin(BasePlugin, name="Bot status commands for monitoring and debug purp
             'max_dump': 4  # maximum storage/configdump messages to show
         }
 
-    @commands.command(name="subsys", help="Shows registrations on subsystems",
-                      description="Shows registrations on subsystems. If a subsystem name is given, "
-                                  "only registrations for this subsystem will be shown.",
+    @commands.command(name="subsys", hidden=True)
+    async def cmd_subsys(self, ctx):
+        await ctx.send("Did you mean: `!service`")
+
+    @commands.command(name="service", aliases=["services"], help="Shows registrations on services",
+                      description="Shows registrations on services. If a service name is given, "
+                                  "only registrations for this service will be shown.",
                       usage="[dmlisteners|ignoring|liveticker|presence|reactions|timers]")
     @commands.has_any_role(Config().BOT_ADMIN_ROLE_ID)
-    async def cmd_subsys(self, ctx, subsystem=""):
+    async def cmd_service(self, ctx, subsystem=""):
         if not subsystem or subsystem == "reactions":
-            reaction_prefix = "**{} Reactions registrations:**\n".format(len(self.bot.reaction_listener.callbacks))
-            for msg in paginate(self.bot.reaction_listener.callbacks,
+            reaction_prefix = "**{} Reactions registrations:**\n".format(len(self.bot.reaction_listener.registrations))
+            for msg in paginate(self.bot.reaction_listener.registrations,
                                 prefix=reaction_prefix,
                                 suffix="\n",
                                 if_empty="None"):
@@ -101,11 +120,17 @@ class Plugin(BasePlugin, name="Bot status commands for monitoring and debug purp
             match_timer = self.bot.liveticker.match_timer
             if match_timer:
                 minutes = match_timer.timedict.get("minute")
-            liveticker_list = [f"***Liveticker minutes:*** {minutes}"]
-            for src in self.bot.liveticker.registrations.values():
-                for leag in src.values():
-                    liveticker_list.append("\u2b1c {}".format(str(leag)))
-                    liveticker_list.extend("\u25ab {}".format(str(lt_reg)) for lt_reg in leag.registrations)
+            liveticker_list = [f"Liveticker minutes: {minutes}", "**LeagueRegistrations:**"]
+            l_reg_lines = [f"{l_reg.league}: {l_reg}" for l_reg in self.bot.liveticker.league_regs.values()]
+            liveticker_list.extend(l_reg_lines)
+            if not l_reg_lines:
+                liveticker_list.append("None")
+            liveticker_list.append("**CoroRegistrations:**")
+            c_reg_lines = [f"{c_reg.id}: {c_reg}" for c_reg in self.bot.liveticker.coro_regs.values()]
+            liveticker_list.extend(c_reg_lines)
+            if not c_reg_lines:
+                liveticker_list.append("None")
+
             for msg in paginate(liveticker_list,
                                 prefix="**Liveticker Registrations:**\n",
                                 suffix="\n",
@@ -210,7 +235,7 @@ class Plugin(BasePlugin, name="Bot status commands for monitoring and debug purp
     @commands.has_any_role(Config().BOT_ADMIN_ROLE_ID)
     async def cmd_liveticker_kill(self, ctx):
         for _, _, c_reg in list(self.bot.liveticker.search_coro()):
-            c_reg.deregister()
+            await c_reg.deregister()
         for src in Storage().get(self.bot.liveticker)['registrations']:
             Storage().get(self.bot.liveticker)['registrations'][src] = {}
         Storage().save(self.bot.liveticker)
