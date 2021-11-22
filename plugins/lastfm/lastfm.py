@@ -11,7 +11,7 @@ from discord.ext import commands
 from base import BasePlugin, NotLoadable
 from data import Config, Lang, Storage
 from botutils.converters import get_best_username as gbu, get_best_user, convert_member
-from botutils.timeutils import hr_roughly
+from botutils.timeutils import to_unix_str, TimestampStyle, hr_roughly
 from botutils.stringutils import paginate
 from botutils.utils import write_debug_channel, add_reaction, helpstring_helper, execute_anything_sync
 from botutils.questionnaire import Questionnaire, Question, QuestionType, Cancelled
@@ -71,6 +71,7 @@ class Plugin(BasePlugin, name="LastFM"):
             "mi_enable_downgrade": [bool, True],
             "mi_downgrade": [float, 1.5],
             "mi_nowplaying_bonus": [bool, True],
+            "timestampstyle_discord": [bool, True],
             "quote_p": [float, 0.5],
             "max_quote_length": [int, 100],
             "quote_restrict_del": [bool, True],
@@ -345,8 +346,8 @@ class Plugin(BasePlugin, name="LastFM"):
         self.perf_add_total_time(after - before)
 
     @commands.has_role(Config().BOT_ADMIN_ROLE_ID)
-    @cmd_lastfm.command(name="config", aliases=["set"], hidden=True)
-    async def cmd_config(self, ctx, key=None, value=None):
+    @cmd_lastfm.command(name="set", aliases=["config"], hidden=True)
+    async def cmd_set(self, ctx, key=None, value=None):
         if key is None:
             await self.config_setter.list(ctx)
             return
@@ -1134,23 +1135,26 @@ class Plugin(BasePlugin, name="LastFM"):
         else:
             # "x minutes ago"
             if mi_example is not None:
-                paststr = hr_roughly(mi_example.timestamp,
-                                     fstring=Lang.lang(self, "baseformat", "{}", "{}"),
-                                     yesterday=Lang.lang(self, "yesterday"),
-                                     seconds_sg=Lang.lang(self, "seconds_sg"),
-                                     seconds=Lang.lang(self, "seconds_pl"),
-                                     minutes_sg=Lang.lang(self, "minutes_sg"),
-                                     minutes=Lang.lang(self, "minutes_pl"),
-                                     hours_sg=Lang.lang(self, "hours_sg"),
-                                     hours=Lang.lang(self, "hours_pl"),
-                                     days_sg=Lang.lang(self, "days_sg"),
-                                     days=Lang.lang(self, "days_pl"),
-                                     weeks_sg=Lang.lang(self, "weeks_sg"),
-                                     weeks=Lang.lang(self, "weeks_pl"),
-                                     months_sg=Lang.lang(self, "months_sg"),
-                                     months=Lang.lang(self, "months_pl"),
-                                     years_sg=Lang.lang(self, "years_sg"),
-                                     years=Lang.lang(self, "years_sg"))
+                if self.get_config("timestampstyle_discord"):
+                    paststr = to_unix_str(mi_example.timestamp, style=TimestampStyle.RELATIVE)
+                else:
+                    paststr = hr_roughly(mi_example.timestamp,
+                                         fstring=Lang.lang(self, "baseformat", "{}", "{}"),
+                                         yesterday=Lang.lang(self, "yesterday"),
+                                         seconds_sg=Lang.lang(self, "seconds_sg"),
+                                         seconds=Lang.lang(self, "seconds_pl"),
+                                         minutes_sg=Lang.lang(self, "minutes_sg"),
+                                         minutes=Lang.lang(self, "minutes_pl"),
+                                         hours_sg=Lang.lang(self, "hours_sg"),
+                                         hours=Lang.lang(self, "hours_pl"),
+                                         days_sg=Lang.lang(self, "days_sg"),
+                                         days=Lang.lang(self, "days_pl"),
+                                         weeks_sg=Lang.lang(self, "weeks_sg"),
+                                         weeks=Lang.lang(self, "weeks_pl"),
+                                         months_sg=Lang.lang(self, "months_sg"),
+                                         months=Lang.lang(self, "months_pl"),
+                                         years_sg=Lang.lang(self, "years_sg"),
+                                         years=Lang.lang(self, "years_sg"))
                 vp = Lang.lang(self, "most_interesting_past_format", gbu(user), paststr, "{}")
             else:
                 vp = Lang.lang(self, "most_interesting_base_past", gbu(user), "{}")

@@ -1,7 +1,7 @@
-from typing import List
+from typing import List, Any
 from enum import Enum
 
-from discord.ext.commands import Cog
+from discord.ext.commands import Cog, Command
 
 # pylint: disable=import-outside-toplevel
 # pylint: disable=no-self-use
@@ -63,13 +63,13 @@ class Configurable:
         Effects main config/ storage and every container.
         """
 
-    def default_config(self, container=None):
+    def default_config(self, container=None) -> Any:
         """
         Returns an empty default config
         """
         return {}
 
-    def default_storage(self, container=None):
+    def default_storage(self, container=None) -> Any:
         """
         Returns an empty default storage
 
@@ -77,7 +77,7 @@ class Configurable:
         """
         return {}
 
-    def get_lang_code(self):
+    def get_lang_code(self) -> str:
         """
         Override this to return the plugin's lang code. Raise NotFound, return None or return bot.LANGUAGE_CODE
         to use the same language as the rest of the bot.
@@ -181,7 +181,7 @@ class BasePlugin(Cog, Configurable):
         """
         raise NotFound()
 
-    def sort_commands(self, ctx, command, subcommands):
+    def sort_commands(self, ctx, command: Command, subcommands: List[Command]) -> List[Command]:
         """
         Override to sort the subcommands of `command` yourself.
 
