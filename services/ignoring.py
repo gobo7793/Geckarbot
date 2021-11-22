@@ -5,6 +5,7 @@ This subsystem provides the possibility to block certain commands, users or acti
 import enum
 import logging
 from datetime import datetime
+from typing import Union
 
 import discord
 from discord.ext import commands
@@ -174,12 +175,10 @@ class IgnoreDataset:
         }
 
     @classmethod
-    def deserialize(cls, bot, d, ignoring_instance=None):
+    def deserialize(cls, d, ignoring_instance=None):
         """
         Constructs a IgnoreDataset object from a dict.
 
-        :param bot: Geckarbot reference
-        :type bot: Geckarbot.Geckarbot
         :param d: dict made by serialize()
         :type d: dict
         :param ignoring_instance: The ignoring subsystem instance, only necessary for to_message()
@@ -188,7 +187,7 @@ class IgnoreDataset:
         :rtype: IgnoreDataset
         """
         user = get_best_user(d["userid"])
-        channel = bot.get_channel(d["channelid"])
+        channel = Config().bot.get_channel(d["channelid"])
         return IgnoreDataset(d["type"], user, d["command_name"], channel, d["until"],
                              ignoring_instance=ignoring_instance)
 
@@ -285,7 +284,7 @@ class Ignoring(BaseSubsystem):
         """
         Storage.load(self)
         for el in Storage.get(self):
-            self.add(IgnoreDataset.deserialize(self.bot, el, self), True)
+            self.add(IgnoreDataset.deserialize(el, self), True)
 
     def save(self):
         """Saves the current ignorelist to json"""
@@ -694,7 +693,7 @@ class Ignoring(BaseSubsystem):
 
         return self._check_passive_usage(user_name, self._user_name_check_func, command_name)
 
-    def check_passive_usage(self, user: discord.User, command_name: str) -> bool:
+    def check_passive_usage(self, user: Union[discord.User, discord.Member], command_name: str) -> bool:
         """
         Checks if a command is active and passive blocked for the specific user.
 
