@@ -11,6 +11,7 @@ from discord.ext import commands
 
 from botutils import restclient, utils, timeutils
 from botutils.converters import get_best_username
+from botutils.timeutils import TimestampStyle
 from botutils.utils import add_reaction
 from botutils.stringutils import table, parse_number, format_number, Number
 from base.data import Lang, Config, Storage
@@ -309,3 +310,38 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
                  Lang.lang(self, "pizza_header_rel")]
             pizzas.insert(0, h)
             await ctx.send(table(pizzas, header=True))
+
+    @commands.command(name="timestamp")
+    async def cmd_timestamp(self, ctx, date: str, time_format: str = "", style: str = ""):
+        ts_style = TimestampStyle.DATETIME_SHORT
+
+        if not time_format:
+            # !timestamp 18.11.2020
+            timestamp = timeutils.parse_time_input(date)
+        else:
+            if not style:
+                # !timestamp 18.11.2020 22:50
+                try:
+                    ts_style = TimestampStyle(time_format)
+                    timestamp = timeutils.parse_time_input(date)
+                except ValueError:
+                    try:
+                        ts_style = TimestampStyle[time_format]
+                        timestamp = timeutils.parse_time_input(date)
+                    except KeyError:
+                        timestamp = timeutils.parse_time_input(date, time_format)
+            else:
+                # !timestamp 18.11.2020 22:50 R
+                # !timestamp 18.11.2020 22:50 RELATIVE
+                timestamp = timeutils.parse_time_input(date, time_format)
+                style = style.upper() if len(style) > 1 else style
+                try:
+                    ts_style = TimestampStyle(style)
+                except ValueError:
+                    try:
+                        ts_style = TimestampStyle[style]
+                    except KeyError:
+                        ts_style = TimestampStyle.DATETIME_SHORT
+
+        unix_stamp = timeutils.to_unix_str(timestamp, ts_style)
+        await ctx.send(f"{unix_stamp} → `{unix_stamp}`")
