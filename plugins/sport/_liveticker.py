@@ -1,5 +1,6 @@
 import asyncio
 import logging
+from enum import Enum
 from typing import List
 
 import discord
@@ -15,6 +16,12 @@ from services.reactions import ReactionAddedEvent
 logger = logging.getLogger(__name__)
 
 
+class LivetickerActions(Enum):
+    SWITCH_CHANNEL = "🔀"
+    STOP = "🚫"
+    RESCHEDULE = "♻️"
+
+
 class _Liveticker:
 
     def __init__(self, bot, get_name, _get_predictions):
@@ -28,17 +35,18 @@ class _Liveticker:
             for c_reg in self.bot.liveticker.search_coro(plugin_names=[self.get_name()]):
                 # Show dialog for actions
                 leagues = (str(l_reg.league) for l_reg in c_reg.l_regs)
-                actions = "🔀", "🚫"
                 description = Lang.lang(self, 'liveticker_running',
                                         Config().bot.get_channel(Config().get(self)['sport_chan']).mention,
                                         ", ".join(leagues))
                 embed = discord.Embed(title="Liveticker",
                                       description=description)
                 embed.add_field(name=Lang.lang(self, 'liveticker_action_title'),
-                                value="\n".join(Lang.lang(self, f'liveticker_action_{x}') for x in actions))
+                                value="\n".join(Lang.lang(self, f'liveticker_action_{x.value}')
+                                                for x in LivetickerActions)
+                                )
                 msg = await ctx.send(embed=embed)
-                for emoji in actions:
-                    await add_reaction(msg, emoji)
+                for action in LivetickerActions:
+                    await add_reaction(msg, action.value)
                 react = self.bot.reaction_listener.register(msg, self._liveticker_reaction,
                                                             data={'user': ctx.author.id, 'react': False})
                 await asyncio.sleep(60)
@@ -46,8 +54,8 @@ class _Liveticker:
                     embed.clear_fields()
                     embed.set_footer(text=Lang.lang(self, 'liveticker_action_timeout'))
                     await msg.edit(embed=embed)
-                    for emoji in actions:
-                        await msg.remove_reaction(emoji, self.bot.user)
+                    for action in LivetickerActions:
+                        await msg.remove_reaction(action.value, self.bot.user)
                     react.deregister()
                 break
             else:
@@ -70,15 +78,16 @@ class _Liveticker:
 
     async def _liveticker_reaction(self, event):
         if isinstance(event, ReactionAddedEvent) and event.member.id == event.data['user'] and not event.data['react']:
-            actions = "🔀", "🚫"
-            if event.emoji.name not in actions:
+            try:
+                reaction = LivetickerActions(event.emoji.name)
+            except ValueError:
                 return
             embed = event.message.embeds[0]
             embed.clear_fields()
             embed.add_field(name=Lang.lang(self, 'liveticker_action_used'),
                             value=Lang.lang(self, f'liveticker_action_{event.emoji}'))
             await event.message.edit(embed=embed)
-            if event.emoji.name == "🔀":
+            if reaction == LivetickerActions.SWITCH_CHANNEL:
                 # Switching channels
                 old_channel = Config().get(self)['sport_chan']
                 if event.channel.id != old_channel:
@@ -86,14 +95,17 @@ class _Liveticker:
                                                                                event.channel.mention))
                     Config().get(self)['sport_chan'] = event.channel.id
                     Config().save(self)
-            elif event.emoji.name == "🚫":
+            elif reaction == LivetickerActions.STOP:
                 # Stopping liveticker
                 for c_reg in list(self.bot.liveticker.search_coro(plugin_names=[self.get_name()])):
                     c_reg.deregister()
+            elif reaction == LivetickerActions.RESCHEDULE:
+                # Reschedule matches
+                pass
             event.data['react'] = True
             event.callback.deregister()
-            for emoji in actions:
-                await event.message.remove_reaction(emoji, self.bot.user)
+            for action in LivetickerActions:
+                await event.message.remove_reaction(action.value, self.bot.user)
             await add_reaction(event.message, Lang.CMDSUCCESS)
 
     @cmd_liveticker.command(name="add")
