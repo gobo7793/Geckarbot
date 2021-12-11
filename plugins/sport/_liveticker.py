@@ -101,7 +101,11 @@ class _Liveticker:
                     c_reg.deregister()
             elif reaction == LivetickerActions.RESCHEDULE:
                 # Reschedule matches
-                pass
+                until = self.bot.liveticker.semiweekly_timer.next_execution()
+                for c_reg in list(self.bot.liveticker.search_coro(plugin_names=[self.get_name()])):
+                    for l_reg in c_reg.l_regs:
+                        await l_reg.schedule_kickoffs(until)
+                    break
             event.data['react'] = True
             event.callback.deregister()
             for action in LivetickerActions:
