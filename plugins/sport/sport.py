@@ -8,7 +8,7 @@ from plugins.sport._liveticker import _Liveticker
 from plugins.sport._predgame import _Predgame
 from services import timers
 from services.helpsys import DefaultCategories
-from services.liveticker import LTSource
+from services.liveticker import LTSource, lt_source_links
 
 logger = logging.getLogger(__name__)
 
@@ -67,7 +67,8 @@ class Plugin(BasePlugin, _Liveticker, _Predgame, _Scores, name="Sport"):
                 desc = helpstring_helper(self, command, "desc")
             except NotFound:
                 desc = helpstring_helper(self, command, "help")
-            return f"{desc}\n{Lang.lang(self, 'available_sources', ', '.join(e.value for e in LTSource))}"
+            sources = "\n".join(["  {} ({})".format(e.value, lt_source_links[e]) for e in LTSource])
+            return f"{desc}\n{Lang.lang(self, 'available_sources', sources)}"
         return helpstring_helper(self, command, "desc")
 
     def command_usage(self, command):

@@ -22,6 +22,15 @@ class DscState(IntEnum):
     SIGN_UP = 2
 
 
+class ConfigError(Exception):
+    """
+    Raised by build_info_embed if the plugin is not sufficiently configured.
+    """
+    def __init__(self, lang_key, *args):
+        self.lang_key = lang_key
+        super().__init__(*args)
+
+
 def _dsc_set_checks():
     """Checks if dsc set command can be executed"""
     def predicate(ctx):
@@ -113,10 +122,71 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
         """Deregisters the presence message"""
         self.bot.presence.deregister(self.presence)
 
-    @commands.group(name="dsc")
+    async def build_info_embed(self, rules: bool = False, songmasters: bool = False) -> discord.Embed:
+        """
+        Builds an embed with stored dsc info.
+
+        :param rules: Flag to include the rules link
+        :param songmasters: Flag to include a list of songmasters
+        :return: Embed with info
+        :raises ConfigError: If a config key is missing
+        """
+        date_out_str = Lang.lang(self, 'info_date_str', Storage.get(self)['date'].strftime('%d.%m.%Y, %H:%M'))
+        if not Storage.get(self)['host_id']:
+            raise ConfigError('must_set_host')
+
+        host_nick = get_best_user(Storage.get(self)['host_id'])
+
+        embed = discord.Embed()
+        embed.add_field(name=Lang.lang(self, 'current_host'), value=host_nick.mention)
+        if Storage.get(self)['status']:
+            embed.description = Storage.get(self)['status']
+
+        if Storage.get(self)['state'] == DscState.SIGN_UP:
+            date_out_str = Lang.lang(self, 'info_date_str', Storage.get(self)['date'].strftime('%d.%m.%Y')) \
+                if Storage.get(self)['date'] > datetime.now() \
+                else ""
+            embed.title = Lang.lang(self, 'signup_phase_info', date_out_str)
+            embed.add_field(name=Lang.lang(self, 'sign_up'), value=self._get_doc_link())
+
+        elif Storage.get(self)['state'] == DscState.VOTING:
+            embed.title = Lang.lang(self, 'voting_phase_info', date_out_str)
+            embed.add_field(name=Lang.lang(self, 'all_songs'), value=self._get_doc_link())
+            embed.add_field(name=Lang.lang(self, 'yt_playlist'), value=Storage.get(self)['yt_link'])
+            embed.add_field(name=Lang.lang(self, 'points'), value=Storage.get(self)['points'])
+
+        else:
+            raise ConfigError(self, 'config_error_reset')
+
+        if rules:
+            self._fill_rule_link()
+            embed.add_field(name=Lang.lang(self, 'title_rules'), value=f"<{Storage.get(self)['rule_link']}>")
+
+        if songmasters:
+            role = Config().bot.guild.get_role(Config().get(self).get("mod_role_id", 0))
+            if role:
+                s = ", ".join([el.mention for el in role.members])
+            else:
+                s = "Role not found"
+            embed.add_field(name=Lang.lang(self, 'title_songmasters'), value=s)
+
+        return embed
+
+    @commands.group(name="dsc", invoke_without_command=True)
     async def cmd_dsc(self, ctx):
-        if ctx.invoked_subcommand is None:
-            await ctx.invoke(self.bot.get_command('dsc info'))
+        try:
+            embed = await self.build_info_embed()
+            await ctx.send(embed=embed)
+        except ConfigError as e:
+            await ctx.send(Lang.lang(self, e.lang_key))
+
+    @cmd_dsc.command(name="info")
+    async def cmd_dsc_info(self, ctx):
+        try:
+            embed = await self.build_info_embed(rules=True, songmasters=True)
+            await ctx.send(embed=embed)
+        except ConfigError as e:
+            await ctx.send(Lang.lang(self, e.lang_key))
 
     @cmd_dsc.command(name="rules", aliases=["regeln"])
     async def cmd_dsc_rules(self, ctx):
@@ -175,41 +245,6 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
             last = prev_last + line_cnt
             embed.add_field(name=f"#{prev_last + 1} - #{last}", value=values[i], inline=False)
             prev_last = last
-        await ctx.send(embed=embed)
-
-    @cmd_dsc.command(name="info")
-    async def cmd_dsc_info(self, ctx):
-        date_out_str = Lang.lang(self, 'info_date_str', Storage.get(self)['date'].strftime('%d.%m.%Y, %H:%M'))
-        if not Storage.get(self)['host_id']:
-            await ctx.send(Lang.lang(self, 'must_set_host'))
-            return
-
-        host_nick = get_best_user(Storage.get(self)['host_id'])
-
-        embed = discord.Embed()
-        embed.add_field(name=Lang.lang(self, 'current_host'), value=host_nick.mention)
-        if Storage.get(self)['status']:
-            embed.description = Storage.get(self)['status']
-
-        if Storage.get(self)['state'] == DscState.SIGN_UP:
-            date_out_str = Lang.lang(self, 'info_date_str', Storage.get(self)['date'].strftime('%d.%m.%Y')) \
-                if Storage.get(self)['date'] > datetime.now() \
-                else ""
-            embed.title = Lang.lang(self, 'signup_phase_info', date_out_str)
-            embed.add_field(name=Lang.lang(self, 'sign_up'), value=self._get_doc_link())
-
-        elif Storage.get(self)['state'] == DscState.VOTING:
-            embed.title = Lang.lang(self, 'voting_phase_info', date_out_str)
-            embed.add_field(name=Lang.lang(self, 'all_songs'), value=self._get_doc_link())
-            embed.add_field(name=Lang.lang(self, 'yt_playlist'), value=Storage.get(self)['yt_link'])
-            embed.add_field(name=Lang.lang(self, 'points'), value=Storage.get(self)['points'])
-
-        else:
-            await ctx.send(Lang.lang(self, 'config_error_reset'))
-            await ctx.invoke(self.bot.get_command("configdump"), self.get_name())
-            await ctx.invoke(self.bot.get_command("storagedump"), self.get_name())
-            return
-
         await ctx.send(embed=embed)
 
     @cmd_dsc.group(name="set", invoke_without_command=True)

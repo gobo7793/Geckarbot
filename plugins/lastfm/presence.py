@@ -113,12 +113,15 @@ class LfmPresenceMessage(PresenceMessage):
         if self.state is None:
             first = True
             try:
-                self.state = await PresenceState(self).reset()
+                self.state = PresenceState(self)
+                await self.state.reset()
             except UnexpectedResponse:
                 # caught in next if; is_set() is not set when the api fails
+                self.logger.error("Lastfm presence state reset: Unexpected Lastfm API response")
                 pass
 
             if not self.state.is_set():
+                self.logger.error("Lastfm presence: State not set, skipping")
                 await self.bot.presence.skip()
                 return
 

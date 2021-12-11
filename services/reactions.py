@@ -3,6 +3,10 @@ This subsystem provides listeners for reactions on messages.
 """
 
 from enum import Enum
+from typing import Union, Coroutine, Callable
+
+from discord import Message
+
 from base.configurable import BaseSubsystem
 from base.data import Config
 from botutils.utils import log_exception
@@ -121,7 +125,7 @@ class ReactionListener(BaseSubsystem):
 
         self._checking = False
 
-    def register(self, message, coro, data=None):
+    def register(self, message: Message, coro: Union[Coroutine, Callable], data=None) -> Registration:
         """
         Registers a reaction event listener.
 

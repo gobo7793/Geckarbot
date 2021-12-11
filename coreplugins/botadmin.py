@@ -15,27 +15,43 @@ from botutils.utils import add_reaction, write_debug_channel
 from services.helpsys import DefaultCategories
 
 
+async def cmd_del_event(msg, title_suffix):
+    """
+    Prints info about a message if it contained a cmd. Used by edit/delete events.
+
+    :param msg: message before edit or delete
+    :param title_suffix: "deletion" or "edit", appended to title
+    :return:
+    """
+    if msg.content.startswith("!"):
+        event_name = "Command " + title_suffix
+    elif msg.content.startswith("+"):
+        event_name = "Custom command " + title_suffix
+    else:
+        return
+    e = discord.Embed()
+    e.add_field(name="Event", value=event_name)
+    e.add_field(name="Author", value=gbu(msg.author))
+    e.add_field(name="Command", value=msg.content)
+    e.add_field(name="Channel", value=msg.channel)
+    await write_debug_channel(e)
+
+
 class Plugin(BasePlugin, name="Bot status commands for monitoring and debug purposes"):
     def __init__(self):
         self.bot = Config().bot
         super().__init__()
         self.bot.register(self, DefaultCategories.ADMIN)
 
-        # Write cmd deletions to debug chan
+        # Write cmd deletions/edits to debug chan
+        @self.bot.event
+        async def on_message_edit(before, after):
+            if before.content != after.content:
+                await cmd_del_event(before, "edit")
+
         @self.bot.event
         async def on_message_delete(msg):
-            if msg.content.startswith("!"):
-                event_name = "Command deletion"
-            elif msg.content.startswith("+"):
-                event_name = "Custom command deletion"
-            else:
-                return
-            e = discord.Embed()
-            e.add_field(name="Event", value=event_name)
-            e.add_field(name="Author", value=gbu(msg.author))
-            e.add_field(name="Command", value=msg.content)
-            e.add_field(name="Channel", value=msg.channel)
-            await write_debug_channel(e)
+            await cmd_del_event(msg, "deletion")
 
     def get_configurable_type(self):
         return ConfigurableType.COREPLUGIN
@@ -219,10 +235,12 @@ class Plugin(BasePlugin, name="Bot status commands for monitoring and debug purp
     @commands.command(name="livetickerkill", help="Kills all liveticker registrations")
     @commands.has_any_role(Config().BOT_ADMIN_ROLE_ID)
     async def cmd_liveticker_kill(self, ctx):
-        for _, _, c_reg in list(self.bot.liveticker.search_coro()):
+        for c_reg in list(self.bot.liveticker.search_coro()):
             await c_reg.deregister()
-        for src in Storage().get(self.bot.liveticker)['registrations']:
-            Storage().get(self.bot.liveticker)['registrations'][src] = {}
+        for l_reg in list(self.bot.liveticker.search_league()):
+            await l_reg.deregister()
+        Storage().get(self.bot.liveticker)['coro_regs'] = {}
+        Storage().get(self.bot.liveticker)['league_regs'] = {}
         Storage().save(self.bot.liveticker)
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
