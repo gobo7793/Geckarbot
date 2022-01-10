@@ -242,12 +242,12 @@ def get_schedule(plugin, league: str, matchday: int) -> list:
     :return: list of duels
     :raises LeagueNotFound: if league is not valid
     """
-    matchday = [2, 11, 0, 8, 6, 16, 10, 14, 15, 4, 3, 9, 12, 1, 5, 13, 7][matchday - 1]  # "Randomize" input
+    matchday = [7, 4, 11, 6, 3, 10, 12, 8, 5, 15, 9, 16, 1, 13, 0, 14, 2, 17][matchday - 1]  # "Randomize" input
     participants = Storage().get(plugin)['participants'].get(league)
     if participants is None:
         raise LeagueNotFound()
     participants.extend([None] * max(0, 18 - len(participants)))  # Extend if not enough participants
-    p = [participants[i] for i in [4, 2, 11, 16, 9, 17, 10, 14, 7, 3, 15, 12, 1, 0, 8, 5, 6, 13]]
+    p = [participants[i] for i in [15, 11, 8, 17, 12, 16, 13, 9, 10, 2, 4, 5, 1, 6, 0, 7, 3, 14]]
     p = p[0:1] + p[1:][matchday:] + p[1:][:matchday]
     schedule = []
     schedule.extend([(p[0], p[1]),
