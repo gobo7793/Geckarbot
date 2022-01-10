@@ -431,7 +431,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
     async def cmd_set_participants(self, ctx, league: int, *participants):
         """Sets the participants of a league"""
         if await Trusted(self).is_manager(ctx):
-            Storage().get(self)['participants'][league] = list(participants)
+            Storage().get(self)['participants'][league] = sorted(list(participants))
             Storage().save(self)
             await ctx.send(Lang.lang(self, 'participants_added', len(participants), league))
             await add_reaction(ctx.message, Lang.CMDSUCCESS)
