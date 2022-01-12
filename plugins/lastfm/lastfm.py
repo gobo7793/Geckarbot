@@ -1202,7 +1202,7 @@ class Plugin(BasePlugin, name="LastFM"):
         elif mi == Layer.ALBUM:
             content = Lang.lang(self, "most_interesting_album", mi_example.album, mi_example.artist, matches, total)
         elif mi == Layer.TITLE:
-            song = mi_example.format()
+            song = mi_example.format(reverse=True)
             content = Lang.lang(self, "most_interesting_song", song, matches, total)
         else:
             assert False, "unknown layer {}".format(mi)
