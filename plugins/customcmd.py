@@ -40,6 +40,20 @@ def _get_all_arg_str(start_index, all_arg_list):
     return arg.strip()
 
 
+class CmdEmpty(Exception):
+    """
+    Flow control, raised by Cmd.delete_by_id() when the cmd is now empty and can be safely deleted.
+    """
+    pass
+
+
+class NoPermissions(Exception):
+    """
+    Flow control, raised by Cmd.delete_by_id() when the delete requester does not have sufficient permission.
+    """
+    pass
+
+
 class Cmd(abc.ABC):
     """Base class for text and embed cmds"""
 
@@ -116,6 +130,28 @@ class Cmd(abc.ABC):
 
         :param message: Source / Caller message
         :param arguments: Command arguments
+        """
+        pass
+
+    def has_delete_permission(self, user) -> bool:
+        """
+        Is called before a full delete of the cmd.
+
+        :param user: User who called the delete command
+        :return: Whether `user` is permitted to delete the command.
+        """
+        return permchecks.check_mod_access(user) or user.id == self.creator_id
+
+    @abc.abstractmethod
+    def delete_by_id(self, user, del_id):
+        """
+        Called by del on an id. This method is not supposed to call Plugin._save(), the caller is.
+
+        :param user: user who requests the deletion (del command author)
+        :param del_id: id to be deleted
+        :raises IndexError: del_id not found
+        :raises CmdEmpty: The cmd is now empty (last id was deleted) and can now safely be deleted completely
+        :raises NoPermission: When `user` does not have sufficient permission to delete the cmd entry.
         """
         pass
 
@@ -199,10 +235,6 @@ class TextCmd(Cmd):
             text = "_{}_".format(text[len(to_replace):])
         self.texts.append(text)
         self.author_ids.append(author.id)
-
-    def del_by_id(self, text_id):
-        del self.author_ids[text_id]
-        del self.texts[text_id]
 
     def get_raw_text(self, text_id):
         """
@@ -298,6 +330,14 @@ class TextCmd(Cmd):
             msg += delimiter + el
         await ctx.send(msg)
 
+    def delete_by_id(self, user, del_id):
+        if user.id != self.author_ids[del_id] and user.id != self.creator_id and not permchecks.check_mod_access(user):
+            raise NoPermissions
+        del self.author_ids[del_id]
+        del self.texts[del_id]
+        if not self.texts:
+            raise CmdEmpty
+
     async def cmd_info(self, ctx: commands.Context, *args):
         """
         Handles a cmd info command and sends the response to ctx.
@@ -376,6 +416,14 @@ class EmbedField:
     def get_value(self):
         return self.value if self.value else Lang.lang(self.value, "embed_no_value")
 
+    def is_empty(self):
+        """
+        :return: Returns whether this field has a title or value set.
+        """
+        if self.title or self.value:
+            return False
+        return True
+
     def format_info(self, index: int):
         """
         Formats this embed field to be used in !cmd info.
@@ -402,6 +450,9 @@ class EmbedField:
     def set_value(self, value: str, value_author: Union[Member, User]):
         self.value = value
         self.value_author = value_author
+
+    def has_edit_permission(self, user):
+        return user == self.title_author or user == self.value_author
 
     def serialize(self):
         title = None
@@ -439,9 +490,11 @@ class EmbedCmd(Cmd):
     """
     Represents a custom embed cmd
     """
-    def __init__(self, plugin, name: str, creator_id: int, fields: list = None, aliases: list = None):
+    def __init__(self, plugin, name: str, creator_id: int,
+                 header: str = None, fields: list = None, aliases: list = None):
         super().__init__(plugin, name, creator_id, aliases=aliases)
 
+        self.header: Optional[str] = header
         self.fields = fields if fields else []
 
     def serialize(self) -> dict:
@@ -453,22 +506,25 @@ class EmbedCmd(Cmd):
             r["fields"] = [el.serialize() for el in self.fields]
         if self.aliases:
             r["aliases"] = self.aliases
+        if self.header:
+            r["header"] = self.header
         return r
 
     @classmethod
     def deserialize(cls, plugin, name: str, d: dict):
         assert d["type"] == "embed"
+        header = d.get("header", None)
         fields = d.get("fields", None)
         if fields:
             fields = [EmbedField.deserialize(plugin, el) for el in fields]
-        return cls(plugin, name, d["creator"], fields=fields, aliases=d.get("aliases", None))
+        return cls(plugin, name, d["creator"], header=header, fields=fields, aliases=d.get("aliases", None))
 
     def build_embed(self) -> Optional[Embed]:
         """
         Builds the embed that this cmd represents. Only complete fields (with title and value) are added.
         :return: Embed object if there is at least one complete field; None otherwise
         """
-        r = Embed()
+        r = Embed(title=self.header)
         found = False
         for el in self.fields:
             if el.title and el.value:
@@ -483,6 +539,31 @@ class EmbedCmd(Cmd):
         else:
             await add_reaction(message, Lang.CMDERROR)
             await message.channel.send(Lang.lang(self.plugin, "embed_error_no_fields"))
+
+    def add_field(self) -> bool:
+        """
+        Adds an empty field if there is not an empty one yet.
+
+        :return: True if field was added, False otherwise
+        """
+        # find existing empty field
+        for el in self.fields:
+            if el.is_empty():
+                return False
+
+        self.fields.append(EmbedField(self.plugin))
+        return True
+
+    def has_edit_permission(self, user, field_id):
+        return self.fields[field_id].has_edit_permission(user) or user.id == self.creator_id \
+            or permchecks.check_mod_access(user)
+
+    def delete_by_id(self, user, del_id):
+        if not self.has_edit_permission(user, del_id):
+            raise NoPermissions
+        del self.fields[del_id - 1]
+        if not self.header and not self.fields:
+            raise CmdEmpty
 
     async def cmd_info(self, ctx, *args):
         """
@@ -677,9 +758,14 @@ class Plugin(BasePlugin, name="Custom CMDs"):
                 return el
         return None
 
+    def _register_cmd(self, name: str, cmd: Cmd):
+        self.commands[name] = cmd
+        self.bot.ignoring.add_additional_command(name)
+        self._save()
+
     @commands.group(name="cmd", invoke_without_command=True, aliases=["bar"])
     async def cmd(self, ctx):
-        await self.bot.helpsys.cmd_help(ctx, self, ctx.command)
+        await Config().bot.helpsys.cmd_help(ctx, self, ctx.command)
 
     @cmd.command(name="prefix")
     async def cmd_prefix(self, ctx, new_prefix=None):
@@ -778,7 +864,7 @@ class Plugin(BasePlugin, name="Custom CMDs"):
     async def cmd_guidelines(self, ctx):
         await ctx.send("<{}>".format(Config.get(self)['guidelines']))
 
-    @cmd.command(name="add")
+    @cmd.group(name="add", invoke_without_command=True)
     async def cmd_add(self, ctx, cmd_name, *, message: str):
         if not message:
             await utils.add_reaction(ctx.message, Lang.CMDERROR)
@@ -802,17 +888,22 @@ class Plugin(BasePlugin, name="Custom CMDs"):
             await utils.add_reaction(ctx.message, Lang.CMDSUCCESS)
             await utils.write_mod_channel(Lang.lang(self, 'cmd_text_added', cmd.name, message))
             await ctx.send(Lang.lang(self, "add_exists", cmd.name))
+            return
 
-        elif cmd is None:
+        if isinstance(cmd, EmbedCmd):
+            await ctx.send(Lang.lang(self, "embed_error_is_embed_cmd"))
+            await add_reaction(ctx.message, Lang.CMDERROR)
+            return
+
+        if cmd is None:
             cmd = TextCmd(self, cmd_name, ctx.author.id, [])
             cmd.add(ctx.author, message)
-            self.commands[cmd_name] = cmd
-            self.bot.ignoring.add_additional_command(cmd_name)
-            self._save()
+            self._register_cmd(cmd_name, cmd)
 
             await utils.add_reaction(ctx.message, Lang.CMDSUCCESS)
             await utils.write_mod_channel(Lang.lang(self, 'cmd_added', cmd_name,
                                                     self.commands[cmd_name].get_raw_texts()))
+            return
 
     # @cmd.command(name="edit")
     async def cmd_edit(self, ctx, cmd_name, *args):
@@ -850,34 +941,173 @@ class Plugin(BasePlugin, name="Custom CMDs"):
             await ctx.send(Lang.lang(self, 'text_id_not_positive'))
             return
 
-        if text_id is not None and text_id >= len(cmd):
-            await utils.add_reaction(ctx.message, Lang.CMDERROR)
-            await ctx.send(Lang.lang(self, 'text_id_not_found'))
-            return
-
-        if text_id is None or (text_id is not None and ctx.author.id != cmd.author_ids[text_id]):
-            if ctx.author.id != cmd.creator_id:
-                if not permchecks.check_mod_access(ctx.author):
-                    await ctx.send(Lang.lang(self, 'del_perm_missing'))
-                    return
-
-        if text_id == 0 and len(cmd) == 1:
-            text_id = None
-
         if text_id is None:
+            if not cmd.has_delete_permission(ctx.author):
+                await add_reaction(ctx.message, Lang.CMDNOPERMISSIONS)
+                await ctx.send(Lang.lang(self, 'del_perm_missing'))
+                return
+
             # Remove command
-            cmd_raw = cmd.get_raw_texts()
             del self.commands[cmd.name]
-            for msg in paginate(cmd_raw, prefix=Lang.lang(self, 'cmd_removed', cmd_name)):
-                await utils.write_mod_channel(msg)
 
         else:
             # remove text
-            cmd.del_by_id(text_id)
+            try:
+                cmd.delete_by_id(ctx.author, text_id)
+            except IndexError:
+                await add_reaction(ctx.message, Lang.CMDERROR)
+                await ctx.send(Lang.lang(self, "text_id_not_found"))
+                return
+            except CmdEmpty:
+                del self.commands[cmd.name]
+            except NoPermissions:
+                await add_reaction(ctx.message, Lang.CMDNOPERMISSIONS)
+                await ctx.send(Lang.lang(self, 'del_perm_missing'))
+                return
 
         self._save()
         # await utils.log_to_admin_channel(ctx)
         await utils.add_reaction(ctx.message, Lang.CMDSUCCESS)
+
+    async def _assert_embed_cmd(self, ctx, name) -> Optional[EmbedCmd]:
+        cmd = self._find_cmd(name)
+        if not cmd:
+            await ctx.send(Lang.lang(self, "embed_error_cmd_not_found"))
+            await add_reaction(ctx.message, Lang.CMDERROR)
+            return None
+        if not isinstance(cmd, EmbedCmd):
+            await ctx.send(Lang.lang(self, "embed_error_is_not_embed_cmd"))
+            await add_reaction(ctx.message, Lang.CMDERROR)
+            return None
+        return cmd
+
+    @cmd.group(name="embed", invoke_without_command=True)
+    async def cmd_embed(self, ctx):
+        await Config().bot.helpsys.cmd_help(ctx, self, ctx.command)
+
+    """
+    cmd embed add command
+    """
+    async def handler_add_embed(self, ctx, name):
+        """
+        Creates an embed cmd or adds an empty field.
+
+        :param ctx: cmd call context
+        :param name: embed cmd name
+        """
+        found = self._find_cmd(name)
+        # new cmd
+        if not found:
+            cmd = EmbedCmd(self, name, ctx.author.id)
+            cmd.add_field()
+            self._register_cmd(name, cmd)
+            await add_reaction(ctx.message, Lang.CMDSUCCESS)
+            return
+
+        # wrong cmd
+        if not isinstance(found, EmbedCmd):
+            # wrong cmd
+            await ctx.send(Lang.lang(self, "embed_error_is_not_embed_cmd"))
+            await add_reaction(ctx.message, Lang.CMDERROR)
+            return
+
+        # existing cmd
+        r = found.add_field()
+        if r:
+            self._save()
+            await add_reaction(ctx.message, Lang.CMDSUCCESS)
+        else:
+            await add_reaction(ctx.message, Lang.CMDNOCHANGE)
+
+    @cmd_add.command(name="embed", hidden=True)
+    async def cmd_add_embed(self, ctx, name: str):
+        await self.handler_add_embed(ctx, name)
+
+    @cmd_embed.command(name="add")
+    async def cmd_embed_add(self, ctx, name: str):
+        await self.handler_add_embed(ctx, name)
+
+    """
+    cmd embed title/value commands
+    """
+    async def _get_embed_field(self, ctx, cmd_name, index) -> Optional[EmbedField]:
+        cmd = await self._assert_embed_cmd(ctx, cmd_name)
+        if not cmd:
+            return None
+
+        try:
+            if not cmd.has_edit_permission(ctx.author, index):
+                await add_reaction(ctx.message, Lang.CMDNOPERMISSIONS)
+                await ctx.send(Lang.lang(self, "embed_error_no_edit_perms"))
+                return None
+            return cmd.fields[index - 1]
+        except IndexError:
+            await add_reaction(ctx.message, Lang.CMDERROR)
+            await ctx.send(Lang.lang(self, "embed_error_field_not_found", index))
+            return None
+
+    async def _handler_cmd_embed_title(self, ctx, cmd_name: str, index: int, title):
+        field = await self._get_embed_field(ctx, cmd_name, index)
+        if not field:
+            return
+
+        field.set_title(title, ctx.author)
+        self._save()
+        await add_reaction(ctx.message, Lang.CMDSUCCESS)
+
+    @cmd_embed.command(name="title")
+    async def cmd_embed_title(self, ctx, cmd_name: str, index: int, *, msg):
+        await self._handler_cmd_embed_title(ctx, cmd_name, index, msg)
+
+    @cmd.command(name="title", hidden=True)
+    async def cmd_title(self, ctx, cmd_name: str, index: int, *, msg):
+        await self._handler_cmd_embed_title(ctx, cmd_name, index, msg)
+
+    async def _handler_cmd_embed_value(self, ctx, cmd_name: str, index: int, value):
+        field = await self._get_embed_field(ctx, cmd_name, index)
+        if not field:
+            return
+
+        field.set_value(value, ctx.author)
+        self._save()
+        await add_reaction(ctx.message, Lang.CMDSUCCESS)
+
+    @cmd_embed.command(name="value")
+    async def cmd_embed_value(self, ctx, cmd_name: str, index: int, *, msg):
+        await self._handler_cmd_embed_value(ctx, cmd_name, index, msg)
+
+    @cmd.command(name="value", hidden=True)
+    async def cmd_value(self, ctx, cmd_name: str, index: int, *, msg):
+        await self._handler_cmd_embed_value(ctx, cmd_name, index, msg)
+
+    """
+    cmd embed header command
+    """
+    async def _handler_cmd_embed_header(self, ctx, cmd_name: str, msg: Optional[str]):
+        cmd = await self._assert_embed_cmd(ctx, cmd_name)
+        if not cmd:
+            return None
+
+        # include msg == " " etc
+        if not msg.strip():
+            msg = None
+
+        if not cmd.has_delete_permission(ctx.author):
+            await add_reaction(ctx.message, Lang.CMDNOPERMISSIONS)
+            await ctx.send(Lang.lang(self, "embed_error_no_header_perms"))
+            return
+
+        cmd.header = msg
+        self._save()
+        await add_reaction(ctx.message, Lang.CMDSUCCESS)
+
+    @cmd_embed.command(name="header")
+    async def cmd_embed_header(self, ctx, cmd_name, *, msg: Optional[str]):
+        await self._handler_cmd_embed_header(ctx, cmd_name, msg)
+
+    @cmd.command(name="header", hidden=True)
+    async def cmd_header(self, ctx, cmd_name, *, msg: Optional[str]):
+        await self._handler_cmd_embed_header(ctx, cmd_name, msg)
 
     async def list_aliases(self, ctx):
         """
