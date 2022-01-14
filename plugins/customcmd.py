@@ -1038,7 +1038,7 @@ class Plugin(BasePlugin, name="Custom CMDs"):
             return None
 
         try:
-            if not cmd.has_edit_permission(ctx.author, index):
+            if not cmd.has_edit_permission(ctx.author, index - 1):
                 await add_reaction(ctx.message, Lang.CMDNOPERMISSIONS)
                 await ctx.send(Lang.lang(self, "embed_error_no_edit_perms"))
                 return None
