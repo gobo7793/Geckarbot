@@ -3,8 +3,8 @@ import random
 import logging
 import re
 
-import discord
-from discord.ext import commands
+from nextcord import User, DMChannel
+from nextcord.ext import commands
 
 from base.configurable import BasePlugin, NotFound
 from base.data import Config, Storage, Lang
@@ -144,7 +144,7 @@ class Plugin(BasePlugin, name="TIL"):
     @cmd_til.command(name="info")
     async def cmd_info(self, ctx):
         facts = []
-        if await self._manager_check(ctx, show_errors=False) and isinstance(ctx.channel, discord.DMChannel):
+        if await self._manager_check(ctx, show_errors=False) and isinstance(ctx.channel, DMChannel):
             for i in range(len(Storage.get(self))):
                 facts.append("#{}: {}".format(i + 1, Storage.get(self)[i]))
 
@@ -207,7 +207,7 @@ class Plugin(BasePlugin, name="TIL"):
         await self.config_setter.set_cmd(ctx, key, value)
 
     @cmd_til.command(name="manager")
-    async def cmd_set_manger(self, ctx, user: discord.User):
+    async def cmd_set_manger(self, ctx, user: User):
         if await self._manager_check(ctx):
             Config.get(self)['manager'] = user.id
             Config.save(self)

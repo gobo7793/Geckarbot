@@ -1,9 +1,9 @@
 import logging
 from enum import Enum
 
-from discord import TextChannel, Member, User, Role
-from discord.ext.commands.converter import TextChannelConverter, UserConverter, MemberConverter, RoleConverter
-from discord.ext.commands.errors import ChannelNotFound, UserNotFound, MemberNotFound, RoleNotFound
+from nextcord import TextChannel, Member, User, Role
+from nextcord.ext.commands.converter import TextChannelConverter, UserConverter, MemberConverter, RoleConverter
+from nextcord.ext.commands.errors import ChannelNotFound, UserNotFound, MemberNotFound, RoleNotFound
 
 from base.data import Config, Lang
 from botutils.utils import paginate, add_reaction

@@ -1,8 +1,8 @@
 from typing import Union
 
-import discord
-from discord.ext import commands
-from discord.ext.commands import CheckFailure
+import nextcord
+from nextcord.ext import commands
+from nextcord.ext.commands import CheckFailure
 
 from base.data import Config
 
@@ -29,8 +29,8 @@ def in_channel(channel_id):
     """
 
     def predicate(ctx):
-        is_dm = isinstance(ctx.channel, discord.DMChannel)
-        is_group = isinstance(ctx.channel, discord.GroupChannel)
+        is_dm = isinstance(ctx.channel, nextcord.DMChannel)
+        is_group = isinstance(ctx.channel, nextcord.GroupChannel)
         is_id = ctx.channel.id == channel_id
         if is_dm or is_group or is_id:
             return True
@@ -39,10 +39,10 @@ def in_channel(channel_id):
     return commands.check(predicate)
 
 
-def _check_access(user: discord.User, roles) -> bool:
+def _check_access(user: nextcord.User, roles) -> bool:
     """Performs the access check if a user has any of the given roles"""
-    if not isinstance(user, discord.Member):
-        user = discord.utils.get(Config().bot.guild.members, id=user.id)
+    if not isinstance(user, nextcord.Member):
+        user = nextcord.utils.get(Config().bot.guild.members, id=user.id)
     if user is None:
         return False
     for role in user.roles:
@@ -51,7 +51,7 @@ def _check_access(user: discord.User, roles) -> bool:
     return False
 
 
-def check_admin_access(user: discord.User) -> bool:
+def check_admin_access(user: nextcord.User) -> bool:
     """
     Checks if the user has admin access to bot commands. If you can, use
     `@commands.has_any_role(*Config().ADMIN_ROLES)` instead.
@@ -59,7 +59,7 @@ def check_admin_access(user: discord.User) -> bool:
     return _check_access(user, Config().ADMIN_ROLES)
 
 
-def check_mod_access(user: discord.User) -> bool:
+def check_mod_access(user: nextcord.User) -> bool:
     """
     Checks if the user has mod access to bot commands. If you can, use
     `@commands.has_any_role(*Config().MOD_ROLES)` instead.
@@ -67,7 +67,7 @@ def check_mod_access(user: discord.User) -> bool:
     return _check_access(user, Config().MOD_ROLES)
 
 
-def is_botadmin(user: discord.User) -> bool:
+def is_botadmin(user: nextcord.User) -> bool:
     """
     Checks if the user has bot admin role.
     """
@@ -89,7 +89,7 @@ def debug_user_check_id(user_id: int) -> bool:
     return True
 
 
-def debug_user_check(user: discord.User) -> bool:
+def debug_user_check(user: nextcord.User) -> bool:
     """
     Checks if the given user can use the bot based on the debug users list.
     Note: The debug users list is active only if debug mode is enabled.

@@ -4,9 +4,9 @@ from datetime import datetime
 from enum import IntEnum
 from typing import Union
 
-import discord
-from discord.ext import commands
-from discord.ext.commands import ChannelNotFound, TextChannelConverter, RoleConverter, RoleNotFound
+from nextcord import Embed, Member, User
+from nextcord.ext import commands
+from nextcord.ext.commands import ChannelNotFound, TextChannelConverter, RoleConverter, RoleNotFound
 
 from base.configurable import BasePlugin, NotFound
 from base.data import Storage, Lang, Config
@@ -122,7 +122,7 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
         """Deregisters the presence message"""
         self.bot.presence.deregister(self.presence)
 
-    async def build_info_embed(self, rules: bool = False, songmasters: bool = False) -> discord.Embed:
+    async def build_info_embed(self, rules: bool = False, songmasters: bool = False) -> Embed:
         """
         Builds an embed with stored dsc info.
 
@@ -137,7 +137,7 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
 
         host_nick = get_best_user(Storage.get(self)['host_id'])
 
-        embed = discord.Embed()
+        embed = Embed()
         embed.add_field(name=Lang.lang(self, 'current_host'), value=host_nick.mention)
         if Storage.get(self)['status']:
             embed.description = Storage.get(self)['status']
@@ -236,7 +236,7 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
 
         table_msg = table(w_table, True, prefix="", suffix="")
         values = list(paginate(table_msg.split("\n"), msg_prefix="```", msg_suffix="```", threshold=900))
-        embed = discord.Embed(title=Lang.lang(self, 'winner_prefix'))
+        embed = Embed(title=Lang.lang(self, 'winner_prefix'))
         prev_last = 0
         for i in range(len(values)):
             line_cnt = values[i].count("\n") + 1  # assuming, paginate doesn't add a \n char at the last line
@@ -259,7 +259,7 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
             await self.bot.helpsys.cmd_help(ctx, self, ctx.command)
 
     @cmd_dsc_set.command(name="host")
-    async def cmd_dsc_set_host(self, ctx, user: Union[discord.Member, discord.User]):
+    async def cmd_dsc_set_host(self, ctx, user: Union[Member, User]):
         Storage.get(self)['host_id'] = user.id
         Storage().save(self)
         await utils.add_reaction(ctx.message, Lang.CMDSUCCESS)

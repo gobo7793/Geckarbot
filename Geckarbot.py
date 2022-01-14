@@ -13,8 +13,9 @@ from logging import handlers
 from pathlib import Path
 from typing import List, Union, Optional, Type
 
-import discord
-from discord.ext import commands
+from nextcord import Embed, Intents
+from nextcord.ext import commands
+from nextcord.utils import get
 
 import injections
 import services
@@ -384,7 +385,7 @@ class Geckarbot(BaseBot):
                 or exc_type is commands.DisabledCommand):
             return
 
-        embed = discord.Embed(title=':x: Error', colour=0xe74c3c)  # Red
+        embed = Embed(title=':x: Error', colour=0xe74c3c)  # Red
         embed.add_field(name='Error', value=exc_type)
         embed.add_field(name='Event', value=event_method)
         embed.timestamp = datetime.datetime.utcnow()
@@ -494,7 +495,7 @@ class Geckarbot(BaseBot):
 
 def intent_setup():
     """Sets the intent settings to work correctly with the Discord API"""
-    intents = discord.Intents.default()
+    intents = Intents.default()
     intents.members = True
     return intents
 
@@ -536,7 +537,7 @@ def logging_setup(debug: bool = False):
     logging.log(level, "Logging level set to %s", level)
 
 
-async def send_error_to_ctx(ctx: discord.ext.commands.Context,
+async def send_error_to_ctx(ctx: commands.Context,
                             error: Exception,
                             default="Unknown Error.",
                             message=""):
@@ -576,7 +577,7 @@ def main():
     @bot.event
     async def on_ready():
         """Loads plugins and prints on server that bot is ready"""
-        guild = discord.utils.get(bot.guilds, id=bot.SERVER_ID)
+        guild = get(bot.guilds, id=bot.SERVER_ID)
         bot.guild = guild
 
         logging.info("Loading plugins")

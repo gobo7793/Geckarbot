@@ -2,7 +2,7 @@ import logging
 import random
 from typing import Optional
 
-import discord
+from nextcord import Activity
 
 from plugins.lastfm.api import UnexpectedResponse
 from services.presence import PresenceMessage, PresencePriority, activitymap
@@ -126,7 +126,7 @@ class LfmPresenceMessage(PresenceMessage):
                 # continue to use old values
                 pass
 
-        self._activity = discord.Activity(type=self._activity_type, name=self.state.cur_song_f)
+        self._activity = Activity(type=self._activity_type, name=self.state.cur_song_f)
         await self.bot.change_presence(activity=self.activity_type)
         self.state.timer = Timer(self.bot, self.plugin.get_config("presence_tick"), self.update)
 

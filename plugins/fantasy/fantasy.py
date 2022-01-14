@@ -2,9 +2,9 @@ import logging
 from datetime import datetime, timedelta
 from typing import Union, List, Dict, Optional
 
-import discord
-from discord.ext import commands
-from discord.ext.commands import TextChannelConverter, ChannelNotFound, RoleConverter, RoleNotFound, Context
+from nextcord import TextChannel, Embed, Member, User
+from nextcord.ext import commands
+from nextcord.ext.commands import TextChannelConverter, ChannelNotFound, RoleConverter, RoleNotFound, Context
 
 import botutils.timeutils
 from base.configurable import BasePlugin
@@ -279,7 +279,7 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
         if channel is not None:
             await self._write_scores(channel=channel, show_errors=False, previous_week=job.data)
 
-    async def _write_scores(self, *, channel: discord.TextChannel, week: int = 0, team_name: str = None,
+    async def _write_scores(self, *, channel: TextChannel, week: int = 0, team_name: str = None,
                             show_errors=True, previous_week=False, league_name: str = None):
         """Send the current scores of given week to given channel"""
         if not self.leagues:
@@ -314,14 +314,14 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
             await channel.send(Lang.lang(self, "team_not_found", team_name))
 
         for result in results:
-            if isinstance(result, discord.Embed):
+            if isinstance(result, Embed):
                 await channel.send(embed=result)
             if isinstance(result, str):
                 await channel.send(result)
 
     async def _write_scores_league_perform(self, league: FantasyLeague, week: int,
                                            previous_week: bool, team_name: str = None) \
-            -> Union[discord.Embed, str, None]:
+            -> Union[Embed, str, None]:
         """
         Decides which league data should be outputed, league scores or boxscores for given team_name
 
@@ -353,7 +353,7 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
                     return Lang.lang(self, "wrong_match_id")
                 embed_away = await self._get_boxscore_embed(league, lweek, team=match.away_team, match=match)
                 embed_home = await self._get_boxscore_embed(league, lweek, team=match.home_team, match=match)
-                full_embed = discord.Embed(title=Lang.lang(self, "match_boxscore", match_id + 1, league.name, lweek),
+                full_embed = Embed(title=Lang.lang(self, "match_boxscore", match_id + 1, league.name, lweek),
                                            url=embed_away.url)
                 full_embed.add_field(name=match.away_team.team_name, value=embed_away.description, inline=False)
                 full_embed.add_field(name=match.home_team.team_name, value=embed_home.description, inline=False)
@@ -377,7 +377,7 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
         """Builds the discord.Embed for scoring overview in league with all matches"""
         prefix = Lang.lang(self, "scores_prefix", league.name,
                            week if week <= league.current_week else league.current_week)
-        embed = discord.Embed(title=prefix, url=league.scoreboard_url)
+        embed = Embed(title=prefix, url=league.scoreboard_url)
 
         match_no = 0
         bye_team = None
@@ -435,7 +435,7 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
         lineup = sorted(lineup, key=lambda word: [pos_alphabet.get(c, ord(c)) for c in word.slot_position])
 
         prefix = Lang.lang(self, "box_prefix", team.team_name, league.name, week)
-        embed = discord.Embed(title=prefix, url=league.get_boxscore_url(week, team.team_id))
+        embed = Embed(title=prefix, url=league.get_boxscore_url(week, team.team_id))
 
         msg = ""
         proj = 0.0
@@ -471,7 +471,7 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
                     continue
 
                 league = el
-                embed = discord.Embed(title=league.name)
+                embed = Embed(title=league.name)
                 embed.url = league.standings_url
 
                 async with ctx.typing():
@@ -502,7 +502,7 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
                 continue
 
             league = el
-            embed = discord.Embed(title=league.name)
+            embed = Embed(title=league.name)
             embed.url = league.league_url
 
             embed.add_field(name=Lang.lang(self, "supercommish"), value=self.supercommish.mention)
@@ -644,7 +644,7 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
     @cmd_fantasy_set.command(name="orga", aliases=["organisator"])
-    async def cmd_set_orga(self, ctx, organisator: Union[discord.Member, discord.User]):
+    async def cmd_set_orga(self, ctx, organisator: Union[Member, User]):
         self.supercommish = organisator
         self.save()
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
@@ -784,7 +784,7 @@ class Plugin(BasePlugin, name="NFL Fantasy"):
 
     @cmd_fantasy_set.command(name="add")
     async def cmd_set_add(self, ctx, platform_name, league_id: int,
-                          commish: Union[discord.Member, discord.User, str] = None):
+                          commish: Union[Member, User, str] = None):
         platform = await self.parse_platform(platform_name, ctx)
         if platform is None:
             return

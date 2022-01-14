@@ -6,7 +6,7 @@ import asyncio
 import re
 from enum import Enum
 
-from discord.ext import commands
+from nextcord.ext import commands
 
 from base.configurable import BasePlugin, ConfigurableType
 from base.bot import Exitcode

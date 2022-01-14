@@ -1,4 +1,4 @@
-import discord
+from nextcord import User
 
 from botutils.converters import get_best_username
 from botutils.permchecks import check_mod_access
@@ -132,7 +132,7 @@ class Trusted:
             await ctx.send(Lang.lang(self.plugin, 'not_trusted'))
         return False
 
-    async def add(self, role: list, ctx, user: discord.User):
+    async def add(self, role: list, ctx, user: User):
         """
         Adds a user to the trusted or manager role
 
@@ -148,13 +148,13 @@ class Trusted:
         else:
             await add_reaction(ctx.message, Lang.CMDNOPERMISSIONS)
 
-    async def add_manager(self, ctx, user: discord.User):
+    async def add_manager(self, ctx, user: User):
         await self.add(self.manager, ctx, user)
 
-    async def add_trusted(self, ctx, user: discord.User):
+    async def add_trusted(self, ctx, user: User):
         await self.add(self.trusted, ctx, user)
 
-    async def remove(self, role: list, ctx, user: discord.User):
+    async def remove(self, role: list, ctx, user: User):
         """
         Removes a user from the trusted or manager role
 
@@ -170,8 +170,8 @@ class Trusted:
         else:
             await add_reaction(ctx.message, Lang.CMDNOPERMISSIONS)
 
-    async def remove_manager(self, ctx, user: discord.User):
+    async def remove_manager(self, ctx, user: User):
         await self.remove(self.manager, ctx, user)
 
-    async def remove_trusted(self, ctx, user: discord.User):
+    async def remove_trusted(self, ctx, user: User):
         await self.remove(self.trusted, ctx, user)

@@ -4,11 +4,11 @@ from enum import Enum
 from datetime import datetime
 from typing import Optional
 
-import discord
-from discord import ClientUser
-from discord.ext import commands
-from discord.http import HTTPException
-from discord.errors import Forbidden
+from nextcord import ClientUser
+from nextcord.ext import commands
+from nextcord.http import HTTPException
+from nextcord.errors import Forbidden
+from nextcord.utils import get
 
 from base.configurable import BasePlugin, NotFound
 from base.data import Lang, Config
@@ -352,7 +352,7 @@ class Plugin(BasePlugin, name="Wer bin ich?"):
         # Consume signup reactions
         self.participants = []
         await msg.remove_reaction(Lang.lang(self, "reaction_signup"), self.bot.user)
-        signup_msg = discord.utils.get(self.bot.cached_messages, id=msg.id)
+        signup_msg = get(self.bot.cached_messages, id=msg.id)
         reaction = None
         for el in signup_msg.reactions:
             if el.emoji == Lang.lang(self, "reaction_signup"):

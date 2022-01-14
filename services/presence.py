@@ -7,7 +7,7 @@ import random
 from enum import IntEnum
 from typing import Optional, List, Dict, Union
 
-import discord
+from nextcord import Activity, ActivityType
 
 from base.configurable import BaseSubsystem, NotFound
 from base.data import Config, Storage
@@ -16,11 +16,11 @@ from services.timers import Job, timedict
 
 
 activitymap = {
-    "playing": discord.ActivityType.playing,
+    "playing": ActivityType.playing,
     # "streaming": discord.ActivityType.streaming,
-    "listening": discord.ActivityType.listening,
-    "watching": discord.ActivityType.watching,
-    "competing": discord.ActivityType.competing,
+    "listening": ActivityType.listening,
+    "watching": ActivityType.watching,
+    "competing": ActivityType.competing,
     # "custom": discord.ActivityType.custom,
 }
 
@@ -88,7 +88,7 @@ class PresenceMessage:
             self._activity = activitymap[self._activity_str]
         except KeyError as e:
             raise RuntimeError("Invalid activity type: {}".format(self._activity_str)) from e
-        self._activity = discord.Activity(type=self._activity, name=message)
+        self._activity = Activity(type=self._activity, name=message)
 
     def __str__(self):
         return "<presence.PresenceMessage; priority: {}, id: {}, message: {}>".format(
@@ -168,9 +168,9 @@ class Presence(BaseSubsystem):
         @self.bot.listen()
         async def on_connect():
             if self.bot.DEBUG_MODE:
-                activity = discord.Activity(type=activitymap["playing"], name="in debug mode")
+                activity = Activity(type=activitymap["playing"], name="in debug mode")
             else:
-                activity = discord.Activity(type=activitymap["playing"], name=Config.get(self)["loading_msg"])
+                activity = Activity(type=activitymap["playing"], name=Config.get(self)["loading_msg"])
             await self.bot.change_presence(activity=activity)
 
     def default_config(self, container=None):

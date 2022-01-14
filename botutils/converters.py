@@ -1,8 +1,8 @@
 import re
 from typing import Optional, Union
 
-import discord
-from discord.ext import commands
+import nextcord
+from nextcord.ext import commands
 
 from base.configurable import BasePlugin, NotFound
 from base.data import Config
@@ -23,18 +23,18 @@ def _get_from_guilds(bot, getter, argument):
     return result
 
 
-def get_best_username(user: Union[discord.User, discord.Member, str]) -> str:
+def get_best_username(user: Union[nextcord.User, nextcord.Member, str]) -> str:
     """
     Gets the best username for the given user or the str representation of the given object.
     :param user: User (Member or User instance) that is to be identified
     :return: Returns the best fit for a human-readable identifier ("username") of user.
     """
-    if isinstance(user, discord.abc.User):
+    if isinstance(user, nextcord.abc.User):
         return user.display_name
     return str(user)
 
 
-def get_best_user(uid: int) -> Union[discord.Member, discord.User, None]:
+def get_best_user(uid: int) -> Union[nextcord.Member, nextcord.User, None]:
     """
     Gets the member object of the given user id, or if member not found, the user object, or None of nothing found.
 
@@ -61,7 +61,7 @@ def get_username_from_id(uid: int) -> Optional[str]:
     return get_best_username(user)
 
 
-def convert_member(argument) -> Optional[discord.Member]:
+def convert_member(argument) -> Optional[nextcord.Member]:
     # pylint: disable=useless-param-doc
     """
     Tries to convert the given argument to a discord Member object like the Member converter, but w/o context.
@@ -101,7 +101,7 @@ def get_plugin_by_name(name: str) -> Optional[BasePlugin]:
     return None
 
 
-def get_embed_str(embed: Union[discord.Embed, str]) -> Union[discord.Embed, str]:
+def get_embed_str(embed: Union[nextcord.Embed, str]) -> Union[nextcord.Embed, str]:
     """
     Returns the given embed contents as loggable string.
     If embed is no embed object, the str of the object will be returned.
@@ -110,7 +110,7 @@ def get_embed_str(embed: Union[discord.Embed, str]) -> Union[discord.Embed, str]
     :return: The loggable string
     """
 
-    if not isinstance(embed, discord.Embed):
+    if not isinstance(embed, nextcord.Embed):
         return str(embed)
 
     m = ""
@@ -132,7 +132,7 @@ def get_embed_str(embed: Union[discord.Embed, str]) -> Union[discord.Embed, str]
     return m
 
 
-def serialize_channel(channel: Union[discord.DMChannel, discord.TextChannel]) -> dict:
+def serialize_channel(channel: Union[nextcord.DMChannel, nextcord.TextChannel]) -> dict:
     """
     Serializes channel into a dict that can be deserialized by deserialize_channel().
 
@@ -140,22 +140,28 @@ def serialize_channel(channel: Union[discord.DMChannel, discord.TextChannel]) ->
     :return: dict{type: typestring, id: id}
     :raises RuntimeError: If channel is of a type that is not supported
     """
-    if isinstance(channel, discord.DMChannel):
+    if isinstance(channel, nextcord.DMChannel):
         return {
             "type": "dm",
             "id": channel.recipient.id
         }
 
-    if isinstance(channel, discord.TextChannel):
+    if isinstance(channel, nextcord.TextChannel):
         return {
             "type": "text",
+            "id": channel.id
+        }
+
+    if isinstance(channel, nextcord.Thread):
+        return {
+            "type": "thread",
             "id": channel.id
         }
 
     raise RuntimeError("Channel {} not supported".format(channel))
 
 
-async def deserialize_channel(channeldict: dict) -> Union[discord.DMChannel, discord.TextChannel]:
+async def deserialize_channel(channeldict: dict) -> Union[nextcord.DMChannel, nextcord.TextChannel, nextcord.Thread]:
     """
     Deserializes channel from a dict that was created by serialize_channel.
 
@@ -177,3 +183,11 @@ async def deserialize_channel(channeldict: dict) -> Union[discord.DMChannel, dis
         if r is None:
             raise NotFound
         return r
+
+    if channeldict["type"] == "thread":
+        r = Config().bot.guild.get_thread(channeldict["id"])
+        if r is None:
+            raise NotFound
+        return r
+
+    raise NotFound("type: {}, id: {}".format(channeldict["type"], channeldict["id"]))

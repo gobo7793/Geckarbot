@@ -5,8 +5,8 @@ import logging
 import abc
 from typing import Optional
 
-import discord
-from discord.ext import commands
+from nextcord import User, Message
+from nextcord.ext import commands
 
 from base.configurable import BasePlugin, NotFound
 from base.data import Storage, Lang, Config
@@ -100,7 +100,7 @@ class Cmd(abc.ABC):
         pass
 
     @abc.abstractmethod
-    async def invoke(self, message: discord.Message, *arguments):
+    async def invoke(self, message: Message, *arguments):
         """
         Invokes the command.
 
@@ -172,12 +172,12 @@ class TextCmd(Cmd):
         return TextCmd(plugin, name, d['creator'], d['texts'],
                        author_ids=d.get('authors', []), aliases=d.get('aliases', None))
 
-    async def invoke(self, message: discord.Message, *arguments):
+    async def invoke(self, message: Message, *arguments):
         assert len(self) > 0
         text_id = random.choice(range(0, len(self)))
         await message.channel.send(self.get_formatted_text(text_id, message, *arguments))
 
-    def add(self, author: discord.User, text: str):
+    def add(self, author: User, text: str):
         """
         Adds a command text.
 
@@ -209,7 +209,7 @@ class TextCmd(Cmd):
         """
         return [self.get_raw_text(i) for i in range(index, len(self.texts))]
 
-    def get_formatted_text(self, text_id: int, msg: discord.Message, *cmd_args: str) -> str:
+    def get_formatted_text(self, text_id: int, msg: Message, *cmd_args: str) -> str:
         """
         Formats and replaces the wildcards of a given text id of the cmd for using it as custom cmd.
 

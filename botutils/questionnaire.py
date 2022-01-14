@@ -3,7 +3,7 @@ import logging
 from enum import Enum
 from typing import List, Callable, Union
 
-from discord import User, Message
+from nextcord import User, Message
 
 from base.data import Lang
 from botutils.stringutils import paginate, format_andlist as ellist

@@ -2,9 +2,10 @@ import logging
 import warnings
 from enum import Enum
 
-import discord
-from discord.ext import commands
-from discord.errors import HTTPException
+from nextcord import Embed, Role
+from nextcord.utils import get
+from nextcord.ext import commands
+from nextcord.errors import HTTPException
 
 from base.configurable import BasePlugin
 from base.data import Storage, Lang, Config
@@ -283,11 +284,11 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
 
     @cmd_kwiss.command(name="ladder")
     async def cmd_ladder(self, ctx):
-        embed = discord.Embed()
+        embed = Embed()
         entries = {}
         ladder = Storage().get(self)["ladder"]
         for uid in ladder:
-            member = discord.utils.get(ctx.guild.members, id=uid)
+            member = get(ctx.guild.members, id=uid)
             points = ladder[uid]["points"]
             games_played = ladder[uid]["games_played"]
             if points not in entries:
@@ -339,7 +340,7 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
     async def cmd_categories(self, ctx):
         # Embed format
         if self.get_config("catlist_embeds"):
-            entries = discord.Embed()
+            entries = Embed()
             for cat in self.category_controller.categories.values():
                 entries.add_field(name=cat.name, value=cat.args[0])
             await ctx.send(embed=entries)
@@ -385,7 +386,7 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
         await ctx.channel.send(embed=embed)
 
     @cmd_kwiss.command(name="role")
-    async def cmd_role(self, ctx, role: discord.Role):
+    async def cmd_role(self, ctx, role: Role):
         if not permchecks.check_mod_access(ctx.author) and not permchecks.check_admin_access(ctx.author) \
                 and not permchecks.is_botadmin(ctx.author):
             await add_reaction(ctx.message, Lang.CMDNOPERMISSIONS)
@@ -402,7 +403,7 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
         args = args[1:]
         _, args = self.parse_args(ctx.channel, args, subcommands=False)
         infodict = await args["quizapi"].info(**args)
-        embed = discord.Embed()
+        embed = Embed()
         for key in infodict:
             embed.add_field(name=key, value=infodict[key])
 

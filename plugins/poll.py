@@ -1,6 +1,6 @@
 import logging
 
-from discord.ext import commands
+from nextcord.ext import commands
 
 from base.configurable import BasePlugin
 from base.data import Config
@@ -15,21 +15,20 @@ protoquestions = [
 ]
 
 
-class Plugin(BasePlugin):
+class Plugin(BasePlugin, name="poll"):
     def __init__(self):
-        self.bot = Config().bot
         super().__init__()
 
         self.answers = []
         self.logger = logging.getLogger(__name__)
 
-        self.bot.register(self, DefaultCategories.MISC)
+        Config().bot.register(self, DefaultCategories.MISC)
 
     @commands.command(name="blub")
     async def cmd_poll(self, ctx):
         self.logger.debug("Caught poll cmd")
         questions = [Question(question, qtype, answers=answers) for question, qtype, answers in protoquestions]
-        questionnaire = Questionnaire(self.bot, ctx.message.author, questions, "poll demo")
+        questionnaire = Questionnaire(Config().bot, ctx.message.author, questions, "poll demo")
 
         try:
             answers = await questionnaire.interrogate()

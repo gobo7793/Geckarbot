@@ -26,6 +26,7 @@
         "remind_list_none": "I don't know for what I should remind you.",
         "remind_noargs": "You didn't gave me a time, so feel reminded __now__...",
         "remind_past": "Sorry, I don't have a time machine.",
+        "remind_forbidden_suffix": "Sending this reminder to the original channel did not work so I am sending it directly to you.",
 
         "#3": "explain",
         "explain_notfound": "I have not reminded you of anything so far, nothing to explain here.",
@@ -58,6 +59,7 @@
         "remind_list_none": "Ich wüsste nicht, an was ich dich erinnern müsste.",
         "remind_noargs": "Fühl dich erinnert. Du hast mir nicht gesagt, wann ich dich erinnern soll, also tu ich es einfach jetzt, bevor ichs noch selber vergesse :relieved:",
         "remind_past": "Sorry, aber ich habe keine Zeitmaschine.",
+        "remind_forbidden_suffix": "Diese Erinnerung konnte nicht in den ursprünglichen Channel geschickt werden, weshalb du sie nun per DM erhältst.",
 
         "#3": "explain",
         "explain_notfound": "Ich habe dich bisher an nichts erinnert, es gibt also nichts zu erklären.",

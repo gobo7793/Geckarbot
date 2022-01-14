@@ -4,9 +4,9 @@ from itertools import groupby
 from operator import itemgetter
 from typing import List, Tuple, Union
 
-import discord
-from discord import TextChannel
-from discord.ext import commands
+from nextcord import User, Member, Embed
+from nextcord import TextChannel
+from nextcord.ext import commands
 
 from botutils import sheetsclient, timeutils
 from botutils.converters import get_best_username, get_username_from_id, get_best_user
@@ -54,7 +54,7 @@ class _Predgame:
             await self._today_matches(Config().bot.get_channel(chan_id), pinglist)
 
     async def _today_matches(self, chan: TextChannel,
-                             pinglist: List[Union[discord.User, discord.Member]] = None) -> int:
+                             pinglist: List[Union[User, Member]] = None) -> int:
         """Sends a msg with todays matches to the specified channel
 
         :param chan: channel object
@@ -201,7 +201,7 @@ class _Predgame:
         else:
             for msg in msgs:
                 if matchday <= 0:
-                    await ctx.send(embed=discord.Embed(title=msg[0], description=msg[1]))
+                    await ctx.send(embed=Embed(title=msg[0], description=msg[1]))
                 else:
                     await ctx.send(msg)
 
@@ -340,7 +340,7 @@ class _Predgame:
             await ctx.send(Lang.lang(self, "pred_pinguser_empty"))
 
     @cmd_predgame_pinglist.command(name="add")
-    async def cmd_predgame_pinglist_add(self, ctx, user: Union[discord.User, discord.Member] = None):
+    async def cmd_predgame_pinglist_add(self, ctx, user: Union[User, Member] = None):
         if user is None:
             user = ctx.author
 
@@ -355,7 +355,7 @@ class _Predgame:
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
     @cmd_predgame_pinglist.command(name="del")
-    async def cmd_predgame_pinglist_del(self, ctx, user: Union[discord.User, discord.Member] = None):
+    async def cmd_predgame_pinglist_del(self, ctx, user: Union[User, Member] = None):
         if user is None:
             user = ctx.author
 

@@ -1,8 +1,8 @@
 from datetime import date
 from typing import List, Optional
 
-from discord import TextChannel
-from discord.ext import commands
+from nextcord import TextChannel
+from nextcord.ext import commands
 
 from base.configurable import BasePlugin, NotFound
 from base.data import Config, Storage, Lang
@@ -12,7 +12,7 @@ from services.presence import PresenceMessage, PresencePriority
 from services.timers import Job, timedict
 
 
-class Plugin(BasePlugin):
+class Plugin(BasePlugin, name="sweasteregg"):
     def __init__(self):
         super().__init__()
         self.bot = Config().bot
@@ -134,7 +134,7 @@ class Plugin(BasePlugin):
 
         presence_strings = self.get_lang().get(self.bot.LANGUAGE_CODE, "en_US")["presences"]
         for presence_str in presence_strings:
-            self.presences.append(self.bot.presence.register(presence_str, PresencePriority.HIGH))
+            self.presences.append(self.bot.presence.register(presence_str, priority=PresencePriority.HIGH))
         mtd = timedict(year=date.today().year, month=month, monthday=monthday,
                        minute=list(range(0, 60, Config.get(self)["mtimer_min"])))
         self.meme_timer = self.bot.timers.schedule(self._mtimer_callback, mtd, repeat=True)

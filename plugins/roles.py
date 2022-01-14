@@ -1,9 +1,9 @@
 from copy import deepcopy
 
-import discord
 import emoji
-from discord import Role
-from discord.ext import commands
+from nextcord import Role, Member, Guild, Color
+from nextcord.ext import commands
+from nextcord.utils import get
 
 from base.configurable import BasePlugin, NotFound
 from base.data import Storage, Config, Lang
@@ -13,7 +13,7 @@ from services import reactions
 from services.helpsys import DefaultCategories
 
 
-async def add_user_role(member: discord.Member, role: discord.Role):
+async def add_user_role(member: Member, role: Role):
     """
     Adds a role to a server member
 
@@ -24,7 +24,7 @@ async def add_user_role(member: discord.Member, role: discord.Role):
     await member.add_roles(role)
 
 
-async def remove_user_role(member: discord.Member, role: discord.Role):
+async def remove_user_role(member: Member, role: Role):
     """
     Removes a role from a server member
 
@@ -35,7 +35,7 @@ async def remove_user_role(member: discord.Member, role: discord.Role):
     await member.remove_roles(role)
 
 
-async def add_server_role(guild: discord.Guild, name, color: discord.Color = None, mentionable=True) -> Role:
+async def add_server_role(guild: Guild, name, color: Color = None, mentionable=True) -> Role:
     """
     Creates a roll on the server
 
@@ -46,11 +46,11 @@ async def add_server_role(guild: discord.Guild, name, color: discord.Color = Non
     :return: The created role
     """
     if color is None:
-        color = discord.Color.default()
+        color = Color.default()
     return await guild.create_role(name=name, color=color, mentionable=mentionable)
 
 
-async def remove_server_role(role: discord.Role):
+async def remove_server_role(role: Role):
     """
     Deletes a role on the server
 
@@ -131,14 +131,14 @@ class Plugin(BasePlugin, name="Role Management"):
         msg = "{}\n".format(Storage.get(self)['message']['content'])
 
         for rid in self.rc():
-            role = discord.utils.get(server_roles, id=rid)
+            role = get(server_roles, id=rid)
             emote_msg = ""
             modrole_msg = ""
 
             if self.rc()[rid]['emoji']:
                 emote_msg = Lang.lang(self, 'init_reaction', await stringutils.emojize(self.rc()[rid]['emoji'], ctx))
             if self.rc()[rid]['modrole'] != 0:
-                modrole = discord.utils.get(server_roles, id=self.rc()[rid]['modrole'])
+                modrole = get(server_roles, id=self.rc()[rid]['modrole'])
                 modrole_msg = Lang.lang(self, 'init_modrole', modrole.name)
 
             if emote_msg and modrole_msg:
@@ -236,7 +236,7 @@ class Plugin(BasePlugin, name="Role Management"):
         for configured_role in self.rc():
             configured_emoji = self.rc()[configured_role]['emoji']
             if configured_emoji == emoji_str:
-                role = discord.utils.get(self.bot.guild.roles, id=configured_role)
+                role = get(self.bot.guild.roles, id=configured_role)
                 if isinstance(event, reactions.ReactionAddedEvent) and role not in event.member.roles:
                     update_type = "add"
                     await add_user_role(event.member, role)
@@ -254,7 +254,7 @@ class Plugin(BasePlugin, name="Role Management"):
                                                           'role': role.mention})
 
     @commands.group(name="role", aliases=["roles"], invoke_without_command=True)
-    async def cmd_role(self, ctx, user: discord.Member, action, role: discord.Role):
+    async def cmd_role(self, ctx, user: Member, action, role: Role):
         async with ctx.typing():
             if not permchecks.check_mod_access(ctx.author):
                 if role.id not in self.rc():
@@ -286,7 +286,7 @@ class Plugin(BasePlugin, name="Role Management"):
 
     @cmd_role.command(name="add")
     @commands.has_any_role(*Config().MOD_ROLES)
-    async def cmd_role_add(self, ctx, role_name, emoji_or_modrole="", color: discord.Color = None):
+    async def cmd_role_add(self, ctx, role_name, emoji_or_modrole="", color: Color = None):
         async with ctx.typing():
             emoji_str = await stringutils.demojize(emoji_or_modrole, ctx)
             try:
@@ -300,7 +300,7 @@ class Plugin(BasePlugin, name="Role Management"):
                 try:
                     color = await commands.ColourConverter().convert(ctx, emoji_or_modrole)
                 except (commands.CommandError, IndexError):
-                    color = discord.Color.random()
+                    color = Color.random()
 
             try:
                 existing_role = await commands.RoleConverter().convert(ctx, role_name)
@@ -332,7 +332,7 @@ class Plugin(BasePlugin, name="Role Management"):
 
     @cmd_role.command(name="del")
     @commands.has_any_role(*Config().MOD_ROLES)
-    async def cmd_role_del(self, ctx, role: discord.Role):
+    async def cmd_role_del(self, ctx, role: Role):
         async with ctx.typing():
             await remove_server_role(role)
             await self.update_role_management(ctx)
@@ -341,18 +341,18 @@ class Plugin(BasePlugin, name="Role Management"):
 
     @cmd_role.command(name="untrack")
     @commands.has_any_role(*Config().MOD_ROLES)
-    async def cmd_role_untrack(self, ctx, role: discord.Role):
+    async def cmd_role_untrack(self, ctx, role: Role):
         del self.rc()[role.id]
         await self.update_role_management(ctx)
         await ctx.send(Lang.lang(self, 'role_untrack', role.name))
         await utils.log_to_mod_channel(ctx)
 
     @cmd_role.command(name="request")
-    async def cmd_role_request(self, ctx, role: discord.Role):
+    async def cmd_role_request(self, ctx, role: Role):
         modrole = None
         for configured_role in self.rc():
             if configured_role == role.id:
-                modrole = discord.utils.get(ctx.guild.roles, id=self.rc()[configured_role]['modrole'])
+                modrole = get(ctx.guild.roles, id=self.rc()[configured_role]['modrole'])
                 break
 
         if modrole is None:

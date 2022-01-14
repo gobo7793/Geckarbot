@@ -1,4 +1,4 @@
-discord.py==1.7.3
+nextcord==2.0.0a6
 emoji==1.4.2
 google-api-python-client==2.17.0
 google-auth-httplib2==0.1.0

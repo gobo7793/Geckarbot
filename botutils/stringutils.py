@@ -4,7 +4,7 @@ import locale
 from collections import namedtuple
 
 import emoji
-from discord.ext import commands
+from nextcord.ext import commands
 
 
 Number = namedtuple("Number", "number unit")

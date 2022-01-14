@@ -1,7 +1,7 @@
 from typing import List, Any, Optional
 from enum import Enum
 
-from discord.ext.commands import Cog, Command
+from nextcord.ext.commands import Cog, Command
 
 
 # pylint: disable=import-outside-toplevel

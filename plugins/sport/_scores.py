@@ -1,8 +1,8 @@
 import calendar
 import datetime
 
-import discord
-from discord.ext import commands
+from nextcord import Embed
+from nextcord.ext import commands
 
 from botutils import restclient
 from botutils.utils import add_reaction
@@ -26,7 +26,7 @@ class _Scores:
                         Lang.lang(self, 'kicker_ATBLM'), Lang.lang(self, 'kicker_ATBLM_link'),
                         Lang.lang(self, 'kicker_ATBLQ'), Lang.lang(self, 'kicker_ATBLQ_link'))
 
-        embed = discord.Embed(title=Lang.lang(self, 'kicker_title'))
+        embed = Embed(title=Lang.lang(self, 'kicker_title'))
         embed.add_field(name=Lang.lang(self, 'kicker_DE'),
                         value="[{}]({})\n[{}]({})\n"
                               "[{}]({})\n[{}]({})"
@@ -83,7 +83,7 @@ class _Scores:
             goals_a = m.score[m.away_team_id]
             return "{}. {} | {} [{}:{}] {}".format(weekday, time_, team_h, goals_h, goals_a, team_a)
 
-        embed = discord.Embed(title=Lang.lang(self, 'soccer_title', league))
+        embed = Embed(title=Lang.lang(self, 'soccer_title', league))
         running_msg = "\n".join(match_msg(m) for m in running)
         if running_msg:
             embed.description = "\n".join(match_msg(m) for m in running)
@@ -114,7 +114,7 @@ class _Scores:
             await ctx.send(Lang.lang(self, 'source_not_found', ", ".join(s.value for s in LTSource)))
             return
         else:
-            embed = discord.Embed(title=Lang.lang(self, 'table_title', league_name))
+            embed = Embed(title=Lang.lang(self, 'table_title', league_name))
             for group_name, table in tables.items():
                 table.sort(key=lambda x: x.rank)
                 tables[group_name] = [x.display() for x in table]
