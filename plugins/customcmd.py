@@ -526,6 +526,8 @@ class EmbedCmd(Cmd):
         """
         r = Embed(title=self.header)
         found = False
+        if self.header:
+            found = self.header
         for el in self.fields:
             if el.title and el.value:
                 found = True
