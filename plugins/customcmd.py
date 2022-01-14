@@ -3,15 +3,17 @@ import re
 import random
 import logging
 import abc
-from typing import Optional
+from typing import Optional, Union, Dict, Type
 
-from nextcord import User, Message
+from nextcord import User, Message, Member, Embed
 from nextcord.ext import commands
 
 from base.configurable import BasePlugin, NotFound
 from base.data import Storage, Lang, Config
 from botutils import utils, converters, permchecks
+from botutils.converters import get_best_username
 from botutils.stringutils import paginate
+from botutils.utils import add_reaction
 from services.ignoring import UserBlockedCommand
 from services.helpsys import DefaultCategories
 
@@ -41,21 +43,19 @@ def _get_all_arg_str(start_index, all_arg_list):
 class Cmd(abc.ABC):
     """Base class for text and embed cmds"""
 
-    def __init__(self, plugin, name: str, creator_id: int, author_ids: list = None, aliases: list = None):
+    def __init__(self, plugin, name: str, creator_id: int, aliases: list = None):
         """
         Creates a new custom cmd
 
         :param plugin: The plugin instance
         :param name: The command name, must be unique, will be lowered
         :param creator_id: The user id of the initial creator of the cmd
-        :param author_ids: The author ids for the output texts
         :param aliases: List of command name aliases
         """
 
         self.plugin = plugin
         self.name = str(name).lower()
         self.creator_id = creator_id
-        self.author_ids = author_ids
         self._aliases = aliases if aliases else []
 
     def __eq__(self, other):
@@ -95,9 +95,19 @@ class Cmd(abc.ABC):
         pass
 
     @classmethod
-    @abc.abstractmethod
     def deserialize(cls, plugin, name: str, d: dict):
-        pass
+        """
+        Deserializes any cmd dict to its corresponding cmd class.
+
+        :param plugin: Plugin ref
+        :type: Plugin
+        :param name: cmd name
+        :param d: dictionary that is to be deserialized
+        :return: Cmd subclass representing the cmd
+        :rtype: Cmd
+        """
+        cmdtype: Type[Cmd] = plugin.cmd_type_map[d["type"]]
+        return cmdtype.deserialize(plugin, name, d)
 
     @abc.abstractmethod
     async def invoke(self, message: Message, *arguments):
@@ -134,7 +144,7 @@ class TextCmd(Cmd):
         :param author_ids: The author ids for the output texts
         :param aliases: List of command name aliases
         """
-        super().__init__(plugin, name, creator_id, author_ids=author_ids, aliases=aliases)
+        super().__init__(plugin, name, creator_id, aliases=aliases)
         self.author_ids = [author_ids[i] if author_ids is not None else creator_id for i in range(0, len(*texts))]
         self.texts = list(*texts)
 
@@ -329,7 +339,7 @@ class TextCmd(Cmd):
             creator = converters.get_best_user(self.creator_id)
             aliases = ""
             if self.aliases:
-                aliases = Lang.lang(self.plugin, "raw_aliases", ", ".join(aliases))
+                aliases = Lang.lang(self.plugin, "raw_aliases", ", ".join(self.aliases))
 
             if single_text:
                 raw_texts = [self.get_raw_text(index)]
@@ -347,6 +357,163 @@ class TextCmd(Cmd):
                 await ctx.send(msg)
 
 
+class EmbedField:
+    def __init__(self, plugin: BasePlugin):
+        """
+        Embed field representation
+
+        :param plugin: Plugin ref
+        """
+        self.plugin = plugin
+        self.title: Optional[str] = None
+        self.title_author: Optional[Union[Member, User]] = None
+        self.value: Optional[str] = None
+        self.value_author: Optional[Union[Member, User]] = None
+
+    def get_title(self):
+        return self.title if self.title else Lang.lang(self.plugin, "embed_no_title")
+
+    def get_value(self):
+        return self.value if self.value else Lang.lang(self.value, "embed_no_value")
+
+    def format_info(self, index: int):
+        """
+        Formats this embed field to be used in !cmd info.
+
+        :param index: Index of this embed field within the entire embed cmd
+        :return: nicely formatted string
+        """
+        if self.title:
+            title = Lang.lang(self.plugin, "embed_entry", self.title, get_best_username(self.title_author))
+        else:
+            title = Lang.lang(self.plugin, "embed_no_title")
+
+        if self.value:
+            value = Lang.lang(self.plugin, "embed_entry", self.value, get_best_username(self.value_author))
+        else:
+            value = Lang.lang(self.plugin, "embed_no_value")
+
+        return Lang.lang(self.plugin, "embed_field_info", str(index), title, value)
+
+    def set_title(self, title: str, title_author: Union[Member, User]):
+        self.title = title
+        self.title_author = title_author
+
+    def set_value(self, value: str, value_author: Union[Member, User]):
+        self.value = value
+        self.value_author = value_author
+
+    def serialize(self):
+        title = None
+        if self.title:
+            title = {
+                "title": self.title,
+                "author_id": self.title_author.id
+            }
+
+        value = None
+        if self.value:
+            value = {
+                "value": self.value,
+                "author_id": self.value_author.id
+            }
+
+        return {
+            "title": title,
+            "value": value
+        }
+
+    @classmethod
+    def deserialize(cls, plugin, field_dict):
+        r = cls(plugin)
+        title = field_dict["title"]
+        if title:
+            r.set_title(title["title"], converters.get_best_user(title["author_id"]))
+        value = field_dict["value"]
+        if value:
+            r.set_value(value["value"], converters.get_best_user(value["author_id"]))
+        return r
+
+
+class EmbedCmd(Cmd):
+    """
+    Represents a custom embed cmd
+    """
+    def __init__(self, plugin, name: str, creator_id: int, fields: list = None, aliases: list = None):
+        super().__init__(plugin, name, creator_id, aliases=aliases)
+
+        self.fields = fields if fields else []
+
+    def serialize(self) -> dict:
+        r = {
+            "creator": self.creator_id,
+            "type": "embed"
+        }
+        if self.fields:
+            r["fields"] = [el.serialize() for el in self.fields]
+        if self.aliases:
+            r["aliases"] = self.aliases
+        return r
+
+    @classmethod
+    def deserialize(cls, plugin, name: str, d: dict):
+        assert d["type"] == "embed"
+        fields = d.get("fields", None)
+        if fields:
+            fields = [EmbedField.deserialize(plugin, el) for el in fields]
+        return cls(plugin, name, d["creator"], fields=fields, aliases=d.get("aliases", None))
+
+    def build_embed(self) -> Optional[Embed]:
+        """
+        Builds the embed that this cmd represents. Only complete fields (with title and value) are added.
+        :return: Embed object if there is at least one complete field; None otherwise
+        """
+        r = Embed()
+        found = False
+        for el in self.fields:
+            if el.title and el.value:
+                found = True
+                r.add_field(name=el.title, value=el.value)
+        return r if found else None
+
+    async def invoke(self, message: Message, *arguments):
+        embed = self.build_embed()
+        if embed:
+            await message.channel.send(embed=embed)
+        else:
+            await add_reaction(message, Lang.CMDERROR)
+            await message.channel.send(Lang.lang(self.plugin, "embed_error_no_fields"))
+
+    async def cmd_info(self, ctx, *args):
+        """
+        Sends cmd info to ctx
+
+        :param ctx: context
+        :param args: arguments passed (ignored)
+        """
+        creator = get_best_username(converters.get_best_user(self.creator_id))
+        aliases = ""
+        if self.aliases:
+            aliases = Lang.lang(self.plugin, "raw_aliases", ", ".join(self.aliases))
+
+        entries = []
+        for i in range(len(self.fields)):
+            entries.append(self.fields[i].format_info(i+1))
+
+        if not entries:
+            entries.append(Lang.lang(self.plugin, "embed_info_no_fields"))
+
+        for msg in paginate(entries,
+                            delimiter="\n\n",
+                            prefix=Lang.lang(self.plugin,
+                                             "embed_info_prefix",
+                                             self.plugin.prefix,
+                                             self.name,
+                                             creator,
+                                             aliases)):
+            await ctx.send(msg)
+
+
 class Plugin(BasePlugin, name="Custom CMDs"):
     """Provides custom cmds"""
 
@@ -355,6 +522,10 @@ class Plugin(BasePlugin, name="Custom CMDs"):
         self.bot = Config().bot
         self.bot.register(self, DefaultCategories.USER)
 
+        self.cmd_type_map: Dict[str, Type[Cmd]] = {
+            "text": TextCmd,
+            "embed": EmbedCmd
+        }
         self.prefix = Config.get(self)['prefix']
         self.commands = {}
 
@@ -420,7 +591,7 @@ class Plugin(BasePlugin, name="Custom CMDs"):
 
         # actually load the commands
         for k in Storage.get(self).keys():
-            self.commands[str(k)] = TextCmd.deserialize(self, k, Storage.get(self)[k])
+            self.commands[str(k)] = Cmd.deserialize(self, k, Storage.get(self)[k])
             self.bot.ignoring.add_additional_command(k)
 
     def _save(self):

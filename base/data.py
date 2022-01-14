@@ -77,7 +77,8 @@ class ConfigurableData:
             with open(self._filepath(container=container), "r", encoding="utf-8") as f:
                 jsondata = json.load(f, cls=jsonutils.Decoder)
                 return jsondata
-        except (IsADirectoryError, OSError, InterruptedError, json.JSONDecodeError):
+        # except (IsADirectoryError, OSError, InterruptedError, json.JSONDecodeError):
+        except (IsADirectoryError, OSError, InterruptedError):
             if not silent:
                 logging.error("Error reading %s.json", self._filepath(container=container))
             return None
