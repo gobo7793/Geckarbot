@@ -1,15 +1,15 @@
-# import discord.ext.commands.view
-# import discord.ext.commands.help
+import nextcord.ext.commands.view
+import nextcord.ext.commands.help
 
 
 # pylint: disable=protected-access,unused-argument
 
 def pre_injections():
     """Some injections for workarounds for some bugs/problems BEFORE creation of bot object"""
-    # quotes = discord.ext.commands.view._quotes
-    # quotes["‚"] = "’"
-    # quotes["„"] = "“"
-    # discord.ext.commands.view._all_quotes = set(quotes.keys()) | set(quotes.values())
+    quotes = nextcord.ext.commands.view._quotes
+    quotes["‚"] = "’"
+    quotes["„"] = "“"
+    nextcord.ext.commands.view._all_quotes = set(quotes.keys()) | set(quotes.values())
 
 
 def post_injections(bot):
