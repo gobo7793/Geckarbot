@@ -152,10 +152,16 @@ def serialize_channel(channel: Union[nextcord.DMChannel, nextcord.TextChannel]) 
             "id": channel.id
         }
 
+    if isinstance(channel, nextcord.Thread):
+        return {
+            "type": "thread",
+            "id": channel.id
+        }
+
     raise RuntimeError("Channel {} not supported".format(channel))
 
 
-async def deserialize_channel(channeldict: dict) -> Union[nextcord.DMChannel, nextcord.TextChannel]:
+async def deserialize_channel(channeldict: dict) -> Union[nextcord.DMChannel, nextcord.TextChannel, nextcord.Thread]:
     """
     Deserializes channel from a dict that was created by serialize_channel.
 
@@ -177,3 +183,11 @@ async def deserialize_channel(channeldict: dict) -> Union[nextcord.DMChannel, ne
         if r is None:
             raise NotFound
         return r
+
+    if channeldict["type"] == "thread":
+        r = Config().bot.guild.get_thread(channeldict["id"])
+        if r is None:
+            raise NotFound
+        return r
+
+    raise NotFound("type: {}, id: {}".format(channeldict["type"], channeldict["id"]))
