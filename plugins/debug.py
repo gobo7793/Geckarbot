@@ -2,8 +2,9 @@ import asyncio
 from typing import Union, Optional
 from datetime import datetime
 
-import discord
-from discord.ext import commands
+from nextcord import TextChannel, Member, User, Role, Emoji
+from nextcord.ext import commands
+from nextcord.utils import get
 
 from botutils import utils, converters, setter, stringutils
 from botutils.timeutils import to_unix_str, TimestampStyle
@@ -34,10 +35,10 @@ class Plugin(BasePlugin, name="Testing and debug things"):
             "switch2_b": [bool, True],
             "p": [int, 4],
             "msg": [str, "foo"],
-            "channelid": [discord.TextChannel, None],
-            "memberid": [discord.Member, None],
-            "userid": [discord.User, None],
-            "roleid": [discord.Role, None],
+            "channelid": [TextChannel, None],
+            "memberid": [Member, None],
+            "userid": [User, None],
+            "roleid": [Role, None],
         }
         desc = {
             "msg": "Message thingy",
@@ -65,15 +66,14 @@ class Plugin(BasePlugin, name="Testing and debug things"):
         }
 
     def cog_check(self, ctx):
-        role = discord.utils.get(ctx.author.roles, id=Config().BOT_ADMIN_ROLE_ID)
+        role = get(ctx.author.roles, id=Config().BOT_ADMIN_ROLE_ID)
         if role is None:
             raise commands.MissingRole(Config().BOT_ADMIN_ROLE_ID)
         return True
 
     # Maybe really useful debugging commands
-
     @commands.command(name="getemojiid", help="Gets the emoji ids to use in strings", hidden=True)
-    async def cmd_get_emoji_id(self, ctx, emoji: discord.Emoji):
+    async def cmd_get_emoji_id(self, ctx, emoji: Emoji):
         str_rep = str(emoji).replace("<", "`").replace(">", "`")
         msg = await ctx.send(str_rep)
         await utils.add_reaction(msg, emoji)
@@ -116,7 +116,7 @@ class Plugin(BasePlugin, name="Testing and debug things"):
         else:
             raise commands.BadArgument("prio must be low, default or high")
 
-        new_id = self.bot.presence.register(message, priority)
+        new_id = self.bot.presence.register(message, priority=priority)
         await ctx.send("registered with result {}".format(new_id))
 
     @commands.command(name="presencedel", help="Removes presence messages, with raw IDs", hidden=True)
@@ -137,7 +137,7 @@ class Plugin(BasePlugin, name="Testing and debug things"):
 
     # Testing commands
     @commands.command(name="mentionuser", help="Mentions a user, supports user cmd disabling.", hidden=True)
-    async def cmd_mentionuser(self, ctx, user: discord.Member):
+    async def cmd_mentionuser(self, ctx, user: Member):
         if self.bot.ignoring.check_passive_usage(user, ctx.command.qualified_name):
             raise UserBlockedCommand(user, ctx.command.qualified_name)
         await ctx.send(user.mention)
@@ -231,8 +231,8 @@ class Plugin(BasePlugin, name="Testing and debug things"):
         await utils.write_debug_channel("writelogs used")
 
     @commands.command(name="pingme", hidden=True)
-    async def cmd_pingme(self, ctx, user: Union[discord.Member, discord.User, str]):
-        if isinstance(user, (discord.User, discord.Member)):
+    async def cmd_pingme(self, ctx, user: Union[Member, User, str]):
+        if isinstance(user, (User, Member)):
             await ctx.send("{}".format(user.mention))
         else:
             await ctx.send("Sorry, no user found for {}".format(user))
@@ -306,7 +306,7 @@ class Plugin(BasePlugin, name="Testing and debug things"):
         await ctx.send(role.mention)
 
     @commands.command(name="rolebymention", hidden=True)
-    async def cmd_rolebymention(self, ctx, role: discord.Role):
+    async def cmd_rolebymention(self, ctx, role: Role):
         # role = await commands.RoleConverter().convert(ctx, role)
         await ctx.send(role.mention)
 

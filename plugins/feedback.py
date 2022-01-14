@@ -1,8 +1,8 @@
 import logging
 from datetime import datetime
 
-import discord.utils
-from discord.ext import commands
+from nextcord.utils import get
+from nextcord.ext import commands
 
 from base.configurable import BasePlugin
 from base.data import Storage, Config, Lang
@@ -60,7 +60,7 @@ class Complaint:
         :param d: dict made by serialize()
         :return: Complaint object
         """
-        author = discord.utils.get(plugin.bot.guild.members, id=d["authorid"])
+        author = get(plugin.bot.guild.members, id=d["authorid"])
         return cls(plugin, cid, author, d["msglink"], d["content"], d["category"], d["timestamp"])
 
     @classmethod
@@ -483,7 +483,7 @@ class Plugin(BasePlugin, name="Feedback"):
         """
         users = sorted(
             sorted(
-                [(converters.get_best_username(discord.utils.get(self.bot.guild.members, id=user)), n) for (user, n) in
+                [(converters.get_best_username(get(self.bot.guild.members, id=user)), n) for (user, n) in
                  self.bugscore.items()],
                 key=lambda x: x[0].lower()),
             key=lambda x: x[1],
@@ -510,7 +510,7 @@ class Plugin(BasePlugin, name="Feedback"):
         :param ctx: Context
         :param user: User to remove
         """
-        if discord.utils.get(ctx.author.roles, id=Config().BOT_ADMIN_ROLE_ID) is None:
+        if get(ctx.author.roles, id=Config().BOT_ADMIN_ROLE_ID) is None:
             await add_reaction(ctx.message, Lang.CMDNOPERMISSIONS)
             return
         try:
@@ -536,7 +536,7 @@ class Plugin(BasePlugin, name="Feedback"):
         :param user: User whose bugscore is to be incremented
         :param increment: Value to increment by
         """
-        if discord.utils.get(ctx.author.roles, id=Config().BOT_ADMIN_ROLE_ID) is None:
+        if get(ctx.author.roles, id=Config().BOT_ADMIN_ROLE_ID) is None:
             await add_reaction(ctx.message, Lang.CMDNOPERMISSIONS)
             return
 

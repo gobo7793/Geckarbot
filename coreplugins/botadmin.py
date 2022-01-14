@@ -2,8 +2,8 @@ import pprint
 from datetime import datetime
 from typing import Union
 
-import discord
-from discord.ext import commands
+from nextcord import Embed, Member, User
+from nextcord.ext import commands
 
 from base.configurable import BasePlugin, ConfigurableType
 from base.data import Storage, Config, Lang
@@ -29,7 +29,7 @@ async def cmd_del_event(msg, title_suffix):
         event_name = "Custom command " + title_suffix
     else:
         return
-    e = discord.Embed()
+    e = Embed()
     e.add_field(name="Event", value=event_name)
     e.add_field(name="Author", value=gbu(msg.author))
     e.add_field(name="Command", value=msg.content)
@@ -245,7 +245,7 @@ class Plugin(BasePlugin, name="Bot status commands for monitoring and debug purp
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
     @commands.command(name="dmreg")
-    async def cmd_listdmreg(self, ctx, user: Union[discord.Member, discord.User, None] = None):
+    async def cmd_listdmreg(self, ctx, user: Union[Member, User, None] = None):
         print(user)
         if user is None:
             user = ctx.author

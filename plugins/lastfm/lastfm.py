@@ -5,8 +5,8 @@ import random
 import re
 import pprint
 
-import discord
-from discord.ext import commands
+from nextcord import User, Member
+from nextcord.ext import commands
 
 from base.configurable import BasePlugin, NotLoadable
 from base.data import Config, Lang, Storage
@@ -248,7 +248,7 @@ class Plugin(BasePlugin, name="LastFM"):
         """
         return self.get_config("presence")
 
-    def get_lastfm_user(self, user: discord.User):
+    def get_lastfm_user(self, user: User):
         """
         :param user: discord user
         :return: Corresponding last.fm user
@@ -421,7 +421,7 @@ class Plugin(BasePlugin, name="LastFM"):
             await add_reaction(ctx.message, Lang.CMDNOCHANGE)
 
     @cmd_lastfm.command(name="profile", usage="<User>")
-    async def cmd_profile(self, ctx, user: Union[discord.Member, discord.User, None]):
+    async def cmd_profile(self, ctx, user: Union[Member, User, None]):
         sg3p = False
         if user is None:
             sg3p = True

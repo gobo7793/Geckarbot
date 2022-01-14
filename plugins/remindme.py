@@ -2,8 +2,8 @@ import logging
 from datetime import datetime
 from typing import Dict, Union
 
-import discord
-from discord.ext import commands
+from nextcord import Embed, DMChannel, TextChannel
+from nextcord.ext import commands
 
 from botutils import utils, timeutils, converters
 from botutils.timeutils import to_unix_str, TimestampStyle
@@ -15,11 +15,10 @@ from services.helpsys import DefaultCategories
 log = logging.getLogger(__name__)
 
 
-class Plugin(BasePlugin):
+class Plugin(BasePlugin, name="remindme"):
     def __init__(self):
         super().__init__()
-        self.bot = Config().bot
-        self.bot.register(self, DefaultCategories.UTILS)
+        Config().bot.register(self, DefaultCategories.UTILS)
         self.migrate()
 
         self.reminders = {}  # type: Dict[int, timers.Job]
@@ -51,7 +50,7 @@ class Plugin(BasePlugin):
         if version == 0:
             Storage().get(self)['version'] = 1
             for rid, reminder in Storage().get(self)['reminders'].items():
-                chan = self.bot.get_channel(reminder['chan'])
+                chan = Config().bot.get_channel(reminder['chan'])
                 if chan is not None:
                     chan = converters.serialize_channel(chan)
                 reminder['chan'] = chan
@@ -79,7 +78,7 @@ class Plugin(BasePlugin):
 
             # Channel Error
             except NotFound:
-                embed = discord.Embed(title=":x: Reminders error", colour=0xe74c3c)
+                embed = Embed(title=":x: Reminders error", colour=0xe74c3c)
                 embed.description = "Channel for reminder could not be retrieved\n(removing reminder)"
                 embed.add_field(name="Reminder id", value=str(rid))
 
@@ -196,7 +195,7 @@ class Plugin(BasePlugin):
 
         await ctx.send(Lang.lang(self, "explain_message", self.explain_history[ctx.author]))
 
-    def _register_reminder(self, channel: Union[discord.DMChannel, discord.TextChannel, None], user_id: int,
+    def _register_reminder(self, channel: Union[DMChannel, TextChannel, None], user_id: int,
                            remind_time: datetime, reminder_id: int, text, link: str, is_restart: bool = False) -> bool:
         """
         Registers a reminder
@@ -229,7 +228,7 @@ class Plugin(BasePlugin):
         timedict = timers.timedict(year=remind_time.year, month=remind_time.month, monthday=remind_time.day,
                                    hour=remind_time.hour, minute=remind_time.minute)
         try:
-            job = self.bot.timers.schedule(self._reminder_callback, timedict, data=job_data, repeat=False)
+            job = Config().bot.timers.schedule(self._reminder_callback, timedict, data=job_data, repeat=False)
         except timers.NoFutureExec:
             job = timers.Job(timedict, self._reminder_callback, data=job_data, repeat=False, run=False)
             utils.execute_anything_sync(self._reminder_callback, job)
@@ -261,7 +260,7 @@ class Plugin(BasePlugin):
         log.debug("Executing reminder %d", job.data['id'])
 
         channel = job.data['chan']
-        user = self.bot.get_user(job.data['user'])
+        user = Config().bot.get_user(job.data['user'])
         text = job.data['text']
         rid = job.data['id']
         self.explain_history[user] = job.data['link']

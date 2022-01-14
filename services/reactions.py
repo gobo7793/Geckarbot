@@ -5,7 +5,7 @@ This subsystem provides listeners for reactions on messages.
 from enum import Enum
 from typing import Union, Coroutine, Callable
 
-from discord import Message
+from nextcord import Message
 
 from base.configurable import BaseSubsystem
 from base.data import Config

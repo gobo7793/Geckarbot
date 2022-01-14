@@ -2,8 +2,8 @@ from enum import Enum
 from typing import Optional, Union, List
 from abc import abstractmethod
 
-import discord
-from discord.ext.commands import Bot
+import nextcord
+from nextcord.ext.commands import Bot
 
 from services import helpsys
 from services.ignoring import Ignoring
@@ -69,7 +69,7 @@ class BaseBot(Bot):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.guild: Optional[discord.Guild] = None
+        self.guild: Optional[nextcord.Guild] = None
 
         self.reaction_listener: Optional[ReactionListener] = None
         self.dm_listener: Optional[DMListener] = None

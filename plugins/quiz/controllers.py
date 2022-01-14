@@ -3,7 +3,9 @@ import random
 from enum import Enum
 from datetime import datetime
 
-import discord
+from nextcord import User, Embed, TextChannel
+from nextcord.abc import Messageable
+from nextcord.utils import get
 
 from services.reactions import ReactionRemovedEvent, BaseReactionEvent
 from services import timers
@@ -40,7 +42,7 @@ class PointsQuizController(BaseQuizController):
     """
     Gamemode: every user with the correct answer gets a point
     """
-    def __init__(self, plugin, quizapi, channel: discord.abc.Messageable, requester: discord.User, **kwargs):
+    def __init__(self, plugin, quizapi, channel: Messageable, requester: User, **kwargs):
         """
         :param plugin: Plugin object
         :param quizapi: Quiz API class that is to be used
@@ -126,7 +128,7 @@ class PointsQuizController(BaseQuizController):
 
         # Consume signup reactions
         await signup_msg.remove_reaction(Lang.lang(self.plugin, "reaction_signup"), self.plugin.bot.user)
-        signup_msg = discord.utils.get(self.plugin.bot.cached_messages, id=signup_msg.id)
+        signup_msg = get(self.plugin.bot.cached_messages, id=signup_msg.id)
         reaction = None
         for el in signup_msg.reactions:
             if el.emoji == Lang.lang(self.plugin, "reaction_signup"):
@@ -185,7 +187,7 @@ class PointsQuizController(BaseQuizController):
 
         for user in self.registered_participants:
             self.score.add_participant(user)
-        embed = discord.Embed(title=Lang.lang(self.plugin, "quiz_phase"))
+        embed = Embed(title=Lang.lang(self.plugin, "quiz_phase"))
         value = "\n".join([get_best_username(Storage().get(self.plugin), el, mention=True)
                            for el in self.registered_participants])
         embed.add_field(name="Participants:", value=value)
@@ -541,7 +543,7 @@ class PointsQuizController(BaseQuizController):
                               "status_title_ingame",
                               self.quizapi.current_question_index() + 1,
                               len(self.quizapi))
-        embed = discord.Embed(title=title)
+        embed = Embed(title=title)
         catname = self.plugin.category_controller.get_name_by_category_key(self.quizapi, self.category)
         embed.add_field(name="Category", value=catname)
         embed.add_field(name="Difficulty", value=Difficulty.human_readable(self.difficulty))
@@ -735,7 +737,7 @@ class RushQuizController(BaseQuizController):
     async def on_message(self, msg):
         self.plugin.logger.debug("Caught message: {}".format(msg.content))
         # ignore DM and msg when the quiz is not in question phase
-        if not isinstance(msg.channel, discord.TextChannel):
+        if not isinstance(msg.channel, TextChannel):
             return
         if self.state != Phases.QUESTION:
             self.plugin.logger.debug("Ignoring message, quiz is not in question phase")
@@ -787,7 +789,7 @@ class RushQuizController(BaseQuizController):
                               "status_title_ingame",
                               self.quizapi.current_question_index() + 1,
                               len(self.quizapi))
-        embed = discord.Embed(title=title)
+        embed = Embed(title=title)
         catname = self.plugin.category_controller.get_name_by_category_key(self.quizapi, self.category)
         embed.add_field(name="Category", value=catname)
         embed.add_field(name="Difficulty", value=Difficulty.human_readable(self.difficulty))

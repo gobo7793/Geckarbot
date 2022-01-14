@@ -1,6 +1,6 @@
 import re
 
-from discord.ext import commands
+from nextcord.ext import commands
 
 from base.configurable import BasePlugin
 from base.data import Lang, Config

@@ -3,8 +3,8 @@ import logging
 from enum import Enum
 from typing import List
 
-import discord
-from discord.ext import commands
+from nextcord import Embed
+from nextcord.ext import commands
 
 from botutils.stringutils import paginate
 from botutils.utils import add_reaction
@@ -38,7 +38,7 @@ class _Liveticker:
                 description = Lang.lang(self, 'liveticker_running',
                                         Config().bot.get_channel(Config().get(self)['sport_chan']).mention,
                                         ", ".join(leagues))
-                embed = discord.Embed(title="Liveticker",
+                embed = Embed(title="Liveticker",
                                       description=description)
                 embed.add_field(name=Lang.lang(self, 'liveticker_action_title'),
                                 value="\n".join(Lang.lang(self, f'liveticker_action_{x.value}')
@@ -311,7 +311,7 @@ class _Liveticker:
         if not teamname_dict:
             await ctx.send(Lang.lang(self, 'team_not_found'))
         else:
-            embed = discord.Embed(title=f"{teamname_dict.emoji} {team}",
+            embed = Embed(title=f"{teamname_dict.emoji} {team}",
                                   description=f"{Lang.lang(self, 'teamname_long')}: {teamname_dict.long_name}\n"
                                               f"{Lang.lang(self, 'teamname_short')}: {teamname_dict.short_name}\n"
                                               f"{Lang.lang(self, 'teamname_abbr')}: {teamname_dict.abbr}")

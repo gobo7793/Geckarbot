@@ -2,8 +2,8 @@ from enum import Enum
 import logging
 from typing import List, Tuple, Optional, Union
 
-from discord.ext import commands
-from discord.ext.commands import Context, Command
+from nextcord.ext import commands
+from nextcord.ext.commands import Context, Command
 
 from base.configurable import BaseSubsystem, NotFound, BasePlugin, ConfigurableType
 from base.data import Lang, Config

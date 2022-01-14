@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from datetime import datetime
 from typing import List, Dict, Optional
 
-import discord
+from nextcord import User
 from espn_api.football import League
 
 from botutils.converters import get_best_user
@@ -29,10 +29,10 @@ class FantasyLeague(ABC):
     def __init__(self):
         self.plugin = None
         self.league_id = None  # type: Optional[int]
-        self.commish = None  # type: Optional[discord.User]
+        self.commish = None  # type: Optional[User]
 
     @classmethod
-    async def create(cls, plugin, league_id: int, commish: discord.User = None):
+    async def create(cls, plugin, league_id: int, commish: User = None):
         """
         Creates a new FantasyLeague dataset instance
 
@@ -177,7 +177,7 @@ class FantasyLeague(ABC):
         }
 
 
-async def create_league(plugin, platform: Platform, league_id: int, commish: discord.User = None)\
+async def create_league(plugin, platform: Platform, league_id: int, commish: User = None)\
         -> FantasyLeague:
     """
     Creates a FantasyLeague object based on the given platform
@@ -186,7 +186,6 @@ async def create_league(plugin, platform: Platform, league_id: int, commish: dis
     :param platform: The Platform on which the league is hosted
     :param league_id: The league ID on the platform
     :param commish: The commissioner
-    :param init: True if league is loading from Storage
     :return: The created FantasyLeague object for the given platform
     """
     if platform == Platform.ESPN:

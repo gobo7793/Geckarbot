@@ -6,8 +6,8 @@ import logging
 import asyncio
 import traceback
 
-import discord
-from discord.ext.commands import Command, Context
+from nextcord import Embed, HTTPException, Message, TextChannel, DMChannel, GroupChannel
+from nextcord.ext.commands import Command, Context
 
 from base.configurable import NotFound, BasePlugin, Configurable
 from base.data import Config, Lang
@@ -18,7 +18,7 @@ from botutils.stringutils import paginate
 log = logging.getLogger(__name__)
 
 
-async def add_reaction(message: discord.Message, reaction):
+async def add_reaction(message: Message, reaction):
     """
     Adds a reaction to the message, or if not possible, post the reaction in an own message.
 
@@ -28,11 +28,11 @@ async def add_reaction(message: discord.Message, reaction):
     """
     try:
         await message.add_reaction(reaction)
-    except discord.HTTPException:
+    except HTTPException:
         await message.channel.send(reaction)
 
 
-def paginate_embed(embed: discord.Embed):
+def paginate_embed(embed: Embed):
     """
     Paginates/Cuts to long embed contents in title and description of the embed.
     If the Embeds exceed after that 6000 chars an Exception is thrown.
@@ -52,7 +52,7 @@ def paginate_embed(embed: discord.Embed):
         raise Exception(f"Embed is still to long! Title: {embed.title}")
 
 
-async def _write_to_channel(channel_id: int = 0, message: Union[str, discord.Embed] = None,
+async def _write_to_channel(channel_id: int = 0, message: Union[str, Embed] = None,
                             channel_type: str = ""):
     """
     Writes a message to a channel and logs the message..
@@ -67,7 +67,7 @@ async def _write_to_channel(channel_id: int = 0, message: Union[str, discord.Emb
 
     channel = Config().bot.get_channel(channel_id)
     if not Config().bot.DEBUG_MODE and channel is not None and message is not None and message:
-        if isinstance(message, discord.Embed):
+        if isinstance(message, Embed):
             paginate_embed(message)
             await channel.send(embed=message)
         else:
@@ -78,7 +78,7 @@ async def _write_to_channel(channel_id: int = 0, message: Union[str, discord.Emb
                 await channel.send(msg)
 
 
-async def write_debug_channel(message: Union[str, discord.Embed]):
+async def write_debug_channel(message: Union[str, Embed]):
     """
     Writes the given message or embed to the debug channel.
     Doesn't write if DEBUG_MODE is True.
@@ -88,7 +88,7 @@ async def write_debug_channel(message: Union[str, discord.Embed]):
     await _write_to_channel(Config().bot.DEBUG_CHAN_ID, message, "debug")
 
 
-async def write_admin_channel(message: Union[str, discord.Embed]):
+async def write_admin_channel(message: Union[str, Embed]):
     """
     Writes the given message or embed to the admin channel.
     Doesn't write if DEBUG_MODE is True.
@@ -98,7 +98,7 @@ async def write_admin_channel(message: Union[str, discord.Embed]):
     await _write_to_channel(Config().bot.ADMIN_CHAN_ID, message, "admin")
 
 
-async def write_mod_channel(message: Union[str, discord.Embed]):
+async def write_mod_channel(message: Union[str, Embed]):
     """
     Writes the given message or embed to the mod channel.
     Doesn't write if DEBUG_MODE is True.
@@ -115,7 +115,7 @@ async def _log_without_ctx_to_channel(func, **kwargs):
     """
     timestamp = to_local_time(datetime.datetime.now()).strftime('%d.%m.%Y, %H:%M')
 
-    embed = discord.Embed(title="Log event")
+    embed = Embed(title="Log event")
     embed.add_field(name="Timestamp", value=timestamp)
     for key, value in kwargs.items():
         embed.add_field(name=str(key), value=str(value))
@@ -160,7 +160,7 @@ async def _log_to_channel(context, func):
     """
     timestamp = to_local_time(context.message.created_at).strftime('%d.%m.%Y, %H:%M')
 
-    embed = discord.Embed(title="Special command used")
+    embed = Embed(title="Special command used")
     embed.description = context.message.clean_content
     embed.add_field(name="User", value=context.author.mention)
     embed.add_field(name="Channel", value=context.channel.mention)
@@ -212,17 +212,17 @@ async def log_exception(exception, context: Optional[Context] = None, title=":x:
     :param title: Embed title
     :param fields: Additional embed fields (field: value)
     """
-    embed = discord.Embed(title=title, colour=0xe74c3c)  # Red
+    embed = Embed(title=title, colour=0xe74c3c)  # Red
     embed.add_field(name='Error', value=exception)
 
     if context:
         embed.add_field(name='Command', value=context.command)
         embed.add_field(name='Message', value=context.message.clean_content)
-        if isinstance(context.channel, discord.TextChannel):
+        if isinstance(context.channel, TextChannel):
             embed.add_field(name='Channel', value=context.channel.name)
-        if isinstance(context.channel, discord.DMChannel):
+        if isinstance(context.channel, DMChannel):
             embed.add_field(name='Channel', value=context.channel.recipient)
-        if isinstance(context.channel, discord.GroupChannel):
+        if isinstance(context.channel, GroupChannel):
             embed.add_field(name='Channel', value=context.channel.recipients)
         embed.add_field(name='Author', value=context.author.display_name)
         embed.url = context.message.jump_url

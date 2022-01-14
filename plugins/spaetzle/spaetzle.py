@@ -6,10 +6,10 @@ from datetime import datetime
 from urllib.error import HTTPError
 from urllib.parse import urljoin, urlparse
 
-import discord
+from nextcord import Embed, User
 from bs4 import BeautifulSoup
-from discord.ext import commands
-from discord.ext.commands import MissingRequiredArgument
+from nextcord.ext import commands
+from nextcord.ext.commands import MissingRequiredArgument
 
 from Geckarbot import BasePlugin
 from botutils import sheetsclient, restclient
@@ -115,7 +115,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             main_urlpath = main_urlpath[1] if len(main_urlpath) > 0 else None
         spreadsheet = f"https://docs.google.com/spreadsheets/d/{Config().get(self)['spaetzledoc_id']}"
 
-        embed = discord.Embed(title="Spätzle(s)-Tippspiel", description=Lang.lang(self, 'info'))
+        embed = Embed(title="Spätzle(s)-Tippspiel", description=Lang.lang(self, 'info'))
         embed.add_field(name=Lang.lang(self, 'title_spreadsheet'),
                         value=f"[{spreadsheet[:50]}\u2026]({spreadsheet})", inline=False)
         embed.add_field(name=Lang.lang(self, 'title_main_thread'),
@@ -196,7 +196,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             for row in values[2:]:
                 msg += "{0} {1} {2} Uhr | {3} - {6}\n".format(*row)
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
-        await ctx.send(embed=discord.Embed(title=Lang.lang(self, 'title_matchday', matchday), description=msg))
+        await ctx.send(embed=Embed(title=Lang.lang(self, 'title_matchday', matchday), description=msg))
 
     @cmd_spaetzle_set.command(name="duels", aliases=["duelle"])
     async def cmd_set_duels(self, ctx, matchday: int = None, league: int = None):
@@ -217,7 +217,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
 
         async with ctx.typing():
             c = self.get_api_client()
-            embed = discord.Embed()
+            embed = Embed()
             duel_ranges = Config().get(self)['duel_ranges']
             if league is None:
                 league_list = duel_ranges.keys()
@@ -343,7 +343,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                         predictions_by_user[post['user']] = predictions
 
             # Participants without predictions / Unknown user
-            embed = discord.Embed(title=Lang.lang(self, 'extract_user_without_preds'))
+            embed = Embed(title=Lang.lang(self, 'extract_user_without_preds'))
             no_preds = []
             for i in range(1, 5):
                 user_list = []
@@ -496,7 +496,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                     return
 
             old_value = config.get(key)
-            embed = discord.Embed(title="'{}'".format("/".join(args[:-1])))
+            embed = Embed(title="'{}'".format("/".join(args[:-1])))
             embed.add_field(name=Lang.lang(self, 'old_value'), value=str(old_value), inline=False)
             embed.add_field(name=Lang.lang(self, 'new_value'), value=value, inline=False)
             config[key] = value
@@ -614,7 +614,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                             self.bot.liveticker.teamname_converter.get(match[6]).abbr,
                             pred_h[0], pred_h[1], pred_a[0], pred_a[1])
 
-            embed = discord.Embed(title="{} [{}:{}] {}".format(user, result[0][0], result[1][0], opponent))
+            embed = Embed(title="{} [{}:{}] {}".format(user, result[0][0], result[1][0], opponent))
             embed.description = msg
 
             match_result = determine_winner(result[0][0], result[1][0], diff1, diff2)
@@ -674,7 +674,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                                                                     opponent)
                     else:
                         msg += "**{}** [{}:{}] {}\n".format(user, data[i + 1][0][0], data[i + 1][1][0], opponent)
-        await ctx.send(embed=discord.Embed(title=Lang.lang(self, 'title_duels'), description=msg))
+        await ctx.send(embed=Embed(title=Lang.lang(self, 'title_duels'), description=msg))
 
     async def cmd_show_duels_league(self, ctx, league: int):
         """Displays all duels of one league"""
@@ -691,7 +691,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             for duel in result:
                 duel.extend([""] * (8 - len(duel)))
                 msg += "{0} [{4}:{5}] {7}\n".format(*duel)
-        await ctx.send(embed=discord.Embed(title=Lang.lang(self, 'title_duels_league', league), description=msg))
+        await ctx.send(embed=Embed(title=Lang.lang(self, 'title_duels_league', league), description=msg))
 
     async def cmd_show_duels_all(self, ctx):
         """Displays all duels of all leagues"""
@@ -699,7 +699,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             c = self.get_api_client()
             data_ranges = list(Config().get(self)['duel_ranges'].values())
             results = c.get_multiple(data_ranges)
-            embed = discord.Embed(title=Lang.lang(self, 'title_duels'))
+            embed = Embed(title=Lang.lang(self, 'title_duels'))
 
             for i in range(len(results)):
                 msg = ""
@@ -728,7 +728,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                 emoji = match_status(date_time).value
                 msg += "{0} {3} {1} {2} Uhr | {6} - {9} | {7}:{8}\n".format(emoji, date_time.strftime("%d.%m."),
                                                                             date_time.strftime("%H:%M"), *match)
-        await ctx.send(embed=discord.Embed(title=Lang.lang(self, 'title_matches', matchday), description=msg))
+        await ctx.send(embed=Embed(title=Lang.lang(self, 'title_matches', matchday), description=msg))
 
     @cmd_spaetzle.command(name="table", aliases=["tabelle", "league", "liga"])
     async def cmd_show_table(self, ctx, user_or_league: str = None):
@@ -772,7 +772,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                 line.extend([''] * (11 - len(line)))
                 msg += "{0}{1} | {4} | {7}:{9} {10} | {11}{0}\n".format("**" if line[3].lower() ==
                                                                         user_or_league.lower() else "", *line)
-            embed = discord.Embed(title=Lang.lang(self, 'title_table', league), description=msg)
+            embed = Embed(title=Lang.lang(self, 'title_table', league), description=msg)
             embed.set_footer(text=Lang.lang(self, 'table_footer'))
         await ctx.send(embed=embed)
 
@@ -794,7 +794,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             await ctx.send(Lang.lang(self, 'user_not_found', user))
             return
 
-        await ctx.send(embed=discord.Embed(title=Lang.lang(self, 'title_opponent', user), description=msg))
+        await ctx.send(embed=Embed(title=Lang.lang(self, 'title_opponent', user), description=msg))
 
     @cmd_spaetzle.command(name="rawpost")
     async def cmd_show_rawpost(self, ctx, participant: str):
@@ -840,7 +840,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                 rows = []
                 for md, pts, pts_opp, opp in history_data:
                     rows.append(f"{md} | {opp} - {pts}:{pts_opp}")
-                await ctx.send(embed=discord.Embed(title=participant, description="\n".join(rows)))
+                await ctx.send(embed=Embed(title=participant, description="\n".join(rows)))
 
     @cmd_spaetzle.command(name="purge")
     async def cmd_purge_user(self, ctx, participant: str):
@@ -863,7 +863,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                     if str(pts).isnumeric():
                         msg.append(f"{md} | {opp} - {pts}:{pts_opp} \u2192 –:{pts_opp}")
                         correction[opp] = int(pts), duel_points(pts_opp, 0) - duel_points(pts_opp, pts)
-                await ctx.send(embed=discord.Embed(title=participant, description="\n".join(msg)))
+                await ctx.send(embed=Embed(title=participant, description="\n".join(msg)))
                 # TODO automatic correction in spreadsheet
 
     @cmd_spaetzle.command(name="danny")
@@ -903,7 +903,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
 
                 embeds = []
                 for p in preds:
-                    embed = discord.Embed(title=f"**ST {matchday} - {p[0][0]}**")
+                    embed = Embed(title=f"**ST {matchday} - {p[0][0]}**")
                     msg = ""
                     matches_txt = []
                     for i in range(len(matches)):
@@ -944,12 +944,12 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
         await ctx.send(msg)
 
     @cmd_trusted.command(name="add")
-    async def cmd_trusted_add(self, ctx, user: discord.User):
+    async def cmd_trusted_add(self, ctx, user: User):
         """Adds a user to the trusted list"""
         await Trusted(self).add_trusted(ctx, user)
 
     @cmd_trusted.command(name="del")
-    async def cmd_trusted_remove(self, ctx, user: discord.User):
+    async def cmd_trusted_remove(self, ctx, user: User):
         """Removes user from the trusted list"""
         await Trusted(self).remove_trusted(ctx, user)
 
@@ -960,12 +960,12 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             await ctx.invoke(self.bot.get_command('spaetzle trusted list'))
 
     @cmd_manager.command(name="add", help="Adds a manager.")
-    async def cmd_manager_add(self, ctx, user: discord.User):
+    async def cmd_manager_add(self, ctx, user: User):
         """Adds manager"""
         await Trusted(self).add_manager(ctx, user)
 
     @cmd_manager.command(name="del")
-    async def cmd_manager_remove(self, ctx, user: discord.User):
+    async def cmd_manager_remove(self, ctx, user: User):
         """Removes manager"""
         await Trusted(self).remove_manager(ctx, user)
 

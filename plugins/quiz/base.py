@@ -5,7 +5,8 @@ from enum import Enum
 from abc import ABC, abstractmethod
 from typing import Type, List, Union
 
-import discord
+from nextcord import Embed, Member, Message
+from nextcord.abc import Messageable
 
 from base.configurable import BasePlugin
 from base.data import Lang, Storage
@@ -330,13 +331,13 @@ class Score:
                 assert False
         return r
 
-    def embed(self, end: bool = False, sort_by_points: bool = False) -> discord.Embed:
+    def embed(self, end: bool = False, sort_by_points: bool = False) -> Embed:
         """
         :param end: Set to true if this is the end score rather than an intermediate score
         :param sort_by_points: Set to true if the participants are to be sorted by score rather than questions
         :return: Sendable Embed that represents this Score
         """
-        embed = discord.Embed(title=Lang.lang(self.plugin, "results_title"))
+        embed = Embed(title=Lang.lang(self.plugin, "results_title"))
 
         ladder = self.ladder(sort_by_points=sort_by_points)
         place = 0
@@ -362,7 +363,7 @@ class Score:
 
         return embed
 
-    def increase(self, member: discord.Member, question, amount: int = 1, totalcorr: int = 1):
+    def increase(self, member: Member, question, amount: int = 1, totalcorr: int = 1):
         """
         Increases a participant's score by amount. Registers the participant if not present.
         :param member: Discord member
@@ -383,7 +384,7 @@ class Score:
             elif question not in self.answered_questions:
                 self.answered_questions.append(question)
 
-    def add_participant(self, member: discord.Member):
+    def add_participant(self, member: Member):
         """
         Adds a quiz participant to the score.
 
@@ -489,7 +490,7 @@ class Question:
                 return i
         return None
 
-    async def pose(self, channel: discord.abc.Messageable, emoji: bool = False):
+    async def pose(self, channel: Messageable, emoji: bool = False):
         """
         Poses a question to a channel.
 
@@ -502,7 +503,7 @@ class Question:
         self.message = msg
         return msg
 
-    async def add_reactions(self, msg: discord.Message):
+    async def add_reactions(self, msg: Message):
         """
         Adds answer emoji reactions to a question message. Expected to be called somewhat immediately after pose().
 
@@ -511,7 +512,7 @@ class Question:
         for i in range(len(self.all_answers)):
             await msg.add_reaction(Lang.EMOJI["lettermap"][i])  # this breaks if there are more than 26 answers
 
-    def embed(self, emoji: bool = False, info: bool = False) -> discord.Embed:
+    def embed(self, emoji: bool = False, info: bool = False) -> Embed:
         """
         :param emoji: Determines whether A/B/C/D are letters or emoji
         :param info: Adds additional info to the embed such as category and difficulty
@@ -520,7 +521,7 @@ class Question:
         title = self.question
         if self.index is not None:
             title = "#{}: {}".format(self.index+1, title)
-        embed = discord.Embed(title=title)
+        embed = Embed(title=title)
         value = "\n".join(self.answers_mc(emoji=emoji))
         embed.add_field(name="Possible answers:", value=value)
 

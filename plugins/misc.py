@@ -6,8 +6,8 @@ from datetime import datetime, timezone, timedelta
 from math import pi
 from typing import List, Iterable
 
-import discord
-from discord.ext import commands
+from nextcord import File
+from nextcord.ext import commands
 
 from botutils import restclient, utils, timeutils
 from botutils.converters import get_best_username
@@ -143,7 +143,7 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
     @commands.command(name="mimimi")
     async def cmd_mimimi(self, ctx):
         async with ctx.typing():
-            file = discord.File(f"{Config().resource_dir(self)}/mimimi.mp3")
+            file = File(f"{Config().resource_dir(self)}/mimimi.mp3")
             await ctx.send(file=file)
 
     @commands.command(name="money")
@@ -178,7 +178,7 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
         treecko_file = f"{Config().resource_dir(self)}/treecko.jpg"
         async with ctx.typing():
             try:
-                file = discord.File(treecko_file)
+                file = File(treecko_file)
             except (FileNotFoundError, IsADirectoryError):
                 await utils.add_reaction(ctx.message, Lang.CMDERROR)
                 await utils.write_debug_channel(Lang.lang(self, 'geck_error', treecko_file))

@@ -3,8 +3,8 @@ import logging
 from enum import Enum
 from typing import List
 
-import discord
-from discord.ext import commands
+from nextcord import TextChannel
+from nextcord.ext import commands
 
 from base.configurable import BasePlugin
 from base.data import Lang, Config
@@ -239,7 +239,7 @@ class Plugin(BasePlugin, name="A simple number guessing game"):
                         arg2 = arg3
 
                         # if text channel (otherwise not possible)
-                        if isinstance(ctx.channel, discord.TextChannel):
+                        if isinstance(ctx.channel, TextChannel):
                             game = self.start_channel(channel_id)
 
                         # no text channel, start single game instead

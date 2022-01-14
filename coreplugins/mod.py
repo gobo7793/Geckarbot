@@ -2,9 +2,9 @@ import platform
 from datetime import datetime
 from typing import Tuple, Union, Optional
 
-import discord
-from discord.ext import commands
-from discord.ext.commands import MemberConverter, UserConverter
+from nextcord import Member, User
+from nextcord.ext import commands
+from nextcord.ext.commands import MemberConverter, UserConverter
 
 from base.configurable import BasePlugin, ConfigurableType
 from base.data import Config, Lang
@@ -436,7 +436,7 @@ class Plugin(BasePlugin, name="Bot Management Commands"):
         return True
 
     async def _parse_mod_args(self, ctx, *args)\
-            -> Tuple[Union[discord.Member, discord.User, None], Optional[str], Optional[datetime]]:
+            -> Tuple[Union[Member, User, None], Optional[str], Optional[datetime]]:
         """
         Parses the input args for valid command names, users and until datetime input.
 

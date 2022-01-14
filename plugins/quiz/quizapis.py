@@ -7,8 +7,8 @@ import json
 import re
 from typing import Type
 
+from nextcord.utils import escape_markdown
 import aiohttp
-import discord
 
 from botutils import restclient
 
@@ -121,13 +121,13 @@ class OpenTDBQuizAPI(BaseQuizAPI):
         questions_raw = questions_raw["results"]
         for i in range(len(questions_raw)):
             el = questions_raw[i]
-            question = discord.utils.escape_markdown(unquote(el["question"]))
-            correct_answer = discord.utils.escape_markdown(unquote(el["correct_answer"]))
+            question = escape_markdown(unquote(el["question"]))
+            correct_answer = escape_markdown(unquote(el["correct_answer"]))
             info = {
                 "difficulty": el["difficulty"],
                 "category": el["category"],
             }
-            incorrect_answers = [discord.utils.escape_markdown(unquote(ia)) for ia in el["incorrect_answers"]]
+            incorrect_answers = [escape_markdown(unquote(ia)) for ia in el["incorrect_answers"]]
             self.questions.append(Question(self, question, correct_answer, incorrect_answers, index=i, info=info))
 
     def current_question_index(self):
