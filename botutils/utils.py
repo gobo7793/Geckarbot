@@ -6,12 +6,12 @@ import logging
 import asyncio
 import traceback
 
-from nextcord import Embed, HTTPException, Message, TextChannel, DMChannel, GroupChannel
+from nextcord import Embed, HTTPException, Message, TextChannel, DMChannel, GroupChannel, User
 from nextcord.ext.commands import Command, Context
 
 from base.configurable import NotFound, BasePlugin, Configurable
 from base.data import Config, Lang
-from botutils.converters import get_embed_str
+from botutils.converters import get_embed_str, get_best_username
 from botutils.timeutils import to_local_time
 from botutils.stringutils import paginate
 
@@ -365,3 +365,23 @@ def helpstring_helper(plugin: Configurable, command: Command, prefix: str) -> st
     if langstr is not None:
         return langstr
     raise NotFound()
+
+
+async def send_dm(user: User, msg: str, raise_exception: bool = False):
+    """
+    Sends a DM to a user. If the DM channel does not exist, it is created. Logs to debug channel on Exception.
+    :param user: User to send a DM to
+    :param msg: Message to send
+    :param raise_exception: If True, raises the exception instead of logging it.
+    """
+    chan = user.dm_channel
+    if chan is None:
+        chan = await user.create_dm()
+
+    try:
+        await chan.send(msg)
+    except Exception as e:
+        if raise_exception:
+            raise e
+        fields = {"DM recipient": get_best_username(user)}
+        await log_exception(e, title=":x: DM Error", fields=fields)

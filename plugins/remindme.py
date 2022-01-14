@@ -4,11 +4,14 @@ from typing import Dict, Union
 
 from nextcord import Embed, DMChannel, TextChannel
 from nextcord.ext import commands
+from nextcord.errors import Forbidden
 
 from botutils import utils, timeutils, converters
+from botutils.converters import get_best_username
 from botutils.timeutils import to_unix_str, TimestampStyle
 from base.data import Storage, Lang, Config
 from base.configurable import BasePlugin, NotFound
+from botutils.utils import send_dm, log_exception
 from services import timers
 from services.helpsys import DefaultCategories
 
@@ -273,5 +276,17 @@ class Plugin(BasePlugin, name="remindme"):
         else:
             remind_text = Lang.lang(self, 'remind_callback_no_msg', user.mention)
 
-        await channel.send(remind_text)
+        try:
+            try:
+                await channel.send(remind_text)
+            except Forbidden:
+                suffix = Lang.lang(self, "remind_forbidden_suffix")
+                await send_dm(user, "{}\n\n{}".format(remind_text, suffix))
+        except Exception as e:
+            fields = {
+                "Recipient": get_best_username(user),
+                "Channel": channel
+            }
+            await log_exception(e, title=":x: Reminder delivery error", fields=fields)
+
         self._remove_reminder(rid)
