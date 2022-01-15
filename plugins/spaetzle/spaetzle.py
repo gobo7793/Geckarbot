@@ -22,11 +22,15 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
 
     def default_config(self, container=None):
         return {
+            'config_version': 1,
             'spaetzledoc_id': "1ZzEGP_J9WxJGeAm1Ri3er89L1IR1riq7PH2iKVDmfP8",
         }
 
     def default_storage(self, container=None):
-        return {}
+        return {
+            'storage_version': 1,
+            'matchday': 0
+        }
 
     def command_help_string(self, command):
         return helpstring_helper(self, command, "help")
@@ -60,3 +64,17 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
     async def cmd_spaetzle_doc_link(self, ctx):
         """Sends the link to the spreadsheet"""
         await ctx.send(f"<https://docs.google.com/spreadsheets/d/{Config().get(self)['spaetzledoc_id']}>")
+
+    @cmd_spaetzle.group(name="setup")
+    async def cmd_spaetzle_setup(self, ctx):
+        if ctx.invoked_subcommand is None:
+            await ctx.invoke(self.bot.get_command('spaetzle setup matches'))
+            await ctx.invoke(self.bot.get_command('spaetzle setup duels'))
+
+    @cmd_spaetzle_setup.command(name="matches")
+    async def cmd_spaetzle_setup_matches(self, ctx):
+        pass
+
+    @cmd_spaetzle_setup.command(name="duels")
+    async def cmd_spaetzle_setup_duels(self, ctx):
+        pass
