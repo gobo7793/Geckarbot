@@ -524,10 +524,11 @@ class EmbedCmd(Cmd):
         Builds the embed that this cmd represents. Only complete fields (with title and value) are added.
         :return: Embed object if there is at least one complete field; None otherwise
         """
-        r = Embed(title=self.header)
+        r = Embed()
         found = False
         if self.header:
-            found = self.header
+            found = True
+            r.title = self.header
         for el in self.fields:
             if el.title and el.value:
                 found = True
@@ -585,6 +586,10 @@ class EmbedCmd(Cmd):
 
         if not entries:
             entries.append(Lang.lang(self.plugin, "embed_info_no_fields"))
+
+        if self.header:
+            header = [Lang.lang(self.plugin, "embed_info_header_prefix", self.header)]
+            entries = header + entries
 
         for msg in paginate(entries,
                             delimiter="\n\n",
@@ -1091,7 +1096,7 @@ class Plugin(BasePlugin, name="Custom CMDs"):
             return None
 
         # include msg == " " etc
-        if not msg.strip():
+        if msg is None or not msg.strip():
             msg = None
 
         if not cmd.has_delete_permission(ctx.author):
@@ -1110,6 +1115,44 @@ class Plugin(BasePlugin, name="Custom CMDs"):
     @cmd.command(name="header", hidden=True)
     async def cmd_header(self, ctx, cmd_name, *, msg: Optional[str]):
         await self._handler_cmd_embed_header(ctx, cmd_name, msg)
+
+    """
+    cmd embed swap command
+    """
+    async def _handler_cmd_embed_swap(self, ctx, cmd_name: str, index1: int, index2: int):
+        cmd = await self._assert_embed_cmd(ctx, cmd_name)
+        if not cmd:
+            return
+
+        # Assert fields exist
+        not_found = index1
+        try:
+            field1 = cmd.fields[index1]
+            not_found = index2
+            field2 = cmd.fields[index2]
+        except IndexError:
+            await add_reaction(ctx.message, Lang.CMDERROR)
+            await ctx.send(Lang.lang(self, "embed_error_field_not_found", not_found))
+            return
+
+        # permissions: has to be author of at least one field title/value or cmd author
+        if not cmd.has_edit_permission(ctx.author, index1) and not cmd.has_edit_permission(ctx.author, index2):
+            await add_reaction(ctx.message, Lang.CMDNOPERMISSIONS)
+            await ctx.send(Lang.lang(self, "embed_error_no_edit_perms"))
+            return
+
+        cmd.fields[index1] = field2
+        cmd.fields[index2] = field1
+        self._save()
+        await add_reaction(ctx.message, Lang.CMDSUCCESS)
+
+    @cmd_embed.command(name="swap")
+    async def cmd_embed_swap(self, ctx, cmd_name: str, index1: int, index2: int):
+        await self._handler_cmd_embed_swap(ctx, cmd_name, index1, index2)
+
+    @cmd.command(name="swap", hidden=True)
+    async def cmd_swap(self, ctx, cmd_name: str, index1: int, index2: int):
+        await self._handler_cmd_embed_swap(ctx, cmd_name, index1, index2)
 
     async def list_aliases(self, ctx):
         """

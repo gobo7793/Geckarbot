@@ -26,6 +26,7 @@
         "embed_no_title": "_No title_",
         "embed_no_value": "_No value_",
         "embed_info_no_fields": "No fields created yet.",
+        "embed_info_header_prefix": "**Header:** {}",
         "embed_error_no_fields": "_No complete fields yet, please add fields or complete existing ones._",
         "embed_error_cmd_exists": "The command {}{} already exists.",
         "embed_error_is_embed_cmd": "This command is an embed command. Use `!cmd embed add` to add fields.",
@@ -86,14 +87,17 @@
         "desc_cmd_embed_add": "Creates a new embed command (comes with an initial empty field) or adds a new field to an existing embed command.",
         "usage_cmd_embed_add": "<cmd name>",
         "help_cmd_embed_header": "Sets the header of an embed",
-        "desc_cmd_embed_header": "Sets the header of an embed command.",
-        "usage_cmd_embed_header": "<header>",
+        "desc_cmd_embed_header": "Sets the header of an embed command. To remove it, leave the header text empty.",
+        "usage_cmd_embed_header": "[header]",
         "help_cmd_embed_title": "Sets the title of a field",
         "desc_cmd_embed_title": "Sets the title of an embed field. To get the ID of a field, use !cmd info.",
         "usage_cmd_embed_title": "<field id> <value>",
         "help_cmd_embed_value": "Sets the value of a field",
         "desc_cmd_embed_value": "Sets the value of an embed field. To get the ID of a field, use !cmd info.",
-        "usage_cmd_embed_value": "<field id> <value>"
+        "usage_cmd_embed_value": "<field id> <value>",
+        "help_cmd_embed_swap": "Swaps two fields",
+        "desc_cmd_embed_swap": "Swaps to fields of an embed command. After this operation, the field at position id 1 will be at position id 2 and vice versa.",
+        "usage_cmd_embed_swap": "<cmd name> <id 1> <id 2>"
     },
     "de_DE": {
         "add_exists": "Neuer Ausgabetext wird zum Benutzer-Kommando \"{}\" hinzugefügt.",
@@ -121,6 +125,7 @@
         "embed_no_title": "_Kein Titel_",
         "embed_no_value": "_Kein Wert_",
         "embed_info_no_fields": "Bisher wurden keine Felder erstellt.",
+        "embed_info_header_prefix": "**Header:** {}",
         "embed_error_no_fields": "_Keine vollständigen Felder vorhanden, bitte füge Felder hinzu oder vervollständige bestehende._",
         "embed_error_cmd_exists": "Das Kommando {}{} besteht bereits.",
         "embed_error_is_embed_cmd": "Dieses Kommando ist ein Embed-Kommando. Nutze `!cmd embed add`, um Felder hinzuzufügen.",
@@ -182,13 +187,16 @@
         "desc_cmd_embed_add": "Erstellt ein neues Embed-Kommando (inkl. initialem leerem Feld) oder fügt ein neues Feld zu einem bestehenden Embed-Kommando hinzu.",
         "usage_cmd_embed_add": "<Kommando>",
         "help_cmd_embed_header": "Setzt den Header eines Embeds",
-        "desc_cmd_embed_header": "Setzt den Header eines Embed-Kommandos.",
-        "usage_cmd_embed_header": "<Header>",
+        "desc_cmd_embed_header": "Setzt den Header eines Embed-Kommandos. Um den Header zu löschen, lasse den Header-Text leer. ",
+        "usage_cmd_embed_header": "[Header]",
         "help_cmd_embed_title": "Setzt den Titel eines Felds",
         "desc_cmd_embed_title": "Setzt den Titel eines Embed-Felds. Um die ID eines Felds einzusehen, nutze !cmd info.",
         "usage_cmd_embed_title": "<Feld-ID> <Titel>",
         "help_cmd_embed_value": "Setzt den Inhalt eines Felds",
         "desc_cmd_embed_value": "Setzt den Inhalt eines Embed-Felds. Um die ID eines Felds einzusehen, nutze !cmd info.",
-        "usage_cmd_embed_value": "<Feld-ID> <Inhalt>"
+        "usage_cmd_embed_value": "<Feld-ID> <Inhalt>",
+        "help_cmd_embed_swap": "Vertauscht zwei Felder",
+        "desc_cmd_embed_swap": "Vertauscht zwei Felder eines Embed-Kommandos. Nach dieser Operation wird das Feld an Position id 1 die Position id 2 haben und umgekehrt.",
+        "usage_cmd_embed_swap": "<Kommando> <id 1> <id 2>"
     }
 }
