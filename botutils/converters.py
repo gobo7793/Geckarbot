@@ -1,3 +1,4 @@
+import logging
 import re
 from typing import Optional, Union
 
@@ -8,6 +9,9 @@ from base.configurable import BasePlugin, NotFound
 from base.data import Config
 
 _id_regex = re.compile(r'([0-9]{15,21})$')
+
+
+logger = logging.getLogger(__name__)
 
 
 def _get_id_match(argument):
@@ -132,19 +136,24 @@ def get_embed_str(embed: Union[nextcord.Embed, str]) -> Union[nextcord.Embed, st
     return m
 
 
-def serialize_channel(channel: Union[nextcord.DMChannel, nextcord.TextChannel], author_id) -> dict:
+def serialize_channel(channel: Union[nextcord.DMChannel, nextcord.TextChannel],
+                      author_id: Optional[int] = None) -> dict:
     """
     Serializes channel into a dict that can be deserialized by deserialize_channel().
 
     :param channel: Channel to be serialized. Currently only supports `DMChannel` and `TextChannels`.
-    :param author_id: id of the user whose DM channel this might be
+    :param author_id: id of the user whose DM channel this might be (usually context author). Set this on initial
+        serialization of a channel.
     :return: dict{type: typestring, id: id}
     :raises RuntimeError: If channel is of a type that is not supported
     """
     if isinstance(channel, nextcord.DMChannel):
+        recipient_id = channel.recipient.id if channel.recipient is not None else author_id
+        if recipient_id is None:
+            raise RuntimeError("DMChannel serialization: Recipient ID not present")
         return {
             "type": "dm",
-            "id": author_id
+            "id": recipient_id
         }
 
     if isinstance(channel, nextcord.TextChannel):
@@ -177,6 +186,9 @@ async def deserialize_channel(channeldict: dict) -> Union[nextcord.DMChannel, ne
         r = user.dm_channel
         if r is None:
             r = await user.create_dm()
+        if r.recipient is None:
+            logger.debug("Deserialize DM Channel: Setting recipient")
+            r.recipient = user
         return r
 
     if channeldict["type"] == "text":
