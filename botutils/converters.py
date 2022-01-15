@@ -145,7 +145,8 @@ def serialize_channel(channel: Union[nextcord.DMChannel, nextcord.TextChannel],
     :param author_id: id of the user whose DM channel this might be (usually context author). Set this on initial
         serialization of a channel.
     :return: dict{type: typestring, id: id}
-    :raises RuntimeError: If channel is of a type that is not supported
+    :raises RuntimeError: If channel is of a type that is not supported or a DMChannel was attempted without
+        sufficient recipient information
     """
     if isinstance(channel, nextcord.DMChannel):
         recipient_id = channel.recipient.id if channel.recipient is not None else author_id
