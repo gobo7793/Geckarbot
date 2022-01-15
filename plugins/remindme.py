@@ -198,7 +198,15 @@ class Plugin(BasePlugin, name="remindme"):
         await utils.add_reaction(ctx.message, Lang.CMDSUCCESS)
 
     @cmd_remindme.command(name="explain")
-    async def cmd_reminder_explain(self, ctx):
+    async def cmd_reminder_explain(self, ctx, reminder_id: int = None):
+        if reminder_id:
+            if reminder_id not in self.reminders:
+                await ctx.send(Lang.lang(self, "explain_id_err", reminder_id))
+                return
+            await ctx.send(Lang.lang(self, "explain_id_message", reminder_id,
+                                     self.reminders[reminder_id].data['link']))
+            return
+
         if ctx.author not in self.explain_history:
             await utils.add_reaction(ctx.message, Lang.CMDNOCHANGE)
             await ctx.send(Lang.lang(self, "explain_notfound"))

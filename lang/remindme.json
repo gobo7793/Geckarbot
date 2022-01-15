@@ -29,8 +29,10 @@
         "remind_forbidden_suffix": "Sending this reminder to the original channel did not work so I am sending it directly to you.",
 
         "#3": "explain",
+        "explain_id_err": "Sorry, but a reminder with ID {} doesn't exist.",
         "explain_notfound": "I have not reminded you of anything so far, nothing to explain here.",
-        "explain_message": "The origin of your last reminder is this message: {}"
+        "explain_message": "The origin of your last reminder is this message: {}",
+        "explain_id_message": "The origin of the reminder with ID {} is this message: {}"
     },
     "de_DE": {
         "#1": "Help",
@@ -62,7 +64,9 @@
         "remind_forbidden_suffix": "Diese Erinnerung konnte nicht in den ursprünglichen Channel geschickt werden, weshalb du sie nun per DM erhältst.",
 
         "#3": "explain",
+        "explain_id_err": "Sorry, aber ich wüsste nicht, dass es eine Erinnerung mit der ID {} gäbe.",
         "explain_notfound": "Ich habe dich bisher an nichts erinnert, es gibt also nichts zu erklären.",
-        "explain_message": "Dein letzter Reminder kommt von hier: {}"
+        "explain_message": "Dein letzter Reminder kommt von hier: {}",
+        "explain_id_message": "Der Reminder mit der ID {} kommt von hier: {}"
     }
 }
