@@ -56,7 +56,7 @@ class Plugin(BasePlugin, name="remindme"):
             for rid, reminder in Storage().get(self)['reminders'].items():
                 chan = Config().bot.get_channel(reminder['chan'])
                 if chan is not None:
-                    chan = converters.serialize_channel(chan)
+                    chan = converters.serialize_channel(chan, 0)
                 reminder['chan'] = chan
 
         if version < 2:
@@ -251,7 +251,8 @@ class Plugin(BasePlugin, name="remindme"):
         self.reminders[reminder_id] = job
         if not is_restart:
             Storage().get(self)['reminders'][reminder_id] = job_data.copy()
-            Storage().get(self)['reminders'][reminder_id]['chan'] = converters.serialize_channel(job_data['chan'])
+            Storage().get(self)['reminders'][reminder_id]['chan'] = converters.serialize_channel(
+                job_data['chan'], user_id)
             Storage().save(self)
 
         return True

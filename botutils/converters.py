@@ -132,18 +132,19 @@ def get_embed_str(embed: Union[nextcord.Embed, str]) -> Union[nextcord.Embed, st
     return m
 
 
-def serialize_channel(channel: Union[nextcord.DMChannel, nextcord.TextChannel]) -> dict:
+def serialize_channel(channel: Union[nextcord.DMChannel, nextcord.TextChannel], author_id) -> dict:
     """
     Serializes channel into a dict that can be deserialized by deserialize_channel().
 
     :param channel: Channel to be serialized. Currently only supports `DMChannel` and `TextChannels`.
+    :param author_id: id of the user whose DM channel this might be
     :return: dict{type: typestring, id: id}
     :raises RuntimeError: If channel is of a type that is not supported
     """
     if isinstance(channel, nextcord.DMChannel):
         return {
             "type": "dm",
-            "id": channel.recipient.id
+            "id": author_id
         }
 
     if isinstance(channel, nextcord.TextChannel):
