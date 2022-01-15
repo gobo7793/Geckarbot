@@ -562,7 +562,7 @@ class EmbedCmd(Cmd):
             or permchecks.check_mod_access(user)
 
     def delete_by_id(self, user, del_id):
-        if not self.has_edit_permission(user, del_id):
+        if not self.has_edit_permission(user, del_id - 1):
             raise NoPermissions
         del self.fields[del_id - 1]
         if not self.header and not self.fields:
@@ -1127,22 +1127,22 @@ class Plugin(BasePlugin, name="Custom CMDs"):
         # Assert fields exist
         not_found = index1
         try:
-            field1 = cmd.fields[index1]
+            field1 = cmd.fields[index1 - 1]
             not_found = index2
-            field2 = cmd.fields[index2]
+            field2 = cmd.fields[index2 - 1]
         except IndexError:
             await add_reaction(ctx.message, Lang.CMDERROR)
             await ctx.send(Lang.lang(self, "embed_error_field_not_found", not_found))
             return
 
         # permissions: has to be author of at least one field title/value or cmd author
-        if not cmd.has_edit_permission(ctx.author, index1) and not cmd.has_edit_permission(ctx.author, index2):
+        if not cmd.has_edit_permission(ctx.author, index1 - 1) and not cmd.has_edit_permission(ctx.author, index2 - 1):
             await add_reaction(ctx.message, Lang.CMDNOPERMISSIONS)
             await ctx.send(Lang.lang(self, "embed_error_no_edit_perms"))
             return
 
-        cmd.fields[index1] = field2
-        cmd.fields[index2] = field1
+        cmd.fields[index1 - 1] = field2
+        cmd.fields[index2 - 1] = field1
         self._save()
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
