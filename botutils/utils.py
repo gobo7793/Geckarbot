@@ -221,7 +221,7 @@ async def log_exception(exception, context: Optional[Context] = None, title=":x:
         if isinstance(context.channel, TextChannel):
             embed.add_field(name='Channel', value=context.channel.name)
         if isinstance(context.channel, DMChannel):
-            embed.add_field(name='Channel', value=context.channel.recipient)
+            embed.add_field(name='Channel', value='DM Channel')
         if isinstance(context.channel, GroupChannel):
             embed.add_field(name='Channel', value=context.channel.recipients)
         embed.add_field(name='Author', value=context.author.display_name)
