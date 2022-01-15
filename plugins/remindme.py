@@ -4,7 +4,7 @@ from typing import Dict, Union
 
 from nextcord import Embed, DMChannel, TextChannel
 from nextcord.ext import commands
-from nextcord.errors import Forbidden, NotFound
+from nextcord.errors import Forbidden, NotFound as NCNotFound
 
 from botutils import utils, timeutils, converters
 from botutils.converters import get_best_username
@@ -291,7 +291,7 @@ class Plugin(BasePlugin, name="remindme"):
         if job.data['reference']:
             try:
                 reference = await channel.fetch_message(job.data['reference'])
-            except NotFound:
+            except NCNotFound:
                 pass
 
         try:
