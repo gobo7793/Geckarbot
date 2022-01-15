@@ -32,7 +32,7 @@ class Geckarbot(BaseBot):
     Basic bot info
     """
     NAME = "Geckarbot"
-    VERSION = "2.15.1"
+    VERSION = "2.16.0"
     PLUGIN_DIR = "plugins"
     CORE_PLUGIN_DIR = "coreplugins"
     CONFIG_DIR = "config"
