@@ -91,10 +91,10 @@
     },
     "de_DE": {
         "#0": "Satzteile",
-        "results_title": "Results:",
-        "and": "and",
-        "nobody": "Nobody",
-        "everyone": "Everyone",
+        "results_title": "Ergebnis:",
+        "and": "und",
+        "nobody": "Niemand",
+        "everyone": "allen",
 
         "#1": "Help",
         "help_kwiss": "Ein Trivia-Kwiss.",

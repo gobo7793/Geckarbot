@@ -251,7 +251,8 @@ class Plugin(BasePlugin, name="remindme"):
         self.reminders[reminder_id] = job
         if not is_restart:
             Storage().get(self)['reminders'][reminder_id] = job_data.copy()
-            Storage().get(self)['reminders'][reminder_id]['chan'] = converters.serialize_channel(job_data['chan'])
+            Storage().get(self)['reminders'][reminder_id]['chan'] = converters.serialize_channel(
+                job_data['chan'], author_id=user_id)
             Storage().save(self)
 
         return True
