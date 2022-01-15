@@ -133,7 +133,7 @@ class Cmd(abc.ABC):
         """
         pass
 
-    def has_delete_permission(self, user) -> bool:
+    def has_delete_permission(self, user: Union[User, Member]) -> bool:
         """
         Is called before a full delete of the cmd.
 
@@ -143,7 +143,7 @@ class Cmd(abc.ABC):
         return permchecks.check_mod_access(user) or user.id == self.creator_id
 
     @abc.abstractmethod
-    def delete_by_id(self, user, del_id):
+    def delete_by_id(self, user: Union[User, Member], del_id: int):
         """
         Called by del on an id. This method is not supposed to call Plugin._save(), the caller is.
 
@@ -398,6 +398,9 @@ class TextCmd(Cmd):
 
 
 class EmbedField:
+    """
+    Represents an embed field.
+    """
     def __init__(self, plugin: BasePlugin):
         """
         Embed field representation
@@ -452,9 +455,14 @@ class EmbedField:
         self.value_author = value_author
 
     def has_edit_permission(self, user):
-        return user == self.title_author or user == self.value_author
+        return user in (self.title_author, self.value_author)
 
-    def serialize(self):
+    def serialize(self) -> dict:
+        """
+        Serializes a field.
+
+        :return: Serialized EmbedField
+        """
         title = None
         if self.title:
             title = {
@@ -475,7 +483,16 @@ class EmbedField:
         }
 
     @classmethod
-    def deserialize(cls, plugin, field_dict):
+    def deserialize(cls, plugin, field_dict: dict):
+        """
+        Deserializes a field dict.
+
+        :param plugin: Plugin reference
+        :type: Plugin
+        :param field_dict: field dict as created by serialize()
+        :return: EmbedField
+        :rtype: EmbedField
+        """
         r = cls(plugin)
         title = field_dict["title"]
         if title:
@@ -992,10 +1009,10 @@ class Plugin(BasePlugin, name="Custom CMDs"):
     async def cmd_embed(self, ctx):
         await Config().bot.helpsys.cmd_help(ctx, self, ctx.command)
 
-    """
-    cmd embed add command
-    """
-    async def handler_add_embed(self, ctx, name):
+    ###
+    # cmd embed add command
+    ###
+    async def handler_add_embed(self, ctx, name: str):
         """
         Creates an embed cmd or adds an empty field.
 
@@ -1034,9 +1051,9 @@ class Plugin(BasePlugin, name="Custom CMDs"):
     async def cmd_embed_add(self, ctx, name: str):
         await self.handler_add_embed(ctx, name)
 
-    """
-    cmd embed title/value commands
-    """
+    ###
+    # cmd embed title/value commands
+    ###
     async def _get_embed_field(self, ctx, cmd_name, index) -> Optional[EmbedField]:
         cmd = await self._assert_embed_cmd(ctx, cmd_name)
         if not cmd:
@@ -1087,9 +1104,9 @@ class Plugin(BasePlugin, name="Custom CMDs"):
     async def cmd_value(self, ctx, cmd_name: str, index: int, *, msg):
         await self._handler_cmd_embed_value(ctx, cmd_name, index, msg)
 
-    """
-    cmd embed header command
-    """
+    ###
+    # cmd embed header command
+    ###
     async def _handler_cmd_embed_header(self, ctx, cmd_name: str, msg: Optional[str]):
         cmd = await self._assert_embed_cmd(ctx, cmd_name)
         if not cmd:
@@ -1116,9 +1133,9 @@ class Plugin(BasePlugin, name="Custom CMDs"):
     async def cmd_header(self, ctx, cmd_name, *, msg: Optional[str]):
         await self._handler_cmd_embed_header(ctx, cmd_name, msg)
 
-    """
-    cmd embed swap command
-    """
+    ###
+    # cmd embed swap command
+    ###
     async def _handler_cmd_embed_swap(self, ctx, cmd_name: str, index1: int, index2: int):
         cmd = await self._assert_embed_cmd(ctx, cmd_name)
         if not cmd:
