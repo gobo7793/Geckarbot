@@ -1,8 +1,16 @@
 {
     "en_US": {
-        "open_unable": "Sorry, but I'm unable to open this thread."
+        "channel_not_thread": "This is not a thread!",
+        "open_unable": "Sorry, but I'm unable to open this thread.",
+        "pin_err": "I tried, but failed?!",
+        "pin_no_reply": "Reply to the message ffs!",
+        "thread_not_owned": "I have no power here. Ask the owner."
     },
     "de_DE": {
-        "open_unable": "Uhm, ich kann gerade keinen Thread eröffnen?!"
+        "channel_not_thread": "Das hier ist kein Thread, sorry!",
+        "open_unable": "Uhm, ich kann gerade keinen Thread eröffnen?!",
+        "pin_err": "Ich habe versucht, aber irgendwas lief schief!",
+        "pin_no_reply": "Bitte antworte auf die Nachricht die du anpinnen willst!",
+        "thread_not_owned": "Ich habe keine Macht in diesem Raum :("
     }
 }
