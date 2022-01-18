@@ -2,11 +2,13 @@ import logging
 
 from nextcord import Embed
 from nextcord.ext import commands
+from nextcord.ext.commands import Context
 
 from Geckarbot import BasePlugin
 from base.data import Config, Lang, Storage
 from botutils import sheetsclient
-from botutils.utils import helpstring_helper
+from botutils.utils import helpstring_helper, add_reaction
+from plugins.spaetzle import views
 from services.helpsys import DefaultCategories
 from services.liveticker import LeagueRegistrationOLDB
 
@@ -24,7 +26,10 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
     def default_config(self, container=None):
         return {
             'config_version': 1,
-            'spaetzledoc_id': "1ZzEGP_J9WxJGeAm1Ri3er89L1IR1riq7PH2iKVDmfP8",
+            'ranges': {
+                'matches': "Q2:AH4"
+            },
+            'spaetzledoc_id': "1eUCYWLw09CBzxJj3Zx-t8ssVwdqsjRgzzj37paPtZIA",
         }
 
     def default_storage(self, container=None):
@@ -47,12 +52,12 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
         return sheetsclient.Client(self.bot, Config().get(self)['spaetzledoc_id'])
 
     @commands.group(name="spaetzle", aliases=["spätzle", "spätzles"])
-    async def cmd_spaetzle(self, ctx):
+    async def cmd_spaetzle(self, ctx: Context):
         if ctx.invoked_subcommand is None:
             await ctx.invoke(self.bot.get_command('spaetzle info'))
 
     @cmd_spaetzle.command(name="info")
-    async def cmd_spaetzle_info(self, ctx):
+    async def cmd_spaetzle_info(self, ctx: Context):
         """Sends info about the Spaetzles-Tippspiel"""
         spreadsheet = f"https://docs.google.com/spreadsheets/d/{Config().get(self)['spaetzledoc_id']}"
 
@@ -62,23 +67,30 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
         await ctx.send(embed=embed)
 
     @cmd_spaetzle.command(name="link")
-    async def cmd_spaetzle_doc_link(self, ctx):
+    async def cmd_spaetzle_doc_link(self, ctx: Context):
         """Sends the link to the spreadsheet"""
         await ctx.send(f"<https://docs.google.com/spreadsheets/d/{Config().get(self)['spaetzledoc_id']}>")
 
     @cmd_spaetzle.group(name="setup")
-    async def cmd_spaetzle_setup(self, ctx):
+    async def cmd_spaetzle_setup(self, ctx: Context):
         if ctx.invoked_subcommand is None:
             await ctx.invoke(self.bot.get_command('spaetzle setup matches'))
             await ctx.invoke(self.bot.get_command('spaetzle setup duels'))
 
     @cmd_spaetzle_setup.command(name="matches")
-    async def cmd_spaetzle_setup_matches(self, ctx):
+    async def cmd_spaetzle_setup_matches(self, ctx: Context):
         matchday = Storage().get(self)['matchday']
         match_list = await LeagueRegistrationOLDB.get_matches_by_matchday(league="bl1", matchday=matchday)
         await ctx.send(embed=Embed(title=Lang.lang(self, 'title_matchday', matchday),
-                                           description="\n".join(m.display_short() for m in match_list)))
+                                   description="\n".join(m.display_short() for m in match_list)),
+                       view=views.SetupMatchesConfirmation(self))
 
     @cmd_spaetzle_setup.command(name="duels")
-    async def cmd_spaetzle_setup_duels(self, ctx):
+    async def cmd_spaetzle_setup_duels(self, ctx: Context):
         pass
+
+    @cmd_spaetzle.command(name="setmatchday")
+    async def cmd_spaetzle_set_matchday(self, ctx: Context, matchday: int):
+        Storage().get(self)['matchday'] = matchday
+        Storage().save(self)
+        await add_reaction(ctx.message, Lang.CMDSUCCESS)
