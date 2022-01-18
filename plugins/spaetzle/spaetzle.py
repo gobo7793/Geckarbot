@@ -76,7 +76,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
     async def cmd_spaetzle_setup_matches(self, ctx):
         matchday = Storage().get(self)['matchday']
         match_list = await LeagueRegistrationOLDB.get_matches_by_matchday(league="bl1", matchday=matchday)
-        await ctx.send(embed=discord.Embed(title=Lang.lang(self, 'title_matchday', matchday),
+        await ctx.send(embed=Embed(title=Lang.lang(self, 'title_matchday', matchday),
                                            description="\n".join(m.display_short() for m in match_list)))
 
     @cmd_spaetzle_setup.command(name="duels")
