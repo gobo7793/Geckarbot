@@ -768,7 +768,7 @@ class Plugin(BasePlugin, name="Custom CMDs"):
 
         cmd = self._find_cmd(cmd_name)
         assert cmd
-        await cmd.invoke(msg, cmd_args)
+        await cmd.invoke(msg, *cmd_args)
 
     def _find_cmd(self, name) -> Optional[TextCmd]:
         """
