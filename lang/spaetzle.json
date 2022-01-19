@@ -3,16 +3,31 @@
         "help_spaetzle": "Commands for show or set many things related to the 'Spaetzle-Tippspiel'.",
 
         "info": "The Spaetzle(s)-Tippspiel is a prediction game where you compete in duels",
+        "set_err_no_path": "This path does not exist.",
+        "set_err_private": "This path can't be changed.",
+        "set_err_split": "Something is wrong. Tip: Use a | between path and value!",
+        "set_err_value": "I did not understand your new value.",
+
         "title_matchday": "Matchday {}",
 
-        "confirm": "Confirm"
+        "confirm": "Confirm",
+        "confirm_config": "Confirm Config",
+        "confirm_storage": "Confirm Storage",
+        "new_value": "New Value"
     },
     "de_DE": {
         "help_spaetzle": "Commands für das Zeigen und Verwalten des Spätzle(s)-Tippspiels",
 
         "info": "Das Spätzle(s)-Tippspiel ist ein Tippspiel aus dem Stuttgarter TM-Forum in dem die Teilnehmer nicht nur Bundesligaspiele tippen, sondern damit in Duellen gegeneinander antreten.",
+        "set_err_no_path": "Einen solchen Pfad gibt es nicht.",
+        "set_err_private": "Dieser Wert ist nicht änderbar.",
+        "set_err_split": "Etwas ist falsch, überprüfe bitte nochmal deine Eingabe. Tipp: Nutze ein | um Pfad und Wert abzutrennen!",
+        "set_err_value": "Ich verstehe den neuen Wert nicht.",
         "title_matchday": "Spieltag {}",
 
-        "confirm": "Bestätigung"
+        "confirm": "Bestätigung",
+        "confirm_config": "Bestätige Config",
+        "confirm_storage": "Bestätige Storage",
+        "new_value": "Neuer Wert"
     }
 }
