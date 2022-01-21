@@ -17,20 +17,20 @@ class CoroButton(ui.Button):
         await self.coro(self, interaction)
 
 
-class SingleButtonView(ui.View):
+class SingleItemView(ui.View):
     def __init__(self,
-                 button: ui.Button,
+                 item: ui.Item,
                  timeout: Optional[float] = 180.0):
         super().__init__(timeout=timeout)
-        self.add_item(button)
+        self.add_item(item)
 
 
-class MultiButtonView(ui.View):
+class MultiItemView(ui.View):
     def __init__(self,
-                 buttons: Iterable[ui.Button],
+                 items: Iterable[ui.Item],
                  timeout: Optional[float] = 180.0):
         super().__init__(timeout=timeout)
-        for item in buttons:
+        for item in items:
             self.add_item(item)
 
 
