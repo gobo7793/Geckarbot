@@ -10,7 +10,7 @@ from nextcord.utils import get
 
 from botutils import utils, converters, setter, stringutils
 from botutils.timeutils import to_unix_str, TimestampStyle
-from botutils.uiutils import SingleConfirmView
+from botutils.uiutils import SingleConfirmView, SingleButtonView
 from botutils.utils import execute_anything_sync, add_reaction
 from base.configurable import BasePlugin
 from base.data import Config, Lang
@@ -368,3 +368,10 @@ class Plugin(BasePlugin, name="Testing and debug things"):
 
         await ctx.send(msg, view=SingleConfirmView(self, user_id=ctx.author.id, data={'msg': msg},
                                                    confirm_coro=confirm))
+
+    @commands.command(name="button", hidden=True)
+    async def cmd_button(self, ctx: Context, *, msg: str):
+        async def wave(_, interaction: Interaction):
+            await interaction.send(":wave:", ephemeral=True)
+
+        await ctx.send(msg, view=SingleButtonView(label=msg, coro=wave))

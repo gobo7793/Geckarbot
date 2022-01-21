@@ -18,6 +18,25 @@ class CoroButton(ui.Button):
         await self.coro(self, interaction)
 
 
+class SingleButtonView(ui.View):
+    def __init__(self,
+                 label: Optional[str] = None,
+                 coro: Callable[[ui.Button, Interaction], Coroutine] = None,
+                 style=ButtonStyle.secondary,
+                 disabled=False,
+                 custom_id=None,
+                 emoji=None,
+                 row=None,
+                 timeout: Optional[float] = 180.0):
+        super().__init__(timeout=timeout)
+        if coro:
+            self.add_item(CoroButton(coro=coro, label=label, style=style, disabled=disabled, custom_id=custom_id,
+                                     emoji=emoji, row=row))
+        else:
+            self.add_item(ui.Button(label=label, style=style, disabled=disabled, custom_id=custom_id, emoji=emoji,
+                                    row=row))
+
+
 class SingleConfirmView(ui.View):
     async def confirm(self, button: ui.Button, interaction: Interaction):
         if self.user_id == interaction.user.id:
