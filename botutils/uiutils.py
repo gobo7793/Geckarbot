@@ -6,29 +6,30 @@ from base.configurable import Configurable
 from base.data import Lang
 
 
+class CoroButton(ui.Button):
+    def __init__(self,
+                 coro: Callable[[ui.Button, Interaction], Coroutine],
+                 *,
+                 style=ButtonStyle.secondary, label=None, disabled=False, custom_id=None, emoji=None, row=None):
+        super().__init__(style=style, label=label, disabled=disabled, custom_id=custom_id, emoji=emoji, row=row)
+        self.coro = coro
+
+    async def callback(self, interaction: Interaction):
+        await self.coro(self, interaction)
+
+
 class SingleConfirmView(ui.View):
-    class ConfirmButton(ui.Button):
-        def __init__(self, label: str, coro: Optional[Callable[[ui.Button, Interaction], Coroutine]] = None):
-            super().__init__(style=ButtonStyle.green, label=label)
-            self.coro = coro
+    async def confirm(self, button: ui.Button, interaction: Interaction):
+        if self.user_id == interaction.user.id:
+            if self.confirm_coro:
+                await self.confirm_coro(button, interaction)
+            await self.disable(button, interaction)
 
-        async def callback(self, interaction: Interaction):
-            if self.view.user_id == interaction.user.id:
-                if self.coro:
-                    await self.coro(self, interaction)
-                self.view.stop()
-
-    class AbortButton(ui.Button):
-        def __init__(self, coro: Optional[Callable[[ui.Button, Interaction], Coroutine]] = None):
-            super().__init__(style=ButtonStyle.red, label="X")
-            self.coro = coro
-
-        async def callback(self, interaction: Interaction):
-            if self.view.user_id == interaction.user.id:
-                if self.coro:
-                    await self.coro(self, interaction)
-                self.view.stop()
-
+    async def abort(self, button: ui.Button, interaction: Interaction):
+        if self.user_id == interaction.user.id:
+            if self.abort_coro:
+                await self.abort_coro(button, interaction)
+            await self.disable(button, interaction)
 
     def __init__(self,
                  plugin: Configurable,
@@ -40,12 +41,16 @@ class SingleConfirmView(ui.View):
                  data: Any = None,
                  timeout: Optional[float] = 180.0):
         super().__init__(timeout=timeout)
-        self.user_id = user_id
+        self.abort_coro = abort_coro
+        self.confirm_coro = confirm_coro
         self.data = data
-        self.add_item(self.ConfirmButton(label=Lang.lang(plugin, lang_key), coro=confirm_coro))
-        self.add_item(self.AbortButton(coro=abort_coro))
+        self.user_id = user_id
+        self.add_item(CoroButton(label=Lang.lang(plugin, lang_key), coro=self.confirm, style=ButtonStyle.green))
+        self.add_item(CoroButton(label='X', coro=self.abort, style=ButtonStyle.red))
 
-    def stop(self):
-        for item in self.children:
-            item.disabled = True
+    async def disable(self, button: ui.Button, interaction: Interaction):
+        self.clear_items()
+        button.disabled = True
+        self.add_item(button)
+        await interaction.message.edit(view=self)
         super().stop()
