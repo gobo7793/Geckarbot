@@ -1,4 +1,4 @@
-from typing import Optional, Any, Callable, Coroutine
+from typing import Optional, Any, Callable, Coroutine, Iterable
 
 from nextcord import ui, Interaction, ButtonStyle
 
@@ -19,21 +19,19 @@ class CoroButton(ui.Button):
 
 class SingleButtonView(ui.View):
     def __init__(self,
-                 label: Optional[str] = None,
-                 coro: Callable[[ui.Button, Interaction], Coroutine] = None,
-                 style=ButtonStyle.secondary,
-                 disabled=False,
-                 custom_id=None,
-                 emoji=None,
-                 row=None,
+                 button: ui.Button,
                  timeout: Optional[float] = 180.0):
         super().__init__(timeout=timeout)
-        if coro:
-            self.add_item(CoroButton(coro=coro, label=label, style=style, disabled=disabled, custom_id=custom_id,
-                                     emoji=emoji, row=row))
-        else:
-            self.add_item(ui.Button(label=label, style=style, disabled=disabled, custom_id=custom_id, emoji=emoji,
-                                    row=row))
+        self.add_item(button)
+
+
+class MultiButtonView(ui.View):
+    def __init__(self,
+                 buttons: Iterable[ui.Button],
+                 timeout: Optional[float] = 180.0):
+        super().__init__(timeout=timeout)
+        for item in buttons:
+            self.add_item(item)
 
 
 class SingleConfirmView(ui.View):

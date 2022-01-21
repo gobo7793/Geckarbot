@@ -1,8 +1,9 @@
 import asyncio
+import random
 from typing import Union, Optional
 from datetime import datetime
 
-from nextcord import TextChannel, Member, User, Role, Emoji, Interaction
+from nextcord import TextChannel, Member, User, Role, Emoji, Interaction, ButtonStyle
 from nextcord.ext import commands
 from nextcord.ext.commands import Context
 from nextcord.ui import Button
@@ -10,7 +11,7 @@ from nextcord.utils import get
 
 from botutils import utils, converters, setter, stringutils
 from botutils.timeutils import to_unix_str, TimestampStyle
-from botutils.uiutils import SingleConfirmView, SingleButtonView
+from botutils.uiutils import SingleConfirmView, SingleButtonView, CoroButton, MultiButtonView
 from botutils.utils import execute_anything_sync, add_reaction
 from base.configurable import BasePlugin
 from base.data import Config, Lang
@@ -373,4 +374,11 @@ class Plugin(BasePlugin, name="Testing and debug things"):
         async def wave(_, interaction: Interaction):
             await interaction.send(":wave:", ephemeral=True)
 
-        await ctx.send(msg, view=SingleButtonView(label=msg, coro=wave))
+        await ctx.send(msg, view=SingleButtonView(CoroButton(label=msg, coro=wave)))
+
+    @commands.command(name="multibutton", hidden=True)
+    async def cmd_multibutton(self, ctx: Context, *args):
+        await ctx.send(f"{len(args)}", view=MultiButtonView(buttons=[
+            Button(label=label, disabled=True,
+                   style=random.choice([ButtonStyle.blurple, ButtonStyle.green,
+                                        ButtonStyle.red, ButtonStyle.grey])) for label in args]))
