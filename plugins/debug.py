@@ -366,8 +366,7 @@ class Plugin(BasePlugin, name="Testing and debug things"):
         async def confirm(button: Button, interaction: Interaction):
             await interaction.send(button.view.data['msg'])
 
-        await ctx.send(msg, view=SingleConfirmView(self, user_id=ctx.author.id, data={'msg': msg},
-                                                   confirm_coro=confirm))
+        await ctx.send(msg, view=SingleConfirmView(confirm_coro=confirm, user_id=ctx.author.id, data={'msg': msg}))
 
     @commands.command(name="button", hidden=True)
     async def cmd_button(self, ctx: Context, *, msg: str):

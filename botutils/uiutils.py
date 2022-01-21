@@ -2,7 +2,6 @@ from typing import Optional, Any, Callable, Coroutine
 
 from nextcord import ui, Interaction, ButtonStyle
 
-from base.configurable import Configurable
 from base.data import Lang
 
 
@@ -51,12 +50,12 @@ class SingleConfirmView(ui.View):
             await self.disable(button, interaction)
 
     def __init__(self,
-                 plugin: Configurable,
-                 lang_key: str = 'confirm',
-                 *,
-                 user_id: Optional[int] = None,
                  confirm_coro: Optional[Callable[[ui.Button, Interaction], Coroutine]] = None,
+                 *,
+                 confirm_label: str = "Confirm",
+                 abort_label: str = "X",
                  abort_coro: Optional[Callable[[ui.Button, Interaction], Coroutine]] = None,
+                 user_id: Optional[int] = None,
                  data: Any = None,
                  timeout: Optional[float] = 180.0):
         super().__init__(timeout=timeout)
@@ -64,8 +63,9 @@ class SingleConfirmView(ui.View):
         self.confirm_coro = confirm_coro
         self.data = data
         self.user_id = user_id
-        self.add_item(CoroButton(label=Lang.lang(plugin, lang_key), coro=self.confirm, style=ButtonStyle.green))
-        self.add_item(CoroButton(label='X', coro=self.abort, style=ButtonStyle.red))
+        self.add_item(CoroButton(label=confirm_label, coro=self.confirm, style=ButtonStyle.green,
+                                 emoji=Lang.CMDSUCCESS))
+        self.add_item(CoroButton(label=abort_label, coro=self.abort, style=ButtonStyle.red))
 
     async def disable(self, button: ui.Button, interaction: Interaction):
         self.clear_items()
