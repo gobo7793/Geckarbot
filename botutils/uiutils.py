@@ -77,6 +77,23 @@ class SingleConfirmView(MultiItemView):
     :param timeout: Timeout in seconds from last interaction with the UI before no longer accepting input. If ``None``
            then there is no timeout.
     """
+    def __init__(self,
+                 confirm_coro: Optional[Callable[[ui.Button, Interaction], Coroutine]] = None,
+                 *,
+                 confirm_label: str = "Confirm",
+                 abort_label: str = "X",
+                 abort_coro: Optional[Callable[[ui.Button, Interaction], Coroutine]] = None,
+                 user_id: Optional[int] = None,
+                 data: Any = None,
+                 timeout: Optional[float] = 180.0):
+        super().__init__(timeout=timeout, items=(
+            CoroButton(label=confirm_label, coro=self.confirm, style=ButtonStyle.green, emoji=Lang.CMDSUCCESS),
+            CoroButton(label=abort_label, coro=self.abort, style=ButtonStyle.red)
+        ))
+        self.abort_coro = abort_coro
+        self.confirm_coro = confirm_coro
+        self.data = data
+        self.user_id = user_id
 
     async def confirm(self, button: ui.Button, interaction: Interaction):
         """
@@ -101,24 +118,6 @@ class SingleConfirmView(MultiItemView):
             if self.abort_coro:
                 await self.abort_coro(button, interaction)
             await self.disable(button, interaction)
-
-    def __init__(self,
-                 confirm_coro: Optional[Callable[[ui.Button, Interaction], Coroutine]] = None,
-                 *,
-                 confirm_label: str = "Confirm",
-                 abort_label: str = "X",
-                 abort_coro: Optional[Callable[[ui.Button, Interaction], Coroutine]] = None,
-                 user_id: Optional[int] = None,
-                 data: Any = None,
-                 timeout: Optional[float] = 180.0):
-        super().__init__(timeout=timeout, items=(
-            CoroButton(label=confirm_label, coro=self.confirm, style=ButtonStyle.green, emoji=Lang.CMDSUCCESS),
-            CoroButton(label=abort_label, coro=self.abort, style=ButtonStyle.red)
-        ))
-        self.abort_coro = abort_coro
-        self.confirm_coro = confirm_coro
-        self.data = data
-        self.user_id = user_id
 
     async def disable(self, button: ui.Button, interaction: Interaction):
         """
