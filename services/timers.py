@@ -495,7 +495,7 @@ class Timer:
         :param args: callback args
         :param kwargs: callback kwargs
         """
-        self.logger = logging.getLogger()
+        self.logger = logging.getLogger(__name__)
         self.bot = bot
         self.t = t
         self.callback = callback
@@ -511,6 +511,10 @@ class Timer:
     @property
     def has_run(self):
         return self._has_run
+
+    def __str__(self):
+        return "<Timer object; t: {}, has_run: {}, cancelled: {}, callback: {}>".format(
+            self.t, self._has_run, self.cancelled, self.callback)
 
     async def _task(self):
         """
@@ -543,6 +547,7 @@ class Timer:
 
         :raises HasAlreadyRun: Raised if `callback` was already scheduled (so the cancellation comes too late).
         """
+        self.logger.debug("Cancelling timer %s", self)
         if self.has_run:
             raise HasAlreadyRun(self.callback)
         self.task.cancel()

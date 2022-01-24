@@ -5,7 +5,7 @@ from typing import Optional
 from nextcord import Activity
 
 from plugins.lastfm.api import UnexpectedResponse
-from services.presence import PresenceMessage, PresencePriority, activitymap
+from services.presence import PresenceMessage, PresencePriority, SkipPresence, activitymap
 from services.timers import Timer
 from base.data import Storage, Lang
 from botutils.converters import get_best_user, get_best_username as gbu
@@ -16,6 +16,7 @@ class PresenceState:
     Represents the current state the presence message was in the last time the updater coro ran.
     """
     def __init__(self, lfm_presence_msg):
+        self.logger = logging.getLogger(__name__)
         self.presence_msg = lfm_presence_msg
         self.timer: Optional[Timer] = None
         self.cur_listener_dc = None
@@ -60,13 +61,16 @@ class PresenceState:
 
         :return: This PresenceState
         :rtype: PresenceState
+        :raises SkipPresence: If no active scrobble is being found
         """
+        self.logger.debug("Resetting presence message state")
         rnd = await self.presence_msg.get_random_lastfm_listener()
         self.cur_listener_dc, self.cur_listener_lfm, self.cur_song = rnd
         if self.cur_song is not None:
             self.format_song()
-        elif self.presence_msg.show_presence:
-            await self.presence_msg.plugin.bot.presence.skip()
+        else:
+            self.logger.debug("Nothing is being scrobbled at the moment, skipping presence")
+            raise SkipPresence
         return self
 
 
@@ -98,17 +102,15 @@ class LfmPresenceMessage(PresenceMessage):
 
     async def update(self):
         """
-        Updates the currently shown presence is necessary. Sets a timer to repeat this every minute while this
+        Updates the currently shown presence if necessary. Sets a timer to repeat this every minute while this
         presence is up.
-        :return:
         """
+        self.logger.debug("Updating presence message")
         if not self.is_currently_shown:
             return
 
         # first run, fill stuff
-        first = False
         if self.state is None:
-            first = True
             try:
                 self.state = PresenceState(self)
                 await self.state.reset()
@@ -117,7 +119,7 @@ class LfmPresenceMessage(PresenceMessage):
                 self.logger.error("Lastfm presence state reset: Unexpected Lastfm API response")
                 pass
 
-        if not first:
+        else:
             try:
                 song = await self.plugin.api.get_current_scrobble(self.state.cur_listener_lfm)
                 if song is None or not song == self.state.cur_song:
@@ -125,6 +127,10 @@ class LfmPresenceMessage(PresenceMessage):
             except UnexpectedResponse:
                 # continue to use old values
                 pass
+            except SkipPresence:
+                # no scrobbles found
+                await self.plugin.bot.presence.skip()
+                return
 
         self._activity = Activity(type=self._activity_type, name=self.state.cur_song_f)
         await self.bot.change_presence(activity=self.activity_type)
