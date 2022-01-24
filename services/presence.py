@@ -424,4 +424,5 @@ class Presence(BaseSubsystem):
         job.data["current_msg"] = new_msg
 
         if to_unset:
+            self.log.debug("Calling unset() on presence message %s", to_unset)
             await to_unset.unset()
