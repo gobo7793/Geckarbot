@@ -606,9 +606,13 @@ class Plugin(BasePlugin, name="LastFM"):
 
         q_quote = Question(Lang.lang(self, "quote_question_quote"), QuestionType.TEXT,
                            lang=self.lang_question, callback=self.quote_sanity_cb)
-        questionnaire = Questionnaire(self.bot, ctx.author, [q_quote], "lastfm quote", lang=self.lang_questionnaire)
+        dialog = Questionnaire(self.bot, ctx.author, [q_quote], "lastfm quote", lang=self.lang_questionnaire)
         await self.quote_so_far_helper(ctx.author, song)
-        await questionnaire.interrogate()
+        try:
+            await dialog.interrogate()
+        except Cancelled:
+            await add_reaction(ctx.message, Lang.CMDNOCHANGE)
+            return
         await ctx.author.send(Lang.lang(self, "quote_done"))
 
         # Build new quote

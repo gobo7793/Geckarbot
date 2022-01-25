@@ -11,7 +11,7 @@ from botutils import converters
 from botutils.permchecks import is_botadmin
 from botutils.stringutils import paginate
 from botutils.converters import get_best_username as gbu
-from botutils.utils import add_reaction, write_debug_channel
+from botutils.utils import add_reaction, write_debug_channel, helpstring_helper
 from services.helpsys import DefaultCategories
 
 
@@ -61,17 +61,23 @@ class Plugin(BasePlugin, name="Bot status commands for monitoring and debug purp
             'max_dump': 4  # maximum storage/configdump messages to show
         }
 
+    def command_help_string(self, command):
+        return helpstring_helper(self, command, "help")
+
+    def command_description(self, command):
+        return helpstring_helper(self, command, "desc")
+
+    def command_usage(self, command):
+        return helpstring_helper(self, command, "usage")
+
     @commands.command(name="subsys", hidden=True)
     async def cmd_subsys(self, ctx):
         await ctx.send("Did you mean: `!service`")
 
-    @commands.command(name="service", aliases=["services"], help="Shows registrations on services",
-                      description="Shows registrations on services. If a service name is given, "
-                                  "only registrations for this service will be shown.",
-                      usage="[dmlisteners|ignoring|liveticker|presence|reactions|timers]")
+    @commands.command(name="service", aliases=["services"])
     @commands.has_any_role(Config().BOT_ADMIN_ROLE_ID)
     async def cmd_service(self, ctx, subsystem=""):
-        if not subsystem or subsystem == "reactions":
+        if not subsystem or subsystem in ("reactions", "reaction"):
             reaction_prefix = "**{} Reactions registrations:**\n".format(len(self.bot.reaction_listener.registrations))
             for msg in paginate(self.bot.reaction_listener.registrations,
                                 prefix=reaction_prefix,
@@ -79,7 +85,7 @@ class Plugin(BasePlugin, name="Bot status commands for monitoring and debug purp
                                 if_empty="None"):
                 await ctx.send(msg)
 
-        if not subsystem or subsystem == "timers":
+        if not subsystem or subsystem in ("timers", "timer"):
             timer_prefix = "**{} Timers; registrations:**\n".format(len(self.bot.timers.jobs))
             for msg in paginate(self.bot.timers.jobs,
                                 prefix=timer_prefix,
@@ -87,7 +93,7 @@ class Plugin(BasePlugin, name="Bot status commands for monitoring and debug purp
                                 if_empty="None"):
                 await ctx.send(msg)
 
-        if not subsystem or subsystem == "dmlisteners":
+        if not subsystem or subsystem in ("dmlisteners", "dmlistener", "dm"):
             dmregs = self.bot.dm_listener.registrations
             if not dmregs:
                 dmregs = {0: "None"}
@@ -108,7 +114,7 @@ class Plugin(BasePlugin, name="Bot status commands for monitoring and debug purp
                                 if_empty="None"):
                 await ctx.send(msg)
 
-        if not subsystem or subsystem == "ignoring":
+        if not subsystem or subsystem in ("ignoring", "ignore"):
             ignoring_prefix = "**{} Ignoring entries:**\n".format(self.bot.ignoring.get_full_ignore_len())
             for msg in paginate(list(self.bot.ignoring.get_full_ignore_list()),
                                 prefix=ignoring_prefix,
@@ -195,22 +201,22 @@ class Plugin(BasePlugin, name="Bot status commands for monitoring and debug purp
                 return
             await ctx.send(el)
 
-    @commands.command(name="storagedump", help="Dumps plugin storage", usage="<plugin name> [container]")
+    @commands.command(name="storagedump")
     @commands.has_any_role(Config().BOT_ADMIN_ROLE_ID)
     async def cmd_storagedump(self, ctx, name, container=None):
         await self._dump(ctx, Storage, name, container=container)
 
-    @commands.command(name="configdump", help="Dumps plugin config", usage="<plugin name> [container]")
+    @commands.command(name="configdump")
     @commands.has_any_role(Config().BOT_ADMIN_ROLE_ID)
     async def cmd_configdump(self, ctx, name, container=None):
         await self._dump(ctx, Config, name, container=container)
 
-    @commands.command(name="date", help="Current date and time")
+    @commands.command(name="date")
     async def cmd_date(self, ctx):
         now = datetime.now()
         await ctx.send(now.strftime('%d.%m.%Y %H:%M:%S.%f'))
 
-    @commands.command(name="debug", help="Print or change debug mode at runtime", usage="[true|on|off|false|toggle]")
+    @commands.command(name="debug")
     @commands.has_any_role(Config().BOT_ADMIN_ROLE_ID)
     async def cmd_debug(self, ctx, arg=None):
         toggle = None
@@ -232,7 +238,7 @@ class Plugin(BasePlugin, name="Bot status commands for monitoring and debug purp
             self.bot.set_debug_mode(toggle)
             await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
-    @commands.command(name="livetickerkill", help="Kills all liveticker registrations")
+    @commands.command(name="livetickerkill")
     @commands.has_any_role(Config().BOT_ADMIN_ROLE_ID)
     async def cmd_liveticker_kill(self, ctx):
         for c_reg in list(self.bot.liveticker.search_coro()):
@@ -246,7 +252,6 @@ class Plugin(BasePlugin, name="Bot status commands for monitoring and debug purp
 
     @commands.command(name="dmreg")
     async def cmd_listdmreg(self, ctx, user: Union[Member, User, None] = None):
-        print(user)
         if user is None:
             user = ctx.author
 
