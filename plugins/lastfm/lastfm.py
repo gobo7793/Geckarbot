@@ -651,9 +651,9 @@ class Plugin(BasePlugin, name="LastFM"):
         # Acquire quotes
         candidates = self.get_quotes(song.artist, song.title)
         quotes = {}
-        for el in candidates.values():
-            if not restricted or user.id == el["author"]:
-                quotes[el] = el
+        for key, quote in candidates.items():
+            if not restricted or user.id == quote["author"]:
+                quotes[key] = quote
         if not quotes:
             await user.send(Lang.lang(self, "quote_del_empty"))
             await add_reaction(ctx.message, Lang.CMDNOCHANGE)
