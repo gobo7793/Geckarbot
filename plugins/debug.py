@@ -11,7 +11,7 @@ from nextcord.utils import get
 
 from botutils import utils, converters, setter, stringutils
 from botutils.timeutils import to_unix_str, TimestampStyle
-from botutils.uiutils import SingleConfirmView, SingleItemView, CoroButton, MultiItemView
+from botutils.uiutils import SingleConfirmView, SingleItemView, CoroButton, MultiItemView, MultiConfirmView
 from botutils.utils import execute_anything_sync, add_reaction
 from base.configurable import BasePlugin
 from base.data import Config, Lang
@@ -382,3 +382,11 @@ class Plugin(BasePlugin, name="Testing and debug things"):
             Button(label=label, disabled=True,
                    style=random.choice([ButtonStyle.blurple, ButtonStyle.green,
                                         ButtonStyle.red, ButtonStyle.grey])) for label in args]))
+
+    @commands.command(name="multiconfirm", hidden=True)
+    async def cmd_multiconfirm(self, ctx: Context, disable_separately: bool, *args):
+        async def confirm(button: Button, interaction: Interaction):
+            await interaction.send(button.label, ephemeral=True)
+        await ctx.send(f"{len(args)}",
+                       view=MultiConfirmView(user_id=ctx.author.id, buttons=[CoroButton(confirm, label=x) for x in args],
+                                             disable_separately=disable_separately))

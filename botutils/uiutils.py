@@ -1,4 +1,4 @@
-from typing import Optional, Any, Callable, Coroutine, Iterable
+from typing import Optional, Any, Callable, Coroutine, Iterable, Dict
 
 from nextcord import ui, Interaction, ButtonStyle
 
@@ -60,6 +60,75 @@ class MultiItemView(ui.View):
         super().__init__(timeout=timeout)
         for item in items:
             self.add_item(item)
+
+
+class MultiConfirmView(MultiItemView):
+    """
+    Confirmation View with multiple options.
+
+    :param buttons: Confirm options
+    :param user_id: If set, buttons will only respond if pressed by the specified user. Otherwise, every user can
+       execute the actions
+    :param abort_button: Custom abort button
+    :param disable_separately: If set to True, multiple options can be picked. Otherwise the view will disable
+        itself after first entry
+    :param data: Opaque object that is set to self.data
+    :param timeout: Timeout in seconds from last interaction with the UI before no longer accepting input. If ``None``
+       then there is no timeout.
+    """
+    def __init__(self,
+                 buttons: Iterable[ui.Button],
+                 *,
+                 user_id: Optional[int] = None,
+                 abort_button: Optional[ui.Button] = None,
+                 disable_separately: bool = False,
+                 data: Any = None,
+                 timeout: Optional[float] = 180.0):
+        if abort_button:
+            abort_button.style = ButtonStyle.red
+        else:
+            abort_button = ui.Button(label="X", style=ButtonStyle.red)
+        for item in buttons:
+            item.style = ButtonStyle.green
+        self.data = data
+        self.disable_separately = disable_separately
+        self.user_id = user_id
+        self.coro_dict: Dict[ui.Button, Callable] = {}
+        refactored_items = []
+        for item in (*buttons, abort_button):
+            if isinstance(item, CoroButton):
+                self.coro_dict[item] = item.coro
+                item.coro = self.execute_action
+            else:
+                item = CoroButton(self.execute_action, style=item.style, label=item.label, disabled=item.disabled,
+                                  custom_id=item.custom_id, emoji=item.emoji, row=item.row)
+            refactored_items.append(item)
+        super().__init__(items=refactored_items, timeout=timeout)
+
+    async def execute_action(self, button: ui.Button, interaction: Interaction):
+        """Executes action originally assigned to button"""
+        if self.user_id == interaction.user.id:
+            if button in self.coro_dict:
+                await self.coro_dict[button](button, interaction)
+            await self.disable(button, interaction)
+
+    async def disable(self, button: ui.Button, interaction: Interaction):
+        """
+        Disable pressed button (respectively all buttons if disable_separately is False or button is abort) and stop
+        the view if nothing left.
+
+        :param button: Pressed button
+        :param interaction: Interaction object
+        """
+        button.disabled = True
+        if button.style == ButtonStyle.red or not self.disable_separately:
+            for item in self.children[:]:
+                if not item.disabled:
+                    self.remove_item(item)
+        if all(item.disabled for item in self.children):
+            self.stop()
+        await interaction.message.edit(view=self)
+
 
 
 class SingleConfirmView(MultiItemView):
