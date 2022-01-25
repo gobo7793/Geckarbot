@@ -71,7 +71,7 @@ class Plugin(BasePlugin, name="Bot status commands for monitoring and debug purp
                       usage="[dmlisteners|ignoring|liveticker|presence|reactions|timers]")
     @commands.has_any_role(Config().BOT_ADMIN_ROLE_ID)
     async def cmd_service(self, ctx, subsystem=""):
-        if not subsystem or subsystem == "reactions":
+        if not subsystem or subsystem in ("reactions", "reaction"):
             reaction_prefix = "**{} Reactions registrations:**\n".format(len(self.bot.reaction_listener.registrations))
             for msg in paginate(self.bot.reaction_listener.registrations,
                                 prefix=reaction_prefix,
@@ -79,7 +79,7 @@ class Plugin(BasePlugin, name="Bot status commands for monitoring and debug purp
                                 if_empty="None"):
                 await ctx.send(msg)
 
-        if not subsystem or subsystem == "timers":
+        if not subsystem or subsystem in ("timers", "timer"):
             timer_prefix = "**{} Timers; registrations:**\n".format(len(self.bot.timers.jobs))
             for msg in paginate(self.bot.timers.jobs,
                                 prefix=timer_prefix,
@@ -87,7 +87,7 @@ class Plugin(BasePlugin, name="Bot status commands for monitoring and debug purp
                                 if_empty="None"):
                 await ctx.send(msg)
 
-        if not subsystem or subsystem == "dmlisteners":
+        if not subsystem or subsystem in ("dmlisteners", "dmlistener", "dm"):
             dmregs = self.bot.dm_listener.registrations
             if not dmregs:
                 dmregs = {0: "None"}
@@ -108,7 +108,7 @@ class Plugin(BasePlugin, name="Bot status commands for monitoring and debug purp
                                 if_empty="None"):
                 await ctx.send(msg)
 
-        if not subsystem or subsystem == "ignoring":
+        if not subsystem or subsystem in ("ignoring", "ignore"):
             ignoring_prefix = "**{} Ignoring entries:**\n".format(self.bot.ignoring.get_full_ignore_len())
             for msg in paginate(list(self.bot.ignoring.get_full_ignore_list()),
                                 prefix=ignoring_prefix,
