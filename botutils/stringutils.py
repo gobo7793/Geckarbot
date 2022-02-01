@@ -1,7 +1,7 @@
-import typing
 import re
 import locale
 from collections import namedtuple
+from typing import Union, Any, Callable, Optional
 
 import emoji
 from nextcord.ext import commands
@@ -44,7 +44,7 @@ def parse_number(s: str) -> Number:
     return Number(r, unit)
 
 
-def format_number(n: typing.Union[Number, int, float], decplaces: int = 2, split_unit: bool = True) -> str:
+def format_number(n: Union[Number, int, float], decplaces: int = 2, split_unit: bool = True) -> str:
     """
     Formats a number into a nice-looking string.
 
@@ -73,8 +73,8 @@ def format_number(n: typing.Union[Number, int, float], decplaces: int = 2, split
 
 
 def paginate(items: list, prefix: str = "", suffix: str = "", msg_prefix: str = "", msg_suffix: str = "",
-             delimiter: str = "\n", f: typing.Callable = lambda x: x,
-             if_empty: typing.Any = None, prefix_within_msg_prefix: bool = True, threshold: int = 1900) -> str:
+             delimiter: str = "\n", f: Callable = lambda x: x,
+             if_empty: Any = None, prefix_within_msg_prefix: bool = True, threshold: int = 1900) -> str:
     """
     Generator for pagination. Compiles the entries in `items` into strings that are shorter than 2000 (discord max
     message length). If a single item is longer than 2000, it is put into its own message.
@@ -156,7 +156,7 @@ def paginate(items: list, prefix: str = "", suffix: str = "", msg_prefix: str = 
 
 
 def format_andlist(andlist: list, ands: str = "and", emptylist: str = "nobody", fulllist: str = "everyone",
-                   fulllen: typing.Optional[int] = None) -> str:
+                   fulllen: Optional[int] = None) -> str:
     """
     Builds a string such as "a, b, c and d".
 
@@ -238,7 +238,7 @@ def clear_link(link: str) -> str:
     return link
 
 
-def table(tablelist: list, header: bool = False, prefix: str = "```", suffix: str = "```") -> str:
+def table(tablelist: Union[list, tuple], header: bool = False, prefix: str = "```", suffix: str = "```") -> str:
     """
     Takes a list of the form [[0, 1], [2, 3], [4, 5]], interprets it as a list of table lines and formats it into
     a string that (assuming monospace) looks like a table.

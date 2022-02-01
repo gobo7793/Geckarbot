@@ -1,27 +1,34 @@
 import logging
+from typing import Optional, Dict
 
 from nextcord.ext import commands
 
 from base.configurable import BasePlugin
-from base.data import Config, Lang
+from base.data import Config, Lang, Storage
 from botutils.setter import ConfigSetter
-from botutils.utils import helpstring_helper, add_reaction
+from botutils.stringutils import table, paginate
+from botutils.utils import helpstring_helper, add_reaction, log_exception
 from services.helpsys import DefaultCategories
 
+from plugins.wordle.wordlist import fetch_powerlanguage_impl, WordList, Parsers
 
 BASE_CONFIG = {
     "value": [int, 1],
 }
 
 
-class Plugin(BasePlugin, name="Testing and debug things"):
+class Plugin(BasePlugin, name="Wordle"):
+    WORDLIST_CONTAINER = "wordlists"
+    WORDLIST_KEY = "lists"
 
     def __init__(self):
         super().__init__()
         Config().bot.register(self, category=DefaultCategories.GAMES)
         self.logger = logging.getLogger(__name__)
+        self.wordlists: Dict[str, WordList] = {}
 
         self.config_setter = ConfigSetter(self, BASE_CONFIG)
+        self.deserialize_wordlists()
 
     def get_config(self, key):
         return Config.get(self).get(key, BASE_CONFIG[key][1])
@@ -41,7 +48,21 @@ class Plugin(BasePlugin, name="Testing and debug things"):
     def command_usage(self, command):
         return helpstring_helper(self, command, "usage")
 
-    @commands.group(name="wordle")
+    def deserialize_wordlists(self):
+        self.logger.debug("Loading wordlists")
+        wls = Storage.get(self, container=self.WORDLIST_CONTAINER)
+        for key, wl in wls.items():
+            self.logger.debug("Reading wordlist {}".format(key))
+            self.wordlists[key] = WordList.deserialize(wl)
+
+    def save_wordlists(self):
+        r = {}
+        for key, wl in self.wordlists.items():
+            r[key] = wl.serialize()
+        Storage.set(self, r, container=self.WORDLIST_CONTAINER)
+        Storage.save(self, container=self.WORDLIST_CONTAINER)
+
+    @commands.group(name="wordle", invoke_without_command=True)
     async def cmd_wordle(self, ctx):
         await Config().bot.helpsys.cmd_help(ctx, self, ctx.command)
 
@@ -56,3 +77,44 @@ class Plugin(BasePlugin, name="Testing and debug things"):
             return
 
         await self.config_setter.set_cmd(ctx, key, value)
+
+    @cmd_wordle.command(name="wordlist")
+    async def cmd_wordlist(self, ctx, name: Optional[str] = None, url: Optional[str] = None):
+        if name and not url:
+            await add_reaction(ctx.message, Lang.CMDERROR)
+            await ctx.send(Lang.lang(self, "missing_argument"))
+            return
+
+        # list lists
+        if not name:
+            msgs = []
+            for name, wl in self.wordlists.items():
+                t = (
+                    (Lang.lang(self, "wordlist_url"), wl.url),
+                    (Lang.lang(self, "wordlist_parser"), wl.parser.value),
+                    (Lang.lang(self, "wordlist_solutions"), len(wl.solutions)),
+                    (Lang.lang(self, "wordlist_complement"), len(wl.complement)),
+                    (Lang.lang(self, "wordlist_total"), len(wl.solutions) + len(wl.complement)),
+                )
+                msgs.append("**{}**\n{}".format(name, table(t)))
+            if not msgs:
+                msgs.append(Lang.lang(self, "wordlist_no_lists"))
+            for msg in paginate(msgs, prefix=Lang.lang(self, "wordlist_list_title") + "\n", delimiter="\n\n"):
+                await ctx.send(msg)
+            return
+
+        # add list
+        if name in self.wordlists:
+            await add_reaction(ctx.message, Lang.CMDERROR)
+            ctx.send(Lang.lang(self, "wordlist_exists", name))
+            return
+        try:
+            wl = await fetch_powerlanguage_impl(url)
+        except Exception as e:
+            await add_reaction(ctx.message, Lang.CMDERROR)
+            await ctx.send(Lang.lang(self, "parse_error"))
+            await log_exception(e, context=ctx, title=":x: Wordle word list parse error")
+            return
+        self.wordlists[name] = wl
+        self.save_wordlists()
+        await ctx.send(wl)

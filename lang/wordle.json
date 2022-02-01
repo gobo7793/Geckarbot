@@ -2,12 +2,46 @@
     "en_US": {
         "#0": "Help",
         "help_wordle": "Wordle",
-        "desc_wordle": "Commands for wordle."
+        "desc_wordle": "Commands for wordle.",
+        "help_wordle_wordlist": "Word list management",
+        "desc_wordle_wordlist": "Adds and lists word lists from standard wordle implementations.",
+        "usage_wordle_wordlist": "[<name> <url>]",
+
+        "#1": "Error",
+        "missing_argument": "Not enough arguments.",
+
+        "#2": "Wordlist",
+        "wordlist_list_title": "Available word lists:",
+        "wordlist_url": "URL",
+        "wordlist_parser": "Parser",
+        "wordlist_solutions": "Solutions",
+        "wordlist_complement": "Complement",
+        "wordlist_total": "Total",
+        "wordlist_no_lists": "_None_",
+        "parse_error": "Parse error",
+        "wordlist_exists": "Word list `{}` already exists."
     },
 
     "de_DE": {
         "#0": "Help",
         "help_wordle": "Wordle",
-        "desc_wordle": "Kommandos für Wordle."
+        "desc_wordle": "Kommandos für Wordle.",
+        "help_wordle_wordlist": "Wortlistenverwaltung",
+        "desc_wordle_wordlist": "Adds and lists word lists from standard wordle implementations.",
+        "usage_wordle_wordlist": "[<Name> <URL>]",
+
+        "#1": "Error",
+        "missing_argument": "Nicht genügend Argumente.",
+
+        "#2": "Wordlist",
+        "wordlist_list_title": "Bekannte Wortlisten:",
+        "wordlist_url": "URL",
+        "wordlist_parser": "Parser",
+        "wordlist_solutions": "Lösungen",
+        "wordlist_complement": "Komplement",
+        "wordlist_total": "Gesamt",
+        "wordlist_no_lists": "_Keine_",
+        "parse_error": "Parsing-Fehler",
+        "wordlist_exists": "Wortliste `{}` existiert bereits."
     }
 }
