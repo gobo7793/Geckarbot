@@ -1,0 +1,13 @@
+{
+    "en_US": {
+        "#0": "Help",
+        "help_wordle": "Wordle",
+        "desc_wordle": "Commands for wordle."
+    },
+
+    "de_DE": {
+        "#0": "Help",
+        "help_wordle": "Wordle",
+        "desc_wordle": "Kommandos für Wordle."
+    }
+}
