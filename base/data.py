@@ -67,7 +67,7 @@ class ConfigurableData:
                 return True
         except (OSError, InterruptedError, OverflowError, ValueError, TypeError):
             logging.error("Error writing config file %s", self._filepath(container=container))
-            return False
+            raise
 
     def _read_file(self, container=None, silent=False):
         """Reads the file_name.json and returns the content or None if errors"""
