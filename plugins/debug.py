@@ -388,7 +388,8 @@ class Plugin(BasePlugin, name="Testing and debug things"):
         async def confirm(button: Button, interaction: Interaction):
             await interaction.send(button.label, ephemeral=True)
         await ctx.send(f"{len(args)}",
-                       view=MultiConfirmView(user_id=ctx.author.id, buttons=[CoroButton(confirm, label=x) for x in args],
+                       view=MultiConfirmView(user_id=ctx.author.id,
+                                             buttons=[CoroButton(confirm, label=x) for x in args],
                                              disable_separately=disable_separately))
 
     @commands.command(name="select", hidden=True)
