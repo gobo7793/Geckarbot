@@ -3,10 +3,10 @@ import random
 from typing import Union, Optional
 from datetime import datetime
 
-from nextcord import TextChannel, Member, User, Role, Emoji, Interaction, ButtonStyle
+from nextcord import TextChannel, Member, User, Role, Emoji, Interaction, ButtonStyle, SelectOption
 from nextcord.ext import commands
 from nextcord.ext.commands import Context
-from nextcord.ui import Button
+from nextcord.ui import Button, Select
 from nextcord.utils import get
 
 from botutils import utils, converters, setter, stringutils
@@ -390,3 +390,13 @@ class Plugin(BasePlugin, name="Testing and debug things"):
         await ctx.send(f"{len(args)}",
                        view=MultiConfirmView(user_id=ctx.author.id, buttons=[CoroButton(confirm, label=x) for x in args],
                                              disable_separately=disable_separately))
+
+    @commands.command(name="select", hidden=True)
+    async def cmd_select(self, ctx: Context):
+        await ctx.send("Select!", view=SingleItemView(item=Select(placeholder="TEST", options=[
+            SelectOption(label="Option 1"),
+            SelectOption(label="Option 2", emoji=Lang.CMDSUCCESS),
+            SelectOption(label="Option 3", emoji=Lang.CMDERROR, description="description"),
+            SelectOption(label="Option 4", emoji=Lang.CMDNOPERMISSIONS),
+            SelectOption(label="Option 5")
+        ])))
