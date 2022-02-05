@@ -13,7 +13,9 @@
         "confirm": "Confirm",
         "confirm_config": "Confirm Config",
         "confirm_storage": "Confirm Storage",
-        "new_value": "New Value"
+        "matchday": "Matchday",
+        "new_value": "New Value",
+        "participants_x": "Participants League {}"
     },
     "de_DE": {
         "help_spaetzle": "Commands für das Zeigen und Verwalten des Spätzle(s)-Tippspiels",
@@ -28,6 +30,8 @@
         "confirm": "Bestätigung",
         "confirm_config": "Bestätige Config",
         "confirm_storage": "Bestätige Storage",
-        "new_value": "Neuer Wert"
+        "matchday": "Spieltag",
+        "new_value": "Neuer Wert",
+        "participants_x": "Teilnehmer Liga {}"
     }
 }
