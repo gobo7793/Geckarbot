@@ -1,6 +1,5 @@
-import json
 import logging
-from json import JSONDecodeError
+from typing import Literal
 
 from nextcord import Embed
 from nextcord.ext import commands
@@ -9,7 +8,8 @@ from nextcord.ext.commands import Context
 from Geckarbot import BasePlugin
 from base.data import Config, Lang, Storage
 from botutils import sheetsclient
-from botutils.utils import helpstring_helper
+from botutils.uiutils import SingleConfirmView
+from botutils.utils import helpstring_helper, add_reaction
 from plugins.spaetzle import views
 from services.helpsys import DefaultCategories
 from services.liveticker import LeagueRegistrationOLDB
@@ -37,7 +37,8 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
     def default_storage(self, container=None):
         return {
             '_storage_version': 1,
-            'matchday': 0
+            'matchday': 0,
+            'participants': {}
         }
 
     def command_help_string(self, command):
@@ -91,53 +92,27 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
     async def cmd_spaetzle_setup_duels(self, ctx: Context):
         pass
 
-    @cmd_spaetzle.command(name="set")
-    async def cmd_spaetzle_set(self, ctx: Context, *, args: str):
-        class Missing:
-            @staticmethod
-            def get(*_):
-                return Missing()
+    @cmd_spaetzle.group(name="set")
+    async def cmd_spaetzle_set(self, ctx: Context):
+        if ctx.invoked_subcommand is None:
+            pass
 
-        path, *value_list = args.split(" | ")
-        steps = path.split(" ")
-        if value_list:
-            value = " | ".join(value_list)
-        else:
-            value = " ".join(steps[-1:])
-            steps = steps[:-1]
-        if not steps:
-            await ctx.send(Lang.lang(self, 'set_err_split'))
-            return
+    @cmd_spaetzle_set.command(name="matchday")
+    async def cmd_spaetzle_set_matchday(self, ctx: Context, matchday: int):
+        async def confirm(_b, _i):
+            Storage().get(self)['matchday'] = matchday
+            Storage().save(self)
+            await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
-        try:
-            value_json = json.loads(value)
-        except JSONDecodeError:
-            await ctx.send(Lang.lang(self, 'set_err_value'))
-            return
+        await ctx.send(embed=Embed(title=Lang.lang(self, 'matchday'), description=matchday),
+                       view=SingleConfirmView(confirm, user_id=ctx.author.id, confirm_label=Lang.lang(self, 'confirm')))
 
-        config = Config().get(self)
-        storage = Storage().get(self)
-        for step in steps:
-            if step.startswith("_"):
-                await ctx.send(Lang.lang(self, 'set_err_private'))
-                return
-            try:
-                config = config.get(step, Missing())
-            except (KeyError, AttributeError):
-                config = Missing()
-            try:
-                storage = storage.get(step, Missing())
-            except (KeyError, AttributeError):
-                storage = Missing()
-        embed = Embed(title=" > ".join(steps))
-        if not isinstance(config, Missing):
-            embed.add_field(name="Config", value=config)
-        if not isinstance(storage, Missing):
-            embed.add_field(name="Storage", value=storage)
-        if len(embed.fields) < 1:
-            await ctx.send(Lang.lang(self, 'set_err_no_path'))
-            return
-        embed.add_field(name=Lang.lang(self, 'new_value'), value=value_json)
-        await ctx.send(embed=embed, view=views.SetConfirmation(self, user_id=ctx.author.id, value=value_json,
-                                                               show_config=not isinstance(config, Missing),
-                                                               show_storage=not isinstance(storage, Missing)))
+    @cmd_spaetzle_set.command(name="participants")
+    async def cmd_spaetzle_set_participants(self, ctx: Context, league: Literal[1, 2, 3, 4], *participants: str):
+        async def confirm(_b, _i):
+            Storage().get(self)['participants'][league] = sorted(participants)
+            Storage().save(self)
+            await add_reaction(ctx.message, Lang.CMDSUCCESS)
+
+        await ctx.send(embed=Embed(title="Participants", description=", ".join(sorted(participants))),
+                       view=SingleConfirmView(confirm, user_id=ctx.author.id, confirm_label=Lang.lang(self, 'confirm')))
