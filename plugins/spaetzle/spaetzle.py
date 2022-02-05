@@ -114,5 +114,6 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             Storage().save(self)
             await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
-        await ctx.send(embed=Embed(title="Participants", description=", ".join(sorted(participants))),
+        await ctx.send(embed=Embed(title=Lang.lang(self, 'participants_x', league),
+                                   description=", ".join(sorted(participants))),
                        view=SingleConfirmView(confirm, user_id=ctx.author.id, confirm_label=Lang.lang(self, 'confirm')))
