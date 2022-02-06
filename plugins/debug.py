@@ -1,13 +1,17 @@
 import asyncio
+import random
 from typing import Union, Optional
 from datetime import datetime
 
-from nextcord import TextChannel, Member, User, Role, Emoji
+from nextcord import TextChannel, Member, User, Role, Emoji, Interaction, ButtonStyle, SelectOption
 from nextcord.ext import commands
+from nextcord.ext.commands import Context
+from nextcord.ui import Button, Select
 from nextcord.utils import get
 
 from botutils import utils, converters, setter, stringutils
 from botutils.timeutils import to_unix_str, TimestampStyle
+from botutils.uiutils import SingleConfirmView, SingleItemView, CoroButton, MultiItemView, MultiConfirmView
 from botutils.utils import execute_anything_sync, add_reaction
 from base.configurable import BasePlugin
 from base.data import Config, Lang
@@ -243,10 +247,6 @@ class Plugin(BasePlugin, name="Testing and debug things"):
             print(el)
         await utils.add_reaction(ctx.message, Lang.CMDSUCCESS)
 
-    @commands.command(name="livetickersuche", hidden=True)
-    async def cmd_livetickersuche(self, ctx, plugin=None, source=None, league=None):
-        await ctx.send(self.bot.liveticker.search(plugin=plugin, league=league, source=source))
-
     @staticmethod
     async def incr(ctx, i):
         await ctx.send(str(i + 1))
@@ -361,3 +361,43 @@ class Plugin(BasePlugin, name="Testing and debug things"):
         td = timedict_by_datetime(datetime.now())
         job = self.bot.timers.schedule(self.timerexec_cb, td, data=ctx)
         job.execute()
+
+    @commands.command(name="confirmbutton", hidden=True)
+    async def cmd_confirmbutton(self, ctx: Context, msg: str):
+        async def confirm(button: Button, interaction: Interaction):
+            await interaction.send(button.view.data['msg'])
+
+        await ctx.send(msg, view=SingleConfirmView(confirm_coro=confirm, user_id=ctx.author.id, data={'msg': msg}))
+
+    @commands.command(name="button", hidden=True)
+    async def cmd_button(self, ctx: Context, *, msg: str):
+        async def wave(_, interaction: Interaction):
+            await interaction.send(":wave:", ephemeral=True)
+
+        await ctx.send(msg, view=SingleItemView(CoroButton(label=msg, coro=wave)))
+
+    @commands.command(name="multibutton", hidden=True)
+    async def cmd_multibutton(self, ctx: Context, *args):
+        await ctx.send(f"{len(args)}", view=MultiItemView(items=[
+            Button(label=label, disabled=True,
+                   style=random.choice([ButtonStyle.blurple, ButtonStyle.green,
+                                        ButtonStyle.red, ButtonStyle.grey])) for label in args]))
+
+    @commands.command(name="multiconfirm", hidden=True)
+    async def cmd_multiconfirm(self, ctx: Context, disable_separately: bool, *args):
+        async def confirm(button: Button, interaction: Interaction):
+            await interaction.send(button.label, ephemeral=True)
+        await ctx.send(f"{len(args)}",
+                       view=MultiConfirmView(user_id=ctx.author.id,
+                                             buttons=[CoroButton(confirm, label=x) for x in args],
+                                             disable_separately=disable_separately))
+
+    @commands.command(name="select", hidden=True)
+    async def cmd_select(self, ctx: Context):
+        await ctx.send("Select!", view=SingleItemView(item=Select(placeholder="TEST", options=[
+            SelectOption(label="Option 1"),
+            SelectOption(label="Option 2", emoji=Lang.CMDSUCCESS),
+            SelectOption(label="Option 3", emoji=Lang.CMDERROR, description="description"),
+            SelectOption(label="Option 4", emoji=Lang.CMDNOPERMISSIONS),
+            SelectOption(label="Option 5")
+        ])))
