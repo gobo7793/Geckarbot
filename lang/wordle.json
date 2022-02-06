@@ -45,7 +45,7 @@
         "help_wordle": "Wordle",
         "desc_wordle": "Kommandos für Wordle.",
         "help_wordle_wordlist": "Wortlistenverwaltung",
-        "desc_wordle_wordlist": "Adds and lists word lists from standard wordle implementations.",
+        "desc_wordle_wordlist": "Fügt eine Wortliste hinzu oder listet die bestehenden Wortlisten auf.",
         "usage_wordle_wordlist": "[<Name> <URL>]",
         "help_wordle_play": "Startet ein Wordle.",
         "desc_wordle_play": "Startet ein Wordle für dich. Antworte mit einem 5-stelligen Wort, um zu raten.",
