@@ -174,7 +174,7 @@ class GameInstance:
                 await self.channel.send(self.format_guess(guess, history=history))
             else:
                 # done
-                kb = False if Correctness.INCORRECT else True
+                kb = self.game.done == Correctness.CORRECT
                 await self.channel.send(self.format_guess(guess, done=kb, history=history))
                 await self.channel.send(self.format_result())
                 self.plugin.mothership.deregister(self)
