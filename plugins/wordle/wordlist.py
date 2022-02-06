@@ -108,8 +108,6 @@ async def fetch_powerlanguage_impl(url: str) -> WordList:
     complement = normalize_wlist(lists[1])
     del lists
     if len(solutions) > len(complement):
-        t = solutions
-        solutions = complement
-        complement = t
+        solutions, complement = complement, solutions
 
     return WordList(url, Parsers.POWERLANGUAGE, tuple(solutions), tuple(complement))
