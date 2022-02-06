@@ -1,3 +1,4 @@
+import random
 from enum import Enum
 import aiohttp
 import re
@@ -12,13 +13,13 @@ class WordList:
     A word list consists of two lists: The solutions and the complement. They are disjunctive. Together,
     they form the entire word space.
     """
-    def __init__(self, url: str, parser: Parsers, solutions: set, complement: set):
+    def __init__(self, url: str, parser: Parsers, solutions: tuple, complement: tuple):
         """
 
         :param url: URL this was parsed from
         :param parser: parser that was used
-        :param solutions: set of words that can be a solution
-        :param complement: the remaining set of words
+        :param solutions: tuple of words that can be a solution
+        :param complement: tuple of the remaining words
         """
         self.url = url
         self.parser = parser
@@ -30,6 +31,9 @@ class WordList:
         p = self.parser.value
         c = len(self.complement)
         return "<WordList: url: {}; parser: {}; solutions: {}; complement: {}>".format(self.url, p, s, c)
+
+    def __contains__(self, item):
+        return item in self.solutions or item in self.complement
 
     def serialize(self):
         """
@@ -46,22 +50,23 @@ class WordList:
 
     @classmethod
     def deserialize(cls, d):
-        return cls(d["url"], Parsers(d["parser"]), set(d["solutions"]), set(d["complement"]))
+        return cls(d["url"], Parsers(d["parser"]), tuple(d["solutions"]), tuple(d["complement"]))
+
+    def randomSolution(self):
+        return random.choice(self.solutions)
 
 
-def normalize_wlist(wl) -> set:
+def normalize_wlist(wl) -> tuple:
     """
-    Takes a list of words and normalizes it into a lowercase set of itself.
+    Takes a list of words and normalizes it into a lowercase tuple of itself.
     Also asserts word list of 5.
 
     :param wl: list to normalize
-    :return: set
+    :return: tuple of words
     """
-    r = set()
     for el in sorted(wl):
         assert(len(el) == 5)
-        r.add(el.lower())
-    return r
+    return tuple(wl)
 
 
 async def fetch_powerlanguage_impl(url: str) -> WordList:
@@ -107,4 +112,4 @@ async def fetch_powerlanguage_impl(url: str) -> WordList:
         solutions = complement
         complement = t
 
-    return WordList(url, Parsers.POWERLANGUAGE, solutions, complement)
+    return WordList(url, Parsers.POWERLANGUAGE, tuple(solutions), tuple(complement))

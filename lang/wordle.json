@@ -6,9 +6,18 @@
         "help_wordle_wordlist": "Word list management",
         "desc_wordle_wordlist": "Adds and lists word lists from standard wordle implementations.",
         "usage_wordle_wordlist": "[<name> <url>]",
+        "help_wordle_play": "Starts a wordle",
+        "desc_wordle_play": "Starts a wordle for you. Answer with 5-character words to guess.",
+        "help_wordle_stop": "Stops a wordle",
+        "desc_wordle_stop": "Stops a wordle. When invoked withoud id, your current wordle in the channel is stopped.",
+        "usage_wordle_stop": "[id]",
+        "help_wordle_list": "Lists all wordles",
+        "desc_wordle_list": "Lists all running wordles.",
 
         "#1": "Error",
         "missing_argument": "Not enough arguments.",
+        "wordlist_not_found": "Unknown word list `{}`.",
+        "wordle_not_found": "Wordle instance not found.",
 
         "#2": "Wordlist",
         "wordlist_list_title": "Available word lists:",
@@ -19,7 +28,16 @@
         "wordlist_total": "Total",
         "wordlist_no_lists": "_None_",
         "parse_error": "Parse error",
-        "wordlist_exists": "Word list `{}` already exists."
+        "wordlist_exists": "Word list `{}` already exists.",
+
+        "#3": "Play",
+        "play_error_game_exists": "A wordle for {} in {} already exists.",
+        "play_not_in_list": "Not in word list.",
+        "play_intro": "I'm ready, start guessing.",
+        "play_wouldhavebeen": "It would have been: **{}**",
+        "play_keyboard_found": "- found",
+        "play_keyboard_unused": "- not used",
+        "play_keyboard_out": "- out"
     },
 
     "de_DE": {
@@ -29,9 +47,18 @@
         "help_wordle_wordlist": "Wortlistenverwaltung",
         "desc_wordle_wordlist": "Adds and lists word lists from standard wordle implementations.",
         "usage_wordle_wordlist": "[<Name> <URL>]",
+        "help_wordle_play": "Startet ein Wordle.",
+        "desc_wordle_play": "Startet ein Wordle für dich. Antworte mit einem 5-stelligen Wort, um zu raten.",
+        "help_wordle_stop": "Stoppt ein Wordle",
+        "desc_wordle_stop": "Stoppt ein Wordle. Wenn keine id übergeben wurde, wird dein momentanes Wordle im Channel gestoppt.",
+        "usage_wordle_stop": "[id]",
+        "help_wordle_list": "Listet alle Wordles",
+        "desc_wordle_list": "Listet alle laufenden Wordles auf.",
 
         "#1": "Error",
         "missing_argument": "Nicht genügend Argumente.",
+        "wordlist_not_found": "Unbekannt Wortliste `{}`.",
+        "wordle_not_found": "Wordle-Instanz nicht gefunden.",
 
         "#2": "Wordlist",
         "wordlist_list_title": "Bekannte Wortlisten:",
@@ -42,6 +69,15 @@
         "wordlist_total": "Gesamt",
         "wordlist_no_lists": "_Keine_",
         "parse_error": "Parsing-Fehler",
-        "wordlist_exists": "Wortliste `{}` existiert bereits."
+        "wordlist_exists": "Wortliste `{}` existiert bereits.",
+
+        "#3": "Play",
+        "play_error_game_exists": "Ein Wordle für {} in {} läuft bereits.",
+        "play_not_in_list": "Nicht in der Wortliste enthalten.",
+        "play_intro": "Bin bereit, leg los.",
+        "play_wouldhavebeen": "Es wäre gewesen: **{}**",
+        "play_keyboard_found": "- gefunden",
+        "play_keyboard_unused": "- nicht genutzt",
+        "play_keyboard_out": "- ausgeschlossen"
     }
 }

@@ -5,15 +5,27 @@ from nextcord.ext import commands
 
 from base.configurable import BasePlugin
 from base.data import Config, Lang, Storage
+from botutils.converters import get_best_username as gbu
+from botutils.permchecks import check_admin_access
 from botutils.setter import ConfigSetter
 from botutils.stringutils import table, paginate
 from botutils.utils import helpstring_helper, add_reaction, log_exception
 from services.helpsys import DefaultCategories
 
-from plugins.wordle.wordlist import fetch_powerlanguage_impl, WordList, Parsers
+from plugins.wordle.wordlist import fetch_powerlanguage_impl, WordList
+from plugins.wordle.gamehandler import Mothership, AlreadyRunning
 
 BASE_CONFIG = {
-    "value": [int, 1],
+    "default_wordlist": [str, "en"],
+    "format_guess_monospace": [bool, False],
+    "format_guess_include_word": [bool, False],
+    "format_guess_vertical": [bool, False],
+    "format_guess_history": [bool, False],
+    "format_guess_keyboard": [bool, False],
+    "format_guess_keyboard_gap": [str, ""],
+    "format_guess_keyboard_strike": [bool, True],
+    "format_guess_keyboard_monospace": [bool, False],
+    "format_guess_uppercase": [bool, True]
 }
 
 
@@ -29,6 +41,11 @@ class Plugin(BasePlugin, name="Wordle"):
 
         self.config_setter = ConfigSetter(self, BASE_CONFIG)
         self.deserialize_wordlists()
+        self.mothership = Mothership(self)
+
+    @commands.Cog.listener()
+    async def on_message(self, message):
+        await self.mothership.on_message(message)
 
     def get_config(self, key):
         return Config.get(self).get(key, BASE_CONFIG[key][1])
@@ -118,3 +135,61 @@ class Plugin(BasePlugin, name="Wordle"):
         self.wordlists[name] = wl
         self.save_wordlists()
         await ctx.send(wl)
+
+    @cmd_wordle.command(name="play")
+    async def cmd_wordle_play(self, ctx, wordlist: Optional[str] = None):
+        if not wordlist:
+            wordlist = self.get_config("default_wordlist")
+
+        if wordlist not in self.wordlists:
+            await add_reaction(ctx.message, Lang.CMDERROR)
+            await ctx.send(Lang.lang(self, "wordlist_not_found"))
+
+        wordlist = self.wordlists[wordlist]
+
+        try:
+            instance = await self.mothership.spawn(self, wordlist, ctx.author, ctx.channel)
+            if not instance.respawned:
+                await add_reaction(ctx.message, Lang.CMDSUCCESS)
+        except AlreadyRunning:
+            await ctx.send(Lang.lang(self, "play_error_game_exists", gbu(ctx.author), ctx.channel.mention))
+
+    @cmd_wordle.command(name="list")
+    async def cmd_wordle_list(self, ctx):
+        msgs = []
+        for i in range(len(self.mothership.instances)):
+            el = self.mothership.instances[i]
+            p = gbu(el.player)
+            g = el.game
+            msgs.append("**#{}** {} in {}, {}/{}".format(i+1, p, el.channel.mention, len(g.guesses), g.MAXTRIES))
+        for msg in paginate(msgs, prefix="_ _"):
+            await ctx.send(msg)
+
+    @cmd_wordle.command(name="stop")
+    async def cmd_wordle_stop(self, ctx, wid: Optional[int] = None):
+        # find instance
+        instance = None
+        if wid is not None:
+            try:
+                instance = self.mothership.instances[wid-1]
+            except IndexError:
+                pass
+
+            # permission check
+            if not check_admin_access(ctx.message.author) and ctx.message.author != instance.player:
+                await add_reaction(ctx.message, Lang.CMDNOPERMISSIONS)
+                return
+
+        else:
+            for el in self.mothership.instances:
+                if el.player == ctx.author and el.channel == ctx.channel:
+                    instance = el
+                    break
+
+        if instance is None:
+            await add_reaction(ctx.message, Lang.CMDERROR)
+            await ctx.send(Lang.lang(self, "wordle_not_found"))
+            return
+
+        self.mothership.deregister(instance)
+        await add_reaction(ctx.message, Lang.CMDSUCCESS)
