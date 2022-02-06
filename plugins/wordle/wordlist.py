@@ -1,7 +1,9 @@
 import random
-from enum import Enum
-import aiohttp
 import re
+from enum import Enum
+from typing import List
+
+import aiohttp
 
 
 class Parsers(Enum):
@@ -52,11 +54,11 @@ class WordList:
     def deserialize(cls, d):
         return cls(d["url"], Parsers(d["parser"]), tuple(d["solutions"]), tuple(d["complement"]))
 
-    def randomSolution(self):
+    def random_solution(self):
         return random.choice(self.solutions)
 
 
-def normalize_wlist(wl) -> tuple:
+def normalize_wlist(wl: List[str]) -> tuple:
     """
     Takes a list of words and normalizes it into a lowercase tuple of itself.
     Also asserts word list of 5.
@@ -65,7 +67,7 @@ def normalize_wlist(wl) -> tuple:
     :return: tuple of words
     """
     for el in sorted(wl):
-        assert(len(el) == 5)
+        assert len(el) == 5
     return tuple(wl)
 
 
@@ -75,6 +77,7 @@ async def fetch_powerlanguage_impl(url: str) -> WordList:
 
     :param url: wordle url
     :return: built WordList
+    :raises ValueError: If the script js was not found on the main page
     """
     session = aiohttp.ClientSession()
 
@@ -101,7 +104,7 @@ async def fetch_powerlanguage_impl(url: str) -> WordList:
     for i in range(len(lists)):
         wlist = lists[i][0]
         lists[i] = p.findall(wlist)
-    assert(len(lists) == 2)
+    assert len(lists) == 2
 
     # build WordList
     solutions = normalize_wlist(lists[0])

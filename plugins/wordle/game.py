@@ -25,6 +25,9 @@ class Guess:
 
     @property
     def is_correct(self) -> bool:
+        """
+        :return: Whether this guess was correct.
+        """
         for el in self.correctness:
             if el != Correctness.CORRECT:
                 return False
@@ -36,11 +39,11 @@ class Game:
     Represents a wordle game.
     """
     def __init__(self, wordlist: WordList, word: str = None):
-        self.MAXTRIES = 6
+        self.max_tries = 6
 
         self.wordlist = wordlist
         self.guesses: List[Guess] = []
-        self.solution = word if word else wordlist.randomSolution()
+        self.solution = word if word else wordlist.random_solution()
         self.solved = False
 
     @property
@@ -50,7 +53,7 @@ class Game:
         """
         if self.solved:
             return Correctness.CORRECT
-        if len(self.guesses) >= self.MAXTRIES:
+        if len(self.guesses) >= self.max_tries:
             return Correctness.INCORRECT
         return Correctness.PARTIALLY
 
@@ -79,7 +82,7 @@ class Game:
                         found_l.append(char_f)
                         found = True
                         break
-                    elif guess.correctness[i] == Correctness.INCORRECT:
+                    if guess.correctness[i] == Correctness.INCORRECT:
                         out_l.append(char_f)
                         found = True
                         break
@@ -101,7 +104,7 @@ class Game:
         :raises TypeError: if the word is too short or too long
         :raises ValueError: if the word is not in the word list
         """
-        if len(self.guesses) >= self.MAXTRIES:
+        if len(self.guesses) >= self.max_tries:
             raise RuntimeError("maximum amount of guesses reached")
         if self.solved:
             raise RuntimeError("game is already solved")

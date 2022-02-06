@@ -136,18 +136,17 @@ class GameInstance:
 
         return r
 
-    def format_result(self):
+    def format_result(self) -> str:
         """
         Formats the result of the game.
         """
         d = self.game.done
         if d == Correctness.CORRECT:
-            return "{}/{}".format(len(self.game.guesses), self.game.MAXTRIES)
+            return "{}/{}".format(len(self.game.guesses), self.game.max_tries)
         if d == Correctness.INCORRECT:
             whb = Lang.lang(self.plugin, "play_wouldhavebeen", self.game.solution)
-            return "X/{}\n{}".format(self.game.MAXTRIES, whb)
-        if d == Correctness.PARTIALLY:
-            return "Game not done yet; this message should not be shown (pls report)"
+            return "X/{}\n{}".format(self.game.max_tries, whb)
+        return "This should not happen, pls report."
 
     async def guess(self, msg: Message):
         """
@@ -200,7 +199,7 @@ class Mothership:
                 await el.guess(message)
                 break
 
-    async def spawn(self, plugin, wordlist, player, channel) -> GameInstance:
+    async def spawn(self, plugin, wordlist: WordList, player, channel) -> GameInstance:
         """
         Starts a new game instance for a player, channel combination.
 
@@ -209,6 +208,7 @@ class Mothership:
         :param player: player
         :param channel: channel the wordle is played in
         :return: spawned GameInstance
+        :raises AlreadyRunning: If there is an instance for this player, channel combination without guesses.
         """
         for el in self.instances:
             if el.player == player and el.channel == channel:

@@ -161,7 +161,7 @@ class Plugin(BasePlugin, name="Wordle"):
             el = self.mothership.instances[i]
             p = gbu(el.player)
             g = el.game
-            msgs.append("**#{}** {} in {}, {}/{}".format(i+1, p, el.channel.mention, len(g.guesses), g.MAXTRIES))
+            msgs.append("**#{}** {} in {}, {}/{}".format(i + 1, p, el.channel.mention, len(g.guesses), g.max_tries))
         for msg in paginate(msgs, prefix="_ _"):
             await ctx.send(msg)
 
