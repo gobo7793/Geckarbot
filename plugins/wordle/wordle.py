@@ -66,13 +66,19 @@ class Plugin(BasePlugin, name="Wordle"):
         return helpstring_helper(self, command, "usage")
 
     def deserialize_wordlists(self):
+        """
+        Deserializes all wordlists from storage and fills self.wordlists.
+        """
         self.logger.debug("Loading wordlists")
         wls = Storage.get(self, container=self.WORDLIST_CONTAINER)
         for key, wl in wls.items():
-            self.logger.debug("Reading wordlist {}".format(key))
+            self.logger.debug("Reading wordlist %s", key)
             self.wordlists[key] = WordList.deserialize(wl)
 
     def save_wordlists(self):
+        """
+        Writes all wordlists into storage.
+        """
         r = {}
         for key, wl in self.wordlists.items():
             r[key] = wl.serialize()
@@ -105,7 +111,7 @@ class Plugin(BasePlugin, name="Wordle"):
         # list lists
         if not name:
             msgs = []
-            for name, wl in self.wordlists.items():
+            for wlname, wl in self.wordlists.items():
                 t = (
                     (Lang.lang(self, "wordlist_url"), wl.url),
                     (Lang.lang(self, "wordlist_parser"), wl.parser.value),
@@ -113,7 +119,7 @@ class Plugin(BasePlugin, name="Wordle"):
                     (Lang.lang(self, "wordlist_complement"), len(wl.complement)),
                     (Lang.lang(self, "wordlist_total"), len(wl.solutions) + len(wl.complement)),
                 )
-                msgs.append("**{}**\n{}".format(name, table(t)))
+                msgs.append("**{}**\n{}".format(wlname, table(t)))
             if not msgs:
                 msgs.append(Lang.lang(self, "wordlist_no_lists"))
             for msg in paginate(msgs, prefix=Lang.lang(self, "wordlist_list_title") + "\n", delimiter="\n\n"):
