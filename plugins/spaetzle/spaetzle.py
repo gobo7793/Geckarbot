@@ -1,5 +1,5 @@
 import logging
-from typing import Literal
+from typing import Literal, List, Optional
 
 from nextcord import Embed
 from nextcord.ext import commands
@@ -31,6 +31,8 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             'ranges': {
                 'matches': "Q2:AH4"
             },
+            'matchday_shuffle': [7, 4, 11, 6, 3, 10, 12, 8, 5, 15, 9, 16, 1, 13, 0, 14, 2, 17],
+            'participants_shuffle': [15, 11, 8, 17, 12, 16, 13, 9, 10, 2, 4, 5, 1, 6, 0, 7, 3, 14],
             'spaetzledoc_id': "1eUCYWLw09CBzxJj3Zx-t8ssVwdqsjRgzzj37paPtZIA",
         }
 
@@ -38,7 +40,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
         return {
             '_storage_version': 1,
             'matchday': 0,
-            'participants': {}
+            'participants': {[], [], [], []}
         }
 
     def command_help_string(self, command):
@@ -90,7 +92,21 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
 
     @cmd_spaetzle_setup.command(name="duels")
     async def cmd_spaetzle_setup_duels(self, ctx: Context):
-        pass
+        def calculate_schedule(_participants: List[Optional[str]]):
+            matchday = Config().get(self)['matchday_shuffle'][(Storage().get(self)['matchday'] - 1) % 17]  # Shuffle
+            _participants.extend([None] * max(0, 18 - len(_participants)))  # Extend if not enough participants
+            _p = [_participants[j] for j in Config().get(self)['participants_shuffle']] + _participants[18:]  # Shuffle
+            _p = _p[0:1] + _p[1:][matchday:] + _p[1:][:matchday]  # Rotate
+            _schedule = [(_p[0], _p[1])]
+            _schedule.extend((_p[2 + j], _p[-1-j]) for j in range(len(_p) // 2 - 1))
+            return _schedule
+
+        embed = Embed(title=Lang.lang(self, 'duels_mx', Storage().get(self)['matchday']))
+        participants = Storage().get(self)['participants']
+        for i in range(len(participants)):
+            schedule = calculate_schedule(participants[i])
+            embed.add_field(name=Lang.lang(self, 'league_x', i+1), value="\n".join(f"{x} - {y}" for x, y in schedule))
+        await ctx.send(embed=embed)
 
     @cmd_spaetzle.group(name="set")
     async def cmd_spaetzle_set(self, ctx: Context):
@@ -110,7 +126,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
     @cmd_spaetzle_set.command(name="participants")
     async def cmd_spaetzle_set_participants(self, ctx: Context, league: Literal[1, 2, 3, 4], *participants: str):
         async def confirm(_b, _i):
-            Storage().get(self)['participants'][league] = sorted(participants)
+            Storage().get(self)['participants'][league - 1] = sorted(participants)
             Storage().save(self)
             await add_reaction(ctx.message, Lang.CMDSUCCESS)
 

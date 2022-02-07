@@ -1,37 +1,36 @@
 {
     "en_US": {
+        "#0": "Help",
         "help_spaetzle": "Commands for show or set many things related to the 'Spaetzle-Tippspiel'.",
 
+        "#1": "Other",
         "info": "The Spaetzle(s)-Tippspiel is a prediction game where you compete in duels",
-        "set_err_no_path": "This path does not exist.",
-        "set_err_private": "This path can't be changed.",
-        "set_err_split": "Something is wrong. Tip: Use a | between path and value!",
-        "set_err_value": "I did not understand your new value.",
-
         "title_matchday": "Matchday {}",
 
+        "#2": "Lang",
         "confirm": "Confirm",
-        "confirm_config": "Confirm Config",
-        "confirm_storage": "Confirm Storage",
+        "duels": "Duels",
+        "duels_x": "League {} - Duels",
+        "duels_mx": "Matchday {} - Duels",
+        "league_x": "League {}",
         "matchday": "Matchday",
-        "new_value": "New Value",
-        "participants_x": "Participants League {}"
+        "participants_x": "League {} - Participants"
     },
     "de_DE": {
+        "#0": "Help",
         "help_spaetzle": "Commands für das Zeigen und Verwalten des Spätzle(s)-Tippspiels",
 
+        "#1": "Anderes",
         "info": "Das Spätzle(s)-Tippspiel ist ein Tippspiel aus dem Stuttgarter TM-Forum in dem die Teilnehmer nicht nur Bundesligaspiele tippen, sondern damit in Duellen gegeneinander antreten.",
-        "set_err_no_path": "Einen solchen Pfad gibt es nicht.",
-        "set_err_private": "Dieser Wert ist nicht änderbar.",
-        "set_err_split": "Etwas ist falsch, überprüfe bitte nochmal deine Eingabe. Tipp: Nutze ein | um Pfad und Wert abzutrennen!",
-        "set_err_value": "Ich verstehe den neuen Wert nicht.",
         "title_matchday": "Spieltag {}",
 
+        "#2": "Lang",
         "confirm": "Bestätigung",
-        "confirm_config": "Bestätige Config",
-        "confirm_storage": "Bestätige Storage",
+        "duels": "Duelle",
+        "duels_x": "Liga {} - Duelle",
+        "duels_mx": "Spieltag {} - Duelle",
+        "league_x": "Liga {}",
         "matchday": "Spieltag",
-        "new_value": "Neuer Wert",
         "participants_x": "Teilnehmer Liga {}"
     }
 }
