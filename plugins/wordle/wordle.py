@@ -10,11 +10,11 @@ from botutils.permchecks import check_admin_access
 from botutils.setter import ConfigSetter
 from botutils.stringutils import table, paginate, format_number
 from botutils.utils import helpstring_helper, add_reaction, log_exception
+from services.helpsys import DefaultCategories
+
 from plugins.wordle.game import Game, Correctness, WORDLENGTH
 from plugins.wordle.naivesolver import NaiveSolver
 from plugins.wordle.utils import format_guess
-from services.helpsys import DefaultCategories
-
 from plugins.wordle.wordlist import fetch_powerlanguage_impl, WordList
 from plugins.wordle.gamehandler import Mothership, AlreadyRunning
 

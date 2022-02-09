@@ -4,6 +4,7 @@ from typing import Union, List, Optional
 from nextcord import User, Member, TextChannel, Thread, DMChannel, Message
 
 from base.data import Config, Lang
+
 from plugins.wordle.game import Game, Correctness
 from plugins.wordle.utils import format_guess
 from plugins.wordle.wordlist import WordList

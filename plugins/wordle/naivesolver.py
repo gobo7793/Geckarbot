@@ -3,6 +3,7 @@ import random
 from typing import Optional, Dict, List
 
 from botutils.utils import execute_anything_sync, log_exception
+
 from plugins.wordle.game import Solver, Game, WORDLENGTH, Correctness, Guess
 
 

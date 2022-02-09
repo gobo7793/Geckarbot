@@ -1,4 +1,5 @@
 from base.data import Lang
+
 from plugins.wordle.game import Game, Guess, WORDLENGTH, Correctness
 
 
@@ -35,7 +36,7 @@ def format_guess(plugin, game: Game, guess: Guess, done: bool = False, history: 
             for el in guesses:
                 word = el.word.upper() if uppercase else el.word
                 if show_word:
-                    line.append("{} {}".format(ICONS[el.correctness[i]], word[i]))
+                    line.append("{} {}".format(word[i], ICONS[el.correctness[i]]))
                 else:
                     line.append(ICONS[el.correctness[i]])
             r.append("  ".join(line))
