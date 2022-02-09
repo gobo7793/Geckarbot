@@ -8,8 +8,11 @@ from base.data import Config, Lang, Storage
 from botutils.converters import get_best_username as gbu
 from botutils.permchecks import check_admin_access
 from botutils.setter import ConfigSetter
-from botutils.stringutils import table, paginate
+from botutils.stringutils import table, paginate, format_number
 from botutils.utils import helpstring_helper, add_reaction, log_exception
+from plugins.wordle.game import Game, Correctness, WORDLENGTH
+from plugins.wordle.naivesolver import NaiveSolver
+from plugins.wordle.utils import format_guess
 from services.helpsys import DefaultCategories
 
 from plugins.wordle.wordlist import fetch_powerlanguage_impl, WordList
@@ -144,17 +147,24 @@ class Plugin(BasePlugin, name="Wordle"):
 
     @cmd_wordle.command(name="play")
     async def cmd_wordle_play(self, ctx, wordlist: Optional[str] = None):
+        solution = None
+        default = self.get_config("default_wordlist")
         if not wordlist:
-            wordlist = self.get_config("default_wordlist")
+            wordlist = default
 
         if wordlist not in self.wordlists:
-            await add_reaction(ctx.message, Lang.CMDERROR)
-            await ctx.send(Lang.lang(self, "wordlist_not_found"))
+            # try to turn it into a game word argument
+            if wordlist and len(wordlist) == WORDLENGTH and wordlist in self.wordlists[default]:
+                solution = wordlist
+                wordlist = default
+            else:
+                await add_reaction(ctx.message, Lang.CMDERROR)
+                await ctx.send(Lang.lang(self, "wordlist_not_found"))
 
         wordlist = self.wordlists[wordlist]
 
         try:
-            instance = await self.mothership.spawn(self, wordlist, ctx.author, ctx.channel)
+            instance = await self.mothership.spawn(self, wordlist, ctx.author, ctx.channel, solution=solution)
             if not instance.respawned:
                 await add_reaction(ctx.message, Lang.CMDSUCCESS)
         except AlreadyRunning:
@@ -199,3 +209,71 @@ class Plugin(BasePlugin, name="Wordle"):
 
         self.mothership.deregister(instance)
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
+
+    @cmd_wordle.command(name="solve")
+    async def cmd_wordle_solve(self, ctx, word: Optional[str]):
+        wl_key = self.get_config("default_wordlist")
+        wordlist = self.wordlists.get(wl_key, None)
+        if wordlist is None:
+            await add_reaction(ctx.message, Lang.CMDERROR)
+            await ctx.send(Lang.lang(self, "wordlist_not_found", wl_key))
+            return
+
+        if word is None:
+            word = wordlist.random_solution()
+            await ctx.send("Guessing {}".format(word))
+        else:
+            if word not in wordlist:
+                await add_reaction(ctx.message, Lang.CMDERROR)
+                await ctx.send(Lang.lang(self, "wordlist_not_found", wl_key))
+                return
+
+        game = Game(wordlist, word)
+        NaiveSolver(game).solve()
+
+        await add_reaction(ctx.message, Lang.CMDSUCCESS)
+        await ctx.send(format_guess(self, game, game.guesses[-1], done=True, history=True))
+
+    @cmd_wordle.command(name="solvetest", hidden=True)
+    async def cmd_wordle_solvetest(self, ctx, quantity: int = 100):
+        wl_key = self.get_config("default_wordlist")
+        wordlist = self.wordlists.get(wl_key, None)
+        if wordlist is None:
+            await add_reaction(ctx.message, Lang.CMDERROR)
+            await ctx.send(Lang.lang(self, "wordlist_not_found", wl_key))
+            return
+        await add_reaction(ctx.message, Lang.CMDSUCCESS)
+
+        results = {}
+        failures = 0
+        total_score = 0
+        for i in range(0, 7):
+            results[i] = 0
+
+        async with ctx.typing():
+            for _ in range(quantity):
+                game = Game(wordlist)
+                try:
+                    NaiveSolver(game).solve()
+                except RuntimeError:
+                    failures += 1
+                    continue
+
+                result = game.done
+                assert result != Correctness.PARTIALLY
+                if result == Correctness.CORRECT:
+                    results[len(game.guesses)] += 1
+                    total_score += 7 - len(game.guesses)
+                else:
+                    results[0] += 1
+
+            msgs = ["{} Games played; results:".format(quantity)]
+            for key in results:
+                success = "X" if key == 0 else key
+                msgs.append("{}/6: {}".format(success, results[key]))
+            if failures > 0:
+                msgs.append("Alg failures: {}".format(failures))
+            msgs.append("total score: {}".format(format_number(total_score / quantity)))
+
+            for msg in paginate(msgs, prefix="```", suffix="```"):
+                await ctx.send(msg)

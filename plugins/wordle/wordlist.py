@@ -1,5 +1,6 @@
 import random
 import re
+from string import ascii_lowercase
 from enum import Enum
 from typing import List
 
@@ -27,6 +28,9 @@ class WordList:
         self.parser = parser
         self.solutions = solutions
         self.complement = complement
+        self.alphabet = ascii_lowercase
+
+        self._wordlist_cache = None
 
     def __str__(self):
         s = len(self.solutions)
@@ -36,6 +40,18 @@ class WordList:
 
     def __contains__(self, item):
         return item in self.solutions or item in self.complement
+
+    @property
+    def words(self):
+        """
+        :return: List of all words; cached
+        """
+        if self._wordlist_cache is None:
+            self._wordlist_cache = list(self.complement + self.solutions)
+        return self._wordlist_cache
+
+    def invalidate_cache(self):
+        self._wordlist_cache = None
 
     def serialize(self):
         """

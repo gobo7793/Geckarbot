@@ -1,3 +1,4 @@
+import abc
 from string import ascii_lowercase
 from enum import Enum
 from typing import List, Optional, Tuple
@@ -141,3 +142,12 @@ class Game:
         if r.is_correct:
             self.solved = True
         return r
+
+
+class Solver(abc.ABC):
+    """
+    Base class for a wordle solver.
+    """
+    @abc.abstractmethod
+    def solve(self):
+        raise NotImplemented

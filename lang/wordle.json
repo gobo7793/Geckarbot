@@ -59,6 +59,7 @@
         "missing_argument": "Nicht genügend Argumente.",
         "wordlist_not_found": "Unbekannt Wortliste `{}`.",
         "wordle_not_found": "Wordle-Instanz nicht gefunden.",
+        "not_in_wordlist": "Nicht in der Wortliste enthalten.",
 
         "#2": "Wordlist",
         "wordlist_list_title": "Bekannte Wortlisten:",
@@ -73,7 +74,6 @@
 
         "#3": "Play",
         "play_error_game_exists": "Ein Wordle für {} in {} läuft bereits.",
-        "play_not_in_list": "Nicht in der Wortliste enthalten.",
         "play_intro": "Bin bereit, leg los.",
         "play_wouldhavebeen": "Es wäre gewesen: **{}**",
         "play_keyboard_found": "- gefunden",
