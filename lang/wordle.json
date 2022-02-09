@@ -75,7 +75,7 @@
 
         "#1": "Error",
         "missing_argument": "Nicht genügend Argumente.",
-        "wordlist_not_found": "Unbekannt Wortliste `{}`.",
+        "wordlist_not_found": "Unbekannte Wortliste `{}`.",
         "wordle_not_found": "Wordle-Instanz nicht gefunden.",
         "not_in_wordlist": "Nicht in der Wortliste enthalten.",
 

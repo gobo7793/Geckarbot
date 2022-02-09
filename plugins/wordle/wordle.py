@@ -224,7 +224,7 @@ class Plugin(BasePlugin, name="Wordle"):
         else:
             if word not in wordlist:
                 await add_reaction(ctx.message, Lang.CMDERROR)
-                await ctx.send(Lang.lang(self, "wordlist_not_found", wl_key))
+                await ctx.send(Lang.lang(self, "not_in_wordlist", wl_key))
                 return
 
         game = Game(wordlist, word)

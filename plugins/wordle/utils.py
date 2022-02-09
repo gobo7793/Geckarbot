@@ -93,7 +93,7 @@ def format_guess(plugin, game: Game, guess: Guess, done: bool = False, history: 
             if kb_mono:
                 r = "```\n{}\n\n{}\n```".format(r, keyboard)
             else:
-                r = "```\n{}\n```\n\n{}\n".format(r, keyboard)
+                r = "```\n{}\n```\n{}\n".format(r, keyboard)
         else:
             if kb_mono:
                 r = "{}\n\n```\n{}\n```".format(r, keyboard)
