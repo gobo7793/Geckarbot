@@ -268,9 +268,9 @@ class Plugin(BasePlugin, name="Wordle"):
                     results[0] += 1
 
             msgs = ["{} Games played; results:".format(quantity)]
-            for key in results:
-                success = "X" if key == 0 else key
-                msgs.append("{}/6: {}".format(success, results[key]))
+            for key, result in results.items():
+                key = "X" if key == 0 else key
+                msgs.append("{}/6: {}".format(key, result))
             if failures > 0:
                 msgs.append("Alg failures: {}".format(failures))
             msgs.append("total score: {}".format(format_number(total_score / quantity)))

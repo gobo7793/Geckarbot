@@ -77,11 +77,11 @@ class NaiveSolver(Solver):
 
             # find floaters
             for i in unclear_indexes:
-                if word[i] in floaters_found.keys():
+                if word[i] in floaters_found:
                     floaters_found[i] = True
 
-            for floater in floaters_found:
-                if not floaters_found[floater]:
+            for found in floaters_found.values():
+                if not found:
                     continue
 
             r.append(word)
@@ -212,6 +212,7 @@ class NaiveSolver(Solver):
         """
         Guess logic. Does the actual guessing and returns a Guess object.
         :return: Resulting Guess object
+        :raises RuntimeError: If the algorithm is incomplete (runs into a seemingly impossible situation)
         """
         # Actual guess if enough info is gathered
         w = self.word_found()

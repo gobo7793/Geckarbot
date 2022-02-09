@@ -150,4 +150,4 @@ class Solver(abc.ABC):
     """
     @abc.abstractmethod
     def solve(self):
-        raise NotImplemented
+        raise NotImplementedError

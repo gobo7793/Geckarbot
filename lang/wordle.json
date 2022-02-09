@@ -18,6 +18,7 @@
         "missing_argument": "Not enough arguments.",
         "wordlist_not_found": "Unknown word list `{}`.",
         "wordle_not_found": "Wordle instance not found.",
+        "not_in_wordlist": "Not in word list.",
 
         "#2": "Wordlist",
         "wordlist_list_title": "Available word lists:",
@@ -32,7 +33,6 @@
 
         "#3": "Play",
         "play_error_game_exists": "A wordle for {} in {} already exists.",
-        "play_not_in_list": "Not in word list.",
         "play_intro": "I'm ready, start guessing.",
         "play_wouldhavebeen": "It would have been: **{}**",
         "play_keyboard_found": "- found",
