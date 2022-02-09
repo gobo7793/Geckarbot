@@ -1,6 +1,10 @@
-from enum import Enum
-import aiohttp
+import random
 import re
+from string import ascii_lowercase
+from enum import Enum
+from typing import List
+
+import aiohttp
 
 
 class Parsers(Enum):
@@ -12,24 +16,42 @@ class WordList:
     A word list consists of two lists: The solutions and the complement. They are disjunctive. Together,
     they form the entire word space.
     """
-    def __init__(self, url: str, parser: Parsers, solutions: set, complement: set):
+    def __init__(self, url: str, parser: Parsers, solutions: tuple, complement: tuple):
         """
 
         :param url: URL this was parsed from
         :param parser: parser that was used
-        :param solutions: set of words that can be a solution
-        :param complement: the remaining set of words
+        :param solutions: tuple of words that can be a solution
+        :param complement: tuple of the remaining words
         """
         self.url = url
         self.parser = parser
         self.solutions = solutions
         self.complement = complement
+        self.alphabet = ascii_lowercase
+
+        self._wordlist_cache = None
 
     def __str__(self):
         s = len(self.solutions)
         p = self.parser.value
         c = len(self.complement)
         return "<WordList: url: {}; parser: {}; solutions: {}; complement: {}>".format(self.url, p, s, c)
+
+    def __contains__(self, item):
+        return item in self.solutions or item in self.complement
+
+    @property
+    def words(self):
+        """
+        :return: List of all words; cached
+        """
+        if self._wordlist_cache is None:
+            self._wordlist_cache = list(self.complement + self.solutions)
+        return self._wordlist_cache
+
+    def invalidate_cache(self):
+        self._wordlist_cache = None
 
     def serialize(self):
         """
@@ -46,22 +68,23 @@ class WordList:
 
     @classmethod
     def deserialize(cls, d):
-        return cls(d["url"], Parsers(d["parser"]), set(d["solutions"]), set(d["complement"]))
+        return cls(d["url"], Parsers(d["parser"]), tuple(d["solutions"]), tuple(d["complement"]))
+
+    def random_solution(self):
+        return random.choice(self.solutions)
 
 
-def normalize_wlist(wl) -> set:
+def normalize_wlist(wl: List[str]) -> tuple:
     """
-    Takes a list of words and normalizes it into a lowercase set of itself.
+    Takes a list of words and normalizes it into a lowercase tuple of itself.
     Also asserts word list of 5.
 
     :param wl: list to normalize
-    :return: set
+    :return: tuple of words
     """
-    r = set()
     for el in sorted(wl):
-        assert(len(el) == 5)
-        r.add(el.lower())
-    return r
+        assert len(el) == 5
+    return tuple(wl)
 
 
 async def fetch_powerlanguage_impl(url: str) -> WordList:
@@ -70,6 +93,7 @@ async def fetch_powerlanguage_impl(url: str) -> WordList:
 
     :param url: wordle url
     :return: built WordList
+    :raises ValueError: If the script js was not found on the main page
     """
     session = aiohttp.ClientSession()
 
@@ -96,7 +120,7 @@ async def fetch_powerlanguage_impl(url: str) -> WordList:
     for i in range(len(lists)):
         wlist = lists[i][0]
         lists[i] = p.findall(wlist)
-    assert(len(lists) == 2)
+    assert len(lists) == 2
 
     # build WordList
     solutions = normalize_wlist(lists[0])
@@ -105,4 +129,4 @@ async def fetch_powerlanguage_impl(url: str) -> WordList:
     if len(solutions) > len(complement):
         solutions, complement = complement, solutions
 
-    return WordList(url, Parsers.POWERLANGUAGE, solutions, complement)
+    return WordList(url, Parsers.POWERLANGUAGE, tuple(solutions), tuple(complement))
