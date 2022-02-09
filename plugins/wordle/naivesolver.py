@@ -140,7 +140,7 @@ class NaiveSolver(Solver):
             if word[i] in self.possible:
                 r += 2
             if word[i] in self.candidates[i]:
-                r -= 1
+                r += 1
             so_far.append(word[i])
         return r
 
