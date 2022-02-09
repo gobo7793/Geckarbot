@@ -58,7 +58,7 @@ class GameInstance:
         :param msg: Message that contains the guessed word
         """
         history = self.plugin.get_config("format_guess_history")
-        word = msg.content.strip()
+        word = msg.content.strip().lower()
         assert len(word) == 5
 
         async with self.guess_lock:
