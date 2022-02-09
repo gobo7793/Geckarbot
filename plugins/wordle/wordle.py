@@ -92,7 +92,6 @@ class Plugin(BasePlugin, name="Wordle"):
     async def cmd_wordle(self, ctx):
         await Config().bot.helpsys.cmd_help(ctx, self, ctx.command)
 
-    @commands.has_role(Config().BOT_ADMIN_ROLE_ID)
     @cmd_wordle.command(name="set", aliases=["config"], hidden=True)
     async def cmd_set(self, ctx, key=None, value=None):
         if key is None:
