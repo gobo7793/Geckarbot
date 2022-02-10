@@ -1,6 +1,7 @@
 import logging
 from typing import Optional, Dict, Type
 
+from nextcord import DMChannel
 from nextcord.ext import commands
 
 from base.configurable import BasePlugin
@@ -152,7 +153,7 @@ class Plugin(BasePlugin, name="Wordle"):
         self.save_wordlists()
         await ctx.send(wl)
 
-    @cmd_wordle.command(name="play")
+    @cmd_wordle.group(name="play", invoke_without_command=True)
     async def cmd_wordle_play(self, ctx, wordlist: Optional[str] = None):
         solution = None
         default = self.get_config("default_wordlist")
@@ -170,12 +171,33 @@ class Plugin(BasePlugin, name="Wordle"):
 
         wordlist = self.wordlists[wordlist]
 
+        solver = SOLVERS[self.get_config("default_solver")]
         try:
-            instance = await self.mothership.spawn(self, wordlist, ctx.author, ctx.channel, solution=solution)
+            instance = await self.mothership.spawn(self, wordlist, ctx.author, ctx.channel, solver, solution=solution)
             if not instance.respawned:
                 await add_reaction(ctx.message, Lang.CMDSUCCESS)
         except AlreadyRunning:
-            await ctx.send(Lang.lang(self, "play_error_game_exists", gbu(ctx.author), ctx.channel.mention))
+            if isinstance(ctx.channel, DMChannel):
+                chan = Lang.lang(self, "dmchannel")
+            else:
+                chan = ctx.channel.mention
+            await ctx.send(Lang.lang(self, "play_error_game_exists", gbu(ctx.author), chan))
+
+    @cmd_wordle_play.command(name="suggest")
+    async def cmd_wordle_play_suggest(self, ctx):
+        instance = self.mothership.get_instance(ctx.channel, ctx.author)
+        if instance is None:
+            await add_reaction(ctx.message, Lang.CMDERROR)
+            await ctx.send(Lang.lang(self, "wordle_not_found"))
+            return
+
+        suggestion = instance.solver.get_guess()
+        await ctx.send(Lang.lang(self, "play_suggestion", suggestion))
+        instance.has_been_helped = True
+
+    @cmd_wordle.command(name="suggest", hidden=True)
+    async def cmd_wordle_suggest(self, ctx):
+        await self.cmd_wordle_play_suggest(ctx)
 
     @cmd_wordle.command(name="list")
     async def cmd_wordle_list(self, ctx):
@@ -184,7 +206,11 @@ class Plugin(BasePlugin, name="Wordle"):
             el = self.mothership.instances[i]
             p = gbu(el.player)
             g = el.game
-            msgs.append("**#{}** {} in {}, {}/{}".format(i + 1, p, el.channel.mention, len(g.guesses), g.max_tries))
+            if isinstance(el.channel, DMChannel):
+                chan = "DM-Channel"
+            else:
+                chan = el.channel.mention
+            msgs.append("**#{}** {} in {}, {}/{}".format(i + 1, p, chan, len(g.guesses), g.max_tries))
         for msg in paginate(msgs, prefix="_ _"):
             await ctx.send(msg)
 

@@ -29,7 +29,10 @@
         "wordle_not_found": "Wordle instance not found.",
         "not_in_wordlist": "Not in word list.",
 
-        "#2": "Wordlist",
+        "#2": "Fragments",
+        "dmchannel": "this DM channel",
+
+        "#3": "Wordlist",
         "wordlist_list_title": "Available word lists:",
         "wordlist_url": "URL",
         "wordlist_parser": "Parser",
@@ -40,13 +43,14 @@
         "parse_error": "Parse error",
         "wordlist_exists": "Word list `{}` already exists.",
 
-        "#3": "Play",
+        "#4": "Play",
         "play_error_game_exists": "A wordle for {} in {} already exists.",
         "play_intro": "I'm ready, start guessing.",
         "play_wouldhavebeen": "It would have been: **{}**",
         "play_keyboard_found": "- found",
         "play_keyboard_unused": "- not used",
-        "play_keyboard_out": "- out"
+        "play_keyboard_out": "- out",
+        "play_suggestion": "You could try {}."
     },
 
     "de_DE": {
@@ -79,7 +83,10 @@
         "wordle_not_found": "Wordle-Instanz nicht gefunden.",
         "not_in_wordlist": "Nicht in der Wortliste enthalten.",
 
-        "#2": "Wordlist",
+        "#2": "Fragments",
+        "dmchannel": "diesem DM-Channel",
+
+        "#3": "Wordlist",
         "wordlist_list_title": "Bekannte Wortlisten:",
         "wordlist_url": "URL",
         "wordlist_parser": "Parser",
@@ -90,12 +97,13 @@
         "parse_error": "Parsing-Fehler",
         "wordlist_exists": "Wortliste `{}` existiert bereits.",
 
-        "#3": "Play",
+        "#4": "Play",
         "play_error_game_exists": "Ein Wordle für {} in {} läuft bereits.",
         "play_intro": "Bin bereit, leg los.",
         "play_wouldhavebeen": "Es wäre gewesen: **{}**",
         "play_keyboard_found": "- gefunden",
         "play_keyboard_unused": "- nicht genutzt",
-        "play_keyboard_out": "- ausgeschlossen"
+        "play_keyboard_out": "- ausgeschlossen",
+        "play_suggestion": "Versuch doch mal {}."
     }
 }
