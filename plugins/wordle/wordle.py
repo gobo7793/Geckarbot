@@ -1,5 +1,5 @@
 import logging
-from typing import Optional, Dict
+from typing import Optional, Dict, Type
 
 from nextcord.ext import commands
 
@@ -12,14 +12,16 @@ from botutils.stringutils import table, paginate, format_number
 from botutils.utils import helpstring_helper, add_reaction, log_exception
 from services.helpsys import DefaultCategories
 
-from plugins.wordle.game import Game, Correctness, WORDLENGTH
+from plugins.wordle.game import Game, Correctness, WORDLENGTH, HelpingSolver
 from plugins.wordle.naivesolver import NaiveSolver
+from plugins.wordle.dicesolver import DiceSolver
 from plugins.wordle.utils import format_guess
 from plugins.wordle.wordlist import fetch_powerlanguage_impl, WordList
 from plugins.wordle.gamehandler import Mothership, AlreadyRunning
 
 BASE_CONFIG = {
     "default_wordlist": [str, "en"],
+    "default_solver": [str, "naive"],
     "format_guess_monospace": [bool, False],
     "format_guess_include_word": [bool, False],
     "format_guess_vertical": [bool, False],
@@ -29,6 +31,12 @@ BASE_CONFIG = {
     "format_guess_keyboard_strike": [bool, True],
     "format_guess_keyboard_monospace": [bool, False],
     "format_guess_uppercase": [bool, True]
+}
+
+
+SOLVERS: Dict[str, Type[HelpingSolver]] = {
+    "naive": NaiveSolver,
+    "dice": DiceSolver
 }
 
 
@@ -228,7 +236,7 @@ class Plugin(BasePlugin, name="Wordle"):
                 return
 
         game = Game(wordlist, word)
-        NaiveSolver(game).solve()
+        SOLVERS[self.get_config("default_solver")](game).solve()
 
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
         await ctx.send(format_guess(self, game, game.guesses[-1], done=True, history=True))

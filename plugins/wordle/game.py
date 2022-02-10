@@ -149,5 +149,42 @@ class Solver(abc.ABC):
     Base class for a wordle solver.
     """
     @abc.abstractmethod
+    def __init__(self, game: Game):
+        raise NotImplementedError
+
+    @abc.abstractmethod
     def solve(self):
         raise NotImplementedError
+
+
+class HelpingSolver(Solver):
+    """
+    Base class for a wordle solver that is able to solve wordles that have already begun.
+    """
+    @abc.abstractmethod
+    def __init__(self, game: Game):
+        self.game = game
+
+    @abc.abstractmethod
+    def get_guess(self) -> str:
+        """
+        Gets the next guess.
+        :return: word that would be guessed next
+        """
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def guess(self, word: str) -> Guess:
+        """
+        Guesses a word.
+
+        :param word: word to be guessed
+        :return: Resulting Guess object (as returned by `Game.guess()`)
+        """
+        raise NotImplementedError
+
+    def solve(self):
+        while True:
+            self.guess(self.get_guess())
+            if self.game.done != Correctness.PARTIALLY:
+                break
