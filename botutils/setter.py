@@ -1,5 +1,6 @@
 import logging
 from enum import Enum
+from typing import Optional
 
 from nextcord import TextChannel, Member, User, Role
 from nextcord.ext.commands.converter import TextChannelConverter, UserConverter, MemberConverter, RoleConverter
@@ -42,7 +43,7 @@ class ConfigSetter:
     """
     Handler for config setter commands for a simple key-value config.
     """
-    def __init__(self, plugin, whitelist, desc=None, lang=None):
+    def __init__(self, plugin, whitelist, structure: Optional[dict] = None, desc=None, lang=None):
         """
 
         :param plugin: Plugin reference
@@ -50,6 +51,7 @@ class ConfigSetter:
             {key: [type, default_value]} ; e.g. {"limit": [int, 5]}
             type is a callable that converts strings to the respective type.
             Discord types are supported and converted to their respective ids.
+        :param structure: If this is set, this structure is operated on instead of Config.
         :param desc: dict that maps descriptions to config keys. Desriptions are optional. Example:
             {"limit": "API request limit"}
         :param lang: dict to replace message strings; maps baselang keys to Lang.lang keys of the plugin. Set values
@@ -62,6 +64,21 @@ class ConfigSetter:
         self.desc = desc if desc is not None else {}
         self.lang = lang if lang is not None else {}
         self.switches = []
+
+        self.struture_set = True if structure is not None else False
+        self.structure = structure
+
+    def get_structure(self):
+        """
+        Returns the structure that is operated on. If the structure is Config (default), freshly fetches the current
+        config (for stability reason).
+
+        :return: structure that this setter operates on
+        """
+        if self.struture_set:
+            return self.structure
+        else:
+            return Config.get(self.plugin)
 
     def add_switch(self, *keys):
         """
@@ -135,9 +152,9 @@ class ConfigSetter:
                 switch = el
                 break
 
-        config = Config.get(self.plugin)
+        structure = self.get_structure()
         oldval = self.get_config(key)
-        config[key] = value
+        structure[key] = value
         if switch is None:
             return
 
@@ -150,17 +167,17 @@ class ConfigSetter:
             # find default and set it
             for el in switch:
                 if self.base_config[el][1]:
-                    config[el] = True
+                    structure[el] = True
             return
 
         # Toggle to True -> set everything else to False
         for el in switch:
             if el == key:
                 continue
-            config[el] = False
+            structure[el] = False
 
     def get_config(self, key):
-        return Config.get(self.plugin).get(key, self.base_config[key][1])
+        return self.get_structure().get(key, self.base_config[key][1])
 
     async def _send(self, ctx, key, *args):
         """
@@ -233,9 +250,9 @@ class ConfigSetter:
 
     async def set(self, key, value=None, ctx=None) -> Result:
         """
-        Sets a value.
+        Sets a value. If `structure` was not set in the constructor, this also saves the Config. Otherwise, it does not.
 
-        :param key: Config key
+        :param key: Structure key
         :param value: value to be set; None for default or bool toggle
         :param ctx: Context, only needed for discord types (such as TextChannel or User)
         :return: Result instance
@@ -251,7 +268,7 @@ class ConfigSetter:
         # Convert discord types
         if value is None and valtype in (TextChannel, User, Member, Role):
             r = Result.DEFAULT
-            Config.get(self.plugin)[key] = default
+            self.get_structure().get(self.plugin)[key] = default
 
         elif valtype in (TextChannel, User, Member, Role):
             if ctx is None:
@@ -262,7 +279,7 @@ class ConfigSetter:
             except (ChannelNotFound, UserNotFound, MemberNotFound, RoleNotFound) as e:
                 raise InvalidValue from e
 
-            Config.get(self.plugin)[key] = value.id
+            self.get_structure().get(self.plugin)[key] = value.id
 
         # Special handling of bools for switch reasons
         elif valtype is bool:
@@ -286,19 +303,21 @@ class ConfigSetter:
                     value = valtype(value)
                 except (TypeError, ValueError) as e:
                     raise InvalidValue from e
-            Config.get(self.plugin)[key] = value
+            self.get_structure().get(self.plugin)[key] = value
 
         self.logger.debug("Plugin %s: setting %s to %s", self.plugin.get_name(), key, str(value))
-        Config.save(self.plugin)
+        if not self.struture_set:
+            Config.save(self.plugin)
         return r
 
-    async def set_cmd(self, ctx, key, value=None):
+    async def set_cmd(self, ctx, key, value=None) -> bool:
         """
         Sets the config value with the key `key` to `value` and sends an error/success report to ctx.
 
         :param ctx: Context
         :param key: Config key from whitelist
         :param value: Config value. If None, default value is set.
+        :return: `True` if a new value was set, `False` otherwise.
         """
         oldval = self.get_config(key)
         try:
@@ -306,11 +325,11 @@ class ConfigSetter:
         except InvalidKey:
             await add_reaction(ctx.message, Lang.CMDERROR)
             await self._send(ctx, "invalid_key")
-            return
+            return False
         except InvalidValue:
             await add_reaction(ctx.message, Lang.CMDERROR)
             await self._send(ctx, "invalid_value")
-            return
+            return False
 
         successlang = None
         if result in (Result.NEWVAL, Result.TOGGLE):
@@ -319,3 +338,4 @@ class ConfigSetter:
             successlang = "set_success_default"
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
         await self._send(ctx, successlang, key, oldval, self.get_config(key))
+        return True
