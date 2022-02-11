@@ -3,6 +3,7 @@ import json
 import logging
 from enum import Enum
 from botutils import jsonutils
+from string import ascii_lowercase
 
 from base.configurable import NotFound
 
@@ -368,6 +369,8 @@ class Lang(metaclass=_Singleton):
     CMDNOCHANGE = EMOJI["nochange"]
     CMDNOPERMISSIONS = EMOJI["nopermissions"]
 
+    alphabet = list(ascii_lowercase)
+
     def __init__(self):
         self._bot = None
         self.directory = None
@@ -471,6 +474,10 @@ class Lang(metaclass=_Singleton):
     @classmethod
     def get_default(cls, plugin):
         return plugin.default_config()
+
+    @classmethod
+    def letter_emoji(cls, letter: str):
+        return cls.EMOJI["lettermap"][cls.alphabet.index(letter)]
 
 
 def reconfigure(bot):

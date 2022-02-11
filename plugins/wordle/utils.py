@@ -18,11 +18,14 @@ class FormatOptions(Enum):
     INCLUDE_WORD = "format_guess_include_word"
     VERTICAL = "format_guess_vertical"
     HISTORY = "format_guess_history"
+    WORD_GAP = "format_guess_word_gap"
+    RESULT_GAP = "format_guess_result_gap"
     KEYBOARD = "format_guess_keyboard"
     KEYBOARD_GAP = "format_guess_keyboard_gap"
     KEYBOARD_STRIKE = "format_guess_keyboard_strike"
     KEYBOARD_MONOSPACE = "format_guess_keyboard_monospace"
     UPPERCASE = "format_guess_uppercase"
+    LETTER_EMOJI = "format_guess_letter_emoji"
 
 
 class GuessFormat:
@@ -57,6 +60,14 @@ class GuessFormat:
         return self.options[FormatOptions.HISTORY]
 
     @property
+    def word_gap(self):
+        return self.options[FormatOptions.WORD_GAP]
+
+    @property
+    def result_gap(self):
+        return self.options[FormatOptions.RESULT_GAP]
+
+    @property
     def keyboard(self):
         return self.options[FormatOptions.KEYBOARD]
 
@@ -75,6 +86,33 @@ class GuessFormat:
     @property
     def uppercase(self):
         return self.options[FormatOptions.UPPERCASE]
+
+    @property
+    def letter_emoji(self):
+        return self.options[FormatOptions.LETTER_EMOJI]
+
+
+def format_word(word: str, format_options: Optional[GuessFormat] = None,
+                ignore_emoji: bool = False, ignore_word_gap: bool = False) -> str:
+    """
+    Formats a word according to format_options.
+
+    :param word: word to format
+    :param format_options: GuessFormat with format rules
+    :param ignore_emoji: If set to `True`, ignores the `letter_emoji option
+    :param ignore_word_gap: If set to `True`, sets the word gap to `""`
+    :return:
+    """
+    delimiter = "" if ignore_word_gap else format_options.word_gap
+    if not ignore_emoji and format_options.letter_emoji:
+        r = []
+        for char in word:
+            r.append(Lang.letter_emoji(char))
+        return delimiter.join(r)
+    if format_options.uppercase:
+        return delimiter.join(word).upper()
+    else:
+        return delimiter.join(word).upper()
 
 
 def format_guess(plugin, game: Game, guess: Guess,
@@ -102,7 +140,7 @@ def format_guess(plugin, game: Game, guess: Guess,
         for i in range(WORDLENGTH):
             line = []
             for el in guesses:
-                word = el.word.upper() if format_options.uppercase else el.word
+                word = format_word(el.word, format_options)
                 if format_options.include_word:
                     line.append("{} {}".format(word[i], ICONS[el.correctness[i]]))
                 else:
@@ -114,11 +152,11 @@ def format_guess(plugin, game: Game, guess: Guess,
     else:
         r = []
         for el in guesses:
-            word = el.word.upper() if format_options.uppercase else el.word
+            word = format_word(el.word, format_options)
             correctness = []
             for i in range(WORDLENGTH):
                 correctness.append(ICONS[el.correctness[i]])
-            correctness = "".join(correctness)
+            correctness = format_options.result_gap.join(correctness)
             if format_options.include_word:
                 r.append("{}\n{}".format(word, correctness))
             else:

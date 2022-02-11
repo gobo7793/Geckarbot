@@ -27,11 +27,14 @@ BASE_CONFIG = {
     "format_guess_include_word": [bool, False],
     "format_guess_vertical": [bool, False],
     "format_guess_history": [bool, False],
+    "format_guess_word_gap": [str, ""],
+    "format_guess_result_gap": [str, ""],
     "format_guess_keyboard": [bool, False],
     "format_guess_keyboard_gap": [str, ""],
     "format_guess_keyboard_strike": [bool, True],
     "format_guess_keyboard_monospace": [bool, False],
-    "format_guess_uppercase": [bool, True]
+    "format_guess_uppercase": [bool, True],
+    "format_guess_letter_emoji": [bool, False]
 }
 
 
