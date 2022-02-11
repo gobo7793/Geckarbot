@@ -369,8 +369,6 @@ class Lang(metaclass=_Singleton):
     CMDNOCHANGE = EMOJI["nochange"]
     CMDNOPERMISSIONS = EMOJI["nopermissions"]
 
-    alphabet = list(ascii_lowercase)
-
     def __init__(self):
         self._bot = None
         self.directory = None
@@ -477,7 +475,7 @@ class Lang(metaclass=_Singleton):
 
     @classmethod
     def letter_emoji(cls, letter: str):
-        return cls.EMOJI["lettermap"][cls.alphabet.index(letter)]
+        return cls.EMOJI["lettermap"][ascii_lowercase.index(letter.lower())]
 
 
 def reconfigure(bot):
