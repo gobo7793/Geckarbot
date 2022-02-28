@@ -65,7 +65,7 @@ class ConfigSetter:
         self.lang = lang if lang is not None else {}
         self.switches = []
 
-        self.struture_set = True if structure is not None else False
+        self.struture_set = structure is not None
         self.structure = structure
 
     def get_structure(self):

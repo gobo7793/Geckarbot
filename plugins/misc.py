@@ -2,6 +2,7 @@ import locale
 import logging
 import random
 import string
+import hashlib
 from datetime import datetime, timezone, timedelta
 from math import pi
 from typing import List, Iterable
@@ -33,7 +34,7 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
         self.bot.register(self, DefaultCategories.MISC)
 
         # Add commands to help category 'utils'
-        to_add = ("dice", "choose", "multichoose", "shuffle", "money", "pizza", "timestamp")
+        to_add = ("dice", "choose", "multichoose", "shuffle", "money", "pizza", "timestamp", "hash")
         for cmd in self.get_commands():
             if cmd.name in to_add:
                 self.bot.helpsys.default_category(DefaultCategories.UTILS).add_command(cmd)
@@ -345,3 +346,16 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
 
         unix_stamp = timeutils.to_unix_str(timestamp, ts_style)
         await ctx.send(f"{unix_stamp} → `{unix_stamp}`")
+
+    @commands.command(name="hash")
+    async def cmd_hash(self, ctx, alg: str, *, msg: str = ""):
+        try:
+            m = hashlib.new(alg.lower())
+        except ValueError:
+            await ctx.send(Lang.lang(self, "hash_alg_not_found", alg))
+            await add_reaction(ctx.message, Lang.CMDERROR)
+            return
+
+        m.update(bytes(msg, "utf-8"))
+        warning = Lang.lang(self, "hash_empty_string") if not msg else ""
+        await ctx.send("{}`{}`".format(warning, m.hexdigest()))
