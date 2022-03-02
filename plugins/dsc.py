@@ -290,6 +290,13 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
     @cmd_dsc_set.command(name="date")
     async def cmd_dsc_set_date(self, ctx, *args):
         date = timeutils.parse_time_input(args, end_of_day=True)
+
+        # catch parse error
+        if not args and date == datetime.max:
+            await utils.add_reaction(ctx.message, Lang.CMDERROR)
+            await ctx.send(Lang.lang(self, "invalid_datetime", " ".join(args)))
+            return
+        
         Storage.get(self)['date'] = date
         Storage().save(self)
         await utils.add_reaction(ctx.message, Lang.CMDSUCCESS)
