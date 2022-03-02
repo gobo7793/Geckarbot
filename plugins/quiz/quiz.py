@@ -109,11 +109,11 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
         # Migrate data if necessary
         migration(self, self.logger)
 
-        @commands.Cog.listener()
-        async def on_message(msg):
-            quiz = self.get_controller(msg.channel)
-            if quiz:
-                await quiz.on_message(msg)
+    @commands.Cog.listener()
+    async def on_message(self, msg):
+        quiz = self.get_controller(msg.channel)
+        if quiz:
+            await quiz.on_message(msg)
 
     def get_config(self, key):
         return Config.get(self).get(key, self.base_config[key][1])
@@ -215,7 +215,7 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
             self.controllers[channel] = quiz_controller
             self.logger.debug("Registered quiz controller %s in channel %s", quiz_controller, ctx.channel)
             await quiz_controller.status(ctx.message)
-            await quiz_controller.start(ctx.message)
+        await quiz_controller.start(ctx.message)
 
     @commands.has_role(Config().BOT_ADMIN_ROLE_ID)
     @cmd_kwiss.command(name="set", aliases=["config"], hidden=True)
@@ -507,10 +507,6 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
                 self.logger.debug("Ranked constraints violated: controller %s != %s",
                                   controller, self.default_controller)
                 return ["ranked_constraints"]
-            #if args["category"] != self.defaults["category"]:
-            #    self.logger.debug("Ranked constraints violated: cat {} != {}"
-            #                      .format(args["category"], self.defaults["category"]))
-            #    return "ranked_constraints"
             if args["difficulty"] != self.defaults["difficulty"]:
                 self.logger.debug("Ranked constraints violated: difficulty %s != %s",
                                   args["difficulty"], self.defaults["difficulty"])
@@ -580,7 +576,6 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
         # Parse regular arguments
         for arg in args:
             arg = arg.lower()
-            print("parsing arg {}".format(arg))
 
             # Question count
             try:
