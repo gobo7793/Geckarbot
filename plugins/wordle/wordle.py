@@ -1,6 +1,7 @@
 import logging
-from typing import Optional, Dict
+from typing import Optional, Dict, Type
 
+from nextcord import DMChannel
 from nextcord.ext import commands
 
 from base.configurable import BasePlugin
@@ -12,23 +13,34 @@ from botutils.stringutils import table, paginate, format_number
 from botutils.utils import helpstring_helper, add_reaction, log_exception
 from services.helpsys import DefaultCategories
 
-from plugins.wordle.game import Game, Correctness, WORDLENGTH
+from plugins.wordle.game import Game, Correctness, WORDLENGTH, HelpingSolver
 from plugins.wordle.naivesolver import NaiveSolver
+from plugins.wordle.dicesolver import DiceSolver
 from plugins.wordle.utils import format_guess
 from plugins.wordle.wordlist import fetch_powerlanguage_impl, WordList
 from plugins.wordle.gamehandler import Mothership, AlreadyRunning
 
 BASE_CONFIG = {
     "default_wordlist": [str, "en"],
+    "default_solver": [str, "naive"],
     "format_guess_monospace": [bool, False],
     "format_guess_include_word": [bool, False],
     "format_guess_vertical": [bool, False],
     "format_guess_history": [bool, False],
+    "format_guess_word_gap": [str, ""],
+    "format_guess_result_gap": [str, ""],
     "format_guess_keyboard": [bool, False],
     "format_guess_keyboard_gap": [str, ""],
     "format_guess_keyboard_strike": [bool, True],
     "format_guess_keyboard_monospace": [bool, False],
-    "format_guess_uppercase": [bool, True]
+    "format_guess_uppercase": [bool, True],
+    "format_guess_letter_emoji": [bool, False]
+}
+
+
+SOLVERS: Dict[str, Type[HelpingSolver]] = {
+    "naive": NaiveSolver,
+    "dice": DiceSolver
 }
 
 
@@ -144,7 +156,7 @@ class Plugin(BasePlugin, name="Wordle"):
         self.save_wordlists()
         await ctx.send(wl)
 
-    @cmd_wordle.command(name="play")
+    @cmd_wordle.group(name="play", invoke_without_command=True)
     async def cmd_wordle_play(self, ctx, wordlist: Optional[str] = None):
         solution = None
         default = self.get_config("default_wordlist")
@@ -162,12 +174,33 @@ class Plugin(BasePlugin, name="Wordle"):
 
         wordlist = self.wordlists[wordlist]
 
+        solver = SOLVERS[self.get_config("default_solver")]
         try:
-            instance = await self.mothership.spawn(self, wordlist, ctx.author, ctx.channel, solution=solution)
+            instance = await self.mothership.spawn(self, wordlist, ctx.author, ctx.channel, solver, solution=solution)
             if not instance.respawned:
                 await add_reaction(ctx.message, Lang.CMDSUCCESS)
         except AlreadyRunning:
-            await ctx.send(Lang.lang(self, "play_error_game_exists", gbu(ctx.author), ctx.channel.mention))
+            if isinstance(ctx.channel, DMChannel):
+                chan = Lang.lang(self, "dmchannel")
+            else:
+                chan = ctx.channel.mention
+            await ctx.send(Lang.lang(self, "play_error_game_exists", gbu(ctx.author), chan))
+
+    @cmd_wordle_play.command(name="suggest")
+    async def cmd_wordle_play_suggest(self, ctx):
+        instance = self.mothership.get_instance(ctx.channel, ctx.author)
+        if instance is None:
+            await add_reaction(ctx.message, Lang.CMDERROR)
+            await ctx.send(Lang.lang(self, "wordle_not_found"))
+            return
+
+        suggestion = instance.solver.get_guess()
+        await ctx.send(Lang.lang(self, "play_suggestion", suggestion))
+        instance.has_been_helped = True
+
+    @cmd_wordle.command(name="suggest", hidden=True)
+    async def cmd_wordle_suggest(self, ctx):
+        await self.cmd_wordle_play_suggest(ctx)
 
     @cmd_wordle.command(name="list")
     async def cmd_wordle_list(self, ctx):
@@ -176,7 +209,11 @@ class Plugin(BasePlugin, name="Wordle"):
             el = self.mothership.instances[i]
             p = gbu(el.player)
             g = el.game
-            msgs.append("**#{}** {} in {}, {}/{}".format(i + 1, p, el.channel.mention, len(g.guesses), g.max_tries))
+            if isinstance(el.channel, DMChannel):
+                chan = "DM-Channel"
+            else:
+                chan = el.channel.mention
+            msgs.append("**#{}** {} in {}, {}/{}".format(i + 1, p, chan, len(g.guesses), g.max_tries))
         for msg in paginate(msgs, prefix="_ _"):
             await ctx.send(msg)
 
@@ -224,11 +261,11 @@ class Plugin(BasePlugin, name="Wordle"):
         else:
             if word not in wordlist:
                 await add_reaction(ctx.message, Lang.CMDERROR)
-                await ctx.send(Lang.lang(self, "wordlist_not_found", wl_key))
+                await ctx.send(Lang.lang(self, "not_in_wordlist", wl_key))
                 return
 
         game = Game(wordlist, word)
-        NaiveSolver(game).solve()
+        SOLVERS[self.get_config("default_solver")](game).solve()
 
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
         await ctx.send(format_guess(self, game, game.guesses[-1], done=True, history=True))

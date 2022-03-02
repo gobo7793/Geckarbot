@@ -1,11 +1,11 @@
 from asyncio import Lock
-from typing import Union, List, Optional
+from typing import Union, List, Optional, Type
 
 from nextcord import User, Member, TextChannel, Thread, DMChannel, Message
 
 from base.data import Config, Lang
 
-from plugins.wordle.game import Game, Correctness
+from plugins.wordle.game import Game, Correctness, HelpingSolver
 from plugins.wordle.utils import format_guess
 from plugins.wordle.wordlist import WordList
 
@@ -27,6 +27,7 @@ class GameInstance:
             wordlist: WordList,
             player: Union[User, Member],
             channel: Union[TextChannel, DMChannel, Thread],
+            solver_class: Type[HelpingSolver],
             solution: Optional[str] = None
     ):
         self.plugin = plugin
@@ -35,6 +36,9 @@ class GameInstance:
         self.channel = channel
         self.respawned = False  # set to True if spawn is called again on this instance
         self.guess_lock = Lock()
+        self.has_been_helped = False
+
+        self.solver = solver_class(self.game)
 
     async def play(self):
         await self.channel.send(Lang.lang(self.plugin, "play_intro"))
@@ -67,7 +71,7 @@ class GameInstance:
                 return
 
             try:
-                guess = self.game.guess(word)
+                guess = self.solver.guess(word)
             except ValueError:
                 await self.channel.send(Lang.lang(self.plugin, "not_in_wordlist"))
                 return
@@ -97,12 +101,23 @@ class Mothership:
             return
 
         # find instance
-        for el in self.instances:
-            if message.channel == el.channel and message.author == el.player:
-                await el.guess(message)
-                break
+        instance = self.get_instance(message.channel, message.author)
+        if instance is not None:
+            await instance.guess(message)
 
-    async def spawn(self, plugin, wordlist: WordList, player, channel, solution: Optional[str] = None) -> GameInstance:
+    def get_instance(self, channel, player) -> Optional[GameInstance]:
+        """
+        :param channel: channel
+        :param player: player
+        :return: GameInstance for this channel, player pair. Returns None if there is none.
+        """
+        for el in self.instances:
+            if channel == el.channel and player == el.player:
+                return el
+        return None
+
+    async def spawn(self, plugin, wordlist: WordList, player, channel, solver_class: Type[HelpingSolver],
+                    solution: Optional[str] = None) -> GameInstance:
         """
         Starts a new game instance for a player, channel combination.
 
@@ -111,6 +126,7 @@ class Mothership:
         :param player: player
         :param channel: channel the wordle is played in
         :param solution: spawn a game with this solution
+        :param solver_class: solver to accompany this game instance
         :return: spawned GameInstance
         :raises AlreadyRunning: If there is an instance for this player, channel combination without guesses.
         """
@@ -122,7 +138,7 @@ class Mothership:
                 await el.channel.send(format_guess(plugin, el.game, el.game.guesses[0], history=True))
                 return el
 
-        instance = GameInstance(plugin, wordlist, player, channel, solution=solution)
+        instance = GameInstance(plugin, wordlist, player, channel, solver_class, solution=solution)
         self.instances.append(instance)
         await instance.play()
         return instance

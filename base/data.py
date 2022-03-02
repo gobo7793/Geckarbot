@@ -3,6 +3,7 @@ import json
 import logging
 from enum import Enum
 from botutils import jsonutils
+from string import ascii_lowercase
 
 from base.configurable import NotFound
 
@@ -471,6 +472,10 @@ class Lang(metaclass=_Singleton):
     @classmethod
     def get_default(cls, plugin):
         return plugin.default_config()
+
+    @classmethod
+    def letter_emoji(cls, letter: str):
+        return cls.EMOJI["lettermap"][ascii_lowercase.index(letter.lower())]
 
 
 def reconfigure(bot):

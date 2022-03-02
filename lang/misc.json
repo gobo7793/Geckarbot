@@ -28,6 +28,8 @@
         "pizza_header_d": "Diameter",
         "pizza_header_price": "Price",
         "pizza_header_rel": "Rel. price",
+        "hash_alg_not_found": "Unknown hash algorithm: `{}`",
+        "hash_empty_string": "Hash of the empty string:\n",
 
         "#2": "Help",
         "help_alpha": "Asks Wolfram|Alpha a question",
@@ -62,7 +64,10 @@
         "usage_pizza": "Diameter1 Price1 [Diameter2 Price2 ...]",
         "help_timestamp": "Create timestamp strings",
         "desc_timestamp": "Converts the given date and time to a Discord unix timestamp string.\n\nThe given date and time can be relative to current time or a fix given date and time. If no date or time is given, the current time or date will be used. If the date or time would be in the past, the next day/month/year will be used instead.\n\nStyles can be given as long string or single char out of following possible values:\nd: DATE_SHORT     → 20/04/2021\nD: DATE_LONG      → 20 April 2021\nf: DATETIME_SHORT → 20 April 2021 16:20\nF: DATETIME_LONG  → Tuesday, 20 April 2021 16:20\nR: RELATIVE       → 2 months ago\nt: TIME_SHORT     → 16:20\nT: TIME_LONG      → 16:20:30",
-        "usage_timestamp": "<#|#m|#h|#d|DD.MM.YYYY|DD.MM.YY|DD.MM.|HH:MM|DD.MM.YYYY HH:MM|DD.MM.YY HH:MM|DD.MM. HH:MM> [style]"
+        "usage_timestamp": "<#|#m|#h|#d|DD.MM.YYYY|DD.MM.YY|DD.MM.|HH:MM|DD.MM.YYYY HH:MM|DD.MM.YY HH:MM|DD.MM. HH:MM> [style]",
+        "help_hash": "Calculates hashes",
+        "desc_hash": "Calculates a cryptographic hash of a string. The algorithm argument specifies the used hash algorithm, e.g. md5 or sha256.\n\nExample:\n  !hash sha256 lorem ipsum",
+        "usage_hash": "<algorithm> <string>"
     },
     "de_DE": {
         "#0": "Single lang strings",
@@ -93,6 +98,8 @@
         "pizza_header_d": "Durchmesser",
         "pizza_header_price": "Preis",
         "pizza_header_rel": "rel. Preis",
+        "hash_alg_not_found": "Unbekannter Hash-Algorithmus: `{}`",
+        "hash_empty_string": "Hash des leeren Strings:\n",
 
         "#2": "Help",
         "help_alpha": "Fragt Wolfram|Alpha etwas",
@@ -127,6 +134,9 @@
         "usage_pizza": "Durchmesser1 Preis1 [Durchmesser2 Preis2 ...]",
         "help_timestamp": "Erstellt einen Timestamp-String",
         "desc_timestamp": "Konvertiert das angegebene Datum und Zeit in einen Unix-Timestamp-String zur Verwendung in Discord.\n\nDas angegebene Datum oder Zeit kann relativ zur aktuellen Zeit oder mit einem fest angegebenen Datum und Zeit angegeben werden. Wenn kein Datum oder keine Zeit angegeben ist, wird die jeweils aktuelle Zeit oder Datum verwendet. Wenn der Zeitpunkt in der Vergangenheit liegen würde, wird stattdessen der jeweils nächste Tag/Monat/Jahr verwendet.\n\nDer Style kann als einzelnes Zeichen oder voller String basierend auf folgenden Styles verwendet werden:\nd: DATE_SHORT     → 20.04.2021\nD: DATE_LONG      → 20. April 2021\nf: DATETIME_SHORT → 20. April 2021 16:20\nF: DATETIME_LONG  → Dienstag, 20. April 2021 16:20\nR: RELATIVE       → vor 2 Monaten\nt: TIME_SHORT     → 16:20\nT: TIME_LONG      → 16:20:30",
-        "usage_timestamp": "<#|#m|#h|#d|DD.MM.YYYY|DD.MM.YY|DD.MM.|HH:MM|DD.MM.YYYY HH:MM|DD.MM.YY HH:MM|DD.MM. HH:MM> [Style]"
+        "usage_timestamp": "<#|#m|#h|#d|DD.MM.YYYY|DD.MM.YY|DD.MM.|HH:MM|DD.MM.YYYY HH:MM|DD.MM.YY HH:MM|DD.MM. HH:MM> [Style]",
+        "help_hash": "Berechnet einen Hash",
+        "desc_hash": "Berechnet einen kryptographischen Hash eines Strings. Das Algorithmus-Argument spezifiziert den genutzten Hashalgorithmus, etwa md5 oder sha256.\n\nBeispiel:\n  !hash sha256 lorem ipsum",
+        "usage_hash": "<Algorithmus> <String>"
     }
 }

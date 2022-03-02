@@ -4,10 +4,10 @@ from typing import Optional, Dict, List
 
 from botutils.utils import execute_anything_sync, log_exception
 
-from plugins.wordle.game import Solver, Game, WORDLENGTH, Correctness, Guess
+from plugins.wordle.game import HelpingSolver, Game, WORDLENGTH, Correctness, Guess
 
 
-class NaiveSolver(Solver):
+class NaiveSolver(HelpingSolver):
     """
     Solver that tries to gather complete information about the final guess before committing.
     """
@@ -209,34 +209,41 @@ class NaiveSolver(Solver):
                     if char in sublist:
                         sublist.remove(char)
 
-    def guess(self) -> Guess:
+    def get_guess(self) -> str:
         """
-        Guess logic. Does the actual guessing and returns a Guess object.
-        :return: Resulting Guess object
-        :raises RuntimeError: If the algorithm is incomplete (runs into a seemingly impossible situation)
+        Calculates the next guess.
+        :return: Word that is to be guessed next
         """
         # Actual guess if enough info is gathered
-        w = self.word_found()
-        if w:
-            self.logger.debug("complete guess: %s", w)
-            r = self.game.guess(w)
-            if not r.is_correct:
-                raise RuntimeError("algorithm is incomplete")
+        r = self.word_found()
+        if r:
+            self.logger.debug("complete guess: %s", r)
 
         # Panic mode, not enough guesses remain to be completely stable
         elif len(self.game.guesses) == self.game.max_tries - 1:
-            w = self.best_guess()
-            self.logger.debug("panic guess: %s", w)
-            r = self.game.guess(w)
+            r = self.best_guess()
+            self.logger.debug("panic guess: %s", r)
 
         # Info guess
         else:
             scores = self.calc_scores()
             k = sorted(scores, reverse=True)[0]
-            w = random.choice(scores[k])
-            self.logger.debug("info guess: %s", w)
-            r = self.game.guess(w)
+            r = random.choice(scores[k])
+            self.logger.debug("info guess: %s", r)
 
+        return r
+
+    def guess(self, word: str) -> Guess:
+        """
+        Guesses word and updates bookkeeping.
+
+        :param word: word to guess
+        :return: resulting Guess object
+        :raises RuntimeError: If the algorithm is incomplete (runs into a seemingly impossible situation)
+        """
+        r = self.game.guess(word)
+        if not r.is_correct:
+            raise RuntimeError("algorithm is incomplete")
         self.update_charlists(r)
         return r
 
@@ -247,7 +254,7 @@ class NaiveSolver(Solver):
         """
         while True:
             self.log_charlists()
-            self.guess()
+            self.guess(self.get_guess())
             if self.game.done != Correctness.PARTIALLY:
                 break
 
