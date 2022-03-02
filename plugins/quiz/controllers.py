@@ -65,15 +65,10 @@ class PointsQuizController(BaseQuizController):
         self.original_rankedness = self.ranked
 
         # QuizAPI config
-        self.category = None
-        if "category" in kwargs:
-            self.category = kwargs["category"]
-        self.debug = False
-        if "debug" in kwargs and kwargs["debug"]:
-            self.debug = True
-        self.gecki = False
-        if "gecki" in kwargs and kwargs["gecki"]:
-            self.gecki = True
+        self.category = None if "category" not in kwargs else kwargs["category"]
+        self.debug = True if "debug" in kwargs and kwargs["debug"] else False
+        self.gecki = True if "gecki" in kwargs and kwargs["gecki"] else False
+        self.noping = True if "noping" in kwargs and kwargs["noping"] else False
         self.question_count = kwargs["question_count"]
         self.difficulty = kwargs["difficulty"]
 
@@ -116,7 +111,7 @@ class PointsQuizController(BaseQuizController):
         reaction = Lang.lang(self.plugin, "reaction_signup")
         signup_msg = Lang.lang(self.plugin, "registering_phase", reaction,
                                self.plugin.get_config("points_quiz_register_timeout") // 60)
-        if self.plugin.role is not None:
+        if self.plugin.role is not None and not self.noping:
             signup_msg = "{}\n{}".format(signup_msg, self.plugin.role.mention)
         signup_msg = await self.channel.send(signup_msg)
         await add_reaction(signup_msg, Lang.lang(self.plugin, "reaction_signup"))
@@ -615,21 +610,19 @@ class RushQuizController(BaseQuizController):
         :param kwargs: category, question_count, difficulty, debug
         """
         super().__init__(plugin, quizapi, channel, requester, **kwargs)
-        plugin.logger.debug("Building RaceQuizController; kwargs: {}".format(kwargs))
+        plugin.logger.debug("Building RushQuizController; kwargs: {}".format(kwargs))
         self.plugin = plugin
         self.channel = channel
         self.requester = requester
         self.task = asyncio.current_task()
 
         # QuizAPI config
-        self.category = None
-        if "category" in kwargs:
-            self.category = kwargs["category"]
-        self.debug = False
-        if "debug" in kwargs and kwargs["debug"]:
-            self.debug = True
+        self.category = None if "category" not in kwargs else kwargs["category"]
+        self.noping = True if "noping" in kwargs and kwargs["noping"] else False
+        self.debug = True if "debug" in kwargs and kwargs["debug"] else False
         self.question_count = kwargs["question_count"]
         self.difficulty = kwargs["difficulty"]
+        print("=============\nNOPING: {} / {}".format(self.noping, kwargs.get("noping", "blub")))
 
         # State handling
         self.eval_event = None
@@ -657,7 +650,7 @@ class RushQuizController(BaseQuizController):
         :return: QUESTION
         """
         startmsg = Lang.lang(self.plugin, "quiz_phase")
-        if self.plugin.role is not None:
+        if self.plugin.role is not None and not self.noping:
             startmsg = "{}\n{}".format(startmsg, self.plugin.role.mention)
         await self.channel.send(startmsg)
         await asyncio.sleep(10)

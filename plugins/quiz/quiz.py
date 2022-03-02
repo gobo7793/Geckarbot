@@ -87,6 +87,7 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
             "method": Methods.START,
             "category": DefaultCategory.ALL,
             "difficulty": Difficulty.EASY,
+            "noping": False,
             "ranked": False,
             "unranked": False,
             "gecki": False,
@@ -196,9 +197,9 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
         cat = self.category_controller.get_category_key(args["quizapi"], args["category"])
         rankedness = self.rankedness(controller_class, args)
         self.logger.debug("Starting kwiss: controller %s, api %s,  channel %s, author %s, cat %s, question "
-                          "count %s, difficulty %s, debug %s, ranked %s, gecki %s", controller_class,
+                          "count %s, difficulty %s, noping %s, debug %s, ranked %s, gecki %s", controller_class,
                           args["quizapi"], ctx.channel, ctx.message.author, cat, args["questions"], args["difficulty"],
-                          args["debug"], args["ranked"], args["gecki"])
+                          args["noping"], args["debug"], args["ranked"], args["gecki"])
         async with ctx.typing():
             quiz_controller = controller_class(self,
                                                args["quizapi"],
@@ -207,6 +208,7 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
                                                category=cat,
                                                question_count=args["questions"],
                                                difficulty=args["difficulty"],
+                                               noping=args["noping"],
                                                debug=args["debug"],
                                                ranked=rankedness,
                                                gecki=args["gecki"])
@@ -556,9 +558,9 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
         """
         self.logger.debug("Parsing args: %s", args)
         found = {el: False for el in self.defaults}
+        found["controller"] = False
         parsed = self.defaults.copy()
         controller = self.default_controller
-        controller_found = False
 
         # Fish for subcommand
         subcmd = None
@@ -578,6 +580,7 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
         # Parse regular arguments
         for arg in args:
             arg = arg.lower()
+            print("parsing arg {}".format(arg))
 
             # Question count
             try:
@@ -628,11 +631,13 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
                 pass
 
             # controller
+            controller_found = False
             for ctrlclass, ctrlargs in self.controller_mapping.items():
                 if arg in ctrlargs:
-                    if controller_found:
+                    if found["controller"]:
                         raise QuizInitError(self, "duplicate_controller_arg")
                     controller = ctrlclass
+                    found["controller"] = True
                     controller_found = True
                     break
             if controller_found:
@@ -651,6 +656,12 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
                     raise QuizInitError(self, "duplicate_ranked_arg")
                 parsed["unranked"] = True
                 found["unranked"] = True
+                continue
+
+            # noping
+            if arg == "noping":
+                parsed["noping"] = True
+                found["noping"] = True
                 continue
 
             # gecki
@@ -677,5 +688,5 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
 
             raise QuizInitError(self, "unknown_arg", arg)
 
-        self.logger.debug("Parsed kwiss args: %s", parsed)
+        self.logger.debug("Parsed kwiss args: %s; found: %s", parsed, found)
         return controller, parsed
