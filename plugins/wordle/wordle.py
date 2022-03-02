@@ -101,8 +101,8 @@ class Plugin(BasePlugin, name="Wordle"):
         Storage.save(self, container=self.WORDLIST_CONTAINER)
 
     @commands.group(name="wordle", invoke_without_command=True)
-    async def cmd_wordle(self, ctx):
-        await Config().bot.helpsys.cmd_help(ctx, self, ctx.command)
+    async def cmd_wordle(self, ctx, wordlist: Optional[str] = None):
+        await self.cmd_wordle_play(ctx, wordlist)
 
     @cmd_wordle.command(name="set", aliases=["config"], hidden=True)
     async def cmd_set(self, ctx, key=None, value=None):

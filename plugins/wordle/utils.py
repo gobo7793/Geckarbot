@@ -116,7 +116,8 @@ def format_word(word: str, format_options: Optional[GuessFormat] = None,
 
 
 def format_guess(plugin, game: Game, guess: Guess,
-                 format_options: Optional[GuessFormat] = None, done: bool = False, history: bool = False) -> str:
+                 format_options: Optional[GuessFormat] = None, player_name: Optional[str] = None,
+                 done: bool = False, history: bool = False) -> str:
     """
     Formats the output string for a guess.
 
@@ -124,6 +125,7 @@ def format_guess(plugin, game: Game, guess: Guess,
     :param game: Game that is being solved
     :param guess: Guess instance that is to be formatted
     :param format_options: GuessFormat that controls what the resulting formatted guess looks like
+    :param player_name: Player name that is put at the front
     :param done: if set to True, keyboard is strictly omitted
     :param history: if set to True, shows all the guesses so far
     :return: formatted string
@@ -162,6 +164,11 @@ def format_guess(plugin, game: Game, guess: Guess,
             else:
                 r.append(correctness)
         r = "\n\n".join(r)
+
+    # Add username if necessary
+    if player_name:
+        r = "{}:\n\n{}".format(player_name, r)
+
     if not format_options.monospace:
         r = "_ _\n" + r
 
