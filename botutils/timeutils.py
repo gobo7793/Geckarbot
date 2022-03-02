@@ -89,7 +89,7 @@ def parse_time_input(*args, end_of_day: bool = False) -> datetime:
             if '%Y' not in dt_format and '%y' not in dt_format and r < datetime.now():
                 # use next day if time < now
                 if '%m' not in dt_format and '%d' not in dt_format:
-                    r = datetime(r.year, r.month, r.day + 1, r.hour, r.minute)
+                    r += timedelta(days=1)
 
                 # use next year if month/day is specified
                 else:

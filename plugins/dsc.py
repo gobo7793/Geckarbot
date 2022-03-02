@@ -271,14 +271,32 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
 
     @cmd_dsc_set.command(name="state")
     async def cmd_dsc_set_state(self, ctx, state):
-        if state.lower() == "voting":
-            await self._dsc_save_state(ctx, DscState.VOTING)
+        state_re = {
+            DscState.VOTING: Lang.lang(self, "phase_names_voting").split(","),
+            DscState.SIGN_UP: Lang.lang(self, "phase_names_signup").split(",")
+        }
+
+        # parse state arg
+        found_state = None
+        for s in (DscState.VOTING, DscState.SIGN_UP):
+            for el in state_re[s]:
+                if el.lower().strip() == state.lower().strip():
+                    found_state = s
+                    break
+            if found_state is not None:
+                break
+
+        if found_state is None:
+            await utils.add_reaction(ctx.message, Lang.CMDERROR)
+            await ctx.send(Lang.lang(self, "invalid_phase"))
+            return
+
+        # do stuff
+        await self._dsc_save_state(ctx, found_state)
+        if found_state == DscState.VOTING:
             self.register_presence()
-        elif state.lower() == "signup":
-            await self._dsc_save_state(ctx, DscState.SIGN_UP)
+        elif found_state == DscState.SIGN_UP:
             self.deregister_presence()
-        else:
-            await ctx.send(Lang.lang(self, 'invalid_phase'))
 
     @cmd_dsc_set.command(name="yt")
     async def cmd_dsc_set_yt_link(self, ctx, link):
@@ -290,6 +308,13 @@ class Plugin(BasePlugin, name="Discord Song Contest"):
     @cmd_dsc_set.command(name="date")
     async def cmd_dsc_set_date(self, ctx, *args):
         date = timeutils.parse_time_input(args, end_of_day=True)
+
+        # catch parse error
+        if not args and date == datetime.max:
+            await utils.add_reaction(ctx.message, Lang.CMDERROR)
+            await ctx.send(Lang.lang(self, "invalid_datetime", " ".join(args)))
+            return
+
         Storage.get(self)['date'] = date
         Storage().save(self)
         await utils.add_reaction(ctx.message, Lang.CMDSUCCESS)

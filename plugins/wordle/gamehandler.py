@@ -4,6 +4,7 @@ from typing import Union, List, Optional, Type
 from nextcord import User, Member, TextChannel, Thread, DMChannel, Message
 
 from base.data import Config, Lang
+from botutils.converters import get_best_username as gbu
 
 from plugins.wordle.game import Game, Correctness, HelpingSolver
 from plugins.wordle.utils import format_guess
@@ -76,13 +77,15 @@ class GameInstance:
                 await self.channel.send(Lang.lang(self.plugin, "not_in_wordlist"))
                 return
 
+            pname = gbu(self.player) if self.plugin.mothership.game_count(self.channel) > 1 else None
             if self.game.done == Correctness.PARTIALLY:
                 # mid-game
-                await self.channel.send(format_guess(self.plugin, self.game, guess, history=history))
+                await self.channel.send(format_guess(self.plugin, self.game, guess, player_name=pname, history=history))
             else:
                 # done
                 kb = self.game.done == Correctness.CORRECT
-                await self.channel.send(format_guess(self.plugin, self.game, guess, done=kb, history=history))
+                await self.channel.send(format_guess(self.plugin, self.game, guess,
+                                                     player_name=pname, done=kb, history=history))
                 await self.channel.send(self.format_result())
                 self.plugin.mothership.deregister(self)
 
@@ -104,6 +107,17 @@ class Mothership:
         instance = self.get_instance(message.channel, message.author)
         if instance is not None:
             await instance.guess(message)
+
+    def game_count(self, channel) -> int:
+        """
+        :param channel: Channel
+        :return: Amount of games in `channel`
+        """
+        r = 0
+        for el in self.instances:
+            if el.channel == channel:
+                r += 1
+        return r
 
     def get_instance(self, channel, player) -> Optional[GameInstance]:
         """
@@ -135,7 +149,9 @@ class Mothership:
                 if len(el.game.guesses) == 0:
                     raise AlreadyRunning
                 el.respawned = True
-                await el.channel.send(format_guess(plugin, el.game, el.game.guesses[0], history=True))
+                pname = gbu(player) if self.game_count(channel) > 1 else None
+                await el.channel.send(format_guess(plugin, el.game, el.game.guesses[0],
+                                                   player_name=pname, history=True))
                 return el
 
         instance = GameInstance(plugin, wordlist, player, channel, solver_class, solution=solution)

@@ -1,7 +1,7 @@
 import asyncio
 import random
 from enum import Enum
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from nextcord import User, Embed, TextChannel
 from nextcord.abc import Messageable
@@ -65,15 +65,10 @@ class PointsQuizController(BaseQuizController):
         self.original_rankedness = self.ranked
 
         # QuizAPI config
-        self.category = None
-        if "category" in kwargs:
-            self.category = kwargs["category"]
-        self.debug = False
-        if "debug" in kwargs and kwargs["debug"]:
-            self.debug = True
-        self.gecki = False
-        if "gecki" in kwargs and kwargs["gecki"]:
-            self.gecki = True
+        self.category = None if "category" not in kwargs else kwargs["category"]
+        self.debug = True if "debug" in kwargs and kwargs["debug"] else False
+        self.gecki = True if "gecki" in kwargs and kwargs["gecki"] else False
+        self.noping = True if "noping" in kwargs and kwargs["noping"] else False
         self.question_count = kwargs["question_count"]
         self.difficulty = kwargs["difficulty"]
 
@@ -116,7 +111,7 @@ class PointsQuizController(BaseQuizController):
         reaction = Lang.lang(self.plugin, "reaction_signup")
         signup_msg = Lang.lang(self.plugin, "registering_phase", reaction,
                                self.plugin.get_config("points_quiz_register_timeout") // 60)
-        if self.plugin.role is not None:
+        if self.plugin.role is not None and not self.noping:
             signup_msg = "{}\n{}".format(signup_msg, self.plugin.role.mention)
         signup_msg = await self.channel.send(signup_msg)
         await add_reaction(signup_msg, Lang.lang(self.plugin, "reaction_signup"))
@@ -615,19 +610,17 @@ class RushQuizController(BaseQuizController):
         :param kwargs: category, question_count, difficulty, debug
         """
         super().__init__(plugin, quizapi, channel, requester, **kwargs)
-        plugin.logger.debug("Building RaceQuizController; kwargs: {}".format(kwargs))
+        plugin.logger.debug("Building RushQuizController; quizapi: {}, channel: {}, requester: {}, kwargs: {}".format(
+            quizapi, channel, requester, kwargs))
         self.plugin = plugin
         self.channel = channel
         self.requester = requester
         self.task = asyncio.current_task()
 
         # QuizAPI config
-        self.category = None
-        if "category" in kwargs:
-            self.category = kwargs["category"]
-        self.debug = False
-        if "debug" in kwargs and kwargs["debug"]:
-            self.debug = True
+        self.category = None if "category" not in kwargs else kwargs["category"]
+        self.noping = True if "noping" in kwargs and kwargs["noping"] else False
+        self.debug = True if "debug" in kwargs and kwargs["debug"] else False
         self.question_count = kwargs["question_count"]
         self.difficulty = kwargs["difficulty"]
 
@@ -644,6 +637,7 @@ class RushQuizController(BaseQuizController):
 
         # Quiz handling
         self.last_author = None
+        self.last_author_time = None
         self.quizapi = quizapi
         self._score = Score(self.plugin, self.question_count)
 
@@ -657,7 +651,7 @@ class RushQuizController(BaseQuizController):
         :return: QUESTION
         """
         startmsg = Lang.lang(self.plugin, "quiz_phase")
-        if self.plugin.role is not None:
+        if self.plugin.role is not None and not self.noping:
             startmsg = "{}\n{}".format(startmsg, self.plugin.role.mention)
         await self.channel.send(startmsg)
         await asyncio.sleep(10)
@@ -679,6 +673,7 @@ class RushQuizController(BaseQuizController):
         await self.current_question.pose(self.channel)
 
         await self.eval_event.wait()
+        self.plugin.logger.debug("Woken up.")
         self.eval_event = None
         if self.statemachine.cancelled():
             return Phases.ABORT
@@ -754,11 +749,14 @@ class RushQuizController(BaseQuizController):
         except InvalidAnswer:
             return
 
-        if not self.debug and self.last_author == msg.author:
-            await msg.channel.send(Lang.lang(self.plugin, "answering_order", msg.author))
+        t = self.last_author_time and datetime.now() - self.last_author_time < timedelta(seconds=10)
+        if not self.debug and self.last_author == msg.author and t:
+            uname = get_best_username(Storage().get(self.plugin), msg.author)
+            await msg.channel.send(Lang.lang(self.plugin, "answering_order", uname))
             return
 
         self.last_author = msg.author
+        self.last_author_time = datetime.now()
         if check:
             self.eval_event.set()
         await add_reaction(msg, Lang.lang(self.plugin, reaction))
@@ -773,6 +771,7 @@ class RushQuizController(BaseQuizController):
     async def start(self, msg):
         self.quizapi = self.quizapi(self.channel, self.category, self.question_count,
                                     difficulty=self.difficulty, debug=self.debug)
+        await self.quizapi.fetch()
         await self.statemachine.run()
 
     async def pause(self, msg):

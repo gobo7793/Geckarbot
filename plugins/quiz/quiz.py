@@ -87,6 +87,7 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
             "method": Methods.START,
             "category": DefaultCategory.ALL,
             "difficulty": Difficulty.EASY,
+            "noping": False,
             "ranked": False,
             "unranked": False,
             "gecki": False,
@@ -108,11 +109,11 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
         # Migrate data if necessary
         migration(self, self.logger)
 
-        @commands.Cog.listener()
-        async def on_message(msg):
-            quiz = self.get_controller(msg.channel)
-            if quiz:
-                await quiz.on_message(msg)
+    @commands.Cog.listener()
+    async def on_message(self, msg):
+        quiz = self.get_controller(msg.channel)
+        if quiz:
+            await quiz.on_message(msg)
 
     def get_config(self, key):
         return Config.get(self).get(key, self.base_config[key][1])
@@ -196,9 +197,9 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
         cat = self.category_controller.get_category_key(args["quizapi"], args["category"])
         rankedness = self.rankedness(controller_class, args)
         self.logger.debug("Starting kwiss: controller %s, api %s,  channel %s, author %s, cat %s, question "
-                          "count %s, difficulty %s, debug %s, ranked %s, gecki %s", controller_class,
+                          "count %s, difficulty %s, noping %s, debug %s, ranked %s, gecki %s", controller_class,
                           args["quizapi"], ctx.channel, ctx.message.author, cat, args["questions"], args["difficulty"],
-                          args["debug"], args["ranked"], args["gecki"])
+                          args["noping"], args["debug"], args["ranked"], args["gecki"])
         async with ctx.typing():
             quiz_controller = controller_class(self,
                                                args["quizapi"],
@@ -207,13 +208,14 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
                                                category=cat,
                                                question_count=args["questions"],
                                                difficulty=args["difficulty"],
+                                               noping=args["noping"],
                                                debug=args["debug"],
                                                ranked=rankedness,
                                                gecki=args["gecki"])
             self.controllers[channel] = quiz_controller
             self.logger.debug("Registered quiz controller %s in channel %s", quiz_controller, ctx.channel)
             await quiz_controller.status(ctx.message)
-            await quiz_controller.start(ctx.message)
+        await quiz_controller.start(ctx.message)
 
     @commands.has_role(Config().BOT_ADMIN_ROLE_ID)
     @cmd_kwiss.command(name="set", aliases=["config"], hidden=True)
@@ -505,10 +507,6 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
                 self.logger.debug("Ranked constraints violated: controller %s != %s",
                                   controller, self.default_controller)
                 return ["ranked_constraints"]
-            #if args["category"] != self.defaults["category"]:
-            #    self.logger.debug("Ranked constraints violated: cat {} != {}"
-            #                      .format(args["category"], self.defaults["category"]))
-            #    return "ranked_constraints"
             if args["difficulty"] != self.defaults["difficulty"]:
                 self.logger.debug("Ranked constraints violated: difficulty %s != %s",
                                   args["difficulty"], self.defaults["difficulty"])
@@ -556,9 +554,9 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
         """
         self.logger.debug("Parsing args: %s", args)
         found = {el: False for el in self.defaults}
+        found["controller"] = False
         parsed = self.defaults.copy()
         controller = self.default_controller
-        controller_found = False
 
         # Fish for subcommand
         subcmd = None
@@ -628,11 +626,13 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
                 pass
 
             # controller
+            controller_found = False
             for ctrlclass, ctrlargs in self.controller_mapping.items():
                 if arg in ctrlargs:
-                    if controller_found:
+                    if found["controller"]:
                         raise QuizInitError(self, "duplicate_controller_arg")
                     controller = ctrlclass
+                    found["controller"] = True
                     controller_found = True
                     break
             if controller_found:
@@ -651,6 +651,12 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
                     raise QuizInitError(self, "duplicate_ranked_arg")
                 parsed["unranked"] = True
                 found["unranked"] = True
+                continue
+
+            # noping
+            if arg == "noping":
+                parsed["noping"] = True
+                found["noping"] = True
                 continue
 
             # gecki
@@ -677,5 +683,5 @@ class Plugin(BasePlugin, name="A trivia kwiss"):
 
             raise QuizInitError(self, "unknown_arg", arg)
 
-        self.logger.debug("Parsed kwiss args: %s", parsed)
+        self.logger.debug("Parsed kwiss args: %s; found: %s", parsed, found)
         return controller, parsed

@@ -92,8 +92,9 @@ class HelpCategory:
     def __init__(self, bot, name, desc="", order=CategoryOrder.MIDDLE, defaultcat=False):
         self._name = name[0].upper() + name[1:]
         self.description = desc
-        self.plugins = []
-        self.standalone_commands = []
+        self.plugins = []  # plugins that are added to this cat
+        self.standalone_commands = []  # separate commands that are added to this cat
+        self.blacklist = []  # commands that are removed from this cat
         self.order = order
         self.bot = bot
         self.default = defaultcat
@@ -155,6 +156,8 @@ class HelpCategory:
 
         :param command: Command that is to be added to the category
         """
+        while command in self.blacklist:
+            self.blacklist.remove(command)
         self.standalone_commands.append(command)
 
     def remove_command(self, command: Command):
@@ -165,6 +168,7 @@ class HelpCategory:
         """
         while command in self.standalone_commands:
             self.standalone_commands.remove(command)
+        self.blacklist.append(command)
 
     def single_line(self) -> str:
         """
@@ -179,7 +183,8 @@ class HelpCategory:
         r = []
         for el in self.plugins:
             for cmd in el.get_commands():
-                r.append(cmd)
+                if cmd not in self.blacklist:
+                    r.append(cmd)
         return r + self.standalone_commands
 
     def sort_commands(self, ctx, cmds):

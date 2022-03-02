@@ -557,7 +557,7 @@ class Question:
             answer = answer.strip().lower()
         i = self.letter_mapping(answer, emoji=emoji, reverse=True)
 
-        if i is None:
+        if i is None or i >= len(self.all_answers):
             raise InvalidAnswer()
         if self.all_answers[i] == self.correct_answer:
             return True
