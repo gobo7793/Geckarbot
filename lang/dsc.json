@@ -30,6 +30,8 @@
         "songmaster_id": "The role id for the songmaster role must be a valid role id on this server.",
         "key_not_exist": "A key `{}` doesn't exist.",
         "presence_voting": "DSC voting started",
+        "phase_names_voting": "voting",
+        "phase_names_signup": "signup,register,registering,enroll",
 
         "cat_desc": "Discord Song Contest",
         "help_dsc": "Gets data about current/next DSC",
@@ -65,7 +67,7 @@
         "help_dsc_set_config": "Gets or sets general config values",
         "desc_dsc_set_config": "Gets or sets general config values for the dsc plugin.\n\nIf neither key or value is given, the current config will returned.\nIf only the key is given, the value for the key will returned.\nIf key and value is given, the given key will be set to the given value.\n\nTo set the dsc channel, use the key 'channel_id' and give the channel as value.\nTo set the mod role, use the key 'mod_role_id' and give the role as value.",
         "usage_dsc_set_config": "[key] [value]"
-        },
+    },
 
     "de_DE": {
         "status_base": "Eine wichtige Nachricht der Songmaster: {}",
@@ -98,6 +100,8 @@
         "songmaster_id": "Die Rollen-ID für die Songmaster-Rolle muss eine gültige ID auf diesem Server sein.",
         "key_not_exist": "Es gibt keinen Key `{}`.",
         "presence_voting": "DSC-Voting läuft",
+        "phase_names_voting": "voting,abstimmung,abstimmen",
+        "phase_names_signup": "signup,anmeldung,anmelden",
 
         "cat_desc": "Discord Song Contest",
         "help_dsc": "Generelle Infos zum DSC",
