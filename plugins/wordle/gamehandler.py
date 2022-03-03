@@ -1,12 +1,14 @@
 from asyncio import Lock
-from typing import Union, List, Optional
+from typing import Union, List, Optional, Type
+import re
 
 from nextcord import User, Member, TextChannel, Thread, DMChannel, Message
 
 from base.data import Config, Lang
+from botutils.converters import get_best_username as gbu
 
-from plugins.wordle.game import Game, Correctness
-from plugins.wordle.utils import format_guess
+from plugins.wordle.game import Game, Correctness, HelpingSolver, WORDLENGTH, Guess
+from plugins.wordle.utils import format_guess, ICONS
 from plugins.wordle.wordlist import WordList
 
 
@@ -17,7 +19,50 @@ class AlreadyRunning(Exception):
     pass
 
 
-class GameInstance:
+class BaseGameInstance:
+    """
+    base class for game instances; keeps bookkeeping data such as channel, player
+    """
+    def __init__(
+            self,
+            plugin,
+            player: Union[User, Member],
+            channel: Union[TextChannel, DMChannel, Thread],
+            game: Game
+    ):
+        self.plugin = plugin
+        self.player = player
+        self.channel = channel
+        self.game = game
+
+    async def on_message(self, msg: Message):
+        """
+        Called by mothership whenever player sends a message with length WORDLENGTH to channel.
+
+        :param msg: Message that was sent
+        """
+        raise NotImplementedError
+
+    async def respawn(self):
+        """
+        Called when a spawn was attempted by this instance's player, channel combination.
+        """
+        raise NotImplementedError
+
+    async def play(self):
+        """
+        Called to start the game.
+        """
+        raise NotImplementedError
+
+    async def suggest(self):
+        """
+        Called when the sugges command is invoked on this instance.
+        """
+        raise NotImplementedError
+
+
+class GameInstance(BaseGameInstance):
     """
     UI for a discord wordle game.
     """
@@ -27,14 +72,18 @@ class GameInstance:
             wordlist: WordList,
             player: Union[User, Member],
             channel: Union[TextChannel, DMChannel, Thread],
+            solver_class: Type[HelpingSolver],
             solution: Optional[str] = None
     ):
-        self.plugin = plugin
-        self.game = Game(wordlist, word=solution)
-        self.player = player
-        self.channel = channel
+        super().__init__(plugin, player, channel, Game(wordlist, word=solution))
+        if solution is None:
+            self.game.set_random_solution()
+
         self.respawned = False  # set to True if spawn is called again on this instance
         self.guess_lock = Lock()
+        self.has_been_helped = False
+
+        self.solver = solver_class(self.game)
 
     async def play(self):
         await self.channel.send(Lang.lang(self.plugin, "play_intro"))
@@ -51,15 +100,38 @@ class GameInstance:
             return "X/{}\n{}".format(self.game.max_tries, whb)
         return "This should not happen, pls report."
 
-    async def guess(self, msg: Message):
+    async def suggest(self):
+        suggestion = self.solver.get_guess()
+        await self.channel.send(Lang.lang(self.plugin, "play_suggestion", suggestion))
+        self.has_been_helped = True
+
+    async def respawn(self):
+        """
+        Re-sends the last guess response.
+        """
+        # Send generic message when no guesses have been sent so far
+        if len(self.game.guesses) == 0:
+            if isinstance(self.channel, DMChannel):
+                chan = Lang.lang(self.plugin, "dmchannel")
+            else:
+                chan = self.channel.mention
+            await self.channel.send(Lang.lang(self.plugin, "play_error_game_exists", gbu(self.player), chan))
+            return
+
+        self.respawned = True
+        pname = gbu(self.player) if self.plugin.mothership.game_count(self.channel) > 1 else None
+        await self.channel.send(format_guess(self.plugin, self.game, self.game.guesses[0],
+                                             player_name=pname, history=True))
+
+    async def on_message(self, msg: Message):
         """
         Handles a guess.
 
         :param msg: Message that contains the guessed word
         """
         history = self.plugin.get_config("format_guess_history")
-        word = msg.content.strip().lower()
-        assert len(word) == 5
+        word = re.sub(r"\s*", "", msg.content).lower()
+        assert len(word) == WORDLENGTH
 
         async with self.guess_lock:
             if self.game.done != Correctness.PARTIALLY:
@@ -71,16 +143,88 @@ class GameInstance:
             except ValueError:
                 await self.channel.send(Lang.lang(self.plugin, "not_in_wordlist"))
                 return
+            self.solver.digest_guess(guess)
 
+            pname = gbu(self.player) if self.plugin.mothership.game_count(self.channel) > 1 else None
             if self.game.done == Correctness.PARTIALLY:
                 # mid-game
-                await self.channel.send(format_guess(self.plugin, self.game, guess, history=history))
+                await self.channel.send(format_guess(self.plugin, self.game, guess, player_name=pname, history=history))
             else:
                 # done
                 kb = self.game.done == Correctness.CORRECT
-                await self.channel.send(format_guess(self.plugin, self.game, guess, done=kb, history=history))
+                await self.channel.send(format_guess(self.plugin, self.game, guess,
+                                                     player_name=pname, done=kb, history=history))
                 await self.channel.send(self.format_result())
                 self.plugin.mothership.deregister(self)
+
+
+class ReverseGameInstance(BaseGameInstance):
+    """
+    UI for a reverse wordle game where the player answers the bot's guesses.
+    """
+    def __init__(
+            self,
+            plugin,
+            wordlist: WordList,
+            player: Union[User, Member],
+            channel: Union[TextChannel, DMChannel, Thread],
+            solver_class: Type[HelpingSolver]
+    ):
+        super().__init__(plugin, player, channel, Game(wordlist))
+        self.solver = solver_class(self.game)
+        self.last_guess: Optional[str] = None
+
+    async def suggest(self):
+        """
+        Calculates the next guess and sends it.
+        """
+        if not self.last_guess:
+            self.last_guess = self.solver.get_guess()
+
+        prefix = ""
+        if self.plugin.mothership.game_count(self.channel) > 1:
+            prefix = Lang.lang(self.plugin, "reverse_username_prefix", gbu(self.player))
+
+        await self.channel.send(Lang.lang(self.plugin, "reverse_guess", prefix, self.last_guess))
+
+    async def on_message(self, msg: Message):
+        # parse response
+        response = list(re.sub(r"\s*", "", msg.content))
+        assert len(response) == WORDLENGTH
+        for i in range(len(response)):
+            found = False
+            for correctness, icon in ICONS.items():
+                if response[i] == icon:
+                    found = True
+                    response[i] = correctness
+                    break
+            if not found:
+                await self.channel.send(Lang.lang(self.plugin, "reverse_parse_error"))
+                return
+
+        # build guess
+        assert self.last_guess is not None
+        g = Guess(self.last_guess, response)
+        self.last_guess = None
+        self.game.guesses.append(g)
+        self.solver.digest_guess(g)
+
+        if g.is_correct:
+            await self.channel.send(Lang.lang(self.plugin, "reverse_success"))
+            self.plugin.mothership.deregister(self)
+            return
+        if self.game.done == Correctness.INCORRECT:
+            await self.channel.send(Lang.lang(self.plugin, "reverse_failure"))
+            self.plugin.mothership.deregister(self)
+            return
+
+        await self.suggest()
+
+    async def respawn(self):
+        await self.suggest()
+
+    async def play(self):
+        await self.suggest()
 
 
 class Mothership:
@@ -90,19 +234,56 @@ class Mothership:
     def __init__(self, plugin):
         self.bot = Config().bot
         self.plugin = plugin
-        self.instances: List[GameInstance] = []
+        self.instances: List[BaseGameInstance] = []
 
     async def on_message(self, message):
-        if len(message.content.strip()) != 5:
+        msg = re.sub(r"\s*", "", message.content)
+        if len(msg) != WORDLENGTH:
             return
 
         # find instance
-        for el in self.instances:
-            if message.channel == el.channel and message.author == el.player:
-                await el.guess(message)
-                break
+        instance = self.get_instance(message.channel, message.author)
+        if instance is not None:
+            await instance.on_message(message)
 
-    async def spawn(self, plugin, wordlist: WordList, player, channel, solution: Optional[str] = None) -> GameInstance:
+    def game_count(self, channel) -> int:
+        """
+        :param channel: Channel
+        :return: Amount of games in `channel`
+        """
+        r = 0
+        for el in self.instances:
+            if el.channel == channel:
+                r += 1
+        return r
+
+    def get_instance(self, channel, player) -> Optional[BaseGameInstance]:
+        """
+        :param channel: channel
+        :param player: player
+        :return: GameInstance for this channel, player pair. Returns None if there is none.
+        """
+        for el in self.instances:
+            if channel == el.channel and player == el.player:
+                return el
+        return None
+
+    async def catch_respawn(self, player, channel) -> Optional[BaseGameInstance]:
+        """
+        Checks if there is a game in the channel and if so, executes its respawn() method.
+
+        :param player: Player
+        :param channel: Channel
+        :return: instance that was found
+        """
+        for el in self.instances:
+            if el.player == player and el.channel == channel:
+                await el.respawn()
+                return el
+        return None
+
+    async def spawn(self, plugin, wordlist: WordList, player, channel, solver_class: Type[HelpingSolver],
+                    solution: Optional[str] = None) -> GameInstance:
         """
         Starts a new game instance for a player, channel combination.
 
@@ -111,21 +292,33 @@ class Mothership:
         :param player: player
         :param channel: channel the wordle is played in
         :param solution: spawn a game with this solution
+        :param solver_class: solver to accompany this game instance
         :return: spawned GameInstance
-        :raises AlreadyRunning: If there is an instance for this player, channel combination without guesses.
         """
-        for el in self.instances:
-            if el.player == player and el.channel == channel:
-                if len(el.game.guesses) == 0:
-                    raise AlreadyRunning
-                el.respawned = True
-                await el.channel.send(format_guess(plugin, el.game, el.game.guesses[0], history=True))
-                return el
-
-        instance = GameInstance(plugin, wordlist, player, channel, solution=solution)
+        instance = GameInstance(plugin, wordlist, player, channel, solver_class, solution=solution)
         self.instances.append(instance)
         await instance.play()
         return instance
 
-    def deregister(self, instance: GameInstance):
+    async def spawn_reverse(self, plugin, wordlist: WordList, player, channel,
+                            solver_class: Type[HelpingSolver]) -> ReverseGameInstance:
+        """
+        Spawns a reverse game instance.
+
+        :param plugin: Plugin ref
+        :param wordlist: Wordlist that this instance is to be run on
+        :param player: Player
+        :param channel: Channel the reverse wordle is played in
+        :param solver_class: solver that is used by the bot
+        :return: spawned ReverseGameInstance
+        """
+        instance = ReverseGameInstance(plugin, wordlist, player, channel, solver_class)
+        self.instances.append(instance)
+        await instance.play()
+        return instance
+
+    def deregister(self, instance: BaseGameInstance):
+        """
+        :param instance: Instance to deregister
+        """
         self.instances.remove(instance)

@@ -3,7 +3,7 @@ import re
 import random
 import logging
 import abc
-from typing import Optional, Union, Dict, Type
+from typing import Optional, Union, Dict, Type, List
 
 from nextcord import User, Message, Member, Embed
 from nextcord.ext import commands
@@ -311,9 +311,7 @@ class TextCmd(Cmd):
         * index exists
         """
         texts = self.get_raw_texts(index=index)
-        aliases = ""
-        if self.aliases:
-            aliases = Lang.lang(self.plugin, "raw_aliases", ", ".join(self.aliases))
+        aliases = self.plugin.format_aliases(self.aliases)
         i = 0
         delimiter = "\n"
         threshold = 1900
@@ -377,9 +375,7 @@ class TextCmd(Cmd):
 
         else:
             creator = converters.get_best_user(self.creator_id)
-            aliases = ""
-            if self.aliases:
-                aliases = Lang.lang(self.plugin, "raw_aliases", ", ".join(self.aliases))
+            aliases = self.plugin.format_aliases(self.aliases)
 
             if single_text:
                 raw_texts = [self.get_raw_text(index)]
@@ -593,9 +589,7 @@ class EmbedCmd(Cmd):
         :param args: arguments passed (ignored)
         """
         creator = get_best_username(converters.get_best_user(self.creator_id))
-        aliases = ""
-        if self.aliases:
-            aliases = Lang.lang(self.plugin, "raw_aliases", ", ".join(self.aliases))
+        aliases = self.plugin.format_aliases(self.aliases)
 
         entries = []
         for i in range(len(self.fields)):
@@ -786,6 +780,21 @@ class Plugin(BasePlugin, name="Custom CMDs"):
         self.commands[name] = cmd
         self.bot.ignoring.add_additional_command(name)
         self._save()
+
+    def format_aliases(self, aliases: List[str]) -> str:
+        """
+        Formats the display of aliases in a standard manner. Intended for use in cmd info.
+
+        :param aliases: List of cmd aliases
+        :return: formatted string that contains the aliases
+        """
+        if not aliases:
+            return ""
+
+        r = []
+        for el in aliases:
+            r.append("`{}`".format(el))
+        return Lang.lang(self, "raw_aliases", ", ".join(r))
 
     @commands.group(name="cmd", invoke_without_command=True, aliases=["bar"])
     async def cmd(self, ctx):

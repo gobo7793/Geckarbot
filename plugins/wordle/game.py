@@ -44,7 +44,7 @@ class Game:
 
         self.wordlist = wordlist
         self.guesses: List[Guess] = []
-        self.solution = word if word else wordlist.random_solution()
+        self.solution = word
         self.solved = False
 
     @property
@@ -52,11 +52,21 @@ class Game:
         """
         :return: The state of the game: Correct for solved, Incorrect for done and not solved, Partially for ongoing.
         """
-        if self.solved:
+        if self.solved or (self.guesses and self.guesses[-1].is_correct):
             return Correctness.CORRECT
         if len(self.guesses) >= self.max_tries:
             return Correctness.INCORRECT
         return Correctness.PARTIALLY
+
+    def set_random_solution(self):
+        """
+        Generates a random solution for this game.
+
+        :raises RuntimeError: If the solution was already set
+        """
+        if self.solution:
+            raise RuntimeError("Word was already set")
+        self.solution = self.wordlist.random_solution()
 
     def alphabet(self, uppercase: bool = True) -> Tuple[List[str], List[str], List[str]]:
         """
@@ -109,7 +119,7 @@ class Game:
             raise RuntimeError("maximum amount of guesses reached")
         if self.solved:
             raise RuntimeError("game is already solved")
-        if len(word) != len(self.solution):
+        if len(word) != WORDLENGTH:
             raise TypeError("Word of length {} expected, got word of length {}".format(len(self.solution), len(word)))
         if word not in self.wordlist:
             raise ValueError("Word not in word list")
@@ -149,5 +159,42 @@ class Solver(abc.ABC):
     Base class for a wordle solver.
     """
     @abc.abstractmethod
+    def __init__(self, game: Game):
+        raise NotImplementedError
+
+    @abc.abstractmethod
     def solve(self):
         raise NotImplementedError
+
+
+class HelpingSolver(Solver):
+    """
+    Base class for a wordle solver that is able to solve wordles that have already begun.
+    """
+    @abc.abstractmethod
+    def __init__(self, game: Game):
+        self.game = game
+
+    @abc.abstractmethod
+    def get_guess(self) -> str:
+        """
+        Gets the next guess.
+        :return: word that would be guessed next
+        """
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def digest_guess(self, guess: Guess):
+        """
+        Handles a guess that was done externally.
+
+        :param guess: Guess that was done on this solver's game
+        """
+        raise NotImplementedError
+
+    def solve(self):
+        while True:
+            guess = self.game.guess(self.get_guess())
+            self.digest_guess(guess)
+            if self.game.done != Correctness.PARTIALLY:
+                break

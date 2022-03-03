@@ -4,10 +4,10 @@ from typing import Optional, Dict, List
 
 from botutils.utils import execute_anything_sync, log_exception
 
-from plugins.wordle.game import Solver, Game, WORDLENGTH, Correctness, Guess
+from plugins.wordle.game import HelpingSolver, Game, WORDLENGTH, Correctness, Guess
 
 
-class NaiveSolver(Solver):
+class NaiveSolver(HelpingSolver):
     """
     Solver that tries to gather complete information about the final guess before committing.
     """
@@ -47,30 +47,26 @@ class NaiveSolver(Solver):
         :return: List of words that could be the solution with the current char lists
         :raises RuntimeError: If the list would be empty
         """
-        for _ in range(WORDLENGTH):
-            self.candidates.append([])
-
         # find amout of unclear positions and gather floaters
         unclear_indexes = []
-        floaters_found = {}  # characters that were only found partially
+        floaters = {}  # characters that were only found partially
         for i in range(WORDLENGTH):
-            if self.found[i] is not None:
-                continue
             unclear_indexes.append(i)
-            for char in self.candidates[i]:
-                if char not in floaters_found:
-                    floaters_found[char] = False
+            for char in self.elsewhere[i]:
+                if char not in floaters:
+                    floaters[char] = False
 
         # search words
         r = []
         for word in self.game.wordlist.words:
+            floaters_found = floaters.copy()
             # simple constraints
             mismatch = False
             for i in range(WORDLENGTH):
                 char = word[i]
                 if (self.found[i] is not None and char != self.found[i]) \
-                        or char in self.elsewhere \
-                        or char not in self.possible:
+                        or char in self.elsewhere[i] \
+                        or (char not in self.possible and char not in self.found):
                     mismatch = True
                     break
             if mismatch:
@@ -79,11 +75,15 @@ class NaiveSolver(Solver):
             # find floaters
             for i in unclear_indexes:
                 if word[i] in floaters_found:
-                    floaters_found[i] = True
+                    floaters_found[word[i]] = True
 
-            for found in floaters_found.values():
-                if not found:
-                    continue
+            found = True
+            for k, floater in floaters_found.items():
+                if not floater:
+                    found = False
+                    break
+            if not found:
+                continue
 
             r.append(word)
 
@@ -132,8 +132,8 @@ class NaiveSolver(Solver):
             if word[i] in so_far:
                 continue
 
-            # no points for elswhere
-            if word[i] in self.elsewhere[i]:
+            # no points for elsewhere and found (redundant information)
+            if word[i] in self.elsewhere[i] or word[i] == self.found[i]:
                 continue
 
             # could be
@@ -166,7 +166,7 @@ class NaiveSolver(Solver):
         self.logger.debug("Best guess: randoming out of %s candidates", str(len(candidates)))
         return random.choice(candidates)
 
-    def update_charlists(self, guess: Guess):
+    def digest_guess(self, guess: Guess):
         """
         Updates the char lists with findings from `guess`.
 
@@ -179,16 +179,25 @@ class NaiveSolver(Solver):
                 if not self.found[i]:
                     self.found[i] = char
 
-                    # first occurence of this correct char; purge char from candidate lists
-                    for sublist in self.candidates:
+                    # first occurence of this correct char; purge char from elsewhere lists
+                    for sublist in self.elsewhere:
                         if char in sublist:
                             sublist.remove(char)
                 else:
                     assert self.found[i] == char
 
             if correctness == Correctness.PARTIALLY:
+                # append char to elsewhere if we are sure that it was not found already
                 if char not in self.elsewhere[i]:
-                    self.elsewhere[i].append(char)
+                    elsewhere = True
+                    for k in range(len(self.found)):
+                        if self.found[k] != char or char == guess.word[k]:
+                            continue
+                        elsewhere = False
+                        break
+                    if elsewhere:
+                        self.elsewhere[i].append(char)
+
                 # add the character to all positions where it might be
                 for j in range(WORDLENGTH):
                     if self.found[j] is not None:
@@ -209,35 +218,28 @@ class NaiveSolver(Solver):
                     if char in sublist:
                         sublist.remove(char)
 
-    def guess(self) -> Guess:
+    def get_guess(self) -> str:
         """
-        Guess logic. Does the actual guessing and returns a Guess object.
-        :return: Resulting Guess object
-        :raises RuntimeError: If the algorithm is incomplete (runs into a seemingly impossible situation)
+        Calculates the next guess.
+        :return: Word that is to be guessed next
         """
         # Actual guess if enough info is gathered
-        w = self.word_found()
-        if w:
-            self.logger.debug("complete guess: %s", w)
-            r = self.game.guess(w)
-            if not r.is_correct:
-                raise RuntimeError("algorithm is incomplete")
+        r = self.word_found()
+        if r:
+            self.logger.debug("complete guess: %s", r)
 
         # Panic mode, not enough guesses remain to be completely stable
         elif len(self.game.guesses) == self.game.max_tries - 1:
-            w = self.best_guess()
-            self.logger.debug("panic guess: %s", w)
-            r = self.game.guess(w)
+            r = self.best_guess()
+            self.logger.debug("panic guess: %s", r)
 
         # Info guess
         else:
             scores = self.calc_scores()
             k = sorted(scores, reverse=True)[0]
-            w = random.choice(scores[k])
-            self.logger.debug("info guess: %s", w)
-            r = self.game.guess(w)
+            r = random.choice(scores[k])
+            self.logger.debug("info guess: %s", r)
 
-        self.update_charlists(r)
         return r
 
     def solve(self):
@@ -247,7 +249,8 @@ class NaiveSolver(Solver):
         """
         while True:
             self.log_charlists()
-            self.guess()
+            guess = self.game.guess(self.get_guess())
+            self.digest_guess(guess)
             if self.game.done != Correctness.PARTIALLY:
                 break
 
