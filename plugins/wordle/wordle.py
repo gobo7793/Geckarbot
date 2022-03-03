@@ -113,6 +113,13 @@ class Plugin(BasePlugin, name="Wordle"):
             await add_reaction(ctx.message, Lang.CMDERROR)
             return
 
+        # specifics
+        if key == "default_solver":
+            if value not in SOLVERS.keys():
+                await ctx.send("Invalid solver: {}".format(value))
+                await add_reaction(ctx.message, Lang.CMDERROR)
+                return
+
         await self.config_setter.set_cmd(ctx, key, value)
 
     @cmd_wordle.command(name="wordlist")
@@ -175,16 +182,11 @@ class Plugin(BasePlugin, name="Wordle"):
         wordlist = self.wordlists[wordlist]
 
         solver = SOLVERS[self.get_config("default_solver")]
-        try:
-            instance = await self.mothership.spawn(self, wordlist, ctx.author, ctx.channel, solver, solution=solution)
-            if not instance.respawned:
-                await add_reaction(ctx.message, Lang.CMDSUCCESS)
-        except AlreadyRunning:
-            if isinstance(ctx.channel, DMChannel):
-                chan = Lang.lang(self, "dmchannel")
-            else:
-                chan = ctx.channel.mention
-            await ctx.send(Lang.lang(self, "play_error_game_exists", gbu(ctx.author), chan))
+
+        already_running = await self.mothership.catch_respawn(ctx.author, ctx.channel)
+        if already_running is None:
+            await self.mothership.spawn(self, wordlist, ctx.author, ctx.channel, solver, solution=solution)
+            await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
     @cmd_wordle_play.command(name="suggest")
     async def cmd_wordle_play_suggest(self, ctx):
@@ -194,9 +196,7 @@ class Plugin(BasePlugin, name="Wordle"):
             await ctx.send(Lang.lang(self, "wordle_not_found"))
             return
 
-        suggestion = instance.solver.get_guess()
-        await ctx.send(Lang.lang(self, "play_suggestion", suggestion))
-        instance.has_been_helped = True
+        await instance.suggest()
 
     @cmd_wordle.command(name="suggest", hidden=True)
     async def cmd_wordle_suggest(self, ctx):
@@ -246,6 +246,25 @@ class Plugin(BasePlugin, name="Wordle"):
         self.mothership.deregister(instance)
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
+    @cmd_wordle.command(name="reverse")
+    async def cmd_wordle_reverse(self, ctx, wordlist: Optional[str] = None):
+        default = self.get_config("default_wordlist")
+        if not wordlist:
+            wordlist = default
+
+        if wordlist not in self.wordlists:
+            await add_reaction(ctx.message, Lang.CMDERROR)
+            await ctx.send(Lang.lang(self, "wordlist_not_found"))
+
+        wordlist = self.wordlists[wordlist]
+
+        solver = SOLVERS[self.get_config("default_solver")]
+
+        already_running = await self.mothership.catch_respawn(ctx.author, ctx.channel)
+        if already_running is None:
+            await self.mothership.spawn_reverse(self, wordlist, ctx.author, ctx.channel, solver)
+            await add_reaction(ctx.message, Lang.CMDSUCCESS)
+
     @cmd_wordle.command(name="solve")
     async def cmd_wordle_solve(self, ctx, word: Optional[str]):
         wl_key = self.get_config("default_wordlist")
@@ -265,6 +284,8 @@ class Plugin(BasePlugin, name="Wordle"):
                 return
 
         game = Game(wordlist, word)
+        if word is None:
+            game.set_random_solution()
         SOLVERS[self.get_config("default_solver")](game).solve()
 
         await add_reaction(ctx.message, Lang.CMDSUCCESS)

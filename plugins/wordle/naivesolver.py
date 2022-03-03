@@ -166,7 +166,7 @@ class NaiveSolver(HelpingSolver):
         self.logger.debug("Best guess: randoming out of %s candidates", str(len(candidates)))
         return random.choice(candidates)
 
-    def update_charlists(self, guess: Guess):
+    def digest_guess(self, guess: Guess):
         """
         Updates the char lists with findings from `guess`.
 
@@ -233,20 +233,6 @@ class NaiveSolver(HelpingSolver):
 
         return r
 
-    def guess(self, word: str) -> Guess:
-        """
-        Guesses word and updates bookkeeping.
-
-        :param word: word to guess
-        :return: resulting Guess object
-        :raises RuntimeError: If the algorithm is incomplete (runs into a seemingly impossible situation)
-        """
-        r = self.game.guess(word)
-        if not r.is_correct:
-            raise RuntimeError("algorithm is incomplete")
-        self.update_charlists(r)
-        return r
-
     def solve(self):
         """
         Solves a wordle by gathering as much info as possible about each character and delivering a final guess
@@ -254,7 +240,8 @@ class NaiveSolver(HelpingSolver):
         """
         while True:
             self.log_charlists()
-            self.guess(self.get_guess())
+            guess = self.game.guess(self.get_guess())
+            self.digest_guess(guess)
             if self.game.done != Correctness.PARTIALLY:
                 break
 

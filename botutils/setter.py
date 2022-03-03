@@ -268,7 +268,7 @@ class ConfigSetter:
         # Convert discord types
         if value is None and valtype in (TextChannel, User, Member, Role):
             r = Result.DEFAULT
-            self.get_structure().get(self.plugin)[key] = default
+            self.get_structure()[key] = default
 
         elif valtype in (TextChannel, User, Member, Role):
             if ctx is None:
@@ -279,7 +279,7 @@ class ConfigSetter:
             except (ChannelNotFound, UserNotFound, MemberNotFound, RoleNotFound) as e:
                 raise InvalidValue from e
 
-            self.get_structure().get(self.plugin)[key] = value.id
+            self.get_structure()[key] = value.id
 
         # Special handling of bools for switch reasons
         elif valtype is bool:
@@ -303,7 +303,7 @@ class ConfigSetter:
                     value = valtype(value)
                 except (TypeError, ValueError) as e:
                     raise InvalidValue from e
-            self.get_structure().get(self.plugin)[key] = value
+            self.get_structure()[key] = value
 
         self.logger.debug("Plugin %s: setting %s to %s", self.plugin.get_name(), key, str(value))
         if not self.struture_set:
