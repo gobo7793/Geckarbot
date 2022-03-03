@@ -70,8 +70,8 @@ class Cell:
         col_num = self.column
         row_num = self.row
         if self.grid:
-            col_num += self.grid.column - 1
-            row_num += self.grid.row - 1
+            col_num += self.grid.start_column - 1
+            row_num += self.grid.start_row - 1
         return self.get_column_name(col_num) + str(row_num)
 
     def translate(self, columns: int, rows: int):
@@ -129,10 +129,18 @@ class CellRange:
         :param width: number of columns
         :param height: number of rows
         """
-        self.column = start_cell.column
-        self.row = start_cell.row
+        self.start_column = start_cell.column
+        self.start_row = start_cell.row
         self.width = width
         self.height = height
+
+    @property
+    def end_column(self):
+        return self.start_column + self.width - 1
+
+    @property
+    def end_row(self):
+        return self.start_row + self.height - 1
 
     @classmethod
     def from_a1(cls, a1_notation: str):
@@ -164,10 +172,27 @@ class CellRange:
         height = end_cell.row - start_cell.row + 1
         return cls(start_cell, width, height)
 
+    def overlay_range(self, other):
+        """
+        Returns the overlaying range with the other CellRange
+
+        :param other: other CellRange
+        :type other: CellRange
+        :rtype: CellRange | None
+        :return: CellRange of overlay area if existing, otherwise None
+        """
+        start_column = max(self.start_column, other.start_column)
+        start_row = max(self.start_row, other.start_row)
+        end_column = min(self.end_column, other.end_column)
+        end_row = min(self.end_row, other.end_row)
+        if start_column > end_column or start_row > end_row:
+            return None
+        return CellRange.from_cells(Cell(start_column, start_row), Cell(end_column, end_row))
+
     def rangename(self) -> str:
         """Returns cell range in A1-notation"""
-        return "{}:{}".format(Cell(self.column, self.row).cellname(),
-                              Cell(self.column + self.width - 1, self.row + self.height - 1).cellname())
+        return "{}:{}".format(Cell(self.start_column, self.start_row).cellname(),
+                              Cell(self.start_column + self.width - 1, self.start_row + self.height - 1).cellname())
 
     def translate(self, columns: int, rows: int):
         """
@@ -178,8 +203,8 @@ class CellRange:
         :rtype: CellRange
         :return: resulting cell range
         """
-        return CellRange(start_cell=Cell(column=self.column + columns,
-                                         row=self.row + rows),
+        return CellRange(start_cell=Cell(column=self.start_column + columns,
+                                         row=self.start_row + rows),
                          width=self.width,
                          height=self.height)
 
@@ -187,9 +212,10 @@ class CellRange:
         """
         Returns cell range expanded by the given amount in each direction
         """
-        if self.column <= left or self.row <= top or left + right <= -self.width or top + bottom <= -self.height:
+        if self.start_column <= left or self.start_row <= top or left + right <= -self.width \
+                or top + bottom <= -self.height:
             raise ValueError
-        return CellRange(start_cell=Cell(column=self.column - left, row=self.row - top),
+        return CellRange(start_cell=Cell(column=self.start_column - left, row=self.start_row - top),
                          width=self.width + left + right,
                          height=self.height + top + bottom)
 
@@ -590,10 +616,10 @@ class Client(restclient.Client):
                 else:
                     request['range'] = {
                         "sheetId": sheet_id,
-                        "startRowIndex": cell_range.row,
-                        "endRowIndex": cell_range.row + cell_range.height,
-                        "startColumnIndex": cell_range.column,
-                        "endColumnIndex": cell_range.column + cell_range.width
+                        "startRowIndex": cell_range.start_row,
+                        "endRowIndex": cell_range.start_row + cell_range.height,
+                        "startColumnIndex": cell_range.start_column,
+                        "endColumnIndex": cell_range.start_column + cell_range.width
                     }
             else:
                 return None
