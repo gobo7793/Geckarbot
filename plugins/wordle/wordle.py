@@ -302,7 +302,8 @@ class Plugin(BasePlugin, name="Wordle"):
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
         results = {}
-        failures = 0
+        alg_failures = []
+        failed_games = []
         total_score = 0
         for i in range(0, 7):
             results[i] = 0
@@ -310,10 +311,11 @@ class Plugin(BasePlugin, name="Wordle"):
         async with ctx.typing():
             for _ in range(quantity):
                 game = Game(wordlist)
+                game.set_random_solution()
                 try:
                     NaiveSolver(game).solve()
                 except RuntimeError:
-                    failures += 1
+                    alg_failures.append(game)
                     continue
 
                 result = game.done
@@ -322,15 +324,27 @@ class Plugin(BasePlugin, name="Wordle"):
                     results[len(game.guesses)] += 1
                     total_score += 7 - len(game.guesses)
                 else:
+                    failed_games.append(game)
                     results[0] += 1
 
             msgs = ["{} Games played; results:".format(quantity)]
             for key, result in results.items():
                 key = "X" if key == 0 else key
                 msgs.append("{}/6: {}".format(key, result))
-            if failures > 0:
-                msgs.append("Alg failures: {}".format(failures))
+            if len(alg_failures) > 0:
+                msgs.append("Alg failures: {}".format(len(alg_failures)))
             msgs.append("total score: {}".format(format_number(total_score / quantity)))
 
             for msg in paginate(msgs, prefix="```", suffix="```"):
                 await ctx.send(msg)
+
+            # dump if debug
+            if Config().bot.DEBUG_MODE:
+                if len(alg_failures) > 1:
+                    await ctx.send("Algorithm incomplete:")
+                    for game in alg_failures:
+                        await ctx.send(format_guess(self, game, game.guesses[-1], done=True, history=True))
+                if len(failed_games) > 1:
+                    await ctx.send("Algorithm failed (X/6):")
+                    for game in failed_games:
+                        await ctx.send(format_guess(self, game, game.guesses[-1], done=True, history=True))

@@ -47,30 +47,26 @@ class NaiveSolver(HelpingSolver):
         :return: List of words that could be the solution with the current char lists
         :raises RuntimeError: If the list would be empty
         """
-        for _ in range(WORDLENGTH):
-            self.candidates.append([])
-
         # find amout of unclear positions and gather floaters
         unclear_indexes = []
-        floaters_found = {}  # characters that were only found partially
+        floaters = {}  # characters that were only found partially
         for i in range(WORDLENGTH):
-            if self.found[i] is not None:
-                continue
             unclear_indexes.append(i)
-            for char in self.candidates[i]:
-                if char not in floaters_found:
-                    floaters_found[char] = False
+            for char in self.elsewhere[i]:
+                if char not in floaters:
+                    floaters[char] = False
 
         # search words
         r = []
         for word in self.game.wordlist.words:
+            floaters_found = floaters.copy()
             # simple constraints
             mismatch = False
             for i in range(WORDLENGTH):
                 char = word[i]
                 if (self.found[i] is not None and char != self.found[i]) \
-                        or char in self.elsewhere \
-                        or char not in self.possible:
+                        or char in self.elsewhere[i] \
+                        or (char not in self.possible and char not in self.found):
                     mismatch = True
                     break
             if mismatch:
@@ -79,11 +75,15 @@ class NaiveSolver(HelpingSolver):
             # find floaters
             for i in unclear_indexes:
                 if word[i] in floaters_found:
-                    floaters_found[i] = True
+                    floaters_found[word[i]] = True
 
-            for found in floaters_found.values():
-                if not found:
-                    continue
+            found = True
+            for k, floater in floaters_found.items():
+                if not floater:
+                    found = False
+                    break
+            if not found:
+                continue
 
             r.append(word)
 
@@ -132,8 +132,8 @@ class NaiveSolver(HelpingSolver):
             if word[i] in so_far:
                 continue
 
-            # no points for elswhere
-            if word[i] in self.elsewhere[i]:
+            # no points for elsewhere and found (redundant information)
+            if word[i] in self.elsewhere[i] or word[i] == self.found[i]:
                 continue
 
             # could be
@@ -179,16 +179,25 @@ class NaiveSolver(HelpingSolver):
                 if not self.found[i]:
                     self.found[i] = char
 
-                    # first occurence of this correct char; purge char from candidate lists
-                    for sublist in self.candidates:
+                    # first occurence of this correct char; purge char from elsewhere lists
+                    for sublist in self.elsewhere:
                         if char in sublist:
                             sublist.remove(char)
                 else:
                     assert self.found[i] == char
 
             if correctness == Correctness.PARTIALLY:
+                # append char to elsewhere if we are sure that it was not found already
                 if char not in self.elsewhere[i]:
-                    self.elsewhere[i].append(char)
+                    elsewhere = True
+                    for k in range(len(self.found)):
+                        if self.found[k] != char or char == guess.word[k]:
+                            continue
+                        elsewhere = False
+                        break
+                    if elsewhere:
+                        self.elsewhere[i].append(char)
+
                 # add the character to all positions where it might be
                 for j in range(WORDLENGTH):
                     if self.found[j] is not None:
