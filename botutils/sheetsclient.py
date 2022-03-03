@@ -1,6 +1,7 @@
 import logging
 import os
 import re
+import string
 import urllib.parse
 from typing import Optional, Dict, Tuple, Union, List
 
@@ -22,6 +23,10 @@ class Cell:
     """
     Representation of a sheet cell
     """
+
+    _MAX_COLUMNS = 18_278
+    _MAX_ROWS = 200_000_000
+
     def __init__(self, column: int, row: int, grid=None):
         """
         Representation of a single cell. Note: rows and columns in a grid begin at 1!
@@ -37,39 +42,37 @@ class Cell:
         self.grid = grid
 
     @classmethod
-    def from_a1(cls, a1_notation: str):
+    def from_a1(cls, a1_notation: str, maximize_if_undefined: bool = False):
         """
         Building the cell from the A1-notation.
 
         :param a1_notation: A1-notation of the cell e.g. "A4" or "BE34"
+        :param maximize_if_undefined: if the notation does not define for row or column, the value will be set to
+            maximum row/column instead of the first.
         :rtype: Cell
         :return: Cell
         :raises ValueError: if invalid notation
         """
-        extract = re.search("(?P<col>[A-Z]+)(?P<row>\\d+)", a1_notation)
-        if extract:
-            groupdict = extract.groupdict()
-            # Converts the column title into the corresponding column number
-            column = sum((x*y for x, y in zip([26**i for i in range(len(groupdict['col']))][::-1],
-                                              (ord(b) - 64 for b in groupdict['col']))))
-            return cls(column, int(groupdict['row']))
-        raise ValueError
+        extract = re.search("(?P<col>[a-zA-Z]*)(?P<row>\\d*)", a1_notation)
+        if not extract:
+            raise ValueError
+        groupdict = extract.groupdict()
+        column = groupdict['col']
+        row = groupdict['row']
+        if not column:
+            column = Cell._MAX_COLUMNS if maximize_if_undefined else 1
+        if not row:
+            row = Cell._MAX_ROWS if maximize_if_undefined else 1
+        return cls(Cell.get_column_number(column), int(row))
 
     def cellname(self) -> str:
         """Returns cell in A1-notation"""
-        chars = []
-        num = self.column
-        if self.grid:
-            num += self.grid.column - 1
-        while num > 0:
-            num, d = divmod(num, 26)
-            if d == 0:
-                num, d = num - 1, 26
-            chars.append(chr(64 + d))
+        col_num = self.column
         row_num = self.row
         if self.grid:
+            col_num += self.grid.column - 1
             row_num += self.grid.row - 1
-        return ''.join(reversed(chars)) + str(row_num)
+        return self.get_column_name(col_num) + str(row_num)
 
     def translate(self, columns: int, rows: int):
         """
@@ -83,6 +86,35 @@ class Cell:
         return Cell(column=self.column + columns,
                     row=self.row + rows,
                     grid=self.grid)
+
+    @staticmethod
+    def get_column_number(col: str) -> int:
+        """
+        Returns the column number
+
+        :param col: cell or column name
+        :return: column number
+        :raises ValueError: if non-ascii-letters are included
+        """
+        num = 0
+        for letter in col.upper():
+            num *= 26
+            num += string.ascii_uppercase.index(letter) + 1
+        return num
+
+    @staticmethod
+    def get_column_name(num: int) -> str:
+        """
+        Converts number n into the name of the n'th column
+
+        :param num: n'th Column
+        :return: Column name
+        """
+        name = ""
+        while num > 0:
+            num, digit = divmod(num - 1, 26)
+            name = chr(digit + 65) + name
+        return name
 
 
 class CellRange:
@@ -112,7 +144,7 @@ class CellRange:
         :return: Corresponding CellRange object
         :raises ValueError: if invalid notation
         """
-        extract = re.search("(?P<cell1>[A-Z]+\\d+):(?P<cell2>[A-Z]+\\d+)", a1_notation)
+        extract = re.search("(?P<cell1>[a-zA-Z]*[a-zA-Z\\d]\\d*):(?P<cell2>[a-zA-Z]*[a-zA-Z\\d]\\d*)", a1_notation)
         if extract:
             groupdict = extract.groupdict()
             return cls.from_cells(Cell.from_a1(groupdict['cell1']), Cell.from_a1(groupdict['cell2']))
