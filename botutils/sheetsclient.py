@@ -192,7 +192,7 @@ class CellRange:
     def rangename(self) -> str:
         """Returns cell range in A1-notation"""
         return "{}:{}".format(Cell(self.start_column, self.start_row).cellname(),
-                              Cell(self.start_column + self.width - 1, self.start_row + self.height - 1).cellname())
+                              Cell(self.end_column, self.end_row).cellname())
 
     def translate(self, columns: int, rows: int):
         """
@@ -617,9 +617,9 @@ class Client(restclient.Client):
                     request['range'] = {
                         "sheetId": sheet_id,
                         "startRowIndex": cell_range.start_row,
-                        "endRowIndex": cell_range.start_row + cell_range.height,
+                        "endRowIndex": cell_range.end_row,
                         "startColumnIndex": cell_range.start_column,
-                        "endColumnIndex": cell_range.start_column + cell_range.width
+                        "endColumnIndex": cell_range.end_column
                     }
             else:
                 return None
