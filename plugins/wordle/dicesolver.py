@@ -13,8 +13,12 @@ class DiceSolver(HelpingSolver):
     def guess(self, word: str) -> Guess:
         return self.game.guess(word)
 
+    def digest_guess(self, guess: Guess):
+        pass
+
     def solve(self):
         while True:
-            self.guess(self.get_guess())
+            guess = self.game.guess(self.get_guess())
+            self.digest_guess(guess)
             if self.game.done != Correctness.PARTIALLY:
                 break

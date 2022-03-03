@@ -113,6 +113,13 @@ class Plugin(BasePlugin, name="Wordle"):
             await add_reaction(ctx.message, Lang.CMDERROR)
             return
 
+        # specifics
+        if key == "default_solver":
+            if value not in SOLVERS.keys():
+                await ctx.send("Invalid solver: {}".format(value))
+                await add_reaction(ctx.message, Lang.CMDERROR)
+                return
+
         await self.config_setter.set_cmd(ctx, key, value)
 
     @cmd_wordle.command(name="wordlist")
@@ -175,16 +182,11 @@ class Plugin(BasePlugin, name="Wordle"):
         wordlist = self.wordlists[wordlist]
 
         solver = SOLVERS[self.get_config("default_solver")]
-        try:
-            instance = await self.mothership.spawn(self, wordlist, ctx.author, ctx.channel, solver, solution=solution)
-            if not instance.respawned:
-                await add_reaction(ctx.message, Lang.CMDSUCCESS)
-        except AlreadyRunning:
-            if isinstance(ctx.channel, DMChannel):
-                chan = Lang.lang(self, "dmchannel")
-            else:
-                chan = ctx.channel.mention
-            await ctx.send(Lang.lang(self, "play_error_game_exists", gbu(ctx.author), chan))
+
+        already_running = await self.mothership.catch_respawn(ctx.author, ctx.channel)
+        if already_running is None:
+            await self.mothership.spawn(self, wordlist, ctx.author, ctx.channel, solver, solution=solution)
+            await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
     @cmd_wordle_play.command(name="suggest")
     async def cmd_wordle_play_suggest(self, ctx):
@@ -194,9 +196,7 @@ class Plugin(BasePlugin, name="Wordle"):
             await ctx.send(Lang.lang(self, "wordle_not_found"))
             return
 
-        suggestion = instance.solver.get_guess()
-        await ctx.send(Lang.lang(self, "play_suggestion", suggestion))
-        instance.has_been_helped = True
+        await instance.suggest()
 
     @cmd_wordle.command(name="suggest", hidden=True)
     async def cmd_wordle_suggest(self, ctx):
@@ -246,6 +246,25 @@ class Plugin(BasePlugin, name="Wordle"):
         self.mothership.deregister(instance)
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
+    @cmd_wordle.command(name="reverse")
+    async def cmd_wordle_reverse(self, ctx, wordlist: Optional[str] = None):
+        default = self.get_config("default_wordlist")
+        if not wordlist:
+            wordlist = default
+
+        if wordlist not in self.wordlists:
+            await add_reaction(ctx.message, Lang.CMDERROR)
+            await ctx.send(Lang.lang(self, "wordlist_not_found"))
+
+        wordlist = self.wordlists[wordlist]
+
+        solver = SOLVERS[self.get_config("default_solver")]
+
+        already_running = await self.mothership.catch_respawn(ctx.author, ctx.channel)
+        if already_running is None:
+            await self.mothership.spawn_reverse(self, wordlist, ctx.author, ctx.channel, solver)
+            await add_reaction(ctx.message, Lang.CMDSUCCESS)
+
     @cmd_wordle.command(name="solve")
     async def cmd_wordle_solve(self, ctx, word: Optional[str]):
         wl_key = self.get_config("default_wordlist")
@@ -265,6 +284,8 @@ class Plugin(BasePlugin, name="Wordle"):
                 return
 
         game = Game(wordlist, word)
+        if word is None:
+            game.set_random_solution()
         SOLVERS[self.get_config("default_solver")](game).solve()
 
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
@@ -281,7 +302,8 @@ class Plugin(BasePlugin, name="Wordle"):
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
         results = {}
-        failures = 0
+        alg_failures = []
+        failed_games = []
         total_score = 0
         for i in range(0, 7):
             results[i] = 0
@@ -289,10 +311,11 @@ class Plugin(BasePlugin, name="Wordle"):
         async with ctx.typing():
             for _ in range(quantity):
                 game = Game(wordlist)
+                game.set_random_solution()
                 try:
                     NaiveSolver(game).solve()
                 except RuntimeError:
-                    failures += 1
+                    alg_failures.append(game)
                     continue
 
                 result = game.done
@@ -301,15 +324,27 @@ class Plugin(BasePlugin, name="Wordle"):
                     results[len(game.guesses)] += 1
                     total_score += 7 - len(game.guesses)
                 else:
+                    failed_games.append(game)
                     results[0] += 1
 
             msgs = ["{} Games played; results:".format(quantity)]
             for key, result in results.items():
                 key = "X" if key == 0 else key
                 msgs.append("{}/6: {}".format(key, result))
-            if failures > 0:
-                msgs.append("Alg failures: {}".format(failures))
+            if len(alg_failures) > 0:
+                msgs.append("Alg failures: {}".format(len(alg_failures)))
             msgs.append("total score: {}".format(format_number(total_score / quantity)))
 
             for msg in paginate(msgs, prefix="```", suffix="```"):
                 await ctx.send(msg)
+
+            # dump if debug
+            if Config().bot.DEBUG_MODE:
+                if len(alg_failures) > 1:
+                    await ctx.send("Algorithm incomplete:")
+                    for game in alg_failures:
+                        await ctx.send(format_guess(self, game, game.guesses[-1], done=True, history=True))
+                if len(failed_games) > 1:
+                    await ctx.send("Algorithm failed (X/6):")
+                    for game in failed_games:
+                        await ctx.send(format_guess(self, game, game.guesses[-1], done=True, history=True))
