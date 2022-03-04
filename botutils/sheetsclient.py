@@ -63,7 +63,7 @@ class Cell:
             column = Cell._MAX_COLUMNS if maximize_if_undefined else 1
         if not row:
             row = Cell._MAX_ROWS if maximize_if_undefined else 1
-        return cls(Cell.get_column_number(column), int(row))
+        return cls(column if isinstance(column, int) else Cell.get_column_number(column), int(row))
 
     def cellname(self) -> str:
         """Returns cell in A1-notation"""
@@ -155,7 +155,8 @@ class CellRange:
         extract = re.search("(?P<cell1>[a-zA-Z]*[a-zA-Z\\d]\\d*):(?P<cell2>[a-zA-Z]*[a-zA-Z\\d]\\d*)", a1_notation)
         if extract:
             groupdict = extract.groupdict()
-            return cls.from_cells(Cell.from_a1(groupdict['cell1']), Cell.from_a1(groupdict['cell2']))
+            return cls.from_cells(Cell.from_a1(groupdict['cell1']), Cell.from_a1(groupdict['cell2'],
+                                                                                 maximize_if_undefined=True))
         raise ValueError
 
     @classmethod
