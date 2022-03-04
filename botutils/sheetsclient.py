@@ -24,8 +24,8 @@ class Cell:
     Representation of a sheet cell
     """
 
-    _MAX_COLUMNS = 18_278
-    _MAX_ROWS = 200_000_000
+    MAX_COLUMNS = 18_278
+    MAX_ROWS = 200_000_000
 
     def __init__(self, column: int, row: int, grid=None):
         """
@@ -60,9 +60,9 @@ class Cell:
         column = groupdict['col']
         row = groupdict['row']
         if not column:
-            column = Cell._MAX_COLUMNS if maximize_if_undefined else 1
+            column = Cell.MAX_COLUMNS if maximize_if_undefined else 1
         if not row:
-            row = Cell._MAX_ROWS if maximize_if_undefined else 1
+            row = Cell.MAX_ROWS if maximize_if_undefined else 1
         return cls(column if isinstance(column, int) else Cell.get_column_number(column), int(row))
 
     def cellname(self) -> str:
@@ -172,6 +172,16 @@ class CellRange:
         width = end_cell.column - start_cell.column + 1
         height = end_cell.row - start_cell.row + 1
         return cls(start_cell, width, height)
+    
+    @classmethod
+    def columns(cls, start: int, end: int = None):
+        """CellRange of complete columns"""
+        return cls(Cell(start, 1), end - start + 1 if end else 1, Cell.MAX_ROWS)
+
+    @classmethod
+    def rows(cls, start: int, end: int = None):
+        """CellRange of complete rows"""
+        return cls(Cell(1, start), Cell.MAX_COLUMNS, end - start + 1 if end else 1)
 
     def overlay_range(self, other):
         """
