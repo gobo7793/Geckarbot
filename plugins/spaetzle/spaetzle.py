@@ -12,17 +12,19 @@ from botutils.sheetsclient import CellRange
 from botutils.uiutils import SingleConfirmView
 from botutils.utils import helpstring_helper, add_reaction
 from plugins.spaetzle import views
+from plugins.spaetzle.utils import SpaetzleUtils
 from services.helpsys import DefaultCategories
 from services.liveticker import LeagueRegistrationOLDB
 
 
-class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
+class Plugin(BasePlugin, SpaetzleUtils, name="Spaetzle-Tippspiel"):
     """Plugin for the Spaetzle(s)-Tippspiel"""
 
     def __init__(self):
         super().__init__()
         self.bot = Config().bot
         self.bot.register(self, category=DefaultCategories.SPORT)
+        SpaetzleUtils.__init__(self, self.bot)
 
         self.logger = logging.getLogger(__name__)
 
@@ -103,7 +105,7 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             _p = [_participants[j] for j in Config().get(self)['participants_shuffle']] + _participants[18:]  # Shuffle
             _p = _p[0:1] + _p[1:][matchday:] + _p[1:][:matchday]  # Rotate
             _schedule = [(_p[0], _p[1])]
-            _schedule.extend((_p[2 + j], _p[-1-j]) for j in range(len(_p) // 2 - 1))
+            _schedule.extend((_p[2 + j], _p[-1 - j]) for j in range(len(_p) // 2 - 1))
             return _schedule
 
         async def insert_to_spreadsheet(_b, interaction: Interaction):
@@ -112,17 +114,18 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
             for j in range(4):
                 duels_rows = []
                 for row in embed_fields[j].value.split("\n"):
-                    duels_rows.extend([None, x, "..."] for x in row.split(" - "))
+                    for p in row.split(" - "):
+                        duels_rows.append([None, p, f"={self.get_participant_point_cell(p, league=j + 1)}"])
                 range_name = CellRange.from_a1(Config().get(self)['ranges']['league_rows'][j]).overlay_range(
                     CellRange.from_a1(Config().get(self)['ranges']['duel_columns'])).rangename()
                 data_dict[f"ST {Storage().get(self)['matchday']}!{range_name}"] = duels_rows
-            self.get_api_client().update_multiple(data_dict)
+            self.get_api_client().update_multiple(data_dict, raw=False)
 
         embed = Embed(title=Lang.lang(self, 'duels_mx', Storage().get(self)['matchday']))
         participants = Storage().get(self)['participants']
         for i in range(len(participants)):
             schedule = calculate_schedule(participants[i])
-            embed.add_field(name=Lang.lang(self, 'league_x', i+1), value="\n".join(f"{x} - {y}" for x, y in schedule))
+            embed.add_field(name=Lang.lang(self, 'league_x', i + 1), value="\n".join(f"{x} - {y}" for x, y in schedule))
         await ctx.send(embed=embed, view=SingleConfirmView(insert_to_spreadsheet, user_id=ctx.author.id,
                                                            confirm_label=Lang.lang(self, 'confirm')))
 
