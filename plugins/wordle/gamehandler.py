@@ -203,7 +203,7 @@ class ReverseGameInstance(BaseGameInstance):
         assert len(response) == WORDLENGTH
         for i in range(len(response)):
             for correctness, icon in self.ui.items():
-                if response[i] in icon:
+                if response[i].lower() in icon:
                     response[i] = correctness
                     break
             else:

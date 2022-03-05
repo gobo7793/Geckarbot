@@ -93,7 +93,7 @@ class NaiveSolver(HelpingSolver):
             # sort out by amounts
             for char, amount in self.amounts.items():
                 amount, definite = amount
-                found = self.amount_in_word(word, char)
+                found = word.count(char)
                 if definite and found != amount:
                     mismatch = True
                     break
@@ -134,19 +134,6 @@ class NaiveSolver(HelpingSolver):
 
         self.current_candidate_cache = r
         self.digest_by_candidates()
-        return r
-
-    @staticmethod
-    def amount_in_word(word: str, char: str):
-        """
-        :param word: Word to be searched
-        :param char: char that is counted
-        :return: count of char in word
-        """
-        r = 0
-        for c in word:
-            if c == char:
-                r += 1
         return r
 
     def found_count(self, char: str = None) -> int:
@@ -452,7 +439,7 @@ class NaiveSolver(HelpingSolver):
                     continue
 
                 # ignore if there are not enough occurences of char
-                if char in self.amounts and self.amounts[char][0] <= self.amount_in_word(word, char):
+                if char in self.amounts and self.amounts[char][0] <= word.count(char):
                     continue
 
                 # don't score the same char twice
