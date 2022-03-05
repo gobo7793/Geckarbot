@@ -18,7 +18,7 @@ from plugins.wordle.naivesolver import NaiveSolver
 from plugins.wordle.dicesolver import DiceSolver
 from plugins.wordle.utils import format_guess
 from plugins.wordle.wordlist import fetch_powerlanguage_impl, WordList
-from plugins.wordle.gamehandler import Mothership, AlreadyRunning
+from plugins.wordle.gamehandler import Mothership
 
 BASE_CONFIG = {
     "default_wordlist": [str, "en"],
@@ -333,6 +333,7 @@ class Plugin(BasePlugin, name="Wordle"):
                 msgs.append("{}/6: {}".format(key, result))
             if len(alg_failures) > 0:
                 msgs.append("Alg failures: {}".format(len(alg_failures)))
+            msgs.append("success rate: {}".format(format_number((quantity - results[0]) / quantity)))
             msgs.append("total score: {}".format(format_number(total_score / quantity)))
 
             for msg in paginate(msgs, prefix="```", suffix="```"):
@@ -340,11 +341,11 @@ class Plugin(BasePlugin, name="Wordle"):
 
             # dump if debug
             if Config().bot.DEBUG_MODE:
-                if len(alg_failures) > 1:
+                if len(alg_failures) > 0:
                     await ctx.send("Algorithm incomplete:")
                     for game in alg_failures:
                         await ctx.send(format_guess(self, game, game.guesses[-1], done=True, history=True))
-                if len(failed_games) > 1:
+                if len(failed_games) > 0:
                     await ctx.send("Algorithm failed (X/6):")
                     for game in failed_games:
                         await ctx.send(format_guess(self, game, game.guesses[-1], done=True, history=True))

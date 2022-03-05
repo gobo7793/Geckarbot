@@ -1,6 +1,6 @@
 import logging
 import random
-from typing import Optional, Dict, List
+from typing import Optional, Dict, List, Iterable
 
 from botutils.utils import execute_anything_sync, log_exception
 
@@ -14,6 +14,7 @@ class NaiveSolver(HelpingSolver):
     def __init__(self, game: Game):
         self.game = game
         self.logger = logging.getLogger(__name__)
+        self.current_candidate_cache = None
 
         # characters that are definitely found at this position
         self.found: list = [None] * WORDLENGTH
@@ -31,6 +32,10 @@ class NaiveSolver(HelpingSolver):
         # characters that are not definitely ruled out
         self.possible = list(self.game.wordlist.alphabet)
 
+        # amount of characters; character -> [amount, max]
+        # max is True if we know that amount is definite
+        self.amounts: Dict[str, List[int, bool]] = {}
+
     def log_charlists(self, error=False):
         """
         Logs the character state lists as debug (unless `error` is True).
@@ -47,6 +52,9 @@ class NaiveSolver(HelpingSolver):
         :return: List of words that could be the solution with the current char lists
         :raises RuntimeError: If the list would be empty
         """
+        if self.current_candidate_cache is not None:
+            return self.current_candidate_cache
+
         # find amout of unclear positions and gather floaters
         unclear_indexes = []
         floaters = {}  # characters that were only found partially
@@ -59,6 +67,15 @@ class NaiveSolver(HelpingSolver):
         # search words
         r = []
         for word in self.game.wordlist.words:
+            # find word in guesses
+            found = False
+            for guess in self.game.guesses:
+                if word == guess.word:
+                    found = True
+                    break
+            if found:
+                continue
+
             floaters_found = floaters.copy()
             # simple constraints
             mismatch = False
@@ -67,6 +84,21 @@ class NaiveSolver(HelpingSolver):
                 if (self.found[i] is not None and char != self.found[i]) \
                         or char in self.elsewhere[i] \
                         or (char not in self.possible and char not in self.found):
+                    if word == "abuse":
+                        self.logger.debug("Ruling out abuse because of %s at %s; c3: %s", char, i, char not in self.possible and char not in self.found)
+                    mismatch = True
+                    break
+            if mismatch:
+                continue
+
+            # sort out by amounts
+            for char in self.amounts:
+                found = self.amount_in_word(word, char)
+                amount, definite = self.amounts[char]
+                if definite and found != amount:
+                    mismatch = True
+                    break
+                if not definite and found < amount:
                     mismatch = True
                     break
             if mismatch:
@@ -80,6 +112,8 @@ class NaiveSolver(HelpingSolver):
             found = True
             for k, floater in floaters_found.items():
                 if not floater:
+                    if word == "abuse":
+                        self.logger.debug("ruling out abuse because %s was not found", k)
                     found = False
                     break
             if not found:
@@ -100,6 +134,32 @@ class NaiveSolver(HelpingSolver):
             execute_anything_sync(log_exception(e, fields=fields, title=":x: Wordle: Naive solver error"))
             self.log_charlists(error=True)
             raise e
+
+        self.current_candidate_cache = r
+        self.digest_by_candidates()
+        return r
+
+    @staticmethod
+    def amount_in_word(word, char):
+        """
+        :param word: Word to be searched
+        :param char: char that is counted
+        :return: count of char in word
+        """
+        r = 0
+        for c in word:
+            if c == char:
+                r += 1
+        return r
+
+    def found_count(self) -> int:
+        """
+        :return: The amount of found letters (Correctness.CORRECT)
+        """
+        r = 0
+        for el in self.found:
+            if el is not None:
+                r += 1
         return r
 
     def word_found(self) -> Optional[str]:
@@ -119,6 +179,60 @@ class NaiveSolver(HelpingSolver):
             return candidates[0]
         return None
 
+    def not_found_iter(self) -> Iterable[int]:
+        """
+        Iterator for the places that are not found yet
+        :return: iterator with indexes
+        """
+        for i in range(WORDLENGTH):
+            if self.found[i] is None:
+                yield i
+
+    def char_score(self) -> Dict[str, int]:
+        """
+        Calculates the kubb score of every char in possible.
+        :return:
+        """
+        kubbscore = {}
+        candidates = self.current_candidates()
+        for char in self.possible:
+            kubbscore[char] = 0
+            for word in candidates:
+                for i in self.not_found_iter():
+                    if word[i] == char:
+                        kubbscore[char] += 1
+                        break
+            # cut score by half
+            if kubbscore[char] >= len(candidates) // 2:
+                kubbscore[char] -= kubbscore[char] - len(candidates) // 2
+
+        return kubbscore
+
+    def kubb_score(self) -> Dict[str, int]:
+        """
+        Calculates scores for candidate words to determine how well they are equipped to divide
+        the candidates list in half with the information it provides.
+
+        :return: word scores
+        """
+        candidates = self.current_candidates()
+        word_scores = {}
+        for word in candidates:
+            word_scores[word] = 0
+            for i in range(WORDLENGTH):
+
+                # word score: info score of this word
+                letterscore = 0
+                for j in range(len(candidates)):
+                    kubb = candidates[j]
+                    if word[i] == kubb[i]:
+                        if letterscore >= len(candidates) // 2:
+                            letterscore -= 1
+                        else:
+                            letterscore += 1
+                word_scores[word] += letterscore
+        return word_scores
+
     def info_score(self, word: str) -> int:
         """
         Calculates the amount of info a guess gives by assigning it a score.
@@ -128,6 +242,9 @@ class NaiveSolver(HelpingSolver):
         so_far = []
         r = 0
         for i in range(WORDLENGTH):
+            if word[i] == self.found[i]:
+                r -= 1
+
             # no further points for double letters
             if word[i] in so_far:
                 continue
@@ -172,10 +289,18 @@ class NaiveSolver(HelpingSolver):
 
         :param guess: Guess object to update the character lists with
         """
+        self.current_candidate_cache = None
+        partiallies = []
+
+        # amounts prototype for this word, to be merged into self.amounts
+        amounts: Dict[str, List[int, bool]] = {}
         for i in range(WORDLENGTH):
             char = guess.word[i]
+            amounts[char] = [0, False]
             correctness = guess.correctness[i]
             if correctness == Correctness.CORRECT:
+                amounts[char][0] += 1
+
                 if not self.found[i]:
                     self.found[i] = char
 
@@ -187,6 +312,9 @@ class NaiveSolver(HelpingSolver):
                     assert self.found[i] == char
 
             if correctness == Correctness.PARTIALLY:
+                amounts[char][0] += 1
+
+                partiallies.append(char)
                 # append char to elsewhere if we are sure that it was not found already
                 if char not in self.elsewhere[i]:
                     elsewhere = True
@@ -211,6 +339,8 @@ class NaiveSolver(HelpingSolver):
                     self.candidates[j].append(char)
 
             if correctness == Correctness.INCORRECT:
+                amounts[char][1] = True
+            if correctness == Correctness.INCORRECT and char not in partiallies:
                 if char in self.possible:
                     self.possible.remove(char)
 
@@ -218,12 +348,92 @@ class NaiveSolver(HelpingSolver):
                     if char in sublist:
                         sublist.remove(char)
 
+        # update self.amounts
+        for char in amounts:
+            # irrelevant
+            if amounts[char][0] == 0:
+                continue
+
+            if char not in self.amounts:
+                self.amounts[char] = amounts[char]
+                continue
+
+            if amounts[char][0] > self.amounts[char][0]:
+                self.amounts[char][0] = amounts[char][0]
+            if amounts[char][1]:
+                self.amounts[char][1] = True
+
+    def digest_by_candidates(self):
+        """
+        Updates the possible list by removing characters that are not in candidates.
+        """
+        self.possible = []
+        for word in self.current_candidates():
+            for i in range(WORDLENGTH):
+                if self.found[i] is None and word[i] not in self.possible:
+                    self.possible.append(word[i])
+        self.possible = sorted(self.possible)
+
+    def get_kubb_word_guess(self) -> str:
+        """
+        :return: The word that (a) is an actual candidate and (b) gives the most information based on candidates
+        """
+        kubbscore = self.kubb_score()
+        best_score = None
+        candidates = None
+        for word in kubbscore:
+            if best_score is None or kubbscore[word] > best_score:
+                best_score = kubbscore[word]
+                candidates = []
+            if best_score == kubbscore[word]:
+                candidates.append(word)
+        r = random.choice(candidates)
+        self.logger.debug("Kubb guess: %s with a score of %s", r, best_score)
+        return r
+
+    def get_kubb_char_guess(self) -> str:
+        """
+        :return: The word that gives the most information based on candidates without necessarily being a candidate
+        """
+        charkubb = self.char_score()
+        score = None
+        candidates = None
+        for word in self.game.wordlist.words:
+            s = 0
+            scored = []
+            for char in word:
+                # ignore if we already know the amount of this char
+                if char in self.amounts and self.amounts[char][1]:
+                    continue
+
+                # ignore if there are not enough occurences of char
+                if char in self.amounts and self.amounts[char][0] <= self.amount_in_word(word, char):
+                    continue
+
+                # don't score the same char twice
+                if char not in self.amounts and char in scored:
+                    continue
+
+                # otherwise, add score
+                if char in charkubb and charkubb[char] > 0:
+                    scored.append(char)
+                    s += charkubb[char]
+            if score is None or s > score:
+                score = s
+                candidates = [word]
+            elif s == score:
+                candidates.append(word)
+        r = random.choice(candidates)
+        self.logger.debug("Kubb char guess: %s with a score of %s", r, score)
+        return r
+
     def get_guess(self) -> str:
         """
         Calculates the next guess.
         :return: Word that is to be guessed next
         """
         # Actual guess if enough info is gathered
+        self.logger.debug("Guessing; found: %s", self.found_count())
         r = self.word_found()
         if r:
             self.logger.debug("complete guess: %s", r)
@@ -235,10 +445,23 @@ class NaiveSolver(HelpingSolver):
 
         # Info guess
         else:
-            scores = self.calc_scores()
-            k = sorted(scores, reverse=True)[0]
-            r = random.choice(scores[k])
-            self.logger.debug("info guess: %s", r)
+            # kubb guess
+            if len(self.game.guesses) >= 2:
+                rem_guesses = self.game.max_tries - len(self.game.guesses)
+                rem_chars = WORDLENGTH - self.found_count()
+                if rem_guesses ** rem_chars < len(self.current_candidates()):
+                    # get char info if candidate length is too long
+                    r = self.get_kubb_char_guess()
+                else:
+                    r = self.get_kubb_word_guess()
+
+            # Random info score guess
+            else:
+                scores = self.calc_scores()
+                score = sorted(scores, reverse=True)[0]
+                r = random.choice(scores[score])
+                self.logger.debug("info guess: %s with score %s (out of %s candidates)",
+                                  r, str(score), str(len(scores[score])))
 
         return r
 
