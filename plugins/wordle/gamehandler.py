@@ -202,13 +202,11 @@ class ReverseGameInstance(BaseGameInstance):
         response = list(re.sub(r"\s*", "", msg.content))
         assert len(response) == WORDLENGTH
         for i in range(len(response)):
-            found = False
             for correctness, icon in self.ui.items():
                 if response[i] in icon:
-                    found = True
                     response[i] = correctness
                     break
-            if not found:
+            else:
                 await self.channel.send(Lang.lang(self.plugin, "reverse_parse_error"))
                 return
 

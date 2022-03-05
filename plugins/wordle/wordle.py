@@ -115,7 +115,7 @@ class Plugin(BasePlugin, name="Wordle"):
 
         # specifics
         if key == "default_solver":
-            if value not in SOLVERS.keys():
+            if value not in SOLVERS:
                 await ctx.send("Invalid solver: {}".format(value))
                 await add_reaction(ctx.message, Lang.CMDERROR)
                 return
@@ -124,6 +124,7 @@ class Plugin(BasePlugin, name="Wordle"):
 
     @cmd_wordle.command(name="wordlist")
     async def cmd_wordlist(self, ctx, name: Optional[str] = None, url: Optional[str] = None):
+        # pylint: disable=broad-except
         if name and not url:
             await add_reaction(ctx.message, Lang.CMDERROR)
             await ctx.send(Lang.lang(self, "missing_argument"))
@@ -334,7 +335,8 @@ class Plugin(BasePlugin, name="Wordle"):
                 msgs.append("{}/6: {}".format(key, result))
             if len(alg_failures) > 0:
                 msgs.append("Alg failures: {}".format(len(alg_failures)))
-            msgs.append("success rate: {}".format(format_number((quantity - results[0]) / quantity, decplaces=3)))
+            sr = format_number(100 * (quantity - results[0]) / quantity, decplaces=1)
+            msgs.append("success rate: {}%".format(sr))
             msgs.append("total score: {}".format(format_number(total_score / quantity)))
 
             for msg in paginate(msgs, prefix="```", suffix="```"):

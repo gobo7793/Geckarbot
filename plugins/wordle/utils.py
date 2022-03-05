@@ -21,6 +21,9 @@ class OutOfOptions(Exception):
 
 
 class FormatOptions(Enum):
+    """
+    Enum for wordle guess/history format options
+    """
     MONOSPACE = "format_guess_monospace"
     INCLUDE_WORD = "format_guess_include_word"
     VERTICAL = "format_guess_vertical"
@@ -36,6 +39,9 @@ class FormatOptions(Enum):
 
 
 class GuessFormat:
+    """
+    Container for a set of format options
+    """
     def __init__(self, plugin, options_dict: Optional[Dict[FormatOptions, Any]] = None):
         """
 
@@ -118,8 +124,7 @@ def format_word(word: str, format_options: Optional[GuessFormat] = None,
         return delimiter.join(r)
     if format_options.uppercase:
         return delimiter.join(word).upper()
-    else:
-        return delimiter.join(word).upper()
+    return delimiter.join(word).upper()
 
 
 def format_game_result(plugin, game) -> str:

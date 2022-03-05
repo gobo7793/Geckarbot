@@ -13,7 +13,7 @@ class NaiveSolver(HelpingSolver):
     Solver that tries to gather complete information about the final guess before committing.
     """
     def __init__(self, game: Game):
-        self.game = game
+        super().__init__(game)
         self.logger = logging.getLogger(__name__)
         self.current_candidate_cache = None
 
@@ -91,9 +91,9 @@ class NaiveSolver(HelpingSolver):
                 continue
 
             # sort out by amounts
-            for char in self.amounts:
+            for char, amount in self.amounts.items():
+                amount, definite = amount
                 found = self.amount_in_word(word, char)
-                amount, definite = self.amounts[char]
                 if definite and found != amount:
                     mismatch = True
                     break
@@ -109,7 +109,7 @@ class NaiveSolver(HelpingSolver):
                     floaters_found[word[i]] = True
 
             found = True
-            for k, floater in floaters_found.items():
+            for floater in floaters_found.values():
                 if not floater:
                     found = False
                     break
@@ -137,7 +137,7 @@ class NaiveSolver(HelpingSolver):
         return r
 
     @staticmethod
-    def amount_in_word(word, char):
+    def amount_in_word(word: str, char: str):
         """
         :param word: Word to be searched
         :param char: char that is counted
@@ -149,7 +149,7 @@ class NaiveSolver(HelpingSolver):
                 r += 1
         return r
 
-    def found_count(self, char=None) -> int:
+    def found_count(self, char: str = None) -> int:
         """
         :param char: only count this char
         :return: The amount of found letters (Correctness.CORRECT)
@@ -390,18 +390,18 @@ class NaiveSolver(HelpingSolver):
                     self.found[candidate_i] = char
 
         # update self.amounts
-        for char in amounts:
+        for char, amount_t in amounts.items():
             # irrelevant
-            if amounts[char][0] == 0:
+            if amount_t[0] == 0:
                 continue
 
             if char not in self.amounts:
-                self.amounts[char] = amounts[char]
+                self.amounts[char] = amount_t
                 continue
 
-            if amounts[char][0] > self.amounts[char][0]:
-                self.amounts[char][0] = amounts[char][0]
-            if amounts[char][1]:
+            if amount_t[0] > self.amounts[char][0]:
+                self.amounts[char][0] = amount_t[0]
+            if amount_t[1]:
                 self.amounts[char][1] = True
 
         self.logger.debug("Digested %s, amounts: %s, self.amounts: %s", guess.word, amounts, self.amounts)
@@ -425,11 +425,11 @@ class NaiveSolver(HelpingSolver):
         kubbscore = self.kubb_score()
         best_score = None
         candidates = None
-        for word in kubbscore:
-            if best_score is None or kubbscore[word] > best_score:
-                best_score = kubbscore[word]
+        for word, score in kubbscore.items():
+            if best_score is None or score > best_score:
+                best_score = score
                 candidates = []
-            if best_score == kubbscore[word]:
+            if best_score == score:
                 candidates.append(word)
         r = random.choice(candidates)
         self.logger.debug("Kubb guess: %s with a score of %s", r, best_score)
@@ -481,9 +481,9 @@ class NaiveSolver(HelpingSolver):
         if char_score > word_score:
             self.logger.debug("Kubb guess: char, %s with a score of %s", char_guess, char_score)
             return char_guess
-        else:
-            self.logger.debug("Kubb guess: word, %s with a score of %s", word_guess, word_score)
-            return word_guess
+
+        self.logger.debug("Kubb guess: word, %s with a score of %s", word_guess, word_score)
+        return word_guess
 
     def get_guess(self) -> str:
         """
