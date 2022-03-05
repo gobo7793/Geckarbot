@@ -241,7 +241,6 @@ class NaiveSolver(HelpingSolver):
                 if len(scores) > amount:
                     word_scores[word] += sorted(scores)[0]
 
-        self.logger.debug("kubb scores: %s", word_scores)
         return word_scores
 
     def info_score(self, word: str) -> int:
