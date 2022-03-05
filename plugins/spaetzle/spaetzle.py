@@ -1,13 +1,16 @@
 import logging
+import re
 from typing import Literal, List, Optional
+from urllib.parse import urlparse, urljoin
 
+from bs4 import BeautifulSoup
 from nextcord import Embed, Interaction
 from nextcord.ext import commands
 from nextcord.ext.commands import Context
 
 from Geckarbot import BasePlugin
 from base.data import Config, Lang, Storage
-from botutils import sheetsclient
+from botutils import sheetsclient, restclient
 from botutils.sheetsclient import CellRange
 from botutils.uiutils import SingleConfirmView
 from botutils.utils import helpstring_helper, add_reaction
@@ -47,7 +50,8 @@ class Plugin(BasePlugin, SpaetzleUtils, name="Spaetzle-Tippspiel"):
         return {
             '_storage_version': 1,
             'matchday': 0,
-            'participants': {[], [], [], []}
+            'participants': {[], [], [], []},
+            'predictions_thread': ""
         }
 
     def command_help_string(self, command):
@@ -128,6 +132,49 @@ class Plugin(BasePlugin, SpaetzleUtils, name="Spaetzle-Tippspiel"):
             embed.add_field(name=Lang.lang(self, 'league_x', i + 1), value="\n".join(f"{x} - {y}" for x, y in schedule))
         await ctx.send(embed=embed, view=SingleConfirmView(insert_to_spreadsheet, user_id=ctx.author.id,
                                                            confirm_label=Lang.lang(self, 'confirm')))
+
+    @cmd_spaetzle.command(name="scrape")
+    async def cmd_spaetzle_scrape(self, ctx: Context, url: str = None):
+        data = []
+        if url is None:
+            url = Storage().get(self)['predictions_thread']
+
+        if not url or urlparse(url).netloc not in "www.transfermarkt.de":
+            await ctx.send(Lang.lang(self, 'scrape_incorrect_url', url))
+            return
+
+        botmessage = await ctx.send(Lang.lang(self, 'scrape_start', url))
+        async with ctx.typing():
+            while True:
+                response = await restclient.Client("https://www.transfermarkt.de").request(urlparse(url).path,
+                                                                                           parse_json=False)
+                soup = BeautifulSoup(response, "html.parser")
+
+                posts = soup.find_all('div', 'box')
+                for p in posts:
+                    p_time = p.find_all('div', 'post-header-datum')
+                    p_user = p.find_all('a', 'forum-user')
+                    p_data = p.find_all('div', 'forum-post-data')
+                    if p_time and p_user and p_data:
+                        data.append({
+                            'user': p_user[0].text,
+                            'time': p_time[0].text.strip(),
+                            'content': re.sub(r'(?:(?!\n)\s){2,}', ' ',
+                                              p_data[0].text.replace('\u2013', '-')).split("\n")
+                        })
+
+                await botmessage.edit(content="{}\n{}".format(botmessage.content,
+                                                              Lang.lang(self, 'scrape_intermediate', len(data))))
+                next_page = soup.find_all('li', 'tm-pagination__list-item--icon-next-page')
+                if next_page and next_page[0].a:
+                    url = urljoin(Storage().get(self)['predictions_thread'], next_page[0].a['href'])
+                else:
+                    await ctx.send(Lang.lang(self, 'scrape_end'))
+                    break
+
+            Storage().get(self, container='forumposts')[:] = data
+            Storage().save(self, container='forumposts')
+        await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
     @cmd_spaetzle.group(name="set")
     async def cmd_spaetzle_set(self, ctx: Context):

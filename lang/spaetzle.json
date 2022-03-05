@@ -5,6 +5,10 @@
 
         "#1": "Other",
         "info": "The Spaetzle(s)-Tippspiel is a prediction game where you compete in duels",
+        "scrape_end": "Scrape successfully completed.",
+        "scrape_incorrect_url": "Incorrect URL, it seems.",
+        "scrape_intermediate": "I found {} and search for more...",
+        "scrape_start": "Scraping has started. URL: {}",
         "title_matchday": "Matchday {}",
 
         "#2": "Lang",
@@ -22,6 +26,10 @@
 
         "#1": "Anderes",
         "info": "Das Spätzle(s)-Tippspiel ist ein Tippspiel aus dem Stuttgarter TM-Forum in dem die Teilnehmer nicht nur Bundesligaspiele tippen, sondern damit in Duellen gegeneinander antreten.",
+        "scrape_end": "Scrape beendet.",
+        "scrape_incorrect_url": "Die URL ist nicht korrekt.",
+        "scrape_intermediate": "Ich habe {} Posts gefunden und werde weitere suchen...",
+        "scrape_start": "Scraping begonnen. URL: {}",
         "title_matchday": "Spieltag {}",
 
         "#2": "Lang",
