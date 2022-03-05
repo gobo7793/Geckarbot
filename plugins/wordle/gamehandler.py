@@ -8,7 +8,7 @@ from base.data import Config, Lang
 from botutils.converters import get_best_username as gbu
 
 from plugins.wordle.game import Game, Correctness, HelpingSolver, WORDLENGTH, Guess
-from plugins.wordle.utils import format_guess, ICONS
+from plugins.wordle.utils import format_guess, ICONS, OutOfOptions, format_game_result
 from plugins.wordle.wordlist import WordList
 
 
@@ -171,6 +171,11 @@ class ReverseGameInstance(BaseGameInstance):
             solver_class: Type[HelpingSolver]
     ):
         super().__init__(plugin, player, channel, Game(wordlist))
+        self.ui = {
+            Correctness.INCORRECT: "x" + ICONS[Correctness.INCORRECT],
+            Correctness.PARTIALLY: "p" + ICONS[Correctness.PARTIALLY],
+            Correctness.CORRECT: "r" + ICONS[Correctness.CORRECT]
+        }
         self.solver = solver_class(self.game)
         self.last_guess: Optional[str] = None
 
@@ -179,7 +184,12 @@ class ReverseGameInstance(BaseGameInstance):
         Calculates the next guess and sends it.
         """
         if not self.last_guess:
-            self.last_guess = self.solver.get_guess()
+            try:
+                self.last_guess = self.solver.get_guess()
+            except OutOfOptions:
+                await self.channel.send(Lang.lang(self.plugin, "reverse_concede"))
+                self.plugin.mothership.deregister(self)
+                return
 
         prefix = ""
         if self.plugin.mothership.game_count(self.channel) > 1:
@@ -192,13 +202,11 @@ class ReverseGameInstance(BaseGameInstance):
         response = list(re.sub(r"\s*", "", msg.content))
         assert len(response) == WORDLENGTH
         for i in range(len(response)):
-            found = False
-            for correctness, icon in ICONS.items():
-                if response[i] == icon:
-                    found = True
+            for correctness, icon in self.ui.items():
+                if response[i].lower() in icon:
                     response[i] = correctness
                     break
-            if not found:
+            else:
                 await self.channel.send(Lang.lang(self.plugin, "reverse_parse_error"))
                 return
 
@@ -209,13 +217,19 @@ class ReverseGameInstance(BaseGameInstance):
         self.game.guesses.append(g)
         self.solver.digest_guess(g)
 
+        done = False
         if g.is_correct:
+            done = True
             await self.channel.send(Lang.lang(self.plugin, "reverse_success"))
             self.plugin.mothership.deregister(self)
-            return
-        if self.game.done == Correctness.INCORRECT:
+        elif self.game.done == Correctness.INCORRECT:
+            done = True
             await self.channel.send(Lang.lang(self.plugin, "reverse_failure"))
             self.plugin.mothership.deregister(self)
+
+        if done:
+            f = format_guess(self.plugin, self.game, self.game.guesses[-1], done=True, history=True)
+            await self.channel.send("{}\n{}".format(format_game_result(self.plugin, self.game), f))
             return
 
         await self.suggest()

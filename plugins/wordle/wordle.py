@@ -18,7 +18,7 @@ from plugins.wordle.naivesolver import NaiveSolver
 from plugins.wordle.dicesolver import DiceSolver
 from plugins.wordle.utils import format_guess
 from plugins.wordle.wordlist import fetch_powerlanguage_impl, WordList
-from plugins.wordle.gamehandler import Mothership, AlreadyRunning
+from plugins.wordle.gamehandler import Mothership
 
 BASE_CONFIG = {
     "default_wordlist": [str, "en"],
@@ -115,7 +115,7 @@ class Plugin(BasePlugin, name="Wordle"):
 
         # specifics
         if key == "default_solver":
-            if value not in SOLVERS.keys():
+            if value not in SOLVERS:
                 await ctx.send("Invalid solver: {}".format(value))
                 await add_reaction(ctx.message, Lang.CMDERROR)
                 return
@@ -124,6 +124,7 @@ class Plugin(BasePlugin, name="Wordle"):
 
     @cmd_wordle.command(name="wordlist")
     async def cmd_wordlist(self, ctx, name: Optional[str] = None, url: Optional[str] = None):
+        # pylint: disable=broad-except
         if name and not url:
             await add_reaction(ctx.message, Lang.CMDERROR)
             await ctx.send(Lang.lang(self, "missing_argument"))
@@ -309,7 +310,8 @@ class Plugin(BasePlugin, name="Wordle"):
             results[i] = 0
 
         async with ctx.typing():
-            for _ in range(quantity):
+            for i in range(quantity):
+                self.logger.debug("Solvetest: game #%s", i + 1)
                 game = Game(wordlist)
                 game.set_random_solution()
                 try:
@@ -333,6 +335,8 @@ class Plugin(BasePlugin, name="Wordle"):
                 msgs.append("{}/6: {}".format(key, result))
             if len(alg_failures) > 0:
                 msgs.append("Alg failures: {}".format(len(alg_failures)))
+            sr = format_number(100 * (quantity - results[0]) / quantity, decplaces=1)
+            msgs.append("success rate: {}%".format(sr))
             msgs.append("total score: {}".format(format_number(total_score / quantity)))
 
             for msg in paginate(msgs, prefix="```", suffix="```"):
@@ -340,11 +344,11 @@ class Plugin(BasePlugin, name="Wordle"):
 
             # dump if debug
             if Config().bot.DEBUG_MODE:
-                if len(alg_failures) > 1:
+                if len(alg_failures) > 0:
                     await ctx.send("Algorithm incomplete:")
                     for game in alg_failures:
                         await ctx.send(format_guess(self, game, game.guesses[-1], done=True, history=True))
-                if len(failed_games) > 1:
+                if len(failed_games) > 0:
                     await ctx.send("Algorithm failed (X/6):")
                     for game in failed_games:
                         await ctx.send(format_guess(self, game, game.guesses[-1], done=True, history=True))
