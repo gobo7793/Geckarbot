@@ -160,7 +160,7 @@ class Solver(abc.ABC):
     """
     @abc.abstractmethod
     def __init__(self, game: Game):
-        raise NotImplementedError
+        self.game = game
 
     @abc.abstractmethod
     def solve(self):
@@ -173,7 +173,7 @@ class HelpingSolver(Solver):
     """
     @abc.abstractmethod
     def __init__(self, game: Game):
-        self.game = game
+        super().__init__(game)
 
     @abc.abstractmethod
     def get_guess(self) -> str:

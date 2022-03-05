@@ -7,6 +7,11 @@ from typing import List
 import aiohttp
 
 
+TO_ADD = [
+    "gecki"
+]
+
+
 class Parsers(Enum):
     POWERLANGUAGE = "powerlanguage"
 
@@ -68,7 +73,7 @@ class WordList:
 
     @classmethod
     def deserialize(cls, d):
-        return cls(d["url"], Parsers(d["parser"]), tuple(d["solutions"]), tuple(d["complement"]))
+        return cls(d["url"], Parsers(d["parser"]), tuple(d["solutions"] + TO_ADD), tuple(d["complement"]))
 
     def random_solution(self):
         return random.choice(self.solutions)

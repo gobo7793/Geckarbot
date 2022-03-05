@@ -4,8 +4,11 @@ from plugins.wordle.game import HelpingSolver, Game, Guess, Correctness
 
 
 class DiceSolver(HelpingSolver):
+    """
+    Trivial example solver that randoms every guess
+    """
     def __init__(self, game: Game):
-        self.game = game
+        super().__init__(game)
 
     def get_guess(self) -> str:
         return random.choice(self.game.wordlist.words)
