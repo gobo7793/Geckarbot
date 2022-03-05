@@ -5,6 +5,7 @@ from typing import Optional, Dict, List, Iterable, Tuple
 from botutils.utils import execute_anything_sync, log_exception
 
 from plugins.wordle.game import HelpingSolver, Game, WORDLENGTH, Correctness, Guess
+from plugins.wordle.utils import OutOfOptions
 
 
 class NaiveSolver(HelpingSolver):
@@ -50,7 +51,7 @@ class NaiveSolver(HelpingSolver):
     def current_candidates(self) -> List[str]:
         """
         :return: List of words that could be the solution with the current char lists
-        :raises RuntimeError: If the list would be empty
+        :raises OutOfOptions: If the list would be empty
         """
         if self.current_candidate_cache is not None:
             return self.current_candidate_cache
@@ -119,7 +120,7 @@ class NaiveSolver(HelpingSolver):
 
         if not r:
             # candidate list is empty, everybody panic
-            e = RuntimeError("Alg is incomplete")
+            e = OutOfOptions()
             guesses = []
             for el in self.game.guesses:
                 guesses.append(el.word)

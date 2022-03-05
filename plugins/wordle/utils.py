@@ -13,6 +13,13 @@ ICONS = {
 }
 
 
+class OutOfOptions(Exception):
+    """
+    Raised by solvers to indicate that they ran out of possible guesses
+    """
+    pass
+
+
 class FormatOptions(Enum):
     MONOSPACE = "format_guess_monospace"
     INCLUDE_WORD = "format_guess_include_word"
@@ -113,6 +120,22 @@ def format_word(word: str, format_options: Optional[GuessFormat] = None,
         return delimiter.join(word).upper()
     else:
         return delimiter.join(word).upper()
+
+
+def format_game_result(plugin, game) -> str:
+    """
+    Formats the result of a game.
+
+    :param plugin: plugin ref
+    :param game: game
+    """
+    d = game.done
+    if d == Correctness.CORRECT:
+        return "{}/{}".format(len(game.guesses), game.max_tries)
+    if d == Correctness.INCORRECT:
+        whb = "\n" + Lang.lang(plugin, "play_wouldhavebeen", game.solution) if game.solution else ""
+        return "X/{}{}".format(game.max_tries, whb)
+    return "This should not happen, pls report."
 
 
 def format_guess(plugin, game: Game, guess: Guess,

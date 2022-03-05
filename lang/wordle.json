@@ -61,7 +61,8 @@
         "reverse_guess": "{}I guess: {}",
         "reverse_username_prefix": "[{}] ",
         "reverse_success": ":)",
-        "reverse_failure": ":("
+        "reverse_failure": ":(",
+        "reverse_concede": "I have no clue and concede. :("
     },
 
     "de_DE": {
@@ -126,6 +127,7 @@
         "reverse_guess": "{}Ich rate: {}",
         "reverse_username_prefix": "[{}] ",
         "reverse_success": ":)",
-        "reverse_failure": ":("
+        "reverse_failure": ":(",
+        "reverse_concede": "Ich weiß nicht weiter und gebe auf. :("
     }
 }
