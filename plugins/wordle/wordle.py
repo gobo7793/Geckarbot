@@ -309,7 +309,8 @@ class Plugin(BasePlugin, name="Wordle"):
             results[i] = 0
 
         async with ctx.typing():
-            for _ in range(quantity):
+            for i in range(quantity):
+                self.logger.debug("Solvetest: game #%s", i + 1)
                 game = Game(wordlist)
                 game.set_random_solution()
                 try:
@@ -333,7 +334,7 @@ class Plugin(BasePlugin, name="Wordle"):
                 msgs.append("{}/6: {}".format(key, result))
             if len(alg_failures) > 0:
                 msgs.append("Alg failures: {}".format(len(alg_failures)))
-            msgs.append("success rate: {}".format(format_number((quantity - results[0]) / quantity)))
+            msgs.append("success rate: {}".format(format_number((quantity - results[0]) / quantity, decplaces=3)))
             msgs.append("total score: {}".format(format_number(total_score / quantity)))
 
             for msg in paginate(msgs, prefix="```", suffix="```"):

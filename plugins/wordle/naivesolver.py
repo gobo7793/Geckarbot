@@ -1,6 +1,6 @@
 import logging
 import random
-from typing import Optional, Dict, List, Iterable
+from typing import Optional, Dict, List, Iterable, Tuple
 
 from botutils.utils import execute_anything_sync, log_exception
 
@@ -84,8 +84,6 @@ class NaiveSolver(HelpingSolver):
                 if (self.found[i] is not None and char != self.found[i]) \
                         or char in self.elsewhere[i] \
                         or (char not in self.possible and char not in self.found):
-                    if word == "abuse":
-                        self.logger.debug("Ruling out abuse because of %s at %s; c3: %s", char, i, char not in self.possible and char not in self.found)
                     mismatch = True
                     break
             if mismatch:
@@ -112,8 +110,6 @@ class NaiveSolver(HelpingSolver):
             found = True
             for k, floater in floaters_found.items():
                 if not floater:
-                    if word == "abuse":
-                        self.logger.debug("ruling out abuse because %s was not found", k)
                     found = False
                     break
             if not found:
@@ -152,13 +148,14 @@ class NaiveSolver(HelpingSolver):
                 r += 1
         return r
 
-    def found_count(self) -> int:
+    def found_count(self, char=None) -> int:
         """
+        :param char: only count this char
         :return: The amount of found letters (Correctness.CORRECT)
         """
         r = 0
         for el in self.found:
-            if el is not None:
+            if el is not None and (char is None or char == el):
                 r += 1
         return r
 
@@ -218,19 +215,32 @@ class NaiveSolver(HelpingSolver):
         candidates = self.current_candidates()
         word_scores = {}
         for word in candidates:
-            word_scores[word] = 0
-            for i in range(WORDLENGTH):
+            letter_scores: Dict[str, List[int]] = {}
+            for i in self.not_found_iter():
 
                 # word score: info score of this word
-                letterscore = 0
+                letter_score = 0
                 for j in range(len(candidates)):
                     kubb = candidates[j]
                     if word[i] == kubb[i]:
-                        if letterscore >= len(candidates) // 2:
-                            letterscore -= 1
+                        if letter_score >= len(candidates) // 2:
+                            letter_score -= 1
                         else:
-                            letterscore += 1
-                word_scores[word] += letterscore
+                            letter_score += 1
+
+                if word[i] in letter_scores:
+                    letter_scores[word[i]].append(letter_score)
+                else:
+                    letter_scores[word[i]] = [letter_score]
+
+            # combine letter scores by factoring in amounts
+            word_scores[word] = 0
+            for char, scores in letter_scores.items():
+                amount = 0 if char not in self.amounts else self.amounts[char][0]
+                if len(scores) > amount:
+                    word_scores[word] += sorted(scores)[0]
+
+        self.logger.debug("kubb scores: %s", word_scores)
         return word_scores
 
     def info_score(self, word: str) -> int:
@@ -244,6 +254,7 @@ class NaiveSolver(HelpingSolver):
         for i in range(WORDLENGTH):
             if word[i] == self.found[i]:
                 r -= 1
+                continue
 
             # no further points for double letters
             if word[i] in so_far:
@@ -257,7 +268,7 @@ class NaiveSolver(HelpingSolver):
             if word[i] in self.possible:
                 r += 2
             if word[i] in self.candidates[i]:
-                r += 1
+                r -= 1
             so_far.append(word[i])
         return r
 
@@ -296,8 +307,10 @@ class NaiveSolver(HelpingSolver):
         amounts: Dict[str, List[int, bool]] = {}
         for i in range(WORDLENGTH):
             char = guess.word[i]
-            amounts[char] = [0, False]
             correctness = guess.correctness[i]
+            if char not in amounts:
+                amounts[char] = [0, False]
+
             if correctness == Correctness.CORRECT:
                 amounts[char][0] += 1
 
@@ -348,6 +361,34 @@ class NaiveSolver(HelpingSolver):
                     if char in sublist:
                         sublist.remove(char)
 
+        # fish for lonely elsewheres that lead to a found
+        change_done = True
+        while change_done:
+            change_done = False
+            candidates = []
+            for i in self.not_found_iter():
+                pl = self.elsewhere[i]
+                for char in pl:
+                    if char not in candidates:
+                        candidates.append(char)
+
+            for char in candidates:
+                candidate_i = None
+                found = False
+                for i in self.not_found_iter():
+                    if char not in self.elsewhere[i]:
+                        if candidate_i is None:
+                            found = True
+                            candidate_i = i
+                        else:
+                            found = False
+                            break
+
+                if found:
+                    self.logger.debug("Deduced %s at %s because of elsewheres", char, candidate_i)
+                    change_done = True
+                    self.found[candidate_i] = char
+
         # update self.amounts
         for char in amounts:
             # irrelevant
@@ -363,6 +404,8 @@ class NaiveSolver(HelpingSolver):
             if amounts[char][1]:
                 self.amounts[char][1] = True
 
+        self.logger.debug("Digested %s, amounts: %s, self.amounts: %s", guess.word, amounts, self.amounts)
+
     def digest_by_candidates(self):
         """
         Updates the possible list by removing characters that are not in candidates.
@@ -374,9 +417,10 @@ class NaiveSolver(HelpingSolver):
                     self.possible.append(word[i])
         self.possible = sorted(self.possible)
 
-    def get_kubb_word_guess(self) -> str:
+    def get_kubb_word_guess(self) -> Tuple[str, int]:
         """
-        :return: The word that (a) is an actual candidate and (b) gives the most information based on candidates
+        Gets the word that (a) is an actual candidate and (b) gives the most information based on candidates
+        :return: guess, score
         """
         kubbscore = self.kubb_score()
         best_score = None
@@ -389,14 +433,15 @@ class NaiveSolver(HelpingSolver):
                 candidates.append(word)
         r = random.choice(candidates)
         self.logger.debug("Kubb guess: %s with a score of %s", r, best_score)
-        return r
+        return r, best_score
 
-    def get_kubb_char_guess(self) -> str:
+    def get_kubb_char_guess(self) -> Tuple[str, int]:
         """
-        :return: The word that gives the most information based on candidates without necessarily being a candidate
+        Gets the word that gives the most information based on candidates without necessarily being a candidate.
+        :return: guess, score
         """
         charkubb = self.char_score()
-        score = None
+        best_score = None
         candidates = None
         for word in self.game.wordlist.words:
             s = 0
@@ -418,14 +463,27 @@ class NaiveSolver(HelpingSolver):
                 if char in charkubb and charkubb[char] > 0:
                     scored.append(char)
                     s += charkubb[char]
-            if score is None or s > score:
-                score = s
+            if best_score is None or s > best_score:
+                best_score = s
                 candidates = [word]
-            elif s == score:
+            elif s == best_score:
                 candidates.append(word)
         r = random.choice(candidates)
-        self.logger.debug("Kubb char guess: %s with a score of %s", r, score)
-        return r
+        self.logger.debug("Kubb char guess: %s with a score of %s", r, best_score)
+        return r, best_score
+
+    def get_best_kubb_guess(self):
+        """
+        :return: The better kubb guess between char and word kubb score.
+        """
+        char_guess, char_score = self.get_kubb_char_guess()
+        word_guess, word_score = self.get_kubb_word_guess()
+        if char_score > word_score:
+            self.logger.debug("Kubb guess: char, %s with a score of %s", char_guess, char_score)
+            return char_guess
+        else:
+            self.logger.debug("Kubb guess: word, %s with a score of %s", word_guess, word_score)
+            return word_guess
 
     def get_guess(self) -> str:
         """
@@ -447,13 +505,7 @@ class NaiveSolver(HelpingSolver):
         else:
             # kubb guess
             if len(self.game.guesses) >= 2:
-                rem_guesses = self.game.max_tries - len(self.game.guesses)
-                rem_chars = WORDLENGTH - self.found_count()
-                if rem_guesses ** rem_chars < len(self.current_candidates()):
-                    # get char info if candidate length is too long
-                    r = self.get_kubb_char_guess()
-                else:
-                    r = self.get_kubb_word_guess()
+                r = self.get_best_kubb_guess()
 
             # Random info score guess
             else:
