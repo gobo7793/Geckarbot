@@ -152,15 +152,15 @@ class Plugin(BasePlugin, SpaetzleUtils, name="Spaetzle-Tippspiel"):
 
                 posts = soup.find_all('div', 'box')
                 for p in posts:
-                    p_time = p.find_all('div', 'post-header-datum')
-                    p_user = p.find_all('a', 'forum-user')
-                    p_data = p.find_all('div', 'forum-post-data')
+                    p_time = p.find('div', 'post-header-datum')
+                    p_user = p.find('a', 'forum-user')
+                    p_data = p.find('div', 'forum-post-data')
                     if p_time and p_user and p_data:
                         data.append({
-                            'user': p_user[0].text,
-                            'time': p_time[0].text.strip(),
+                            'user': p_user.text,
+                            'time': p_time.text.strip(),
                             'content': re.sub(r'(?:(?!\n)\s){2,}', ' ',
-                                              p_data[0].text.replace('\u2013', '-')).split("\n")
+                                              p_data.text.replace('\u2013', '-')).split("\n")
                         })
 
                 await botmessage.edit(content="{}\n{}".format(botmessage.content,
