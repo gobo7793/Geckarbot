@@ -1,5 +1,6 @@
 import logging
 import re
+from datetime import datetime
 from typing import Literal, List, Optional
 from urllib.parse import urlparse, urljoin
 
@@ -14,7 +15,6 @@ from botutils import sheetsclient, restclient
 from botutils.sheetsclient import CellRange
 from botutils.uiutils import SingleConfirmView
 from botutils.utils import helpstring_helper, add_reaction
-from plugins.spaetzle import views
 from plugins.spaetzle.utils import SpaetzleUtils
 from services.helpsys import DefaultCategories
 from services.liveticker import LeagueRegistrationOLDB
@@ -95,11 +95,29 @@ class Plugin(BasePlugin, SpaetzleUtils, name="Spaetzle-Tippspiel"):
 
     @cmd_spaetzle_setup.command(name="matches")
     async def cmd_spaetzle_setup_matches(self, ctx: Context):
+        async def insert_to_spreadsheet(_b, interaction: Interaction):
+            time_cells = []
+            team_cells = []
+            match_cells = []
+            _matchday = interaction.message.embeds[0].title.split(" ")[-1]
+            for row in interaction.message.embeds[0].description.split("\n"):
+                dt, teams = row.split(" | ")
+                kickoff_time = datetime.strptime(dt, "%a. %d.%m.%Y, %H:%M Uhr")
+                home, away = teams.split(" - ")
+                match = "{} - {}".format(Config().bot.liveticker.teamname_converter.get(home).abbr,
+                                         Config().bot.liveticker.teamname_converter.get(away).abbr)
+                time_cells.extend([kickoff_time.strftime("%d.%m.%Y %H:%M"), None])
+                team_cells.extend([home, away])
+                match_cells.extend([match, None])
+            self.get_api_client().update(f"'ST {_matchday}'!{Config().get(self)['ranges']['matches']}",
+                                         [time_cells, team_cells, match_cells], raw=False)
+
         matchday = Storage().get(self)['matchday']
         match_list = await LeagueRegistrationOLDB.get_matches_by_matchday(league="bl1", matchday=matchday)
         await ctx.send(embed=Embed(title=Lang.lang(self, 'title_matchday', matchday),
                                    description="\n".join(m.display_short() for m in match_list)),
-                       view=views.SetupMatchesConfirmation(self, ctx.author.id))
+                       view=SingleConfirmView(insert_to_spreadsheet, confirm_label=Lang.lang(self, 'confirm'),
+                                              user_id=ctx.author.id))
 
     @cmd_spaetzle_setup.command(name="duels")
     async def cmd_spaetzle_setup_duels(self, ctx: Context):
