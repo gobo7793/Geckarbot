@@ -7,7 +7,7 @@ from datetime import datetime, timezone, timedelta
 from math import pi
 from typing import List, Iterable
 
-from nextcord import File
+from nextcord import File, Embed
 from nextcord.ext import commands
 
 from botutils import restclient, utils, timeutils
@@ -359,3 +359,17 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
         m.update(bytes(msg, "utf-8"))
         warning = Lang.lang(self, "hash_empty_string") if not msg else ""
         await ctx.send("{}`{}`".format(warning, m.hexdigest()))
+
+    @commands.command(name="wiki")
+    async def cmd_wiki(self, ctx, *, title: str):
+        result = await restclient.Client("https://de.wikipedia.org/w/").request(
+            "api.php", params={'action': "query", 'prop': "extracts|info", 'exchars': 500, 'titles': title,
+                               'explaintext': True, 'exintro': True, 'redirects': 1, 'inprop': "url", 'format': "json"})
+        page_id, page = result['query']['pages'].popitem()
+        if page_id == -1:
+            return
+        embed = Embed(description=page['extract'], timestamp=datetime.strptime(page['touched'], "%Y-%m-%dT%H:%M:%SZ"))
+        embed.set_author(name=page['title'], url=page['fullurl'],
+                         icon_url="https://de.wikipedia.org/static/apple-touch/wikipedia.png")
+        embed.set_footer(text="Wikipedia")
+        await ctx.send(embed=embed)
