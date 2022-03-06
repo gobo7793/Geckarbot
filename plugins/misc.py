@@ -9,6 +9,7 @@ from typing import List, Iterable
 
 from nextcord import File, Embed
 from nextcord.ext import commands
+from nextcord.ext.commands import Context
 
 from botutils import restclient, utils, timeutils
 from botutils.converters import get_best_username
@@ -361,15 +362,22 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
         await ctx.send("{}`{}`".format(warning, m.hexdigest()))
 
     @commands.command(name="wiki")
-    async def cmd_wiki(self, ctx, *, title: str):
-        result = await restclient.Client("https://de.wikipedia.org/w/").request(
-            "api.php", params={'action': "query", 'prop': "extracts|info", 'exchars': 500, 'titles': title,
-                               'explaintext': True, 'exintro': True, 'redirects': 1, 'inprop': "url", 'format': "json"})
-        page_id, page = result['query']['pages'].popitem()
-        if page_id == -1:
+    async def cmd_wiki(self, ctx: Context, *, title: str):
+        for lang in "de", "en":
+            result = await restclient.Client(f"https://{lang}.wikipedia.org/w/").request(
+                "api.php", params={'action': "query", 'prop': "extracts|info|categories", 'exchars': 500,
+                                   'titles': title, 'explaintext': True, 'exintro': True, 'redirects': 1,
+                                   'inprop': "url", 'format': "json"})
+            page_id, page = result['query']['pages'].popitem()
+            if page_id != "-1":
+                break
+        else:
+            # Nothing found
+            await add_reaction(ctx.message, Lang.CMDNOCHANGE)
             return
+        categories = [c['title'].split(":")[-1] for c in page['categories']]
         embed = Embed(description=page['extract'], timestamp=datetime.strptime(page['touched'], "%Y-%m-%dT%H:%M:%SZ"))
         embed.set_author(name=page['title'], url=page['fullurl'],
                          icon_url="https://de.wikipedia.org/static/apple-touch/wikipedia.png")
-        embed.set_footer(text="Wikipedia")
+        embed.set_footer(text="Wikipedia | " + ", ".join(categories[:3]))
         await ctx.send(embed=embed)
