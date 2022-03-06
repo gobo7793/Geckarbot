@@ -366,8 +366,11 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
         for lang in "de", "en":
             result = await restclient.Client(f"https://{lang}.wikipedia.org/w/").request(
                 "api.php", params={'action': "query", 'prop': "extracts|info|categories|pageimages", 'exchars': 500,
-                                   'titles': title, 'explaintext': True, 'exintro': True, 'redirects': 1,
-                                   'inprop': "url", 'pithumbsize': 150, 'format': "json"})
+                                   'explaintext': True, 'exintro': True, 'redirects': 1, 'inprop': "url",
+                                   'pithumbsize': 150, 'generator': "search", 'gsrsearch': title, 'gsrlimit': 1,
+                                   'format': "json"})
+            if 'query' not in result:
+                continue
             page_id, page = result['query']['pages'].popitem()
             if page_id != "-1":
                 break
