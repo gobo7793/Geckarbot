@@ -194,6 +194,11 @@ class Plugin(BasePlugin, SpaetzleUtils, name="Spaetzle-Tippspiel"):
             Storage().save(self, container='forumposts')
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
+    @cmd_spaetzle.command(name="extract")
+    async def cmd_spaetzle_extract(self, ctx: Context):
+        forumposts = Storage().get(self, container='forumposts')
+        ...
+
     @cmd_spaetzle.group(name="set")
     async def cmd_spaetzle_set(self, ctx: Context):
         if ctx.invoked_subcommand is None:

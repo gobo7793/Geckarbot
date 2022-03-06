@@ -1,4 +1,5 @@
-from typing import Optional
+import re
+from typing import Optional, List, Tuple, Dict
 
 from base.data import Storage, Config
 from botutils.sheetsclient import Cell, CellRange
@@ -32,3 +33,17 @@ class SpaetzleUtils:
             return cell.cellname()
         except ValueError:
             return None
+
+    @staticmethod
+    def extract_predictions(matches: List[str], raw_post: str):
+        predictions: Dict[str, Tuple[int, int]] = {}
+        matchesre = "|".join([re.escape(m) for m in matches])
+        for line in raw_post:
+            if line == "\u2022 \u2022 \u2022\r":  # Signature
+                break
+            result = re.search(f"(?P<match>{matchesre})\\D*(?P<goals_home>\\d+)\\s*\\D\\s*(?P<goals_away>\\d+)", line)
+            if not result:
+                continue
+            groupdict = result.groupdict()
+            predictions[groupdict['match']] = (int(groupdict['goals_home']), int(groupdict['goals_away']))
+        return predictions
