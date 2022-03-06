@@ -365,9 +365,9 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
     async def cmd_wiki(self, ctx: Context, *, title: str):
         for lang in "de", "en":
             result = await restclient.Client(f"https://{lang}.wikipedia.org/w/").request(
-                "api.php", params={'action': "query", 'prop': "extracts|info|categories", 'exchars': 500,
+                "api.php", params={'action': "query", 'prop': "extracts|info|categories|pageimages", 'exchars': 500,
                                    'titles': title, 'explaintext': True, 'exintro': True, 'redirects': 1,
-                                   'inprop': "url", 'format': "json"})
+                                   'inprop': "url", 'pithumbsize': 150, 'format': "json"})
             page_id, page = result['query']['pages'].popitem()
             if page_id != "-1":
                 break
@@ -380,4 +380,6 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
         embed.set_author(name=page['title'], url=page['fullurl'],
                          icon_url="https://de.wikipedia.org/static/apple-touch/wikipedia.png")
         embed.set_footer(text="Wikipedia | " + ", ".join(categories[:3]))
+        if 'thumbnail' in page:
+            embed.set_thumbnail(url=page['thumbnail']['source'])
         await ctx.send(embed=embed)
