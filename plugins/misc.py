@@ -235,7 +235,7 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
             await self.bot.helpsys.cmd_help(ctx, self, ctx.command)
             return
 
-        pizzas = []
+        pizzas: List[List[...]] = []
         single_d_unit = None
         single_relprice = None
         single_relunit = None
@@ -363,6 +363,7 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
 
     @commands.command(name="wiki")
     async def cmd_wiki(self, ctx: Context, *, title: str):
+        page = {}
         for lang in "de", "en":
             result = await restclient.Client(f"https://{lang}.wikipedia.org/w/").request(
                 "api.php", params={'action': "query", 'prop': "extracts|info|categories|pageimages", 'exchars': 500,
