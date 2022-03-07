@@ -384,7 +384,7 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
         embed = Embed(description=page['extract'], timestamp=datetime.strptime(page['touched'], "%Y-%m-%dT%H:%M:%SZ"))
         embed.set_author(name=page['title'], url=page['fullurl'],
                          icon_url="https://de.wikipedia.org/static/apple-touch/wikipedia.png")
-        embed.set_footer(text="Wikipedia | " + ", ".join(categories[:3]))
+        embed.set_footer(text=f"Wikipedia ({page['pagelanguage'].upper()}) | " + ", ".join(categories[:3]))
         if 'thumbnail' in page:
             embed.set_thumbnail(url=page['thumbnail']['source'])
         await ctx.send(embed=embed)
