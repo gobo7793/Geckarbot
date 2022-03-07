@@ -67,7 +67,10 @@
         "usage_timestamp": "<#|#m|#h|#d|DD.MM.YYYY|DD.MM.YY|DD.MM.|HH:MM|DD.MM.YYYY HH:MM|DD.MM.YY HH:MM|DD.MM. HH:MM> [style]",
         "help_hash": "Calculates hashes",
         "desc_hash": "Calculates a cryptographic hash of a string. The algorithm argument specifies the used hash algorithm, e.g. md5 or sha256.\n\nExample:\n  !hash sha256 lorem ipsum",
-        "usage_hash": "<algorithm> <string>"
+        "usage_hash": "<algorithm> <string>",
+        "help_wiki": "Shows an extract from a wikipedia page.",
+        "desc_wiki": "Shows an extract from a wikipedia page. Multi-language support: Use lang code as first argument for explicit language. Missing lang code or '*' will search in German, English, French, Spanish and Italian.",
+        "usage_wiki": "[lang_code|*] <title>"
     },
     "de_DE": {
         "#0": "Single lang strings",
@@ -137,6 +140,9 @@
         "usage_timestamp": "<#|#m|#h|#d|DD.MM.YYYY|DD.MM.YY|DD.MM.|HH:MM|DD.MM.YYYY HH:MM|DD.MM.YY HH:MM|DD.MM. HH:MM> [Style]",
         "help_hash": "Berechnet einen Hash",
         "desc_hash": "Berechnet einen kryptographischen Hash eines Strings. Das Algorithmus-Argument spezifiziert den genutzten Hashalgorithmus, etwa md5 oder sha256.\n\nBeispiel:\n  !hash sha256 lorem ipsum",
-        "usage_hash": "<Algorithmus> <String>"
+        "usage_hash": "<Algorithmus> <String>",
+        "help_wiki": "Zeigt einen Auszug aus der Wikipedia.",
+        "desc_wiki": "Zeigt einen Auszug aus der Wikipedia. Für explizite Auswahl einer Sprache Code (de, en, fr, ..) als erstes Argument angeben. Mit '*' oder komplett ohne werden mehrere Sprachen bis zum ersten Ergebnis durchprobiert.",
+        "usage_wiki": "[Sprache|*] <Titel>"
     }
 }
