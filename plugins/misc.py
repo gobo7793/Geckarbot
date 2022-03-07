@@ -6,7 +6,7 @@ import string
 import hashlib
 from datetime import datetime, timezone, timedelta
 from math import pi
-from typing import List, Iterable
+from typing import List, Iterable, Dict, Optional
 
 from aiohttp import ClientConnectorError
 from nextcord import File, Embed
@@ -372,8 +372,8 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
         if not page:
             if lang != "*":
                 title = f"{lang} {title}"
-            for lang in langs:
-                page = await self.get_wikipage(lang, title)
+            for _lang in langs:
+                page = await self.get_wikipage(_lang, title)
                 if page:
                     break
             else:
@@ -390,7 +390,14 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
         await ctx.send(embed=embed)
 
     @staticmethod
-    async def get_wikipage(lang: str, title: str):
+    async def get_wikipage(lang: str, title: str) -> Optional[Dict[...]]:
+        """
+        Returns the page data for a wikipedia page.
+
+        :param lang: language code for which wikipedia to search
+        :param title: search term
+        :return: page data if found, None else
+        """
         if not title:
             return None
         try:
