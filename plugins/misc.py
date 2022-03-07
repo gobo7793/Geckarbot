@@ -370,7 +370,7 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
         if re.match("[a-zA-Z]{2,3}$", lang):
             page = await self.get_wikipage(lang, title)
         if not page:
-            if lang != "*":
+            if len(lang) > 1 or lang not in r"!#$%&'()*+,\-./:;<=>?@[]^_`{|}~":  # Language Wildcard
                 title = f"{lang} {title}"
             for _lang in langs:
                 page = await self.get_wikipage(_lang, title)
