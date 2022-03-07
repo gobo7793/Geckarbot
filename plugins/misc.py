@@ -1,14 +1,17 @@
 import locale
 import logging
 import random
+import re
 import string
 import hashlib
 from datetime import datetime, timezone, timedelta
 from math import pi
-from typing import List, Iterable
+from typing import List, Iterable, Dict, Optional
 
-from nextcord import File
+from aiohttp import ClientConnectorError
+from nextcord import File, Embed
 from nextcord.ext import commands
+from nextcord.ext.commands import Context
 
 from botutils import restclient, utils, timeutils
 from botutils.converters import get_best_username
@@ -234,7 +237,7 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
             await self.bot.helpsys.cmd_help(ctx, self, ctx.command)
             return
 
-        pizzas = []
+        pizzas: List[List[...]] = []
         single_d_unit = None
         single_relprice = None
         single_relunit = None
@@ -359,3 +362,55 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
         m.update(bytes(msg, "utf-8"))
         warning = Lang.lang(self, "hash_empty_string") if not msg else ""
         await ctx.send("{}`{}`".format(warning, m.hexdigest()))
+
+    @commands.command(name="wiki")
+    async def cmd_wiki(self, ctx: Context, lang: str, *, title: str = ""):
+        langs = "de", "en", "fr", "es", "it"
+        page = None
+        if re.match("[a-zA-Z]{2,3}$", lang):
+            page = await self.get_wikipage(lang, title)
+        if not page:
+            if len(lang) > 1 or lang not in r"!#$%&'()*+,\-./:;<=>?@[]^_`{|}~":  # Language Wildcard
+                title = f"{lang} {title}"
+            for _lang in langs:
+                page = await self.get_wikipage(_lang, title)
+                if page:
+                    break
+            else:
+                # Nothing found
+                await ctx.send(Lang.lang(self, 'wiki_notfound'))
+                return
+        categories = [c['title'].split(":")[-1] for c in page['categories']]
+        embed = Embed(description=page['extract'], timestamp=datetime.strptime(page['touched'], "%Y-%m-%dT%H:%M:%SZ"))
+        embed.set_author(name=page['title'], url=page['fullurl'],
+                         icon_url="https://de.wikipedia.org/static/apple-touch/wikipedia.png")
+        embed.set_footer(text=f"Wikipedia ({page['pagelanguage'].upper()}) | " + ", ".join(categories[:3]))
+        if 'thumbnail' in page:
+            embed.set_thumbnail(url=page['thumbnail']['source'])
+        await ctx.send(embed=embed)
+
+    @staticmethod
+    async def get_wikipage(lang: str, title: str) -> Optional[Dict]:
+        """
+        Returns the page data for a wikipedia page.
+
+        :param lang: language code for which wikipedia to search
+        :param title: search term
+        :return: page data if found, None else
+        """
+        if not title:
+            return None
+        try:
+            result = await restclient.Client(f"https://{lang}.wikipedia.org/w/").request(
+                "api.php", params={'action': "query", 'prop': "extracts|info|categories|pageimages", 'exchars': 500,
+                                   'explaintext': True, 'exintro': True, 'redirects': 1, 'inprop': "url",
+                                   'pithumbsize': 500, 'generator': "search", 'gsrsearch': title, 'gsrlimit': 1,
+                                   'format': "json"})
+        except ClientConnectorError:
+            return None
+        if 'query' not in result:
+            return None
+        _id, data = result['query']['pages'].popitem()
+        if _id != "-1":
+            return data
+        return None
