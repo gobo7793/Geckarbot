@@ -1,12 +1,14 @@
 import locale
 import logging
 import random
+import re
 import string
 import hashlib
 from datetime import datetime, timezone, timedelta
 from math import pi
 from typing import List, Iterable
 
+from aiohttp import ClientConnectorError
 from nextcord import File, Embed
 from nextcord.ext import commands
 from nextcord.ext.commands import Context
@@ -362,23 +364,22 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
         await ctx.send("{}`{}`".format(warning, m.hexdigest()))
 
     @commands.command(name="wiki")
-    async def cmd_wiki(self, ctx: Context, *, title: str):
-        page = {}
-        for lang in "de", "en":
-            result = await restclient.Client(f"https://{lang}.wikipedia.org/w/").request(
-                "api.php", params={'action': "query", 'prop': "extracts|info|categories|pageimages", 'exchars': 500,
-                                   'explaintext': True, 'exintro': True, 'redirects': 1, 'inprop': "url",
-                                   'pithumbsize': 150, 'generator': "search", 'gsrsearch': title, 'gsrlimit': 1,
-                                   'format': "json"})
-            if 'query' not in result:
-                continue
-            page_id, page = result['query']['pages'].popitem()
-            if page_id != "-1":
-                break
-        else:
-            # Nothing found
-            await add_reaction(ctx.message, Lang.CMDNOCHANGE)
-            return
+    async def cmd_wiki(self, ctx: Context, lang: str, *, title: str = ""):
+        langs = "de", "en", "fr", "es", "it"
+        page = None
+        if re.match("[a-zA-Z]{2,3}$", lang):
+            page = await self.get_wikipage(lang, title)
+        if not page:
+            if lang != "*":
+                title = f"{lang} {title}"
+            for lang in langs:
+                page = await self.get_wikipage(lang, title)
+                if page:
+                    break
+            else:
+                # Nothing found
+                await add_reaction(ctx.message, Lang.CMDNOCHANGE)
+                return
         categories = [c['title'].split(":")[-1] for c in page['categories']]
         embed = Embed(description=page['extract'], timestamp=datetime.strptime(page['touched'], "%Y-%m-%dT%H:%M:%SZ"))
         embed.set_author(name=page['title'], url=page['fullurl'],
@@ -387,3 +388,22 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
         if 'thumbnail' in page:
             embed.set_thumbnail(url=page['thumbnail']['source'])
         await ctx.send(embed=embed)
+
+    @staticmethod
+    async def get_wikipage(lang: str, title: str):
+        if not title:
+            return None
+        try:
+            result = await restclient.Client(f"https://{lang}.wikipedia.org/w/").request(
+                "api.php", params={'action': "query", 'prop': "extracts|info|categories|pageimages", 'exchars': 500,
+                                   'explaintext': True, 'exintro': True, 'redirects': 1, 'inprop': "url",
+                                   'pithumbsize': 500, 'generator': "search", 'gsrsearch': title, 'gsrlimit': 1,
+                                   'format': "json"})
+        except ClientConnectorError:
+            return None
+        if 'query' not in result:
+            return None
+        _id, data = result['query']['pages'].popitem()
+        if _id != "-1":
+            return data
+        return None
