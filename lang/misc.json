@@ -30,6 +30,7 @@
         "pizza_header_rel": "Rel. price",
         "hash_alg_not_found": "Unknown hash algorithm: `{}`",
         "hash_empty_string": "Hash of the empty string:\n",
+        "wiki_notfound": "No articles found. Sorry!",
 
         "#2": "Help",
         "help_alpha": "Asks Wolfram|Alpha a question",
@@ -103,6 +104,7 @@
         "pizza_header_rel": "rel. Preis",
         "hash_alg_not_found": "Unbekannter Hash-Algorithmus: `{}`",
         "hash_empty_string": "Hash des leeren Strings:\n",
+        "wiki_notfound": "Die Suchanfrage hat keine Ergebnisse geliefert. Sorry!",
 
         "#2": "Help",
         "help_alpha": "Fragt Wolfram|Alpha etwas",

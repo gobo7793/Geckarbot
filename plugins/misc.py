@@ -378,7 +378,7 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
                     break
             else:
                 # Nothing found
-                await add_reaction(ctx.message, Lang.CMDNOCHANGE)
+                await ctx.send(Lang.lang(self, 'wiki_notfound'))
                 return
         categories = [c['title'].split(":")[-1] for c in page['categories']]
         embed = Embed(description=page['extract'], timestamp=datetime.strptime(page['touched'], "%Y-%m-%dT%H:%M:%SZ"))
@@ -390,7 +390,7 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
         await ctx.send(embed=embed)
 
     @staticmethod
-    async def get_wikipage(lang: str, title: str) -> Optional[Dict[...]]:
+    async def get_wikipage(lang: str, title: str) -> Optional[Dict]:
         """
         Returns the page data for a wikipedia page.
 
