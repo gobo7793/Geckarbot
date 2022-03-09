@@ -1,4 +1,4 @@
-from typing import Union, Optional, Coroutine, Any, Callable
+from typing import Union, Optional, Coroutine, Any, Callable, List
 import datetime
 import random
 import inspect
@@ -49,8 +49,34 @@ def paginate_embed(embed: Embed):
         else:
             embed.description = f"{embed.description[0:2046]} …"
     if len(embed) > 6000:
-        raise Exception(f"Embed is still to long! Title: {embed.title}")
+        raise Exception(f"Embed is still too long! Title: {embed.title}")
 
+def paginate_embeds(embeds: List[Embed]) -> List[List[Embed]]:
+    """
+    Paginate a list of embeds.
+
+    :param embeds: List of embeds to paginate
+    :return: Paginated list of lists of embeds
+    :raises Exception: If a single embed is too long
+    """
+    embeds = embeds[:]
+    paginated: List[List[Embed]] = []
+    while embeds:
+        embed_page: List[Embed] = []
+        len_sum = 0
+        while embeds:
+            embed = embeds.pop(0)
+            if len(embed) > 6000:
+                raise Exception(f"Embed is too long! Title: {embed.title}")
+            len_sum += len(embed)
+            if len_sum > 6000:
+                embeds.insert(0, embed)
+                break
+            embed_page.append(embed)
+            if len(embed_page) >= 10:
+                break
+        paginated.append(embed_page)
+    return paginated
 
 async def _write_to_channel(channel_id: int = 0, message: Union[str, Embed] = None,
                             channel_type: str = ""):

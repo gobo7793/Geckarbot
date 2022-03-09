@@ -1,7 +1,7 @@
 import logging
 import re
 from datetime import datetime
-from typing import Literal, List, Optional
+from typing import Literal, List, Optional, Dict
 from urllib.parse import urlparse, urljoin
 
 from bs4 import BeautifulSoup
@@ -14,7 +14,7 @@ from base.data import Config, Lang, Storage
 from botutils import sheetsclient, restclient
 from botutils.sheetsclient import CellRange
 from botutils.uiutils import SingleConfirmView
-from botutils.utils import helpstring_helper, add_reaction
+from botutils.utils import helpstring_helper, add_reaction, paginate_embeds
 from plugins.spaetzle.utils import SpaetzleUtils
 from services.helpsys import DefaultCategories
 from services.liveticker import LeagueRegistrationOLDB
@@ -198,6 +198,23 @@ class Plugin(BasePlugin, SpaetzleUtils, name="Spaetzle-Tippspiel"):
     async def cmd_spaetzle_extract(self, ctx: Context):
         forumposts = Storage().get(self, container='forumposts')
         ...
+
+    @cmd_spaetzle.command(name="rawpost")
+    async def cmd_spaetzle_rawpost(self, ctx, participant: str):
+        forumposts: List[Dict[str, str]] = Storage().get(self, container='forumposts')
+        found: List[Embed] = []
+        for post in forumposts:
+            if participant not in post['user']:
+                continue
+            stripped_content = [x for x in post['content'] if x.strip()]
+            embed = Embed(description="\n".join(stripped_content[:15]))
+            embed.set_author(name=post['user'])
+            if len(stripped_content) > 15:
+                embed.set_footer(text="...")
+            found.append(embed)
+        await ctx.send(Lang.lang(self, 'rawpost_count', len(found)))
+        for embed_page in paginate_embeds(found):
+            await ctx.send(embeds=embed_page)
 
     @cmd_spaetzle.group(name="set")
     async def cmd_spaetzle_set(self, ctx: Context):
