@@ -11,6 +11,7 @@
         "scrape_intermediate": "I found {} and search for more...",
         "scrape_start": "Scraping has started. URL: <{}>",
         "title_matchday": "Matchday {}",
+        "x_more_lines": "{} more lines hidden.",
 
         "#2": "Lang",
         "confirm": "Confirm",
@@ -33,6 +34,7 @@
         "scrape_intermediate": "Ich habe {} Posts gefunden und werde weitere suchen...",
         "scrape_start": "Scraping begonnen. URL: <{}>",
         "title_matchday": "Spieltag {}",
+        "x_more_lines": "{} weitere Zeilen versteckt.",
 
         "#2": "Lang",
         "confirm": "Bestätigung",

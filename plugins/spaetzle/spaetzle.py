@@ -204,13 +204,14 @@ class Plugin(BasePlugin, SpaetzleUtils, name="Spaetzle-Tippspiel"):
         forumposts: List[Dict[str, str]] = Storage().get(self, container='forumposts')
         found: List[Embed] = []
         for post in forumposts:
-            if participant not in post['user']:
+            if participant.lower() not in post['user'].lower():
                 continue
             stripped_content = [x for x in post['content'] if x.strip()]
-            embed = Embed(description="\n".join(stripped_content[:15]))
+            embed = Embed(description="\n".join(stripped_content[:15]),
+                          timestamp=datetime.strptime(post['time'], "%d.%m.%Y - %H:%M Uhr"))
             embed.set_author(name=post['user'])
             if len(stripped_content) > 15:
-                embed.set_footer(text="...")
+                embed.set_footer(text=Lang.lang(self, 'x_more_lines', len(stripped_content) - 15))
             found.append(embed)
         await ctx.send(Lang.lang(self, 'rawpost_count', len(found)))
         for embed_page in paginate_embeds(found):
