@@ -205,15 +205,15 @@ class Plugin(BasePlugin, SpaetzleUtils, name="Spaetzle-Tippspiel"):
 
     @cmd_spaetzle.command(name="rawpost")
     async def cmd_spaetzle_rawpost(self, ctx, participant: str):
-        forumposts: List[Dict[str, str]] = Storage().get(self, container='forumposts')
+        forumposts: Dict[str, Dict[str, str]] = Storage().get(self, container='forumposts')['posts']
         found: List[Embed] = []
-        for post in forumposts:
+        for post_id, post in forumposts.items():
             if participant.lower() not in post['user'].lower():
                 continue
             stripped_content = [x for x in post['content'] if x.strip()]
             embed = Embed(description="\n".join(stripped_content[:15]),
                           timestamp=datetime.strptime(post['time'], "%d.%m.%Y - %H:%M Uhr"))
-            embed.set_author(name=post['user'])
+            embed.set_author(name=f"{post_id} | {post['user']}")
             if len(stripped_content) > 15:
                 embed.set_footer(text=Lang.lang(self, 'x_more_lines', len(stripped_content) - 15))
             found.append(embed)
