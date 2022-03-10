@@ -153,7 +153,8 @@ class Plugin(BasePlugin, SpaetzleUtils, name="Spaetzle-Tippspiel"):
 
     @cmd_spaetzle.command(name="scrape")
     async def cmd_spaetzle_scrape(self, ctx: Context, url: str = None):
-        data = []
+        init_content = ""
+        post_list = {}
         if url is None:
             url = Storage().get(self)['predictions_thread']
 
@@ -168,21 +169,24 @@ class Plugin(BasePlugin, SpaetzleUtils, name="Spaetzle-Tippspiel"):
                                                                                            parse_json=False)
                 soup = BeautifulSoup(response, "html.parser")
 
-                posts = soup.find_all('div', 'box')
+                if not init_content:
+                    init_post = soup.find(id="initialPost").find('div', 'forum-post-data')
+                    init_content = re.sub(r'(?:(?!\n)\s){2,}', ' ', init_post.text.replace('\u2013', '-')).split("\n")
+                posts = soup.find(id="postList").find_all('div', 'box')
                 for p in posts:
                     p_time = p.find('div', 'post-header-datum')
                     p_user = p.find('a', 'forum-user')
                     p_data = p.find('div', 'forum-post-data')
+                    p_id = p.find('span', 'link-zum-post')
                     if p_time and p_user and p_data:
-                        data.append({
+                        post_list[p_id.text] = {
                             'user': p_user.text,
                             'time': p_time.text.strip(),
-                            'content': re.sub(r'(?:(?!\n)\s){2,}', ' ',
-                                              p_data.text.replace('\u2013', '-')).split("\n")
-                        })
+                            'content': re.sub(r'(?:(?!\n)\s){2,}', ' ', p_data.text.replace('\u2013', '-')).split("\n")
+                        }
 
                 await botmessage.edit(content="{}\n{}".format(botmessage.content,
-                                                              Lang.lang(self, 'scrape_intermediate', len(data))))
+                                                              Lang.lang(self, 'scrape_intermediate', len(post_list))))
                 next_page = soup.find_all('li', 'tm-pagination__list-item--icon-next-page')
                 if next_page and next_page[0].a:
                     url = urljoin(Storage().get(self)['predictions_thread'], next_page[0].a['href'])
@@ -190,7 +194,7 @@ class Plugin(BasePlugin, SpaetzleUtils, name="Spaetzle-Tippspiel"):
                     await ctx.send(Lang.lang(self, 'scrape_end'))
                     break
 
-            Storage().get(self, container='forumposts')[:] = data
+            Storage().set(self, {'init': init_content, 'posts': post_list}, container='forumposts')
             Storage().save(self, container='forumposts')
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
