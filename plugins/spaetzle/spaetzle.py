@@ -1,7 +1,7 @@
 import logging
 import re
 from datetime import datetime
-from typing import Literal, List, Optional, Dict
+from typing import Literal, List, Optional
 from urllib.parse import urlparse, urljoin
 
 from bs4 import BeautifulSoup
@@ -155,6 +155,7 @@ class Plugin(BasePlugin, SpaetzleUtils, name="Spaetzle-Tippspiel"):
     async def cmd_spaetzle_scrape(self, ctx: Context, url: str = None):
         init_content = ""
         post_list = {}
+        original_url = url
         if url is None:
             url = Storage().get(self)['predictions_thread']
 
@@ -194,7 +195,7 @@ class Plugin(BasePlugin, SpaetzleUtils, name="Spaetzle-Tippspiel"):
                     await ctx.send(Lang.lang(self, 'scrape_end'))
                     break
 
-            Storage().set(self, {'init': init_content, 'posts': post_list}, container='forumposts')
+            Storage().set(self, {'init': init_content, 'posts': post_list, 'url': original_url}, container='forumposts')
             Storage().save(self, container='forumposts')
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
@@ -205,15 +206,15 @@ class Plugin(BasePlugin, SpaetzleUtils, name="Spaetzle-Tippspiel"):
 
     @cmd_spaetzle.command(name="rawpost")
     async def cmd_spaetzle_rawpost(self, ctx, participant: str):
-        forumposts: Dict[str, Dict[str, str]] = Storage().get(self, container='forumposts')['posts']
+        forumposts = Storage().get(self, container='forumposts')
         found: List[Embed] = []
-        for post_id, post in forumposts.items():
+        for post_id, post in forumposts['posts'].items():
             if participant.lower() not in post['user'].lower():
                 continue
             stripped_content = [x for x in post['content'] if x.strip()]
             embed = Embed(description="\n".join(stripped_content[:15]),
                           timestamp=datetime.strptime(post['time'], "%d.%m.%Y - %H:%M Uhr"))
-            embed.set_author(name=f"{post_id} | {post['user']}")
+            embed.set_author(name=f"{post_id} | {post['user']}", url=forumposts['url'])
             if len(stripped_content) > 15:
                 embed.set_footer(text=Lang.lang(self, 'x_more_lines', len(stripped_content) - 15))
             found.append(embed)
