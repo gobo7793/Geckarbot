@@ -1,7 +1,7 @@
 import logging
 import re
 from datetime import datetime
-from typing import Literal, List, Optional
+from typing import Literal, List, Optional, Dict, Tuple
 from urllib.parse import urlparse, urljoin
 
 from bs4 import BeautifulSoup
@@ -202,7 +202,39 @@ class Plugin(BasePlugin, SpaetzleUtils, name="Spaetzle-Tippspiel"):
     @cmd_spaetzle.command(name="extract")
     async def cmd_spaetzle_extract(self, ctx: Context):
         forumposts = Storage().get(self, container='forumposts')
-        ...
+
+        # Matches from initial posts
+        matches = []
+        for line in forumposts['init']:
+            if line == "\u2022 \u2022 \u2022\r":
+                break
+            if re.search(r"Uhr \|.+-", line):
+                matches.append(line)
+
+        # Extract predictions from posts
+        predictions: Dict[str, Dict[str, Tuple[int, int]]] = {}
+        found_users = set()
+        for post in forumposts['posts'].values():
+            found_users.add(post['user'])
+            predictions[post['user']] = self.extract_predictions(matches=matches, raw_post=post['content'])
+
+        # Insert into spreadsheet
+        data_dict = {}
+        participants = Storage().get(self)['participants']
+        for league in range(len(participants)):
+            l_data = []
+            missing_participants = []
+            for p in participants[league]:
+                p_data = [p]
+                if not (p_preds := predictions.get(p, {})):
+                    missing_participants.append(p)
+                for m in matches:
+                    p_data.extend(p_preds.get(m, ("–", "–")))
+                l_data.append(p_data)
+            data_range = CellRange.from_a1(Config().get(self)['ranges']['league_rows'][league]).overlay_range(
+                CellRange.from_a1(Config().get(self)['ranges']['pred_columns'])).rangename()
+            data_dict[f"ST {Storage().get(self)['matchday']}!{data_range}"] = l_data
+        self.get_api_client().update_multiple(data_dict, raw=False)
 
     @cmd_spaetzle.command(name="rawpost")
     async def cmd_spaetzle_rawpost(self, ctx, participant: str):
