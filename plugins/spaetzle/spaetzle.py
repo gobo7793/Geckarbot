@@ -207,6 +207,8 @@ class Plugin(BasePlugin, SpaetzleUtils, name="Spaetzle-Tippspiel"):
         missing_participants: List[str] = []
         no_preds_but_post: List[str] = []
 
+        await ctx.trigger_typing()
+
         # Matches from initial posts
         matches = []
         for line in forumposts['init']:
@@ -241,6 +243,7 @@ class Plugin(BasePlugin, SpaetzleUtils, name="Spaetzle-Tippspiel"):
                 CellRange.from_a1(Config().get(self)['ranges']['pred_columns'])).rangename()
             data_dict[f"ST {matchday}!{data_range}"] = l_data
         self.get_api_client().update_multiple(data_dict, raw=False)
+        await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
         # Output discord
         embed = Embed(title=Lang.lang(self, 'matchday_x', matchday))
