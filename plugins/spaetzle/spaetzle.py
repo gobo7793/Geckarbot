@@ -202,8 +202,10 @@ class Plugin(BasePlugin, SpaetzleUtils, name="Spaetzle-Tippspiel"):
     @cmd_spaetzle.command(name="extract")
     async def cmd_spaetzle_extract(self, ctx: Context):
         forumposts = Storage().get(self, container='forumposts')
+        participants = Storage().get(self)['participants']
         matchday = Storage().get(self)['matchday']
         missing_participants: List[str] = []
+        no_preds_but_post: List[str] = []
 
         # Matches from initial posts
         matches = []
@@ -224,13 +226,14 @@ class Plugin(BasePlugin, SpaetzleUtils, name="Spaetzle-Tippspiel"):
 
         # Insert into spreadsheet
         data_dict = {}
-        participants = Storage().get(self)['participants']
         for league in range(len(participants)):
             l_data = []
             for p in participants[league]:
                 p_data = [p]
                 if not (p_preds := predictions.get(p, {})):
                     missing_participants.append(p)
+                    if p in found_users:
+                        no_preds_but_post.append(p)
                 for m in matches:
                     p_data.extend(p_preds.get(m, ("–", "–")))
                 l_data.append(p_data)
@@ -247,12 +250,22 @@ class Plugin(BasePlugin, SpaetzleUtils, name="Spaetzle-Tippspiel"):
             if league not in missing_preds:
                 missing_preds[league] = []
             missing_preds[league].append(p)
-        missing_preds_msg = "\n".join(f"{Lang.lang(self, 'league_x', leag)}: {', '.join(parts)}"
+        missing_preds_msg = "\n".join(f"__{Lang.lang(self, 'league_x', leag)}__: {', '.join(parts)}"
                                       for leag, parts in missing_preds.items())
         if missing_preds_msg:
             embed.add_field(name=Lang.lang(self, 'missing_predictions'), value=missing_preds_msg)
         else:
             embed.description = Lang.lang(self, 'no_predictions_missing')
+        if no_preds_but_post:
+            embed.add_field(name=Lang.lang(self, 'no_preds_but_post'), value=", ".join(no_preds_but_post), inline=False)
+
+        for league_participants in participants:
+            for p in league_participants:
+                if p in found_users:
+                    found_users.remove(p)
+        if found_users:
+            embed.add_field(name=Lang.lang(self, 'unknown_users'), value=", ".join(found_users), inline=False)
+
         await ctx.send(embed=embed)
 
     @cmd_spaetzle.command(name="rawpost")
