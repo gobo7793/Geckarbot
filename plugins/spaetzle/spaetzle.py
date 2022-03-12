@@ -216,7 +216,9 @@ class Plugin(BasePlugin, SpaetzleUtils, name="Spaetzle-Tippspiel"):
         found_users = set()
         for post in forumposts['posts'].values():
             found_users.add(post['user'])
-            predictions[post['user']] = self.extract_predictions(matches=matches, raw_post=post['content'])
+            if post['user'] not in predictions:
+                predictions[post['user']] = {}
+            predictions[post['user']].update(self.extract_predictions(matches=matches, raw_post=post['content']))
 
         # Insert into spreadsheet
         data_dict = {}
