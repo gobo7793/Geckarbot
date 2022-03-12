@@ -18,7 +18,7 @@ class SpaetzleUtils:
         :return: League number if found, None else
         """
         participants = Storage().get(self)['participants']
-        for i in range(4):
+        for i in range(len(participants)):
             if participant in participants[i]:
                 return i + 1
         return None

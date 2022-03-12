@@ -114,7 +114,7 @@ class Plugin(BasePlugin, SpaetzleUtils, name="Spaetzle-Tippspiel"):
 
         matchday = Storage().get(self)['matchday']
         match_list = await LeagueRegistrationOLDB.get_matches_by_matchday(league="bl1", matchday=matchday)
-        await ctx.send(embed=Embed(title=Lang.lang(self, 'title_matchday', matchday),
+        await ctx.send(embed=Embed(title=Lang.lang(self, 'matchday_x', matchday),
                                    description="\n".join(m.display_short() for m in match_list)),
                        view=SingleConfirmView(insert_to_spreadsheet, confirm_label=Lang.lang(self, 'confirm'),
                                               user_id=ctx.author.id))
@@ -202,6 +202,8 @@ class Plugin(BasePlugin, SpaetzleUtils, name="Spaetzle-Tippspiel"):
     @cmd_spaetzle.command(name="extract")
     async def cmd_spaetzle_extract(self, ctx: Context):
         forumposts = Storage().get(self, container='forumposts')
+        matchday = Storage().get(self)['matchday']
+        missing_participants: List[str] = []
 
         # Matches from initial posts
         matches = []
@@ -225,7 +227,6 @@ class Plugin(BasePlugin, SpaetzleUtils, name="Spaetzle-Tippspiel"):
         participants = Storage().get(self)['participants']
         for league in range(len(participants)):
             l_data = []
-            missing_participants = []
             for p in participants[league]:
                 p_data = [p]
                 if not (p_preds := predictions.get(p, {})):
@@ -235,8 +236,24 @@ class Plugin(BasePlugin, SpaetzleUtils, name="Spaetzle-Tippspiel"):
                 l_data.append(p_data)
             data_range = CellRange.from_a1(Config().get(self)['ranges']['league_rows'][league]).overlay_range(
                 CellRange.from_a1(Config().get(self)['ranges']['pred_columns'])).rangename()
-            data_dict[f"ST {Storage().get(self)['matchday']}!{data_range}"] = l_data
+            data_dict[f"ST {matchday}!{data_range}"] = l_data
         self.get_api_client().update_multiple(data_dict, raw=False)
+
+        # Output discord
+        embed = Embed(title=Lang.lang(self, 'matchday_x', matchday))
+        missing_preds = {}
+        for p in missing_participants:
+            league = self.get_participant_league(p)
+            if league not in missing_preds:
+                missing_preds[league] = []
+            missing_preds[league].append(p)
+        missing_preds_msg = "\n".join(f"{Lang.lang(self, 'league_x', leag)}: {', '.join(parts)}"
+                                      for leag, parts in missing_preds.items())
+        if missing_preds_msg:
+            embed.add_field(name=Lang.lang(self, 'missing_predictions'), value=missing_preds_msg)
+        else:
+            embed.description = Lang.lang(self, 'no_predictions_missing')
+        await ctx.send(embed=embed)
 
     @cmd_spaetzle.command(name="rawpost")
     async def cmd_spaetzle_rawpost(self, ctx, participant: str):
