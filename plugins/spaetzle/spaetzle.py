@@ -37,7 +37,9 @@ class Plugin(BasePlugin, SpaetzleUtils, name="Spaetzle-Tippspiel"):
             'ranges': {
                 'duel_columns': "B:D",
                 'league_rows': ["6:23", "25:42", "44:61", "63:80"],
-                'matches': "Q2:AH4",
+                'matches': "P2:AG4",
+                'opp_points_column': "AI:AI",
+                'points_column': "AH:AH",
                 'pred_columns': "O:AG",
                 'table_columns': "F:M"
             },
@@ -130,26 +132,36 @@ class Plugin(BasePlugin, SpaetzleUtils, name="Spaetzle-Tippspiel"):
             _schedule.extend((_p[2 + j], _p[-1 - j]) for j in range(len(_p) // 2 - 1))
             return _schedule
 
-        async def insert_to_spreadsheet(_b, interaction: Interaction):
-            embed_fields = interaction.message.embeds[0].fields
+        async def insert_to_spreadsheet(button: CoroButton, _i):
             data_dict = {}
-            for j in range(4):
+            _participants = Storage().get(self)['participants']
+            _schedules: List[List[Tuple]] = button.view.data
+            for j in range(len(_schedules)):
+                opponent_cells = dict.fromkeys(_participants[j])
                 duels_rows = []
-                for row in embed_fields[j].value.split("\n"):
-                    for p in row.split(" - "):
-                        duels_rows.append([None, p, f"={self.get_participant_point_cell(p, league=j + 1)}"])
-                range_name = CellRange.from_a1(Config().get(self)['ranges']['league_rows'][j]).overlay_range(
+                for p1, p2 in _schedules[j]:
+                    p1_cell = f"={self.get_participant_point_cell(p1, league=j + 1)}"
+                    p2_cell = f"={self.get_participant_point_cell(p2, league=j + 1)}"
+                    opponent_cells[p1] = [p2_cell]
+                    opponent_cells[p2] = [p1_cell]
+                    duels_rows.extend(([None, p1, p1_cell], [None, p2, p2_cell]))
+                league_rows = CellRange.from_a1(Config().get(self)['ranges']['league_rows'][j])
+                duel_range = league_rows.overlay_range(
                     CellRange.from_a1(Config().get(self)['ranges']['duel_columns'])).rangename()
-                data_dict[f"ST {Storage().get(self)['matchday']}!{range_name}"] = duels_rows
+                opponent_range = league_rows.overlay_range(
+                    CellRange.from_a1(Config().get(self)['ranges']['opp_points_column'])).rangename()
+                data_dict[f"ST {Storage().get(self)['matchday']}!{duel_range}"] = duels_rows
+                data_dict[f"ST {Storage().get(self)['matchday']}!{opponent_range}"] = list(opponent_cells.values())
             self.get_api_client().update_multiple(data_dict, raw=False)
 
         embed = Embed(title=Lang.lang(self, 'duels_mx', Storage().get(self)['matchday']))
         participants = Storage().get(self)['participants']
+        schedules = []
         for i in range(len(participants)):
-            schedule = calculate_schedule(participants[i])
+            schedules.append(schedule := calculate_schedule(participants[i]))
             embed.add_field(name=Lang.lang(self, 'league_x', i + 1), value="\n".join(f"{x} - {y}" for x, y in schedule))
         await ctx.send(embed=embed, view=SingleConfirmView(insert_to_spreadsheet, user_id=ctx.author.id,
-                                                           confirm_label=Lang.lang(self, 'confirm')))
+                                                           confirm_label=Lang.lang(self, 'confirm'), data=schedules))
 
     @cmd_spaetzle.command(name="scrape")
     async def cmd_spaetzle_scrape(self, ctx: Context, url: str = None):

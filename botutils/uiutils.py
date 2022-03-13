@@ -187,7 +187,7 @@ class SingleConfirmView(MultiItemView):
            then there is no timeout.
     """
     def __init__(self,
-                 confirm_coro: Optional[Callable[[ui.Button, Interaction], Coroutine]] = None,
+                 confirm_coro: Optional[Callable[[CoroButton, Interaction], Coroutine]] = None,
                  *,
                  confirm_label: str = "Confirm",
                  abort_label: str = "X",
@@ -203,7 +203,7 @@ class SingleConfirmView(MultiItemView):
         self.confirm_coro = confirm_coro
         self.user_id = user_id
 
-    async def confirm(self, button: ui.Button, interaction: Interaction):
+    async def confirm(self, button: CoroButton, interaction: Interaction):
         """
         Action to perform when confirm button is pressed
 
