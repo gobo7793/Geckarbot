@@ -27,14 +27,13 @@ class Cell:
     MAX_COLUMNS = 18_278
     MAX_ROWS = 200_000_000
 
-    def __init__(self, column: int, row: int, grid=None):
+    def __init__(self, column: int, row: int, grid: 'CellRange' = None):
         """
         Representation of a single cell. Note: rows and columns in a grid begin at 1!
 
         :param column: column coordinate
         :param row: row coordinate
         :param grid: CellRange the cell coordinates are dependent on
-        :type grid: CellRange
         """
 
         self.column = column
@@ -42,14 +41,13 @@ class Cell:
         self.grid = grid
 
     @classmethod
-    def from_a1(cls, a1_notation: str, maximize_if_undefined: bool = False):
+    def from_a1(cls, a1_notation: str, maximize_if_undefined: bool = False) -> 'Cell':
         """
         Building the cell from the A1-notation.
 
         :param a1_notation: A1-notation of the cell e.g. "A4" or "BE34"
         :param maximize_if_undefined: if the notation does not define for row or column, the value will be set to
             maximum row/column instead of the first.
-        :rtype: Cell
         :return: Cell
         :raises ValueError: if invalid notation
         """
@@ -74,13 +72,12 @@ class Cell:
             row_num += self.grid.start_row - 1
         return self.get_column_name(col_num) + str(row_num)
 
-    def translate(self, columns: int, rows: int):
+    def translate(self, columns: int, rows: int) -> 'Cell':
         """
         Returns cell translated by the given number of columns and rows
 
         :param columns: number of columns the cell should be moved
         :param rows: number of rows the rows the cell should be moved
-        :rtype: Cell
         :return: resulting cell
         """
         return Cell(column=self.column + columns,
@@ -119,16 +116,13 @@ class Cell:
 
 class CellRange:
     """
-    Represents a range of cells
+    Representation of a range of cells. Note: rows and columns in a grid begin at 1!
+
+    :param start_cell: top-left Cell
+    :param width: number of columns
+    :param height: number of rows
     """
     def __init__(self, start_cell: Cell, width: int, height: int):
-        """
-        Representation of a range of cells. Note: rows and columns in a grid begin at 1!
-
-        :param start_cell: top-left Cell
-        :param width: number of columns
-        :param height: number of rows
-        """
         self.start_column = start_cell.column
         self.start_row = start_cell.row
         self.width = width
@@ -143,12 +137,11 @@ class CellRange:
         return self.start_row + self.height - 1
 
     @classmethod
-    def from_a1(cls, a1_notation: str):
+    def from_a1(cls, a1_notation: str) -> 'CellRange':
         """
         Builds a CellRange object from "A1:B4" notation
 
         :param a1_notation: notation string
-        :rtype: CellRange
         :return: Corresponding CellRange object
         :raises ValueError: if invalid notation
         """
@@ -160,13 +153,12 @@ class CellRange:
         raise ValueError
 
     @classmethod
-    def from_cells(cls, start_cell: Cell, end_cell: Cell):
+    def from_cells(cls, start_cell: Cell, end_cell: Cell) -> 'CellRange':
         """
         Builds a CellRange object by passing two corners of the range rectangle.
 
         :param start_cell: top left
         :param end_cell: bottom right
-        :rtype: CellRange
         :return: Corresponding CellRange object
         """
         width = end_cell.column - start_cell.column + 1
@@ -183,13 +175,11 @@ class CellRange:
         """CellRange of complete rows"""
         return cls(Cell(1, start), Cell.MAX_COLUMNS, end - start + 1 if end else 1)
 
-    def overlay_range(self, other):
+    def overlay_range(self, other: 'CellRange') -> Optional['CellRange']:
         """
         Returns the overlaying range with the other CellRange
 
         :param other: other CellRange
-        :type other: CellRange
-        :rtype: CellRange | None
         :return: CellRange of overlay area if existing, otherwise None
         """
         start_column = max(self.start_column, other.start_column)
@@ -205,13 +195,12 @@ class CellRange:
         return "{}:{}".format(Cell(self.start_column, self.start_row).cellname(),
                               Cell(self.end_column, self.end_row).cellname())
 
-    def translate(self, columns: int, rows: int):
+    def translate(self, columns: int, rows: int) -> 'CellRange':
         """
         Returns cell range translated by the given number of columns and rows
 
         :param columns: number of columns the range should be moved
         :param rows: number of rows the rows the range should be moved
-        :rtype: CellRange
         :return: resulting cell range
         """
         return CellRange(start_cell=Cell(column=self.start_column + columns,
