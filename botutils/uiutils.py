@@ -22,7 +22,7 @@ class CoroButton(ui.Button):
     :param data: Opaque object
     """
     def __init__(self,
-                 coro: Callable[[ui.Button, Interaction], Coroutine],
+                 coro: Callable[['CoroButton', Interaction], Coroutine],
                  *,
                  style=ButtonStyle.secondary, label=None, disabled=False, custom_id=None, emoji=None, row=None,
                  data: Any = None):

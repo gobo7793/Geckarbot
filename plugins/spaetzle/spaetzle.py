@@ -13,7 +13,7 @@ from Geckarbot import BasePlugin
 from base.data import Config, Lang, Storage
 from botutils import sheetsclient, restclient
 from botutils.sheetsclient import CellRange
-from botutils.uiutils import SingleConfirmView
+from botutils.uiutils import SingleConfirmView, SingleItemView, CoroButton
 from botutils.utils import helpstring_helper, add_reaction, paginate_embeds
 from plugins.spaetzle.utils import SpaetzleUtils
 from services.helpsys import DefaultCategories
@@ -153,6 +153,11 @@ class Plugin(BasePlugin, SpaetzleUtils, name="Spaetzle-Tippspiel"):
 
     @cmd_spaetzle.command(name="scrape")
     async def cmd_spaetzle_scrape(self, ctx: Context, url: str = None):
+        async def continue_extract(button: CoroButton, interaction: Interaction):
+            if button.data == interaction.user.id:
+                button.view.stop()
+                await ctx.invoke(self.bot.get_command("spaetzle extract"))
+
         init_content = ""
         post_list = {}
         original_url = url
@@ -192,7 +197,9 @@ class Plugin(BasePlugin, SpaetzleUtils, name="Spaetzle-Tippspiel"):
                 if next_page and next_page[0].a:
                     url = urljoin(Storage().get(self)['predictions_thread'], next_page[0].a['href'])
                 else:
-                    await ctx.send(Lang.lang(self, 'scrape_end'))
+                    await ctx.send(Lang.lang(self, 'scrape_end'),
+                                   view=SingleItemView(item=CoroButton(coro=continue_extract, data=ctx.author.id,
+                                                                       label="!spaetzle extract")))
                     break
 
             Storage().set(self, {'init': init_content, 'posts': post_list, 'url': original_url}, container='forumposts')
