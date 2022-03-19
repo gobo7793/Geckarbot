@@ -1,5 +1,10 @@
 {
     "en_US": {
+        "help_thread": "Commands for bot-owned threads.",
+        "help_thread_open": "Opens a new thread.",
+        "help_thread_archive": "Archives the thread.",
+        "help_thread_pin": "Pins replied message in thread.",
+
         "channel_not_thread": "This is not a thread!",
         "open_unable": "Sorry, but I'm unable to open this thread.",
         "pin_err": "I tried, but failed?!",
@@ -7,6 +12,11 @@
         "thread_not_owned": "I have no power here. Ask the owner."
     },
     "de_DE": {
+        "help_thread": "Kommandos für bot-eigene Threads.",
+        "help_thread_open": "Öffnen einen neuen Thread.",
+        "help_thread_archive": "Archiviert den Thread",
+        "help_thread_pin": "Pinnt Nachricht an.",
+
         "channel_not_thread": "Das hier ist kein Thread, sorry!",
         "open_unable": "Uhm, ich kann gerade keinen Thread eröffnen?!",
         "pin_err": "Ich habe versucht, aber irgendwas lief schief!",

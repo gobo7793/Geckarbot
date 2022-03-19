@@ -4,6 +4,7 @@ from nextcord.ext.commands import Context
 
 from base.configurable import BasePlugin
 from base.data import Config, Lang
+from botutils import utils
 from botutils.utils import add_reaction
 from services.helpsys import DefaultCategories
 
@@ -15,7 +16,22 @@ class Plugin(BasePlugin, name="Threads"):
         self.bot = Config().bot
         self.bot.register(self, DefaultCategories.MISC)
 
+    def command_help_string(self, command):
+        return utils.helpstring_helper(self, command, "help")
+
+    def command_description(self, command):
+        return utils.helpstring_helper(self, command, "desc")
+
+    def command_usage(self, command):
+        return utils.helpstring_helper(self, command, "usage")
+
     async def limit_to_bot_threads(self, ctx: Context) -> bool:
+        """
+        Limits a command to threads owned by the bot. Sends a message with a note else.
+
+        :param ctx: Discord Context
+        :return: True if owned by bot, False else
+        """
         if not isinstance(ctx.channel, Thread):
             await ctx.send(Lang.lang(self, "channel_not_thread"))
             await add_reaction(ctx.message, Lang.CMDERROR)
