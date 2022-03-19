@@ -1,10 +1,11 @@
-from nextcord import ChannelType, TextChannel, Thread
+from nextcord import ChannelType, TextChannel, Thread, Embed
 from nextcord.ext import commands
 from nextcord.ext.commands import Context
 
 from base.configurable import BasePlugin
 from base.data import Config, Lang
 from botutils import utils
+from botutils.converters import get_best_username
 from botutils.utils import add_reaction
 from services.helpsys import DefaultCategories
 
@@ -43,9 +44,17 @@ class Plugin(BasePlugin, name="Threads"):
         return True
 
     @commands.group(name="thread")
-    async def cmd_thread(self, ctx):
-        if ctx.invoked_subcommand is None:
-            await ctx.send_help(self.cmd_thread)
+    async def cmd_thread(self, ctx: Context):
+        if ctx.invoked_subcommand is not None:
+            return
+        channel = ctx.channel
+        if isinstance(channel, Thread):
+            channel = channel.parent
+        threads_msg = "\n".join(f"{t.mention} ({get_best_username(t.owner)})" for t in channel.threads)
+        if threads_msg:
+            await ctx.send(embed=Embed(title=Lang.lang(self, 'thread_list', channel.name), description=threads_msg))
+        else:
+            await ctx.send(Lang.lang(self, 'no_thread_list'))
 
     @cmd_thread.command(name="open")
     async def cmd_thread_open(self, ctx: Context, title: str):
