@@ -67,6 +67,8 @@ class Plugin(BasePlugin, name="Threads"):
 
     @cmd_thread.command(name="pin")
     async def cmd_thread_pin(self, ctx: Context):
+        if not ctx.channel.permissions_for(ctx.me).manage_threads:
+            await add_reaction(ctx.message, Lang.CMDNOPERMISSIONS)
         if not await self.limit_to_bot_threads(ctx):
             return
         if not ctx.message.reference:
