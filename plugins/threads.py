@@ -6,6 +6,7 @@ from base.configurable import BasePlugin
 from base.data import Config, Lang
 from botutils import utils
 from botutils.converters import get_best_username
+from botutils.timeutils import to_unix_str
 from botutils.utils import add_reaction
 from services.helpsys import DefaultCategories
 
@@ -50,9 +51,14 @@ class Plugin(BasePlugin, name="Threads"):
         channel = ctx.channel
         if isinstance(channel, Thread):
             channel = channel.parent
-        threads_msg = "\n".join(f"{t.mention} ({get_best_username(t.owner)})" for t in channel.threads)
+        threads_msg = [f"{t.mention} ({get_best_username(t.owner)})" for t in channel.threads if not t.locked]
+        async for t in ctx.channel.archived_threads(limit=2):
+            if t.locked:
+                continue
+            threads_msg.append(f"🧓 {t.mention} ({get_best_username(t.owner)}, {to_unix_str(t.archive_timestamp)})")
         if threads_msg:
-            await ctx.send(embed=Embed(title=Lang.lang(self, 'thread_list', channel.name), description=threads_msg))
+            await ctx.send(embed=Embed(title=Lang.lang(self, 'thread_list', channel.name),
+                                       description="\n".join(threads_msg)))
         else:
             await ctx.send(Lang.lang(self, 'no_thread_list'))
 
