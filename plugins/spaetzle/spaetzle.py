@@ -200,6 +200,7 @@ class Plugin(BasePlugin, SpaetzleUtils, name="Spaetzle-Tippspiel"):
                         post_list[p_id.text] = {
                             'user': p_user.text,
                             'time': p_time.text.strip(),
+                            'link': p_id.a['href'],
                             'content': re.sub(r'(?:(?!\n)\s){2,}', ' ', p_data.text.replace('\u2013', '-')).split("\n")
                         }
 
@@ -300,7 +301,7 @@ class Plugin(BasePlugin, SpaetzleUtils, name="Spaetzle-Tippspiel"):
             stripped_content = [x for x in post['content'] if x.strip()]
             embed = Embed(description="\n".join(stripped_content[:15]),
                           timestamp=datetime.strptime(post['time'], "%d.%m.%Y - %H:%M Uhr"))
-            embed.set_author(name=f"{post_id} | {post['user']}", url=forumposts['url'])
+            embed.set_author(name=f"{post_id} | {post['user']}", url=f"https://www.transfermarkt.de{post['link']}")
             if len(stripped_content) > 15:
                 embed.set_footer(text=Lang.lang(self, 'x_more_lines', len(stripped_content) - 15))
             found.append(embed)
