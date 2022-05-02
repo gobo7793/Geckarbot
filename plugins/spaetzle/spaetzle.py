@@ -28,7 +28,7 @@ class Plugin(BasePlugin, SpaetzleUtils, name="Spaetzle-Tippspiel"):
         self.bot = Config().bot
         self.bot.register(self, category=DefaultCategories.SPORT)
         self.migrate()
-        SpaetzleUtils.__init__(self, self.bot)
+        SpaetzleUtils.__init__(self)
 
         self.logger = logging.getLogger(__name__)
 

@@ -10,9 +10,6 @@ class SpaetzleUtils:
     Utility functions for spaetzle commands.
     """
 
-    def __init__(self, bot):
-        self.bot = bot
-
     def get_participant_league(self, participant: str) -> Optional[int]:
         """
         Returns the league of a participant.
