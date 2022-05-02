@@ -6,6 +6,9 @@ from botutils.sheetsclient import Cell, CellRange
 
 
 class SpaetzleUtils:
+    """
+    Utility functions for spaetzle commands.
+    """
 
     def __init__(self, bot):
         self.bot = bot
@@ -24,6 +27,13 @@ class SpaetzleUtils:
         return None
 
     def get_participant_point_cell(self, participant: str, league: int = None) -> Optional[str]:
+        """
+        Gets the cell name responding to the participants points
+
+        :param participant: name of the participant
+        :param league: number of the league the participant is part of
+        :return: name of the cell
+        """
         if not league:
             league = self.get_participant_league(participant)
         try:
@@ -35,7 +45,14 @@ class SpaetzleUtils:
             return None
 
     @staticmethod
-    def extract_predictions(matches: List[str], raw_post: str):
+    def extract_predictions(matches: List[str], raw_post: str) -> Dict[str, Tuple[int, int]]:
+        """
+        Extracts the predictions from the raw text. Only includes found matches.
+
+        :param matches: List of match strings
+        :param raw_post: raw text
+        :return: Dictionary of match and predictions
+        """
         predictions: Dict[str, Tuple[int, int]] = {}
         matchesre = "|".join([re.escape(m) for m in matches])
         for line in raw_post:

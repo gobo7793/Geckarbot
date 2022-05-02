@@ -164,7 +164,7 @@ class CellRange:
         width = end_cell.column - start_cell.column + 1
         height = end_cell.row - start_cell.row + 1
         return cls(start_cell, width, height)
-    
+
     @classmethod
     def columns(cls, start: int, end: int = None):
         """CellRange of complete columns"""
