@@ -53,7 +53,7 @@ class Plugin(BasePlugin, SpaetzleUtils, name="Spaetzle-Tippspiel"):
         return {
             '_storage_version': 1,
             'matchday': 0,
-            'participants': {[], [], [], []},
+            'participants': [[], [], [], []],
             'predictions_thread': ""
         }
 
@@ -72,7 +72,7 @@ class Plugin(BasePlugin, SpaetzleUtils, name="Spaetzle-Tippspiel"):
             Config().set(self, self.default_config())
             Config().save(self)
         if Storage().get(self).get('_storage_version', 0) < 1:
-            Storage().get(self)['participants'] = {[], [], [], []}
+            Storage().get(self)['participants'] = [[], [], [], []]
             Storage().get(self)['_storage_version'] = 1
             Storage().save(self)
 
