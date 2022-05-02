@@ -27,6 +27,7 @@ class Plugin(BasePlugin, SpaetzleUtils, name="Spaetzle-Tippspiel"):
         super().__init__()
         self.bot = Config().bot
         self.bot.register(self, category=DefaultCategories.SPORT)
+        self.migrate()
         SpaetzleUtils.__init__(self, self.bot)
 
         self.logger = logging.getLogger(__name__)
@@ -64,6 +65,16 @@ class Plugin(BasePlugin, SpaetzleUtils, name="Spaetzle-Tippspiel"):
 
     def command_usage(self, command):
         return helpstring_helper(self, command, "usage")
+
+    def migrate(self):
+        """Migrates config and storage to newer versions"""
+        if Config().get(self).get('_config_version', 0) < 1:
+            Config().set(self, self.default_config())
+            Config().save(self)
+        if Storage().get(self).get('_storage_version', 0) < 1:
+            Storage().get(self)['participants'] = {[], [], [], []}
+            Storage().get(self)['_storage_version'] = 1
+            Storage().save(self)
 
     def get_api_client(self):
         """Returns sheetsclient"""
