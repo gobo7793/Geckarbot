@@ -23,7 +23,7 @@ class SpaetzleUtils:
                 return i + 1
         return None
 
-    def get_participant_point_cell(self, participant: str, league: int = None) -> Optional[str]:
+    def get_participant_point_cellname(self, participant: str, league: int = None) -> Optional[str]:
         """
         Gets the cell name responding to the participants points
 

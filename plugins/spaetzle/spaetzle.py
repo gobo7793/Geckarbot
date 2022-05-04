@@ -151,13 +151,13 @@ class Plugin(BasePlugin, SpaetzleUtils, name="Spaetzle-Tippspiel"):
                 opponent_cells = dict.fromkeys(_participants[j])
                 duels_rows = []
                 for p1, p2 in _schedules[j]:
-                    p1_cell = f"={self.get_participant_point_cell(p1, league=j + 1)}"
-                    p2_cell = f"={self.get_participant_point_cell(p2, league=j + 1)}"
-                    if p1_cell == "=None" or p2_cell == "=None":
+                    p1_cellname = f"={self.get_participant_point_cellname(p1, league=j + 1)}"
+                    p2_cellname = f"={self.get_participant_point_cellname(p2, league=j + 1)}"
+                    if p1_cellname == "=None" or p2_cellname == "=None":
                         continue
-                    opponent_cells[p1] = [p2_cell]
-                    opponent_cells[p2] = [p1_cell]
-                    duels_rows.extend(([None, p1, p1_cell], [None, p2, p2_cell]))
+                    opponent_cells[p1] = [p2_cellname]
+                    opponent_cells[p2] = [p1_cellname]
+                    duels_rows.extend(([None, p1, p1_cellname], [None, p2, p2_cellname]))
                 league_rows = CellRange.from_a1(Config().get(self)['ranges']['league_rows'][j])
                 duel_range = league_rows.overlay_range(
                     CellRange.from_a1(Config().get(self)['ranges']['duel_columns'])).rangename()
