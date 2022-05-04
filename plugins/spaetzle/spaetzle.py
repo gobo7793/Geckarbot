@@ -153,6 +153,8 @@ class Plugin(BasePlugin, SpaetzleUtils, name="Spaetzle-Tippspiel"):
                 for p1, p2 in _schedules[j]:
                     p1_cell = f"={self.get_participant_point_cell(p1, league=j + 1)}"
                     p2_cell = f"={self.get_participant_point_cell(p2, league=j + 1)}"
+                    if p1_cell == "=None" or p2_cell == "=None":
+                        continue
                     opponent_cells[p1] = [p2_cell]
                     opponent_cells[p2] = [p1_cell]
                     duels_rows.extend(([None, p1, p1_cell], [None, p2, p2_cell]))
