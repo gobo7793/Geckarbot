@@ -44,6 +44,19 @@ SOLVERS: Dict[str, Type[HelpingSolver]] = {
 }
 
 
+class WordlistNotFound(Exception):
+    """
+    Raised by commands that take a wordlist name as an argument.
+    """
+    def __init__(self, plugin, wordlist: str):
+        self.plugin = plugin
+        self.wordlist = wordlist
+
+    async def default(self, ctx):
+        await add_reaction(ctx.message, Lang.CMDERROR)
+        await ctx.send(Lang.lang(self.plugin, "wordlist_not_found", self.wordlist))
+
+
 class Plugin(BasePlugin, name="Wordle"):
     WORDLIST_CONTAINER = "wordlists"
     WORDLIST_KEY = "lists"
@@ -99,6 +112,21 @@ class Plugin(BasePlugin, name="Wordle"):
             r[key] = wl.serialize()
         Storage.set(self, r, container=self.WORDLIST_CONTAINER)
         Storage.save(self, container=self.WORDLIST_CONTAINER)
+
+    def get_wordlist(self, wordlist: Optional[str]) -> WordList:
+        """
+        Returns the word list `wordlist`, default if `wordlist` is None.
+        :param wordlist: wordlist name; None for default
+        :return: WordList that was found
+        :raises WordlistNotFound: If there is no such wordlist
+        """
+        if wordlist is None:
+            wordlist = self.get_config("default_wordlist")
+
+        try:
+            return self.wordlists[wordlist]
+        except KeyError:
+            raise WordlistNotFound(self, wordlist)
 
     @commands.group(name="wordle", invoke_without_command=True)
     async def cmd_wordle(self, ctx, wordlist: Optional[str] = None):
@@ -167,20 +195,19 @@ class Plugin(BasePlugin, name="Wordle"):
     @cmd_wordle.group(name="play", invoke_without_command=True)
     async def cmd_wordle_play(self, ctx, wordlist: Optional[str] = None):
         solution = None
-        default = self.get_config("default_wordlist")
-        if not wordlist:
-            wordlist = default
 
-        if wordlist not in self.wordlists:
-            # try to turn it into a game word argument
-            if wordlist and len(wordlist) == WORDLENGTH and wordlist in self.wordlists[default]:
-                solution = wordlist
+        wlname = wordlist
+        try:
+            wordlist = self.get_wordlist(wlname)
+        except WordlistNotFound as e:
+            # Try to interpret the wordlist arg as the solution word
+            default = self.get_wordlist(None)
+            if wlname and len(wlname) == WORDLENGTH and wlname in default:
+                solution = wlname
                 wordlist = default
             else:
-                await add_reaction(ctx.message, Lang.CMDERROR)
-                await ctx.send(Lang.lang(self, "wordlist_not_found"))
-
-        wordlist = self.wordlists[wordlist]
+                await e.default(ctx)
+                return
 
         solver = SOLVERS[self.get_config("default_solver")]
 
@@ -218,6 +245,19 @@ class Plugin(BasePlugin, name="Wordle"):
         for msg in paginate(msgs, prefix="_ _"):
             await ctx.send(msg)
 
+    @cmd_wordle.command(name="knows", aliases=["has", "is"])
+    async def cmd_wordle_knows(self, ctx, word: str, wordlist: Optional[str] = None):
+        try:
+            wordlist = self.get_wordlist(wordlist)
+        except WordlistNotFound as e:
+            await e.default(ctx)
+            return
+
+        if word in wordlist:
+            await ctx.send(Lang.lang(self, "knows_yes"))
+        else:
+            await ctx.send(Lang.lang(self, "knows_no"))
+
     @cmd_wordle.command(name="stop")
     async def cmd_wordle_stop(self, ctx, wid: Optional[int] = None):
         # find instance
@@ -249,15 +289,11 @@ class Plugin(BasePlugin, name="Wordle"):
 
     @cmd_wordle.command(name="reverse")
     async def cmd_wordle_reverse(self, ctx, wordlist: Optional[str] = None):
-        default = self.get_config("default_wordlist")
-        if not wordlist:
-            wordlist = default
-
-        if wordlist not in self.wordlists:
-            await add_reaction(ctx.message, Lang.CMDERROR)
-            await ctx.send(Lang.lang(self, "wordlist_not_found"))
-
-        wordlist = self.wordlists[wordlist]
+        try:
+            wordlist = self.get_wordlist(wordlist)
+        except WordlistNotFound as e:
+            await e.default(ctx)
+            return
 
         solver = SOLVERS[self.get_config("default_solver")]
 
@@ -268,11 +304,10 @@ class Plugin(BasePlugin, name="Wordle"):
 
     @cmd_wordle.command(name="solve")
     async def cmd_wordle_solve(self, ctx, word: Optional[str]):
-        wl_key = self.get_config("default_wordlist")
-        wordlist = self.wordlists.get(wl_key, None)
-        if wordlist is None:
-            await add_reaction(ctx.message, Lang.CMDERROR)
-            await ctx.send(Lang.lang(self, "wordlist_not_found", wl_key))
+        try:
+            wordlist = self.get_wordlist(None)
+        except WordlistNotFound as e:
+            await e.default(ctx)
             return
 
         if word is None:
@@ -281,7 +316,7 @@ class Plugin(BasePlugin, name="Wordle"):
         else:
             if word not in wordlist:
                 await add_reaction(ctx.message, Lang.CMDERROR)
-                await ctx.send(Lang.lang(self, "not_in_wordlist", wl_key))
+                await ctx.send(Lang.lang(self, "not_in_wordlist", self.get_config("default_wordlist")))
                 return
 
         game = Game(wordlist, word)
@@ -294,11 +329,10 @@ class Plugin(BasePlugin, name="Wordle"):
 
     @cmd_wordle.command(name="solvetest", hidden=True)
     async def cmd_wordle_solvetest(self, ctx, quantity: int = 100):
-        wl_key = self.get_config("default_wordlist")
-        wordlist = self.wordlists.get(wl_key, None)
-        if wordlist is None:
-            await add_reaction(ctx.message, Lang.CMDERROR)
-            await ctx.send(Lang.lang(self, "wordlist_not_found", wl_key))
+        try:
+            wordlist = self.get_wordlist(None)
+        except WordlistNotFound as e:
+            await e.default(ctx)
             return
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
