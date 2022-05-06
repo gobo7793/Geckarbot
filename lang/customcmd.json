@@ -180,7 +180,7 @@
         "desc_cmd_aliasclear": "Entfernt alle Alias von einem Benutzer-Komando.",
 
         "Embed Help": "",
-        "help_cmd_embed": "Creates and manages custom embed commands",
+        "help_cmd_embed": "Verwaltet Embed-Kommandos",
         "desc_cmd_embed": "Verwaltet Embed-Kommandos.\nEmbeds bestehen aus beliebig vielen Feldern und einem optionalen Header. Felder wiederum bestehen aus einem Titel und dem Inhalt. Um ein Embed-Kommando zu erstellen:\n(1) Erstelle das initiale Embed-Kommando\n(2) Optional: Setze den Header\n(3) Setze Titel und Inhalt des ersten Felds\n(4) Füge weitere Felder hinzu und setze ihre Titel und Inhalte",
         "usage_cmd_embed": "",
         "help_cmd_embed_add": "Fügt ein neues Embed-Cmd oder Feld hinzu",
