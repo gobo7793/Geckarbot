@@ -46,6 +46,7 @@
         "wordlist_not_found": "Unknown word list `{}`.",
         "wordle_not_found": "Wordle instance not found.",
         "not_in_wordlist": "Not in word list.",
+        "empty_result": "_Nothing found._",
 
         "#2": "Fragments",
         "dmchannel": "this DM channel",
@@ -78,7 +79,11 @@
         "reverse_username_prefix": "[{}] ",
         "reverse_success": ":)",
         "reverse_failure": ":(",
-        "reverse_concede": "I have no clue and concede. :("
+        "reverse_concede": "I have no clue and concede. :(",
+
+        "#6": "Summon",
+        "summon_already_exists": "The word list {} was already summoned in channel {}.",
+        "summon_not_found": "The word list {} was not summoned in this channel."
     },
 
     "de_DE": {
