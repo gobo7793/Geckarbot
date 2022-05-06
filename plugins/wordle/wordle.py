@@ -349,7 +349,7 @@ class Plugin(BasePlugin, name="Wordle"):
         else:
             await ctx.send(Lang.lang(self, "knows_no"))
 
-    @cmd_wordle.command(name="stop")
+    @cmd_wordle.command(name="stop", aliases=["cancel", "kill"])
     async def cmd_wordle_stop(self, ctx, wid: Optional[int] = None):
         # find instance
         instance = None
