@@ -78,6 +78,10 @@
         "help_cmd_aliasclear": "Removes all aliases from a user command",
         "usage_cmd_aliasclear": "<cmd name>",
         "desc_cmd_aliasclear": "Removes all aliases from a user command.",
+        "help_cmd_random": "Random cmd text",
+        "desc_cmd_random": "Sends a random text entry from all created text commands.",
+        "help_cmd_image": "Random cmd image",
+        "desc_cmd_image": "Sends a random link from all created text commands.",
 
         "Embed Help": "",
         "help_cmd_embed": "Creates and manages custom embed commands",
@@ -178,6 +182,10 @@
         "help_cmd_aliasclear": "Entfernt alle Alias von einem Benutzer-Kommando.",
         "usage_cmd_aliasclear": "<Kommando>",
         "desc_cmd_aliasclear": "Entfernt alle Alias von einem Benutzer-Komando.",
+        "help_cmd_random": "Zufälliges Kommando",
+        "desc_cmd_random": "Sendet einen zufälligen Text aus allen Text-Kommandos.",
+        "help_cmd_image": "Zufälliges Bild",
+        "desc_cmd_image": "Sendet einen zufälligen Link aus allen Text-Kommandos.",
 
         "Embed Help": "",
         "help_cmd_embed": "Verwaltet Embed-Kommandos",
