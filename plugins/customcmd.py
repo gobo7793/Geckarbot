@@ -22,7 +22,7 @@ WILDCARD_UMENTION = "%um"
 WILDCARD_ALL_ARGS = "%a"
 
 QUOTATION_SIGNS = "\"‘‚‛“„‟⹂「」『』〝〞﹁﹂﹃﹄＂｢｣«»‹›《》〈〉"
-cmd_re = re.compile(rf"\+?([{QUOTATION_SIGNS}]([^{QUOTATION_SIGNS}]*)[{QUOTATION_SIGNS}]|\S+)")
+cmd_re = re.compile(rf"([{QUOTATION_SIGNS}]([^{QUOTATION_SIGNS}]*)[{QUOTATION_SIGNS}]|\S+)")
 arg_list_re = re.compile(r"(%(\d)(\*?))")
 mention_re = re.compile(r"<[@!#&]{0,2}\d+>")
 
@@ -355,6 +355,9 @@ class TextCmd(Cmd):
                 index = index[:-1]
             elif index.lower() == "last":
                 index = len(self)
+            elif index.lower() in ("all", "full"):
+                single_page = False
+                index = 1
             else:
                 single_text = True
             try:
