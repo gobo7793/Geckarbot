@@ -317,7 +317,7 @@ class Plugin(BasePlugin, name="Wordle"):
 
         await instance.suggest()
 
-    @cmd_wordle.command(name="suggest", hidden=True)
+    @cmd_wordle.command(name="suggest")
     async def cmd_wordle_suggest(self, ctx):
         await self.cmd_wordle_play_suggest(ctx)
 
@@ -333,6 +333,10 @@ class Plugin(BasePlugin, name="Wordle"):
             else:
                 chan = el.channel.mention
             msgs.append("**#{}** {} in {}, {}/{}".format(i + 1, p, chan, len(g.guesses), g.max_tries))
+        if not msgs:
+            await ctx.send(Lang.lang(self, "empty_result"))
+            return
+
         for msg in paginate(msgs, prefix="_ _"):
             await ctx.send(msg)
 
@@ -507,6 +511,9 @@ class Plugin(BasePlugin, name="Wordle"):
         msgs = []
         for summon in self.summons:
             msgs.append("{}: {}".format(summon.channel.name, summon.wordlist_name))
+        if not msgs:
+            await ctx.send(Lang.lang(self, "empty_result"))
+            return
 
         for msg in paginate(msgs, "```", "```"):
             await ctx.send(msg)
