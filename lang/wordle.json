@@ -160,6 +160,6 @@
 
         "#6": "Summon",
         "summon_already_exists": "Die Wortliste {} wurde im Channel {} bereits beschworen.",
-        "summon_not_found": "Die Wortliste {} wurde in diesem Channel nicht beschworen.",
+        "summon_not_found": "Die Wortliste {} wurde in diesem Channel nicht beschworen."
     }
 }
