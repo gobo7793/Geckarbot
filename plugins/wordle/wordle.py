@@ -1,24 +1,25 @@
 import logging
-from typing import Optional, Dict, Type
+from typing import Optional, Dict, Type, List
 
 from nextcord import DMChannel
 from nextcord.ext import commands
 
 from base.configurable import BasePlugin
 from base.data import Config, Lang, Storage
-from botutils.converters import get_best_username as gbu
+from botutils.converters import get_best_username as gbu, serialize_channel, deserialize_channel
 from botutils.permchecks import check_admin_access
 from botutils.setter import ConfigSetter
 from botutils.stringutils import table, paginate, format_number
-from botutils.utils import helpstring_helper, add_reaction, log_exception
+from botutils.utils import helpstring_helper, add_reaction, log_exception, execute_anything_sync
 from services.helpsys import DefaultCategories
 
 from plugins.wordle.game import Game, Correctness, WORDLENGTH, HelpingSolver
 from plugins.wordle.naivesolver import NaiveSolver
 from plugins.wordle.dicesolver import DiceSolver
-from plugins.wordle.utils import format_guess
-from plugins.wordle.wordlist import fetch_powerlanguage_impl, WordList
+from plugins.wordle.utils import format_guess, format_daily
+from plugins.wordle.wordlist import WordList, Parsers
 from plugins.wordle.gamehandler import Mothership
+from services.timers import timedict
 
 BASE_CONFIG = {
     "default_wordlist": [str, "en"],
@@ -27,8 +28,9 @@ BASE_CONFIG = {
     "format_guess_include_word": [bool, False],
     "format_guess_vertical": [bool, False],
     "format_guess_history": [bool, False],
-    "format_guess_word_gap": [str, ""],
-    "format_guess_result_gap": [str, ""],
+    "format_guess_letter_gap": [str, ""],
+    "format_guess_guess_gap": [str, "\n"],
+    "format_guess_correctness_gap": [str, ""],
     "format_guess_keyboard": [bool, False],
     "format_guess_keyboard_gap": [str, ""],
     "format_guess_keyboard_strike": [bool, True],
@@ -57,6 +59,36 @@ class WordlistNotFound(Exception):
         await ctx.send(Lang.lang(self.plugin, "wordlist_not_found", self.wordlist))
 
 
+class Summon:
+    """
+    Represents a summoned daily.
+    """
+    def __init__(self, plugin, channel, wordlist: str):
+        self.plugin = plugin
+        self.channel = channel
+        self.wordlist_name = wordlist
+        self.wordlist = self.plugin.get_wordlist(wordlist)
+
+    def serialize(self) -> dict:
+        for key, wl in self.plugin.wordlists.items():
+            if wl == self.wordlist:
+                return {
+                    "wordlist": key,
+                    "channel": serialize_channel(self.channel),
+                }
+
+    @classmethod
+    async def deserialize(cls, plugin, d):
+        return cls(plugin, await deserialize_channel(d["channel"]), d["wordlist"])
+
+    async def fire(self):
+        p = Parsers.get(self.wordlist.parser.value)
+        dailyword, epoch_index = await p.fetch_daily(self.wordlist.url)
+        game = Game(self.wordlist, dailyword)
+        SOLVERS[self.plugin.get_config("default_solver")](game).solve()
+        await self.channel.send(format_daily(self.plugin, Parsers.NYTIMES, game, epoch_index))
+
+
 class Plugin(BasePlugin, name="Wordle"):
     WORDLIST_CONTAINER = "wordlists"
     WORDLIST_KEY = "lists"
@@ -66,9 +98,13 @@ class Plugin(BasePlugin, name="Wordle"):
         Config().bot.register(self, category=DefaultCategories.GAMES)
         self.logger = logging.getLogger(__name__)
         self.wordlists: Dict[str, WordList] = {}
+        self.summons: List[Summon] = []
+        self.summon_job = None
+        self.migrate()
 
         self.config_setter = ConfigSetter(self, BASE_CONFIG)
         self.deserialize_wordlists()
+        execute_anything_sync(self.build_summons())
         self.mothership = Mothership(self)
 
     @commands.Cog.listener()
@@ -79,10 +115,17 @@ class Plugin(BasePlugin, name="Wordle"):
         return Config.get(self).get(key, BASE_CONFIG[key][1])
 
     def default_storage(self, container=None):
-        return {}
+        return {
+            "version": 0,
+        }
 
     def default_config(self, container=None):
-        return {}
+        if container is None:
+            return {
+                "version": 0,
+            }
+        else:
+            return {}
 
     def command_help_string(self, command):
         return helpstring_helper(self, command, "help")
@@ -92,6 +135,26 @@ class Plugin(BasePlugin, name="Wordle"):
 
     def command_usage(self, command):
         return helpstring_helper(self, command, "usage")
+
+    def migrate(self):
+        wls = Storage.get(self, container=self.WORDLIST_CONTAINER)
+        for wl in wls.values():
+            if wl["parser"] == "powerlanguage":
+                wl["parser"] = "nytimes"
+                wl["url"] = "https://www.nytimes.com/games/wordle/index.html"
+        Storage.save(self, container=self.WORDLIST_CONTAINER)
+
+        # rename config keys
+        cfg = Config.get(self)
+        if "version" not in cfg:
+            cfg["version"] = 0
+            if "format_guess_word_gap" in cfg:
+                cfg["format_guess_letter_gap"] = cfg["format_guess_word_gap"]
+                del cfg["format_guess_word_gap"]
+            if "format_guess_result_gap" in cfg:
+                cfg["format_guess_correctness_gap"] = cfg["format_guess_result_gap"]
+                del cfg["format_guess_result_gap"]
+            Config.save(self)
 
     def deserialize_wordlists(self):
         """
@@ -128,6 +191,32 @@ class Plugin(BasePlugin, name="Wordle"):
         except KeyError:
             raise WordlistNotFound(self, wordlist)
 
+    async def summon_job_coro(self, _):
+        for summon in self.summons:
+            await summon.fire()
+
+    async def build_summons(self):
+        """
+        Fills self.summons and starts the job.
+        """
+        summons = Storage.get(self).get("summons", [])
+        for d in summons:
+            self.summons.append(await Summon.deserialize(self, d))
+
+        td = timedict(hour=0, minute=10)
+        self.summon_job = Config().bot.timers.schedule(self.summon_job_coro, td)
+
+    def save_summons(self):
+        """
+        Saves self.summons to storage.
+        """
+        s = Storage.get(self)
+        s["summons"] = []
+
+        for el in self.summons:
+            s["summons"].append(el.serialize())
+        Storage.save(self)
+
     @commands.group(name="wordle", invoke_without_command=True)
     async def cmd_wordle(self, ctx, wordlist: Optional[str] = None):
         await self.cmd_wordle_play(ctx, wordlist)
@@ -151,9 +240,10 @@ class Plugin(BasePlugin, name="Wordle"):
         await self.config_setter.set_cmd(ctx, key, value)
 
     @cmd_wordle.command(name="wordlist")
-    async def cmd_wordlist(self, ctx, name: Optional[str] = None, url: Optional[str] = None):
+    async def cmd_wordlist(self, ctx,
+                           name: Optional[str] = None, url: Optional[str] = None, parser: Optional[str] = None):
         # pylint: disable=broad-except
-        if name and not url:
+        if name and not parser:
             await add_reaction(ctx.message, Lang.CMDERROR)
             await ctx.send(Lang.lang(self, "missing_argument"))
             return
@@ -182,7 +272,8 @@ class Plugin(BasePlugin, name="Wordle"):
             ctx.send(Lang.lang(self, "wordlist_exists", name))
             return
         try:
-            wl = await fetch_powerlanguage_impl(url)
+            parser = Parsers.get(parser)
+            wl = await parser.fetch(url)
         except Exception as e:
             await add_reaction(ctx.message, Lang.CMDERROR)
             await ctx.send(Lang.lang(self, "parse_error"))
@@ -386,3 +477,76 @@ class Plugin(BasePlugin, name="Wordle"):
                     await ctx.send("Algorithm failed (X/6):")
                     for game in failed_games:
                         await ctx.send(format_guess(self, game, game.guesses[-1], done=True, history=True))
+
+    @cmd_wordle.group(name="summon", invoke_without_command=True)
+    async def cmd_wordle_summon(self, ctx, wordlist: Optional[str]):
+        wl_name = wordlist if wordlist is not None else self.get_config("default_wordlist")
+        try:
+            wordlist = self.get_wordlist(wordlist)
+        except WordlistNotFound as e:
+            await e.default(ctx)
+            return
+
+        # check if summon exists
+        for summon in self.summons:
+            if summon.channel == ctx.channel and summon.wordlist == wordlist:
+                await add_reaction(ctx.message, Lang.CMDERROR)
+                await ctx.send(Lang.lang(self, "summon_already_exists", wl_name, ctx.channel.name))
+                return
+
+        self.summons.append(Summon(self, ctx.channel, wl_name))
+        self.save_summons()
+        await add_reaction(ctx.message, Lang.CMDSUCCESS)
+
+    @cmd_wordle_summon.command(name="fire", hidden=True)
+    async def cmd_wordle_summon_fire(self, ctx):
+        await self.summon_job_coro(None)
+
+    @cmd_wordle_summon.command(name="list")
+    async def cmd_wordle_summon_list(self, ctx):
+        msgs = []
+        for summon in self.summons:
+            msgs.append("{}: {}".format(summon.channel.name, summon.wordlist_name))
+
+        for msg in paginate(msgs, "```", "```"):
+            await ctx.send(msg)
+
+    @cmd_wordle.command(name="dismiss", aliases=["desummon", "unsummon"])
+    async def cmd_wordle_dismiss(self, ctx, wordlist: Optional[str]):
+        wordlist_arg = wordlist is not None
+        wordlist_name = wordlist if wordlist is not None else self.get_config("default_wordlist")
+        try:
+            wordlist = self.get_wordlist(wordlist)
+        except WordlistNotFound as e:
+            await e.default(ctx)
+            return
+
+        to_dismiss = None
+        candidates = []
+        for summon in self.summons:
+            if summon.channel == ctx.channel:
+                candidates.append(summon)
+
+        # no summons in channel
+        if not candidates:
+            await add_reaction(ctx.message, Lang.CMDNOCHANGE)
+            return
+
+        # unambiguous
+        if len(candidates) == 1 and not wordlist_arg:
+            to_dismiss = candidates[0]
+
+        # find summon to dismiss
+        else:
+            for el in candidates:
+                if el.wordlist == wordlist:
+                    to_dismiss = el
+                    break
+            if to_dismiss is None:
+                await add_reaction(ctx.message, Lang.CMDERROR)
+                await ctx.send(Lang.lang(self, "summon_not_found", wordlist_name))
+                return
+
+        self.summons.remove(to_dismiss)
+        self.save_summons()
+        await add_reaction(ctx.message, Lang.CMDSUCCESS)

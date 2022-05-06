@@ -4,7 +4,7 @@ from typing import Dict, Any, Optional
 from base.data import Lang
 
 from plugins.wordle.game import Game, Guess, WORDLENGTH, Correctness
-
+from plugins.wordle.wordlist import Parsers
 
 ICONS = {
     Correctness.CORRECT: "🟩",
@@ -28,8 +28,9 @@ class FormatOptions(Enum):
     INCLUDE_WORD = "format_guess_include_word"
     VERTICAL = "format_guess_vertical"
     HISTORY = "format_guess_history"
-    WORD_GAP = "format_guess_word_gap"
-    RESULT_GAP = "format_guess_result_gap"
+    LETTER_GAP = "format_guess_letter_gap"
+    GUESS_GAP = "format_guess_guess_gap"
+    CORRECTNESS_GAP = "format_guess_correctness_gap"
     KEYBOARD = "format_guess_keyboard"
     KEYBOARD_GAP = "format_guess_keyboard_gap"
     KEYBOARD_STRIKE = "format_guess_keyboard_strike"
@@ -73,12 +74,16 @@ class GuessFormat:
         return self.options[FormatOptions.HISTORY]
 
     @property
-    def word_gap(self):
-        return self.options[FormatOptions.WORD_GAP]
+    def letter_gap(self):
+        return self.options[FormatOptions.LETTER_GAP]
 
     @property
-    def result_gap(self):
-        return self.options[FormatOptions.RESULT_GAP]
+    def guess_gap(self):
+        return self.options[FormatOptions.GUESS_GAP]
+
+    @property
+    def correctness_gap(self):
+        return self.options[FormatOptions.CORRECTNESS_GAP]
 
     @property
     def keyboard(self):
@@ -116,7 +121,7 @@ def format_word(word: str, format_options: Optional[GuessFormat] = None,
     :param ignore_word_gap: If set to `True`, sets the word gap to `""`
     :return:
     """
-    delimiter = "" if ignore_word_gap else format_options.word_gap
+    delimiter = "" if ignore_word_gap else format_options.letter_gap
     if not ignore_emoji and format_options.letter_emoji:
         r = []
         for char in word:
@@ -141,6 +146,32 @@ def format_game_result(plugin, game) -> str:
         whb = "\n" + Lang.lang(plugin, "play_wouldhavebeen", game.solution) if game.solution else ""
         return "X/{}{}".format(game.max_tries, whb)
     return "This should not happen, pls report."
+
+
+def format_daily(plugin, parser: Parsers, game: Game, info: Any) -> str:
+    """
+    Formats a game to be used as a spoilerless daily output.
+
+    :param plugin: Plugin ref
+    :param parser: Parsers instance that refers to the parser that was used to retrieve the daily
+    :param game: Game to format
+    :param info: parser-specific info as returned by `Parser.fetch_daily()`
+    :return: Formatted string
+    """
+    assert game.done
+    options = {
+        FormatOptions.MONOSPACE: False,
+        FormatOptions.INCLUDE_WORD: False,
+        FormatOptions.VERTICAL: False,
+        FormatOptions.HISTORY: True,
+        FormatOptions.LETTER_GAP: "",
+        FormatOptions.CORRECTNESS_GAP: "",
+        FormatOptions.GUESS_GAP: "",
+        FormatOptions.KEYBOARD: False,
+    }
+
+    f = format_guess(plugin, game, game.guesses[-1], GuessFormat(plugin, options), history=True)
+    return "Wordle {} {}/{}\n{}".format(info, len(game.guesses), game.max_tries, f)
 
 
 def format_guess(plugin, game: Game, guess: Guess,
@@ -186,12 +217,12 @@ def format_guess(plugin, game: Game, guess: Guess,
             correctness = []
             for i in range(WORDLENGTH):
                 correctness.append(ICONS[el.correctness[i]])
-            correctness = format_options.result_gap.join(correctness)
+            correctness = format_options.correctness_gap.join(correctness)
             if format_options.include_word:
                 r.append("{}\n{}".format(word, correctness))
             else:
                 r.append(correctness)
-        r = "\n\n".join(r)
+        r = "\n{}".format(format_options.guess_gap).join(r)
 
     # Add username if necessary
     if player_name:
