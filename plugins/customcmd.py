@@ -22,7 +22,7 @@ WILDCARD_UMENTION = "%um"
 WILDCARD_ALL_ARGS = "%a"
 
 QUOTATION_SIGNS = "\"‘‚‛“„‟⹂「」『』〝〞﹁﹂﹃﹄＂｢｣«»‹›《》〈〉"
-cmd_re = re.compile(rf"\+?([{QUOTATION_SIGNS}]([^{QUOTATION_SIGNS}]*)[{QUOTATION_SIGNS}]|\S+)")
+cmd_re = re.compile(rf"([{QUOTATION_SIGNS}]([^{QUOTATION_SIGNS}]*)[{QUOTATION_SIGNS}]|\S+)")
 arg_list_re = re.compile(r"(%(\d)(\*?))")
 mention_re = re.compile(r"<[@!#&]{0,2}\d+>")
 
@@ -355,6 +355,9 @@ class TextCmd(Cmd):
                 index = index[:-1]
             elif index.lower() == "last":
                 index = len(self)
+            elif index.lower() in ("all", "full"):
+                single_page = False
+                index = 1
             else:
                 single_text = True
             try:
@@ -1240,3 +1243,36 @@ class Plugin(BasePlugin, name="Custom CMDs"):
         c.clear_aliases()
         self._save()
         await utils.add_reaction(ctx.message, Lang.CMDSUCCESS)
+
+    @cmd.command(name="random", aliases=["rnd", "rng"])
+    async def cmd_random(self, ctx, *args):
+        candidates = []
+        weights = []
+        for el in self.commands.values():
+            if isinstance(el, TextCmd):
+                candidates.append(el)
+                weights.append(len(el.texts))
+
+        if not candidates:
+            await add_reaction(ctx.message, Lang.CMDNOCHANGE)
+            return
+
+        cmd = random.choices(candidates, weights=weights)[0]
+        await cmd.invoke(ctx.message, *args)
+
+    @cmd.command(name="image", aliases=["randomimage"])
+    async def cmd_image(self, ctx):
+        candidates = []
+        for el in self.commands.values():
+            if not isinstance(el, TextCmd):
+                continue
+
+            for text in el.texts:
+                if text.startswith("http"):
+                    candidates.append(text)
+
+        if not candidates:
+            await add_reaction(ctx.message, Lang.CMDNOCHANGE)
+            return
+
+        await ctx.send(random.choice(candidates))

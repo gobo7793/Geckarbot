@@ -1,11 +1,12 @@
+import abc
 import random
 import re
-from string import ascii_lowercase
+from datetime import date
 from enum import Enum
-from typing import List
+from string import ascii_lowercase
+from typing import List, Tuple, Any
 
 import aiohttp
-
 
 TO_ADD = [
     "gecki"
@@ -13,7 +14,13 @@ TO_ADD = [
 
 
 class Parsers(Enum):
-    POWERLANGUAGE = "powerlanguage"
+    NYTIMES = "nytimes"
+
+    @classmethod
+    def get(cls, parser):
+        if parser == cls.NYTIMES.value:
+            return Nytimes
+        raise KeyError
 
 
 class WordList:
@@ -79,6 +86,89 @@ class WordList:
         return random.choice(self.solutions)
 
 
+class Parser(abc.ABC):
+    @classmethod
+    @abc.abstractmethod
+    async def fetch(cls, url: str) -> WordList:
+        raise NotImplementedError
+
+    @classmethod
+    @abc.abstractmethod
+    async def fetch_daily(cls, url: str) -> Tuple[str, Any]:
+        """
+        Fetches a daily word.
+
+        :param url: url to fetch from
+        :return: tuple (daily word, further info (e.g. epoch index))
+        """
+        raise NotImplementedError
+
+
+class Nytimes(Parser):
+    EPOCH = date(2021, 6, 19)
+
+    @staticmethod
+    async def fetch_lists(url: str) -> Tuple[Tuple, Tuple]:
+        """
+        fetches solutions and complement lists
+
+        :param url: url
+        :return: solutions, complement
+        """
+
+        session = aiohttp.ClientSession()
+
+        # find script file
+        p = re.compile(r"<script\s*src=\"([^>]+)\">")
+        async with session.get(url) as response:
+            response = await response.text()
+
+        scriptfile = p.search(response)
+        if scriptfile is None:
+            raise ValueError("Wordle page parse error: main.js not found")
+        scriptfile = scriptfile.groups()[0]
+
+        # parse list strings out of script file
+        p = re.compile(r"(\[(\"[a-zA-Z][a-zA-Z][a-zA-Z][a-zA-Z][a-zA-Z]\",?)+])")
+        if url.endswith("index.html"):
+            url = url[:-len("indext.html")]
+        if url.endswith("/"):
+            url = url[:-1]
+        async with session.get("{}/{}".format(url, scriptfile)) as response:
+            response = await response.text(encoding="utf8")
+        lists = p.findall(response)
+
+        # parse words out of list strings
+        p = re.compile(r"\"([a-zA-Z][a-zA-Z][a-zA-Z][a-zA-Z][a-zA-Z])\"")
+        for i in range(len(lists)):
+            wlist = lists[i][0]
+            lists[i] = p.findall(wlist)
+        assert len(lists) == 2
+
+        # build WordList
+        solutions = normalize_wlist(lists[0])
+        complement = normalize_wlist(lists[1])
+        return solutions, complement
+
+    @classmethod
+    async def fetch(cls, url: str) -> WordList:
+        """
+        Builds a WordList from a default wordle implementation url.
+
+        :param url: wordle url
+        :return: built WordList
+        :raises ValueError: If the script js was not found on the main page
+        """
+        solutions, complement = await cls.fetch_lists(url)
+        return WordList(url, Parsers.NYTIMES, solutions, complement)
+
+    @classmethod
+    async def fetch_daily(cls, url: str) -> Tuple[str, Any]:
+        solutions, _ = await cls.fetch_lists(url)
+        epoch_index = (date.today() - cls.EPOCH).days
+        return solutions[epoch_index], epoch_index
+
+
 def normalize_wlist(wl: List[str]) -> tuple:
     """
     Takes a list of words and normalizes it into a lowercase tuple of itself.
@@ -91,47 +181,3 @@ def normalize_wlist(wl: List[str]) -> tuple:
         assert len(el) == 5
     return tuple(wl)
 
-
-async def fetch_powerlanguage_impl(url: str) -> WordList:
-    """
-    Builds a WordList from a default wordle implementation url.
-
-    :param url: wordle url
-    :return: built WordList
-    :raises ValueError: If the script js was not found on the main page
-    """
-    session = aiohttp.ClientSession()
-
-    # find script file
-    p = re.compile(r"<script\s*src=\"([^>]+)\">")
-    async with session.get(url) as response:
-        response = await response.text()
-
-    scriptfile = p.search(response)
-    if scriptfile is None:
-        raise ValueError("Wordle page parse error: main.js not found")
-    scriptfile = scriptfile.groups()[0]
-
-    # parse list strings out of script file
-    p = re.compile(r"(\[(\"[a-zA-Z][a-zA-Z][a-zA-Z][a-zA-Z][a-zA-Z]\",?)+])")
-    if url.endswith("/"):
-        url = url[:-1]
-    async with session.get("{}/{}".format(url, scriptfile)) as response:
-        response = await response.text(encoding="utf8")
-    lists = p.findall(response)
-
-    # parse words out of list strings
-    p = re.compile(r"\"([a-zA-Z][a-zA-Z][a-zA-Z][a-zA-Z][a-zA-Z])\"")
-    for i in range(len(lists)):
-        wlist = lists[i][0]
-        lists[i] = p.findall(wlist)
-    assert len(lists) == 2
-
-    # build WordList
-    solutions = normalize_wlist(lists[0])
-    complement = normalize_wlist(lists[1])
-    del lists
-    if len(solutions) > len(complement):
-        solutions, complement = complement, solutions
-
-    return WordList(url, Parsers.POWERLANGUAGE, tuple(solutions), tuple(complement))

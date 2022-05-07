@@ -196,7 +196,7 @@ class Client:
         if song.layer == Layer.ARTIST:
             searchstring = song.artist
         else:
-            searchstring = "{} - {}".format(song.artist, song.get_layer_name(song.layer))
+            searchstring = "{} {}".format(song.artist, song.get_layer_name(song.layer))
 
         params = {
             "q": searchstring,
