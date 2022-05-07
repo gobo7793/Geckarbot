@@ -1,88 +1,61 @@
-import inspect
-import json
 import logging
 import re
 from datetime import datetime
-from urllib.error import HTTPError
-from urllib.parse import urljoin, urlparse
+from typing import Literal, List, Optional, Dict, Tuple
+from urllib.parse import urlparse, urljoin
 
-from nextcord import Embed, User
 from bs4 import BeautifulSoup
+from nextcord import Embed, Interaction
 from nextcord.ext import commands
-from nextcord.ext.commands import MissingRequiredArgument
+from nextcord.ext.commands import Context
 
 from Geckarbot import BasePlugin
+from base.data import Config, Lang, Storage
 from botutils import sheetsclient, restclient
-from botutils.converters import get_best_user, get_best_username
-from botutils.permchecks import check_mod_access
-from botutils.sheetsclient import CellRange, Cell
-from botutils.stringutils import paginate, format_andlist
-from botutils.utils import add_reaction, helpstring_helper
-from base.data import Config, Storage, Lang
-from plugins.spaetzle.subsystems import UserBridge, Observed, Trusted
-from plugins.spaetzle.utils import pointdiff_possible, determine_winner, MatchResult, match_status, \
-    get_user_league, get_user_cell, get_schedule, get_schedule_opponent, UserNotFound, \
-    convert_to_datetime, get_participant_history, duel_points
+from botutils.sheetsclient import CellRange
+from botutils.uiutils import SingleConfirmView, SingleItemView, CoroButton
+from botutils.utils import helpstring_helper, add_reaction, paginate_embeds
+from plugins.spaetzle.utils import SpaetzleUtils
 from services.helpsys import DefaultCategories
-from services.liveticker import MatchStatus, LeagueRegistrationOLDB
+from services.liveticker import LeagueRegistrationOLDB
 
 
-class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
+class Plugin(BasePlugin, SpaetzleUtils, name="Spaetzle-Tippspiel"):
     """Plugin for the Spaetzle(s)-Tippspiel"""
 
     def __init__(self):
         super().__init__()
         self.bot = Config().bot
         self.bot.register(self, category=DefaultCategories.SPORT)
+        self.migrate()
+        SpaetzleUtils.__init__(self)
 
         self.logger = logging.getLogger(__name__)
-        self.userbridge = UserBridge(self)
 
     def default_config(self, container=None):
         return {
-            'manager': [],
-            'trusted': [],
-            'spaetzledoc_id': "1ZzEGP_J9WxJGeAm1Ri3er89L1IR1riq7PH2iKVDmfP8",
-            'matches_range': "B1:H11",
-            'duel_ranges': {
-                1: "K3:U11",
-                2: "W3:AG11",
-                3: "AI3:AS11",
-                4: "AU3:BE11"
+            '_config_version': 1,
+            'ranges': {
+                'duel_columns': "B:D",
+                'league_rows': ["6:23", "25:42", "44:61", "63:80"],
+                'matches': "P2:AG4",
+                'opp_points_column': "AI:AI",
+                'points_column': "AH:AH",
+                'pred_columns': "O:AG",
+                'table_columns': "F:M"
             },
-            'table_ranges': {
-                1: "K14:U31",
-                2: "W14:AG31",
-                3: "AI14:AS31",
-                4: "AU15:BE33"
-            },
-            'predictions_ranges': {
-                1: "BH2:CQ11",
-                2: "BH14:CQ23",
-                3: "BH26:CQ35",
-                4: "BH38:CQ47"
-            },
-            'findreplace_matchday_range': "K34:BE51",
-            'user_agent': {
-                'user-agent': f"Geckarbot/{self.bot.VERSION}"
-            },
-            'danny_id': 0,
-            'danny_users': []
+            'matchday_shuffle': [7, 4, 11, 6, 3, 10, 12, 8, 5, 15, 9, 16, 1, 13, 0, 14, 2, 17],
+            'participants_shuffle': [15, 11, 8, 17, 12, 16, 13, 9, 10, 2, 4, 5, 1, 6, 0, 7, 3, 14],
+            'spaetzledoc_id': "1eUCYWLw09CBzxJj3Zx-t8ssVwdqsjRgzzj37paPtZIA",
         }
 
     def default_storage(self, container=None):
-        if container is None:
-            return {
-                'matchday': 0,
-                'main_thread': None,
-                'predictions_thread': None,
-                'discord_user_bridge': {},
-                'observed_users': [],
-                'participants': {}
-            }
-        if container == 'forumposts':
-            return []
-        return {}
+        return {
+            '_storage_version': 1,
+            'matchday': 0,
+            'participants': [[], [], [], []],
+            'predictions_thread': ""
+        }
 
     def command_help_string(self, command):
         return helpstring_helper(self, command, "help")
@@ -93,168 +66,126 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
     def command_usage(self, command):
         return helpstring_helper(self, command, "usage")
 
+    def migrate(self):
+        """Migrates config and storage to newer versions"""
+        if Config().get(self).get('_config_version', 0) < 1:
+            Config().set(self, self.default_config())
+            Config().save(self)
+        if Storage().get(self).get('_storage_version', 0) < 1:
+            Storage().get(self)['participants'] = [[], [], [], []]
+            Storage().get(self)['_storage_version'] = 1
+            Storage().save(self)
+
     def get_api_client(self):
         """Returns sheetsclient"""
         return sheetsclient.Client(self.bot, Config().get(self)['spaetzledoc_id'])
 
     @commands.group(name="spaetzle", aliases=["spätzle", "spätzles"])
-    async def cmd_spaetzle(self, ctx):
+    async def cmd_spaetzle(self, ctx: Context):
         if ctx.invoked_subcommand is None:
             await ctx.invoke(self.bot.get_command('spaetzle info'))
 
     @cmd_spaetzle.command(name="info")
-    async def cmd_spaetzle_info(self, ctx):
+    async def cmd_spaetzle_info(self, ctx: Context):
         """Sends info about the Spaetzles-Tippspiel"""
-        pred_urlpath = pred_thread = Storage().get(self)['predictions_thread']
-        if pred_thread:
-            pred_urlpath = urlparse(pred_thread).path.split("/")
-            pred_urlpath = pred_urlpath[1] if len(pred_urlpath) > 0 else None
-        main_urlpath = main_thread = Storage().get(self)['main_thread']
-        if main_thread:
-            main_urlpath = urlparse(main_thread).path.split("/")
-            main_urlpath = main_urlpath[1] if len(main_urlpath) > 0 else None
         spreadsheet = f"https://docs.google.com/spreadsheets/d/{Config().get(self)['spaetzledoc_id']}"
 
         embed = Embed(title="Spätzle(s)-Tippspiel", description=Lang.lang(self, 'info'))
         embed.add_field(name=Lang.lang(self, 'title_spreadsheet'),
                         value=f"[{spreadsheet[:50]}\u2026]({spreadsheet})", inline=False)
-        embed.add_field(name=Lang.lang(self, 'title_main_thread'),
-                        value=f"[{main_urlpath}]({main_thread})")
-        embed.add_field(name=Lang.lang(self, 'title_predictions_thread'),
-                        value=f"[{pred_urlpath}]({pred_thread})")
         await ctx.send(embed=embed)
 
     @cmd_spaetzle.command(name="link")
-    async def cmd_spaetzle_doc_link(self, ctx):
+    async def cmd_spaetzle_doc_link(self, ctx: Context):
         """Sends the link to the spreadsheet"""
         await ctx.send(f"<https://docs.google.com/spreadsheets/d/{Config().get(self)['spaetzledoc_id']}>")
 
-    @cmd_spaetzle.command(name="user")
-    async def cmd_bridge_user(self, ctx, user=None):
-        """Connects a discord user with a specific spaetzle user"""
-        if user is None:
-            success = self.userbridge.cut_bridge(ctx)
-        else:
-            success = self.userbridge.add_bridge(ctx, user)
-
-        if success:
-            await add_reaction(ctx.message, Lang.CMDSUCCESS)
-        else:
-            await ctx.send(Lang.lang(self, 'user_not_bridged'))
-
-    @cmd_spaetzle.group(name="set")
-    async def cmd_spaetzle_set(self, ctx):
-        """Set data about next matchday etc"""
+    @cmd_spaetzle.group(name="setup")
+    async def cmd_spaetzle_setup(self, ctx: Context):
         if ctx.invoked_subcommand is None:
-            await ctx.send_help(self.cmd_spaetzle_set)
+            await ctx.invoke(self.bot.get_command('spaetzle setup matches'))
+            await ctx.invoke(self.bot.get_command('spaetzle setup duels'))
 
-    @cmd_spaetzle_set.command(name="matches", aliases=["spiele"])
-    async def cmd_set_matches(self, ctx, matchday: int = None, season: int = None):
-        """Sets the matches of the upcoming or running matchday"""
-        if not await Trusted(self).is_trusted(ctx):
-            return
-        async with ctx.typing():
-            # Request data
-            if matchday:
-                for c_reg in list(self.bot.liveticker.search_coro(plugin_names=[self.get_name()])):
-                    await c_reg.deregister()
-            else:
-                matchday = Storage().get(self)['matchday']
-            match_list = await LeagueRegistrationOLDB.get_matches_by_matchday(league="bl1", matchday=matchday,
-                                                                              season=season)
+    @cmd_spaetzle_setup.command(name="matches")
+    async def cmd_spaetzle_setup_matches(self, ctx: Context):
+        async def insert_to_spreadsheet(_b, interaction: Interaction):
+            time_cells = []
+            team_cells = []
+            match_cells = []
+            _matchday = interaction.message.embeds[0].title.split(" ")[-1]
+            for row in interaction.message.embeds[0].description.split("\n"):
+                dt, teams = row.split(" | ")
+                kickoff_time = datetime.strptime(dt, "%a. %d.%m.%Y, %H:%M Uhr")
+                home, away = teams.split(" - ")
+                match = "{} - {}".format(Config().bot.liveticker.teamname_converter.get(home).abbr,
+                                         Config().bot.liveticker.teamname_converter.get(away).abbr)
+                time_cells.extend([kickoff_time.strftime("%d.%m.%Y %H:%M"), None])
+                team_cells.extend([home, away])
+                match_cells.extend([match, None])
+            self.get_api_client().update(f"'ST {_matchday}'!{Config().get(self)['ranges']['matches']}",
+                                         [time_cells, team_cells, match_cells], raw=False)
 
-            # Extract matches
-            c = self.get_api_client()
-            values = [[matchday], [None]]
-            match_ids = []
-            for match in match_list:
-                match_ids.append(match.match_id)
+        matchday = Storage().get(self)['matchday']
+        match_list = await LeagueRegistrationOLDB.get_matches_by_matchday(league="bl1", matchday=matchday)
+        await ctx.send(embed=Embed(title=Lang.lang(self, 'matchday_x', matchday),
+                                   description="\n".join(m.display_short() for m in match_list)),
+                       view=SingleConfirmView(insert_to_spreadsheet, confirm_label=Lang.lang(self, 'confirm'),
+                                              user_id=ctx.author.id))
 
-                date_formula = '=IF(DATE({};{};{}) + TIME({};{};0) < F12;0;"")'.format(*list(match.kickoff.timetuple()))
-                if match.kickoff < datetime.now():
-                    score1, score2 = match.score.values()
-                else:
-                    score1, score2 = date_formula, date_formula
-                values.append([
-                    ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'][match.kickoff.weekday()],
-                    match.kickoff.strftime("%d.%m.%Y"),
-                    match.kickoff.strftime("%H:%M"),
-                    match.home_team.long_name,
-                    score1,
-                    score2,
-                    match.away_team.long_name])
+    @cmd_spaetzle_setup.command(name="duels")
+    async def cmd_spaetzle_setup_duels(self, ctx: Context):
+        def calculate_schedule(_participants: List[Optional[str]]):
+            matchday = Config().get(self)['matchday_shuffle'][(Storage().get(self)['matchday'] - 1) % 17]  # Shuffle
+            _participants.extend([None] * max(0, 18 - len(_participants)))  # Extend if not enough participants
+            _p = [_participants[j] for j in Config().get(self)['participants_shuffle']] + _participants[18:]  # Shuffle
+            _p = _p[0:1] + _p[1:][matchday:] + _p[1:][:matchday]  # Rotate
+            _schedule = [(_p[0], _p[1])]
+            _schedule.extend((_p[2 + j], _p[-1 - j]) for j in range(len(_p) // 2 - 1))
+            return _schedule
 
-            # Put matches into spreadsheet
-            c.update(f"Aktuell!{Config().get(self)['matches_range']}", values, raw=False)
+        async def insert_to_spreadsheet(button: CoroButton, _i):
+            data_dict = {}
+            _participants = Storage().get(self)['participants']
+            _schedules: List[List[Tuple]] = button.view.data
+            for j in range(len(_schedules)):
+                opponent_cells = dict.fromkeys(_participants[j])
+                duels_rows = []
+                for p1, p2 in _schedules[j]:
+                    p1_cellname = f"={self.get_participant_point_cellname(p1, league=j + 1)}"
+                    p2_cellname = f"={self.get_participant_point_cellname(p2, league=j + 1)}"
+                    if p1_cellname == "=None" or p2_cellname == "=None":
+                        continue
+                    opponent_cells[p1] = [p2_cellname]
+                    opponent_cells[p2] = [p1_cellname]
+                    duels_rows.extend(([None, p1, p1_cellname], [None, p2, p2_cellname]))
+                league_rows = CellRange.from_a1(Config().get(self)['ranges']['league_rows'][j])
+                duel_range = league_rows.overlay_range(
+                    CellRange.from_a1(Config().get(self)['ranges']['duel_columns'])).rangename()
+                opponent_range = league_rows.overlay_range(
+                    CellRange.from_a1(Config().get(self)['ranges']['opp_points_column'])).rangename()
+                data_dict[f"ST {Storage().get(self)['matchday']}!{duel_range}"] = duels_rows
+                data_dict[f"ST {Storage().get(self)['matchday']}!{opponent_range}"] = list(opponent_cells.values())
+            self.get_api_client().update_multiple(data_dict, raw=False)
 
-            # Set matchday and match_ids
-            Storage().get(self)['match_ids'] = match_ids
-            Storage().get(self)['matchday'] = matchday
-            Storage().save(self)
+        embed = Embed(title=Lang.lang(self, 'duels_mx', Storage().get(self)['matchday']))
+        participants = Storage().get(self)['participants']
+        schedules = []
+        for i in range(len(participants)):
+            schedules.append(schedule := calculate_schedule(participants[i]))
+            embed.add_field(name=Lang.lang(self, 'league_x', i + 1), value="\n".join(f"{x} - {y}" for x, y in schedule))
+        await ctx.send(embed=embed, view=SingleConfirmView(insert_to_spreadsheet, user_id=ctx.author.id,
+                                                           confirm_label=Lang.lang(self, 'confirm'), data=schedules))
 
-            msg = ""
-            for row in values[2:]:
-                msg += "{0} {1} {2} Uhr | {3} - {6}\n".format(*row)
-        await add_reaction(ctx.message, Lang.CMDSUCCESS)
-        await ctx.send(embed=Embed(title=Lang.lang(self, 'title_matchday', matchday), description=msg))
+    @cmd_spaetzle.command(name="scrape")
+    async def cmd_spaetzle_scrape(self, ctx: Context, url: str = None):
+        async def continue_extract(button: CoroButton, interaction: Interaction):
+            if button.data == interaction.user.id:
+                button.view.stop()
+                await ctx.invoke(self.bot.get_command("spaetzle extract"))
 
-    @cmd_spaetzle_set.command(name="duels", aliases=["duelle"])
-    async def cmd_set_duels(self, ctx, matchday: int = None, league: int = None):
-        """Sets duels for the matchday"""
-        if not await Trusted(self).is_trusted(ctx):
-            return
-        if matchday is None:
-            matchday = Storage().get(self)['matchday']
-        matchday = (matchday - 1) % 17 + 1
-        if matchday not in range(1, 18):
-            await add_reaction(ctx.message, Lang.CMDERROR)
-            await ctx.send(Lang.lang(self, 'matchday_out_of_range'))
-            return
-        if league is not None and league not in Config().get(self)['duel_ranges'].keys():
-            await add_reaction(ctx.message, Lang.CMDERROR)
-            await ctx.send(Lang.lang(self, 'invalid_league'))
-            return
-
-        async with ctx.typing():
-            c = self.get_api_client()
-            embed = Embed()
-            duel_ranges = Config().get(self)['duel_ranges']
-            if league is None:
-                league_list = duel_ranges.keys()
-                embed.title = Lang.lang(self, 'title_matchday_duels', matchday)
-            else:
-                league_list = [league]
-                embed.title = Lang.lang(self, 'title_matchday_league', matchday, league)
-
-            data = {}
-            for leag in league_list:
-                msg = ""
-                data[duel_ranges[leag]] = []
-                schedule = get_schedule(self, leag, matchday)
-                for duel in schedule:
-                    msg += "{} - {}\n".format(*duel)
-                    p = Storage().get(self)['participants'][leag]
-                    home_fx = "={}".format(Cell(p.index(duel[0]) * 2 + 1, 11, CellRange.from_a1(
-                        Config().get(self)['predictions_ranges'][leag])).cellname())
-                    away_fx = "={}".format(Cell(p.index(duel[1]) * 2 + 1, 11, CellRange.from_a1(
-                        Config().get(self)['predictions_ranges'][leag])).cellname())
-                    data[duel_ranges[leag]].append([duel[0], None, None, None, home_fx, away_fx, None, duel[1]])
-                if len(league_list) > 1:
-                    embed.add_field(name=f"Liga {leag}", value=msg)
-                else:
-                    embed.description = msg
-            message = await ctx.send(embed=embed)
-
-            c.update_multiple(data, raw=False)
-        await add_reaction(message, Lang.CMDSUCCESS)
-
-    @cmd_spaetzle_set.command(name="scrape")
-    async def cmd_set_scrape(self, ctx, url=None):
-        """Scrapes the predictions thread for forum posts"""
-        if not await Trusted(self).is_trusted(ctx):
-            return
-
-        data = []
+        init_content = ""
+        post_list = {}
+        original_url = url
         if url is None:
             url = Storage().get(self)['predictions_thread']
 
@@ -269,743 +200,150 @@ class Plugin(BasePlugin, name="Spaetzle-Tippspiel"):
                                                                                            parse_json=False)
                 soup = BeautifulSoup(response, "html.parser")
 
-                posts = soup.find_all('div', 'box')
+                if not init_content:
+                    init_post = soup.find(id="initialPost").find('div', 'forum-post-data')
+                    init_content = re.sub(r'(?:(?!\n)\s){2,}', ' ', init_post.text.replace('\u2013', '-')).split("\n")
+                posts = soup.find(id="postList").find_all('div', 'box')
                 for p in posts:
-                    p_time = p.find_all('div', 'post-header-datum')
-                    p_user = p.find_all('a', 'forum-user')
-                    p_data = p.find_all('div', 'forum-post-data')
-                    if p_user:
-                        data.append({
-                            'user': p_user[0].text,
-                            'time': p_time[0].text.strip(),
-                            'content': re.sub(r'(?:(?!\n)\s){2,}', ' ',
-                                              p_data[0].text.replace('\u2013', '-')).split("\n")
-                        })
+                    p_time = p.find('div', 'post-header-datum')
+                    p_user = p.find('a', 'forum-user')
+                    p_data = p.find('div', 'forum-post-data')
+                    p_id = p.find('span', 'link-zum-post')
+                    if p_time and p_user and p_data:
+                        post_list[p_id.text] = {
+                            'user': p_user.text,
+                            'time': p_time.text.strip(),
+                            'link': p_id.a['href'],
+                            'content': re.sub(r'(?:(?!\n)\s){2,}', ' ', p_data.text.replace('\u2013', '-')).split("\n")
+                        }
 
                 await botmessage.edit(content="{}\n{}".format(botmessage.content,
-                                                              Lang.lang(self, 'scrape_intermediate', len(data))))
+                                                              Lang.lang(self, 'scrape_intermediate', len(post_list))))
                 next_page = soup.find_all('li', 'tm-pagination__list-item--icon-next-page')
                 if next_page and next_page[0].a:
                     url = urljoin(Storage().get(self)['predictions_thread'], next_page[0].a['href'])
                 else:
-                    await ctx.send(Lang.lang(self, 'scrape_end'))
+                    await ctx.send(Lang.lang(self, 'scrape_end'),
+                                   view=SingleItemView(item=CoroButton(coro=continue_extract, data=ctx.author.id,
+                                                                       label="!spaetzle extract")))
                     break
 
-            Storage().get(self, container='forumposts')[:] = data
+            Storage().set(self, {'init': init_content, 'posts': post_list, 'url': original_url}, container='forumposts')
             Storage().save(self, container='forumposts')
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
-    @cmd_spaetzle_set.command(name="extract")
-    async def cmd_set_extract(self, ctx):
-        """Extracts the predictions from the scraped result"""
-        if not await Trusted(self).is_trusted(ctx):
-            return
-        async with ctx.typing():
-            c = self.get_api_client()
-            matches = []
-            predictions_by_user = {}
-            forumuser_list = set()
-            data = Storage().get(self, container='forumposts')
-            first_post = data[0]
+    @cmd_spaetzle.command(name="extract")
+    async def cmd_spaetzle_extract(self, ctx: Context):
+        forumposts = Storage().get(self, container='forumposts')
+        participants = Storage().get(self)['participants']
+        matchday = Storage().get(self)['matchday']
+        missing_participants: List[str] = []
+        no_preds_but_post: List[str] = []
 
-            # Reading matches
-            for line in first_post['content']:
-                if line == "\u2022 \u2022 \u2022\r":
-                    break
-                if line == "":
-                    continue
-                if re.search(r"Uhr \|.+-", line):
-                    matches.append(line)
-            matchesre = "|".join([re.escape(x) for x in matches])  # for regex below
+        await ctx.trigger_typing()
 
-            # Reading posts
-            for post in data[1:]:
-                if post['content'] == first_post['content']:
-                    continue
+        # Matches from initial posts
+        matches = []
+        for line in forumposts['init']:
+            if line == "\u2022 \u2022 \u2022\r":
+                break
+            if re.search(r"Uhr \|.+-", line):
+                matches.append(line)
 
-                predictions = {}
-                forumuser_list.add(post['user'])
-                for line in post['content']:
-                    if line == "\u2022 \u2022 \u2022\r":
-                        break
-                    if line == "":
-                        continue
-                    result = re.search(f"(?P<match>{matchesre})\\D*(?P<goals_home>\\d+)\\s*\\D\\s*(?P<goals_away>\\d+)",
-                                       line)
-                    if result is not None:
-                        groupdict = result.groupdict()
-                        predictions[groupdict['match']] = (groupdict['goals_home'], groupdict['goals_away'])
+        # Extract predictions from posts
+        predictions: Dict[str, Dict[str, Tuple[int, int]]] = {}
+        found_users = set()
+        for post in forumposts['posts'].values():
+            found_users.add(post['user'])
+            if post['user'] not in predictions:
+                predictions[post['user']] = {}
+            predictions[post['user']].update(self.extract_predictions(matches=matches, raw_post=post['content']))
 
-                if predictions:
-                    if post['user'] in predictions_by_user:
-                        predictions_by_user[post['user']].update(predictions)
-                    else:
-                        predictions_by_user[post['user']] = predictions
-
-            # Participants without predictions / Unknown user
-            embed = Embed(title=Lang.lang(self, 'extract_user_without_preds'))
-            no_preds = []
-            for i in range(1, 5):
-                user_list = []
-                participants = Storage().get(self)['participants'].get(i, [])
-                forumuser_list.difference_update(participants)
-                for user in participants:
-                    if user not in predictions_by_user:
-                        user_list.append(user)
-                    elif predictions_by_user[user] == {}:
-                        no_preds.append(user)
-                if user_list:
-                    embed.add_field(name=Lang.lang(self, 'league', i), value=", ".join(user_list), inline=False)
-            if forumuser_list:
-                embed.add_field(name=Lang.lang(self, 'unknown_users'), value=", ".join(forumuser_list))
-            if no_preds:
-                embed.description = Lang.lang(self, 'extract_user_no_preds', ", ".join(no_preds))
-            if not embed.fields:
-                embed.description = Lang.lang(self, 'extract_not_without_preds')
-            await ctx.send(embed=embed)
-
-            # Transforming for spreadsheet input
-            data = {}
-            participants = Storage().get(self)['participants']
-            for leag, p in participants.items():
-                data[f"Aktuell!{Config().get(self)['predictions_ranges'][leag]}"] = [[num for elem in
-                                                                                      [[user, None] for user in
-                                                                                       p] for num in elem]]
-                for match in matches:
-                    row = []
-                    for user in p:
-                        row.extend(predictions_by_user.get(user, {}).get(match, [None, None]))
-                    data[f"Aktuell!{Config().get(self)['predictions_ranges'][leag]}"].append(row)
-
-            # Updating cells
-            c.update_multiple(data, raw=False)
+        # Insert into spreadsheet
+        data_dict = {}
+        for league in range(len(participants)):
+            l_data = []
+            for p in participants[league]:
+                p_data = [p]
+                if not (p_preds := predictions.get(p, {})):
+                    missing_participants.append(p)
+                    if p in found_users:
+                        no_preds_but_post.append(p)
+                for m in matches:
+                    p_data.extend(p_preds.get(m, ("–", "–")))
+                l_data.append(p_data)
+            data_range = CellRange.from_a1(Config().get(self)['ranges']['league_rows'][league]).overlay_range(
+                CellRange.from_a1(Config().get(self)['ranges']['pred_columns'])).rangename()
+            data_dict[f"ST {matchday}!{data_range}"] = l_data
+        self.get_api_client().update_multiple(data_dict, raw=False)
         await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
-    @cmd_spaetzle_set.command(name="archive")
-    async def cmd_set_archive(self, ctx):
-        """Archives the current matchday and clears the frontpage"""
-        if not await Trusted(self).is_trusted(ctx):
-            return
-
-        async with ctx.typing():
-            c = self.get_api_client()
-
-            duplicate = c.duplicate_and_archive_sheet("Aktuell", f"ST {Storage().get(self)['matchday']}")
-            if duplicate:
-                ranges = [f"Aktuell!{Config().get(self)['matches_range']}"]
-                for r in Config().get(self)['duel_ranges'].values():
-                    ranges.append(f"Aktuell!{r}")
-                for r_a1 in Config().get(self)['predictions_ranges'].values():
-                    r = CellRange.from_a1(r_a1).expand(top=-1)
-                    ranges.append(f"Aktuell!{r.rangename()}")
-                clear = c.clear_multiple(ranges)
-                if clear:
-                    replace = c.find_and_replace(find=f"ST {Storage().get(self)['matchday'] - 1}",
-                                                 replace=f"ST {Storage().get(self)['matchday']}",
-                                                 include_formulas=True, sheet="Aktuell",
-                                                 cellrange=Config().get(self)['findreplace_matchday_range'])
-        if duplicate and clear and replace:
-            Storage().get(self)['matchday'] += 1
-            Storage().save(self)
-            await add_reaction(ctx.message, Lang.CMDSUCCESS)
+        # Output discord
+        embed = Embed(title=Lang.lang(self, 'matchday_x', matchday))
+        missing_preds = {}
+        for p in missing_participants:
+            league = self.get_participant_league(p)
+            if league not in missing_preds:
+                missing_preds[league] = []
+            missing_preds[league].append(p)
+        missing_preds_msg = "\n".join(f"__{Lang.lang(self, 'league_x', leag)}__: {', '.join(parts)}"
+                                      for leag, parts in missing_preds.items())
+        if missing_preds_msg:
+            embed.add_field(name=Lang.lang(self, 'missing_predictions'), value=missing_preds_msg)
         else:
-            await add_reaction(ctx.message, Lang.CMDERROR)
+            embed.description = Lang.lang(self, 'no_predictions_missing')
+        if no_preds_but_post:
+            embed.add_field(name=Lang.lang(self, 'no_preds_but_post'), value=", ".join(no_preds_but_post), inline=False)
 
-    @cmd_spaetzle_set.command(name="thread")
-    async def cmd_set_thread(self, ctx, url: str):
-        """Sets the URL of the Tippabgabe-Thread"""
-        if await Trusted(self).is_trusted(ctx):
-            Storage().get(self)['predictions_thread'] = url
-            Storage().save(self)
-            await add_reaction(ctx.message, Lang.CMDSUCCESS)
+        for league_participants in participants:
+            for p in league_participants:
+                if p in found_users:
+                    found_users.remove(p)
+        if found_users:
+            embed.add_field(name=Lang.lang(self, 'unknown_users'), value=", ".join(found_users), inline=False)
 
-    @cmd_spaetzle_set.command(name="mainthread")
-    async def cmd_set_mainthread(self, ctx, url: str):
-        """Sets the URL of the main thread"""
-        if await Trusted(self).is_trusted(ctx):
-            Storage().get(self)['main_thread'] = url
-            Storage().save(self)
-            await add_reaction(ctx.message, Lang.CMDSUCCESS)
+        await ctx.send(embed=embed)
 
-    @cmd_spaetzle_set.command(name="participants", alias="teilnehmer")
-    async def cmd_set_participants(self, ctx, league: int, *participants):
-        """Sets the participants of a league"""
-        if await Trusted(self).is_manager(ctx):
-            Storage().get(self)['participants'][league] = list(participants)
-            Storage().save(self)
-            await ctx.send(Lang.lang(self, 'participants_added', len(participants), league))
-            await add_reaction(ctx.message, Lang.CMDSUCCESS)
+    @cmd_spaetzle.command(name="rawpost")
+    async def cmd_spaetzle_rawpost(self, ctx, participant: str):
+        forumposts = Storage().get(self, container='forumposts')
+        found: List[Embed] = []
+        for post_id, post in forumposts['posts'].items():
+            if participant.lower() not in post['user'].lower():
+                continue
+            stripped_content = [x for x in post['content'] if x.strip()]
+            embed = Embed(description="\n".join(stripped_content[:15]),
+                          timestamp=datetime.strptime(post['time'], "%d.%m.%Y - %H:%M Uhr"))
+            embed.set_author(name=f"{post_id} | {post['user']}", url=f"https://www.transfermarkt.de{post['link']}")
+            if len(stripped_content) > 15:
+                embed.set_footer(text=Lang.lang(self, 'x_more_lines', len(stripped_content) - 15))
+            found.append(embed)
+        await ctx.send(Lang.lang(self, 'rawpost_count', len(found)))
+        for embed_page in paginate_embeds(found):
+            await ctx.send(embeds=embed_page)
 
-    @cmd_spaetzle_set.command(name="matchday", hidden=True)
-    async def cmd_set_matchday(self, ctx, matchday: int):
-        """Sets the matchday manually, but it's normally already done by set_matches"""
-        if await Trusted(self).is_trusted(ctx):
+    @cmd_spaetzle.group(name="set")
+    async def cmd_spaetzle_set(self, ctx: Context):
+        if ctx.invoked_subcommand is None:
+            pass
+
+    @cmd_spaetzle_set.command(name="matchday")
+    async def cmd_spaetzle_set_matchday(self, ctx: Context, matchday: int):
+        async def confirm(_b, _i):
             Storage().get(self)['matchday'] = matchday
             Storage().save(self)
             await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
-    @cmd_spaetzle_set.command(name="liveticker", hidden=True)
-    async def cmd_set_liveticker(self, ctx):
-        """Manually starts the liveticker for automatic score updates"""
-        await self._start_liveticker()
-        await add_reaction(ctx.message, Lang.CMDSUCCESS)
+        await ctx.send(embed=Embed(title=Lang.lang(self, 'matchday'), description=matchday),
+                       view=SingleConfirmView(confirm, user_id=ctx.author.id, confirm_label=Lang.lang(self, 'confirm')))
 
-    async def _start_liveticker(self):
-        """Registers a liveticker"""
-        pass  # TODO: automatic score updating
-        # return await self.bot.liveticker.register_coro(plugin=self, coro=self._liveticker_coro,
-        #                                                leagues=[League(source=LTSource.OPENLIGADB, key="bl1")])
-
-    async def _liveticker_coro(self, update):
-        pass  # TODO: automatic score updating
-
-    @cmd_spaetzle_set.command(name="config", usage="<path...> <value>")
-    async def cmd_set_config(self, ctx, *args):
-        """Sets general config values for the plugin"""
-        if not ctx.author.id == Config.get(self)['manager'] and not check_mod_access(ctx.author):
-            return
-        if len(args) < 1:
-            await self.bot.helpsys.cmd_help(ctx, self, ctx.command)
-            return
-        if len(args) == 1:
-            await ctx.send(Lang.lang(self, 'not_enough_args'))
-        else:
-            config = Config().get(self)
-            path = args[:-2]
-            key = args[-2]
-            value = args[-1]
-
-            try:
-                value = json.loads(value)
-            except json.decoder.JSONDecodeError:
-                pass
-
-            try:
-                key = int(key)
-            except ValueError:
-                pass
-
-            for step in path:
-                try:
-                    step = int(step)
-                except ValueError:
-                    pass
-                config = config.get(step)
-                if config is None:
-                    await add_reaction(ctx.message, Lang.CMDERROR)
-                    return
-
-            old_value = config.get(key)
-            embed = Embed(title="'{}'".format("/".join(args[:-1])))
-            embed.add_field(name=Lang.lang(self, 'old_value'), value=str(old_value), inline=False)
-            embed.add_field(name=Lang.lang(self, 'new_value'), value=value, inline=False)
-            config[key] = value
-            Config().save(self)
-            await add_reaction(ctx.message, Lang.CMDSUCCESS)
-            await ctx.send(embed=embed)
-
-    @cmd_spaetzle.command(name="goal", hidden=True)
-    async def cmd_goal(self, ctx, team, goals: int = None, goals_other: int = None):
-        """Increments or sets the goal count in a given match"""
-        name = self.bot.liveticker.teamname_converter.get(team)
-        if not name:
-            await ctx.send(Lang.lang(self, 'team_not_found', team))
-        else:
-            async with ctx.typing():
-                c = self.get_api_client()
-                data = c.get(Config().get(self)['matches_range'], formatted=False)
-                for i in range(2, len(data)):
-                    row = data[i]
-                    if len(row) >= 7:
-                        if row[3] == name.long_name:
-                            values = [goals if goals is not None else int(row[4]) + 1 if row[4] else 1,
-                                      goals_other if goals_other is not None else row[5] if row[5] else 0]
-                            await ctx.send("{} [**{}**:{}] {}".format(row[3], *values, row[6]))
-                            index = i
-                            break
-                        if row[6] == name.long_name:
-                            values = [goals_other if goals_other is not None else row[4] if row[4] else 0,
-                                      goals if goals is not None else int(row[5]) + 1 if row[5] else 1]
-                            await ctx.send("{} [{}:**{}**] {}".format(row[3], *values, row[6]))
-                            index = i
-                            break
-                else:
-                    await ctx.send(Lang.lang(self, 'team_not_found', team))
-                    return
-
-                cellrange = CellRange.from_a1(Config().get(self)['matches_range']).expand(top=-index, left=-4)
-                c.update(cellrange=f"Aktuell!{cellrange.rangename()}", values=[values], raw=False)
-
+    @cmd_spaetzle_set.command(name="participants")
+    async def cmd_spaetzle_set_participants(self, ctx: Context, league: Literal[1, 2, 3, 4], *participants: str):
+        async def confirm(_b, _i):
+            Storage().get(self)['participants'][league - 1] = sorted(participants)
+            Storage().save(self)
             await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
-    @cmd_spaetzle.command(name="duel", aliases=["duell"])
-    async def cmd_show_duel_single(self, ctx, user=None):
-        """Displays the duel of a specific user"""
-        async with ctx.typing():
-            if user is None:
-                user = self.userbridge.get_user(ctx)
-                if user is None:
-                    await ctx.send(Lang.lang(self, 'user_not_bridged'))
-                    return
-            c = self.get_api_client()
-
-            try:
-                cell1 = get_user_cell(self, user)
-            except UserNotFound:
-                await ctx.send(Lang.lang(self, 'user_not_found', user))
-                return
-            result = c.get(f"Aktuell!{CellRange(cell1.translate(0, 10), 2, 2).rangename()}",
-                           formatted=False)
-            opponent = result[1][1]
-
-            # Getting data / Opponent-dependent parts
-            try:
-                cell2 = get_user_cell(self, opponent)
-            except UserNotFound:
-                # Opponent not found
-                matches, preds_h = c.get_multiple(
-                    [f"Aktuell!{Config().get(self)['matches_range']}",
-                     f"Aktuell!{CellRange(cell1.translate(0, 1), 2, 9).rangename()}"], formatted=False)
-                preds_a = [["–", "–"]] * 9
-            else:
-                # Opponent found
-                matches, preds_h, preds_a = c.get_multiple(
-                    [f"Aktuell!{Config().get(self)['matches_range']}",
-                     f"Aktuell!{CellRange(cell1.translate(0, 1), 2, 9).rangename()}",
-                     f"Aktuell!{CellRange(cell2.translate(0, 1), 2, 9).rangename()}"], formatted=False)
-            # Fixing stuff
-            matches = matches[2:]
-            if len(matches) == 0:
-                await ctx.send(Lang.lang(self, 'no_matches'))
-                return
-            preds_h.extend([["-", "-"]] * (len(matches) - len(preds_h)))
-            preds_a.extend([["-", "-"]] * (len(matches) - len(preds_a)))
-            for i in range(len(matches)):
-                if matches[i][4] == "":
-                    matches[i][4] = "–"
-                if matches[i][5] == "":
-                    matches[i][5] = "–"
-                if len(preds_h[i]) < 2:
-                    preds_h[i] = ["–", "–"]
-                if len(preds_a[i]) < 2:
-                    preds_a[i] = ["–", "–"]
-
-            # Calculating possible point difference
-            diff1, diff2 = 0, 0
-            for i in range(len(matches)):
-                if match_status(matches[i][1], matches[i][2]) == MatchStatus.COMPLETED:
-                    continue
-                diff = pointdiff_possible(matches[i][4:6], preds_h[i], preds_a[i])
-                diff1 += diff[0]
-                diff2 += diff[1]
-
-            # Producing the message
-            msg = ""
-            msg += f":soccer: `Home - Away\u0020\u0020\u0020{user[:4]}\u2026\u0020\u0020{opponent[:4]}\u2026`\n"
-            for i in range(len(matches)):
-                match = matches[i]
-                pred_h = preds_h[i]
-                pred_a = preds_a[i]
-                emoji = match_status(match[1], match[2]).value
-                msg += "{} `{} {}:{} {}\u0020\u0020\u0020\u0020{}:{}\u0020\u0020\u0020\u0020{}:{} `\n" \
-                    .format(emoji,
-                            self.bot.liveticker.teamname_converter.get(match[3]).abbr,
-                            match[4], match[5],
-                            self.bot.liveticker.teamname_converter.get(match[6]).abbr,
-                            pred_h[0], pred_h[1], pred_a[0], pred_a[1])
-
-            embed = Embed(title="{} [{}:{}] {}".format(user, result[0][0], result[1][0], opponent))
-            embed.description = msg
-
-            match_result = determine_winner(result[0][0], result[1][0], diff1, diff2)
-            if match_result == MatchResult.HOME:
-                embed.set_footer(text=Lang.lang(self, 'show_duel_footer_winner', user))
-            elif match_result == MatchResult.AWAY:
-                embed.set_footer(text=Lang.lang(self, 'show_duel_footer_winner', opponent))
-            elif match_result == MatchResult.DRAW:
-                embed.set_footer(text=Lang.lang(self, 'show_duel_footer_draw'))
-            else:
-                embed.set_footer(text=Lang.lang(self, 'show_duel_footer_normal', diff1, diff2))
-
-        await ctx.send(embed=embed)
-
-    @cmd_spaetzle.command(name="duels", aliases=["duelle"], usage="[\u00a0|<league_number>|all]")
-    async def cmd_show_duels(self, ctx, league: str = None):
-        """Displays a collection of duels (observed participants or leagues)"""
-        if league is None:
-            # Observed users
-            await self.cmd_show_duels_observed(ctx)
-        else:
-            if league == "all":
-                # All leagues
-                await self.cmd_show_duels_all(ctx)
-            elif league.isnumeric():
-                # League
-                await self.cmd_show_duels_league(ctx, int(league))
-            else:
-                await add_reaction(ctx.message, Lang.CMDERROR)
-
-    async def cmd_show_duels_observed(self, ctx):
-        """Displays the duel scores of the observed participants"""
-        async with ctx.typing():
-            c = self.get_api_client()
-            msg = ""
-
-            data_ranges = []
-            observed_users = Observed(self).get_all()
-
-            if len(observed_users) == 0:
-                msg = Lang.lang(self, 'no_observed_users')
-            else:
-                for user in observed_users:
-                    try:
-                        cell = get_user_cell(self, user)
-                        data_ranges.append(f"Aktuell!{cell.cellname()}")
-                        data_ranges.append(f"Aktuell!{CellRange(cell.translate(0, 10), 2, 2).rangename()}")
-                    except UserNotFound:
-                        pass
-                data = c.get_multiple(data_ranges)
-                for i in range(0, len(data_ranges), 2):
-                    user = data[i][0][0]
-                    opponent = data[i + 1][1][1]
-                    if opponent in observed_users:
-                        if observed_users.index(opponent) > observed_users.index(user):
-                            msg += "**{}** [{}:{}] **{}**\n".format(user, data[i + 1][0][0], data[i + 1][1][0],
-                                                                    opponent)
-                    else:
-                        msg += "**{}** [{}:{}] {}\n".format(user, data[i + 1][0][0], data[i + 1][1][0], opponent)
-        await ctx.send(embed=Embed(title=Lang.lang(self, 'title_duels'), description=msg))
-
-    async def cmd_show_duels_league(self, ctx, league: int):
-        """Displays all duels of one league"""
-        async with ctx.typing():
-            c = self.get_api_client()
-            msg = ""
-
-            data_range = f"Aktuell!{Config().get(self)['duel_ranges'].get(league)}"
-            if data_range is None:
-                await ctx.send(Lang.lang(self, 'invalid_league'))
-                return
-            result = c.get(data_range)
-
-            for duel in result:
-                duel.extend([""] * (8 - len(duel)))
-                msg += "{0} [{4}:{5}] {7}\n".format(*duel)
-        await ctx.send(embed=Embed(title=Lang.lang(self, 'title_duels_league', league), description=msg))
-
-    async def cmd_show_duels_all(self, ctx):
-        """Displays all duels of all leagues"""
-        async with ctx.typing():
-            c = self.get_api_client()
-            data_ranges = list(Config().get(self)['duel_ranges'].values())
-            results = c.get_multiple(data_ranges)
-            embed = Embed(title=Lang.lang(self, 'title_duels'))
-
-            for i in range(len(results)):
-                msg = ""
-                for duel in results[i]:
-                    duel.extend([""] * (8 - len(duel)))
-                    msg += "{0}\u00a0[{4}:{5}]\u00a0{7}\n".format(*duel)
-                embed.add_field(name=Lang.lang(self, 'title_league', i + 1), value=msg)
-        await ctx.send(embed=embed)
-
-    @cmd_spaetzle.command(name="matches", aliases=["spiele"])
-    async def cmd_show_matches(self, ctx):
-        """Displays current matches"""
-        async with ctx.typing():
-            c = self.get_api_client()
-            data = c.get(f"Aktuell!{Config().get(self)['matches_range']}", formatted=False)
-            matchday = data[0][0]
-            matches = data[2:]
-
-            if len(matches) == 0:
-                await ctx.send(Lang.lang(self, 'no_matches'))
-                return
-
-            msg = ""
-            for match in matches:
-                date_time = convert_to_datetime(match[1], match[2])
-                emoji = match_status(date_time).value
-                msg += "{0} {3} {1} {2} Uhr | {6} - {9} | {7}:{8}\n".format(emoji, date_time.strftime("%d.%m."),
-                                                                            date_time.strftime("%H:%M"), *match)
-        await ctx.send(embed=Embed(title=Lang.lang(self, 'title_matches', matchday), description=msg))
-
-    @cmd_spaetzle.command(name="table", aliases=["tabelle", "league", "liga"])
-    async def cmd_show_table(self, ctx, user_or_league: str = None):
-        """Displays the table of a specific league"""
-        async with ctx.typing():
-            c = self.get_api_client()
-
-            if user_or_league is None:
-                user_or_league = self.userbridge.get_user(ctx)
-                if user_or_league is None:
-                    await ctx.send(Lang.lang(self, 'user_not_bridged'))
-                    return
-
-            try:
-                # League
-                league = int(user_or_league)
-            except ValueError:
-                # User
-                try:
-                    league = int(get_user_league(self, user_or_league))
-                except (ValueError, UserNotFound):
-                    await ctx.send(Lang.lang(self, 'user_not_found', user_or_league))
-                    return
-
-            table_range = Config().get(self)['table_ranges'].get(league)
-            if table_range is None:
-                await ctx.send(Lang.lang(self, 'invalid_league'))
-                return
-            result = c.get(f"Aktuell!{table_range}")
-
-            if not user_or_league.isnumeric():
-                # Restrict the view to users area
-                pos = None
-                for i in range(len(result)):
-                    pos = i if result[i][3].lower() == user_or_league.lower() else pos
-                if pos is not None:
-                    result = result[max(0, pos - 3):pos + 4]
-
-            msg = ""
-            for line in result:
-                line.extend([''] * (11 - len(line)))
-                msg += "{0}{1} | {4} | {7}:{9} {10} | {11}{0}\n".format("**" if line[3].lower() ==
-                                                                        user_or_league.lower() else "", *line)
-            embed = Embed(title=Lang.lang(self, 'title_table', league), description=msg)
-            embed.set_footer(text=Lang.lang(self, 'table_footer'))
-        await ctx.send(embed=embed)
-
-    @cmd_spaetzle.command(name="fixtures")
-    async def cmd_show_fixtures(self, ctx, user=None):
-        """Lists fixtures for a specific participant"""
-        if user is None:
-            user = self.userbridge.get_user(ctx)
-            if user is None:
-                await ctx.send(Lang.lang(self, 'user_not_bridged'))
-                return
-
-        msg = ""
-        try:
-            for i in range(1, 18):
-                msg += f"{i} | {get_schedule_opponent(self, user, i)}\n"
-        except UserNotFound:
-            await add_reaction(ctx.message, Lang.CMDERROR)
-            await ctx.send(Lang.lang(self, 'user_not_found', user))
-            return
-
-        await ctx.send(embed=Embed(title=Lang.lang(self, 'title_opponent', user), description=msg))
-
-    @cmd_spaetzle.command(name="rawpost")
-    async def cmd_show_rawpost(self, ctx, participant: str):
-        """List all scraped forum posts by a specific participant"""
-        if not await Trusted(self).is_trusted(ctx):
-            return
-
-        forum_posts = Storage().get(self, container='forumposts')
-        if len(forum_posts) < 1:
-            await ctx.send(Lang.lang(self, 'no_saved_rawposts'))
-            return
-        first_post = forum_posts[0]
-        posts_count = 0
-        content = []
-        for post in forum_posts:
-            if post['content'] == first_post['content']:
-                continue
-            if participant.lower() in post['user'].lower():
-                posts_count += 1
-                content.append(f"\n———————————————\n***{post['user']}** - {post['time']}*")
-                content.extend([x.strip() for x in post['content'] if x.strip()][:20])
-
-        if posts_count == 0:
-            await ctx.send(Lang.lang(self, 'raw_posts_prefix', 0))
-        else:
-            msgs = paginate(content, prefix=Lang.lang(self, 'raw_posts_prefix', posts_count))
-            for msg in msgs:
-                await ctx.send(msg)
-
-    @cmd_spaetzle.command(name="history")
-    async def cmd_show_history(self, ctx, participant: str):
-        """Displays the past matches of given participant"""
-        async with ctx.typing():
-            try:
-                history_data = get_participant_history(self, participant)
-            except UserNotFound:
-                await add_reaction(ctx.message, Lang.CMDERROR)
-                await ctx.send(Lang.lang(self, 'user_not_found', participant))
-            except HTTPError:
-                await add_reaction(ctx.message, Lang.CMDERROR)
-                await ctx.send(Lang.lang(self, 'error_wrong_matchday?'))
-            else:
-                rows = []
-                for md, pts, pts_opp, opp in history_data:
-                    rows.append(f"{md} | {opp} - {pts}:{pts_opp}")
-                await ctx.send(embed=Embed(title=participant, description="\n".join(rows)))
-
-    @cmd_spaetzle.command(name="purge")
-    async def cmd_purge_user(self, ctx, participant: str):
-        """Purges a participant from the """
-        if not await Trusted(self).is_manager(ctx):
-            return
-        async with ctx.typing():
-            try:
-                history_data = get_participant_history(self, participant)
-            except UserNotFound:
-                await add_reaction(ctx.message, Lang.CMDERROR)
-                await ctx.send(Lang.lang(self, 'user_not_found', participant))
-            except HTTPError:
-                await add_reaction(ctx.message, Lang.CMDERROR)
-                await ctx.send(Lang.lang(self, 'error_wrong_matchday?'))
-            else:
-                msg = []
-                correction = {}
-                for md, pts, pts_opp, opp in history_data:
-                    if str(pts).isnumeric():
-                        msg.append(f"{md} | {opp} - {pts}:{pts_opp} \u2192 –:{pts_opp}")
-                        correction[opp] = int(pts), duel_points(pts_opp, 0) - duel_points(pts_opp, pts)
-                await ctx.send(embed=Embed(title=participant, description="\n".join(msg)))
-                # TODO automatic correction in spreadsheet
-
-    @cmd_spaetzle.command(name="danny")
-    async def cmd_danny_dm(self, ctx, *users):
-        """Sends Danny (or whoever manages it) the predictions of the participants who also take part in his Bundesliga
-        prediction game."""
-        danny_id = Config().get(self)['danny_id']
-        not_found_users = []
-        if not danny_id:
-            await ctx.send(Lang.lang(self, 'danny_no_id'))
-        if await Trusted(self).is_manager(ctx, show_error=False) or ctx.author.id == danny_id:
-            async with ctx.typing():
-                c = self.get_api_client()
-                danny = get_best_user(danny_id)
-                data_ranges = [f"Aktuell!{Config().get(self)['matches_range']}"]
-                if len(users) == 0:
-                    users = Config().get(self)['danny_users']
-                    if len(users) == 0:
-                        await ctx.send(Lang.lang(self, 'danny_no_users'))
-                else:
-                    users = list(users)
-                for user in users[:]:
-                    try:
-                        cell = get_user_cell(self, user)
-                    except UserNotFound:
-                        users.remove(user)
-                        not_found_users.append(user)
-                    else:
-                        data_ranges.append(f"Aktuell!{CellRange(cell, 2, 11).rangename()}")
-                result = c.get_multiple(data_ranges, formatted=False)
-                if not result[0]:
-                    await ctx.send(Lang.lang(self, 'danny_empty'))
-                    return
-                matchday = result[0][0][0]
-                matches = result[0][2:]
-                preds = result[1:]
-
-                embeds = []
-                for p in preds:
-                    embed = Embed(title=f"**ST {matchday} - {p[0][0]}**")
-                    msg = ""
-                    matches_txt = []
-                    for i in range(len(matches)):
-                        if len(p[i + 1]) < 2:
-                            p[i + 1] = ["-", "-"]
-                        matches_txt.append(f"{matches[i][3]} - {matches[i][6]}")
-                    maxlength = len(max(matches_txt, key=len))
-                    for i in range(len(matches_txt)):
-                        msg += "{}{} {}:{}\n".format(matches_txt[i], " " * (maxlength - len(matches_txt[i])), *p[i + 1])
-                    embed.description = f"```{msg}```"
-                    embeds.append(embed)
-
-            for embed in embeds:
-                await danny.send(embed=embed)
-            if not_found_users:
-                await ctx.send(Lang.lang(self, 'danny_done_notfound', get_best_username(danny),
-                                         format_andlist(users, Lang.lang(self, 'danny_and'),
-                                                        Lang.lang(self, 'danny_nobody')),
-                                         format_andlist(not_found_users, Lang.lang(self, 'danny_and'),
-                                                        Lang.lang(self, 'danny_nobody'))))
-            else:
-                await ctx.send(Lang.lang(self, 'danny_done', get_best_username(danny),
-                                         format_andlist(users, Lang.lang(self, 'danny_and'),
-                                                        Lang.lang(self, 'danny_nobody'))))
-
-    @cmd_spaetzle.group(name="trusted")
-    async def cmd_trusted(self, ctx):
-        """Configures which users are trusted for support"""
-        if ctx.invoked_subcommand is None:
-            await ctx.invoke(self.bot.get_command('spaetzle trusted list'))
-
-    @cmd_trusted.command(name="list")
-    async def cmd_trusted_list(self, ctx):
-        """Lists all users that are either trusted or manager"""
-        msg = "{} {}\n{} {}".format(
-            Lang.lang(self, 'manager_prefix'), ", ".join(Trusted(self).get_manager_names(self.bot)),
-            Lang.lang(self, 'trusted_prefix'), ", ".join(Trusted(self).get_trusted_names(self.bot)))
-        await ctx.send(msg)
-
-    @cmd_trusted.command(name="add")
-    async def cmd_trusted_add(self, ctx, user: User):
-        """Adds a user to the trusted list"""
-        await Trusted(self).add_trusted(ctx, user)
-
-    @cmd_trusted.command(name="del")
-    async def cmd_trusted_remove(self, ctx, user: User):
-        """Removes user from the trusted list"""
-        await Trusted(self).remove_trusted(ctx, user)
-
-    @cmd_spaetzle.group(name="manager")
-    async def cmd_manager(self, ctx):
-        """Configures which users are allowed to use all functions"""
-        if ctx.invoked_subcommand is None:
-            await ctx.invoke(self.bot.get_command('spaetzle trusted list'))
-
-    @cmd_manager.command(name="add", help="Adds a manager.")
-    async def cmd_manager_add(self, ctx, user: User):
-        """Adds manager"""
-        await Trusted(self).add_manager(ctx, user)
-
-    @cmd_manager.command(name="del")
-    async def cmd_manager_remove(self, ctx, user: User):
-        """Removes manager"""
-        await Trusted(self).remove_manager(ctx, user)
-
-    @cmd_spaetzle.group(name="observe")
-    async def cmd_observe(self, ctx, *args):
-        """Configure which users should be observed. Redirects to add/del or adds given users anyway. Redirects to list
-        without args"""
-        if ctx.invoked_subcommand is None:
-            if len(args) > 0:
-                if args[0] in ("add", "del"):
-                    if len(args) > 1:
-                        await ctx.invoke(self.bot.get_command(f'spaetzle observe {args[0]}'), *args[1:])
-                    else:
-                        raise MissingRequiredArgument(inspect.Parameter("user", inspect.Parameter.POSITIONAL_ONLY))
-                else:
-                    await self.cmd_observe_add(ctx, args[0], *args[1:])
-            else:
-                await ctx.invoke(self.bot.get_command('spaetzle observe list'))
-
-    @cmd_observe.command(name="list")
-    async def cmd_observe_list(self, ctx):
-        """Lists the observed participants"""
-        if len(Observed(self).get_all()) == 0:
-            msg = Lang.lang(self, 'no_observed_users')
-        else:
-            msg = "{} {}".format(Lang.lang(self, 'observe_prefix'), ", ".join(Observed(self).get_all()))
-        await ctx.send(msg)
-
-    @cmd_observe.command(name="add")
-    async def cmd_observe_add(self, ctx, user: str, *other: list):
-        """Adds one or multiple participants to observation"""
-        for u in (user,) + other:
-            if not Observed(self).append(u):
-                await ctx.send(Lang.lang(self, 'user_not_found', u))
-        await add_reaction(ctx.message, Lang.CMDSUCCESS)
-
-    @cmd_observe.command(name="del")
-    async def cmd_observe_remove(self, ctx, user: str, *other: list):
-        """Removes one or multiple participants from observation"""
-        for u in (user,) + other:
-            if not Observed(self).remove(u):
-                await ctx.send(Lang.lang(self, 'user_not_found', u))
-        await add_reaction(ctx.message, Lang.CMDSUCCESS)
+        await ctx.send(embed=Embed(title=Lang.lang(self, 'participants_x', league),
+                                   description=", ".join(sorted(participants))),
+                       view=SingleConfirmView(confirm, user_id=ctx.author.id, confirm_label=Lang.lang(self, 'confirm')))

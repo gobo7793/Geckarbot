@@ -453,6 +453,9 @@ class MatchBase(ABC):
                f"{self.away_team.emoji} {self.away_team.long_name} | " \
                f"{self.score[self.home_team_id]}:{self.score[self.away_team_id]}"
 
+    def display_short(self):
+        return f"{self.kickoff:%a. %d.%m.%Y, %H:%M Uhr} | {self.home_team.long_name} - {self.away_team.long_name}"
+
 
 class MatchESPN(MatchBase):
     """
