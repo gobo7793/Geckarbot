@@ -335,6 +335,7 @@ class Lang(metaclass=_Singleton):
         "unmute": "🔊",
         "startup": "🔨",
         "debug": "🐞",
+        "notfound": "🙈",
         "lettermap": [
             "🇦",  # a
             "🇧",  # b
