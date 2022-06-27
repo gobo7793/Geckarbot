@@ -119,13 +119,13 @@ class Nytimes(Parser):
         session = aiohttp.ClientSession()
 
         # find script file
-        p = re.compile(r"<script\s*src=\"([^>]+)\">")
+        p = re.compile(r"<script.*?src=\"([^>]+wordle[^>]*\.js)\">")
         async with session.get(url) as response:
             response = await response.text()
 
         scriptfile = p.search(response)
         if scriptfile is None:
-            raise ValueError("Wordle page parse error: main.js not found")
+            raise ValueError("Wordle page parse error: wordle.js not found")
         scriptfile = scriptfile.groups()[0]
 
         # parse list strings out of script file
