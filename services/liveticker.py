@@ -724,7 +724,7 @@ class LivetickerEvent:
     :type league: League
     :param matches: corresponding matches
     """
-    def __init__(self, league, matches: Iterable[MatchBase]):
+    def __init__(self, league: 'League', matches: Iterable[MatchBase]):
         self.league = league
         self.matches = matches
 
@@ -738,7 +738,7 @@ class LivetickerKickoff(LivetickerEvent):
     :param matches: corresponding matches
     :param kickoff: datetime of the kickoff
     """
-    def __init__(self, league, matches: Iterable[MatchBase], kickoff: datetime.datetime):
+    def __init__(self, league: 'League', matches: Iterable[MatchBase], kickoff: datetime.datetime):
         super().__init__(league, matches)
         self.kickoff = kickoff
 
@@ -751,7 +751,7 @@ class LivetickerMidgame(LivetickerEvent):
     :type league: League
     """
 
-    def __init__(self, league, events_per_match: Dict[MatchBase, List[PlayerEvent]]):
+    def __init__(self, league: 'League', events_per_match: Dict[MatchBase, List[PlayerEvent]]):
         super().__init__(league, events_per_match.keys())
         self.event_dict = events_per_match
 

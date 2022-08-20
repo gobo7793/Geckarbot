@@ -39,7 +39,7 @@ class _Liveticker:
                                         Config().bot.get_channel(Config().get(self)['sport_chan']).mention,
                                         ", ".join(leagues))
                 embed = Embed(title="Liveticker",
-                                      description=description)
+                              description=description)
                 embed.add_field(name=Lang.lang(self, 'liveticker_action_title'),
                                 value="\n".join(Lang.lang(self, f'liveticker_action_{x.value}')
                                                 for x in LivetickerActions)
@@ -231,66 +231,81 @@ class _Liveticker:
 
     async def _live_coro(self, updates: List[LivetickerEvent]):
         sport = Config().bot.get_channel(Config().get(self)['sport_chan'])
-        match_msgs = []
+        embeds = []
         for event in updates:
             if isinstance(event, LivetickerKickoff):
-                match_msgs.extend(await self.kickoff_msg(event))
+                embeds.append(await self.kickoff_embed(event))
             elif isinstance(event, LivetickerMidgame):
                 if not Config().get(self)['liveticker'].get('do_intermediate_updates', True):
                     continue
                 if not event.matches:
                     continue
-                match_msgs.extend(self.midgame_msg(event=event,
-                                                   event_filter=Config().get(self)['liveticker']['tracked_events']))
+                embeds.append(self.midgame_embed(event=event,
+                                                 event_filter=Config().get(self)['liveticker']['tracked_events']))
             elif isinstance(event, LivetickerFinish):
-                match_msgs.extend(self.finished_msg(event))
-        msgs = paginate(match_msgs)
-        for msg in msgs:
-            await sport.send(msg)
+                embeds.append(self.finished_embed(event))
+        for e in embeds:
+            await sport.send(embed=e)
 
-    async def kickoff_msg(self, event: LivetickerKickoff) -> List[str]:
-        """Returns the message for a kickoff event"""
-        match_msgs = [Lang.lang(self, 'liveticker_prefix_kickoff', event.league, event.kickoff.strftime('%H:%M'))]
+    async def kickoff_embed(self, event: LivetickerKickoff) -> Embed:
+        """Returns an Embed for the kickoff event"""
+        embed = Embed()
+        embed.set_author(name=Lang.lang(self, 'liveticker_prefix_kickoff', event.league,
+                                        event.kickoff.strftime('%H:%M')))
+        matches_no_preds = []
         for match in event.matches:
-            predictions = await self._get_predictions(match.home_team,
-                                                      match.away_team, match.kickoff)
+            predictions = await self._get_predictions(match.home_team, match.away_team, match.kickoff)
             match_msg = f"{match.home_team.emoji} {match.home_team.long_name} - " \
                         f"{match.away_team.emoji} {match.away_team.long_name}"
             if predictions:
-                match_msg += f"\n{predictions}"
-            match_msgs.append(match_msg)
-        return match_msgs
+                embed.add_field(name=match_msg, value=predictions, inline=False)
+            else:
+                matches_no_preds.append(match_msg)
+        if matches_no_preds:
+            if len(embed.fields):
+                embed.add_field(name=Lang.lang(self, 'liveticker_other_matches'), value="\n".join(matches_no_preds),
+                                inline=False)
+            else:
+                embed.description = "\n".join(matches_no_preds)
+        return embed
 
-    def midgame_msg(self, event: LivetickerMidgame, event_filter: List[str]) -> List[str]:
-        """Returns the message for a midgame event"""
-        match_msgs = [Lang.lang(self, 'liveticker_prefix', event.league)]
+    def midgame_embed(self, event: LivetickerMidgame, event_filter: List[str]) -> Embed:
+        """Returns an Embed for a midgame event"""
+        embed = Embed()
+        embed.set_author(name=Lang.lang(self, 'liveticker_prefix', event.league))
         other_matches = []
         for match in event.matches:
             events_msg = " / ".join(e.display() for e in event.event_dict[match]
                                     if PlayerEventEnum(type(e).__base__).name in event_filter)
             if events_msg:
-                match_msg = "{} | {} {} - {} {} | {}:{}".format(match.minute, match.home_team.emoji,
-                                                                match.home_team.long_name, match.away_team.emoji,
-                                                                match.away_team.long_name, *match.score.values())
-                match_msgs.append(f"**{match_msg}**\n{events_msg}")
+                embed.add_field(name=f"{match.minute} | {match.home_team.emoji} {match.home_team.long_name} - "
+                                     f"{match.away_team.emoji} {match.away_team.long_name} | "
+                                     f"{match.score.get(match.home_team_id)}:{match.score.get(match.away_team_id)}",
+                                value=events_msg,
+                                inline=False)
             else:
-                match_msg = "{2}-{3} {0} - {1} | {5}:{6} ({4})".format(match.home_team.abbr, match.away_team.abbr,
-                                                                       match.home_team.emoji, match.away_team.emoji,
-                                                                       match.minute, *match.score.values())
-                other_matches.append(match_msg)
-        if other_matches:
-            match_msgs.append("{}: {}".format(Lang.lang(self, 'liveticker_unchanged'),
-                                              " \u2014 ".join(other_matches)))
-        return match_msgs
+                other_matches.append(f"{match.home_team.emoji}-{match.away_team.emoji} "
+                                     f"{match.home_team.abbr} - {match.away_team.abbr} | "
+                                     f"{match.score.get(match.home_team_id)}:{match.score.get(match.away_team_id)} "
+                                     f"({match.minute})")
+        other_matches_msg = " / ".join(other_matches)
+        if len(embed.fields) < 1:
+            if other_matches_msg:
+                embed.description = other_matches_msg
+            else:
+                embed.description = Lang.lang(self, 'liveticker_no_text')
+        elif other_matches_msg:
+            embed.set_footer(text=other_matches_msg)
+        return embed
 
-    def finished_msg(self, event: LivetickerFinish) -> List[str]:
-        """Returns the message for a finished event"""
-        match_msgs = [Lang.lang(self, 'liveticker_prefix_finished', event.league)]
-        for match in event.matches:
-            match_msgs.append(f"{match.score[match.home_team_id]}:{match.score[match.away_team_id]} | "
-                              f"{match.home_team.emoji} {match.home_team.short_name} - {match.away_team.emoji} "
-                              f"{match.away_team.short_name}")
-        return match_msgs
+    def finished_embed(self, event: LivetickerFinish) -> Embed:
+        """Returns an Embed for a finished event"""
+        embed = Embed(description="\n".join(
+            f"{match.score[match.home_team_id]}:{match.score[match.away_team_id]} | {match.home_team.emoji} "
+            f"{match.home_team.short_name} - {match.away_team.emoji} {match.away_team.short_name}"
+            for match in event.matches))
+        embed.set_author(name=Lang.lang(self, 'liveticker_prefix_finished', event.league))
+        return embed
 
     @commands.group(name="teamname", aliases=["teaminfo"])
     async def cmd_teamname(self, ctx):
@@ -312,9 +327,9 @@ class _Liveticker:
             await ctx.send(Lang.lang(self, 'team_not_found'))
         else:
             embed = Embed(title=f"{teamname_dict.emoji} {team}",
-                                  description=f"{Lang.lang(self, 'teamname_long')}: {teamname_dict.long_name}\n"
-                                              f"{Lang.lang(self, 'teamname_short')}: {teamname_dict.short_name}\n"
-                                              f"{Lang.lang(self, 'teamname_abbr')}: {teamname_dict.abbr}")
+                          description=f"{Lang.lang(self, 'teamname_long')}: {teamname_dict.long_name}\n"
+                                      f"{Lang.lang(self, 'teamname_short')}: {teamname_dict.short_name}\n"
+                                      f"{Lang.lang(self, 'teamname_abbr')}: {teamname_dict.abbr}")
             if teamname_dict.other:
                 embed.set_footer(text=f"{Lang.lang(self, 'teamname_other')}: {', '.join(teamname_dict.other)}")
             await ctx.send(embed=embed)
