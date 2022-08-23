@@ -37,7 +37,7 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
         self.bot.register(self, DefaultCategories.MISC)
 
         # Add commands to help category 'utils'
-        to_add = ("dice", "choose", "multichoose", "shuffle", "money", "pizza", "timestamp", "hash")
+        to_add = ("dice", "choose", "multichoose", "shuffle", "money", "pizza", "timestamp", "hash", "wiki")
         for cmd in self.get_commands():
             if cmd.name in to_add:
                 self.bot.helpsys.default_category(DefaultCategories.UTILS).add_command(cmd)
