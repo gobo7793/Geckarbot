@@ -708,8 +708,7 @@ class Plugin(BasePlugin, name="LastFM"):
             await self.spotify.enrich_song(song)
             return msg + "\n" + song.spotify_links[layer]
         except EmptyResult:
-            pass
-        return msg
+            return msg + "\n" + Lang.lang(self, "error_spotify_link")
 
     @cmd_lastfm.command(name="listening")
     async def cmd_listening(self, ctx, *args):

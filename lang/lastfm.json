@@ -60,6 +60,7 @@
     "listening_song_base": "**{}** - {}",
     "listening_song_base_reverse": "**{}** von **{}**",
     "listening_song_album": "{} aus dem Album **{}**",
+    "error_spotify_link": "_Kein Spotify-Link gefunden!_",
     "most_interesting_base_present": "{} hört gerade {}",
     "most_interesting_base_past": "{} hörte zuletzt {}",
     "most_interesting_past_format": "{} hörte bis {} {}",
