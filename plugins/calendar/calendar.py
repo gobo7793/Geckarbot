@@ -18,7 +18,7 @@ from services.helpsys import DefaultCategories
 log = logging.getLogger(__name__)
 
 
-class Plugin(BasePlugin, name="remindme"):
+class Plugin(BasePlugin, name="calendar"):
     def __init__(self):
         super().__init__()
         Config().bot.register(self, DefaultCategories.UTILS)
@@ -44,6 +44,7 @@ class Plugin(BasePlugin, name="remindme"):
             None -> 0: inserts jump link placeholders
             0 -> 1: Change channel serialization
             1 -> 2: Added reference
+            2 -> 3: Rename reminders to events and introduce types
         """
         version = Storage().get(self).get('version')
         if version is None:
@@ -63,6 +64,14 @@ class Plugin(BasePlugin, name="remindme"):
             Storage().get(self)['version'] = 2
             for reminder in Storage().get(self)['reminders'].values():
                 reminder['reference'] = None
+
+        if version < 3:
+            Storage().get(self)['version'] = 3
+            if 'reminders' in Storage().get(self):
+                Storage().get(self)['events'] = Storage().get(self)['reminders']
+                del Storage().get(self)['reminders']
+                for event in Storage().get(self)['events'].values():
+                    event['type'] = "reminder"
 
         Storage().save(self)
 
