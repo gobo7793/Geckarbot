@@ -25,6 +25,9 @@
     "usage_lastfm_presence": "<optin|optout|default>",
     "help_lastfm_presence": "Opt-out oder opt-in für Botstatus",
     "desc_lastfm_presence": "Regelt, ob deine Scrobbles im Bot-Status erscheinen können.",
+    "usage_lastfm_top": "[title|album|artist] [day|week|month|3m|6m|year]",
+    "help_lastfm_top": "Teilt deine Top-Scrobbles mit.",
+    "desc_lastfm_top": "Teilt deine Top-Scrobbles nach Ebene (Song, Album oder Interpret) und Zeitspanne mit. Die Reihenfolge der Argumente ist irrelevant.",
     "del_restricted": " Du kannst nur Zitate löschen, die du auch erstellt hast. (Diese Einschränkungen gilt nicht für Mods oder Bot-Admins.)",
 
     "usage_spotify": "[User]",
@@ -49,9 +52,12 @@
     "loved": "❤️",
     "by": "von",
     "with": "mit",
+    "layer_track_pl": "Songs",
+    "layer_album_pl": "Alben",
+    "layer_artist_pl": "Interpreten",
     "listening_base_present": "{} hört gerade {}.",
     "listening_base_past": "{} hörte zuletzt {}.",
-    "listening_song_base": "**{}** - **{}**",
+    "listening_song_base": "**{}** - {}",
     "listening_song_base_reverse": "**{}** von **{}**",
     "listening_song_album": "{} aus dem Album **{}**",
     "most_interesting_base_present": "{} hört gerade {}",
@@ -112,6 +118,19 @@
     "#5": "Presence",
     "presence_listening": "Ich höre gerade {} mit {}.",
     "presence_status_optin": "Deine Scrobbles können in der Bot-Presence erscheinen.",
-    "presence_status_optout": "Deine Scrobbles können _nicht_ in der Bot-Presence erscheinen."
+    "presence_status_optout": "Deine Scrobbles können _nicht_ in der Bot-Presence erscheinen.",
+
+    "#6": "Top",
+    "tp_overall": "",
+    "tp_7day": " aus der letzten Woche",
+    "tp_1month": " aus dem letzten Monat",
+    "tp_3month": " aus den letzten 3 Monaten",
+    "tp_6month": " aus den letzten 6 Monaten",
+    "tp_12month": " aus dem letzten Jahr",
+    "top_header": "Dies sind die meistgehörten {} von {}{}:",
+    "top_spot": "#{}",
+    "top_playcount": "**{}** Scrobbles{}",
+    "top_entry": "**{}** {} ({})",
+    "top_pct": ", {}%"
   }
 }

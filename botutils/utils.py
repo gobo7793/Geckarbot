@@ -51,6 +51,7 @@ def paginate_embed(embed: Embed):
     if len(embed) > 6000:
         raise Exception(f"Embed is still too long! Title: {embed.title}")
 
+
 def paginate_embeds(embeds: List[Embed]) -> List[List[Embed]]:
     """
     Paginate a list of embeds.
@@ -77,6 +78,7 @@ def paginate_embeds(embeds: List[Embed]) -> List[List[Embed]]:
                 break
         paginated.append(embed_page)
     return paginated
+
 
 async def _write_to_channel(channel_id: int = 0, message: Union[str, Embed] = None,
                             channel_type: str = ""):

@@ -15,11 +15,32 @@ class Layer(Enum):
     ARTIST = 2
 
 
+layer_aliases: Dict[Layer, List[str]] = {
+    Layer.TITLE: ["title", "track", "song"],
+    Layer.ALBUM: ["album"],
+    Layer.ARTIST: ["artist", "interpret"]
+}
+
+
+layer_api_map: Dict[Layer, str] = {
+    Layer.TITLE: "track",
+    Layer.ALBUM: "album",
+    Layer.ARTIST: "artist"
+}
+
+
+def parse_layer(s: str) -> Optional[Layer]:
+    for key, value in layer_aliases.items():
+        if s in value:
+            return key
+    return None
+
+
 class Song:
     """
     Represents an occurence of a title in a scrobble history, i.e. a scrobble.
     """
-    def __init__(self, plugin, artist: str, album: str, title: str,
+    def __init__(self, plugin, artist: str, album: Optional[str], title: str,
                  nowplaying: bool = False, timestamp=None, loved: bool = False, layer: Layer = Layer.TITLE):
         self.plugin = plugin
         self.artist = artist
@@ -29,31 +50,40 @@ class Song:
         self.timestamp = timestamp
         self.loved = loved
         self.layer = layer
+        self.playcount = None
 
         # spotify
         self.spotify_links = {}
         self.featurings: List[str] = []
 
     @classmethod
-    def from_lastfm_response(cls, plugin, element: Dict):
+    def from_lastfm_response(cls, plugin, element: Dict, layer: Layer = Layer.TITLE):
         """
         Builds a song from a dict as returned by last.fm API.
 
         :param plugin: reference to Plugin
         :param element: part of a response that represents a song
+        :param layer: layer
         :return: Song object that represents `element`
         :raises KeyError: Necessary information is missing in `element`
         """
         plugin.logger.debug("Building song from {}".format(pprint.pformat(element)))
         title = element["name"]
-        album = element["album"]["#text"]
+        album = None
+        if "album" in element:
+            album = element["album"]["#text"]
+        elif layer == Layer.ALBUM:
+            album = element.get("#text", element.get("name", None))
 
         # Artist
-        artist = element["artist"]
-        if "name" in artist:
-            artist = artist["name"]
-        elif "#text" in artist:
-            artist = artist["#text"]
+        if layer == Layer.ARTIST:
+            a_el = element
+        else:
+            a_el = element["artist"]
+        if "name" in a_el:
+            artist = a_el["name"]
+        elif "#text" in a_el:
+            artist = a_el["#text"]
         else:
             raise KeyError("\"name\" or \"#text\" in artist")
 
@@ -82,7 +112,12 @@ class Song:
         except (TypeError, ValueError):
             ts = None
 
-        return cls(plugin, artist, album, title, nowplaying=nowplaying, timestamp=ts, loved=loved)
+        r = cls(plugin, artist, album, title, nowplaying=nowplaying, timestamp=ts, loved=loved, layer=layer)
+        try:
+            r.playcount = int(element.get("playcount", None))
+        except ValueError:
+            pass
+        return r
 
     @staticmethod
     def parse_artists(element: Any) -> Tuple[str, List[str]]:
@@ -174,13 +209,17 @@ class Song:
         :param loved: Adds a heart emoji prefix if this song is loved
         :return: Nice readable representation of the song according to lang string
         """
-        if not reverse:
-            r = Lang.lang(self.plugin, "listening_song_base", self.artist, self.title)
+        if self.layer in (Layer.TITLE, Layer.ALBUM):
+            layer_value = self.title if self.layer == Layer.TITLE else self.album
+            if not reverse:
+                r = Lang.lang(self.plugin, "listening_song_base", self.artist, layer_value)
+            else:
+                r = Lang.lang(self.plugin, "listening_song_base_reverse", layer_value, self.artist)
+            if loved and self.loved:
+                r = "{} {}".format(Lang.lang(self.plugin, "loved"), r)
+            return r
         else:
-            r = Lang.lang(self.plugin, "listening_song_base_reverse", self.title, self.artist)
-        if loved and self.loved:
-            r = "{} {}".format(Lang.lang(self.plugin, "loved"), r)
-        return r
+            return "{}".format(self.artist)
 
     def set_spotify_link(self, layer: Layer, link: str):
         self.spotify_links[layer] = link
