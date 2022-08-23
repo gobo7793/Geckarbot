@@ -16,9 +16,9 @@ class Layer(Enum):
 
 
 layer_aliases: Dict[Layer, List[str]] = {
-    Layer.TITLE: ["title", "track", "song"],
-    Layer.ALBUM: ["album"],
-    Layer.ARTIST: ["artist", "interpret"]
+    Layer.TITLE: ["title", "track", "tracks", "song", "songs"],
+    Layer.ALBUM: ["album", "albums"],
+    Layer.ARTIST: ["artist", "artists", "interpret"]
 }
 
 
