@@ -22,6 +22,7 @@ from plugins.lastfm.api import Api, UnexpectedResponse
 from plugins.lastfm.presence import LfmPresenceMessage
 from plugins.lastfm.lfm_base import Song, Layer
 from plugins.lastfm.spotify import Client as Spotify, AuthError, EmptyResult
+from plugins.lastfm.cmd_top import cmd_top
 
 mention_p = re.compile(r"<@[^>]+>")
 
@@ -64,7 +65,10 @@ BASE_CONFIG = {
     "presence_order_artist_title": [bool, False],
     "presence_order_user_song": [bool, False],
     "presence_optout": [bool, True],
-    "spotify_is_default": [bool, False]
+    "spotify_is_default": [bool, False],
+    "top_show_percent": [bool, True],
+    "top_length": [int, 3],
+    "top_table": [bool, False],
 }
 
 
@@ -129,6 +133,7 @@ class Plugin(BasePlugin, name="LastFM"):
         }
         self.cmd_order = [
             "now",
+            "top",
             "register",
             "deregister",
             "profile",
@@ -703,8 +708,7 @@ class Plugin(BasePlugin, name="LastFM"):
             await self.spotify.enrich_song(song)
             return msg + "\n" + song.spotify_links[layer]
         except EmptyResult:
-            pass
-        return msg
+            return msg + "\n" + Lang.lang(self, "error_spotify_link")
 
     @cmd_lastfm.command(name="listening")
     async def cmd_listening(self, ctx, *args):
@@ -818,6 +822,10 @@ class Plugin(BasePlugin, name="LastFM"):
         if quote:
             msg = "{} _{}_".format(msg, quote)
         return msg
+
+    @cmd_lastfm.command(name="top")
+    async def cmd_top(self, ctx, *args):
+        await cmd_top(self, ctx, *args)
 
     @commands.group(name="spotify", invoke_without_command=True)
     async def cmd_spotify(self, ctx, *args):
