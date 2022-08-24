@@ -53,10 +53,11 @@ def parse_timeperiod(s: str) -> Optional[Timeperiod]:
     return None
 
 
-def parse_args(args):
+def parse_args(plugin, args):
     """
     Parses args as gracefully as possible; ignores multiple occurences of the same argument type as well as non-args.
 
+    :param plugin: Plugin ref
     :param args: List of passed arguments
     :return: List of parsed arguments: [Layer, Timeperiod]
     """
@@ -81,6 +82,19 @@ def parse_args(args):
 
         if not found:
             break
+
+    if not tp_set:
+        if layer_arg == Layer.TITLE:
+            key = "top_default_tp_track"
+        elif layer_arg == Layer.ALBUM:
+            key = "top_default_tp_album"
+        elif layer_arg == Layer.ARTIST:
+            key = "top_default_tp_artist"
+        else:
+            raise RuntimeError("Unknown layer: '{}'".format(layer_arg))
+        tp_arg = parse_timeperiod(plugin.get_config(key))
+        if tp_arg is None:
+            raise RuntimeError("Unknown default timeperiod: '{}'".format(plugin.get_config(key)))
 
     return layer_arg, tp_arg
 
@@ -111,7 +125,7 @@ def format_header(plugin, tp: Timeperiod, layer: Layer, user) -> str:
 
 
 async def cmd_top(plugin, ctx, *args):
-    layer, tp = parse_args(args)
+    layer, tp = parse_args(plugin, args)
     params = {
         "method": "user.get" + method_api_map[layer],
         "user": plugin.get_lastfm_user(ctx.author),

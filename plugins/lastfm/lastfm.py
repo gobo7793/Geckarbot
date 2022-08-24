@@ -69,6 +69,9 @@ BASE_CONFIG = {
     "top_show_percent": [bool, True],
     "top_length": [int, 3],
     "top_table": [bool, False],
+    "top_default_tp_track": [str, "week"],
+    "top_default_tp_album": [str, "week"],
+    "top_default_tp_artist": [str, "overall"]
 }
 
 
