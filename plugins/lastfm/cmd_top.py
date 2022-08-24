@@ -48,7 +48,7 @@ args_defaults = Layer.TITLE, Timeperiod.WEEK
 
 def parse_timeperiod(s: str) -> Optional[Timeperiod]:
     for key, value in tp_aliases.items():
-        if s in value:
+        if s.lower() in value:
             return key
     return None
 

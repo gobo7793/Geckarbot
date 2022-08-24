@@ -31,7 +31,7 @@ layer_api_map: Dict[Layer, str] = {
 
 def parse_layer(s: str) -> Optional[Layer]:
     for key, value in layer_aliases.items():
-        if s in value:
+        if s.lower() in value:
             return key
     return None
 
