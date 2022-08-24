@@ -115,7 +115,7 @@ class Song:
         r = cls(plugin, artist, album, title, nowplaying=nowplaying, timestamp=ts, loved=loved, layer=layer)
         try:
             r.playcount = int(element.get("playcount", None))
-        except ValueError:
+        except (TypeError, ValueError):
             pass
         return r
 
