@@ -1,21 +1,25 @@
 import logging
 from datetime import datetime
-from typing import Dict, Union
+from typing import Dict, Type
 
-from nextcord import Embed, DMChannel, TextChannel
 from nextcord.ext import commands
-from nextcord.errors import Forbidden, NotFound as NCNotFound
 
 from botutils import utils, timeutils, converters
-from botutils.converters import get_best_username
 from botutils.timeutils import to_unix_str, TimestampStyle
+from botutils.utils import log_exception
 from base.data import Storage, Lang, Config
 from base.configurable import BasePlugin, NotFound
-from botutils.utils import send_dm, log_exception
+from plugins.calendar.base import Event, ParseError, ScheduledEvent
+from plugins.calendar.reminder import Reminder
 from services import timers
 from services.helpsys import DefaultCategories
 
 log = logging.getLogger(__name__)
+
+
+event_type_map: Dict[str, Type[Event]] = {
+    "reminder": Reminder
+}
 
 
 class Plugin(BasePlugin, name="calendar"):
@@ -24,8 +28,8 @@ class Plugin(BasePlugin, name="calendar"):
         Config().bot.register(self, DefaultCategories.UTILS)
         self.migrate()
 
-        self.reminders = {}  # type: Dict[int, timers.Job]
-        utils.execute_anything_sync(self.load_reminders())
+        self.events = {}  # type: Dict[int, ScheduledEvent]
+        utils.execute_anything_sync(self.load_events())
 
         self.explain_history = {}
 
@@ -73,6 +77,14 @@ class Plugin(BasePlugin, name="calendar"):
                 for event in Storage().get(self)['events'].values():
                     event['type'] = "reminder"
 
+                    # move reminder-specific info into event data
+                    data = {}
+                    event['data'] = data
+
+                    for el in 'chan', 'user', 'text', 'link', 'reference':
+                        data[el] = event[el]
+                        del event[el]
+
         Storage().save(self)
 
     def default_storage(self, container=None):
@@ -83,44 +95,38 @@ class Plugin(BasePlugin, name="calendar"):
             'reminders': {}
         }
 
-    async def load_reminders(self):
+    async def load_events(self):
         """
-        Loads the reminders from storage into memory.
+        Loads all events from storage into memory and queues them.
         """
         to_remove = []
-        for rid, reminder in Storage().get(self)['reminders'].items():
-            try:
-                if reminder['chan'] is None:
-                    raise NotFound
-                chan = await converters.deserialize_channel(reminder['chan'])
-
-            # Channel Error
-            except NotFound:
-                embed = Embed(title=":x: Reminders error", colour=0xe74c3c)
-                embed.description = "Channel for reminder could not be retrieved\n(removing reminder)"
-                embed.add_field(name="Reminder id", value=str(rid))
-
-                storage_chan = reminder['chan']
-                if storage_chan is not None:
-                    embed.add_field(name="Channel type", value=storage_chan['type'])
-                    embed.add_field(name="Channel id", value=storage_chan['id'])
-
-                user = converters.get_best_user(reminder['user'])
-                embed.add_field(name="User", value=converters.get_best_username(user))
-                t = reminder['time']
-                t = "{}-{}-{} {}:{}".format(t.year, t.month, t.day, t.hour, t.minute)
-                embed.add_field(name="Remind time", value=t)
-                to_remove.append(rid)
-                utils.execute_anything_sync(utils.write_debug_channel(embed))
+        for eid, event_obj in Storage().get(self).get('events', {}).items():
+            event_type = event_type_map.get(event_obj['type'], None)
+            if event_type is None:
+                await log_exception(ParseError("Event with id {}: Unknown type '{}'".format(eid, event_obj['type'])))
                 continue
 
-            r = self._register_reminder(chan, reminder['user'], reminder['time'],
-                                        rid, reminder['text'], reminder['link'], True, reminder['reference'])
-            if not r:
-                to_remove.append(r)
+            try:
+                event = await event_type.deserialize(self, eid, event_obj['time'], event_obj['data'])
+            except Exception as e:
+                await log_exception(e)
+                continue
 
-        for rid in to_remove:
-            self._remove_reminder(rid)
+            try:
+                self.register_event(eid, event_obj['time'], event, True)
+            except timers.NoFutureExec:
+                to_remove.append(eid)
+
+        if to_remove:
+            for eid in to_remove:
+                log.debug("Removing event '{}' (was in the past)".format(eid))
+                if 'events' not in Storage.get(self) or eid not in Storage.get(self)['events']:
+                    raise RuntimeError("Failed to remove event with the id '{}': not found".format(eid))
+                del Storage.get(self)['events'][eid]
+            Storage.save(self)
+
+    def get_free_id(self):
+        return max(self.events, default=0) + 1
 
     @commands.group(name="remindme", invoke_without_command=True)
     async def cmd_remindme(self, ctx, *args):
@@ -145,35 +151,36 @@ class Plugin(BasePlugin, name="calendar"):
         if remind_time == datetime.max:
             raise commands.BadArgument(message=Lang.lang(self, 'remind_duration_err'))
 
-        reminder_id = max(self.reminders, default=0) + 1
+        reminder_id = self.get_free_id()
 
         if remind_time < datetime.now():
             log.debug("Attempted reminder %d in the past: %s", reminder_id, remind_time)
             await ctx.send(Lang.lang(self, 'remind_past'))
             return
 
-        reference_id = ctx.message.reference.message_id if ctx.message.reference else None
-        if self._register_reminder(channel=ctx.channel, user_id=ctx.author.id, remind_time=remind_time,
-                                   reminder_id=reminder_id, text=rtext, link=ctx.message.jump_url,
-                                   ref_message_id=reference_id):
-            await ctx.send(Lang.lang(self, 'remind_set', to_unix_str(remind_time, style=TimestampStyle.DATETIME_SHORT),
-                                     reminder_id))
-        else:
-            await utils.add_reaction(ctx.message, Lang.CMDERROR)
+        rmd = Reminder(self, reminder_id, remind_time, ctx.channel, ctx.author, rtext,
+                       ctx.message.reference.resolved if ctx.message.reference else None, ctx.message.jump_url)
+        self.register_event(reminder_id, remind_time, rmd)
+        await ctx.send(Lang.lang(self, 'remind_set', to_unix_str(remind_time, style=TimestampStyle.DATETIME_SHORT),
+                                 reminder_id))
 
     @cmd_remindme.command(name="list")
     async def cmd_reminder_list(self, ctx):
         msg = Lang.lang(self, 'remind_list_prefix')
         reminders_msg = ""
-        for job in sorted(self.reminders.values(), key=lambda x: x.next_execution()):
-            if job.data['user'] == ctx.author.id:
-                if job.data['text']:
-                    reminder_text = Lang.lang(self, 'remind_list_message', job.data['text'])
+        for event in sorted(self.events.values(), key=lambda x: x.job.next_execution(ignore_now=False)):
+            job = event.job
+            event = event.event
+            if not isinstance(event, Reminder):
+                continue
+            if event.user == ctx.author:
+                if event.text:
+                    reminder_text = Lang.lang(self, 'remind_list_message', event.text)
                 else:
                     reminder_text = Lang.lang(self, 'remind_list_no_message')
                 reminders_msg += Lang.lang(self, 'remind_list_element',
                                            to_unix_str(job.next_execution(), style=TimestampStyle.DATETIME_SHORT),
-                                           reminder_text, job.data['id'])
+                                           reminder_text, event.eid)
 
         if not reminders_msg:
             msg = Lang.lang(self, 'remind_list_none')
@@ -183,28 +190,23 @@ class Plugin(BasePlugin, name="calendar"):
     async def cmd_reminder_cancel(self, ctx, reminder_id: int = -1):
         # remove reminder with id
         if reminder_id >= 0:
-            if reminder_id not in self.reminders:
+            if reminder_id not in self.events or not isinstance(self.events[reminder_id].event, Reminder):
                 await utils.add_reaction(ctx.message, Lang.CMDERROR)
                 await ctx.send(Lang.lang(self, 'remind_del_id_err', reminder_id))
                 return
-            if self.reminders[reminder_id].data['user'] == ctx.author.id:
-                self.reminders[reminder_id].cancel()
-                self._remove_reminder(reminder_id)
+            se = self.events[reminder_id]
+            assert isinstance(se.event, Reminder)
+            if se.event.user == ctx.author:
+                se.job.cancel()
+                self._remove_event(se.event)
                 await utils.add_reaction(ctx.message, Lang.CMDSUCCESS)
                 return
             await ctx.send(Lang.lang(self, 'remind_wrong_del'))
             return
+        else:
+            await utils.add_reaction(ctx.message, Lang.CMDERROR)
 
-        # remove all reminders from user
-        to_remove = []
-        for key, item in self.reminders.items():
-            if item.data['user'] == ctx.author.id:
-                to_remove.append(key)
-        for el in to_remove:
-            self.reminders[reminder_id].cancel()
-            self._remove_reminder(el)
-
-        await utils.add_reaction(ctx.message, Lang.CMDSUCCESS)
+        # remove all reminders from user (removed; todo re-implement or remove this remark)
 
     @cmd_remindme.command(name="explain")
     async def cmd_reminder_explain(self, ctx):
@@ -215,106 +217,72 @@ class Plugin(BasePlugin, name="calendar"):
 
         await ctx.send(Lang.lang(self, "explain_message", self.explain_history[ctx.author]))
 
-    def _register_reminder(self, channel: Union[DMChannel, TextChannel, None], user_id: int,
-                           remind_time: datetime, reminder_id: int, text, link: str, is_restart: bool = False,
-                           ref_message_id: int = None) -> bool:
+    def save_event(self, eid, invoke_time: datetime, event: Event):
         """
-        Registers a reminder
-
-        :param channel: The channel in which the reminder was set
-        :param user_id: The id of the user who sets the reminder
-        :param remind_time: The remind time
-        :param reminder_id: The reminder ID
-        :param text: The reminder message text
-        :param link: The reminder message jump link (or placeholder text)
-        :param is_restart: True if reminder is restarting after bot (re)start
-        :param ref_message_id: The ID of the referenced message
-        :returns: True if reminder is registered, otherwise False
+        Writes an event to storage.
+        :param eid: event ID
+        :param invoke_time: event invoke time
+        :param event: event object
         """
-        if remind_time < datetime.now() and not is_restart:
-            log.debug("Attempted reminder %d in the past: %s", reminder_id, remind_time)
-            return False
+        if 'events' not in Storage().get(self):
+            Storage().get(self)['events'] = {}
 
-        log.info("Adding reminder %d for user with id %d at %s: %s",
-                 reminder_id, user_id, remind_time, text)
+        events = Storage().get(self)['events']
+        if eid in events:
+            raise RuntimeError("Event with id '{}' already exists".format(eid))
 
-        job_data = {
-            'chan': channel,
-            'user': user_id,
-            'time': remind_time,
-            'text': text,
-            'link': link,
-            'reference': ref_message_id,
-            'id': reminder_id
+        etype = None
+        for typekey, typevalue in event_type_map.items():
+            if isinstance(event, typevalue):
+                etype = typekey
+                break
+        assert etype is not None, "Event %s, invoke_time '{}': Unknown event type".format(eid, invoke_time)
+
+        events[eid] = {
+            'type': etype,
+            'time': invoke_time,
+            'data': event.serialize()
         }
+        Storage.save(self)
 
-        timedict = timers.timedict(year=remind_time.year, month=remind_time.month, monthday=remind_time.day,
-                                   hour=remind_time.hour, minute=remind_time.minute)
+    def register_event(self, eid, invoke_time, event: Event, is_restart: bool = False):
+        if invoke_time < datetime.now() and not is_restart:
+            raise RuntimeError("Attempted to register event %s in the past: %s", event, invoke_time)
+
+        log.info("Registering event %s with invoke time %s", event, invoke_time)
+        if eid in self.events:
+            raise RuntimeError("Event with id {} alread exists", eid)
+
+        timedict = timers.timedict(year=invoke_time.year, month=invoke_time.month, monthday=invoke_time.day,
+                                   hour=invoke_time.hour, minute=invoke_time.minute)
         try:
-            job = Config().bot.timers.schedule(self._reminder_callback, timedict, data=job_data, repeat=False)
-        except timers.NoFutureExec:
-            job = timers.Job(timedict, self._reminder_callback, data=job_data, repeat=False, run=False)
-            utils.execute_anything_sync(self._reminder_callback, job)
-            return False
+            job = Config().bot.timers.schedule(self._event_callback, timedict, data=event, repeat=False)
+        except timers.NoFutureExec as e:
+            utils.execute_anything_sync(event.invoke)
+            raise e
 
-        self.reminders[reminder_id] = job
+        self.events[eid] = ScheduledEvent(event, job)
         if not is_restart:
-            Storage().get(self)['reminders'][reminder_id] = job_data.copy()
-            Storage().get(self)['reminders'][reminder_id]['chan'] = converters.serialize_channel(
-                job_data['chan'], author_id=user_id)
-            Storage().save(self)
+            self.save_event(eid, invoke_time, event)
 
-        return True
-
-    def _remove_reminder(self, rid):
+    def _remove_event(self, event: Event):
         """
-        Removes the reminder if in config
-
-        :param rid: the reminder ID
+        Removes event from the queue.
+        :param event:
+        :return:
         """
-        if rid in self.reminders:
-            del self.reminders[rid]
-        if rid in Storage().get(self)['reminders']:
-            del Storage().get(self)['reminders'][rid]
+        for eid, se in self.events.items():
+            if se.event == event:
+                del self.events[eid]
+                if eid in Storage().get(self)['events']:
+                    del Storage().get(self)['events'][eid]
+                    Storage().save(self)
+                return
+        raise RuntimeError("Failed to remove event '{}' from queue: not found".format(event))
 
-        Storage().save(self)
-        log.debug("Removed reminder %d", rid)
-
-    async def _reminder_callback(self, job):
-        log.debug("Executing reminder %d", job.data['id'])
-
-        channel = job.data['chan']
-        user = Config().bot.get_user(job.data['user'])
-        text = job.data['text']
-        rid = job.data['id']
-        self.explain_history[user] = job.data['link']
-        reference = None
-
-        if channel is None:
-            raise RuntimeError("Channel is None for reminder with id {}".format(rid))
-
-        if text:
-            remind_text = Lang.lang(self, 'remind_callback', user.mention, text)
-        else:
-            remind_text = Lang.lang(self, 'remind_callback_no_msg', user.mention)
-
-        if job.data['reference']:
-            try:
-                reference = await channel.fetch_message(job.data['reference'])
-            except NCNotFound:
-                pass
-
+    async def _event_callback(self, job):
+        event: Event = job.data
         try:
-            try:
-                await channel.send(remind_text, reference=reference, mention_author=False)
-            except Forbidden:
-                suffix = Lang.lang(self, "remind_forbidden_suffix")
-                await send_dm(user, "{}\n\n{}".format(remind_text, suffix))
-        except Exception as e:
-            fields = {
-                "Recipient": get_best_username(user),
-                "Channel": channel
-            }
-            await log_exception(e, title=":x: Reminder delivery error", fields=fields)
-
-        self._remove_reminder(rid)
+            self._remove_event(event)
+        finally:
+            await event.invoke()
