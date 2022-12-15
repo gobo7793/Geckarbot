@@ -2,6 +2,7 @@ import logging
 from datetime import datetime
 from typing import Dict, Type
 
+from nextcord import AllowedMentions
 from nextcord.ext import commands
 
 from botutils import utils, timeutils, converters
@@ -166,8 +167,7 @@ class Plugin(BasePlugin, name="calendar"):
 
     @cmd_remindme.command(name="list")
     async def cmd_reminder_list(self, ctx):
-        msg = Lang.lang(self, 'remind_list_prefix')
-        reminders_msg = ""
+        reminders_msg = []
         for event in sorted(self.events.values(), key=lambda x: x.job.next_execution(ignore_now=False)):
             job = event.job
             event = event.event
@@ -178,13 +178,16 @@ class Plugin(BasePlugin, name="calendar"):
                     reminder_text = Lang.lang(self, 'remind_list_message', event.text)
                 else:
                     reminder_text = Lang.lang(self, 'remind_list_no_message')
-                reminders_msg += Lang.lang(self, 'remind_list_element',
-                                           to_unix_str(job.next_execution(), style=TimestampStyle.DATETIME_SHORT),
-                                           reminder_text, event.eid)
+                reminders_msg.append(Lang.lang(self, 'remind_list_element',
+                                               to_unix_str(job.next_execution(), style=TimestampStyle.DATETIME_SHORT),
+                                               reminder_text, event.eid))
 
         if not reminders_msg:
-            msg = Lang.lang(self, 'remind_list_none')
-        await ctx.send(msg + reminders_msg)
+            await ctx.send(Lang.lang(self, 'remind_list_none'))
+            return
+
+        for msg in utils.paginate(reminders_msg, prefix=Lang.lang(self, 'remind_list_prefix')):
+            await ctx.send(msg, allowed_messages=AllowedMentions.none)
 
     @cmd_remindme.command(name="cancel")
     async def cmd_reminder_cancel(self, ctx, reminder_id: int = -1):
