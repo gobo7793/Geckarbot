@@ -155,7 +155,7 @@ class Plugin(BasePlugin, name="Funny/Misc Commands"):
         if not self.bot.WOLFRAMALPHA_API_KEY:
             await add_reaction(ctx.message, Lang.CMDERROR)
             return
-        if arg3:
+        if arg3 is not None:
             amount = arg3
             other_curr = arg2
         elif arg2:
