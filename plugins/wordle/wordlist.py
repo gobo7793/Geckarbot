@@ -1,4 +1,5 @@
 import abc
+import json
 import random
 import re
 from datetime import date
@@ -106,6 +107,9 @@ class Parser(abc.ABC):
 
 class Nytimes(Parser):
     EPOCH = date(2021, 6, 19)
+    DAILY_URL = "https://www.nytimes.com/svc/wordle/v2/{}-{:02d}-{:02d}.json"
+    DAILY_INDEX = "days_since_launch"
+    DAILY_SOLUTION = "solution"
 
     @staticmethod
     async def fetch_lists(url: str) -> Tuple[Tuple, Tuple]:
@@ -184,9 +188,14 @@ class Nytimes(Parser):
 
     @classmethod
     async def fetch_daily(cls, url: str) -> Tuple[str, Any]:
-        solutions, _ = await cls.fetch_lists(url)
-        epoch_index = (date.today() - cls.EPOCH).days
-        return solutions[epoch_index], epoch_index
+        session = aiohttp.ClientSession()
+
+        td = date.today()
+        async with session.get(cls.DAILY_URL.format(td.year, td.month, td.day)) as response:
+            response = await response.text()
+        print("got {}".format(response))
+        response = json.loads(response)
+        return response[cls.DAILY_SOLUTION], response[cls.DAILY_INDEX]
 
 
 def normalize_wlist(wl: List[str]) -> tuple:
