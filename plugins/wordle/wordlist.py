@@ -127,6 +127,7 @@ class Nytimes(Parser):
         if scriptfile is None:
             raise ValueError("Wordle page parse error: wordle.js not found")
         scriptfile = scriptfile.groups()[0]
+        print("scriptfile: {}".format(scriptfile))
 
         # parse list strings out of script file
         p = re.compile(r"(\[(\"[a-zA-Z][a-zA-Z][a-zA-Z][a-zA-Z][a-zA-Z]\",?)+])")
@@ -143,11 +144,30 @@ class Nytimes(Parser):
         for i in range(len(lists)):
             wlist = lists[i][0]
             lists[i] = p.findall(wlist)
-        assert len(lists) == 2
 
-        # build WordList
-        solutions = normalize_wlist(lists[0])
-        complement = normalize_wlist(lists[1])
+        # Used to be 2 lists (complement, solutions); was changed to single list (parsed below) early 2023
+        assert len(lists) == 1
+        wlist = lists[0]
+
+        # build word lists; assumed format: ["abc", "abe", "bce", ..., "sol1", "sol2", "sol3"]
+        complement = []
+        solutions = []
+        last_word = None
+        for word in wlist:
+            if last_word is None:
+                complement.append(word)
+            else:
+                if solutions:
+                    # wrap; we are in solutions territory
+                    solutions.append(word)
+                elif word < last_word:
+                    # lexical ordering; we are at the complement-solutions-border
+                    solutions.append(word)
+                else:
+                    complement.append(word)
+            last_word = word
+        solutions = normalize_wlist(solutions)
+        complement = normalize_wlist(complement)
         return solutions, complement
 
     @classmethod
