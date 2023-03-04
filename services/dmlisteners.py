@@ -48,14 +48,14 @@ class Registration:
 
 
 class DMListener(BaseSubsystem):
-    """The DM Listener Subsystem"""
+    """The DM Listener Service"""
 
     def __init__(self):
         super().__init__()
         self.bot = Config().bot
         self.registrations = {}
 
-    def register(self, user, coro, name, kill_coro=None, data=None, blocking=False):
+    def register(self, user, coro, name, kill_coro=None, data=None, blocking=False) -> Registration:
         """
         Registers a listener on a direct message (DM) channel.
 

@@ -171,7 +171,6 @@ class MultiConfirmView(MultiItemView):
         await interaction.message.edit(view=self)
 
 
-
 class SingleConfirmView(MultiItemView):
     """
     View with one button to confirm an input and an abort button. Buttons only react to the specified user and disable

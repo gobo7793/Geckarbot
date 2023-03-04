@@ -83,7 +83,11 @@
 
         "#6": "Summon",
         "summon_already_exists": "The word list {} was already summoned in channel {}.",
-        "summon_not_found": "The word list {} was not summoned in this channel."
+        "summon_not_found": "The word list {} was not summoned in this channel.",
+        "msg_peek": "To see my full guess, please tell me today's wordle solution.",
+        "msg_peek_empty": "Sorry, I have not played yet.",
+        "msg_peek_incorrect": "Incorrect solution, sorry.",
+        "reaction_peek": "\uD83D\uDC40"
     },
 
     "de_DE": {
@@ -170,6 +174,10 @@
 
         "#6": "Summon",
         "summon_already_exists": "Die Wortliste {} wurde im Channel {} bereits beschworen.",
-        "summon_not_found": "Die Wortliste {} wurde in diesem Channel nicht beschworen."
+        "summon_not_found": "Die Wortliste {} wurde in diesem Channel nicht beschworen.",
+        "msg_peek": "Um mein heutiges Spiel zu sehen, schreib mir bitte die Lösung vom heutigen Wordle.",
+        "msg_peek_empty": "Entschuldige bitte, ich habe noch nicht gespielt.",
+        "msg_peek_incorrect": "Die Lösung ist falsch, sorry.",
+        "reaction_peek": "\uD83D\uDC40"
     }
 }

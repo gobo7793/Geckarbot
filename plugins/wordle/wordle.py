@@ -20,6 +20,7 @@ from plugins.wordle.dicesolver import DiceSolver
 from plugins.wordle.utils import format_guess, format_daily
 from plugins.wordle.wordlist import WordList, Parsers
 from plugins.wordle.gamehandler import Mothership
+from services.reactions import ReactionAddedEvent
 from services.timers import timedict
 
 BASE_CONFIG = {
@@ -70,8 +71,12 @@ class Summon:
         self.wordlist_name = wordlist
         self.wordlist = self.plugin.get_wordlist(wordlist)
 
+        # Peek
         self.last_game_ts = None
         self.last_game = None
+        self.last_game_msg = None
+        self.peek_reaction_listener = None
+        self.last_game_epoch_index = None
 
     def serialize(self) -> dict:
         for key, wl in self.plugin.wordlists.items():
@@ -92,10 +97,44 @@ class Summon:
         self.last_game = Game(self.wordlist, dailyword)
         self.last_game_ts = date.today()
         SOLVERS[self.plugin.get_config("default_solver")](self.last_game).solve()
-        await self.channel.send(format_daily(self.plugin, Parsers.NYTIMES, self.last_game, epoch_index))
+        msg = await self.channel.send(format_daily(self.plugin, Parsers.NYTIMES, self.last_game, epoch_index))
 
-    async def show(self, ctx):
-        await ctx.author.send(format_guess(self.plugin, self.last_game, self.last_game.guesses[-1], done=True, history=True))
+        # Setup peek reaction
+        if self.peek_reaction_listener is not None:
+            self.peek_reaction_listener.deregister()
+            self.peek_reaction_listener = None
+        self.last_game_epoch_index = epoch_index
+        self.peek_reaction_listener = Config().bot.reaction_listener.register(msg, self.peek_reaction_callback)
+        await add_reaction(msg, Lang.lang(self.plugin, "reaction_peek"))
+
+    async def peek_reaction_callback(self, event):
+        """
+        Feature: Adds a reaction to a daily wordle post. If a reaction follows,
+        the bot sends a DM to show the full game.
+        """
+        if not isinstance(event, ReactionAddedEvent):
+            return
+
+        # setup DM listener and start dialog
+        if self.last_game is None:
+            # Should be impossible
+            event.user.send(Lang.lang(self.plugin, "msg_peek_empty"))
+            return
+        await event.user.send(Lang.lang(self.plugin, "msg_peek"))
+        Config().bot.dm_listener.register(event.user, self.peek_dm_callback, "wordle summon peek",
+                                          data=self.last_game, blocking=True)
+
+    async def peek_dm_callback(self, registration, message):
+        registration.deregister()
+        if message.content.lower() == registration.data.solution:
+            await self.show(message.author)
+        else:
+            await registration.user.send(Lang.lang(self.plugin, "msg_peek_incorrect"))
+
+    async def show(self, user):
+        f = format_guess(self.plugin, self.last_game, self.last_game.guesses[-1], done=True, history=True)
+        await user.send("Wordle {} {}/{}\n{}".format(
+            self.last_game_epoch_index, len(self.last_game.guesses), self.last_game.max_tries, f))
 
 
 class Plugin(BasePlugin, name="Wordle"):
@@ -530,7 +569,9 @@ class Plugin(BasePlugin, name="Wordle"):
     @cmd_wordle_summon.command(name="show", hidden=True)
     async def cmd_wordle_summon_list(self, ctx):
         for summon in self.summons:
-            await summon.show(ctx)
+            await summon.show(ctx.author)
+        if not self.summons:
+            ctx.author.send(Lang.lang(self, "msg_peek_empty"))
 
     @cmd_wordle.command(name="dismiss", aliases=["desummon", "unsummon"])
     async def cmd_wordle_dismiss(self, ctx, wordlist: Optional[str]):

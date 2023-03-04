@@ -67,7 +67,7 @@ class Result(Enum):
     DONE = 0  # question is done (accepted final answer)
     ACCEPTED = 1  # accepted answer, but not done yet (used in multiple choice)
     REJECTED = 2  # invalid answer
-    EMPTY = 3  # done but no real answers submitted
+    EMPTY = 3  # done but no real answers submitted, only whitespace
     CANCELLED = 4  # questionnaire was cancelled
 
 
@@ -215,7 +215,7 @@ class Questionnaire:
         "no_answers": Used in multiple choice questions to indicate that the "done" message cannot be the first.
         "result_rejected": Questionnaire response when the submitted answer is invalid.
         "state_cancelled": Response that is used when the questionnaire is cancelled.
-        "state_done": Reponse that is used when the questionnaire is done.
+        "state_done": Response that is used when the questionnaire is done.
         """
         self.bot = bot
         self.user = target_user
