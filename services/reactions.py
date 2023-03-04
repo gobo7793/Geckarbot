@@ -89,7 +89,7 @@ class Registration:
 
 
 class ReactionListener(BaseSubsystem):
-    """Reaction listener subsystem"""
+    """Reaction listener service"""
     def __init__(self):
         super().__init__()
         self.registrations = []

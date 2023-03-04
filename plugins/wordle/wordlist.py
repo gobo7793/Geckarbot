@@ -1,4 +1,5 @@
 import abc
+import json
 import random
 import re
 from datetime import date
@@ -106,6 +107,9 @@ class Parser(abc.ABC):
 
 class Nytimes(Parser):
     EPOCH = date(2021, 6, 19)
+    DAILY_URL = "https://www.nytimes.com/svc/wordle/v2/{}-{:02d}-{:02d}.json"
+    DAILY_INDEX = "days_since_launch"
+    DAILY_SOLUTION = "solution"
 
     @staticmethod
     async def fetch_lists(url: str) -> Tuple[Tuple, Tuple]:
@@ -127,6 +131,7 @@ class Nytimes(Parser):
         if scriptfile is None:
             raise ValueError("Wordle page parse error: wordle.js not found")
         scriptfile = scriptfile.groups()[0]
+        print("scriptfile: {}".format(scriptfile))
 
         # parse list strings out of script file
         p = re.compile(r"(\[(\"[a-zA-Z][a-zA-Z][a-zA-Z][a-zA-Z][a-zA-Z]\",?)+])")
@@ -143,11 +148,30 @@ class Nytimes(Parser):
         for i in range(len(lists)):
             wlist = lists[i][0]
             lists[i] = p.findall(wlist)
-        assert len(lists) == 2
 
-        # build WordList
-        solutions = normalize_wlist(lists[0])
-        complement = normalize_wlist(lists[1])
+        # Used to be 2 lists (complement, solutions); was changed to single list (parsed below) early 2023
+        assert len(lists) == 1
+        wlist = lists[0]
+
+        # build word lists; assumed format: ["abc", "abe", "bce", ..., "sol1", "sol2", "sol3"]
+        complement = []
+        solutions = []
+        last_word = None
+        for word in wlist:
+            if last_word is None:
+                complement.append(word)
+            else:
+                if solutions:
+                    # wrap; we are in solutions territory
+                    solutions.append(word)
+                elif word < last_word:
+                    # lexical ordering; we are at the complement-solutions-border
+                    solutions.append(word)
+                else:
+                    complement.append(word)
+            last_word = word
+        solutions = normalize_wlist(solutions)
+        complement = normalize_wlist(complement)
         return solutions, complement
 
     @classmethod
@@ -164,9 +188,14 @@ class Nytimes(Parser):
 
     @classmethod
     async def fetch_daily(cls, url: str) -> Tuple[str, Any]:
-        solutions, _ = await cls.fetch_lists(url)
-        epoch_index = (date.today() - cls.EPOCH).days
-        return solutions[epoch_index], epoch_index
+        session = aiohttp.ClientSession()
+
+        td = date.today()
+        async with session.get(cls.DAILY_URL.format(td.year, td.month, td.day)) as response:
+            response = await response.text()
+        print("got {}".format(response))
+        response = json.loads(response)
+        return response[cls.DAILY_SOLUTION], response[cls.DAILY_INDEX]
 
 
 def normalize_wlist(wl: List[str]) -> tuple:
