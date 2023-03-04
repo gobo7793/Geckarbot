@@ -1,4 +1,5 @@
 import logging
+from datetime import date
 from typing import Optional, Dict, Type, List
 
 from nextcord import DMChannel
@@ -69,6 +70,9 @@ class Summon:
         self.wordlist_name = wordlist
         self.wordlist = self.plugin.get_wordlist(wordlist)
 
+        self.last_game_ts = None
+        self.last_game = None
+
     def serialize(self) -> dict:
         for key, wl in self.plugin.wordlists.items():
             if wl == self.wordlist:
@@ -84,9 +88,14 @@ class Summon:
     async def fire(self):
         p = Parsers.get(self.wordlist.parser.value)
         dailyword, epoch_index = await p.fetch_daily(self.wordlist.url)
-        game = Game(self.wordlist, dailyword)
-        SOLVERS[self.plugin.get_config("default_solver")](game).solve()
-        await self.channel.send(format_daily(self.plugin, Parsers.NYTIMES, game, epoch_index))
+        self.last_game_ts = date.today()
+        self.last_game = Game(self.wordlist, dailyword)
+        self.last_game_ts = date.today()
+        SOLVERS[self.plugin.get_config("default_solver")](self.last_game).solve()
+        await self.channel.send(format_daily(self.plugin, Parsers.NYTIMES, self.last_game, epoch_index))
+
+    async def show(self, ctx):
+        await ctx.author.send(format_guess(self.plugin, self.last_game, self.last_game.guesses[-1], done=True, history=True))
 
 
 class Plugin(BasePlugin, name="Wordle"):
@@ -517,6 +526,11 @@ class Plugin(BasePlugin, name="Wordle"):
 
         for msg in paginate(msgs, "```", "```"):
             await ctx.send(msg)
+
+    @cmd_wordle_summon.command(name="show", hidden=True)
+    async def cmd_wordle_summon_list(self, ctx):
+        for summon in self.summons:
+            await summon.show(ctx)
 
     @cmd_wordle.command(name="dismiss", aliases=["desummon", "unsummon"])
     async def cmd_wordle_dismiss(self, ctx, wordlist: Optional[str]):
