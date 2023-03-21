@@ -114,6 +114,8 @@ class Summon:
         """
         if not isinstance(event, ReactionAddedEvent):
             return
+        if event.user == Config().bot.user:
+            return
 
         # setup DM listener and start dialog
         if self.last_game is None:
