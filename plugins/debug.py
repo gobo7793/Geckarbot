@@ -202,6 +202,15 @@ class Plugin(BasePlugin, name="Testing and debug things"):
     async def cmd_do_error(self, ctx):
         raise commands.CommandError("Testerror")
 
+    @commands.command(name="dmme", hidden=True)
+    async def cmd_dm_me(self, ctx):
+        """
+        Sends a dm to ctx author
+        :param ctx:
+        :return:
+        """
+        await ctx.author.send("blub")
+
     @staticmethod
     async def error_cb(job: Optional[Job] = None):
         """
