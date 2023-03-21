@@ -47,7 +47,7 @@ class Reminder(Event):
         :return: Trivially serializable object
         """
         return {
-            'chan': serialize_channel(self.channel),
+            'chan': serialize_channel(self.channel, self.user),
             'user': self.user.id,
             'text': self.text,
             'link': self.msglink,

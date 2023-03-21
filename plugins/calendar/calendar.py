@@ -109,7 +109,7 @@ class Plugin(BasePlugin, name="calendar"):
             try:
                 event = await event_type.deserialize(self, eid, event_obj['time'], event_obj['data'])
             except Exception as e:
-                await log_exception(e)
+                await log_exception(e, fields={"Event ID": eid})
                 continue
 
             try:
