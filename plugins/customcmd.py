@@ -3,6 +3,7 @@ import re
 import random
 import logging
 import abc
+from math import ceil
 from typing import Optional, Union, Dict, Type, List
 
 from nextcord import User, Message, Member, Embed
@@ -159,6 +160,17 @@ class Cmd(abc.ABC):
     async def cmd_info(self, ctx, *args):
         """
         Handles a cmd info command for this custom command.
+
+        :param ctx: Context to send the response to
+        :param args: Command arguments
+        """
+        pass
+
+    @abc.abstractmethod
+    async def cmd_images(self, ctx, *args):
+        """
+        Handles a cmd images command for this custom command.
+        "images" is intended to show the entire command including all its images.
 
         :param ctx: Context to send the response to
         :param args: Command arguments
@@ -395,6 +407,27 @@ class TextCmd(Cmd):
                                                  aliases)):
                 await ctx.send(msg)
 
+    async def cmd_images(self, ctx: commands.Context, *args):
+        """
+        Handles a cmd images command and sends the response to ctx.
+
+        :param ctx: Context
+        :param args: Command arguments (ignored)
+        """
+        step_length = 5
+        creator = converters.get_best_user(self.creator_id)
+        aliases = self.plugin.format_aliases(self.aliases)
+        raw_texts = self.get_raw_texts()
+        for i in range(ceil(len(raw_texts) / step_length)):
+            prefix = Lang.lang(self.plugin, 'raw_prefix', self.plugin.prefix, self.name,
+                               converters.get_best_username(creator), len(raw_texts), aliases)
+            if i != 0:
+                prefix = ""
+            for msg in paginate(raw_texts[i * step_length: (i+1) * step_length],
+                                delimiter="\n",
+                                prefix=prefix):
+                await ctx.send(msg)
+
 
 class EmbedField:
     """
@@ -614,6 +647,9 @@ class EmbedCmd(Cmd):
                                              creator,
                                              aliases)):
             await ctx.send(msg)
+
+    async def cmd_images(self, ctx, *args):
+        await self.cmd_images(ctx, *args)
 
 
 class Plugin(BasePlugin, name="Custom CMDs"):
@@ -867,6 +903,17 @@ class Plugin(BasePlugin, name="Custom CMDs"):
             return
 
         await cmd.cmd_info(ctx, *args)
+
+    @cmd.command(name="images", aliases=["image", "dump"])
+    async def cmd_images(self, ctx, cmd_name, *args):
+        cmd_name = cmd_name.lower()
+        cmd = self._find_cmd(cmd_name)
+
+        if not cmd:
+            await ctx.send(Lang.lang(self, "raw_doesnt_exist", cmd_name))
+            return
+
+        await cmd.cmd_images(ctx, *args)
 
     @cmd.command(name="search")
     async def cmd_search(self, ctx, cmd_name, *args):
@@ -1259,20 +1306,3 @@ class Plugin(BasePlugin, name="Custom CMDs"):
 
         cmd = random.choices(candidates, weights=weights)[0]
         await cmd.invoke(ctx.message, *args)
-
-    @cmd.command(name="image", aliases=["randomimage"])
-    async def cmd_image(self, ctx):
-        candidates = []
-        for el in self.commands.values():
-            if not isinstance(el, TextCmd):
-                continue
-
-            for text in el.texts:
-                if text.startswith("http"):
-                    candidates.append(text)
-
-        if not candidates:
-            await add_reaction(ctx.message, Lang.CMDNOCHANGE)
-            return
-
-        await ctx.send(random.choice(candidates))
