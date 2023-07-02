@@ -47,6 +47,7 @@
         "alias_not_found": "The commands \"{}\" and \"{}\" do not exist. Could not create alias.",
         "alias_too_many_args": "Too many arguments.",
         "alias_not_enough_args": "Not enough arguments.",
+        "no_errors": "No errors.",
 
         "Help": "",
         "help_cmd": "Creates and manages custom commands",
@@ -83,6 +84,9 @@
         "usage_cmd_images": "<command>",
         "help_cmd_images": "Shows all images",
         "desc_cmd_images": "Lists all command messages in a way that makes all images visible. Caution: Very spammy.",
+        "usage_cmd_imagetest": "<command>",
+        "help_cmd_imagetest": "Tests all links for existence",
+        "desc_cmd_imagetest": "Tests all http links in a command for existence. Links that yielded errors are listed.",
 
         "Embed Help": "",
         "help_cmd_embed": "Creates and manages custom embed commands",
@@ -152,6 +156,7 @@
         "alias_not_found": "Die Kommandos \"{}\" und \"{}\" gibt es nicht, konnte daher keinen Alias erstellen.",
         "alias_too_many_args": "Zu viele Argumente.",
         "alias_not_enough_args": "Nicht genug Argumente.",
+        "no_errors": "Keine Fehler.",
 
         "Help": "",
         "help_cmd": "Erstellt und verwaltet Benutzer-Kommandos.",
@@ -188,6 +193,9 @@
         "usage_cmd_images": "<command>",
         "help_cmd_images": "Zeigt alle Bilder",
         "desc_cmd_images": "Listet alle Einträge in einem Kommando derart auf, dass alle Bilder dargestellt werden. Achtung: Sehr spammig.",
+        "usage_cmd_imagetest": "<command>",
+        "help_cmd_imagetest": "Testet alle Links auf Existenz",
+        "desc_cmd_imagetest": "Testet alle http-Links in einem Kommando auf Existenz. Fehlerhafte Testergebnisse werden aufgelistet.",
 
         "Embed Help": "",
         "help_cmd_embed": "Verwaltet Embed-Kommandos",

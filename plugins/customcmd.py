@@ -1,3 +1,4 @@
+import asyncio.exceptions
 import inspect
 import re
 import random
@@ -6,6 +7,7 @@ import abc
 from math import ceil
 from typing import Optional, Union, Dict, Type, List
 
+import aiohttp
 from nextcord import User, Message, Member, Embed
 from nextcord.ext import commands
 
@@ -427,6 +429,37 @@ class TextCmd(Cmd):
                                 delimiter="\n",
                                 prefix=prefix):
                 await ctx.send(msg)
+
+    async def cmd_imagetest(self, ctx: commands.Context):
+        p = re.compile(r"https?://\S*")
+        links = {}
+        for i in range(len(self.texts)):
+            m = p.search(self.texts[i])
+            if m is not None:
+                links[i + 1] = m[0]
+
+        results = {}
+        session = aiohttp.ClientSession(read_timeout=15)
+        async with ctx.typing():
+            for i, url in links.items():
+                try:
+                    async with session.get(url) as response:
+                        if response.status != 200:
+                            results[i] = response.status
+                except asyncio.exceptions.TimeoutError:
+                    results[i] = "Timeout"
+                except Exception as e:
+                    results[i] = str(e)
+            await session.close()
+
+        msgs = []
+        for i, result in results.items():
+            msgs.append("**#{}**: {}".format(i, result))
+        if not msgs:
+            msgs = [Lang.lang(self.plugin, "no_errors")]
+
+        for msg in paginate(msgs, prefix="`{}{}`:\n".format(self.plugin.prefix, self.name)):
+            await ctx.send(msg)
 
 
 class EmbedField:
@@ -914,6 +947,20 @@ class Plugin(BasePlugin, name="Custom CMDs"):
             return
 
         await cmd.cmd_images(ctx, *args)
+
+    @cmd.command(name="imagetest")
+    async def cmd_imagetest(self, ctx, cmd_name):
+        cmd_name = cmd_name.lower()
+        cmd = self._find_cmd(cmd_name)
+
+        if not cmd:
+            await ctx.send(Lang.lang(self, "raw_doesnt_exist", cmd_name))
+            return
+
+        if isinstance(cmd, TextCmd):
+            await cmd.cmd_imagetest(ctx)
+        else:
+            await add_reaction(ctx.message, Lang.CMDNOCHANGE)
 
     @cmd.command(name="search")
     async def cmd_search(self, ctx, cmd_name, *args):
