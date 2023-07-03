@@ -948,7 +948,7 @@ class Plugin(BasePlugin, name="Custom CMDs"):
 
         await cmd.cmd_images(ctx, *args)
 
-    @cmd.command(name="imagetest")
+    @cmd.command(name="imagetest", aliases=["imagestest", "testimages", "testimage"])
     async def cmd_imagetest(self, ctx, cmd_name):
         cmd_name = cmd_name.lower()
         cmd = self._find_cmd(cmd_name)

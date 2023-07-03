@@ -85,8 +85,8 @@
         "help_cmd_images": "Shows all images",
         "desc_cmd_images": "Lists all command messages in a way that makes all images visible. Caution: Very spammy.",
         "usage_cmd_imagetest": "<command>",
-        "help_cmd_imagetest": "Tests all links for existence",
-        "desc_cmd_imagetest": "Tests all http links in a command for existence. Links that yielded errors are listed.",
+        "help_cmd_imagetest": "Tests all links for errors",
+        "desc_cmd_imagetest": "Tests all http links in a command for errors. Lists all found errors.",
 
         "Embed Help": "",
         "help_cmd_embed": "Creates and manages custom embed commands",
@@ -194,8 +194,8 @@
         "help_cmd_images": "Zeigt alle Bilder",
         "desc_cmd_images": "Listet alle Einträge in einem Kommando derart auf, dass alle Bilder dargestellt werden. Achtung: Sehr spammig.",
         "usage_cmd_imagetest": "<command>",
-        "help_cmd_imagetest": "Testet alle Links auf Existenz",
-        "desc_cmd_imagetest": "Testet alle http-Links in einem Kommando auf Existenz. Fehlerhafte Testergebnisse werden aufgelistet.",
+        "help_cmd_imagetest": "Testet alle Links auf Fehler",
+        "desc_cmd_imagetest": "Testet alle http-Links in einem Kommando auf Fehler. Listet fehlerhafte Testergebnisse auf.",
 
         "Embed Help": "",
         "help_cmd_embed": "Verwaltet Embed-Kommandos",
