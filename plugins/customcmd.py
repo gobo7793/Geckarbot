@@ -1,10 +1,13 @@
+import asyncio.exceptions
 import inspect
 import re
 import random
 import logging
 import abc
+from math import ceil
 from typing import Optional, Union, Dict, Type, List
 
+import aiohttp
 from nextcord import User, Message, Member, Embed
 from nextcord.ext import commands
 
@@ -159,6 +162,17 @@ class Cmd(abc.ABC):
     async def cmd_info(self, ctx, *args):
         """
         Handles a cmd info command for this custom command.
+
+        :param ctx: Context to send the response to
+        :param args: Command arguments
+        """
+        pass
+
+    @abc.abstractmethod
+    async def cmd_images(self, ctx, *args):
+        """
+        Handles a cmd images command for this custom command.
+        "images" is intended to show the entire command including all its images.
 
         :param ctx: Context to send the response to
         :param args: Command arguments
@@ -395,6 +409,58 @@ class TextCmd(Cmd):
                                                  aliases)):
                 await ctx.send(msg)
 
+    async def cmd_images(self, ctx: commands.Context, *args):
+        """
+        Handles a cmd images command and sends the response to ctx.
+
+        :param ctx: Context
+        :param args: Command arguments (ignored)
+        """
+        step_length = 5
+        creator = converters.get_best_user(self.creator_id)
+        aliases = self.plugin.format_aliases(self.aliases)
+        raw_texts = self.get_raw_texts()
+        for i in range(ceil(len(raw_texts) / step_length)):
+            prefix = Lang.lang(self.plugin, 'raw_prefix', self.plugin.prefix, self.name,
+                               converters.get_best_username(creator), len(raw_texts), aliases)
+            if i != 0:
+                prefix = ""
+            for msg in paginate(raw_texts[i * step_length: (i+1) * step_length],
+                                delimiter="\n",
+                                prefix=prefix):
+                await ctx.send(msg)
+
+    async def cmd_imagetest(self, ctx: commands.Context):
+        p = re.compile(r"https?://\S*")
+        links = {}
+        for i in range(len(self.texts)):
+            m = p.search(self.texts[i])
+            if m is not None:
+                links[i + 1] = m[0]
+
+        results = {}
+        session = aiohttp.ClientSession(read_timeout=15)
+        async with ctx.typing():
+            for i, url in links.items():
+                try:
+                    async with session.get(url) as response:
+                        if response.status != 200:
+                            results[i] = response.status
+                except asyncio.exceptions.TimeoutError:
+                    results[i] = "Timeout"
+                except Exception as e:
+                    results[i] = str(e)
+            await session.close()
+
+        msgs = []
+        for i, result in results.items():
+            msgs.append("**#{}**: {}".format(i, result))
+        if not msgs:
+            msgs = [Lang.lang(self.plugin, "no_errors")]
+
+        for msg in paginate(msgs, prefix="`{}{}`:\n".format(self.plugin.prefix, self.name)):
+            await ctx.send(msg)
+
 
 class EmbedField:
     """
@@ -614,6 +680,9 @@ class EmbedCmd(Cmd):
                                              creator,
                                              aliases)):
             await ctx.send(msg)
+
+    async def cmd_images(self, ctx, *args):
+        await self.cmd_images(ctx, *args)
 
 
 class Plugin(BasePlugin, name="Custom CMDs"):
@@ -867,6 +936,31 @@ class Plugin(BasePlugin, name="Custom CMDs"):
             return
 
         await cmd.cmd_info(ctx, *args)
+
+    @cmd.command(name="images", aliases=["image", "dump"])
+    async def cmd_images(self, ctx, cmd_name, *args):
+        cmd_name = cmd_name.lower()
+        cmd = self._find_cmd(cmd_name)
+
+        if not cmd:
+            await ctx.send(Lang.lang(self, "raw_doesnt_exist", cmd_name))
+            return
+
+        await cmd.cmd_images(ctx, *args)
+
+    @cmd.command(name="imagetest", aliases=["imagestest", "testimages", "testimage"])
+    async def cmd_imagetest(self, ctx, cmd_name):
+        cmd_name = cmd_name.lower()
+        cmd = self._find_cmd(cmd_name)
+
+        if not cmd:
+            await ctx.send(Lang.lang(self, "raw_doesnt_exist", cmd_name))
+            return
+
+        if isinstance(cmd, TextCmd):
+            await cmd.cmd_imagetest(ctx)
+        else:
+            await add_reaction(ctx.message, Lang.CMDNOCHANGE)
 
     @cmd.command(name="search")
     async def cmd_search(self, ctx, cmd_name, *args):
@@ -1259,20 +1353,3 @@ class Plugin(BasePlugin, name="Custom CMDs"):
 
         cmd = random.choices(candidates, weights=weights)[0]
         await cmd.invoke(ctx.message, *args)
-
-    @cmd.command(name="image", aliases=["randomimage"])
-    async def cmd_image(self, ctx):
-        candidates = []
-        for el in self.commands.values():
-            if not isinstance(el, TextCmd):
-                continue
-
-            for text in el.texts:
-                if text.startswith("http"):
-                    candidates.append(text)
-
-        if not candidates:
-            await add_reaction(ctx.message, Lang.CMDNOCHANGE)
-            return
-
-        await ctx.send(random.choice(candidates))
