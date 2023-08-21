@@ -339,11 +339,14 @@ class Plugin(BasePlugin, SpaetzleUtils, name="Spaetzle-Tippspiel"):
 
     @cmd_spaetzle_set.command(name="participants")
     async def cmd_spaetzle_set_participants(self, ctx: Context, league: Literal[1, 2, 3, 4], *participants: str):
+        participants = sorted(participants, key=lambda v: v.lower())
+
         async def confirm(_b, _i):
-            Storage().get(self)['participants'][league - 1] = sorted(participants)
+            Storage().get(self)['participants'][league - 1] = participants
             Storage().save(self)
             await add_reaction(ctx.message, Lang.CMDSUCCESS)
 
-        await ctx.send(embed=Embed(title=Lang.lang(self, 'participants_x', league),
-                                   description=", ".join(sorted(participants))),
+        embed = Embed(title=Lang.lang(self, 'participants_x', league, len(participants)),
+                      description=", ".join(participants))
+        await ctx.send(embed=embed,
                        view=SingleConfirmView(confirm, user_id=ctx.author.id, confirm_label=Lang.lang(self, 'confirm')))

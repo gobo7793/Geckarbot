@@ -35,7 +35,7 @@
         "league_x": "League {}",
         "matchday": "Matchday",
         "matchday_x": "Matchday {}",
-        "participants_x": "League {} - Participants"
+        "participants_x": "League {} | {} Participants"
     },
     "de_DE": {
         "#0": "Help",
@@ -73,6 +73,6 @@
         "league_x": "Liga {}",
         "matchday": "Spieltag",
         "matchday_x": "Spieltag {}",
-        "participants_x": "Teilnehmer Liga {}"
+        "participants_x": "Liga {} | {} Teilnehmende"
     }
 }
