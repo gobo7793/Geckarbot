@@ -1,4 +1,5 @@
 import logging
+import random
 import re
 from datetime import datetime
 from typing import Literal, List, Optional, Dict, Tuple
@@ -71,6 +72,12 @@ class Plugin(BasePlugin, SpaetzleUtils, name="Spaetzle-Tippspiel"):
         if Config().get(self).get('_config_version', 0) < 1:
             Config().set(self, self.default_config())
             Config().save(self)
+        if Config().get(self).get('_config_version', 0) < 2:
+            Config().get(self).pop('matchday_shuffle')
+            Config().get(self).pop('participants_shuffle')
+            Config().get(self)['rng_seed'] = 'll6gxv'
+            Config().get(self)['_config_version'] = 2
+            Config().save(self)
         if Storage().get(self).get('_storage_version', 0) < 1:
             Storage().get(self)['participants'] = [[], [], [], []]
             Storage().get(self)['_storage_version'] = 1
@@ -135,10 +142,26 @@ class Plugin(BasePlugin, SpaetzleUtils, name="Spaetzle-Tippspiel"):
     @cmd_spaetzle_setup.command(name="duels")
     async def cmd_spaetzle_setup_duels(self, ctx: Context):
         def calculate_schedule(_participants: List[Optional[str]]):
-            matchday = Config().get(self)['matchday_shuffle'][(Storage().get(self)['matchday'] - 1) % 17]  # Shuffle
-            _participants.extend([None] * max(0, 18 - len(_participants)))  # Extend if not enough participants
-            _p = [_participants[j] for j in Config().get(self)['participants_shuffle']] + _participants[18:]  # Shuffle
-            _p = _p[0:1] + _p[1:][matchday:] + _p[1:][:matchday]  # Rotate
+            seed = Config().get(self)['rng_seed']
+            # evenizing length
+            if len(_participants) % 2 != 0:
+                _participants.append("__median")
+            # matchday shuffle
+            matchday_range = list(range(len(_participants) - 1))
+            random.Random(seed).shuffle(matchday_range)
+            matchday = (Storage().get(self)['matchday'] - 1) % 17
+            if matchday > len(matchday_range):
+                # secondary shuffle
+                matchday %= len(matchday_range)
+                random.Random(seed).shuffle(matchday_range)
+            matchday = matchday_range[matchday]
+            # participants shuffle
+            participants_range = list(range(len(_participants)))
+            random.Random(seed).shuffle(participants_range)
+            _p = [_participants[j] for j in participants_range]
+            # participants rotation
+            _p = _p[0:1] + _p[1:][matchday:] + _p[1:][:matchday]
+
             _schedule = [(_p[0], _p[1])]
             _schedule.extend((_p[2 + j], _p[-1 - j]) for j in range(len(_p) // 2 - 1))
             return _schedule
@@ -340,6 +363,9 @@ class Plugin(BasePlugin, SpaetzleUtils, name="Spaetzle-Tippspiel"):
     @cmd_spaetzle_set.command(name="participants")
     async def cmd_spaetzle_set_participants(self, ctx: Context, league: Literal[1, 2, 3, 4], *participants: str):
         participants = sorted(participants, key=lambda v: v.lower())
+        # evenizing length
+        if len(participants) % 2 != 0:
+            participants.append("__median")
 
         async def confirm(_b, _i):
             Storage().get(self)['participants'][league - 1] = participants
