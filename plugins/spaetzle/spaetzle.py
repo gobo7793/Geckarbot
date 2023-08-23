@@ -141,11 +141,23 @@ class Plugin(BasePlugin, SpaetzleUtils, name="Spaetzle-Tippspiel"):
 
     @cmd_spaetzle_setup.command(name="duels")
     async def cmd_spaetzle_setup_duels(self, ctx: Context):
-        def calculate_schedule(_participants: List[Optional[str]]):
+        def calculate_schedule(_participants: List[Optional[str]], league: int):
             seed = Config().get(self)['rng_seed']
             # evenizing length
             if len(_participants) % 2 != 0:
                 _participants.append("__median")
+            # additional manual shuffle as temporary fix
+            if league == 1:
+                _participants = [_participants[j] for j in (17, 3, 9, 5, 12, 15, 6, 16, 0,
+                                                            8, 10, 14, 7, 11, 2, 4, 13, 1)]
+            elif league == 2:
+                _participants = [_participants[j] for j in (15, 3, 9, 5, 12, 17, 6, 16, 0,
+                                                            8, 10, 14, 7, 11, 2, 4, 13, 1)]
+            elif league == 3:
+                _participants = [_participants[j] for j in (15, 3, 9, 5, 12, 16, 6, 17, 0,
+                                                            8, 10, 14, 7, 11, 2, 4, 13, 1)]
+            elif league == 4:
+                _participants = [_participants[j] for j in (7, 5, 8, 10, 6, 12, 11, 3, 0, 2, 9, 4, 1, 13)]
             # matchday shuffle
             matchday_range = list(range(len(_participants) - 1))
             random.Random(seed).shuffle(matchday_range)
@@ -194,7 +206,7 @@ class Plugin(BasePlugin, SpaetzleUtils, name="Spaetzle-Tippspiel"):
         participants = Storage().get(self)['participants']
         schedules = []
         for i in range(len(participants)):
-            schedules.append(schedule := calculate_schedule(participants[i]))
+            schedules.append(schedule := calculate_schedule(participants[i], league=i+1))
             embed.add_field(name=Lang.lang(self, 'league_x', i + 1), value="\n".join(f"{x} - {y}" for x, y in schedule))
         await ctx.send(embed=embed, view=SingleConfirmView(insert_to_spreadsheet, user_id=ctx.author.id,
                                                            confirm_label=Lang.lang(self, 'confirm'), data=schedules))
