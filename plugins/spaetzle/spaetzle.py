@@ -162,7 +162,7 @@ class Plugin(BasePlugin, SpaetzleUtils, name="Spaetzle-Tippspiel"):
             matchday_range = list(range(len(_participants) - 1))
             random.Random(seed).shuffle(matchday_range)
             matchday = (Storage().get(self)['matchday'] - 1) % 17
-            if matchday > len(matchday_range):
+            if matchday >= len(matchday_range):
                 # secondary shuffle
                 matchday %= len(matchday_range)
                 random.Random(seed).shuffle(matchday_range)
